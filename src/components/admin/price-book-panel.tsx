@@ -116,7 +116,7 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
                 <input
                   type="file"
                   className="qs-file"
-                  accept={s.pricing === "net" ? ".csv,text/csv" : ".pdf,application/pdf"}
+                  accept={s.file === "csv" ? ".csv,text/csv" : s.file === "xlsx" ? ".xlsx" : ".pdf,application/pdf"}
                   disabled={busy !== null}
                   onChange={(e) => {
                     const f = e.target.files?.[0];
@@ -152,9 +152,10 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
                   <em>{m.name}</em>
                 </span>
                 <span role="cell" className="qs-offers">
-                  {m.offers.map((o) => (
-                    <span key={o.supplierKey} className={m.offers.length > 1 && o === m.cheapest ? "qs-offer ok" : "qs-offer"}>
-                      <em>{o.supplierName}</em>
+                  {m.offers.map((o, i) => (
+                    /* offers come cheapest first */
+                    <span key={o.supplierKey} className={m.offers.length > 1 && i === 0 ? "qs-offer ok" : "qs-offer"}>
+                      <em>{o.pricedOn ? `${o.supplierName} on ${dateOf(o.pricedOn)}` : o.supplierName}</em>
                       {$(o.netCents)}
                     </span>
                   ))}

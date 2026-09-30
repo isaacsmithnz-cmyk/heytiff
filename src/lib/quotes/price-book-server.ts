@@ -48,6 +48,7 @@ export async function readSuppliers(orgId: string): Promise<SupplierView[]> {
       key: d.key,
       name: r.name || d.name,
       pricing: (r.pricing === "list_less" ? "list_less" : "net") as PricingKind,
+      file: d.file,
       discountPct: Number(r.discount_pct) || 0,
       rules: rulesOf(r.rules),
       fileName: r.file_name,
@@ -109,6 +110,9 @@ export async function importPriceRows(
       first_seen_at: had?.first_seen_at ?? now,
       last_import_at: now,
       current: true,
+      priced_on: r.pricedOn ?? null,
+      times_bought: r.timesBought ?? null,
+      qty_bought: r.qtyBought ?? null,
     };
   });
   for (let i = 0; i < upserts.length; i += CHUNK) {
@@ -148,7 +152,14 @@ export async function importPriceRows(
   return { read: rows.length, added, changed, gone: goneCodes.length };
 }
 
-export type BookItem = { supplierKey: string; code: string; name: string; cents: number };
+export type BookItem = {
+  supplierKey: string;
+  code: string;
+  name: string;
+  cents: number;
+  pricedOn: string | null;
+  timesBought: number | null;
+};
 
 /** Every current item in the book, a page at a time. */
 export async function currentItems(orgId: string): Promise<BookItem[]> {
@@ -156,15 +167,22 @@ export async function currentItems(orgId: string): Promise<BookItem[]> {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabaseAdmin
       .from("quote_price_items")
-      .select("supplier_key, code, name, cents")
+      .select("supplier_key, code, name, cents, priced_on, times_bought")
       .eq("org_id", orgId)
       .eq("current", true)
       .order("supplier_key")
       .order("code")
       .range(from, from + 999);
     if (error || !data) break;
-    for (const r of data as { supplier_key: string; code: string; name: string; cents: number }[]) {
-      out.push({ supplierKey: r.supplier_key, code: r.code, name: r.name, cents: r.cents });
+    for (const r of data as { supplier_key: string; code: string; name: string; cents: number; priced_on: string | null; times_bought: number | null }[]) {
+      out.push({
+        supplierKey: r.supplier_key,
+        code: r.code,
+        name: r.name,
+        cents: r.cents,
+        pricedOn: r.priced_on,
+        timesBought: r.times_bought,
+      });
     }
     if (data.length < 1000) break;
   }
@@ -189,13 +207,13 @@ export async function findOffers(orgId: string, query: string, suppliers: Suppli
   const words = q.toLowerCase().split(/\s+/).slice(0, 4);
   const { data: found } = await supabaseAdmin
     .from("quote_price_items")
-    .select("supplier_key, code, name, cents")
+    .select("supplier_key, code, name, cents, priced_on")
     .eq("org_id", orgId)
     .eq("current", true)
     .or(`code.ilike.%${words[0]}%,name.ilike.%${words[0]}%`)
     .order("code")
     .limit(400);
-  const data = ((found ?? []) as { supplier_key: string; code: string; name: string; cents: number }[]).filter((r) =>
+  const data = ((found ?? []) as { supplier_key: string; code: string; name: string; cents: number; priced_on: string | null }[]).filter((r) =>
     words.every((w) => `${r.code} ${r.name}`.toLowerCase().includes(w))
   );
   const byCode = new Map<string, { name: string; offers: Offer[] }>();
@@ -204,7 +222,14 @@ export async function findOffers(orgId: string, query: string, suppliers: Suppli
     const s = nameOf.get(r.supplier_key);
     if (!s) continue;
     const entry = byCode.get(r.code) ?? { name: r.name, offers: [] };
-    entry.offers.push({ supplierKey: s.key, supplierName: s.name, code: r.code, name: r.name, netCents: netCents(s, r.code, r.cents) });
+    entry.offers.push({
+      supplierKey: s.key,
+      supplierName: s.name,
+      code: r.code,
+      name: r.name,
+      netCents: netCents(s, r.code, r.cents),
+      pricedOn: r.priced_on,
+    });
     byCode.set(r.code, entry);
   }
   return [...byCode.entries()]

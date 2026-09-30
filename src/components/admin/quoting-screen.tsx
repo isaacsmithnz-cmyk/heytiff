@@ -10,6 +10,7 @@ import { profitSharePct, sellCents, type ComponentKey } from "@/lib/quotes/compo
 import type { ComponentItem, ComponentShortlist } from "@/lib/quotes/settings-query";
 import type { SupplierView } from "@/lib/quotes/price-book-server";
 import { PriceBook } from "./price-book-panel";
+import { LinksPanel } from "./links-panel";
 import { MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/settings";
 
 /* QUOTING — what a quote is priced by.
@@ -136,6 +137,8 @@ export function QuotingScreen({
             </section>
 
             <PriceBook suppliers={suppliers} onImported={() => router.refresh()} />
+
+            <LinksPanel />
 
             <section className="qs-group">
               <h2 className="qs-h">Preferred items</h2>

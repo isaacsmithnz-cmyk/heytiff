@@ -48,3 +48,27 @@ create index if not exists quote_price_items_org_code_idx on public.quote_price_
 
 alter table public.quote_suppliers enable row level security;
 alter table public.quote_price_items enable row level security;
+
+-- ── what an invoice says (2026-09-30) ─────────────────────────────────────
+-- The "Mitsubishi Electric, invoiced" supplier's items carry the date the
+-- price was charged and how often the business bought them: the price for a
+-- model the trade book doesn't list is only as good as its date.
+alter table public.quote_price_items add column if not exists priced_on date;
+alter table public.quote_price_items add column if not exists times_bought integer;
+alter table public.quote_price_items add column if not exists qty_bought numeric;
+
+-- ── the equipment pack's models, linked to their order codes ──────────────
+-- An exact or tag-only match links without asking (lib/quotes/code-links.ts);
+-- a near one (K for Wi-Fi, a newer build) waits for a person. Their answer is
+-- kept here, a rejection as much as a confirmation, so nothing is proposed
+-- twice.
+create table if not exists public.quote_code_links (
+  org_id      uuid not null references public.organizations(id) on delete cascade,
+  model       text not null,
+  code        text not null,
+  decision    text not null check (decision in ('confirmed', 'rejected')),
+  decided_by  text,
+  decided_at  timestamptz not null default now(),
+  primary key (org_id, model, code)
+);
+alter table public.quote_code_links enable row level security;

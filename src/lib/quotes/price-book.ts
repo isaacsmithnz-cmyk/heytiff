@@ -22,10 +22,14 @@ export type PricingKind = "net" | "list_less";
 /** A discount that applies to a range instead of the supplier's own. */
 export type DiscountRule = { prefix: string; discountPct: number };
 
+/** The file a supplier's prices come in. */
+export type FileKind = "csv" | "pdf" | "xlsx";
+
 export type Supplier = {
   key: string;
   name: string;
   pricing: PricingKind;
+  file: FileKind;
   /** list_less: taken off every list price */
   discountPct: number;
   /** list_less: a range with a different discount (PUMY at 48) */
@@ -34,17 +38,32 @@ export type Supplier = {
 
 /** The two the business buys from, as agreed 2026-09-30. */
 export const DEFAULT_SUPPLIERS: Supplier[] = [
-  { key: "aad", name: "AAD", pricing: "net", discountPct: 0, rules: [] },
+  { key: "aad", name: "AAD", pricing: "net", file: "csv", discountPct: 0, rules: [] },
   {
     key: "mitsubishi",
     name: "Mitsubishi Electric",
     pricing: "list_less",
+    file: "pdf",
     discountPct: 30,
     rules: [{ prefix: "PUMY", discountPct: 48 }],
   },
+  /* What Mitsubishi actually charged, from its tax invoices (the office's
+     workbook, "Current Net Prices"): the price for the City Multi indoor
+     units and older builds the trade book doesn't list, dated, with how
+     often each was bought. */
+  { key: "mitsubishi_invoiced", name: "Mitsubishi Electric, invoiced", pricing: "net", file: "xlsx", discountPct: 0, rules: [] },
 ];
 
-export type PriceRow = { code: string; name: string; cents: number };
+export type PriceRow = {
+  code: string;
+  name: string;
+  cents: number;
+  /** when this price was charged (an invoice's date), YYYY-MM-DD */
+  pricedOn?: string | null;
+  /** how many times it was bought, and how many in all */
+  timesBought?: number | null;
+  qtyBought?: number | null;
+};
 
 export type ParseResult = {
   rows: PriceRow[];
@@ -142,6 +161,44 @@ export function parseMitsubishiLines(lines: string[]): ParseResult {
   return dedupe(rows, skipped);
 }
 
+/** The invoice workbook's "Current Net Prices" sheet, as rows of cells by
+    column: model, description, latest unit price, latest invoice date (an
+    Excel date), lowest, highest, times invoiced, quantity bought. Rows
+    above the header ("Model / part no.") are the sheet's own notes. */
+export function parseInvoicedRows(
+  rows: Map<string, string | number | null>[],
+  excelDate: (serial: number) => string
+): ParseResult {
+  const out: PriceRow[] = [];
+  let skipped = 0;
+  let started = false;
+  for (const r of rows) {
+    const a = r.get("A");
+    if (!started) {
+      if (typeof a === "string" && /^model/i.test(a.trim())) started = true;
+      continue;
+    }
+    const price = r.get("C");
+    if (typeof a !== "string" || !a.trim()) continue;
+    if (typeof price !== "number" || !Number.isFinite(price)) {
+      skipped++;
+      continue;
+    }
+    const d = r.get("D");
+    const times = r.get("G");
+    const qty = r.get("H");
+    out.push({
+      code: a.trim(),
+      name: String(r.get("B") ?? a).replace(/\s+/g, " ").trim(),
+      cents: Math.round(price * 100),
+      pricedOn: typeof d === "number" ? excelDate(d) : null,
+      timesBought: typeof times === "number" ? Math.round(times) : null,
+      qtyBought: typeof qty === "number" ? qty : null,
+    });
+  }
+  return dedupe(out, skipped);
+}
+
 /** What the business pays for an item: the net price as sent, or the list
     price less the discount that applies to its range. */
 export function netCents(supplier: Supplier, code: string, cents: number): number {
@@ -153,12 +210,21 @@ export function netCents(supplier: Supplier, code: string, cents: number): numbe
 
 /** The supplier's pricing, in a few words, for the page. */
 export function pricingWords(s: Supplier): string {
+  if (s.file === "xlsx") return "What was charged, by invoice";
   if (s.pricing === "net") return "Net prices";
   const rules = s.rules.map((r) => `${r.prefix} less ${r.discountPct}%`).join(", ");
   return `List less ${s.discountPct}%${rules ? `, ${rules}` : ""}`;
 }
 
-export type Offer = { supplierKey: string; supplierName: string; code: string; name: string; netCents: number };
+export type Offer = {
+  supplierKey: string;
+  supplierName: string;
+  code: string;
+  name: string;
+  netCents: number;
+  /** the invoice date an invoiced price was charged on */
+  pricedOn?: string | null;
+};
 
 /** One model at every supplier that has it, cheapest first, with how much
     the cheapest saves on the next. */

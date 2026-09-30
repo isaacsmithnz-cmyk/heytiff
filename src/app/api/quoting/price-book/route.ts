@@ -1,7 +1,8 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { openPdf } from "@/lib/tiff/extract";
-import { parseAadCsv, parseMitsubishiLines, type ParseResult } from "@/lib/quotes/price-book";
+import { parseAadCsv, parseInvoicedRows, parseMitsubishiLines, type ParseResult } from "@/lib/quotes/price-book";
+import { excelDate, readSheet } from "@/lib/quotes/xlsx";
 import { findOffers, importPriceRows, readSuppliers } from "@/lib/quotes/price-book-server";
 
 /* The price book in Admin → Quoting: look a model up at every supplier
@@ -47,8 +48,10 @@ export async function POST(req: Request) {
 
   let parsed: ParseResult;
   try {
-    if (supplier.pricing === "net") {
+    if (supplier.file === "csv") {
       parsed = parseAadCsv(await file.text());
+    } else if (supplier.file === "xlsx") {
+      parsed = parseInvoicedRows(readSheet(Buffer.from(await file.arrayBuffer()), "Current Net Prices"), excelDate);
     } else {
       const pdf = await openPdf(new Uint8Array(await file.arrayBuffer()));
       try {

@@ -705,3 +705,61 @@ describe("a riser on a pipe's end (Isaac, 2026-09-30)", () => {
     expect((run.geometry as { points: Point[] }).points).toEqual([{ x: 0, y: 0 }, { x: 6, y: 0 }]);
   });
 });
+
+describe("a header with refrigeration tees (Isaac, 2026-09-30: headers go the company's way too)", () => {
+  it("is a row of N − 1 tees on each pipe, in place of the header", () => {
+    let doc = createDesign({ name: "header", mode: "blank" });
+    const floorId = doc.floors[0].id;
+    for (const [i, id] of ["za", "zb", "zc"].entries())
+      doc.objects.push({
+        id,
+        type: "room",
+        systemId: null,
+        floorId,
+        plane: "room",
+        geometry: { kind: "polygon", points: [{ x: i * 500, y: 400 }, { x: i * 500 + 400, y: 400 }, { x: i * 500 + 400, y: 800 }, { x: i * 500, y: 800 }] },
+        props: { name: id },
+      } as RoomObj as DesignObject);
+    const made = newSystem(doc, pack.meta.version);
+    const systemId = made.systemId;
+    doc = made.doc;
+    for (const id of ["za", "zb", "zc"]) doc = addHead(doc, pack, { systemId, zoneId: id, iduModel: vrfOf(40) });
+    doc = chooseOutdoor(doc, pack, "worst-of-both", systemId, "PUHY-P200YNW-A1");
+    const allocs = allocationsOf(doc.systems.find((s) => s.id === systemId)!);
+    const odu = allocs.find((a) => a.role === "odu")!;
+    const heads = allocs.filter((a) => a.role === "idu");
+    const pt = (id: string, x: number, y: number, props: Record<string, unknown>, type = "unit"): DesignObject =>
+      ({ id, type, systemId, floorId, geometry: { kind: "point", at: { x, y } }, plane: "room", props }) as DesignObject;
+    const run = (id: string, a: [string, string, number, number], b: [string, string, number, number]): DesignObject =>
+      ({
+        id,
+        type: "pipe-run",
+        systemId,
+        floorId,
+        geometry: { kind: "polyline", points: [{ x: a[2], y: a[3] }, { x: b[2], y: b[3] }] },
+        plane: "room",
+        props: { startAttach: { kind: a[0], id: a[1] }, endAttach: { kind: b[0], id: b[1] } },
+      }) as DesignObject;
+    doc = {
+      ...doc,
+      objects: [
+        ...doc.objects,
+        pt(odu.id, 0, 0, { role: "odu", model: odu.model }),
+        pt("H", 700, 0, {}, "joint"),
+        ...heads.map((h, i) => pt(h.id, i * 500 + 200, 600, { role: "idu", model: h.model })),
+        run("main", ["unit", odu.id, 0, 0], ["joint", "H", 700, 0]),
+        ...heads.map((h, i) => run(`b${i}`, ["joint", "H", 700, 0], ["unit", h.id, i * 500 + 200, 600])),
+      ],
+    };
+    const sys = () => doc.systems.find((s) => s.id === systemId)!;
+    expect(systemVrfTree(pack, sys(), doc)!.fittings.map((f) => f.kind)).toEqual(["header"]);
+    expect(installQuestions(doc, pack, sys()).map((q) => q.id)).toContain("branch-joints");
+    const teed = answerInstall(doc, systemId, "branch-joints", ["tees"]);
+    const rows = equipmentList(teed, pack, teed.systems.find((s) => s.id === systemId)!).rows;
+    expect(rows.some((r) => r.name === "Header")).toBe(false);
+    const tees = rows.filter((r) => r.name.startsWith("Refrigeration tee"));
+    // three branches: two tees on each pipe
+    expect(tees.reduce((n, r) => n + (r.qty ?? 0), 0)).toBe(4);
+    expect(tees.every((r) => r.why === "In place of the header: a row of tees, one branch off each")).toBe(true);
+  });
+});

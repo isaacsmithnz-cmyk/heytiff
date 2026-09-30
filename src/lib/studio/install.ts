@@ -391,8 +391,10 @@ const PIPEWORK_SPECS: QuestionSpec[] = [
     confirm: "what the pipes branch with",
     decides: { group: "Pipework", name: "Branch joints" },
     options: [
-      { id: "kits", label: "Branch kits", sub: "The maker's joints, by part", fragment: "the maker's branch kits" },
+      /* tees first: what Diamond Air usually fits (Isaac, 2026-09-30); the
+         other company may fit the maker's kits, so it stays a question */
       { id: "tees", label: "Refrigeration tees", sub: "A tee on each pipe, sized to it", fragment: "refrigeration tees" },
+      { id: "kits", label: "Branch kits", sub: "The maker's joints and headers, by part", fragment: "the maker's branch kits" },
     ],
   },
 ];
@@ -510,10 +512,14 @@ function applicableSpecs(context: Context): QuestionSpec[] {
   ];
 }
 
-/** a VRF whose pipework branches at a joint (not only headers and boxes) */
+/** a VRF whose pipework branches at a joint or a header (not only boxes) */
 function branchesAtJoints(context: Context): boolean {
   if (context.sys.type !== "vrf") return false;
-  return systemVrfTree(context.pack, context.sys, context.doc)?.fittings.some((f) => f.kind === "joint") ?? false;
+  return (
+    systemVrfTree(context.pack, context.sys, context.doc)?.fittings.some(
+      (f) => f.kind === "joint" || f.kind === "header"
+    ) ?? false
+  );
 }
 
 /* ─────────────────────────── rows ─────────────────────────── */
@@ -936,33 +942,46 @@ function vrfFittingRows(context: Context): EquipmentRow[] {
   const tree = systemVrfTree(context.pack, context.sys, context.doc);
   if (!tree) return [];
   /* tees answered alone: every joint is a tee on each pipe, sized to the
-     pipe in and the two out; asked both ways, the kits stay listed and the
-     question's note says to confirm */
+     pipe in and the two out, and a header of N branches is N − 1 tees in a
+     row on each pipe (Isaac, 2026-09-30: headers go the company's way too),
+     the inlet's size carried along it and one branch off each; asked both
+     ways, the kits stay listed and the question's note says to confirm */
   const branch = installAnswers(context.doc, context.sys)["branch-joints"] ?? [];
   const tees = branch.length === 1 && branch[0] === "tees";
   const teeRows: EquipmentRow[] = [];
   if (tees)
     for (const f of tree.fittings) {
-      if (f.kind !== "joint") continue;
+      if (f.kind !== "joint" && f.kind !== "header") continue;
       const into = tree.sections.find((x) => x.to === f.nodeId);
       const outs = tree.sections.filter((x) => x.from === f.nodeId);
-      if (!into || outs.length !== 2) continue;
+      if (!into || outs.length < 2 || (f.kind === "joint" && outs.length !== 2)) continue;
       for (const side of ["liquid", "gas"] as const) {
         const mm = (x: { liquidMm: number; gasMm: number }) => (side === "liquid" ? x.liquidMm : x.gasMm);
-        const sizes = [mm(into), ...outs.map(mm).sort((a, b) => b - a)].map((v) => tubeSize(v, "in"));
-        teeRows.push({
-          group: "Pipework",
-          name: side === "liquid" ? "Refrigeration tee, liquid" : "Refrigeration tee, gas",
-          model: sizes.join(" \u00d7 "),
-          qty: 1,
-          why: tree.drawn ? "In place of the branch kit: in, and the two out" : "Counted from the zones until the pipework is drawn",
-        });
+        const branches = outs.map(mm).sort((a, b) => b - a);
+        /* a joint is one tee; a header, a row of them: each takes one branch
+           off, the inlet's size running on until the last tee splits the
+           last two */
+        for (let i = 0; i < branches.length - 1; i++) {
+          const on = i < branches.length - 2 ? mm(into) : branches[branches.length - 1];
+          const sizes = [mm(into), ...[on, branches[i]].sort((a, b) => b - a)].map((v) => tubeSize(v, "in"));
+          teeRows.push({
+            group: "Pipework",
+            name: side === "liquid" ? "Refrigeration tee, liquid" : "Refrigeration tee, gas",
+            model: sizes.join(" \u00d7 "),
+            qty: 1,
+            why: !tree.drawn
+              ? "Counted from the zones until the pipework is drawn"
+              : f.kind === "header"
+                ? "In place of the header: a row of tees, one branch off each"
+                : "In place of the branch kit: in, and the two out",
+          });
+        }
       }
     }
   const byPart = new Map<string, { kind: "joint" | "header" | "box"; n: number }>();
   for (const f of tree.fittings) {
     if (!f.part) continue;
-    if (tees && f.kind === "joint") continue;
+    if (tees && (f.kind === "joint" || f.kind === "header")) continue;
     const cur = byPart.get(f.part);
     if (cur) cur.n++;
     else byPart.set(f.part, { kind: f.kind, n: 1 });

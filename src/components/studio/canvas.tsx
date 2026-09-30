@@ -3953,6 +3953,8 @@ export function StudioCanvas({
           }
       : tool === "joint"
         ? { icon: "pipe", text: "Click a run to branch it there, or anywhere to place a joint" }
+      : tool === "riser"
+        ? { icon: "pipe", text: "Click a pipe to put the riser in it, or anywhere to place one. Risers with the same letter join the floors" }
       : tool === "branch-box"
         ? { icon: "pipe", text: "Click where the branch box goes, then run each head's pipe to it" }
       : tool === "note"
@@ -4802,14 +4804,16 @@ export function StudioCanvas({
           {/* connection anchors — visible while piping; nearest one glows
               BEFORE the click (pre-click snap feedback). A refrigerant run's
               end over another run shows the joint it will make there. */}
-          {(isRunTool(tool) || tool === "joint") &&
+          {/* the Riser tool shows the same: where on a pipe it will go in
+              (Isaac, 2026-09-30: "it doesn't show you where you can connect") */}
+          {(isRunTool(tool) || tool === "joint" || tool === "riser") &&
             (() => {
-              const near = cursor && tool !== "joint" ? nearestAnchor(cursor) : null;
+              const near = cursor && tool !== "joint" && tool !== "riser" ? nearestAnchor(cursor) : null;
               const landing =
-                cursor && !near && (tool === "pipe" || tool === "joint") ? runLanding(cursor) : null;
+                cursor && !near && (tool === "pipe" || tool === "joint" || tool === "riser") ? runLanding(cursor) : null;
               const half = 6 / zoom;
               return [
-                ...(tool === "joint"
+                ...(tool === "joint" || tool === "riser"
                   ? []
                   : anchors.map((a) => (
                       <circle
@@ -4822,14 +4826,18 @@ export function StudioCanvas({
                     ))),
                 ...(landing
                   ? [
-                      <rect
-                        key="landing"
-                        className="ds-anchor ready"
-                        x={landing.at.x - half}
-                        y={landing.at.y - half}
-                        width={half * 2}
-                        height={half * 2}
-                      />,
+                      tool === "riser" ? (
+                        <circle key="landing" className="ds-anchor ready" cx={landing.at.x} cy={landing.at.y} r={10 / zoom} />
+                      ) : (
+                        <rect
+                          key="landing"
+                          className="ds-anchor ready"
+                          x={landing.at.x - half}
+                          y={landing.at.y - half}
+                          width={half * 2}
+                          height={half * 2}
+                        />
+                      ),
                     ]
                   : []),
               ];

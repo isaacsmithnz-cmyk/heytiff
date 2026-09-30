@@ -287,8 +287,25 @@ export function VrfSchematic({
   const risersOf = (() => {
     const graph = buildSystemGraph(doc.objects, doc.floors, sys.id);
     const floorName = (id: string | undefined) => doc.floors.find((f) => f.id === id)?.name ?? "a floor";
-    const out = new Map<string, { group: string; lengthM: number; manual: boolean; from: string; to: string }[]>();
-    for (const sec of tree.sections)
+    const out = new Map<
+      string,
+      { group: string; lengthM: number; manual: boolean; from: string; to: string; pieces: string }[]
+    >();
+    for (const sec of tree.sections) {
+      /* the section's pipe on each floor, apart from the riser itself, so
+         the run from the riser to the next junction reads on its own
+         (Isaac, 2026-09-30: "I can't see the distance between riser A and
+         the next junction") */
+      const perFloor = new Map<string, number>();
+      for (const e of sec.edges) {
+        const run = doc.objects.find((o) => o.id === e && o.type === "pipe-run");
+        const m = graph.edges.find((x) => x.id === e)?.lengthM;
+        if (run && m != null) perFloor.set(run.floorId, (perFloor.get(run.floorId) ?? 0) + m);
+      }
+      const pieces = [...perFloor]
+        .filter(([, m]) => m > 0.05)
+        .map(([f, m]) => `${Math.round(m * 10) / 10} m on ${floorName(f)}`)
+        .join(", ");
       for (const e of sec.edges) {
         if (!e.startsWith("riser-gap:")) continue;
         const g = graph.edges.find((x) => x.id === e);
@@ -305,9 +322,11 @@ export function VrfSchematic({
             manual: manualRiserM(lower) != null,
             from: floorName((up ? lower : upper).floorId),
             to: floorName((up ? upper : lower).floorId),
+            pieces,
           },
         ]);
       }
+    }
     return out;
   })();
   const floorOf = (id: string) => {
@@ -398,6 +417,11 @@ export function VrfSchematic({
                     <text className="len" x={14} y={4}>
                       {`Riser ${rz.group}, ${Math.round(rz.lengthM * 10) / 10} m`}
                     </text>
+                    {k === 0 && rz.pieces && (
+                      <text className="pieces" x={14} y={18}>
+                        {rz.pieces}
+                      </text>
+                    )}
                   </g>
                 ))}
               </g>
@@ -578,6 +602,12 @@ export function VrfSchematic({
                     </dd>
                   </div>
                 ))}
+                {(risersOf.get(pickedSection.id)?.[0]?.pieces ?? "") && (
+                  <div>
+                    <dt>Pipe on the floors</dt>
+                    <dd>{risersOf.get(pickedSection.id)![0].pieces}</dd>
+                  </div>
+                )}
               </>
             )}
             {pickedFitting && (

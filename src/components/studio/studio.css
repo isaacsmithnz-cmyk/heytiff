@@ -10123,6 +10123,10 @@ html[data-ds-display] .dstudio.editing {
   fill: var(--ink);
   font: 600 12px var(--font);
 }
+:is(.dstudio, .ds-sb) .ds-schem-riser text.pieces {
+  fill: var(--q);
+  font: 500 12px var(--font);
+}
 /* a unit's or box's height against the outdoor (the lift limits) */
 :is(.dstudio, .ds-sb) .ds-schem-head text.lvl,
 :is(.dstudio, .ds-sb) .ds-schem-box text.lvl {

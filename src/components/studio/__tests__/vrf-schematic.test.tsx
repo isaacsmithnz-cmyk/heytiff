@@ -86,6 +86,8 @@ describe("the Schematic with a riser", () => {
     const { rerender } = render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
     expect(screen.getByText("Riser A, 3 m")).toBeTruthy();
     expect(screen.getByText("Level 1, +3 m")).toBeTruthy();
+    // the pipe on each floor, apart from the riser
+    expect(screen.getByText("5 m on Ground floor, 5 m on Level 1")).toBeTruthy();
     const tall = setRiserHeight(doc, "r0", 6);
     rerender(<VrfSchematic doc={tall} pack={pack} sys={sys} units="in" />);
     expect(screen.getByText("Riser A, 6 m")).toBeTruthy();

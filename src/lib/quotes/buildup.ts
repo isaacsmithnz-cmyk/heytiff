@@ -71,9 +71,15 @@ export const DEFAULT_BUILD_SETTINGS: BuildSettings = {
 export type PricedLine = BuildLine & { buyCents: number; sellCents: number };
 export type PricedGroup = { name: string; lines: PricedLine[]; buyCents: number; sellCents: number };
 
+/** A hard job's loading on its labour, with the reason it's there (3304: a
+    pool-room swap with a scissor lift and commercial ductwork). Kept on the
+    quote as a decision, never shown to the client as a line. */
+export type Loading = { pct: number; reason: string };
+
 export type BuildUp = {
   groups: PricedGroup[];
   contingency: { buyCents: number; sellCents: number; hours: number } | null;
+  loading: (Loading & { sellCents: number }) | null;
   labour: { personDays: number; hours: number; sellCents: number; visits: (Visit & { personDays: number; sellCents: number })[] };
   buyCents: number;
   exGstCents: number;
@@ -85,7 +91,12 @@ const markup = (cents: number, pct: number) => Math.round(cents * (1 + pct / 100
 
 /** Every line priced, grouped in the order they first appear, with the
     contingency and the visits added up. */
-export function priceBuildUp(lines: BuildLine[], visits: Visit[], s: BuildSettings = DEFAULT_BUILD_SETTINGS): BuildUp {
+export function priceBuildUp(
+  lines: BuildLine[],
+  visits: Visit[],
+  s: BuildSettings = DEFAULT_BUILD_SETTINGS,
+  loadingIn: Loading | null = null
+): BuildUp {
   const groups: PricedGroup[] = [];
   let buy = 0;
   let sell = 0;
@@ -117,13 +128,19 @@ export function priceBuildUp(lines: BuildLine[], visits: Visit[], s: BuildSettin
   });
   const personDays = visitRows.reduce((a, v) => a + v.personDays, 0);
   const hours = contingency?.hours ?? 0;
-  const labourSell = visitRows.reduce((a, v) => a + v.sellCents, 0) + Math.round(hours * s.labourRateCents);
+  const visitsSell = visitRows.reduce((a, v) => a + v.sellCents, 0);
+  const labourSell = visitsSell + Math.round(hours * s.labourRateCents);
+  const loading =
+    loadingIn && loadingIn.pct > 0 && loadingIn.reason.trim()
+      ? { pct: loadingIn.pct, reason: loadingIn.reason.trim(), sellCents: Math.round((visitsSell * loadingIn.pct) / 100) }
+      : null;
 
-  const exGst = sell + labourSell;
+  const exGst = sell + labourSell + (loading?.sellCents ?? 0);
   const gst = Math.round(exGst / 10);
   return {
     groups,
     contingency,
+    loading,
     labour: { personDays, hours, sellCents: labourSell, visits: visitRows },
     buyCents: buy,
     exGstCents: exGst,

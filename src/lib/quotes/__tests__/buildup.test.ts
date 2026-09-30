@@ -31,6 +31,16 @@ describe("job 2330", () => {
     expect(b.incGstCents - b.exGstCents).toBe(b.gstCents);
   });
 
+  it("a hard job's loading goes on the visits' labour, and only with a reason", () => {
+    const lines = ductedLines(job2330, priceOf).lines;
+    const visits = [{ stage: "Install" as const, people: 5, days: 1 }, { stage: "Fit-off" as const, people: 2, days: 1 }];
+    const plain = priceBuildUp(lines, visits);
+    const loaded = priceBuildUp(lines, visits, undefined, { pct: 15, reason: "scissor lift, commercial ductwork" });
+    expect(loaded.loading).toEqual({ pct: 15, reason: "scissor lift, commercial ductwork", sellCents: Math.round(7 * 132000 * 0.15) });
+    expect(loaded.exGstCents - plain.exGstCents).toBe(138600);
+    expect(priceBuildUp(lines, visits, undefined, { pct: 15, reason: " " }).loading).toBeNull();
+  });
+
   it("the linear kit brings its receiver, a sensor and batteries per zone", () => {
     const r = ductedLines({ ...job2330, zoning: "meLinear" }, priceOf);
     const codes = r.lines.map((l) => [l.code ?? l.key, l.qty]);

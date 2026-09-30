@@ -1915,10 +1915,8 @@ function Editor({
               <button
                 key={t.step}
                 className={`ds-step${step === t.step ? " active" : ""}`}
-                data-tab={t.label.toLowerCase()}
                 onClick={() => onStep(t.step)}
               >
-                <span className="ds-step-dot" aria-hidden="true" />
                 {t.label}
               </button>
             ))}

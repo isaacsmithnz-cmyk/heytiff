@@ -10,7 +10,7 @@ import type {
   PlanImportSource,
 } from "@/lib/studio/document";
 import { createPortal } from "react-dom";
-import { DEFAULT_FLOOR_HEIGHT_M } from "@/lib/studio/graph";
+import { DEFAULT_FLOOR_HEIGHT_M, setFloorHeight } from "@/lib/studio/graph";
 import {
   applyBuilderRows,
   builderRowsFromFloors,
@@ -757,15 +757,7 @@ export function PlansPanel({
                     aria-label={`${f.name} height, floor to the floor above, metres`}
                     onChange={(e) => {
                       const m = e.target.value === "" ? null : Number(e.target.value);
-                      onMutate((d) => ({
-                        ...d,
-                        floors: d.floors.map((fl) => {
-                          if (fl.id !== f.id) return fl;
-                          const { heightM: _old, ...rest } = fl;
-                          void _old;
-                          return m != null && Number.isFinite(m) && m > 0 ? { ...rest, heightM: m } : rest;
-                        }),
-                      }));
+                      onMutate((d) => setFloorHeight(d, f.id, m));
                     }}
                   />
                   <span>m</span>

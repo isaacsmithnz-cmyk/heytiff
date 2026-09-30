@@ -99,6 +99,19 @@ export const mountOf = (o: DesignObject): number => {
   return Number.isFinite(v) ? v : 0;
 };
 
+/** set a floor's storey height (null or not above 0 clears it to the default) */
+export function setFloorHeight(doc: DesignDocument, floorId: string, m: number | null): DesignDocument {
+  return {
+    ...doc,
+    floors: doc.floors.map((f) => {
+      if (f.id !== floorId) return f;
+      const { heightM: _old, ...rest } = f;
+      void _old;
+      return m != null && Number.isFinite(m) && m > 0 ? { ...rest, heightM: m } : rest;
+    }),
+  };
+}
+
 /** set a placed object's height above its floor (null clears it to 0) */
 export function setMount(doc: DesignDocument, id: string, m: number | null): DesignDocument {
   return {

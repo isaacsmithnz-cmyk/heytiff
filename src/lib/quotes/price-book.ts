@@ -211,17 +211,18 @@ const HEADINGS: { field: "code" | "name" | "price" | "date" | "times" | "qty" | 
 ];
 
 type Row = Map<string, string | number | null>;
+type Columns = Partial<Record<(typeof HEADINGS)[number]["field"], string>>;
 
 /** A sheet's price rows, found by their headings: code, description,
     price, and — when there — the date it was charged, how often and how
     many were bought, and the unit it's sold by. */
 export function parseHeadedRows(rows: Row[], excelDate: (serial: number) => string): ParseResult {
-  let cols: Partial<Record<(typeof HEADINGS)[number]["field"], string>> | null = null;
+  let cols: Columns | null = null;
   const out: PriceRow[] = [];
   let skipped = 0;
   for (const r of rows) {
     if (!cols) {
-      const found: typeof cols = {};
+      const found: Columns = {};
       for (const [col, v] of r) {
         if (typeof v !== "string") continue;
         const h = HEADINGS.find((x) => x.test.test(v.trim()) && !found[x.field]);

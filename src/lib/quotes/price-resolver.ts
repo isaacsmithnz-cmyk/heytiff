@@ -6,7 +6,9 @@ import type { PriceOf, Priced } from "./ducted-template";
 
    Every supplier that sells the code — and every supplier selling a part a
    person confirmed as the same one under another code (AAD's PC1412 is
-   Reece's 9800006-1) — is a candidate, at what the business pays (a net
+   Reece's 9800006-1), and Mitsubishi's own Thai-built code for the same
+   model (AAD's PUZ-ZM140YKA2 is Mitsubishi's PUZ-ZM140YKA2-A.TH) — is a
+   candidate, at what the business pays (a net
    price as sent, a list price less the discount). The business's own choice
    wins where there is one (Preferred items, a unit bought from a named
    supplier); otherwise the lowest price that is a price: $0.00 is an item
@@ -26,6 +28,15 @@ export type ResolverInput = {
   chosenSupplier?: Map<string, string>;
 };
 
+/* Mitsubishi Electric's price list writes a model the way the factory does —
+   PUZ-ZM140YKA2-A.TH, PEAD-M140JAADR1.TH — where a wholesaler writes
+   PUZ-ZM140YKA2, PEAD-M140JAAD. Without this, 3372's outdoor was priced at
+   AAD's $3,551.55 over Mitsubishi's invoiced $3,062.50. Only a ".TH" code
+   is ever paired this way, and only with a code that isn't one. */
+const isTh = (code: string) => /\.TH$/i.test(code);
+export const modelKey = (code: string) =>
+  code.toUpperCase().replace(/\.TH$/, "").replace(/(-A|R\d)$/, "");
+
 export function makePriceOf(input: ResolverInput): PriceOf {
   const sup = new Map(input.suppliers.map((s) => [s.key, s]));
   /* confirmed pairs only: a supplier's pack sizes (Reece's -1 coil and -2
@@ -37,9 +48,14 @@ export function makePriceOf(input: ResolverInput): PriceOf {
   }
   const byRef = new Map(input.items.map((i) => [refOf(i), i]));
   const byCode = new Map<string, BookRow[]>();
-  for (const i of input.items) byCode.set(i.code, [...(byCode.get(i.code) ?? []), i]);
+  const byModel = new Map<string, BookRow[]>();
+  for (const i of input.items) {
+    byCode.set(i.code, [...(byCode.get(i.code) ?? []), i]);
+    byModel.set(modelKey(i.code), [...(byModel.get(modelKey(i.code)) ?? []), i]);
+  }
   return (code: string): Priced | null => {
     const partners = new Set<BookRow>(byCode.get(code) ?? []);
+    for (const r of byModel.get(modelKey(code)) ?? []) if (isTh(r.code) !== isTh(code)) partners.add(r);
     const walk = [...partners].map(refOf);
     const seen = new Set(walk);
     while (walk.length) {

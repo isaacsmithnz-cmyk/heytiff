@@ -3,12 +3,14 @@
    A quote's price is built, never typed: every unit and component is a line
    priced from the price book (units at the unit markup, everything else at
    the materials markup), labour is the site visits added up (each a stage,
-   people and hours, at the labour rate — travel is inside the rate), and
-   the duct contingency covers what a layout almost always changes into on
-   site: a share of the ductwork and grilles, and a couple of hours.
+   people and days, at the day rate — travel is inside it), and the duct
+   contingency covers what a layout almost always changes into on site: a
+   share of the ductwork and grilles, and a couple of hours at the hourly
+   rate.
 
-   Tested against real jobs (2026-09-30): job 2330, a 12.5 kW Mitsubishi HAA
-   with five zones, builds to $15,185.27 ex GST — see the tests.
+   Labour is counted as ServiceM8's quotes count it: "Labour HVAC" is one
+   person for one day at $1,320, in half days (1.5 for a small wall split).
+   Tested against 40-odd real jobs — see past-jobs.test.ts.
 
    Pure: the quote screen, the proposal's price and the tests all read the
    same sums. */
@@ -40,11 +42,15 @@ export type BuildLine = {
 export type VisitStage = "Site measure" | "Rough-in" | "Install" | "Fit-off" | "Commissioning" | "Return";
 export const VISIT_STAGES: VisitStage[] = ["Site measure", "Rough-in", "Install", "Fit-off", "Commissioning", "Return"];
 
-export type Visit = { stage: VisitStage; people: number; hours: number };
+/** A trip to site: how many people, for how many days (halves allowed). */
+export type Visit = { stage: VisitStage; people: number; days: number };
 
 export type BuildSettings = {
   unitMarkupPct: number;
   materialMarkupPct: number;
+  /** one person for one day on site — ServiceM8's "Labour HVAC" */
+  dayRateCents: number;
+  /** by the hour, for the contingency's hours */
   labourRateCents: number;
   /** the duct contingency: a share of the duct lines, and hours on top */
   contingencyPct: number;
@@ -53,8 +59,9 @@ export type BuildSettings = {
 };
 
 export const DEFAULT_BUILD_SETTINGS: BuildSettings = {
-  unitMarkupPct: 20,
+  unitMarkupPct: 25,
   materialMarkupPct: 40,
+  dayRateCents: 132000,
   labourRateCents: 14000,
   contingencyPct: 15,
   contingencyHours: 2,
@@ -67,7 +74,7 @@ export type PricedGroup = { name: string; lines: PricedLine[]; buyCents: number;
 export type BuildUp = {
   groups: PricedGroup[];
   contingency: { buyCents: number; sellCents: number; hours: number } | null;
-  labour: { hours: number; sellCents: number; visits: (Visit & { hoursTotal: number; sellCents: number })[] };
+  labour: { personDays: number; hours: number; sellCents: number; visits: (Visit & { personDays: number; sellCents: number })[] };
   buyCents: number;
   exGstCents: number;
   gstCents: number;
@@ -105,18 +112,19 @@ export function priceBuildUp(lines: BuildLine[], visits: Visit[], s: BuildSettin
   }
 
   const visitRows = visits.map((v) => {
-    const hoursTotal = Math.max(0, v.people) * Math.max(0, v.hours);
-    return { ...v, hoursTotal, sellCents: Math.round(hoursTotal * s.labourRateCents) };
+    const personDays = Math.max(0, v.people) * Math.max(0, v.days);
+    return { ...v, personDays, sellCents: Math.round(personDays * s.dayRateCents) };
   });
-  const hours = visitRows.reduce((a, v) => a + v.hoursTotal, 0) + (contingency?.hours ?? 0);
-  const labourSell = Math.round(hours * s.labourRateCents);
+  const personDays = visitRows.reduce((a, v) => a + v.personDays, 0);
+  const hours = contingency?.hours ?? 0;
+  const labourSell = visitRows.reduce((a, v) => a + v.sellCents, 0) + Math.round(hours * s.labourRateCents);
 
   const exGst = sell + labourSell;
   const gst = Math.round(exGst / 10);
   return {
     groups,
     contingency,
-    labour: { hours, sellCents: labourSell, visits: visitRows },
+    labour: { personDays, hours, sellCents: labourSell, visits: visitRows },
     buyCents: buy,
     exGstCents: exGst,
     gstCents: gst,
@@ -187,5 +195,7 @@ export function wallBracketCode(outdoorWidthMm: number | null, outdoorWeightKg: 
   return "CWB180";
 }
 
-/** Colorbond trunking: whole 2.4 m lengths, cut on site, no fittings. */
-export const trunkingLengths = (metres: number) => Math.max(0, Math.ceil(metres / 2.4 - 1e-9));
+/** Colorbond trunking: 2.4 m lengths cut on site, no fittings, charged by
+    the half length (a wall split's run is 1.5 of them; the rest of the
+    length goes on the next job). */
+export const trunkingLengths = (metres: number) => Math.max(0, Math.ceil(metres / 1.2 - 1e-9) / 2);

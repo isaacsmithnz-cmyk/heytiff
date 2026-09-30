@@ -17,10 +17,11 @@ export type QuoteSettings = {
   preferred: Partial<Record<ComponentKey, Preferred>>;
 };
 
-/** 20 on units, 40 on materials: checked against job 3343, where they land
-    within 2% of the price that was quoted by hand. */
+/** 25 on units, 40 on materials: what ServiceM8's catalogue carries on
+    units today, and the pair that lands 23 real quotes closest with no lean
+    either way (mean +0.1%, see past-jobs.test.ts). */
 export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
-  unitMarkupPct: 20,
+  unitMarkupPct: 25,
   materialMarkupPct: 40,
   dayHours: 8,
   preferred: {},

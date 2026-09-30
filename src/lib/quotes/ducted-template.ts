@@ -7,23 +7,32 @@ import {
   wallBracketCode,
   type BuildLine,
   type ReturnSize,
+  type Visit,
 } from "./buildup";
+import { CONSUMABLES_CENTS, PAIR_COIL_ROLL, VOLTEX_35A_CENTS, type SplitFacts } from "./split-template";
 
 /* A DUCTED SYSTEM WITHOUT A DRAWING — the lines a brief like "12.5 kW
    Mitsubishi HAA, five zones, bar grilles in the bulkheads, one return in
    the hallway" turns into, priced from the price book.
 
-   Each rule here came from Isaac on a real job (2026-09-30):
-   - trunks off the nose cone, BTOs and Ys by AAD code (job 2330);
+   Isaac's own ducted quotes carry one kit (3283, 3372, 1170): two standard
+   plenums, each feeding a run of three BTOs (14-14-12, 14-14-10, 14-10-10)
+   on 14 and 12 inch flex, a 10 inch bag per outlet, cone diffusers,
+   the return box and its filter, a 20 m roll of pair coil, the unit hung
+   on timber and threaded rod, a 20 mm PVC drain, one rubber mount, a Voltex
+   isolator, two lengths of trunking and the consumables. Labour 4
+   person-days.
+
+   Each rule besides came from Isaac on a real job (2026-09-30):
+   - trunks off the nose cone instead, BTOs and Ys by AAD code (job 2330);
    - a Red Zone damper (24 V, MDM…L) and a Red Zone cable per zone;
    - the Mitsubishi linear kit from its brochure: interface by zone count,
      one main controller, a receiver for any wireless device, a sensor per
      zone, batteries not included (2 × AAA a sensor);
    - custom linear grilles from Airfoil by length, each with its JH box;
-   - the return sized by the unit's airflow at about 2 m/s, the box with the
-     unit's two return runs;
+   - the return sized by the unit's airflow at about 2 m/s;
    - the wall bracket by the outdoor's size, not only its weight;
-   - Colorbond trunking in whole 2.4 m lengths, no fittings;
+   - Colorbond trunking by the half length, no fittings;
    - no drip tray — that's the installer's call on site.
    What a person hasn't said is assumed, and each assumption says so. */
 
@@ -37,37 +46,62 @@ export type DuctedFacts = {
   outdoorWidthMm: number | null;
   outdoorWeightKg: number | null;
   threePhase: boolean;
+  /** "plenums" (Isaac's standard) or off the unit's nose cone (2330) */
+  supply?: "plenums" | "noseCone";
   /** the unit's supply adaptor, e.g. NCMIT100HAA (2 × 350) */
-  noseCone: string;
+  noseCone?: string;
   zones: number;
+  /** supply outlets; one per zone unless a zone has two */
+  outlets?: number;
   zoneMm: number;
   zoning: "me24" | "meLinear" | "none";
-  grilles: "stock" | "custom";
+  grilles: "stock" | "custom" | "cone";
   /** custom grilles only: their length band */
   customBand?: "1.5" | "3.0" | "3.0+";
   /** the indoor's airflow, from the data pack */
   airflowLs: number | null;
   /** a return size a person chose over the recommendation */
   returnSize?: ReturnSize | null;
+  pipe?: SplitFacts["pipe"];
   pipeM: number | null;
-  /** the preferred pair coil's code and what one metre of it costs */
-  pairCoil: { code: string; perMetreCents: number };
-  powerM: number | null;
-  interconnectM: number | null;
-  trunkingM: number;
+  /** only when the job runs a new circuit */
+  powerM?: number | null;
+  /** only when it's more than the consumables cover */
+  interconnectM?: number | null;
+  mount?: "ground" | "wall";
+  /** the indoor hung from the roof on timber and threaded rod */
+  hang?: boolean;
+  trunkingM?: number | null;
 };
 
-const ASSUME = { pipeM: 15, powerM: 20, interconnectM: 15 };
+const ASSUME = { pipeM: 15, trunkingM: 4.8 };
+const TIMBER_CENTS = 1834;
+const PLENUM_CENTS = 5500;
 
 const RETURN_GRILLE: Record<string, string> = { "900x400": "ECF9040", "900x450": "NECF9045", "900x500": "ECF9050", "900x550": "NECF9055", "750x550": "NECF7555" };
-const RETURN_BOX_2X400: Record<string, string> = { "900x400": "MRA9040-40X2", "900x450": "MRA9045-2X40", "900x500": "MRA9050-40X2", "900x550": "MRA9055-40X2" };
+const RETURN_BOX_2X400: Record<string, string> = {
+  "900x400": "MRA9040-40X2",
+  "900x450": "MRA9045-2X40",
+  "900x500": "MRA9050-40X2",
+  "900x550": "MRA9055-40X2",
+  "750x550": "MRA7555-40X2",
+};
 const sizeKey = (r: ReturnSize) => `${r.wMm}x${r.hMm}`;
+
+/** A plenum run's BTOs for the outlets it feeds (up to three). */
+export function plenumRunFittings(outlets: number, zoneMm = 250): string[] {
+  const z = String((({ 150: 6, 200: 8, 250: 10, 300: 12 }) as Record<number, number>)[zoneMm] ?? 10).padStart(2, "0");
+  if (outlets >= 3) return ["MB141412", `MB1414${z}`, `MB14${z}${z}`];
+  if (outlets === 2) return [`MB1414${z}`, `MB14${z}${z}`];
+  return [];
+}
 
 export type DuctedResult = { lines: BuildLine[]; missing: string[]; returnSize: ReturnSize | null; returnMs: number | null };
 
 export function ductedLines(f: DuctedFacts, priceOf: PriceOf): DuctedResult {
   const lines: BuildLine[] = [];
   const missing: string[] = [];
+  const DUCT = "Ductwork and grilles";
   const add = (
     key: string,
     group: string,
@@ -90,8 +124,9 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf): DuctedResult {
   add("indoor", "Units", f.indoor, 1, "unit");
   add("outdoor", "Units", f.outdoor, 1, "unit", { swap: "outdoor" });
 
-  /* zoning */
+  /* zoning — or the unit's own controller when there is none */
   const z = Math.max(0, Math.round(f.zones));
+  const outlets = Math.max(z, Math.round(f.outlets ?? z));
   if (f.zoning === "me24") add("zone-kit", "Zoning", "PAC-ZC80L-E", 1, "material", { swap: "zoning" });
   if (f.zoning === "meLinear") {
     add("zone-kit", "Zoning", z > 4 ? "PAC-ZC10L240C-A" : "PAC-ZC04L240C-A", 1, "material", { swap: "zoning" });
@@ -104,64 +139,93 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf): DuctedResult {
     add("zone-dampers", "Zoning", `MDM${f.zoneMm}L`, z, "material");
     add("zone-cables", "Zoning", "RZCAB12", z, "material", { because: "a cable per zone, motor to kit" });
   }
+  if (f.zoning === "none") add("controller", "Zoning", "PAR-41MAAM", 1, "material", { because: "no zone kit, so the unit's own wall controller" });
 
-  /* supply ductwork: nose cone, trunks, fittings by code, flex */
-  const trunks = ductTrunks(z, f.zoneMm);
-  add("nose-cone", "Ductwork and grilles", f.noseCone, 1, "material", { duct: true });
+  /* supply ductwork */
   const fittings = new Map<string, number>();
-  for (const t of trunks) for (const c of t.fittings) fittings.set(c, (fittings.get(c) ?? 0) + 1);
-  for (const [c, n] of fittings) add(`fitting-${c}`, "Ductwork and grilles", c, n, "material", { duct: true });
-  const threes = trunks.filter((t) => t.zones === 3).length;
-  add("flex-350", "Ductwork and grilles", "VB350", Math.ceil(trunks.length / 2), "material", { duct: true });
-  if (threes > 0) add("flex-300", "Ductwork and grilles", "VB300", Math.ceil(threes / 2), "material", { duct: true });
-  add(`flex-${f.zoneMm}`, "Ductwork and grilles", `VB${f.zoneMm}`, z, "material", { duct: true, assumed: "6 m per zone" });
+  const bags = new Map<string, number>();
+  const bag = (mm: number, n: number) => bags.set(`VB${mm}`, (bags.get(`VB${mm}`) ?? 0) + n);
+  if ((f.supply ?? "plenums") === "plenums") {
+    const runs = Math.ceil(outlets / 3);
+    allowance("plenums", DUCT, "Plenum, standard (JH)", runs, PLENUM_CENTS, { duct: true });
+    let left = outlets;
+    for (let r = 0; r < runs; r++) {
+      const take = Math.ceil(left / (runs - r));
+      left -= take;
+      for (const c of plenumRunFittings(take, f.zoneMm)) fittings.set(c, (fittings.get(c) ?? 0) + 1);
+      bag(350, 1);
+      if (take >= 3) bag(300, 1);
+    }
+  } else {
+    if (f.noseCone) add("nose-cone", DUCT, f.noseCone, 1, "material", { duct: true });
+    else missing.push("nose cone");
+    const trunks = ductTrunks(outlets, f.zoneMm);
+    for (const t of trunks) for (const c of t.fittings) fittings.set(c, (fittings.get(c) ?? 0) + 1);
+    bag(350, Math.ceil(trunks.length / 2));
+    const threes = trunks.filter((t) => t.zones === 3).length;
+    if (threes > 0) bag(300, Math.ceil(threes / 2));
+  }
+  for (const [c, n] of fittings) add(`fitting-${c}`, DUCT, c, n, "material", { duct: true });
+  for (const [c, n] of bags) add(`flex-${c}`, DUCT, c, n, "material", { duct: true });
+  add(`flex-outlets`, DUCT, `VB${f.zoneMm}`, outlets, "material", { duct: true, assumed: "a 6 m bag per outlet" });
 
-  /* grilles */
+  /* outlets */
   if (f.grilles === "stock") {
-    add("grilles", "Ductwork and grilles", "BG10514", z, "material", { duct: true, swap: "grilles" });
-    add("grille-boxes", "Ductwork and grilles", "CHB10514", z, "material", { duct: true });
+    add("grilles", DUCT, "BG10514", outlets, "material", { duct: true, swap: "grilles" });
+    add("grille-boxes", DUCT, "CHB10514", outlets, "material", { duct: true });
+  } else if (f.grilles === "cone") {
+    add("grilles", DUCT, `CD${f.zoneMm}`, outlets, "material", { duct: true, swap: "grilles" });
   } else {
     const band = f.customBand ?? "1.5";
-    add("grilles", "Ductwork and grilles", `AFLBG-${band}`, z, "material", { duct: true, swap: "grilles" });
-    add("grille-boxes", "Ductwork and grilles", `JH-LBOX-${band}`, z, "material", { duct: true, because: "a custom grille needs its custom box" });
+    add("grilles", DUCT, `AFLBG-${band}`, outlets, "material", { duct: true, swap: "grilles" });
+    add("grille-boxes", DUCT, `JH-LBOX-${band}`, outlets, "material", { duct: true, because: "a custom grille needs its custom box" });
   }
 
   /* the return, by airflow */
   const ret = f.returnSize ?? (f.airflowLs ? recommendReturn(f.airflowLs, STANDARD_RETURNS) : { wMm: 900, hMm: 400 });
   if (ret) {
     const k = sizeKey(ret);
-    if (RETURN_GRILLE[k]) add("return-grille", "Ductwork and grilles", RETURN_GRILLE[k]!, 1, "material", { duct: true, swap: "return" });
-    if (RETURN_BOX_2X400[k]) add("return-box", "Ductwork and grilles", RETURN_BOX_2X400[k]!, 1, "material", { duct: true });
-    else allowance("return-box", "Ductwork and grilles", `Return box ${ret.wMm} × ${ret.hMm}, 2 × 400 (JH)`, 1, 7186, { duct: true });
-    add("return-flex", "Ductwork and grilles", "VB400", 2, "material", { duct: true });
+    if (RETURN_GRILLE[k]) add("return-grille", DUCT, RETURN_GRILLE[k]!, 1, "material", { duct: true, swap: "return" });
+    const box = RETURN_BOX_2X400[k];
+    if (box && priceOf(box)) add("return-box", DUCT, box, 1, "material", { duct: true });
+    else allowance("return-box", DUCT, `Return box ${ret.wMm} × ${ret.hMm}, 2 × 400 (JH)`, 1, 7186, { duct: true });
+    add("return-flex", DUCT, "VB400", 2, "material", { duct: true });
   }
 
   /* pipe and power */
   const pipeM = f.pipeM ?? ASSUME.pipeM;
-  lines.push({
-    key: "pair-coil",
-    group: "Pipe and power",
-    name: `Pair coil, ${pipeM} m`,
-    code: f.pairCoil.code,
-    supplierKey: priceOf(f.pairCoil.code)?.supplierKey ?? null,
-    qty: pipeM,
-    unitBuyCents: f.pairCoil.perMetreCents,
-    kind: "material",
-    assumed: f.pipeM == null ? `${ASSUME.pipeM} m` : null,
+  const roll = PAIR_COIL_ROLL[f.pipe ?? "3/8+5/8"];
+  add("pair-coil", "Pipe and power", roll, Math.max(1, Math.ceil(pipeM / 20 - 1e-9)), "material", {
+    assumed: f.pipeM == null ? `${ASSUME.pipeM} m, one 20 m roll` : null,
   });
-  const powerM = f.powerM ?? ASSUME.powerM;
-  const tps = priceOf("CAB6-0TCE");
-  if (tps) lines.push({ key: "power", group: "Pipe and power", name: `6 mm² TPS, ${powerM} m`, code: "CAB6-0TCE", supplierKey: tps.supplierKey, qty: powerM, unitBuyCents: tps.buyCents / 100, kind: "material", assumed: f.powerM == null ? `${ASSUME.powerM} m to the board` : null });
-  const icM = f.interconnectM ?? ASSUME.interconnectM;
-  add("interconnect", "Pipe and power", "2706201-2", icM, "material", { assumed: f.interconnectM == null ? `${ASSUME.interconnectM} m` : null });
-  add("isolator", "Pipe and power", f.threePhase ? "3421175-1" : "3209006-1", 1, "material", f.threePhase ? { because: "the outdoor is three phase" } : {});
+  if (f.powerM) {
+    const tps = priceOf("CAB6-0TCE");
+    if (tps) lines.push({ key: "power", group: "Pipe and power", name: `6 mm² TPS, ${f.powerM} m`, code: "CAB6-0TCE", supplierKey: tps.supplierKey, qty: f.powerM, unitBuyCents: tps.buyCents / 100, kind: "material" });
+  }
+  if (f.interconnectM) add("interconnect", "Pipe and power", "2706201-2", f.interconnectM, "material");
+  if (f.threePhase) add("isolator", "Pipe and power", "3421175-1", 1, "material", { because: "the outdoor is three phase" });
+  else allowance("isolator", "Pipe and power", "Voltex isolator 35 A", 1, VOLTEX_35A_CENTS);
 
   /* mounting, drain, sundries */
-  add("bracket", "Mounting, drain, sundries", wallBracketCode(f.outdoorWidthMm, f.outdoorWeightKg), 1, "material", { because: "chosen by the outdoor's size" });
-  const lengths = trunkingLengths(f.trunkingM);
-  if (lengths > 0) add("trunking", "Mounting, drain, sundries", "1610375-1", lengths, "material");
-  add("drain", "Mounting, drain, sundries", "8002396-1", 3, "material");
-  allowance("sundries", "Mounting, drain, sundries", "Sundries: fixings, brazing, silicone", 1, 10000);
+  const M = "Mounting, drain, sundries";
+  if (f.mount === "wall") add("bracket", M, wallBracketCode(f.outdoorWidthMm, f.outdoorWeightKg), 1, "material", { swap: "mount", because: "chosen by the outdoor's size" });
+  else add("mount", M, "CMADJ", 1, "material", { swap: "mount" });
+  if (f.hang ?? true) {
+    allowance("hang-timber", M, "Timber 90 × 45, 2.7 m", 1, TIMBER_CENTS);
+    add("hang-plates", M, "CMP", 4, "material");
+    add("hang-rod", M, "TR1003", 1, "material");
+  }
+  const lengths = trunkingLengths(f.trunkingM ?? ASSUME.trunkingM);
+  if (lengths > 0) add("trunking", M, "1610375-1", lengths, "material");
+  add("drain", M, "PVC20", 4, "material");
+  add("drain-90", M, "PVC90E20", 4, "material");
+  add("drain-45", M, "PVC45E20", 4, "material");
+  allowance("consumables", M, "Consumables: interconnect cable, fixings, tape", 1, CONSUMABLES_CENTS);
 
   return { lines, missing, returnSize: ret, returnMs: ret && f.airflowLs ? Math.round(faceVelocity(f.airflowLs, ret) * 10) / 10 : null };
+}
+
+/** Four people for the install day — Isaac's own figure on 3283 and 3372. */
+export function ductedVisits(): Visit[] {
+  return [{ stage: "Install", people: 4, days: 1 }];
 }

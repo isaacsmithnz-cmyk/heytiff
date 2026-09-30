@@ -33,3 +33,20 @@ it("follows the business's choice of supplier, and skips $0.00", () => {
   expect(priceOf()("HAX1")).toBeNull();
   expect(priceOf()("NOPE")).toBeNull();
 });
+
+it("pairs Mitsubishi's Thai-built code with a wholesaler's code for the same model, and nothing else", () => {
+  const book: BookRow[] = [
+    { supplierKey: "aad", code: "PUZ-ZM140YKA2", name: "MITSUBISHI ELEC. DUCT OUT 14KW 3PH R32", cents: 355155 },
+    { supplierKey: "mitsubishi_invoiced", code: "PUZ-ZM140YKA2-A.TH", name: "R32 Power Inverter 3PH 14.0kW", cents: 306250 },
+    { supplierKey: "aad", code: "PEAD-M140JAAD", name: "MITSUBISHI ELEC. SLIM DUCTED IND 14.0KW", cents: 181829 },
+    { supplierKey: "mitsubishi_invoiced", code: "PEAD-M140JAADR1.TH", name: "14.0kW R32 Low Profile Ducted with Drain Pump", cents: 156800 },
+    { supplierKey: "aad", code: "PAR-ZM01A-A", name: "ME ACC SMART ZONE CONTROLLER", cents: 27831 },
+    { supplierKey: "aad", code: "PAR-ZM01A", name: "SOMETHING ELSE", cents: 100 },
+  ];
+  const p = makePriceOf({ items: book, suppliers: DEFAULT_SUPPLIERS, confirmed: [] });
+  expect(p("PUZ-ZM140YKA2")).toMatchObject({ supplierKey: "mitsubishi_invoiced", buyCents: 306250 });
+  expect(p("PUZ-ZM140YKA2-A.TH")).toMatchObject({ supplierKey: "mitsubishi_invoiced", buyCents: 306250 });
+  expect(p("PEAD-M140JAAD")).toMatchObject({ buyCents: 156800 });
+  /* two wholesaler codes that only differ by "-A" are never joined */
+  expect(p("PAR-ZM01A-A")).toMatchObject({ buyCents: 27831 });
+});

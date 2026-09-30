@@ -87,7 +87,10 @@ export type ParseResult = {
 };
 
 const centsOf = (s: string): number | null => {
-  const n = Number(s.replace(/[$,\s]/g, ""));
+  const t = s.replace(/[$,\s]/g, "");
+  /* an empty field is no price, not $0.00 */
+  if (!t) return null;
+  const n = Number(t);
   return Number.isFinite(n) ? Math.round(n * 100) : null;
 };
 
@@ -102,7 +105,10 @@ function dedupe(rows: PriceRow[], skipped: number): ParseResult {
   return { rows: [...byCode.values()], conflicts, skipped };
 }
 
-/** One CSV line's fields, quotes honoured ("a, b" stays one field). */
+/** One CSV line's fields, quotes honoured ("a, b" stays one field). A
+    quote opens a field only at its start: mid-field it is an inch mark
+    (Reece's `R410A 1/2" 12X0.81X18M`), and reading it as a quote ran the
+    rest of the line into the name and priced 193 items at $0.00. */
 function csvFields(line: string): string[] {
   const out: string[] = [];
   let cur = "";
@@ -115,7 +121,7 @@ function csvFields(line: string): string[] {
         i++;
       } else if (ch === '"') quoted = false;
       else cur += ch;
-    } else if (ch === '"') quoted = true;
+    } else if (ch === '"' && cur === "") quoted = true;
     else if (ch === ",") {
       out.push(cur);
       cur = "";

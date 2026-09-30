@@ -88,5 +88,20 @@ describe("Reece's account price file", () => {
       { code: "3211201-2", name: "FLEX DRAIN HOSE SMOOTH WALL 16MM X 25MTR (MTR)", cents: 305, uom: "MTR" },
     ]);
   });
+
+  it("reads an inch mark mid-name as an inch mark, not a quote", () => {
+    const r = parseReeceCsv(
+      '08,12,9800013-1,ARDENT ANN REF CU R410A 1/2" 12X0.81X18M (COIL),COIL,276.94,304.63,207.71,228.48,10.00,,,,,\r\n' +
+        '04,47,2701245-1,REFRIG COPPER FLARE BONNET R410A    1/4" (EA),EA,1.49,1.64,1.12,1.23,10.00,,,,,\r\n'
+    );
+    expect(r.rows).toEqual([
+      { code: "9800013-1", name: 'ARDENT ANN REF CU R410A 1/2" 12X0.81X18M (COIL)', cents: 20771, uom: "COIL" },
+      { code: "2701245-1", name: 'REFRIG COPPER FLARE BONNET R410A 1/4" (EA)', cents: 112, uom: "EA" },
+    ]);
+  });
+
+  it("skips a row with no price rather than pricing it at $0.00", () => {
+    expect(parseReeceCsv("08,12,1-1,SOMETHING (EA),EA,,,,,10.00\r\n")).toEqual({ rows: [], conflicts: [], skipped: 1 });
+  });
 });
 

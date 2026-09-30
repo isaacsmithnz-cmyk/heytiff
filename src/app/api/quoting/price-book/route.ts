@@ -3,11 +3,13 @@ import { can } from "@/lib/permissions-server";
 import { openPdf } from "@/lib/tiff/extract";
 import { parseAadCsv, parseInvoicedRows, parseMitsubishiLines, parseReeceCsv, type ParseResult } from "@/lib/quotes/price-book";
 import { excelDate, readSheet, sheetNames } from "@/lib/quotes/xlsx";
-import { findOffers, importPriceRows, readSuppliers } from "@/lib/quotes/price-book-server";
+import { isCategory } from "@/lib/quotes/categories";
+import { browseCategory, categoryCounts, findOffers, importPriceRows, readSuppliers } from "@/lib/quotes/price-book-server";
 
 /* The price book in Admin → Quoting: look a model up at every supplier
-   (GET ?q=), or take in a supplier's new file (POST, multipart: supplier,
-   file). A route, not a server action: the Mitsubishi trade book is a 3 MB
+   (GET ?q=), browse a shelf (GET ?category=&q=) or count the shelves
+   (GET ?counts=1), or take in a supplier's new file (POST, multipart:
+   supplier, file). A route, not a server action: the Mitsubishi trade book is a 3 MB
    PDF, past a server action's body limit, and reading it takes seconds.
 
    `financials`, like the rest of Quoting: these are the business's buying
@@ -29,8 +31,13 @@ async function gate(): Promise<{ orgId: string } | Response> {
 export async function GET(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
-  const q = (new URL(req.url).searchParams.get("q") ?? "").slice(0, 60);
+  const params = new URL(req.url).searchParams;
+  if (params.get("counts")) return Response.json({ ok: true, categories: await categoryCounts(who.orgId) });
+  const q = (params.get("q") ?? "").slice(0, 60);
   const suppliers = await readSuppliers(who.orgId);
+  /* a shelf, narrowed by the words when there are any */
+  const category = params.get("category");
+  if (isCategory(category)) return Response.json({ ok: true, ...(await browseCategory(who.orgId, category, q, suppliers)) });
   return Response.json({ ok: true, models: await findOffers(who.orgId, q, suppliers) });
 }
 

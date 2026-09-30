@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { CategoryKey } from "@/lib/quotes/categories";
 import { pricingWords } from "@/lib/quotes/price-book";
-import type { ModelOffers, SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
+import type { CategoryCount, ModelOffers, SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
 
 /* THE PRICE BOOK in Admin → Quoting: the suppliers the business buys from,
    each with its latest file and how it prices, and one search that finds a
@@ -10,7 +11,11 @@ import type { ModelOffers, SupplierView, ImportSummary } from "@/lib/quotes/pric
 
    A new file is uploaded here, not to ServiceM8: AAD's CSV of net prices,
    Mitsubishi Electric's PDF trade book of list prices (the discount comes
-   off as it's read). What the file changed is said once it's in. */
+   off as it's read). What the file changed is said once it's in.
+
+   And the book can be browsed by shelf — Units, Pipe and coil, Fittings…
+   — each product once with every supplier's price, the search narrowing
+   the shelf when one is open. */
 
 const ROUTE = "/api/quoting/price-book";
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
@@ -34,6 +39,20 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
   const [models, setModels] = useState<ModelOffers[] | null>(null);
   const [searching, setSearching] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [shelves, setShelves] = useState<CategoryCount[] | null>(null);
+  const [shelf, setShelf] = useState<CategoryKey | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetch(`${ROUTE}?counts=1`)
+      .then((r) => r.json() as Promise<{ ok: boolean; categories?: CategoryCount[] }>)
+      .then((a) => live && a.ok && setShelves(a.categories ?? []))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const upload = async (s: SupplierView, file: File) => {
     setBusy(s.key);
@@ -66,28 +85,45 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
     }
   };
 
+  const look = async (value: string, on: CategoryKey | null) => {
+    setSearching(true);
+    try {
+      const params = new URLSearchParams({ q: value.trim() });
+      if (on) params.set("category", on);
+      const a = (await (await fetch(`${ROUTE}?${params}`)).json()) as { ok: boolean; models?: ModelOffers[]; total?: number };
+      setModels(a.ok ? (a.models ?? []) : []);
+      setTotal(a.ok && on ? (a.total ?? null) : null);
+    } catch {
+      setModels([]);
+      setTotal(null);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const search = (value: string) => {
     setQ(value);
     if (timer.current) clearTimeout(timer.current);
-    if (value.trim().length < 2) {
+    /* a shelf lists itself; the whole book needs a couple of letters */
+    if (!shelf && value.trim().length < 2) {
       setModels(null);
       return;
     }
-    timer.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const a = (await (await fetch(`${ROUTE}?q=${encodeURIComponent(value.trim())}`)).json()) as {
-          ok: boolean;
-          models?: ModelOffers[];
-        };
-        setModels(a.ok ? (a.models ?? []) : []);
-      } catch {
-        setModels([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 250);
+    timer.current = setTimeout(() => void look(value, shelf), 250);
   };
+
+  const openShelf = (key: CategoryKey) => {
+    const on = shelf === key ? null : key;
+    setShelf(on);
+    if (timer.current) clearTimeout(timer.current);
+    if (!on && q.trim().length < 2) {
+      setModels(null);
+      setTotal(null);
+      return;
+    }
+    void look(q, on);
+  };
+  const shelfLabel = shelves?.find((c) => c.key === shelf)?.label ?? null;
 
   return (
     <section className="qs-group">
@@ -130,8 +166,24 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
         ))}
       </div>
 
+      {shelves && shelves.length > 0 && (
+        <div className="qs-shelves" role="group" aria-label="Browse by category">
+          {shelves.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              className={`pbtn sm ${shelf === c.key ? "primary" : "ghost"}`}
+              aria-pressed={shelf === c.key}
+              onClick={() => openShelf(c.key)}
+            >
+              {`${c.label} ${c.count.toLocaleString("en-AU")}`}
+            </button>
+          ))}
+        </div>
+      )}
+
       <label className="qs-field qs-find">
-        <span>Compare suppliers</span>
+        <span>{shelfLabel ? `Search ${shelfLabel.toLowerCase()}` : "Compare suppliers"}</span>
         <input
           className="wb2-fi"
           value={q}
@@ -140,6 +192,13 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
           aria-label="Find a model"
         />
       </label>
+      {models && total != null && (
+        <p className="qs-sub">
+          {total > models.length
+            ? `${total.toLocaleString("en-AU")} items, the first ${models.length} by name`
+            : `${total.toLocaleString("en-AU")} item${total === 1 ? "" : "s"}`}
+        </p>
+      )}
       {models && (
         <div className="qs-table" role="table" aria-label="Prices by supplier">
           {models.length === 0 ? (

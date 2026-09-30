@@ -9,6 +9,7 @@ import {
   type PricingKind,
   type Supplier,
 } from "./price-book";
+import { CATEGORIES, categoryOf, type CategoryKey } from "./categories";
 import { decidedKey, productsOf } from "./same-items";
 
 /* The price book's database side: the suppliers as stored (over the two
@@ -288,4 +289,53 @@ export async function findOffers(orgId: string, query: string, suppliers: Suppli
       const cmp = compareOffers(e.offers);
       return { code: cmp.cheapest?.code ?? "", name: e.name, ...cmp };
     });
+}
+
+export type CategoryCount = { key: CategoryKey; label: string; count: number };
+
+/** How many products are on each shelf (a part at two suppliers is one). */
+export async function categoryCounts(orgId: string): Promise<CategoryCount[]> {
+  const [items, { confirmed }] = await Promise.all([currentItems(orgId), readSameDecisions(orgId)]);
+  const products = productsOf(items, confirmed);
+  const seen = new Map<CategoryKey, Set<string>>();
+  for (const i of items) {
+    const key = categoryOf(i.name, i.code);
+    const ref = `${i.supplierKey}|${i.code}`;
+    seen.set(key, (seen.get(key) ?? new Set()).add(products.get(ref) ?? ref));
+  }
+  return CATEGORIES.map((c) => ({ ...c, count: seen.get(c.key)?.size ?? 0 })).filter((c) => c.count > 0);
+}
+
+export type ShelfView = { total: number; models: ModelOffers[] };
+
+const SHELF = 100;
+
+/** One shelf's products, every supplier's price for each, cheapest first,
+    in name order — narrowed by a few words when given. */
+export async function browseCategory(orgId: string, category: CategoryKey, query: string, suppliers: Supplier[]): Promise<ShelfView> {
+  const [items, { confirmed }] = await Promise.all([currentItems(orgId), readSameDecisions(orgId)]);
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 4);
+  const onShelf = items.filter(
+    (i) => categoryOf(i.name, i.code) === category && words.every((w) => `${i.code} ${i.name}`.toLowerCase().includes(w))
+  );
+  const products = productsOf(onShelf, confirmed);
+  const sup = new Map(suppliers.map((s) => [s.key, s]));
+  const byProduct = new Map<string, { name: string; offers: Offer[] }>();
+  for (const i of onShelf) {
+    const s = sup.get(i.supplierKey);
+    if (!s) continue;
+    const ref = `${i.supplierKey}|${i.code}`;
+    const key = products.get(ref) ?? ref;
+    const entry = byProduct.get(key) ?? { name: i.name, offers: [] };
+    entry.offers.push({ supplierKey: s.key, supplierName: s.name, code: i.code, name: i.name, netCents: netCents(s, i.code, i.cents), pricedOn: i.pricedOn });
+    byProduct.set(key, entry);
+  }
+  const all = [...byProduct.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    total: all.length,
+    models: all.slice(0, SHELF).map((e) => {
+      const cmp = compareOffers(e.offers);
+      return { code: cmp.cheapest?.code ?? "", name: e.name, ...cmp };
+    }),
+  };
 }

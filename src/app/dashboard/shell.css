@@ -11971,6 +11971,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .qs-upload { position:relative; cursor:pointer; }
 .qs-upload[aria-disabled="true"] { opacity:.5; cursor:default; }
 .qs-file { position:absolute; inset:0; opacity:0; cursor:pointer; }
+/* the shelves to browse the book by */
+.qs-shelves { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
 .qs-find { margin-top:16px; max-width:420px; }
 .qs-find .wb2-fi { width:100%; }
 .qs-cmprow { grid-template-columns:minmax(0, 1fr) minmax(0, 1.2fr) 220px; }

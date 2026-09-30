@@ -155,6 +155,12 @@
      plan's paper so its label reads in it. */
   --pipe-1:#1f6fd1; --pipe-2:#7a3fd6; --pipe-3:#c2338a; --pipe-4:#b35c00;
   --pipe-5:#0b7285; --pipe-6:#8a5a2b; --pipe-7:#3b4cc0; --pipe-8:#4a5260;
+  /* THE STUDIO'S THREE SCREENS, a colour each on the tab switcher so Design,
+     Schematic and Summary read as three places (Isaac, 2026-09-30: "put some
+     color up there as well just to differentiate between the three
+     sections"). Wayfinding, not state: no red, green or amber. Each is 4.5:1
+     or better on its own 14% tint, the active tab's ground. */
+  --tab-design:#0a655c; --tab-schematic:#4b44c8; --tab-summary:#a8356b;
   --t-fast:120ms; --t-move:200ms; --ease:ease-out;
   --z-raised:1; --z-sticky:10; --z-overlay:100; --z-modal:200; --z-toast:300;
   --r-control:6px; --r-button:10px; --r-card:16px; --r-pill:999px;

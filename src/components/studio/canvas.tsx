@@ -84,6 +84,7 @@ import {
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
+import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, type PlanLabels } from "@/lib/studio/plan-labels";
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
 
@@ -698,6 +699,9 @@ type Drag =
       you grab the bubble somewhere in the middle, and snapping its anchor to
       the grab point would jump it out from under the pointer on pixel one. */
   | { kind: "callout"; id: string; startWorld: Point; orig: CalloutPlacement }
+  /** a selected room's name slid to where it reads best: `orig` + the
+      travel, as the callout does, so it never jumps to the grab point */
+  | { kind: "room-label"; id: string; startWorld: Point; orig: Point }
   /** pulling the words' outer SIDE: the measure, in characters. The block
       reflows under the pointer and the type stays the size it was. */
   | { kind: "note-measure"; id: string }
@@ -935,6 +939,11 @@ export function StudioCanvas({
   const [liveCallout, setLiveCallout] = useState<
     { id: string; at: CalloutPlacement } | null
   >(null);
+  /* a room's name mid-drag, never written until the gesture ends */
+  const [liveRoomLabel, setLiveRoomLabel] = useState<{ id: string; at: Point } | null>(null);
+  /* the words as last placed, for the pointer handlers: they are laid out in
+     render, after the handlers are made */
+  const planLabelsRef = useRef<PlanLabels | null>(null);
   const [notePanel, setNotePanel] = useState<Size>({ w: 264, h: 172 });
   const measureNotePanel = useCallback((el: HTMLDivElement | null) => {
     if (!el) return;
@@ -2806,6 +2815,36 @@ export function StudioCanvas({
            by its own footprint, which the bubble never covers by default. It
            loses to the rotate knob above, which belongs to the selected unit
            and sits outside the footprint where a bubble might be dragged. */
+        /* A SELECTED ROOM'S NAME can be picked up and moved (Isaac,
+           2026-09-30: a kitchen island on the uploaded drawing under it).
+           Only once the room is selected, so a drag across an unselected
+           room's name still pans the plan — the room itself is pinned the
+           same way. Its reset mark, shown once it has been moved, beats the
+           words it sits beside. */
+        const selRoom = rooms.find((r) => r.id === selectedId);
+        const selSpot = selRoom ? planLabelsRef.current?.rooms.get(selRoom.id) : undefined;
+        if (selRoom && selSpot) {
+          if (
+            roomLabelFixed(selRoom.props, roomPoints(selRoom)) &&
+            dist(worldToScreen(labelResetAt(selSpot.box), vp), worldToScreen(w, vp)) <= 11
+          ) {
+            onMutate((d) => ({
+              ...d,
+              objects: d.objects.map((o) => {
+                if (o.id !== selRoom.id) return o;
+                const { labelAt: _gone, ...props } = o.props;
+                void _gone;
+                return { ...o, props };
+              }),
+            }));
+            break;
+          }
+          const b = selSpot.box;
+          if (w.x >= b.x0 && w.x <= b.x1 && w.y >= b.y0 && w.y <= b.y1) {
+            setDrag({ kind: "room-label", id: selRoom.id, startWorld: w, orig: { x: selSpot.x, y: selSpot.y } });
+            break;
+          }
+        }
         /* the remove mark beats the bubble it sits on, the way a note's grips
            beat the words they sit inside */
         const cx = callouts.find(
@@ -3157,6 +3196,12 @@ export function StudioCanvas({
           },
         });
         break;
+      case "room-label":
+        setLiveRoomLabel({
+          id: drag.id,
+          at: { x: drag.orig.x + (w.x - drag.startWorld.x), y: drag.orig.y + (w.y - drag.startWorld.y) },
+        });
+        break;
       case "callout":
         setLiveCallout({
           id: drag.id,
@@ -3403,6 +3448,26 @@ export function StudioCanvas({
        The did-anything-change test runs BEFORE onMutate, never inside the map:
        onMutate lands an undo step whether or not the objects come back
        different, so a bubble pressed and let go would otherwise cost a step. */
+    /* a room's name let go: written only if it really moved (the same slop
+       as a callout, so a press that rolls a few px costs no undo step) */
+    if (drag.kind === "room-label") {
+      const live = liveRoomLabel;
+      if (
+        live &&
+        (Math.abs(live.at.x - drag.orig.x) * vp.zoom > TAP_SLOP_PX ||
+          Math.abs(live.at.y - drag.orig.y) * vp.zoom > TAP_SLOP_PX)
+      ) {
+        onMutate((d) => ({
+          ...d,
+          objects: d.objects.map((o) =>
+            o.id === live.id && o.geometry.kind === "polygon"
+              ? { ...o, props: { ...o.props, labelAt: roomLabelOffset(live.at, o.geometry.points) } }
+              : o
+          ),
+        }));
+      }
+      setLiveRoomLabel(null);
+    }
     if (drag.kind === "callout" && liveCallout) {
       const live = liveCallout;
       /* A SLOP, IN SCREEN PX, and the same one every click-to-place tool uses.
@@ -3679,6 +3744,82 @@ export function StudioCanvas({
      stay hairline at every zoom. */
   const labelZoom = Math.max(zoom, 1);
   const mm = floor.scaleMmPerUnit;
+
+  /** a run's words: its length, then its size (or a drain's, or a cable's kind) */
+  const runLabelText = (r: DesignObject, pts: Point[]): string => {
+    const sized = r.type === "pipe-run" ? pipeView.byRun.get(r.id) : undefined;
+    const len = mm
+      ? formatMeters(unitsToMeters(isCurvedRun(r) ? smoothedLength(pts) : polylineLength(pts), mm))
+      : null;
+    let tag: string | null = null;
+    if (sized) {
+      tag = pairSize(sized.liquidMm, sized.gasMm, pipeUnits);
+    } else if (r.type === "pipe-run") {
+      const auto = runSizes?.get(r.systemId ?? "") ?? null;
+      const liq = Number(r.props.liquidMm) || auto?.liquidMm || null;
+      const gas = Number(r.props.gasMm) || auto?.gasMm || null;
+      tag = liq && gas ? `Ø${liq}/${gas}` : null;
+    } else if (r.type === "drain-run") {
+      tag = `Ø${Number(r.props.sizeMm) || 25} drain`;
+    } else if (r.type === "cable-run") {
+      tag = r.props.kind === "data" ? "Data" : "Power";
+    }
+    return [len, tag].filter(Boolean).join(", ");
+  };
+  /* every word on the plan placed knowing what is under it (plan-labels.ts):
+     a room's name moves off a pipe or a unit, and a pipe's words go beside
+     the copper where nothing else is */
+  const planLabels = layers.labels
+    ? layoutPlanLabels({
+        px: 1 / labelZoom,
+        rooms: rooms.map((r) => {
+          const pts = roomPoints(r);
+          const covFit = roomFits?.[r.id];
+          return {
+            id: r.id,
+            polygon: pts,
+            fixed: liveRoomLabel?.id === r.id ? liveRoomLabel.at : roomLabelFixed(r.props, pts),
+            lineGap: 16,
+            lines: [
+              { text: `${String(r.props.name ?? "Zone")}${isSpillRoom(r) ? " ⤢" : ""}`, size: 13 },
+              {
+                text: `${mm ? formatArea(areaUnitsToM2(polygonArea(pts), mm)) : "not calibrated"}${
+                  covFit ? `, ${covFit}` : ""
+                }`,
+                size: 11,
+              },
+            ],
+          };
+        }),
+        runs: layers.pipes
+          ? runs.map((r) => {
+              const pts = liveRunPoints(r);
+              return { id: r.id, points: pts, text: runLabelText(r, pts), size: 11 };
+            })
+          : [],
+        solids: [
+          ...(layers.units
+            ? units.map((u) => {
+                const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
+                return footprintBox(pointAt(u), fp.w, fp.h, unitRotDeg(u));
+              })
+            : []),
+          ...[...risers, ...joints].map((o) => footprintBox(pointAt(o), 24 / zoom, 24 / zoom)),
+          ...boxes.map((o) => {
+            const fp = footprint(BOX_W_MM, BOX_D_MM);
+            return footprintBox(pointAt(o), fp.w, fp.h);
+          }),
+        ],
+      })
+    : null;
+  useEffect(() => {
+    planLabelsRef.current = planLabels;
+  });
+  /* a room's words wear a white backing where the design asks for it (View ›
+     Label backing), so they read over a busy uploaded drawing */
+  const labelBacks = doc.settings.labelBacks === true;
+  /** where a placed-by-hand label's reset mark sits: off its top-right corner */
+  const labelResetAt = (b: { x1: number; y0: number }): Point => ({ x: b.x1 + 4 / zoom, y: b.y0 - 4 / zoom });
 
   /* ── drop-to-attribute readout: while an indoor unit rides the cursor,
      every room reads how the armed capacity sits against its OWN load —
@@ -4219,6 +4360,7 @@ export function StudioCanvas({
             const ownZone =
               tool === "place" && placing?.allocationId != null && placing.roomId === r.id;
             const covFit = roomFits?.[r.id];
+            const roomSpot = planLabels?.rooms.get(r.id);
             const owners = zoneOwners.get(r.id) ?? [];
             const zoneStyle = owners.length
               ? ({ "--zc": owners[0].colour, "--zc-fill": zoneFill(owners[0].colour) } as CSSProperties)
@@ -4246,16 +4388,36 @@ export function StudioCanvas({
                       style={{ fill: o.colour }}
                     />
                   ))}
-                {layers.labels && (
+                {roomSpot && labelBacks && (
+                  <rect
+                    className="ds-label-back"
+                    x={roomSpot.box.x0}
+                    y={roomSpot.box.y0}
+                    width={roomSpot.box.x1 - roomSpot.box.x0}
+                    height={roomSpot.box.y1 - roomSpot.box.y0}
+                    rx={2 / labelZoom}
+                  />
+                )}
+                {roomSpot && selected && (
+                  <rect
+                    className="ds-label-grab"
+                    x={roomSpot.box.x0}
+                    y={roomSpot.box.y0}
+                    width={roomSpot.box.x1 - roomSpot.box.x0}
+                    height={roomSpot.box.y1 - roomSpot.box.y0}
+                    rx={2 / labelZoom}
+                  />
+                )}
+                {roomSpot && (
                   <>
-                    <text x={c.x} y={c.y} fontSize={13 / labelZoom} className="ds-room-name">
+                    <text x={roomSpot.x} y={roomSpot.y} fontSize={13 / labelZoom} className="ds-room-name">
                       {String(r.props.name ?? "Zone")}
                       {/* spill rooms wear the ⤢ chip (ducted spec §9c) */}
                       {isSpillRoom(r) ? " ⤢" : ""}
                     </text>
                     <text
-                      x={c.x}
-                      y={c.y + 16 / labelZoom}
+                      x={roomSpot.x}
+                      y={roomSpot.y + 16 / labelZoom}
                       fontSize={11 / labelZoom}
                       className="ds-room-area"
                     >
@@ -4271,6 +4433,21 @@ export function StudioCanvas({
                     </text>
                   </>
                 )}
+                {/* back to automatic: offered on the selected room once its
+                    name has been moved by hand */}
+                {roomSpot && selected && roomLabelFixed(r.props, pts) && (() => {
+                  const x = labelResetAt(roomSpot.box);
+                  const rr = 7 / zoom;
+                  return (
+                    <g className="ds-label-reset">
+                      <title>Put the name back where the Studio places it</title>
+                      <circle cx={x.x} cy={x.y} r={rr} />
+                      <path
+                        d={`M ${x.x + rr * 0.45} ${x.y - rr * 0.1} A ${rr * 0.45} ${rr * 0.45} 0 1 1 ${x.x + rr * 0.05} ${x.y - rr * 0.45} M ${x.x + rr * 0.05} ${x.y - rr * 0.45} l ${rr * 0.25} ${-rr * 0.2} M ${x.x + rr * 0.05} ${x.y - rr * 0.45} l ${rr * 0.2} ${rr * 0.25}`}
+                      />
+                    </g>
+                  );
+                })()}
                 {/* the drop's verdict, on the room that would take it — the
                     lens room keeps carrying it while the cursor is outside
                     every room (that drop attributes here) */}
@@ -4323,33 +4500,11 @@ export function StudioCanvas({
               : sized
                 ? `var(--pipe-${sizeTone(sized.gasMm)})`
                 : (sysColour.get(r.systemId ?? "") ?? "#888");
-            const midI = Math.floor((pts.length - 1) / 2);
-            const mid = {
-              x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
-              y: (pts[midI].y + pts[Math.min(midI + 1, pts.length - 1)].y) / 2,
-            };
             const curved = isCurvedRun(r);
             const cls =
               r.type === "drain-run" ? "ds-drain" : r.type === "cable-run" ? "ds-cable" : "ds-pipe";
-            const len = mm
-              ? formatMeters(
-                  unitsToMeters(curved ? smoothedLength(pts) : polylineLength(pts), mm)
-                )
-              : null;
-            let tag: string | null = null;
-            if (sized) {
-              tag = pairSize(sized.liquidMm, sized.gasMm, pipeUnits);
-            } else if (r.type === "pipe-run") {
-              const auto = runSizes?.get(r.systemId ?? "") ?? null;
-              const liq = Number(r.props.liquidMm) || auto?.liquidMm || null;
-              const gas = Number(r.props.gasMm) || auto?.gasMm || null;
-              tag = liq && gas ? `Ø${liq}/${gas}` : null;
-            } else if (r.type === "drain-run") {
-              tag = `Ø${Number(r.props.sizeMm) || 25} drain`;
-            } else if (r.type === "cable-run") {
-              tag = r.props.kind === "data" ? "Data" : "Power";
-            }
-            const label = [len, tag].filter(Boolean).join(", ");
+            const label = runLabelText(r, pts);
+            const spot = planLabels?.runs.get(r.id);
             return (
               <g
                 key={r.id}
@@ -4374,8 +4529,18 @@ export function StudioCanvas({
                       <circle key={i} className="ds-pipe-open" cx={at.x} cy={at.y} r={5 / zoom} />
                     )
                   )}
-                {label && layers.labels && (
-                  <text x={mid.x} y={mid.y - 7 / labelZoom} fontSize={11 / labelZoom} className="ds-pipe-len">
+                {label && spot && labelBacks && (
+                  <rect
+                    className="ds-label-back"
+                    x={spot.box.x0}
+                    y={spot.box.y0}
+                    width={spot.box.x1 - spot.box.x0}
+                    height={spot.box.y1 - spot.box.y0}
+                    rx={2 / labelZoom}
+                  />
+                )}
+                {label && spot && (
+                  <text x={spot.x} y={spot.y} fontSize={11 / labelZoom} className="ds-pipe-len" style={{ textAnchor: spot.anchor }}>
                     {label}
                   </text>
                 )}

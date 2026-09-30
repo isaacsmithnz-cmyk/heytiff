@@ -1428,9 +1428,15 @@ html[data-ds-display] .dstudio.editing {
      screens — sized by their words the tabs were 68, 92 and 84 px under an
      82 px thumb, and a narrower Design-step padding made the whole switcher
      24 px wider on Schematic and Summary, so it jumped sideways on every
-     switch (Isaac, 2026-09-30: "it moves around a lot") */
+     switch (Isaac, 2026-09-30: "it moves around a lot").
+     Exactly the cockpit's width, so its edges stand on the panel's edges
+     below it and the fullscreen button beside it ends where the canvas
+     does; --ds-cockpit-w never changes between steps, so neither does
+     this (Isaac, 2026-09-30: "isn't really aligning with anything") */
+  box-sizing: border-box;
+  width: var(--ds-cockpit-w);
   display: grid;
-  grid-template-columns: repeat(3, 96px);
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   background: #e4e6ec;
   border: 1px solid var(--line);
@@ -1470,7 +1476,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   gap: 8px;
   border-radius:var(--r-button);
-  padding: 8px;
+  padding: 8px 4px;
   font-size: 13px;
   font-weight: 700;
   color: var(--gray500);
@@ -2617,6 +2623,26 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-room-verdict.undersized { fill: var(--ds-red-d, #e0264f); }
 /* the verdict that PERSISTS after the drop, on the area line — a state the
    room keeps wearing, never a block (ranking-not-gating) */
+/* A SELECTED ROOM'S NAME CAN BE PICKED UP: a hairline dashed outline says
+   so, and the pointer turns to move over it. Unselected, it is not a target
+   at all, so a drag across it pans the plan (canvas.tsx). */
+.dstudio .ds-label-grab {
+  fill: transparent;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+  cursor: move;
+}
+/* View › Label backing: the plan's words on a white card, so they read over
+   a busy uploaded drawing */
+.dstudio .ds-label-back {
+  fill: var(--paper);
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
 .dstudio .ds-room-covfit { font-weight: 700; }
 .dstudio .ds-room-covfit.oversized { fill: var(--ds-amber-d, #b45309); }
 .dstudio .ds-room-covfit.undersized { fill: var(--ds-red-d, #e0264f); }
@@ -2910,13 +2936,16 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-callout.pre .ds-callout-box {
   fill: #fbfbfd;
 }
-/* the way back off the drawing, on the selected unit's callout only */
+/* the way back off the drawing, on the selected unit's callout only — and
+   a moved room name's way back to automatic, drawn the same */
+.dstudio .ds-label-reset circle,
 .dstudio .ds-callout-x circle {
   fill: #fff;
   stroke: var(--q);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
+.dstudio .ds-label-reset path,
 .dstudio .ds-callout-x path {
   fill: none;
   stroke: var(--ink);
@@ -2924,6 +2953,8 @@ html[data-ds-display] .dstudio.editing {
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
+.dstudio .ds-label-reset { cursor: pointer; }
+.dstudio .ds-label-reset:hover circle { stroke: var(--ink); }
 .dstudio .ds-callout-x:hover circle {
   fill: #e0264f;
   stroke: #e0264f;

@@ -70,7 +70,7 @@ import { zoneIdsOf } from "@/lib/studio/zones";
 import { isAirCapable } from "@/lib/studio/modules";
 import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
-import { attachOf } from "@/lib/studio/graph";
+import { attachOf, riserGapOf, setRiserHeight } from "@/lib/studio/graph";
 import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
@@ -3748,6 +3748,17 @@ export function StudioCanvas({
     };
   }, [selectedId, pipeView, pipeUnits, doc.objects]);
 
+  /* THE PICKED RISER'S HEIGHT (Isaac, 2026-09-30): from the plans (the
+     floors' heights) by default, or set by hand — a floor console's pipe
+     starts at the floor and may rise to the ceiling of the floor above, 6 m
+     where the floors make it 3 */
+  const riserPick = useMemo(() => {
+    const r = selectedId ? doc.objects.find((o) => o.id === selectedId && o.type === "riser") : undefined;
+    if (!r) return null;
+    const floorName = (id: string) => doc.floors.find((f) => f.id === id)?.name ?? "a floor";
+    return { group: String(r.props.group ?? "A"), gap: riserGapOf(doc.objects, doc.floors, r.id), floorName };
+  }, [selectedId, doc.objects, doc.floors]);
+
   /* ── unit callouts ────────────────────────────────────────────────────
      A unit's own name, said on the drawing at the end of a leader — the same
      mechanic as a note's, because it is the same job. Geometry lives in
@@ -5489,6 +5500,90 @@ export function StudioCanvas({
               </div>
             ))}
           </dl>
+        </div>
+      )}
+
+      {/* the picked riser: where it runs, and its height */}
+      {!hoverCard && riserPick && (
+        <div className="ds-unitcard pipe riser" role="group" aria-label={`Riser ${riserPick.group}`}>
+          <div className="ds-unitcard-h">
+            <span className="ds-unitcard-role">Riser</span>
+          </div>
+          <div className="ds-unitcard-model">{`Riser ${riserPick.group}`}</div>
+          <dl className="ds-unitcard-rows">
+            <div>
+              <dt>Runs</dt>
+              <dd>
+                {riserPick.gap
+                  ? `${riserPick.floorName(riserPick.gap.fromFloorId)} to ${riserPick.floorName(riserPick.gap.toFloorId)}`
+                  : "Not joined to another floor"}
+              </dd>
+            </div>
+            {riserPick.gap && (
+              <div>
+                <dt>Height</dt>
+                <dd>
+                  {riserPick.gap.manualM != null
+                    ? `${riserPick.gap.manualM} m, set by hand`
+                    : `${Math.round(riserPick.gap.planM * 10) / 10} m, from the floor heights`}
+                </dd>
+              </div>
+            )}
+          </dl>
+          {riserPick.gap &&
+            (() => {
+              const gap = riserPick.gap;
+              const manual = gap.manualM != null;
+              return (
+                <div className="ds-riser-set">
+                  <div className="ds-riser-seg" role="radiogroup" aria-label="Riser height">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={!manual}
+                      className={manual ? "" : "on"}
+                      onClick={() => manual && onMutate((d) => setRiserHeight(d, gap.lowerId, null))}
+                    >
+                      From plans
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={manual}
+                      className={manual ? "on" : ""}
+                      onClick={() =>
+                        !manual &&
+                        onMutate((d) => setRiserHeight(d, gap.lowerId, Math.round(gap.planM * 10) / 10 || 3))
+                      }
+                    >
+                      Manual
+                    </button>
+                  </div>
+                  {manual && (
+                    <label className="ds-riser-m">
+                      <input
+                        key={`${gap.lowerId}:${gap.manualM}`}
+                        type="number"
+                        min={0.1}
+                        max={100}
+                        step={0.1}
+                        defaultValue={gap.manualM ?? ""}
+                        aria-label="Riser height, metres"
+                        onBlur={(e) => {
+                          const v = Number(e.currentTarget.value);
+                          if (!Number.isFinite(v) || v <= 0 || v === gap.manualM) return;
+                          onMutate((d) => setRiserHeight(d, gap.lowerId, v));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                        }}
+                      />
+                      <span>m</span>
+                    </label>
+                  )}
+                </div>
+              );
+            })()}
         </div>
       )}
 

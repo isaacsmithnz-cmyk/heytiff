@@ -16,7 +16,7 @@ import { addHead, chooseOutdoor } from "../builder";
 import { newSystem } from "../zones";
 import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns } from "../joints";
 import { systemVrfTree } from "../vrf-tree";
-import { buildSystemGraph } from "../graph";
+import { buildSystemGraph, riserGapOf, setRiserHeight } from "../graph";
 import { combinationWord, doneBlockers, systemFindings } from "../verdict";
 import { buildSummaryModel } from "../summary";
 import { pairSize, pipeViewOf, setRunSizes, sizeTone, tubeSize } from "../pipe-sizes";
@@ -538,5 +538,22 @@ describe("a riser between floors", () => {
     ]);
     // the head sits 2.4 m above the roof floor, its riser at the floor
     expect(graph.edges.find((e) => e.id === "p2")!.riseM).toBeCloseTo(2.4);
+  });
+
+  it("set by hand, it is that tall, and the lift still comes from the floors (Isaac: floor console to the ceiling above, 6 m)", () => {
+    let doc = createDesign({ name: "manual riser", mode: "blank" });
+    const g = doc.floors[0];
+    doc = { ...doc, floors: [g, { ...g, id: "flr_up", name: "Level 1", level: 1 }] };
+    const riser = (id: string, floorId: string): DesignObject =>
+      ({ id, type: "riser", systemId: "sys", floorId, geometry: { kind: "point", at: { x: 0, y: 0 } }, plane: "room", props: { group: "A", heightM: 3 } }) as DesignObject;
+    doc = { ...doc, objects: [riser("r0", g.id), riser("r1", "flr_up")] };
+    const gap = () => buildSystemGraph(doc.objects, doc.floors, "sys").edges.find((e) => e.id.startsWith("riser-gap:"))!;
+    // the legacy heightM every riser carries is not a hand-set height
+    expect(riserGapOf(doc.objects, doc.floors, "r1")).toMatchObject({ lowerId: "r0", planM: 3, manualM: null });
+    doc = setRiserHeight(doc, "r0", 6);
+    expect([gap().lengthM, gap().riseM]).toEqual([6, 3]);
+    expect(riserGapOf(doc.objects, doc.floors, "r0")!.manualM).toBe(6);
+    doc = setRiserHeight(doc, "r0", null);
+    expect(gap().lengthM).toBe(3);
   });
 });

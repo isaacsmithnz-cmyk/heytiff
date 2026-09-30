@@ -10,10 +10,15 @@
    - pipe run: type "pipe-run", polyline geometry, props { startAttach?,
                endAttach? } where an attach is { kind: "unit"|"riser", id }
                — recorded by the canvas when an endpoint snaps to an anchor.
-   - riser:    type "riser",    point geometry, props { group: "A" }
+   - riser:    type "riser",    point geometry, props { group: "A",
+               manualM? }
                — risers sharing a group (within one system) are the same
                vertical pipe; consecutive levels link with a vertical edge as
-               tall as the floors between them.
+               tall as the floors between them, or the lower riser's manualM
+               when set by hand (a floor console's pipe starts at the floor
+               and may rise to the ceiling of the floor above: 6 m, not 3 —
+               Isaac, 2026-09-30). The legacy heightM every riser was written
+               with (always 3) is ignored.
 
    HEIGHTS (Isaac, 2026-09-30, for the book's lift limits): a floor stands
    on the one below it, each floor as tall as its `heightM` (3 m unset); a
@@ -112,6 +117,59 @@ export function setFloorHeight(doc: DesignDocument, floorId: string, m: number |
   };
 }
 
+/** a riser's height set by hand (the pipe up from it), or null */
+export const manualRiserM = (o: DesignObject): number | null => {
+  const v = Number(o.props.manualM);
+  return Number.isFinite(v) && v > 0 ? v : null;
+};
+
+/** the vertical a picked riser is part of: the one going up from it, else
+    the one coming up to it. `lowerId` is the riser that carries its height
+    set by hand; `planM` is what the floor heights make it. */
+export interface RiserGap {
+  lowerId: string;
+  fromFloorId: string;
+  toFloorId: string;
+  planM: number;
+  manualM: number | null;
+}
+
+export function riserGapOf(objects: DesignObject[], floors: Floor[], riserId: string): RiserGap | null {
+  const r = objects.find((o) => o.id === riserId && o.type === "riser");
+  if (!r) return null;
+  const group = String(r.props.group ?? "A");
+  const level = new Map(floors.map((f) => [f.id, f.level]));
+  const sorted = objects
+    .filter((o) => o.type === "riser" && o.systemId === r.systemId && String(o.props.group ?? "A") === group)
+    .sort((x, y) => (level.get(x.floorId) ?? 0) - (level.get(y.floorId) ?? 0));
+  const i = sorted.findIndex((o) => o.id === riserId);
+  const [lower, upper] = i < sorted.length - 1 ? [sorted[i], sorted[i + 1]] : i > 0 ? [sorted[i - 1], sorted[i]] : [null, null];
+  if (!lower || !upper) return null;
+  const base = floorBasesM(floors);
+  const at = (o: DesignObject) => (base.get(o.floorId) ?? 0) + mountOf(o);
+  return {
+    lowerId: lower.id,
+    fromFloorId: lower.floorId,
+    toFloorId: upper.floorId,
+    planM: Math.abs(at(upper) - at(lower)),
+    manualM: manualRiserM(lower),
+  };
+}
+
+/** set a riser's height by hand (on the riser it rises from); null goes back
+    to the floor heights */
+export function setRiserHeight(doc: DesignDocument, lowerId: string, m: number | null): DesignDocument {
+  return {
+    ...doc,
+    objects: doc.objects.map((o) => {
+      if (o.id !== lowerId) return o;
+      const { manualM: _old, ...props } = o.props;
+      void _old;
+      return { ...o, props: m != null && Number.isFinite(m) && m > 0 ? { ...props, manualM: m } : props };
+    }),
+  };
+}
+
 /** set a placed object's height above its floor (null clears it to 0) */
 export function setMount(doc: DesignDocument, id: string, m: number | null): DesignDocument {
   return {
@@ -192,11 +250,12 @@ export function buildSystemGraph(
       const lower = sorted[i];
       const upper = sorted[i + 1];
       const h = elevationOf(upper) - elevationOf(lower);
+      const manual = manualRiserM(lower);
       edges.push({
         id: `riser-gap:${group}:${i}`,
         a: lower.id,
         b: upper.id,
-        lengthM: Math.abs(h),
+        lengthM: manual ?? Math.abs(h),
         riseM: h,
         bends: (runOn(lower.id) ? 1 : 0) + (runOn(upper.id) ? 1 : 0),
       });

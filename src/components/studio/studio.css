@@ -3173,6 +3173,58 @@ html[data-ds-display] .dstudio.editing {
   align-items: baseline;
   gap: 8px;
 }
+/* a picked riser's card takes clicks: its height is set on it */
+.dstudio .ds-unitcard.riser {
+  pointer-events: auto;
+}
+.dstudio .ds-riser-set {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.dstudio .ds-riser-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-button);
+  background: var(--on-ink-line);
+}
+.dstudio .ds-riser-seg button {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: var(--r-control);
+  font: 600 12px var(--font);
+  color: var(--on-ink-q);
+  cursor: pointer;
+}
+.dstudio .ds-riser-seg button.on {
+  background: var(--paper);
+  color: var(--ink);
+}
+.dstudio .ds-riser-m {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--on-ink-q);
+}
+.dstudio .ds-riser-m input {
+  width: 56px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--on-ink-line);
+  border-radius: var(--r-control);
+  background: transparent;
+  font: 700 12px var(--font);
+  color: var(--paper);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-riser-m input:focus {
+  outline: none;
+  border-color: var(--paper);
+}
 /* a picked pipe, joint or box: its rows name where each pipe goes, so the
    card is wider and so is its label column */
 .dstudio .ds-unitcard.pipe {

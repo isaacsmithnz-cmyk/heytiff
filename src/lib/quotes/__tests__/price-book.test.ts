@@ -2,11 +2,15 @@
    business's real files (2026-09-30). */
 import {
   DEFAULT_SUPPLIERS,
+  columnLetter,
   compareOffers,
+  csvRows,
   netCents,
+  parseHeadedRows,
   parseAadCsv,
   parseMitsubishiLines,
   parseReeceCsv,
+  previewRows,
   pricingWords,
 } from "../price-book";
 
@@ -105,3 +109,38 @@ describe("Reece's account price file", () => {
   });
 });
 
+
+describe("a layout HeyTiff doesn't know", () => {
+  const text =
+    "Acme Refrigeration price list,,,\r\n" +
+    "Effective 1 Oct,,,\r\n" +
+    "Part No,Product,Each,Trade\r\n" +
+    'AC-100,"Bracket, wall 450",12.50,10.00\r\n' +
+    "AC-200,Pump,,\r\n" +
+    "AC-300,Isolator 20A,31.00,24.80\r\n";
+
+  it("reads a CSV's lines as rows by column letter", () => {
+    const rows = csvRows(text);
+    expect(rows[3]!.get("A")).toBe("AC-100");
+    expect(rows[3]!.get("B")).toBe("Bracket, wall 450");
+    expect(columnLetter(0)).toBe("A");
+    expect(columnLetter(26)).toBe("AA");
+  });
+
+  it("finds no known headings, so shows the first rows to match", () => {
+    const rows = csvRows(text);
+    expect(parseHeadedRows(rows, () => "").rows).toEqual([]);
+    const p = previewRows(rows, 4);
+    expect(p.letters).toEqual(["A", "B", "C", "D"]);
+    expect(p.rows[2]).toEqual(["Part No", "Product", "Each", "Trade"]);
+  });
+
+  it("reads by the matched columns: titles above the first price aren't missed rows, a blank price after is", () => {
+    const r = parseHeadedRows(csvRows(text), () => "", { code: "A", name: "B", price: "D" });
+    expect(r.rows).toEqual([
+      { code: "AC-100", name: "Bracket, wall 450", cents: 1000, pricedOn: null, timesBought: null, qtyBought: null, uom: null },
+      { code: "AC-300", name: "Isolator 20A", cents: 2480, pricedOn: null, timesBought: null, qtyBought: null, uom: null },
+    ]);
+    expect(r.skipped).toBe(1);
+  });
+});

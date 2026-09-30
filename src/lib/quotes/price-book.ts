@@ -24,8 +24,10 @@ export type DiscountRule = { prefix: string; discountPct: number };
 
 /** The file a supplier's prices come in, and how it's laid out. */
 export type FileKind = "csv" | "pdf" | "xlsx";
-/** me_invoice_xlsx: any workbook of headed price rows, read by heading */
-export type FileFormat = "aad_csv" | "reece_csv" | "me_pdf" | "me_invoice_xlsx";
+/** me_invoice_xlsx: any workbook of headed price rows, read by heading;
+    headed: a supplier the business added, any CSV or workbook, read by
+    heading or by the columns a person matched once */
+export type FileFormat = "aad_csv" | "reece_csv" | "me_pdf" | "me_invoice_xlsx" | "headed";
 
 export type Supplier = {
   key: string;
@@ -37,6 +39,8 @@ export type Supplier = {
   discountPct: number;
   /** list_less: a range with a different discount (PUMY at 48) */
   rules: DiscountRule[];
+  /** the columns a person matched for a layout HeyTiff didn't know */
+  columns?: Columns | null;
 };
 
 /** The two the business buys from, as agreed 2026-09-30. */
@@ -217,13 +221,53 @@ const HEADINGS: { field: "code" | "name" | "price" | "date" | "times" | "qty" | 
 ];
 
 type Row = Map<string, string | number | null>;
-type Columns = Partial<Record<(typeof HEADINGS)[number]["field"], string>>;
+export type ColumnField = (typeof HEADINGS)[number]["field"];
+/** which column letter holds each field */
+export type Columns = Partial<Record<ColumnField, string>>;
+
+/** The fields a person matches, for a layout HeyTiff doesn't know. */
+export const COLUMN_FIELDS: { field: ColumnField; label: string; required: boolean }[] = [
+  { field: "code", label: "Code", required: true },
+  { field: "name", label: "Description", required: false },
+  { field: "price", label: "Price ex GST", required: true },
+  { field: "uom", label: "Sold by (EA, MTR…)", required: false },
+];
+
+/** A column's letter, as a spreadsheet names it: 0 → A, 26 → AA. */
+export function columnLetter(i: number): string {
+  let n = i + 1;
+  let out = "";
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    out = String.fromCharCode(65 + r) + out;
+    n = Math.floor((n - 1) / 26);
+  }
+  return out;
+}
+
+/** A CSV's lines as a sheet's rows: each a map of column letter to value. */
+export function csvRows(text: string): Row[] {
+  return text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .filter((l) => l.trim())
+    .map((l) => new Map(csvFields(l).map((v, i) => [columnLetter(i), v === "" ? null : v] as const)));
+}
+
+/** The first rows of a sheet, for a person to match its columns by. */
+export function previewRows(rows: Row[], count = 8): { letters: string[]; rows: (string | number | null)[][] } {
+  const head = rows.filter((r) => [...r.values()].some((v) => v != null && v !== "")).slice(0, count);
+  const letters = [...new Set(head.flatMap((r) => [...r.keys()]))].sort((a, b) => a.length - b.length || a.localeCompare(b)).slice(0, 26);
+  return { letters, rows: head.map((r) => letters.map((l) => r.get(l) ?? null)) };
+}
 
 /** A sheet's price rows, found by their headings: code, description,
     price, and — when there — the date it was charged, how often and how
     many were bought, and the unit it's sold by. */
-export function parseHeadedRows(rows: Row[], excelDate: (serial: number) => string): ParseResult {
-  let cols: Columns | null = null;
+export function parseHeadedRows(rows: Row[], excelDate: (serial: number) => string, given?: Columns | null): ParseResult {
+  /* columns a person matched are used as given: every row with a code and
+     a number where the price is */
+  let cols: Columns | null = given?.code && given.price ? given : null;
   const out: PriceRow[] = [];
   let skipped = 0;
   for (const r of rows) {
@@ -242,8 +286,9 @@ export function parseHeadedRows(rows: Row[], excelDate: (serial: number) => stri
     const codeText = typeof code === "number" ? String(code) : typeof code === "string" ? code.trim() : "";
     if (!codeText) continue;
     const n = typeof price === "number" ? price : typeof price === "string" ? Number(price.replace(/[$,\s]/g, "")) : NaN;
-    if (!Number.isFinite(n)) {
-      skipped++;
+    if (!Number.isFinite(n) || (typeof price === "string" && !price.trim())) {
+      /* before the first price, a heading or a title isn't a missed row */
+      if (out.length > 0 || !given) skipped++;
       continue;
     }
     const d = cols.date ? r.get(cols.date) : null;

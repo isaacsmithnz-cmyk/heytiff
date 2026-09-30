@@ -1,6 +1,6 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
-import { DEFAULT_SUPPLIERS } from "@/lib/quotes/price-book";
+import { readSuppliers } from "@/lib/quotes/price-book-server";
 import { decideSame, sameItemProposals } from "@/lib/quotes/same-items-server";
 
 /* One part at two suppliers: Tiff's proposals (GET), and a person's answer
@@ -17,14 +17,12 @@ async function gate(): Promise<{ orgId: string; userId: string } | Response> {
   return { orgId, userId };
 }
 
-const SUPPLIER_KEYS = new Set(DEFAULT_SUPPLIERS.map((s) => s.key));
-
-/** "supplier|code" from a known supplier, or null. */
-const refIn = (v: unknown): string | null => {
+/** "supplier|code" from one of the business's suppliers, or null. */
+const refIn = (v: unknown, keys: Set<string>): string | null => {
   if (typeof v !== "string") return null;
   const [key, ...rest] = v.split("|");
   const code = rest.join("|").trim();
-  return key && SUPPLIER_KEYS.has(key) && code && code.length <= 80 ? `${key}|${code}` : null;
+  return key && keys.has(key) && code && code.length <= 80 ? `${key}|${code}` : null;
 };
 
 export async function GET() {
@@ -37,8 +35,9 @@ export async function POST(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
   const body = (await req.json().catch(() => ({}))) as { a?: unknown; b?: unknown; decision?: unknown };
-  const a = refIn(body.a);
-  const b = refIn(body.b);
+  const keys = new Set((await readSuppliers(who.orgId)).map((s) => s.key));
+  const a = refIn(body.a, keys);
+  const b = refIn(body.b, keys);
   const decision = body.decision === "confirmed" || body.decision === "rejected" ? body.decision : null;
   if (!a || !b || a === b || !decision) return Response.json({ ok: false, reason: "Nothing to decide." }, { status: 400 });
   const ok = await decideSame(who.orgId, who.userId, a, b, decision);

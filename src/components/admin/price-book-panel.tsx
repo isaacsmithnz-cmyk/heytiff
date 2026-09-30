@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CategoryKey } from "@/lib/quotes/categories";
-import { pricingWords } from "@/lib/quotes/price-book";
+import { COLUMN_FIELDS, pricingWords, type ColumnField, type Columns } from "@/lib/quotes/price-book";
 import type { CategoryCount, ModelOffers, SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
 
 /* THE PRICE BOOK in Admin → Quoting: the suppliers the business buys from,
@@ -15,13 +15,20 @@ import type { CategoryCount, ModelOffers, SupplierView, ImportSummary } from "@/
 
    And the book can be browsed by shelf — Units, Pipe and coil, Fittings…
    — each product once with every supplier's price, the search narrowing
-   the shelf when one is open. */
+   the shelf when one is open.
+
+   A supplier HeyTiff doesn't know is added by name; its price list can be
+   any CSV or workbook. When the file's headings aren't ones HeyTiff reads,
+   its first rows are shown and a person says which column is the code,
+   the description and the price — once: the next file reads the same. */
 
 const ROUTE = "/api/quoting/price-book";
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
 const $ = (cents: number) => money.format(cents / 100);
 const dateOf = (iso: string) =>
   new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "Australia/Sydney" });
+
+type Preview = { letters: string[]; rows: (string | number | null)[][] };
 
 type ImportAnswer =
   | {
@@ -30,7 +37,10 @@ type ImportAnswer =
       conflicts: { code: string; kept: number; also: number }[];
       skipped: number;
     }
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; needsColumns?: boolean; preview?: Preview };
+
+/** A file waiting for its columns to be matched. */
+type Matching = { supplier: SupplierView; file: File; preview: Preview };
 
 export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]; onImported: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -54,18 +64,28 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
     };
   }, []);
 
-  const upload = async (s: SupplierView, file: File) => {
+  const [matching, setMatching] = useState<Matching | null>(null);
+  const [newName, setNewName] = useState("");
+
+  const upload = async (s: SupplierView, file: File, layout?: { columns: Columns; pricing: "net" | "list_less"; discountPct: number }) => {
     setBusy(s.key);
     setNote(null);
     try {
       const form = new FormData();
       form.set("supplier", s.key);
       form.set("file", file);
+      if (layout) {
+        form.set("columns", JSON.stringify(layout.columns));
+        form.set("pricing", layout.pricing);
+        form.set("discountPct", String(layout.discountPct));
+      }
       const a = (await (await fetch(ROUTE, { method: "POST", body: form })).json()) as ImportAnswer;
       if (!a.ok) {
-        setNote({ tone: "bad", text: a.reason });
+        if (a.needsColumns && a.preview) setMatching({ supplier: s, file, preview: a.preview });
+        else setNote({ tone: "bad", text: a.reason });
         return;
       }
+      setMatching(null);
       const { read, changed, added, gone } = a.summary;
       const parts = [
         `${read.toLocaleString("en-AU")} items read`,
@@ -80,6 +100,33 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
       onImported();
     } catch {
       setNote({ tone: "bad", text: "The file couldn't be sent. Try again." });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const add = async () => {
+    const name = newName.trim();
+    if (name.length < 2) return;
+    setBusy("add");
+    setNote(null);
+    try {
+      const a = (await (
+        await fetch("/api/quoting/suppliers", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name }),
+        })
+      ).json()) as { ok: boolean; reason?: string };
+      if (!a.ok) {
+        setNote({ tone: "bad", text: a.reason ?? "That supplier couldn't be added." });
+        return;
+      }
+      setNewName("");
+      setNote({ tone: "ok", text: `${name} added. Upload its price list.` });
+      onImported();
+    } catch {
+      setNote({ tone: "bad", text: "That supplier couldn't be added. Try again." });
     } finally {
       setBusy(null);
     }
@@ -152,7 +199,15 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
                 <input
                   type="file"
                   className="qs-file"
-                  accept={s.file === "csv" ? ".csv,text/csv" : s.file === "xlsx" ? ".xlsx" : ".pdf,application/pdf"}
+                  accept={
+                    s.format === "headed"
+                      ? ".csv,text/csv,.xlsx"
+                      : s.file === "csv"
+                        ? ".csv,text/csv"
+                        : s.file === "xlsx"
+                          ? ".xlsx"
+                          : ".pdf,application/pdf"
+                  }
                   disabled={busy !== null}
                   onChange={(e) => {
                     const f = e.target.files?.[0];
@@ -164,7 +219,37 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
             </span>
           </div>
         ))}
+        <div className="qs-row qs-suprow" role="row">
+          <span role="cell" className="qs-addsup">
+            <input
+              className="wb2-fi"
+              value={newName}
+              disabled={busy !== null}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void add();
+              }}
+              placeholder="Another supplier"
+              aria-label="New supplier's name"
+            />
+          </span>
+          <span role="cell" />
+          <span role="cell" className="qs-act">
+            <button type="button" className="pbtn ghost sm" disabled={busy !== null || newName.trim().length < 2} onClick={() => void add()}>
+              {busy === "add" ? "Adding" : "Add supplier"}
+            </button>
+          </span>
+        </div>
       </div>
+
+      {matching && (
+        <MatchColumns
+          m={matching}
+          busy={busy !== null}
+          onCancel={() => setMatching(null)}
+          onRead={(layout) => void upload(matching.supplier, matching.file, layout)}
+        />
+      )}
 
       {shelves && shelves.length > 0 && (
         <div className="qs-shelves" role="group" aria-label="Browse by category">
@@ -233,5 +318,112 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
         </div>
       )}
     </section>
+  );
+}
+
+/* The first rows of a file HeyTiff couldn't read by its headings, and a
+   choice of column for each field. What's chosen is kept for the supplier,
+   so the next file reads without asking. */
+function MatchColumns({
+  m,
+  busy,
+  onCancel,
+  onRead,
+}: {
+  m: Matching;
+  busy: boolean;
+  onCancel: () => void;
+  onRead: (layout: { columns: Columns; pricing: "net" | "list_less"; discountPct: number }) => void;
+}) {
+  const [cols, setCols] = useState<Columns>({});
+  const [pricing, setPricing] = useState<"net" | "list_less">(m.supplier.pricing);
+  const [pct, setPct] = useState(m.supplier.discountPct ? String(m.supplier.discountPct) : "");
+  const sample = (letter: string) => {
+    const v = m.preview.rows.map((r) => r[m.preview.letters.indexOf(letter)]).find((x) => x != null && String(x).trim());
+    return v == null ? letter : `${letter}: ${String(v).slice(0, 24)}`;
+  };
+  const set = (field: ColumnField, letter: string) =>
+    setCols((c) => {
+      const next = { ...c };
+      if (letter) next[field] = letter;
+      else delete next[field];
+      return next;
+    });
+  const ready = !!cols.code && !!cols.price && (pricing === "net" || Number(pct) > 0);
+  return (
+    <div className="qs-match">
+      <h3 className="qs-h">{`Which column is which in ${m.file.name}?`}</h3>
+      <div className="qs-preview">
+        <table>
+          <thead>
+            <tr>
+              {m.preview.letters.map((l) => (
+                <th key={l} scope="col">
+                  {l}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {m.preview.rows.map((r, i) => (
+              <tr key={i}>
+                {r.map((v, j) => (
+                  <td key={j}>{v == null ? "" : String(v)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="qs-fields">
+        {COLUMN_FIELDS.map((f) => (
+          <label className="qs-field" key={f.field}>
+            <span>{f.label}</span>
+            <select className="wb2-sel" value={cols[f.field] ?? ""} disabled={busy} onChange={(e) => set(f.field, e.target.value)}>
+              <option value="">{f.required ? "Choose a column" : "Not in this file"}</option>
+              {m.preview.letters.map((l) => (
+                <option key={l} value={l}>
+                  {sample(l)}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+        <label className="qs-field">
+          <span>The prices are</span>
+          <select
+            className="wb2-sel"
+            value={pricing}
+            disabled={busy}
+            onChange={(e) => setPricing(e.target.value === "list_less" ? "list_less" : "net")}
+          >
+            <option value="net">What we pay</option>
+            <option value="list_less">List prices, less our discount</option>
+          </select>
+        </label>
+        {pricing === "list_less" && (
+          <label className="qs-field">
+            <span>Our discount</span>
+            <span className="qs-in">
+              <input className="wb2-fi" inputMode="decimal" value={pct} disabled={busy} onChange={(e) => setPct(e.target.value)} aria-label="Discount percent" />
+              <em>%</em>
+            </span>
+          </label>
+        )}
+      </div>
+      <div className="wb2-jqacts">
+        <button type="button" className="pbtn ghost" disabled={busy} onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="pbtn primary"
+          disabled={busy || !ready}
+          onClick={() => onRead({ columns: cols, pricing, discountPct: pricing === "list_less" ? Number(pct) : 0 })}
+        >
+          Read the file
+        </button>
+      </div>
+    </div>
   );
 }

@@ -106,3 +106,11 @@ create table if not exists public.quote_same_items (
   check (a_ref < b_ref)
 );
 alter table public.quote_same_items enable row level security;
+
+-- ── a supplier the business adds, and a layout matched once (2026-09-30) ──
+-- A supplier beyond the built-in five is a row here with format 'headed':
+-- any CSV or workbook, read by its headings. When the headings aren't ones
+-- HeyTiff knows, a person matches the columns once (code, description,
+-- price, unit — by column letter) and `columns` keeps it for the next file.
+alter table public.quote_suppliers add column if not exists format text;
+alter table public.quote_suppliers add column if not exists columns jsonb;

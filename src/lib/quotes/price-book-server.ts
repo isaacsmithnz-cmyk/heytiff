@@ -3,6 +3,8 @@ import {
   DEFAULT_SUPPLIERS,
   compareOffers,
   netCents,
+  COLUMN_FIELDS,
+  type Columns,
   type DiscountRule,
   type Offer,
   type PriceRow,
@@ -25,6 +27,8 @@ type SupplierRow = {
   file_name: string | null;
   imported_at: string | null;
   item_count: number | null;
+  format: string | null;
+  columns: unknown;
 };
 
 export type SupplierView = Supplier & { fileName: string | null; importedAt: string | null; itemCount: number | null };
@@ -37,28 +41,86 @@ const rulesOf = (raw: unknown): DiscountRule[] =>
         .map((r) => ({ prefix: String(r.prefix).trim(), discountPct: Number(r.discount_pct ?? r.discountPct) || 0 }))
     : [];
 
+/** A stored column match, only the fields and letters it can hold. */
+const columnsOf = (raw: unknown): Columns | null => {
+  if (!raw || typeof raw !== "object") return null;
+  const out: Columns = {};
+  for (const { field } of COLUMN_FIELDS) {
+    const v = (raw as Record<string, unknown>)[field];
+    if (typeof v === "string" && /^[A-Z]{1,2}$/.test(v)) out[field] = v;
+  }
+  return out.code && out.price ? out : null;
+};
+
 export async function readSuppliers(orgId: string): Promise<SupplierView[]> {
   const { data } = await supabaseAdmin
     .from("quote_suppliers")
-    .select("key, name, pricing, discount_pct, rules, file_name, imported_at, item_count")
+    .select("key, name, pricing, discount_pct, rules, file_name, imported_at, item_count, format, columns")
     .eq("org_id", orgId);
-  const stored = new Map(((data ?? []) as SupplierRow[]).map((r) => [r.key, r]));
-  return DEFAULT_SUPPLIERS.map((d) => {
-    const r = stored.get(d.key);
-    if (!r) return { ...d, fileName: null, importedAt: null, itemCount: null };
-    return {
-      key: d.key,
-      name: r.name || d.name,
-      pricing: (r.pricing === "list_less" ? "list_less" : "net") as PricingKind,
-      file: d.file,
-      format: d.format,
-      discountPct: Number(r.discount_pct) || 0,
-      rules: rulesOf(r.rules),
-      fileName: r.file_name,
-      importedAt: r.imported_at,
-      itemCount: r.item_count,
-    };
+  const rows = (data ?? []) as SupplierRow[];
+  const stored = new Map(rows.map((r) => [r.key, r]));
+  const view = (r: SupplierRow, d: Supplier): SupplierView => ({
+    key: d.key,
+    name: r.name || d.name,
+    pricing: (r.pricing === "list_less" ? "list_less" : "net") as PricingKind,
+    file: d.file,
+    format: d.format,
+    discountPct: Number(r.discount_pct) || 0,
+    rules: rulesOf(r.rules),
+    columns: columnsOf(r.columns),
+    fileName: r.file_name,
+    importedAt: r.imported_at,
+    itemCount: r.item_count,
   });
+  const builtIn = DEFAULT_SUPPLIERS.map((d) => {
+    const r = stored.get(d.key);
+    return r ? view(r, d) : { ...d, fileName: null, importedAt: null, itemCount: null };
+  });
+  /* the suppliers the business added: any CSV or workbook, by heading */
+  const added = rows
+    .filter((r) => r.format === "headed" && !DEFAULT_SUPPLIERS.some((d) => d.key === r.key))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((r) => view(r, { key: r.key, name: r.name, pricing: "net", file: "xlsx", format: "headed", discountPct: 0, rules: [] }));
+  return [...builtIn, ...added];
+}
+
+/** A key for a new supplier's name: "Ideal Air Group" → "ideal_air_group",
+    with a number on the end if it's taken. */
+export function supplierKeyFor(name: string, taken: string[]): string {
+  const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "supplier";
+  let key = base;
+  for (let n = 2; taken.includes(key); n++) key = `${base}_${n}`;
+  return key;
+}
+
+/** A supplier the business buys from that HeyTiff didn't know. */
+export async function addSupplier(orgId: string, name: string): Promise<SupplierView | null> {
+  const existing = await readSuppliers(orgId);
+  if (existing.some((s) => s.name.toLowerCase() === name.toLowerCase())) return null;
+  const key = supplierKeyFor(name, existing.map((s) => s.key));
+  const { error } = await supabaseAdmin
+    .from("quote_suppliers")
+    .insert({ org_id: orgId, key, name, pricing: "net", discount_pct: 0, rules: [], format: "headed" });
+  if (error) return null;
+  return { key, name, pricing: "net", file: "xlsx", format: "headed", discountPct: 0, rules: [], columns: null, fileName: null, importedAt: null, itemCount: null };
+}
+
+/** Keep the columns a person matched, and how the file's prices read. */
+export async function saveSupplierLayout(orgId: string, supplier: Supplier, columns: Columns, pricing: PricingKind, discountPct: number) {
+  await supabaseAdmin
+    .from("quote_suppliers")
+    .upsert(
+      {
+        org_id: orgId,
+        key: supplier.key,
+        name: supplier.name,
+        columns,
+        pricing,
+        discount_pct: discountPct,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "org_id,key" }
+    );
 }
 
 export type ImportSummary = {

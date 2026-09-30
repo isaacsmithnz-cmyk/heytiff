@@ -11971,6 +11971,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .qs-upload { position:relative; cursor:pointer; }
 .qs-upload[aria-disabled="true"] { opacity:.5; cursor:default; }
 .qs-file { position:absolute; inset:0; opacity:0; cursor:pointer; }
+/* a supplier added by name, and a file's columns matched by hand: its
+   first rows as they are, a column to choose for each field */
+.qs-addsup .wb2-fi { width:100%; }
+.qs-match { margin-top:16px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); }
+.qs-preview { margin-top:12px; overflow-x:auto; }
+.qs-preview table { border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+.qs-preview th { padding:4px 8px; text-align:left; font-weight:600; color:var(--q); }
+.qs-preview td { padding:4px 8px; border-top:1px solid var(--line); white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
 /* the shelves to browse the book by */
 .qs-shelves { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
 .qs-find { margin-top:16px; max-width:420px; }

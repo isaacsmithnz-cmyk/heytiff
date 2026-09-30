@@ -97,6 +97,28 @@ describe("the Schematic with a riser", () => {
   });
 });
 
+describe("floor bands (Isaac, 2026-09-30)", () => {
+  it("a system on two floors is laid out a strip per floor, the top floor first, each head in its own", () => {
+    const { doc, systemId } = twoFloors();
+    const sys = doc.systems.find((s) => s.id === systemId)!;
+    const { container } = render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
+    const bands = [...container.querySelectorAll(".ds-schem-band")];
+    expect(bands.map((b) => b.querySelector("text")!.textContent)).toEqual(["Level 1", "Ground floor"]);
+    const band = (i: number) => {
+      const r = bands[i].querySelector("rect")!;
+      return { top: Number(r.getAttribute("y")), bottom: Number(r.getAttribute("y")) + Number(r.getAttribute("height")) };
+    };
+    // the outdoor in the ground floor's strip, the head in Level 1's
+    const y = (sel: string) => Number(container.querySelector(sel)!.getAttribute("y"));
+    const odu = y(".ds-schem-odu-n rect");
+    const head = y(".ds-schem-head rect");
+    expect(odu).toBeGreaterThan(band(1).top);
+    expect(odu).toBeLessThan(band(1).bottom);
+    expect(head).toBeGreaterThan(band(0).top);
+    expect(head).toBeLessThan(band(0).bottom);
+  });
+});
+
 describe("a riser dropped on the trunk (Isaac, 2026-09-30: it sat on the pipe without joining it)", () => {
   /* the outdoor → a ground-floor head along one run; the riser dropped half
      way along it; upstairs, the riser → the Level 1 head */

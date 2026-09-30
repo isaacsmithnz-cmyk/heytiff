@@ -14,7 +14,7 @@ import type { RoomObj } from "../loads-room";
 import { allocationsOf } from "../allocations";
 import { addHead, chooseOutdoor } from "../builder";
 import { newSystem } from "../zones";
-import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns, slideOnRun } from "../joints";
+import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns, riserOnRun, slideOnRun } from "../joints";
 import { reconcileAttachedRuns } from "../attach";
 import { systemVrfTree } from "../vrf-tree";
 import { attachOf, buildSystemGraph, riserGapOf, setRiserHeight } from "../graph";
@@ -608,5 +608,27 @@ describe("sliding a joint along its pipe (Isaac, 2026-09-30)", () => {
     const runs = slid.objects.filter((o) => o.type === "pipe-run").map((o) => (o.geometry as { points: Point[] }).points);
     expect(runs).toContainEqual([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 4 }]);
     expect(runs).toContainEqual([{ x: 10, y: 4 }, { x: 10, y: 10 }]);
+  });
+});
+
+describe("deleting a riser dropped in a pipe (Isaac, 2026-09-30: it left the trunk in two)", () => {
+  it("puts the pipe back together, as deleting a joint does", () => {
+    let doc = createDesign({ name: "riser delete", mode: "blank" });
+    const floorId = doc.floors[0].id;
+    doc = {
+      ...doc,
+      objects: [
+        { id: "run", type: "pipe-run", systemId: "s", floorId, plane: "room", geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] }, props: { startAttach: { kind: "unit", id: "odu" } } } as DesignObject,
+      ],
+    };
+    const riser = { id: "R", type: "riser", systemId: "s", floorId, plane: "room", geometry: { kind: "point", at: { x: 4, y: 0 } }, props: { group: "A" } } as DesignObject;
+    const cut = riserOnRun(doc, "run", 0, riser)!;
+    expect(cut.objects.filter((o) => o.type === "pipe-run")).toHaveLength(2);
+    const back = deleteJoint(cut, "R");
+    const runs = back.objects.filter((o) => o.type === "pipe-run");
+    expect(runs).toHaveLength(1);
+    expect((runs[0].geometry as { points: Point[] }).points).toEqual([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 10, y: 0 }]);
+    expect(attachOf(runs[0].props.startAttach)?.id).toBe("odu");
+    expect(back.objects.some((o) => o.id === "R")).toBe(false);
   });
 });

@@ -1982,7 +1982,10 @@ export function StudioCanvas({
             return deleteRoom ? deleteRoom(d, selectedId) : deleteZone(d, null, selectedId);
           }
           // a joint that cut a run puts the run back together (joints.ts)
-          if (d.objects.find((o) => o.id === selectedId)?.type === "joint") return deleteJoint(d, selectedId);
+          /* a joint or riser that cut a run puts it back together as it goes
+             (Isaac, 2026-09-30: deleting riser A left the trunk in two) */
+          const kind = d.objects.find((o) => o.id === selectedId)?.type;
+          if (kind === "joint" || kind === "riser") return deleteJoint(d, selectedId);
           // deleting an AHU carries its plenums (they're its plenums — spec
           // §10.3); runs that attached to it lose the ref and become open ends
           return {

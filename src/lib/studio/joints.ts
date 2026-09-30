@@ -134,8 +134,8 @@ function nodeOnRun(doc: DesignDocument, runId: string, seg: number, at: Point, j
   return { ...doc, objects: [...objects, joint] };
 }
 
-/** delete a joint. A joint that cut a run (jointOnRun marks which end of each
-    half the cut made)
+/** delete a joint, or a riser dropped in a run (riserOnRun). One that cut a
+    run (jointOnRun marks which end of each half the cut made)
     with one branch on it puts the run back together: the halves become one
     run again, keeping its two far ends, and the branch run goes with the
     joint (Isaac, 2026-09-29). Any other joint just goes, and the runs on it
@@ -194,7 +194,7 @@ export type SchematicTarget =
   | { kind: "riser"; id: string };
 
 export function deleteFromSchematic(doc: DesignDocument, target: SchematicTarget): DesignDocument {
-  if (target.kind === "joint") return deleteJoint(doc, target.id);
+  if (target.kind === "joint" || target.kind === "riser") return deleteJoint(doc, target.id);
   const gone = new Set(target.kind === "runs" ? target.ids : [target.id]);
   if (!doc.objects.some((o) => gone.has(o.id))) return doc;
   return { ...doc, objects: pruneObjects(doc.objects, (o) => !gone.has(o.id)) };

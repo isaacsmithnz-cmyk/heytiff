@@ -48,3 +48,22 @@ it("prices a pairing at each unit's cheapest, and not at all with a unit unprice
   expect(pairFromCents(prices, ["MSZ-AP71VGD2"])).toBe(40927);
   expect(pairFromCents(prices, ["MSZ-AP71VGD2", "MUZ-AP71VG2"])).toBeNull();
 });
+
+it("offers the pair as lowest each, or both from one supplier, and picking one sets both units", () => {
+  const onChoose = jest.fn();
+  const me = (code: string, c: number) => offer("mitsubishi", "Mitsubishi Electric", code, c);
+  const aadO = (code: string, c: number) => offer("aad", "AAD", code, c);
+  const pair: UnitPrices = new Map([
+    ["IDU", { code: "IDU", offers: [aadO("IDU", 40927), me("IDU", 42000)], cheapest: aadO("IDU", 40927), savesCents: 1073, chosen: aadO("IDU", 40927), overridden: false, features: [], proposed: false }],
+    ["ODU", { code: "ODU", offers: [me("ODU", 120000), aadO("ODU", 126940)], cheapest: me("ODU", 120000), savesCents: 6940, chosen: me("ODU", 120000), overridden: false, features: [], proposed: false }],
+  ]);
+  render(<BuyPrices prices={pair} models={[{ model: "IDU", role: "Indoor" }, { model: "ODU", role: "Outdoor" }]} onChoose={onChoose} />);
+  const group = screen.getByRole("group", { name: "Buy the pair" });
+  expect(group).toHaveTextContent("Lowest each");
+  expect(group).toHaveTextContent("All from Mitsubishi Electric");
+  expect(group).toHaveTextContent("All from AAD");
+  screen.getByRole("button", { name: /All from AAD/ }).click();
+  /* the indoor is already AAD's lowest; the outdoor moves to AAD */
+  expect(onChoose).toHaveBeenCalledTimes(1);
+  expect(onChoose).toHaveBeenCalledWith("ODU", "aad");
+});

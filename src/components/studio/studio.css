@@ -10104,3 +10104,6 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-buystate.warn { color:var(--warn-t); }
 button.ds-ub-offer { align-items:flex-start; padding:4px 8px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); }
 button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }
+/* the pair as whole-order options: lowest each, or all from one supplier */
+.ds-ub-basket { display:flex; flex-wrap:wrap; gap:8px; }
+.ds-ub-over { font-size:12px; font-weight:500; color:var(--q); }

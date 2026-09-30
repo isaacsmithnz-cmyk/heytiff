@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Offer } from "@/lib/quotes/price-book";
+import { basketOptions } from "@/lib/quotes/basket";
 
 /* WHAT A UNIT COSTS, AND FROM WHOM — the unit browser's buy prices.
 
@@ -98,9 +99,59 @@ export function BuyPrices({
   models: { model: string; role: string }[];
   onChoose?: (model: string, supplierKey: string | null) => void;
 }) {
+  /* the pair as a couple of whole-order options: each at its lowest, or
+     both from one supplier (one pickup), with what that costs over */
+  const options =
+    models.length > 1
+      ? basketOptions(
+          models.map(({ model }) => ({
+            key: model,
+            qty: 1,
+            offers: (prices.get(model)?.offers ?? []).map((o) => ({
+              supplierKey: o.supplierKey,
+              supplierName: o.supplierName,
+              cents: o.netCents,
+            })),
+          }))
+        )
+      : [];
+  const pickOption = (picks: Record<string, string>) => {
+    for (const { model } of models) {
+      const p = prices.get(model);
+      const want = picks[model];
+      if (!p || !want) continue;
+      /* the lowest supplier is no override at all */
+      const next = p.offers[0]?.supplierKey === want ? null : want;
+      if ((p.overridden ? p.chosen?.supplierKey : null) !== next) onChoose?.(model, next);
+    }
+  };
+  const current = (picks: Record<string, string>) =>
+    models.every(({ model }) => !picks[model] || prices.get(model)?.chosen?.supplierKey === picks[model]);
+
   return (
     <section className="ds-ub-buy" aria-label="Buy prices">
       <h4>Buy price</h4>
+      {options.length > 1 && (
+        <div className="ds-ub-basket" role="group" aria-label="Buy the pair">
+          {options.map((o) => {
+            const on = current(o.picks);
+            return (
+              <button
+                type="button"
+                key={o.label}
+                className={`ds-ub-offer${o.overCents === 0 ? " ok" : ""}${on ? " on" : ""}`}
+                aria-pressed={on}
+                disabled={!onChoose || on}
+                onClick={() => pickOption(o.picks)}
+              >
+                <em>{o.label}</em>
+                {$(o.totalCents)}
+                {o.overCents > 0 && <span className="ds-ub-over">{`+${$(o.overCents)}`}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {models.map(({ model, role }) => {
         const p = prices.get(model);
         return (

@@ -14,9 +14,10 @@ import type { RoomObj } from "../loads-room";
 import { allocationsOf } from "../allocations";
 import { addHead, chooseOutdoor } from "../builder";
 import { newSystem } from "../zones";
-import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns } from "../joints";
+import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns, slideOnRun } from "../joints";
+import { reconcileAttachedRuns } from "../attach";
 import { systemVrfTree } from "../vrf-tree";
-import { buildSystemGraph, riserGapOf, setRiserHeight } from "../graph";
+import { attachOf, buildSystemGraph, riserGapOf, setRiserHeight } from "../graph";
 import { combinationWord, doneBlockers, systemFindings } from "../verdict";
 import { buildSummaryModel } from "../summary";
 import { pairSize, pipeViewOf, setRunSizes, sizeTone, tubeSize } from "../pipe-sizes";
@@ -555,5 +556,57 @@ describe("a riser between floors", () => {
     expect(riserGapOf(doc.objects, doc.floors, "r0")!.manualM).toBe(6);
     doc = setRiserHeight(doc, "r0", null);
     expect(gap().lengthM).toBe(3);
+  });
+});
+
+describe("sliding a joint along its pipe (Isaac, 2026-09-30)", () => {
+  const jointAt = (doc: DesignDocument, x: number) =>
+    doc.objects.find((o) => o.type === "joint" && o.geometry.kind === "point" && Math.abs(o.geometry.at.x - x) < 1)!;
+  const pts = (doc: DesignDocument | { objects: DesignObject[] }, id: string) =>
+    (doc.objects.find((o) => o.id === id)!.geometry as { points: Point[] }).points;
+
+  it("moves along the trunk: the half behind shortens, the half ahead lengthens, the branch follows", () => {
+    const t = page144Drawn();
+    const j = jointAt(t.doc, 40 * M);
+    const slid = slideOnRun(t.doc.objects, j.id, { x: 38 * M, y: 0.2 * M }, 1 * M)!;
+    expect(slid.at).toEqual({ x: 38 * M, y: 0 });
+    const into = runsOf({ ...t.doc, objects: slid.objects }, t.systemId).find(
+      (r) => attachOf(r.props.endAttach)?.id === j.id && r.props.cutEnd === j.id
+    )!;
+    const on = runsOf({ ...t.doc, objects: slid.objects }, t.systemId).find(
+      (r) => attachOf(r.props.startAttach)?.id === j.id && r.props.cutStart === j.id
+    )!;
+    expect(into.geometry.points.at(-1)).toEqual({ x: 38 * M, y: 0 });
+    expect(on.geometry.points[0]).toEqual({ x: 38 * M, y: 0 });
+    expect(on.geometry.points.at(-1)).toEqual(pts(t.doc, on.id).at(-1));
+    // the trunk as a whole is unchanged in length: 85 m still reaches P63
+    const doc = { ...t.doc, objects: reconcileAttachedRuns(slid.objects, new Set([j.id])) };
+    const tree = systemVrfTree(pack, doc.systems.find((s) => s.id === t.systemId)!, doc)!;
+    expect(tree.drawn).toBe(true);
+    expect(tree.sections.find((s) => s.to === t.heads[63])!.lengthM).toBeCloseTo(10);
+  });
+
+  it("dragged well off the line, there is no slide (it comes free)", () => {
+    const t = page144Drawn();
+    const j = jointAt(t.doc, 40 * M);
+    expect(slideOnRun(t.doc.objects, j.id, { x: 38 * M, y: 3 * M }, 1 * M)).toBeNull();
+  });
+
+  it("passes a corner over from one half to the other", () => {
+    // a run with a corner: (0,0) → (10,0) → (10,10), a joint at (5,0)
+    let doc = createDesign({ name: "corner", mode: "blank" });
+    const floorId = doc.floors[0].id;
+    doc = {
+      ...doc,
+      objects: [
+        { id: "run", type: "pipe-run", systemId: "s", floorId, plane: "room", geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }] }, props: {} } as DesignObject,
+      ],
+    };
+    const cut = jointOnRun(doc, "run", 0, { x: 5, y: 0 }, "J")!;
+    const slid = slideOnRun(cut.doc.objects, "J", { x: 10.2, y: 4 }, 1)!;
+    expect(slid.at).toEqual({ x: 10, y: 4 });
+    const runs = slid.objects.filter((o) => o.type === "pipe-run").map((o) => (o.geometry as { points: Point[] }).points);
+    expect(runs).toContainEqual([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 4 }]);
+    expect(runs).toContainEqual([{ x: 10, y: 4 }, { x: 10, y: 10 }]);
   });
 });

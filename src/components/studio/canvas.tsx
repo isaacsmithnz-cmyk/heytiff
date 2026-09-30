@@ -71,7 +71,7 @@ import { isAirCapable } from "@/lib/studio/modules";
 import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf, riserGapOf, setRiserHeight } from "@/lib/studio/graph";
-import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns, riserOnRun } from "@/lib/studio/joints";
+import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns, riserOnRun, slideOnRun } from "@/lib/studio/joints";
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
@@ -320,6 +320,8 @@ const GRIP_HIT_PX = 10;
 /** a cloud smaller than this (screen px, either side) was a stray click */
 const NOTE_MIN_PX = 14;
 const HIT_EDGE_PX = 6;
+/* a joint or riser dragged further than this off its pipe comes free of it */
+const SLIDE_OFF_PX = 28;
 const ERASE_HIT_PX = 14; // eraser is more forgiving than select (DUCTR parity)
 
 /* A room drawn with the rectangle tool stays a rectangle when edited: is its
@@ -658,7 +660,9 @@ type Drag =
   | { kind: "vertex"; id: string; index: number; orig: Point[] }
   | { kind: "rect"; start: Point }
   | { kind: "sheet"; id: string; startWorld: Point; orig: Point }
-  | { kind: "point"; id: string; startWorld: Point; orig: Point }
+  /* `free`: a joint or riser dragged off its pipe's line stops sliding along
+     it for the rest of the drag (joints.ts slideOnRun) */
+  | { kind: "point"; id: string; startWorld: Point; orig: Point; free?: boolean }
   | { kind: "crop"; sheetId: string; start: Point }
   | { kind: "north-move"; startWorld: Point; orig: { x: number; y: number } }
   | { kind: "north-rotate"; center: { x: number; y: number } }
@@ -1057,6 +1061,9 @@ export function StudioCanvas({
 
   /** live position for point objects (units/risers) while dragging */
   const [livePoint, setLivePoint] = useState<{ id: string; at: Point } | null>(null);
+  /** a joint or riser sliding along its pipe: the two runs it sits in, as
+      they will be (joints.ts slideOnRun) */
+  const [liveSlide, setLiveSlide] = useState<Map<string, Point[]> | null>(null);
   const pointById = useMemo(() => {
     const m = new Map<string, { id: string; geometry: { at: Point } }>();
     for (const o of [...units, ...risers, ...joints, ...boxes]) m.set(o.id, o);
@@ -1086,7 +1093,9 @@ export function StudioCanvas({
       unit riding a room move) — the same moveEndpointTo the commit uses, so
       the preview is pixel-equal to the committed geometry */
   const liveRunPoints = useCallback(
-    (r: { props: Record<string, unknown>; geometry: { points: Point[] } }): Point[] => {
+    (r: { id?: string; props: Record<string, unknown>; geometry: { points: Point[] } }): Point[] => {
+      const slid = r.id ? liveSlide?.get(r.id) : undefined;
+      if (slid) return slid;
       let pts = r.geometry.points;
       const s = attachOf(r.props.startAttach);
       const sAt = s ? liveAnchorAt(s.id) : null;
@@ -1096,7 +1105,7 @@ export function StudioCanvas({
       if (eAt) pts = moveEndpointTo(pts, "end", eAt);
       return pts;
     },
-    [liveAnchorAt]
+    [liveAnchorAt, liveSlide]
   );
 
   /* run drafting (pipe/drain/cable share it): clicked vertices + what the
@@ -3168,15 +3177,30 @@ export function StudioCanvas({
           y: drag.orig.y + (w.y - drag.startWorld.y),
         });
         break;
-      case "point":
-        setLivePoint({
-          id: drag.id,
-          at: {
-            x: drag.orig.x + (w.x - drag.startWorld.x),
-            y: drag.orig.y + (w.y - drag.startWorld.y),
-          },
-        });
+      case "point": {
+        const want = {
+          x: drag.orig.x + (w.x - drag.startWorld.x),
+          y: drag.orig.y + (w.y - drag.startWorld.y),
+        };
+        /* a joint or riser in a pipe slides along it; pulled well off the
+           line it comes free, and stays free for the rest of the drag */
+        const slid = drag.free ? null : slideOnRun(doc.objects, drag.id, want, SLIDE_OFF_PX / vp.zoom);
+        if (slid) {
+          const pts = new Map<string, Point[]>();
+          for (const o of slid.objects)
+            if (o.type === "pipe-run" && o.geometry.kind === "polyline") {
+              const was = doc.objects.find((x) => x.id === o.id);
+              if (was !== o) pts.set(o.id, o.geometry.points);
+            }
+          setLiveSlide(pts);
+          setLivePoint({ id: drag.id, at: slid.at });
+        } else {
+          if (!drag.free && liveSlide) setDrag({ ...drag, free: true });
+          setLiveSlide(null);
+          setLivePoint({ id: drag.id, at: want });
+        }
         break;
+      }
       case "crop":
         setLiveCrop({ sheetId: drag.sheetId, a: drag.start, b: w });
         break;
@@ -3374,7 +3398,17 @@ export function StudioCanvas({
       }
       setLiveCallout(null);
     }
-    if (drag.kind === "point" && livePoint) {
+    if (drag.kind === "point" && livePoint && liveSlide) {
+      /* slid along its pipe: the same slide on the document, then its
+         branches follow their end */
+      const { id, at } = livePoint;
+      onMutate((d) => {
+        const slid = slideOnRun(d.objects, id, at, 1e-3);
+        return slid ? { ...d, objects: reconcileAttachedRuns(slid.objects, new Set([id])) } : d;
+      });
+      setLiveSlide(null);
+      setLivePoint(null);
+    } else if (drag.kind === "point" && livePoint) {
       const { id, at } = livePoint;
       if (at.x !== drag.orig.x || at.y !== drag.orig.y) {
         onMutate((d) => {

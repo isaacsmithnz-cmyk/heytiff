@@ -199,3 +199,121 @@ export function deleteFromSchematic(doc: DesignDocument, target: SchematicTarget
   if (!doc.objects.some((o) => gone.has(o.id))) return doc;
   return { ...doc, objects: pruneObjects(doc.objects, (o) => !gone.has(o.id)) };
 }
+
+/* SLIDING A JOINT OR RISER ALONG ITS PIPE (Isaac, 2026-09-30: "if I wanted to
+   move that riser back about a meter, it should slide along the pipes. If I
+   start dragging it directly off the line then the pipes can follow"). A node
+   IN a run (the two halves a cut made, or the straightest pair of runs on it)
+   moves along their combined line: the half behind it shortens, the half
+   ahead lengthens, and a corner passed over moves from one half to the other.
+   Anything else on the node (a branch) follows its end, as on any move. Off
+   the line by more than `tol`, there is no slide: the caller drags it free. */
+
+type Half = { run: DesignObject; pts: Point[]; rev: boolean };
+
+/** the node's through line: the run coming in to it and the run going on,
+    each oriented so the path reads in → node → on */
+function throughLine(objects: readonly DesignObject[], nodeId: string): { in: Half; on: Half } | null {
+  const ends = objects
+    .filter((o): o is Polyline => o.type === "pipe-run" && o.geometry.kind === "polyline" && o.geometry.points.length >= 2)
+    .flatMap((o) => {
+      const out: { run: Polyline; atEnd: boolean }[] = [];
+      if (attachOf(o.props.endAttach)?.id === nodeId) out.push({ run: o, atEnd: true });
+      if (attachOf(o.props.startAttach)?.id === nodeId) out.push({ run: o, atEnd: false });
+      return out;
+    });
+  if (ends.length < 2) return null;
+  const toNode = (e: { run: Polyline; atEnd: boolean }): Half => {
+    const p = e.run.geometry.points;
+    return { run: e.run, pts: e.atEnd ? [...p] : [...p].reverse(), rev: !e.atEnd };
+  };
+  /* the halves a cut made, when it marked them */
+  const cutIn = ends.find((e) => e.atEnd && e.run.props.cutEnd === nodeId);
+  const cutOn = ends.find((e) => !e.atEnd && e.run.props.cutStart === nodeId);
+  let pair: [(typeof ends)[number], (typeof ends)[number]] | null = cutIn && cutOn && cutIn.run !== cutOn.run ? [cutIn, cutOn] : null;
+  /* else the straightest two: the pair whose last legs into the node are
+     most nearly opposite */
+  if (!pair) {
+    let best = -Infinity;
+    for (let i = 0; i < ends.length; i++)
+      for (let j = i + 1; j < ends.length; j++) {
+        if (ends[i].run === ends[j].run) continue;
+        const a = toNode(ends[i]).pts;
+        const b = toNode(ends[j]).pts;
+        const da = { x: a[a.length - 1].x - a[a.length - 2].x, y: a[a.length - 1].y - a[a.length - 2].y };
+        const db = { x: b[b.length - 1].x - b[b.length - 2].x, y: b[b.length - 1].y - b[b.length - 2].y };
+        const la = Math.hypot(da.x, da.y) || 1;
+        const lb = Math.hypot(db.x, db.y) || 1;
+        const opposite = -(da.x * db.x + da.y * db.y) / (la * lb);
+        if (opposite > best) {
+          best = opposite;
+          pair = [ends[i], ends[j]];
+        }
+      }
+  }
+  if (!pair) return null;
+  const a = toNode(pair[0]);
+  const b = toNode(pair[1]);
+  /* `on` reads node → far end */
+  return { in: a, on: { ...b, pts: [...b.pts].reverse() } };
+}
+
+/** slide a joint or riser to the nearest point on its through line to `w`:
+    the objects with the node, its two halves and its branches moved, and
+    where it went; null when it is not in a line, or `w` is more than `tol`
+    off it */
+export function slideOnRun(
+  objects: readonly DesignObject[],
+  nodeId: string,
+  w: Point,
+  tol: number
+): { at: Point; objects: DesignObject[] } | null {
+  const node = objects.find((o) => o.id === nodeId);
+  if (!node || node.geometry.kind !== "point" || (node.type !== "joint" && node.type !== "riser")) return null;
+  const line = throughLine(objects, nodeId);
+  if (!line) return null;
+  /* the whole line, in → node → on. The node's own point is no corner when
+     the line runs straight through it, so it goes: the node leaves no kink
+     where it used to be. At a real corner it stays. */
+  const before = line.in.pts[line.in.pts.length - 2];
+  const here = line.in.pts[line.in.pts.length - 1];
+  const after = line.on.pts[1];
+  const cross = (here.x - before.x) * (after.y - here.y) - (here.y - before.y) * (after.x - here.x);
+  const straight = Math.abs(cross) < 1e-6 * Math.max(1, Math.hypot(after.x - before.x, after.y - before.y) ** 2);
+  const path = [...line.in.pts.slice(0, straight ? -1 : undefined), ...line.on.pts.slice(1)];
+  let best: { seg: number; at: Point; d: number } | null = null;
+  for (let j = 0; j < path.length - 1; j++) {
+    const hit = onSegment(w, path[j], path[j + 1]);
+    if (!best || hit.d < best.d) best = { seg: j, at: hit.at, d: hit.d };
+  }
+  if (!best || best.d > tol) return null;
+  /* never onto the line's far ends (a unit or the next joint is there): it
+     stops short of them, still on the line */
+  const gap = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y);
+  const stopShort = (end: Point, from: Point): Point => {
+    const len = gap(end, from);
+    const m = Math.min(tol / 2, len / 2);
+    return len === 0 ? end : { x: end.x + ((from.x - end.x) * m) / len, y: end.y + ((from.y - end.y) * m) / len };
+  };
+  let at = best.at;
+  if (gap(at, path[0]) < tol / 2) at = stopShort(path[0], path[1]);
+  if (gap(at, path[path.length - 1]) < tol / 2) at = stopShort(path[path.length - 1], path[path.length - 2]);
+  if (best.seg === 0 && gap(at, path[0]) < 1e-9) return null;
+  const clean = (pts: Point[]) => pts.filter((p, i) => i === 0 || gap(p, pts[i - 1]) > 1e-6);
+  const inPts = clean([...path.slice(0, best.seg + 1), at]);
+  const onPts = clean([at, ...path.slice(best.seg + 1)]);
+  const orient = (h: Half, pts: Point[], endsAtNode: boolean) => {
+    /* back to the run's own direction */
+    const nodeLast = endsAtNode ? pts : [...pts].reverse();
+    return h.rev ? [...nodeLast].reverse() : nodeLast;
+  };
+  const inGeom = orient(line.in, inPts, true);
+  const onGeom = orient(line.on, onPts, false);
+  const moved = objects.map((o) => {
+    if (o.id === nodeId && o.geometry.kind === "point") return { ...o, geometry: { ...o.geometry, at } };
+    if (o.id === line.in.run.id) return { ...o, geometry: { kind: "polyline" as const, points: inGeom } };
+    if (o.id === line.on.run.id) return { ...o, geometry: { kind: "polyline" as const, points: onGeom } };
+    return o;
+  });
+  return { at, objects: moved };
+}

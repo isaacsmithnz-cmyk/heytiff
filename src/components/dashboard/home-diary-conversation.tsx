@@ -208,7 +208,11 @@ export function HomeDiaryConversation({
               {said}
             </p>
           )}
-          {ask?.text ? <p className="hd-dy-p">{ask.text}</p> : null}
+          {ask?.text ? (
+            <p className="hd-dy-p">
+              {ask.words.some((w) => "pill" in w) ? <NoteWords words={ask.words} /> : ask.text}
+            </p>
+          ) : null}
           {thread.length > 0 && (
             <ol className="hd-dy-thread">
               {thread.map((m) => (

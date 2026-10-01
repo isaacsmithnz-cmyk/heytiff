@@ -1,6 +1,6 @@
 # Certificates on a job: plan
 
-Status: plan, 2026-10-01. Nothing built yet. Open questions for Isaac are at the end.
+Status: plan, 2026-10-01. Nothing built yet. Isaac's decisions are at the end.
 
 ## Why
 
@@ -23,15 +23,25 @@ issued version never changes. So it follows the SWMS build, piece for piece.
 1. On a job's Documents face, **Create certificate** sits beside Create SWMS.
    SWMS closes when the job is finished, but a certificate opens then: it is
    usually written once the work is done.
-2. They choose the type. v1 offers only **Mechanical services**. The type list
-   exists from day one, so electrical, refrigerant commissioning and BASIX
-   statements can join it later without a second build.
+2. There is one type, **Mechanical services**, so there is no type to choose.
+   The tables carry a `type` column so a second type would not need a new
+   build, but no chooser is drawn until there is something to choose
+   between.
 3. A short wizard opens with most fields already filled in (see Prefill). They
    correct, add and confirm.
 4. **Issue** freezes a version, prints it to PDF and files the PDF on the job.
-5. The PDF is an ordinary row on the Documents face, so the existing footer
-   already emails it to the builder and sends it to ServiceM8. Nothing new is
-   built for sending.
+5. The screen after Issue offers what happens next, and each choice is a
+   button, never automatic:
+   - **Email to the builder.** This opens the existing email draft
+     (`readEmailDraft`), starting with the builder's contact and with the
+     certificate already ticked. The subject is "Mechanical compliance
+     certificate: <address>".
+   - **Send to ServiceM8**, through the existing footer path (`job-sm8.ts`).
+   - **Download PDF**, and on a phone the phone's own share sheet, so it can go
+     by text or another app.
+
+   The PDF is also an ordinary row on the Documents face, so all of these stay
+   available later from the footer, like any other file.
 
 ## How it mirrors the SWMS
 
@@ -81,9 +91,11 @@ job's.
      - evacuation (microns)
      - refrigerant type and charge added
      - date commissioned
-5. **Sign.** The signatory (whoever is issuing, by default) with their **ARC
-   licence** and **contractor licence** read from their staff card. Draw the
-   signature, then Issue.
+5. **Sign.** The signatory is whoever is issuing, and must be an admin or the
+   owner. Their **ARC licence** and **contractor licence** are read from their
+   staff card. Their signature is the one stored on their staff card (see
+   Signature), shown here for them to see, and then they Issue. Nothing is
+   drawn at this step.
 
 ## Prefill: where each fact comes from
 
@@ -99,10 +111,30 @@ job's.
 | Serial numbers | `job_photo_readings.ocr_text` on the job's nameplate photos, offered for the person to confirm and never filled in silently | 2 |
 | Certifier, project number, which certificates are asked for | Upload the certifier's "OC list of requirements" PDF and read it (the way licences and policies are scanned now) | 3 |
 
+## Signature
+
+Each person draws their signature **once**, on their own staff card, using the
+SWMS sign-on pad (`signatureSvg`). Every certificate they issue after that
+uses it.
+
+- Only the person can set or redraw their own signature. A manager cannot
+  draw one for someone else, because a signature is the person's own mark.
+- Issuing **copies** the signature onto the version, so a signature redrawn
+  later never changes a certificate already sent.
+- With no signature on file, the Sign step offers the pad there and then, and
+  saving it stores it on the card for next time.
+
+Storage: one row per person in a new `staff_signatures` table (svg, set_at).
+It is a separate table rather than a `staff_profiles` column, so it never
+rides the profile's flat section save.
+
 ## Rules that block Issue (`certProblems`)
 
-- The signatory holds an ARC licence and a contractor licence that are on file
-  and **current on the issue date**. A licence with no expiry on file counts as
+- The issuer is an admin or the owner.
+- The signatory has a signature on file (or draws one at this step).
+- The signatory holds an ARC licence, and there is a contractor licence to
+  print (the signatory's own, or the named licence holder's; see Still open).
+  Both are on file and **current on the issue date**. A licence with no expiry on file counts as
   "check it" and blocks Issue, the same as an expired one. (Isaac's two were
   added on 2026-10-01 without expiry dates, because the cards in the photo
   show 2024. Their current expiry dates need adding before v1 can issue.)
@@ -122,6 +154,13 @@ One migration, additive, safe to apply before the deploy (no RLS policies,
 service role only, every query scoped by `org_id`, like `swms.sql`):
 
 ```sql
+create table public.staff_signatures (
+  staff_profile_id uuid primary key,
+  org_id uuid not null,
+  signature_svg text not null,
+  set_at timestamptz not null default now()
+);
+
 create table public.certificates (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null,
@@ -169,10 +208,14 @@ opposite of the SWMS paper's live ticket read, on purpose.
 
 ## Gates
 
-- **Issue**: `workboard_manage`. A certificate is outward-facing and goes to a
-  certifier under the business's name.
+- **Issue and reissue**: admin or owner (`hasMinRole(role, "admin")`), Isaac's
+  answer on 2026-10-01: "any admin or manager". In this app "Manager" is the
+  `admin` role. A certificate is outward-facing and goes out under the
+  business's name.
 - **Approve the template**: owner, as for the SWMS library.
 - **Read the paper**: `workboard`.
+- **Email and Send to ServiceM8**: the existing footer's own gates
+  (`workboard_manage`), unchanged.
 
 ## Build order
 
@@ -183,28 +226,34 @@ opposite of the SWMS paper's live ticket read, on purpose.
    issue, approve, list for a job.
 3. **Paper.** `/certificates/[versionId]`, then the PDF at issue, filed on the
    job.
-4. **Wizard and Documents face.** The Create certificate button, a
-   Certificates group under Compliance, Reissue.
-5. **Template page.** Read and approve.
-6. **Phase 2.** Prefill from the Studio design and serial numbers from photos.
-7. **Phase 3.** Read the certifier's requirements PDF. More certificate types.
+4. **Signature on the staff card.** Draw it once, redraw it.
+5. **Wizard and Documents face.** The Create certificate button, a
+   Certificates group under Compliance, Reissue, and the after-Issue screen
+   (email the builder, send to ServiceM8, download or share).
+6. **Template page.** Read and approve.
+7. **Phase 2.** Prefill from the Studio design and serial numbers from photos.
+8. **Phase 3.** Read the certifier's requirements PDF.
 
 Each step is its own PR. The design ratchets in
 `src/app/dashboard/__tests__/design-ratchets.test.ts` hold on every one. The
 wizard is a screen and follows `docs/design.md`. The paper is a print
 stylesheet, outside the guards like the other three.
 
-## Open questions for Isaac
+## Decided (Isaac, 2026-10-01)
 
-1. **Who may sign?** Anyone with a current ARC and contractor licence, or only
-   you?
-2. **Signature:** draw it on each certificate, or draw it once and store it on
-   your staff card for every certificate after?
-3. **Which other certificates** come up often enough to be next: electrical
-   (CCEW is the electrician's), refrigerant commissioning, BASIX, warranty
-   letters?
-4. **Should Issue also send it to ServiceM8 automatically**, or stay a tick in
-   the footer like every other file?
-5. **Builder vs certifier:** does it go to the builder (as with Reed) or
-   straight to the certifier? That decides whose address the email draft
-   starts with.
+1. **Who signs:** any admin or manager (the `admin` role), and the owner.
+2. **Signature:** drawn once and stored on the person's staff card, then used
+   on every certificate they issue.
+3. **Types:** mechanical only for now.
+4. **Sending:** nothing is automatic. After Issue there is a Send to ServiceM8
+   button and a share choice (email, download, the phone's share sheet).
+5. **Recipient:** the builder. The email draft starts with the builder's
+   contact on the job.
+
+## Still open
+
+- **A manager without a contractor licence.** The contractor licence is
+  personal, and a manager may not hold one. Proposed: the certificate prints
+  the signatory's own ARC licence, which they must hold, and the contractor
+  licence of the person the business names as its licence holder (an
+  Organisation setting that defaults to the owner). Isaac to confirm.

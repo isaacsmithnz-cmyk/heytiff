@@ -492,7 +492,6 @@ export type CertProblemField =
   | "tests"
   | "installed"
   | "requirements"
-  | "certifier"
   | "fireMode"
   | "airBalance"
   | "completedOn"
@@ -564,10 +563,6 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
     if (r.answer === "own" && missing(r.own)) add("requirements", `Write the statement for ${which}.`);
     if (r.answer === "na" && missing(r.reason)) add("requirements", `Say why ${which} doesn't apply.`);
   });
-  if (a.requirements.length > 0) {
-    if (!a.certifier || missing(a.certifier.name)) add("certifier", "Name the certifier.");
-    if (!a.certifier || missing(a.certifier.projectNumber)) add("certifier", "Enter the certifier's project number.");
-  }
 
   const clauses = clausesFor(a);
   if (clauses.includes("fireMode")) {
@@ -615,13 +610,13 @@ const WHEN: Record<ClauseKey, string> = {
   ductwork: "When ductwork, plenums or flexible duct were installed",
   fireRated: "When penetrations went through fire-rated walls or floors",
   as16682: "When ventilation the building relies on was installed",
-  as1668: "Only when a certifier's list asks for it",
-  fireMode: "Only when a certifier's list asks for it, worded by the answer",
-  j5: "Only when a certifier's list asks for it",
-  kitchenExhaust: "Only when a certifier's list asks for it",
-  carPark: "Only when a certifier's list asks for it",
-  airBalance: "Only when a certifier's list asks for it, worded by the answer",
-  noise: "Only when a certifier's list asks for it",
+  as1668: "Only when asked for",
+  fireMode: "Only when asked for, worded by the answer",
+  j5: "Only when asked for",
+  kitchenExhaust: "Only when asked for",
+  carPark: "Only when asked for",
+  airBalance: "Only when asked for, worded by the answer",
+  noise: "Only when asked for",
 };
 
 /** Every clause as it prints, with each wording a clause can take. The

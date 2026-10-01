@@ -241,14 +241,12 @@ describe("certProblemList", () => {
     expect(certProblems({ ...base, fireMode: "shutdown", fireModeInterface: "FIP relay", fireModeTestedOn: "2026-09-29" }, FACTS)).toEqual([]);
   });
 
-  it("asks for the certifier only when there is a list, and for every requirement to be answered", () => {
+  it("asks for every requirement to be answered, and never for a certifier: requirements come from anyone", () => {
     const a = answersFor(JOB_3326, AC, "office", {
       requirements: [{ text: "Something unusual", answer: "clause", clause: null, own: "", reason: "" }],
     });
     expect(certProblems(a, FACTS)).toEqual([
       "Choose a statement for requirement 1, write one, or mark it not applicable.",
-      "Name the certifier.",
-      "Enter the certifier's project number.",
     ]);
   });
 

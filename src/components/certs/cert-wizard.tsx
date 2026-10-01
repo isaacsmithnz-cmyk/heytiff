@@ -57,8 +57,9 @@ import "./cert-wizard.css";
    and the completion date comes from ServiceM8; each says where it came
    from, and the person corrects it. What only they know is asked, never
    assumed: the building (the address only marks a hint), the test figures,
-   and the certifier, who changes from job to job and so comes off this job's
-   own list or is typed.
+   what this job was asked to cover (from whoever asked: a certifier, the
+   builder, an architect), and any certifier, who changes from job to job and
+   so comes off this job's own paperwork or is typed.
 
    IT WEARS THE SWMS WIZARD'S DRESS (swms.css): the same panel over the card,
    the same tabs, questions, options and footer, so the two documents HeyTiff
@@ -68,7 +69,7 @@ type Tab = "covers" | "equipment" | "list" | "checks" | "sign";
 const TABS: { key: Tab; label: string }[] = [
   { key: "covers", label: "What it covers" },
   { key: "equipment", label: "Equipment" },
-  { key: "list", label: "Certifier's list" },
+  { key: "list", label: "Requirements" },
   { key: "checks", label: "Checks" },
   { key: "sign", label: "Sign" },
 ];
@@ -80,7 +81,6 @@ const PROBLEM_TAB: Record<CertProblemField, Tab> = {
   fans: "equipment",
   installed: "equipment",
   requirements: "list",
-  certifier: "list",
   tests: "checks",
   fireMode: "checks",
   airBalance: "checks",
@@ -303,7 +303,7 @@ export function CertWizard({
     setFanNote(`${res.fan.model} is on the fan list at ${res.fan.ratedLps} L/s.`);
   };
 
-  /* ── the certifier's list ────────────────────────────────────────────── */
+  /* ── the requirements: whatever says what the certificate must cover ──── */
 
   /** What Tiff read, onto the certificate. A certifier the reading didn't
       name keeps whatever was typed: an email often doesn't name one. */
@@ -339,7 +339,7 @@ export function CertWizard({
       setListError(res.error);
       return;
     }
-    applyReading(res, docId, "Tiff found no mechanical item on that list.");
+    applyReading(res, docId, "Tiff found nothing in it for this certificate to cover.");
   };
 
   const readEmail = async () => {
@@ -351,7 +351,7 @@ export function CertWizard({
       setListError(res.error);
       return;
     }
-    applyReading(res, null, "Tiff found nothing in that email the certificate has to cover.");
+    applyReading(res, null, "Tiff found nothing in it for this certificate to cover.");
     setEmailOpen(false);
   };
 
@@ -629,15 +629,15 @@ export function CertWizard({
     <>
       <div className="sw-grp">
         <div className="sw-gh">
-          <b>The certifier&apos;s list of requirements</b>
-          <span>From the builder&apos;s email</span>
+          <b>What you&apos;ve been asked to cover</b>
+          <span>Optional</span>
         </div>
         <p className="sw-note">
-          File the builder&apos;s email on this job from your ServiceM8 inbox and its PDF shows here. Or upload the file, or paste the email.
+          A certifier&apos;s list, an email from the builder or architect, a spec: anything that says what this certificate has to cover. Tiff takes out each item for you to check. Files emailed onto this job in ServiceM8 show here.
         </p>
         <div className="cz-pick">
-          <select className="wb2-sel" aria-label="The certifier's list" value={listDoc} onChange={(e) => setListDoc(e.target.value)}>
-            <option value="">{live.files.length ? "Choose the file" : "No PDFs on this job yet"}</option>
+          <select className="wb2-sel" aria-label="The file to read" value={listDoc} onChange={(e) => setListDoc(e.target.value)}>
+            <option value="">{live.files.length ? "Choose a file" : "No PDFs on this job yet"}</option>
             {live.files.some((f) => f.fromSm8) && (
               <optgroup label="From ServiceM8">
                 {live.files.filter((f) => f.fromSm8).map((f) => (
@@ -658,7 +658,7 @@ export function CertWizard({
             )}
           </select>
           <button type="button" className="pbtn" disabled={!listDoc || listBusy || uploading} onClick={() => void readList()}>
-            {listBusy && !emailOpen ? "Reading…" : "Read the list"}
+            {listBusy && !emailOpen ? "Reading…" : "Read it"}
           </button>
         </div>
         <div className="cz-ways">
@@ -666,17 +666,17 @@ export function CertWizard({
             {looking ? "Looking…" : "Look again"}
           </button>
           <button type="button" className="sw-more" disabled={uploading || listBusy} onClick={() => listPicker.current?.click()}>
-            {uploading ? "Uploading…" : "Upload a PDF or photo"}
+            {uploading ? "Uploading…" : "Upload a file"}
           </button>
           <button type="button" className="sw-more" aria-expanded={emailOpen} onClick={() => setEmailOpen((o) => !o)}>
-            Paste the email
+            Paste an email or text
           </button>
           <input
             ref={listPicker}
             type="file"
             accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
             hidden
-            aria-label="Choose the certifier's list to upload"
+            aria-label="Choose a file to upload"
             onChange={(e) => {
               const file = e.target.files?.[0];
               /* cleared now, so choosing the same file again still fires */
@@ -690,27 +690,27 @@ export function CertWizard({
             <textarea
               className="wb2-notes"
               rows={8}
-              aria-label="The builder's email"
-              placeholder="Paste the whole email. Tiff takes out what the certificate has to cover."
+              aria-label="The text to read"
+              placeholder="Paste the whole email or text. Tiff takes out what the certificate has to cover."
               value={emailText}
               onChange={(e) => setEmailText(e.target.value)}
             />
             <button type="button" className="pbtn" disabled={listBusy || emailText.trim().length < 20} onClick={() => void readEmail()}>
-              {listBusy ? "Reading…" : "Read the email"}
+              {listBusy ? "Reading…" : "Read the text"}
             </button>
           </div>
         )}
         {listError && <p className="sw-state bad">{listError}</p>}
         {listRead && <p className="sw-note">{listRead}</p>}
-        {a.requirements.length === 0 && !listRead && <p className="sw-note">No list? Continue, and the certificate makes the standard statements.</p>}
+        {a.requirements.length === 0 && !listRead && <p className="sw-note">Nothing asked for? Continue, and the certificate makes the standard statements.</p>}
       </div>
 
       <div className="sw-grp">
         <div className="sw-gh">
-          <b>The certifier</b>
-          <span>This job&apos;s, from its list or email</span>
+          <b>Certifier</b>
+          <span>Only if there is one. It prints on the certificate</span>
         </div>
-        {a.certifier || a.requirements.length > 0 ? (
+        {a.certifier ? (
           <>
             <div className="cz-row cert">
               <Field label="Certifier" list="cz-certifiers" value={a.certifier?.name ?? ""} onChange={(v) => set({ certifier: { name: v, projectNumber: a.certifier?.projectNumber ?? "", consentAuthority: a.certifier?.consentAuthority ?? "" } })} />
@@ -726,7 +726,7 @@ export function CertWizard({
           </>
         ) : (
           <button type="button" className="sw-more" onClick={() => set({ certifier: { name: "", projectNumber: "", consentAuthority: "" } })}>
-            Add the certifier
+            Add a certifier
           </button>
         )}
       </div>
@@ -734,8 +734,8 @@ export function CertWizard({
       {a.requirements.length > 0 && (
         <div className="sw-grp">
           <div className="sw-gh">
-            <b>What it asks for</b>
-            <span>Check each line against the list</span>
+            <b>What&apos;s been asked for</b>
+            <span>Check each line against the original</span>
           </div>
           {a.requirements.map((r, i) => (
             <div key={i} className="cz-req">
@@ -775,7 +775,7 @@ export function CertWizard({
               setReadFrom(null);
             }}
           >
-            Take the list off this certificate
+            Clear these requirements
           </button>
         </div>
       )}
@@ -838,7 +838,7 @@ export function CertWizard({
         <div className="sw-grp">
           <div className="sw-gh">
             <b>Fire mode</b>
-            <span>The certifier asks for Specification 21</span>
+            <span>Asked for: Specification 21</span>
           </div>
           <div className="sw-opts">
             <Choice name="fire" checked={a.fireMode === "individual"} onChange={() => set({ fireMode: "individual" })} title="Individual room units, each 1000 L/s or less" sub="Not part of a smoke control system, so no shutdown is needed" />

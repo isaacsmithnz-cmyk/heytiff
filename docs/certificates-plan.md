@@ -263,10 +263,15 @@ ceiling exhaust fans" nobody should type a figure at all.
   report on a commercial job, rated isn't enough. The wizard asks for the
   report to be attached, or marked as by others.
 
-## The certifier's list
+## The requirements (the wizard's "Requirements" step)
 
-Every certifier's list is a table of items, one per trade. The mechanical item
-is the brief for our certificate.
+Whatever says what this certificate has to cover, from whoever asked: a
+certifier's list, an email from the builder or architect, a spec. The step is
+named for what it holds, not who sends it, and it is optional. A certifier
+is optional too: named only when the paperwork names one, or typed, and
+printed when there is one. The section below describes the commonest case,
+a certifier's list, which is a table of items, one per trade, whose
+mechanical item is the brief for our certificate.
 
 1. **Bring it in**, one of three ways, all on the wizard's Certifier's list
    screen:

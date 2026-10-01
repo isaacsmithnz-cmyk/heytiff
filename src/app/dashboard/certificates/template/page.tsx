@@ -63,7 +63,7 @@ export default async function CertificateWordingPage() {
                   <b>On every certificate</b>
                 </div>
                 <p className="sw-text">Not covered: electrical work, certified separately under AS/NZS 3000.</p>
-                <p className="sw-note">A requirement on a certifier&apos;s list that no statement answers is written by the person issuing, and prints as they typed it.</p>
+                <p className="sw-note">A requirement that no statement answers is written by the person issuing, and prints as they typed it.</p>
               </div>
               {!approval && isOwner && (
                 <div className="sws-actions">

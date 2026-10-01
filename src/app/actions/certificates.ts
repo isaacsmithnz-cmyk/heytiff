@@ -288,8 +288,8 @@ function reasonFor(err: unknown): string {
   return "Tiff couldn't read that.";
 }
 
-/** Read a certifier's list that is already on the job's Documents. Tiff only
-    reads: the person checks every line before any of it is used. */
+/** Read a file on the job that says what the certificate must cover. Tiff
+    only reads: the person checks every line before any of it is used. */
 export async function readCertifierList(jobUuid: string, documentId: string): Promise<ReadListResult> {
   let orgId: string;
   try {
@@ -329,8 +329,8 @@ export async function readCertifierList(jobUuid: string, documentId: string): Pr
     replies, and the request is near the top. */
 const EMAIL_MAX = 30_000;
 
-/** Read the builder's email, pasted in, for when what the certificate must
-    cover is in the email's own words rather than an attached list. */
+/** Read text pasted in, usually an email, for when what the certificate
+    must cover is in someone's own words rather than an attached file. */
 export async function readCertifierEmail(jobUuid: string, text: string): Promise<ReadListResult> {
   try {
     await requireOrg("workboard");
@@ -339,7 +339,7 @@ export async function readCertifierEmail(jobUuid: string, text: string): Promise
   }
   if (!trim(jobUuid)) return { ok: false, error: "This certificate doesn't know its job." };
   const email = String(text ?? "").trim().slice(0, EMAIL_MAX);
-  if (email.length < 20) return { ok: false, error: "Paste the email in first." };
+  if (email.length < 20) return { ok: false, error: "Paste the text in first." };
   if (!process.env.ANTHROPIC_API_KEY) return { ok: false, error: "Tiff isn't set up on this deployment." };
   return askTiff([
     { type: "text", text: `<email>\n${email.replace(/<\/?email>/gi, "")}\n</email>` },
@@ -364,7 +364,7 @@ async function askTiff(content: ListContent): Promise<ReadListResult> {
       messages: [{ role: "user", content }],
     });
     if (response.stop_reason === "refusal") return { ok: false, error: "Tiff declined to read this." };
-    if (response.stop_reason === "max_tokens") return { ok: false, error: "That list is too long to read in one go." };
+    if (response.stop_reason === "max_tokens") return { ok: false, error: "That's too long to read in one go." };
     /* THE LAST text block: when the fallback model takes over, the first
        model's partial answer can stand ahead of the full one */
     const block = [...response.content].reverse().find((b) => b.type === "text");

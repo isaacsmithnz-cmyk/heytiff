@@ -267,11 +267,22 @@ ceiling exhaust fans" nobody should type a figure at all.
 
 Whatever says what this certificate has to cover, from whoever asked: a
 certifier's list, an email from the builder or architect, a spec. The step is
-named for what it holds, not who sends it, and it is optional. A certifier
-is optional too: named only when the paperwork names one, or typed, and
-printed when there is one. The section below describes the commonest case,
-a certifier's list, which is a table of items, one per trade, whose
-mechanical item is the brief for our certificate.
+named for what it holds, not who sends it, and it is optional.
+
+**As built, it is one text box and a file.** Paste an email or a list, or
+type a few lines; pick a file on the job (ServiceM8's PDFs, and anything
+uploaded here) or upload one. One "Read it" button reads whatever is there,
+text and file together, and lists each thing asked for to check. Edit either
+after reading and it says "Not read yet".
+
+**No certifier is asked for or printed** (Isaac, 2026-10-01). The
+certificate's `certifier` field and the `certifier_profiles` table stay in
+the schema, unused, in case a certifier's name or project number is wanted
+on the paper later.
+
+The section below describes the commonest case, a certifier's list, which is
+a table of items, one per trade, whose mechanical item is the brief for our
+certificate.
 
 1. **Bring it in**, one of three ways, all on the wizard's Certifier's list
    screen:

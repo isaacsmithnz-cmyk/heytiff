@@ -17,7 +17,6 @@ import {
   saveMySignature,
   type CertListFile,
   type CertWizardContext,
-  type ReadListResult,
 } from "@/app/actions/certificates";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { attachJobDocument } from "@/app/actions/job-documents";
@@ -57,9 +56,8 @@ import "./cert-wizard.css";
    and the completion date comes from ServiceM8; each says where it came
    from, and the person corrects it. What only they know is asked, never
    assumed: the building (the address only marks a hint), the test figures,
-   what this job was asked to cover (from whoever asked: a certifier, the
-   builder, an architect), and any certifier, who changes from job to job and
-   so comes off this job's own paperwork or is typed.
+   and what this job was asked to cover, pasted, typed or on a file, from
+   whoever asked (a certifier, the builder, an architect).
 
    IT WEARS THE SWMS WIZARD'S DRESS (swms.css): the same panel over the card,
    the same tabs, questions, options and footer, so the two documents HeyTiff
@@ -188,8 +186,10 @@ export function CertWizard({
   const [listRead, setListRead] = useState<string | null>(null);
   /* the file this version's requirements were read from; null after an email */
   const [readFrom, setReadFrom] = useState<string | null>(null);
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [emailText, setEmailText] = useState("");
+  /* what was asked, as pasted or typed; and what was last read, so an edit
+     since says it hasn't been read */
+  const [asked, setAsked] = useState("");
+  const [lastRead, setLastRead] = useState("");
   const [looking, setLooking] = useState(false);
   const [uploading, setUploading] = useState(false);
   const listPicker = useRef<HTMLInputElement | null>(null);
@@ -305,54 +305,41 @@ export function CertWizard({
 
   /* ── the requirements: whatever says what the certificate must cover ──── */
 
-  /** What Tiff read, onto the certificate. A certifier the reading didn't
-      name keeps whatever was typed: an email often doesn't name one. */
-  const applyReading = (res: Extract<ReadListResult, { ok: true }>, from: string | null, nothing: string) => {
-    const reqs: Requirement[] = res.requirements.map((r) => ({
-      text: r.text,
-      answer: r.clause ? "clause" : r.notOurs ? "na" : "clause",
-      clause: r.clause,
-      own: "",
-      reason: r.notOurs ? "Not part of these works: a smoke control system is certified by the mechanical engineer." : r.clause ? "" : suggestedReason(null, a.building),
-    }));
-    const was = a.certifier;
-    const certifier =
-      res.certifier || res.projectNumber || res.consentAuthority || was
-        ? {
-            name: res.certifier || was?.name || "",
-            projectNumber: res.projectNumber || was?.projectNumber || "",
-            consentAuthority: res.consentAuthority || was?.consentAuthority || "",
-          }
-        : null;
-    set({ requirements: reqs, certifier });
-    setReadFrom(from);
-    setListRead(res.requirements.length === 0 ? nothing : null);
-  };
+  const askedKey = `${listDoc}\n${asked.trim()}`;
+  const unread = (!!listDoc || !!asked.trim()) && askedKey !== lastRead;
 
-  const readList = async (docId = listDoc) => {
-    if (!docId) return;
+  /* ONE BUTTON READS WHAT'S THERE: the text, the file, or both. Tiff takes
+     out each thing asked for; the person checks every line below. */
+  const readAsked = async () => {
+    const text = asked.trim();
+    if (!listDoc && !text) return;
     setListBusy(true);
     setListError(null);
-    const res = await readCertifierList(jobUuid, docId).catch(() => ({ ok: false as const, error: "Couldn't reach Tiff. Try again." }));
+    const fail = { ok: false as const, error: "Couldn't reach Tiff. Try again." };
+    const [fromFile, fromText] = await Promise.all([
+      listDoc ? readCertifierList(jobUuid, listDoc).catch(() => fail) : Promise.resolve(null),
+      text ? readCertifierEmail(jobUuid, text).catch(() => fail) : Promise.resolve(null),
+    ]);
     setListBusy(false);
-    if (!res.ok) {
-      setListError(res.error);
-      return;
+    for (const r of [fromFile, fromText]) {
+      if (r && !r.ok) {
+        setListError(r.error);
+        return;
+      }
     }
-    applyReading(res, docId, "Tiff found nothing in it for this certificate to cover.");
-  };
-
-  const readEmail = async () => {
-    setListBusy(true);
-    setListError(null);
-    const res = await readCertifierEmail(jobUuid, emailText).catch(() => ({ ok: false as const, error: "Couldn't reach Tiff. Try again." }));
-    setListBusy(false);
-    if (!res.ok) {
-      setListError(res.error);
-      return;
-    }
-    applyReading(res, null, "Tiff found nothing in it for this certificate to cover.");
-    setEmailOpen(false);
+    const found = [fromFile, fromText].flatMap((r) => (r && r.ok ? r.requirements : []));
+    set({
+      requirements: found.map((r) => ({
+        text: r.text,
+        answer: r.notOurs ? "na" : "clause",
+        clause: r.clause,
+        own: "",
+        reason: r.notOurs ? "Not part of these works: a smoke control system is certified by the mechanical engineer." : r.clause ? "" : suggestedReason(null, a.building),
+      })),
+    });
+    setReadFrom(fromFile ? listDoc : null);
+    setLastRead(askedKey);
+    setListRead(found.length === 0 ? "Tiff found nothing in it for this certificate to cover." : null);
   };
 
   const setFiles = (files: CertListFile[]) => setCtx((c) => (c && c !== "failed" ? { ...c, files } : c));
@@ -374,7 +361,7 @@ export function CertWizard({
   };
 
   /* Uploaded here, filed on the job's Documents as the face's own upload
-     files it, then read at once: choosing the file was the decision. */
+     files it, and chosen: Read it reads it with whatever is typed. */
   const uploadList = async (file: File | undefined) => {
     if (!file) return;
     setUploading(true);
@@ -389,11 +376,10 @@ export function CertWizard({
       if (files) setFiles(files);
       onFilesChanged?.();
       setListDoc(up.file.documentId);
-      setUploading(false);
-      await readList(up.file.documentId);
     } catch (e) {
-      setUploading(false);
       setListError(e instanceof Error && e.message ? e.message : "That upload didn't finish.");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -625,51 +611,40 @@ export function CertWizard({
     </>
   );
 
+  const fileOptions = (fromSm8: boolean) =>
+    live?.files
+      .filter((f) => f.fromSm8 === fromSm8)
+      .map((f) => (
+        <option key={f.id} value={f.id}>
+          {f.name}
+        </option>
+      ));
+
   const listScreen = live && (
     <>
       <div className="sw-grp">
         <div className="sw-gh">
-          <b>What you&apos;ve been asked to cover</b>
+          <b>
+            <label htmlFor="cz-asked">What you&apos;ve been asked to cover</label>
+          </b>
           <span>Optional</span>
         </div>
-        <p className="sw-note">
-          A certifier&apos;s list, an email from the builder or architect, a spec: anything that says what this certificate has to cover. Tiff takes out each item for you to check. Files emailed onto this job in ServiceM8 show here.
-        </p>
+        <textarea
+          id="cz-asked"
+          className="wb2-notes"
+          rows={6}
+          placeholder="Paste an email or a list, or type a few lines"
+          value={asked}
+          onChange={(e) => setAsked(e.target.value)}
+        />
         <div className="cz-pick">
-          <select className="wb2-sel" aria-label="The file to read" value={listDoc} onChange={(e) => setListDoc(e.target.value)}>
-            <option value="">{live.files.length ? "Choose a file" : "No PDFs on this job yet"}</option>
-            {live.files.some((f) => f.fromSm8) && (
-              <optgroup label="From ServiceM8">
-                {live.files.filter((f) => f.fromSm8).map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {live.files.some((f) => !f.fromSm8) && (
-              <optgroup label="Uploaded here">
-                {live.files.filter((f) => !f.fromSm8).map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
+          <select className="wb2-sel" aria-label="A file to read" value={listDoc} onChange={(e) => setListDoc(e.target.value)}>
+            <option value="">{live.files.length ? "No file" : "No files on this job yet"}</option>
+            {live.files.some((f) => f.fromSm8) && <optgroup label="From ServiceM8">{fileOptions(true)}</optgroup>}
+            {live.files.some((f) => !f.fromSm8) && <optgroup label="Uploaded here">{fileOptions(false)}</optgroup>}
           </select>
-          <button type="button" className="pbtn" disabled={!listDoc || listBusy || uploading} onClick={() => void readList()}>
-            {listBusy && !emailOpen ? "Reading…" : "Read it"}
-          </button>
-        </div>
-        <div className="cz-ways">
-          <button type="button" className="sw-more" disabled={looking} onClick={() => void lookAgain()}>
-            {looking ? "Looking…" : "Look again"}
-          </button>
-          <button type="button" className="sw-more" disabled={uploading || listBusy} onClick={() => listPicker.current?.click()}>
+          <button type="button" className="pbtn ghost" disabled={uploading || listBusy} onClick={() => listPicker.current?.click()}>
             {uploading ? "Uploading…" : "Upload a file"}
-          </button>
-          <button type="button" className="sw-more" aria-expanded={emailOpen} onClick={() => setEmailOpen((o) => !o)}>
-            Paste an email or text
           </button>
           <input
             ref={listPicker}
@@ -685,57 +660,26 @@ export function CertWizard({
             }}
           />
         </div>
-        {emailOpen && (
-          <div className="cz-email">
-            <textarea
-              className="wb2-notes"
-              rows={8}
-              aria-label="The text to read"
-              placeholder="Paste the whole email or text. Tiff takes out what the certificate has to cover."
-              value={emailText}
-              onChange={(e) => setEmailText(e.target.value)}
-            />
-            <button type="button" className="pbtn" disabled={listBusy || emailText.trim().length < 20} onClick={() => void readEmail()}>
-              {listBusy ? "Reading…" : "Read the text"}
-            </button>
-          </div>
-        )}
-        {listError && <p className="sw-state bad">{listError}</p>}
-        {listRead && <p className="sw-note">{listRead}</p>}
-        {a.requirements.length === 0 && !listRead && <p className="sw-note">Nothing asked for? Continue, and the certificate makes the standard statements.</p>}
-      </div>
-
-      <div className="sw-grp">
-        <div className="sw-gh">
-          <b>Certifier</b>
-          <span>Only if there is one. It prints on the certificate</span>
-        </div>
-        {a.certifier ? (
-          <>
-            <div className="cz-row cert">
-              <Field label="Certifier" list="cz-certifiers" value={a.certifier?.name ?? ""} onChange={(v) => set({ certifier: { name: v, projectNumber: a.certifier?.projectNumber ?? "", consentAuthority: a.certifier?.consentAuthority ?? "" } })} />
-              <Field label="Project no." width="m" value={a.certifier?.projectNumber ?? ""} onChange={(v) => set({ certifier: { name: a.certifier?.name ?? "", projectNumber: v, consentAuthority: a.certifier?.consentAuthority ?? "" } })} />
-              <Field label="Consent authority" value={a.certifier?.consentAuthority ?? ""} onChange={(v) => set({ certifier: { name: a.certifier?.name ?? "", projectNumber: a.certifier?.projectNumber ?? "", consentAuthority: v } })} />
-            </div>
-            {/* names already used, so one is spelled the same way twice; never chosen for the person */}
-            <datalist id="cz-certifiers">
-              {live.certifiers.map((c) => (
-                <option key={c.id} value={c.name} />
-              ))}
-            </datalist>
-          </>
-        ) : (
-          <button type="button" className="sw-more" onClick={() => set({ certifier: { name: "", projectNumber: "", consentAuthority: "" } })}>
-            Add a certifier
+        <p className="sw-note">
+          Files emailed onto this job in ServiceM8 are in the list.{" "}
+          <button type="button" className="sw-more cz-inline" disabled={looking} onClick={() => void lookAgain()}>
+            {looking ? "Looking…" : "Look again"}
           </button>
-        )}
+        </p>
+        <button type="button" className="pbtn cz-read" disabled={!unread || listBusy || uploading} onClick={() => void readAsked()}>
+          {listBusy ? "Reading…" : "Read it"}
+        </button>
+        {listError && <p className="sw-state bad">{listError}</p>}
+        {!listError && unread && !listBusy && <p className="sw-note">Not read yet. Read it, and Tiff takes out each thing asked for.</p>}
+        {listRead && !unread && <p className="sw-note">{listRead}</p>}
+        {a.requirements.length === 0 && !asked.trim() && !listDoc && <p className="sw-note">Nothing asked for? Continue, and the certificate makes the standard statements.</p>}
       </div>
 
       {a.requirements.length > 0 && (
         <div className="sw-grp">
           <div className="sw-gh">
-            <b>What&apos;s been asked for</b>
-            <span>Check each line against the original</span>
+            <b>What Tiff took out</b>
+            <span>Check each line</span>
           </div>
           {a.requirements.map((r, i) => (
             <div key={i} className="cz-req">
@@ -773,6 +717,7 @@ export function CertWizard({
             onClick={() => {
               set({ requirements: [], certifier: null });
               setReadFrom(null);
+              setLastRead("");
             }}
           >
             Clear these requirements

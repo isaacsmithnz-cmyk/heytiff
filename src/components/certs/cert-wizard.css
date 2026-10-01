@@ -33,11 +33,10 @@
 
 .cz-pick { display: flex; flex-wrap: wrap; gap: 8px; }
 .swz .cz-pick .wb2-sel { flex: 1 1 240px; width: auto; }
-/* the other ways in: look again, upload, paste */
-.cz-ways { display: flex; flex-wrap: wrap; gap: 8px 24px; }
-.cz-ways .sw-more:disabled { color: var(--q); cursor: default; }
-.cz-email { display: flex; flex-direction: column; gap: 8px; }
-.cz-email .pbtn { align-self: flex-start; }
+/* "Look again", inside the sentence it finishes */
+.sw-more.cz-inline { display: inline; }
+.sw-more.cz-inline:disabled { color: var(--q); cursor: default; }
+.cz-read { align-self: flex-start; }
 
 .cz-req {
   display: flex;

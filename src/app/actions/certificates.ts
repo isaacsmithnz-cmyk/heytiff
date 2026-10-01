@@ -16,7 +16,6 @@ import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } fro
 import { CERT_EMAIL_PROMPT, CERT_LIST_PROMPT, CERT_LIST_SCHEMA, parseListReading, type ListReading } from "@/lib/certs/list-reader";
 import {
   certApproval,
-  listCertifiers,
   listFanModels,
   listJobCerts,
   loadCertJob,
@@ -24,7 +23,6 @@ import {
   loadSignatory,
   type CertJob,
   type CertSummary,
-  type CertifierProfile,
   type FanModel,
   type Signatory,
 } from "@/lib/certs/query";
@@ -59,10 +57,6 @@ export type CertWizardContext = {
   canApprove: boolean;
   ownerName: string | null;
   fanModels: FanModel[];
-  /** Certifiers named on earlier certificates, so a name is spelled the
-      same way twice. Never chosen for the person: certifiers change from
-      job to job, so this job's comes off its own list or is typed. */
-  certifiers: CertifierProfile[];
   /** The certificates already on this job, newest first. */
   existing: CertSummary[];
   /** The job's files Tiff can read, for picking the certifier's list. */
@@ -124,13 +118,12 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
   const job = await loadCertJob(orgId, uuid);
   if (!job) return null;
   const today = todayInAu();
-  const [staffId, approval, role, owner, fanModels, certifiers, existing, files] = await Promise.all([
+  const [staffId, approval, role, owner, fanModels, existing, files] = await Promise.all([
     staffIdFor(orgId, userId),
     certApproval(orgId),
     getDbRole(),
     ownerName(orgId),
     listFanModels(orgId),
-    listCertifiers(orgId),
     listJobCerts(orgId, uuid),
     readableFiles(orgId, uuid),
   ]);
@@ -145,7 +138,6 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
     canApprove: hasMinRole(role, "owner"),
     ownerName: owner,
     fanModels,
-    certifiers,
     existing,
     files,
   };
@@ -339,7 +331,7 @@ export async function readCertifierEmail(jobUuid: string, text: string): Promise
   }
   if (!trim(jobUuid)) return { ok: false, error: "This certificate doesn't know its job." };
   const email = String(text ?? "").trim().slice(0, EMAIL_MAX);
-  if (email.length < 20) return { ok: false, error: "Paste the text in first." };
+  if (email.length < 3) return { ok: false, error: "Type or paste what was asked for first." };
   if (!process.env.ANTHROPIC_API_KEY) return { ok: false, error: "Tiff isn't set up on this deployment." };
   return askTiff([
     { type: "text", text: `<email>\n${email.replace(/<\/?email>/gi, "")}\n</email>` },

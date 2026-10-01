@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { displayNameOf, type NameParts } from "@/lib/staff/name";
-import { CERT_LIBRARY_VERSION, type CertAnswers, type CertContent, type ClauseKey } from "./mechanical";
+import { CERT_LIBRARY_VERSION, type CertAnswers, type CertContent } from "./mechanical";
 
 /* THE CERTIFICATE READS. Every query is scoped by org_id: an id from a
    browser names a choice, and this decides whether it's real in this
@@ -187,7 +187,7 @@ export async function certApproval(orgId: string): Promise<{ approvedBy: string;
   return { approvedBy: names.get(row.approved_by_staff_id) ?? "Unnamed", approvedAt: row.approved_at };
 }
 
-/* ── the fan list, and what certifiers usually ask ─────────────────────── */
+/* ── the fan list ─────────────────────────────────────────────────────── */
 
 export type FanModel = { id: string; model: string; ratedLps: number };
 
@@ -197,17 +197,6 @@ export async function listFanModels(orgId: string): Promise<FanModel[]> {
     id: f.id,
     model: f.model,
     ratedLps: Number(f.rated_lps),
-  }));
-}
-
-export type CertifierProfile = { id: string; name: string; clauses: ClauseKey[] };
-
-export async function listCertifiers(orgId: string): Promise<CertifierProfile[]> {
-  const { data } = await supabaseAdmin.from("certifier_profiles").select("id, name, clause_keys").eq("org_id", orgId).order("name");
-  return ((data ?? []) as { id: string; name: string; clause_keys: string[] | null }[]).map((c) => ({
-    id: c.id,
-    name: c.name,
-    clauses: (c.clause_keys ?? []) as ClauseKey[],
   }));
 }
 

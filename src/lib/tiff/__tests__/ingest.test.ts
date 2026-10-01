@@ -400,3 +400,36 @@ describe("reasonForOpenFailure", () => {
     expect(reasonForOpenFailure("not an error at all")).toBe("That PDF couldn't be opened.");
   });
 });
+
+/* A 150 MB data book is ~50 batches: each one fetching the whole file again
+   was 7.5 GB from storage to read one book (files.ts, the large uploads). */
+describe("the PDF is downloaded once per run", () => {
+  it("batches sharing a cache download once, and each opens its own copy", async () => {
+    const cache = {};
+    docRow = row({ storage_ref: "org/org-1/kb/doc-1.pdf", page_count: 100 });
+    pdfPages = 100;
+    await processBatch("doc-1", "org-1", cache);
+    docRow = row({ storage_ref: "org/org-1/kb/doc-1.pdf", next_page: 21, page_count: 100 });
+    await processBatch("doc-1", "org-1", cache);
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(openPdf).toHaveBeenCalledTimes(2);
+    // a copy each time: pdfjs may take the buffer it is handed
+    const [a, b] = openPdf.mock.calls.map((c) => (c as unknown[])[0]);
+    expect(a).not.toBe(b);
+  });
+
+  it("never feeds one document's bytes to another", async () => {
+    const cache = {};
+    docRow = row({ storage_ref: "org/org-1/kb/doc-1.pdf" });
+    await processBatch("doc-1", "org-1", cache);
+    docRow = row({ id: "doc-2", storage_ref: "org/org-1/kb/doc-2.pdf" });
+    await processBatch("doc-2", "org-1", cache);
+    expect(download).toHaveBeenCalledTimes(2);
+  });
+
+  it("a lone batch (the first, or a Retry) downloads as it always did", async () => {
+    await processBatch("doc-1", "org-1");
+    await processBatch("doc-1", "org-1");
+    expect(download).toHaveBeenCalledTimes(2);
+  });
+});

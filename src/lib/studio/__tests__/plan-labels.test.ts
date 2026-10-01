@@ -114,4 +114,20 @@ describe("the plan's words", () => {
     expect(roomLabelFixed({}, polygon)).toBeUndefined();
     expect(roomLabelFixed({ labelAt: { dx: "1" } }, polygon)).toBeUndefined();
   });
+
+  it("keeps a name off a unit's flanges, not just its footprint (Walk A, Level 1)", () => {
+    // a ducted head 70 × 73 in a room whose centre is just under it
+    const unit = footprintBox({ x: 111, y: 59 }, 70, 73.2);
+    // the box reaches past the footprint's bottom edge (95.6), where the flange is drawn
+    expect(unit.y1).toBeGreaterThan(59 + 73.2 / 2 + 6);
+    const polygon = [
+      { x: -198, y: -94 },
+      { x: 470, y: -94 },
+      { x: 470, y: 322 },
+      { x: -198, y: 322 },
+    ];
+    const out = layoutPlanLabels({ rooms: [room("z6", polygon, "Zone 6", "27.7 m²")], runs: [], solids: [unit], px: 1.1 });
+    const b = out.rooms.get("z6")!.box;
+    expect(b.x1 <= unit.x0 || unit.x1 <= b.x0 || b.y1 <= unit.y0 || unit.y1 <= b.y0).toBe(true);
+  });
 });

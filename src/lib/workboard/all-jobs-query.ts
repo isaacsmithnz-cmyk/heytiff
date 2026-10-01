@@ -37,6 +37,7 @@ import {
   type MediaSource,
 } from "./job-media-query";
 import { plusDays } from "./dates";
+import { summariseQuoteLines, type QuoteLine } from "./quote-worklist";
 import { sm8Handle } from "./sm8-mentions";
 import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "./job-money";
 import { materialLineOf, type JobMaterialLine, type JobPaymentEntry } from "./job-ledger";
@@ -298,8 +299,9 @@ export async function loadAllJobs(
   const companyIds = [...new Set(rows.map((r) => r.company_uuid).filter(Boolean) as string[])];
   const categoryIds = [...new Set(rows.map((r) => r.category_uuid).filter(Boolean) as string[])];
   const jobIds = rows.map((r) => r.uuid);
+  const quoteIds = rows.filter((r) => r.status === "Quote").map((r) => r.uuid);
 
-  const [companies, categories, activities, payments] = await Promise.all([
+  const [companies, categories, activities, payments, quoteLines] = await Promise.all([
     inChunks(companyIds, 200, async (chunk) => {
       const { data } = await supabaseAdmin
         .from("sm8_companies")
@@ -350,7 +352,28 @@ export async function loadAllJobs(
           return (data ?? []) as { job_uuid: string; amount: string | null }[];
         })
       : Promise.resolve([] as { job_uuid: string; amount: string | null }[]),
+    /* WHAT EACH OPEN QUOTE SAYS WAS QUOTED, for the Quotes worklist: its
+       lines' names, and whether any carries a price. The price is read to
+       find the system lines and to tell priced from not, and never leaves
+       here — the summary holds names only, so it rides without the money
+       grant. Quotes only: 341 jobs live, a few lines each. */
+    inChunks(quoteIds, 200, async (chunk) => {
+      const { data } = await supabaseAdmin
+        .from("sm8_job_materials")
+        .select("job_uuid, name, quantity, price")
+        .eq("org_id", orgId)
+        .eq("active", 1)
+        .in("job_uuid", chunk);
+      return (data ?? []) as { job_uuid: string; name: string | null; quantity: string | null; price: string | null }[];
+    }),
   ]);
+
+  const linesByQuote = new Map<string, QuoteLine[]>();
+  for (const l of quoteLines) {
+    const list = linesByQuote.get(l.job_uuid) ?? [];
+    list.push({ name: l.name, quantity: l.quantity == null ? null : Number(l.quantity), price: l.price == null ? null : Number(l.price) });
+    linesByQuote.set(l.job_uuid, list);
+  }
 
   const companyName = new Map(companies.map((c) => [c.uuid, c.name]));
   /* Live category names carry trailing spaces ("Annual Maintenance "). Trim
@@ -389,6 +412,7 @@ export async function loadAllJobs(
     nextBooking: nextBooking.get(r.uuid) ?? null,
     money: includeMoney ? jobMoneyOf(r) : null,
     paidCents: includeMoney ? paidByJob.get(r.uuid) ?? 0 : 0,
+    quote: r.status === "Quote" ? summariseQuoteLines(linesByQuote.get(r.uuid) ?? []) : null,
   }));
 
   return {

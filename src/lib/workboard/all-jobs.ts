@@ -40,6 +40,7 @@ import {
   type CollectionState,
   type JobMoney,
 } from "./job-money";
+import type { QuoteSummary } from "./quote-worklist";
 
 /** How far ahead a NOT-YET-RAISED maintenance visit is worth listing. Matches
     the board's own history window so the tab's two directions are symmetrical. */
@@ -70,6 +71,9 @@ export type AllJobsMirrorJob = {
       when nothing was paid and when the reader holds no money grant; the
       grant case is already distinguished by `money` being null. */
   paidCents: number;
+  /** A quote's lines, summed up: how many, whether any is priced, and what
+      they say was quoted. Only on jobs at the quote; names, never prices. */
+  quote?: QuoteSummary | null;
 };
 
 /** A maintenance visit, slimmed from BoardVisit. */
@@ -146,6 +150,8 @@ export type AllJobRow = {
   } | null;
   /** Sort key within its section — a naive date string or "". */
   sortOn: string;
+  /** On a quote: what its lines say (see quote-worklist.ts). */
+  quote?: QuoteSummary | null;
 };
 
 export type AllJobsView = {
@@ -304,6 +310,7 @@ function sm8Row(
         }
       : null,
     sortOn: date ?? "",
+    quote: job.quote ?? null,
   };
 }
 

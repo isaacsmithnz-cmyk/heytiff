@@ -123,9 +123,59 @@ the certifier can tick it off against their own list. The other trades' items
 on the list (electrical, glazing, BASIX and so on) are not ours and are left
 alone.
 
-**No list?** The wizard still works. It starts from the default set (the five
-clauses job 1383 used, which is what a NSW Class 2 apartment fit-out
-normally needs) and says that the certifier's list wasn't attached.
+**No list?** This is the usual case: the builder just emails "can you send
+the compliance certificate". The certificate is still built, from two facts
+about the job, and nothing waits on the certifier:
+
+1. **What kind of building it is.** Tiff suggests it from the address and the
+   client, and the person confirms it with one tap:
+   - a unit number ("12/25-35 Lancaster Drive") suggests a Class 2 apartment
+   - a level or suite ("Lv 3 Suite 4") suggests a Class 5 office or other
+     commercial space
+   - a plain street address suggests a Class 1 house or townhouse
+2. **What was installed**, read from the job: ducted or bulkhead units,
+   mechanical ventilation (a Lossnay, an exhaust fan), penetrations through
+   fire-rated walls or floors (the quote says so, or the building is Class 2
+   or above), a roof penetration.
+
+Those two pick the clauses:
+
+| Clause | Class 1 house | Class 2 apartment | Class 5–9 commercial |
+|---|---|---|---|
+| Refrigerating systems, AS/NZS 5149, with the commissioning figures | yes | yes | yes |
+| Refrigerant handled by licensed people (ARC) | yes | yes | yes |
+| Workmanship, condensate, consent conditions | yes | yes | yes |
+| Ductwork, AS 4254.1/.2 | if ducted | if ducted | if ducted |
+| Mechanical ventilation, AS 1668.2 | if installed | if installed | if installed |
+| Fire mode, AS/NZS 1668.1 and Spec 21 | not applicable | yes | yes |
+| BCA Part J5 | not applicable (BASIX) | yes | yes |
+| Fire-rated penetrations, AS 4072.1 / AS 1530.4 | if any | yes | if any |
+
+A clause that doesn't apply is printed as **considered and not applicable**,
+with the reason ("Class 1 dwelling: energy efficiency is set by the BASIX
+certificate"). That way the certifier can see it was thought about rather
+than missed.
+
+Five mockups were drawn this way on 2026-10-01 from real finished jobs:
+
+- 279: VRF and Lossnay, a house
+- 1300: VRF bulkheads, a townhouse
+- 1245: two ducted systems, a house
+- 3326: a split in an office suite
+- 2699: a multi split in an apartment
+
+Each picked a different set from this table.
+
+**And the builder is asked once, in the same email.** The email draft that
+goes out with the certificate ends with one line: "If your certifier has
+sent a list of requirements, forward it and we'll match the certificate to
+it." If a list arrives later, attaching it to the job makes a **Reissue** with
+the list's requirements matched. The first version stays on file as version
+1, as a SWMS revision does.
+
+**Builders are remembered too.** The certifier used on a builder's last job is
+suggested for the next one, so a builder who always uses FutureCert gets
+FutureCert's clauses without asking.
 
 **Remembered per certifier.** Each certifier's last matched set is kept. The
 next FutureCert job starts with FutureCert's clauses already chosen, even

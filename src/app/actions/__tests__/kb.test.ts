@@ -86,6 +86,15 @@ jest.mock("@/lib/permissions-server", () => ({
   getDbRole: async () => dbRole,
 }));
 jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: async () => "staff-me" }));
+/* what the org has left of its two large uploads this month (large.ts); the
+   real count reads kb_documents, which this suite's mock doesn't model */
+let largeLeft = 2;
+const kbLargeAllowance = jest.fn(async (_org: string, isOwner: boolean) =>
+  isOwner ? { left: largeLeft, resetsOn: "2026-11-01" } : null
+);
+jest.mock("@/lib/tiff/large", () => ({
+  kbLargeAllowance: (org: string, isOwner: boolean) => kbLargeAllowance(org, isOwner),
+}));
 
 import {
   beginKbUpload,
@@ -188,9 +197,32 @@ describe("beginning an upload", () => {
     expect(inserts).toHaveLength(0);
   });
 
-  it("refuses a file past the 50 MB ceiling", async () => {
+  it("refuses a file past the 50 MB ceiling to anyone but an owner", async () => {
+    dbRole = "manager";
     expect(await beginKbUpload({ ...PDF, sizeBytes: 60 * 1024 * 1024 })).toMatchObject({ ok: false });
     expect(inserts).toHaveLength(0);
+    dbRole = "owner";
+  });
+
+  it("lets an owner bring in a whole data book while the month has a turn left", async () => {
+    largeLeft = 1;
+    expect(await beginKbUpload({ ...PDF, sizeBytes: 131 * 1024 * 1024 })).toMatchObject({ ok: true });
+    expect(inserts[0]).toMatchObject({ size_bytes: 131 * 1024 * 1024 });
+  });
+
+  it("refuses an owner's third large upload of the month", async () => {
+    largeLeft = 0;
+    expect(await beginKbUpload({ ...PDF, sizeBytes: 131 * 1024 * 1024 })).toMatchObject({
+      ok: false,
+      error: "That's over 50 MB, and this month's 2 large uploads are used. More from 1 November.",
+    });
+    expect(inserts).toHaveLength(0);
+    largeLeft = 2;
+  });
+
+  it("never asks about large uploads for an ordinary file", async () => {
+    await beginKbUpload(PDF);
+    expect(kbLargeAllowance).not.toHaveBeenCalled();
   });
 
   it("refuses a category the database wouldn't accept either", async () => {

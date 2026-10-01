@@ -8,6 +8,7 @@ import { countUnembedded } from "@/lib/tiff/backfill";
 import { isSemanticConfigured } from "@/lib/tiff/embeddings";
 import { kbDocsForOrg, kbUploaderNames } from "@/lib/tiff/query";
 import { kbQuotaFor } from "@/lib/tiff/quota";
+import { kbLargeAllowance } from "@/lib/tiff/large";
 import { ensureKbSeedTags, kbTagsByDocument, kbTagsForOrg, kbTagUsage } from "@/lib/tiff/tags-query";
 
 /* The library. Deep-linkable leaf — same `tiff` gate as the assistant page:
@@ -72,6 +73,11 @@ export default async function LibraryPage({
      into Slack has to be readable, and an id would also leak nothing useful
      while breaking the moment a workspace is re-seeded. Anything that doesn't
      match a real tag is dropped rather than rendered as a dead filter. */
+  const isOwner = hasMinRole(role, "owner");
+  /* what an owner may still bring in over 50 MB this month — for the upload
+     drawer to say before a 130 MB data book is dropped on it */
+  const large = canManage ? await kbLargeAllowance(orgId, isOwner) : null;
+
   const bySlug = new Map(tags.map((t) => [t.slug, t.id]));
   const initialTagIds = [
     ...new Set(rawTags.map((s) => bySlug.get(String(s).toLowerCase())).filter(Boolean) as string[]),
@@ -99,7 +105,8 @@ export default async function LibraryPage({
         pagesAllowed: Number.isFinite(quota.pagesAllowed) ? quota.pagesAllowed : null,
       }}
       canManage={canManage}
-      isOwner={hasMinRole(role, "owner")}
+      isOwner={isOwner}
+      large={large}
       unembedded={unembedded}
       initialCategory={asKbCategory(raw)}
       /* resolved against the docs actually being rendered, so an id from

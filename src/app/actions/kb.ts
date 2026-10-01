@@ -9,6 +9,7 @@ import { staffProfileIdFor } from "@/lib/fleet/query";
 import {
   asKbCategory,
   checkKbUpload,
+  isLargeKb,
   KB_BUCKET,
   kbRefIsOrgs,
   kbStorageRef,
@@ -25,6 +26,7 @@ import {
 } from "@/lib/tiff/doc-search";
 import { kbTagsForOrg, setKbDocumentTags } from "@/lib/tiff/tags-query";
 import { sanitiseTagIds } from "@/lib/tiff/tags";
+import { kbLargeAllowance } from "@/lib/tiff/large";
 
 /* The library's writes — upload, describe, retry, remove.
 
@@ -208,9 +210,15 @@ export async function beginKbUpload(input: {
   const title = trim(input.title, TITLE_MAX);
   if (!title) return { ok: false, error: "Give that document a title." };
 
-  // the browser checks the same two rules before it offers to upload; this is
-  // the one that counts, and the bucket carries the numbers a third time
-  const check = checkKbUpload({ type: String(input.mime ?? ""), size: Number(input.sizeBytes) });
+  // the browser checks the same rules before it offers to upload; this is
+  // the one that counts, and the bucket carries the ceiling a third time.
+  // Over 50 MB is an owner's, two a month (large.ts) — only asked when it is
+  // one, so an ordinary upload costs no extra reads
+  const size = Number(input.sizeBytes);
+  const large = isLargeKb(size)
+    ? await kbLargeAllowance(c.orgId, hasMinRole(await getDbRole(), "owner"))
+    : null;
+  const check = checkKbUpload({ type: String(input.mime ?? ""), size }, large);
   if (!check.ok) return { ok: false, error: check.error };
 
   const staffId = await staffProfileIdFor(c.orgId, c.userId);

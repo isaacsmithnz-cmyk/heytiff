@@ -308,6 +308,14 @@ describe("money on a row", () => {
     });
   });
 
+  it("never says a quote is awaiting payment: nothing is owed until the job is ordered", () => {
+    const v = view({
+      jobs: [job({ remoteId: "q-1", status: "Quote", money: jobMoneyOf({ total_invoice_amount: "3245.00" }), paidCents: 0 })],
+    });
+    expect(v.quotes[0].money?.collection).toBe("unknown");
+    expect(v.quotes[0].money?.valueCents).toBe(324500);
+  });
+
   it("is null throughout when the reader has no money access", () => {
     const v = view({ jobs: [job({ remoteId: "j-1", money: null })] });
     expect(v.work.unbooked[0].money).toBeNull();

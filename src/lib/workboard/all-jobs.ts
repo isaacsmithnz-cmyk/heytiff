@@ -263,6 +263,9 @@ export function sm8JobIsOpen(status: string | null): boolean {
   return tab !== "completed" && tab !== "unsuccessful";
 }
 
+/** A job still at the quote, or one that never went ahead: nothing is owed. */
+const isQuoteStage = (status: string | null) => status === "Quote" || status === "Unsuccessful";
+
 function sm8Row(
   job: AllJobsMirrorJob,
   today: string,
@@ -291,7 +294,11 @@ function sm8Row(
       ? {
           valueCents: job.money.valueCents,
           paidCents: job.paidCents,
-          collection: collectionFrom(job.money.valueCents, job.paidCents),
+          /* A quote is a price offered, not money owed: until the job is
+             ordered there is nothing to collect, so a quote with a value and
+             no payment is never "Awaiting payment" (it was, on every priced
+             quote in the tab, 2026-09-30). */
+          collection: isQuoteStage(job.status) ? "unknown" : collectionFrom(job.money.valueCents, job.paidCents),
           quoteSent: job.money.quoteSent,
           quoteSentOn: job.money.quoteSentOn,
         }

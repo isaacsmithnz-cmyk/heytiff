@@ -2,13 +2,15 @@
    zones, as Isaac described it and corrected it (2026-09-30), priced from
    the frozen book the past-job tests use. */
 import { ductTrunks, faceVelocity, priceBuildUp, recommendReturn, STANDARD_RETURNS, trunkingLengths, wallBracketCode } from "../buildup";
-import { ductedLines, plenumRunFittings, type DuctedFacts, type PriceOf } from "../ducted-template";
+import { ductedLines, ductedVisits, plenumRunFittings, type DuctedFacts, type PriceOf } from "../ducted-template";
+import { multiLines, multiVisits } from "../multi-template";
 import { splitLines, splitVisits } from "../split-template";
 import { PAST_JOBS } from "./fixtures/past-jobs";
+import { BLIND_JOBS_BOOK } from "./fixtures/blind-jobs-book";
 import { PAST_JOBS_BOOK } from "./fixtures/past-jobs-book";
 
 const priceOf: PriceOf = (code) => {
-  const b = PAST_JOBS_BOOK[code];
+  const b = PAST_JOBS_BOOK[code] ?? BLIND_JOBS_BOOK[code];
   return b ? { supplierKey: b[0], buyCents: b[1], name: b[2] } : null;
 };
 const job2330 = PAST_JOBS.find((j) => j.job === "2330")!.facts as DuctedFacts;
@@ -77,6 +79,44 @@ describe("Isaac's standard ducted kit", () => {
     expect(plenumRunFittings(2)).toEqual(["MB141410", "MB141010"]);
     const r = ductedLines({ ...job2330, supply: "plenums", outlets: 8 }, priceOf);
     expect(r.lines.find((l) => l.key === "plenums")?.qty).toBe(3);
+  });
+});
+
+describe("a swap into the old system", () => {
+  it("keeps what the scope keeps, recovers the old refrigerant, and has no duct contingency", () => {
+    const r = ductedLines({ ...job2330, trunkingM: null, reuse: { pipe: true, ductwork: true }, replacing: true }, priceOf);
+    const keys = r.lines.map((l) => l.key);
+    expect(keys).toEqual(expect.arrayContaining(["reconnect", "flush", "recovery"]));
+    expect(keys.some((k) => /^(fitting|flex|grilles|return|nose-cone|pair-coil|trunking)/.test(k))).toBe(false);
+    expect(priceBuildUp(r.lines, ductedVisits({ reuse: { ductwork: true } })).contingency?.hours).toBe(0);
+    const unflushed = ductedLines({ ...job2330, reuse: { pipe: true, flush: false, ductwork: true } }, priceOf);
+    expect(unflushed.lines.some((l) => l.key === "flush")).toBe(false);
+  });
+
+  it("takes three for the day, a fourth for new zone motors, and a rough-in or second floor adds a pair", () => {
+    const pd = (f: Parameters<typeof ductedVisits>[0]) => ductedVisits(f).reduce((a, v) => a + v.people * v.days, 0);
+    expect(pd({})).toBe(4);
+    expect(pd({ reuse: { ductwork: true } })).toBe(3);
+    expect(pd({ reuse: { ductwork: true }, zoning: "me24" })).toBe(4);
+    expect(pd({ newBuild: true })).toBe(6);
+    expect(pd({ storeys: 2 })).toBe(6);
+  });
+});
+
+describe("a multi-split", () => {
+  const head = (indoor: string, kw: number) => ({ indoor, kw, pipe: "1/4+3/8" as const });
+  it("runs a pipe, trunking and consumables to each head, the outdoor's kit once", () => {
+    const r = multiLines({ outdoor: "MXZ-3F54VGD-A2", heads: [head("MSZ-AP25VGKD2-A2", 2.5), head("MSZ-AP42VGKD2-A2", 4.2)], newCircuit: true }, priceOf);
+    expect(r.lines.filter((l) => l.key.startsWith("pair-coil")).map((l) => l.qty)).toEqual([10, 10]);
+    expect(r.lines.find((l) => l.key === "trunking")?.qty).toBe(3);
+    expect(r.lines.find((l) => l.key === "consumables")?.qty).toBe(2);
+    expect(r.lines.filter((l) => l.key === "isolator" || l.key === "mount").length).toBe(2);
+    expect(r.lines.find((l) => l.key === "circuit")).toBeTruthy();
+  });
+
+  it("takes a day for the outdoor and half a day a head", () => {
+    const pd = (n: number) => multiVisits({ heads: Array.from({ length: n }, () => head("x", 2.5)) }).reduce((a, v) => a + v.people * v.days, 0);
+    expect([pd(2), pd(3), pd(4), pd(5)]).toEqual([2, 2.5, 3, 3.5]);
   });
 });
 

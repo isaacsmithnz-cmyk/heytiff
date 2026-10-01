@@ -165,6 +165,7 @@ export function UploadDrawer({
         category: item.category,
         source: item.source.trim() || undefined,
         tagIds: item.tagIds,
+        large,
       });
 
       if (!res.ok) {

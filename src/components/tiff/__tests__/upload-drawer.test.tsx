@@ -89,6 +89,11 @@ describe("what the drawer offers before anything is stored", () => {
     expect(screen.getByText(/2 of 2 large uploads left this month/)).toBeInTheDocument();
     await drop([sized(pdf("2024_M-S-P_DATA_BOOK.pdf"), 131 * 1024 * 1024)]);
     expect(screen.queryByText(/too big/)).toBeNull();
+    // and the upload itself is told the allowance, or it refuses the file again
+    uploadKbFile.mockResolvedValue({ ok: true, documentId: "doc-big" });
+    await userEvent.click(screen.getByRole("button", { name: /Upload 1 document/ }));
+    await waitFor(() => expect(uploadKbFile).toHaveBeenCalled());
+    expect(uploadKbFile.mock.calls[0][1]).toMatchObject({ large: { left: 2, resetsOn: "2026-11-01" } });
   });
 
   it("refuses a third large file dropped in with two already waiting", async () => {

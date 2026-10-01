@@ -138,23 +138,12 @@ about the job, and nothing waits on the certifier:
    fire-rated walls or floors (the quote says so, or the building is Class 2
    or above), a roof penetration.
 
-Those two pick the clauses:
+Those two pick the clauses. See What every certificate covers, below.
 
-| Clause | Class 1 house | Class 2 apartment | Class 5–9 commercial |
-|---|---|---|---|
-| Refrigerating systems, AS/NZS 5149, with the commissioning figures | yes | yes | yes |
-| Refrigerant handled by licensed people (ARC) | yes | yes | yes |
-| Workmanship, condensate, consent conditions | yes | yes | yes |
-| Ductwork, AS 4254.1/.2 | if ducted | if ducted | if ducted |
-| Mechanical ventilation, AS 1668.2 | if installed | if installed | if installed |
-| Fire mode, AS/NZS 1668.1 and Spec 21 | not applicable | yes | yes |
-| BCA Part J5 | not applicable (BASIX) | yes | yes |
-| Fire-rated penetrations, AS 4072.1 / AS 1530.4 | if any | yes | if any |
-
-A clause that doesn't apply is printed as **considered and not applicable**,
-with the reason ("Class 1 dwelling: energy efficiency is set by the BASIX
-certificate"). That way the certifier can see it was thought about rather
-than missed.
+When the certifier's list asks for something that doesn't apply, it is
+printed as **not applicable**, with the reason ("house: energy efficiency is
+set by the BASIX certificate"). Nothing else is listed as not applicable: a
+certificate does not go through every standard it isn't about.
 
 Five mockups were drawn this way on 2026-10-01 from real finished jobs:
 
@@ -182,6 +171,95 @@ next FutureCert job starts with FutureCert's clauses already chosen, even
 before its list is attached, and the reader only has to confirm the new
 project number.
 
+## What every certificate covers (research, 2026-10-01)
+
+An installer's certificate is not a statutory "compliance certificate". In
+NSW only a registered certifier issues those. Ours is **documentary evidence**
+that the certifier may rely on to issue the Occupation Certificate (EP&A
+(Development Certification and Fire Safety) Regulation 2021, and NCC A5G3
+evidence of suitability). Evidence is only as good as its facts, so the
+certificate is built around: who did it, what and where, which standards,
+and the test results that prove it.
+
+**On every air conditioning certificate:**
+
+1. **Who.** The business (legal name, ABN) and its NSW contractor licence
+   for air conditioning and refrigeration, which is required for this work at
+   any value (Home Building Act 1989). The signatory's ARC refrigerant
+   handling licence. The business's ARC refrigerant trading authorisation
+   number (the AU number) belongs here too, and is **not on file yet**.
+2. **What and where.** One row per unit: location, model, and **serial
+   number**. The serial is what the manufacturer's warranty registers, and
+   commissioning records list it. Serials are not captured today; nameplate
+   photos (`job_photo_readings`) are where they come from.
+3. **Refrigerant circuit, AS/NZS 5149.2 and the ARC Code of Practice
+   (2025).** These are the test results, typed, never assumed:
+   - strength and tightness test with oxygen-free nitrogen (pressure and
+     hold time)
+   - evacuation below **500 microns** before charging, unless the
+     manufacturer says otherwise
+   - refrigerant type, and the charge added in kg
+4. **Installed to the manufacturer's instructions**: clearances, mounting,
+   pipe lengths.
+5. **Condensate** drained to a suitable point without damage or nuisance.
+6. **Commissioned**: run and checked in heating and cooling, with operating
+   instructions and the maintenance schedule handed over (AIRAH best
+   practice).
+7. **Not covered**, said once: electrical work, which the electrician
+   certifies separately under AS/NZS 3000.
+
+**Added by what was installed** (ticked by the person, suggested from the
+quote):
+
+- Ductwork, plenums or flexible duct: **AS 4254.1/.2**.
+- Penetrations through fire-rated walls or floors: sealed with a tested
+  fire-stopping system to keep the fire resistance level.
+
+**On every ventilation certificate:**
+
+- Each fan's location and model, with **measured airflow** in L/s against
+  the design or required airflow. Within ±10% of design is the usual
+  tolerance.
+- Discharge goes to outdoor air, not the roof space (NCC 2022 Housing
+  Provisions 10.8.2: at least 25 L/s for a bathroom or toilet, 40 L/s for a
+  kitchen or laundry).
+- **AS 1668.2** where the building's ventilation relies on it: commercial
+  spaces, car parks, and common areas in an apartment building. Houses and
+  apartments are usually naturally ventilated, so a bathroom fan doesn't make
+  a house an AS 1668.2 job.
+
+**Only when the certifier's list asks, or the person adds it:**
+
+- Fire mode: AS/NZS 1668.1 and NCC Specification 21.
+- BCA Part J5 energy efficiency.
+- Outdoor unit noise. In NSW, a residential air conditioner must not be heard
+  in a neighbour's room overnight (POEO (Noise Control) Regulation 2017,
+  reg 45). The certificate can say the unit is where the approved plans put
+  it. It cannot say what it measures unless someone measured it.
+
+**Never on ours.** A fire safety measure on the building's fire safety
+schedule (for example, air-conditioning shutdown on alarm) is assessed for
+the fire safety certificate by an Accredited Practitioner (Fire Safety), and
+that person must not be the installer. Our fire-mode clause says what was
+installed and how it behaves. It is never offered as the fire safety
+assessment.
+
+**Australia-wide or NSW?** The building classes, AS/NZS 5149, AS 4254,
+AS 1668 and the ARC licence are national. The contractor licence, BASIX,
+the noise regulation and the OC process are NSW. Each state has its own
+version of those (in Victoria, a VBA registration and compliance certificate
+for refrigerated air conditioning work). v1 writes the NSW version. The
+state comes from the job's address, as the SWMS's jurisdiction does.
+
+Sources:
+- [NSW Government, air conditioning and refrigeration work](https://www.nsw.gov.au/business-and-economy/licences-and-credentials/building-and-trade/air-conditioning-and-refrigeration-work)
+- [ARC Refrigerant Handling Code of Practice 2025, Part 2](https://www.arctick.org/media/29167/air018-refrigerant-handling-codes-of-practice-2025_part-2_web_final_singles.pdf)
+- [EP&A (Development Certification and Fire Safety) Regulation 2021](https://legislation.nsw.gov.au/view/whole/html/inforce/current/sl-2021-0689)
+- [NSW Planning, fire safety certification](https://www.planning.nsw.gov.au/policy-and-legislation/buildings/fire-safety-in-buildings/fire-safety-certification)
+- [POEO (Noise Control) Regulation 2017, reg 45](https://classic.austlii.edu.au/au/legis/nsw/consol_reg/poteocr2017693/s45.html)
+- [Design and Building Practitioners Act 2020, s 6](https://classic.austlii.edu.au/au/legis/nsw/consol_act/dabpa2020313/s6.html)
+- [AIRAH Residential Best Practice Guideline](https://airah.org.au/Common/Uploaded%20files/Archive/Resources/Best_Practice_Guideline/RBPG_VIC_version_3-2.pdf)
+
 ## The wizard
 
 The text is the library's; the inputs are the job's.
@@ -193,13 +271,20 @@ The text is the library's; the inputs are the job's.
      names the certificate ("Air conditioning compliance certificate", or
      "Air conditioning and ventilation compliance certificate"), decides which
      equipment tables the paper has, and decides which clauses are offered.
-   - **What kind of building?** House or townhouse (Class 1), Apartment
-     (Class 2), Office or shop (Class 5 or 6), Other commercial (pub, school,
-     clinic, warehouse). The plain name is what the person picks and the
-     class is printed beside it. One option is preselected from the address
-     (a unit number, a level or suite, or a plain street address), and one
-     quiet line says why, so a wrong guess is visible and one tap fixes it.
-     The building class is never taken from the guess alone.
+   - **What kind of building?** Kept (Isaac, 2026-10-01), with the options
+     worded so each one is true for its class:
+     - House, townhouse or duplex (Class 1a)
+     - Apartment building (Class 2)
+     - Office (Class 5)
+     - Shop, café or restaurant (Class 6)
+     - Other or not sure (no class is printed)
+
+     A class is printed only when the person picked it. The address only
+     preselects an option, and a quiet line says so ("picked because the
+     address has a level and suite"), because an address can't settle it:
+     a "2/15" unit can be a villa (Class 1a), and townhouses over a shared
+     basement car park are Class 2. When the certifier's list or the
+     Construction Certificate states the class, that is used instead.
 1. **The certifier's list.** Attach it and confirm what Tiff read, as above.
 2. **The job.** Site address, builder, builder's contact, certifier, the
    certifier's project number, consent authority, date the works were

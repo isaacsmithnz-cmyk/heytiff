@@ -305,7 +305,7 @@ describe("check-ins left open — #3237 and #3225", () => {
         ],
       },
     ]);
-    /* The tally is the same believable sessions — it was 109h 19m. */
+    /* The tally is the same believable sessions — it was 95h 19m. */
     expect(detail?.timeOnSite).toEqual({ minutes: 406 + 141 + 105, sessions: 4 });
 
     /* What the summary is written from: no 54 hours, and the day says whose

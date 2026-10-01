@@ -338,37 +338,63 @@ describe("work orders", () => {
 });
 
 describe("quotes", () => {
-  it("lists what's out awaiting an answer", async () => {
+  /* The worklist (quote-worklist.ts): each quote under what to do with it
+     next, said as a word, with what was quoted leading its row. */
+  it("files each quote under what to do next", async () => {
     mount({
       data: data({
         jobs: [
           mirrorJob({
-            remoteId: "q-1",
+            remoteId: "q-new",
+            jobNumber: "3383",
             status: "Quote",
-            quoteDate: "2026-08-05 00:00:00",
+            quoteDate: "2026-08-11 00:00:00",
             clientName: "Strathfield Dental",
+            quote: { lines: 0, priced: false, headline: null },
+          }),
+          mirrorJob({
+            remoteId: "q-out",
+            jobNumber: "3372",
+            status: "Quote",
+            quoteDate: "2026-07-30 00:00:00",
+            clientName: "Bradfield Badgerfield",
+            quote: { lines: 26, priced: true, headline: "Mitsubishi ducted 14 kW" },
           }),
         ],
       }),
     });
     await toTab("Quotes");
-    expect(screen.getByText("1 quote awaiting an answer")).toBeInTheDocument();
+    /* the group's head, and its filter */
+    expect(screen.getAllByText("To price")).toHaveLength(2);
+    expect(screen.getByText("Waiting on an answer")).toBeInTheDocument();
+    expect(screen.getByText("Start quote")).toBeInTheDocument();
+    expect(screen.getByText("Follow up")).toBeInTheDocument();
+    expect(screen.getByText("Mitsubishi ducted 14 kW")).toBeInTheDocument();
     expect(screen.getByText("Strathfield Dental")).toBeInTheDocument();
+    expect(screen.getByText("13 days")).toBeInTheDocument();
   });
 
-  /* An unsent quote is an action gap, not a wait — the chip must say which of
-     the two a row is, and only to a reader who holds money (the flags ride
-     the money columns). */
-  it("splits sent from unsent for a money reader, and says nothing without", async () => {
+  it("folds the quotes over six months into a line until asked", async () => {
+    mount({
+      data: data({
+        jobs: [
+          mirrorJob({ remoteId: "q-old", status: "Quote", quoteDate: "2025-01-10 00:00:00", clientName: "Old Lead Pty Ltd", quote: { lines: 0, priced: false, headline: null } }),
+        ],
+      }),
+    });
+    await toTab("Quotes");
+    expect(screen.queryByText("Old Lead Pty Ltd")).toBeNull();
+    expect(screen.getByText(/1 of them were never priced/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show them" }));
+    expect(screen.getByText("Old Lead Pty Ltd")).toBeInTheDocument();
+  });
+
+  /* An unsent quote is an action gap, not a wait — the inspector says which
+     of the two a quote is, and only to a reader who holds money (the flags
+     ride the money columns). */
+  it("says sent or not sent in the inspector for a money reader, and nothing without", async () => {
     const quotes = data({
       jobs: [
-        mirrorJob({
-          remoteId: "q-sent",
-          status: "Quote",
-          quoteDate: "2026-08-05 00:00:00",
-          clientName: "Strathfield Dental",
-          money: jobMoneyOf({ quote_sent: 1, quote_sent_stamp: "2026-08-05 10:00:00" }),
-        }),
         mirrorJob({
           remoteId: "q-quiet",
           status: "Quote",
@@ -380,13 +406,13 @@ describe("quotes", () => {
     });
     const first = mount({ data: quotes, moneyVisible: true });
     await toTab("Quotes");
-    expect(screen.getByText("Quote sent")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Bradfield Badgerfield/ }));
     expect(screen.getByText("Not sent yet")).toBeInTheDocument();
     first.unmount();
 
     mount({ data: quotes, moneyVisible: false });
     await toTab("Quotes");
-    expect(screen.queryByText("Quote sent")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Bradfield Badgerfield/ }));
     expect(screen.queryByText("Not sent yet")).toBeNull();
   });
 });

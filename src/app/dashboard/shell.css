@@ -8189,6 +8189,19 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 /* The section rule doubles as a header when it carries a subtitle. */
 .wb2-sect em { display:block; font-style:normal; text-transform:none;
   font-size:12px; font-weight:600; color:var(--gray400); margin-top:2px; }
+/* ── the Quotes worklist (quote-worklist.ts) ──
+   A group's head names the group and counts it, on one line, in ink: on a
+   worklist the group is the instruction, so it reads before the rows do.
+   What's next is a word in its state's colour (law 26): blue for work to
+   start, amber for something due, ink for a day still to come. */
+.wb2-sect.wb2-qsect { font-size:13px; font-weight:600; color:var(--ink); }
+.wb2-qsect .wb2-qcount { margin-left:8px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.wb2-qnext { font-size:14px; font-weight:500; color:var(--ink); white-space:nowrap; }
+.wb2-qnext.info { color:var(--info-t); }
+.wb2-qnext.warn { color:var(--warn-t); }
+.wb2-qfold { display:flex; align-items:center; gap:16px; padding:12px 16px; border-bottom:1px solid var(--wb2-line2, var(--line)); }
+.wb2-qfold p { margin:0; min-width:0; font-size:14px; color:var(--q); }
+.fg .page.full .wb2-splitm > .wb2-qfold { padding-left:24px; padding-right:24px; }
 /* ── the universal search's answers ──
    Rows are the All jobs ledger row verbatim, so a result reads as the same
    software as the list it came from. What this adds is the group heading: it

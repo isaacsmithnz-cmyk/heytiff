@@ -1,16 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Icon } from "@/components/shell/icon";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import {
   awaitingPaymentRows,
   MONEY_BASIS,
-  quotesCountLine,
   type AllJobRow,
   type AllJobsView,
 } from "@/lib/workboard/all-jobs";
+import {
+  ageWords,
+  QUOTE_GROUPS,
+  quoteWorklist,
+  type QuoteGroupKey,
+  type QuoteItem,
+  type QuoteNext,
+} from "@/lib/workboard/quote-worklist";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
 import { isAwaitingPayment } from "@/lib/workboard/job-money";
 import { Fact, Inspector, Ledger, Reading, Split } from "./inspector";
@@ -165,6 +172,90 @@ function Row({
   );
 }
 
+/** What to do next, as a word in its state's colour (law 26), with the day
+    when it's still to come. */
+function NextWord({ next }: { next: QuoteNext }) {
+  return (
+    <span className={"wb2-qnext" + (next.tone ? ` ${next.tone}` : "")}>
+      {next.word}
+      {next.on ? ` ${fmtAuDayMonth(next.on)}` : ""}
+    </span>
+  );
+}
+
+/* A QUOTE'S ROW says what was quoted first, because that is what a quote is
+   recognised by ("the Daikin 7 kW in Mosman"), then who, then where, how
+   long it has waited and what to do next. Same grid and the same reading
+   order as every other All jobs row. */
+function QuoteRow({
+  item,
+  moneyVisible,
+  selected,
+  onSelect,
+  onOpen,
+}: {
+  item: QuoteItem;
+  moneyVisible: boolean;
+  selected: boolean;
+  onSelect: (row: AllJobRow) => void;
+  onOpen: (row: AllJobRow) => void;
+}) {
+  const { row } = item;
+  const who = row.clientName ?? "Unnamed client";
+  return (
+    <button
+      className={"wb2-ajr as-btn" + (selected ? " on" : "")}
+      aria-pressed={selected}
+      onClick={() => onSelect(row)}
+      onDoubleClick={() => onOpen(row)}
+      aria-label={`${item.what ? `${item.what}, ${who}` : who}${row.number ? `, #${row.number}` : ""}`}
+    >
+      <span className="wb2-ajnum">
+        {row.number ? (
+          <>
+            <b>#{row.number}</b>
+            <em>ServiceM8</em>
+          </>
+        ) : (
+          <em>—</em>
+        )}
+      </span>
+
+      <div className="wb2-trt">
+        <b>{item.what ?? who}</b>
+        {item.what && <em>{who}</em>}
+      </div>
+
+      <span className="wb2-ajmeta">
+        {row.categoryName && (
+          <i className="wb2-chip">
+            {row.categoryColour && (
+              <span className="wb2-catdot" style={{ background: row.categoryColour }} aria-hidden />
+            )}
+            {row.categoryName}
+          </i>
+        )}
+        {row.suburb && <em>{row.suburb}</em>}
+      </span>
+
+      <div className="wb2-trd">
+        <b>{ageWords(item.age)}</b>
+        <em>since quoted</em>
+      </div>
+
+      <span className="wb2-ajchips">
+        <NextWord next={item.next} />
+      </span>
+
+      {moneyVisible && (
+        <span className="wb2-money wb2-ajmoney" title={`ServiceM8's job total — ${MONEY_BASIS}`}>
+          {row.money?.valueCents ? <b>{fmtAud(row.money.valueCents)}</b> : <em>—</em>}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function Rows({
   rows,
   moneyVisible,
@@ -243,11 +334,14 @@ function RowInspector({
   moneyVisible,
   onOpen,
   onClose,
+  quote,
 }: {
   row: AllJobRow;
   moneyVisible: boolean;
   onOpen: (row: AllJobRow) => void;
   onClose: () => void;
+  /** on the Quotes worklist: what was quoted and what's next */
+  quote?: QuoteItem;
 }) {
   const date = dayOf(row.date);
   const m = moneyVisible ? row.money : null;
@@ -275,6 +369,14 @@ function RowInspector({
       }
     >
       <Ledger>
+        {quote && (
+          <>
+            <Fact label="Scope">{quote.what ?? <span className="wb2-inspnone">Nothing in ServiceM8 yet</span>}</Fact>
+            <Fact label="Next">
+              <NextWord next={quote.next} />
+            </Fact>
+          </>
+        )}
         <Fact label="Status">
           <span className={"wb2-inspword" + (row.tone ? ` ${row.tone}` : "")}>{row.statusLabel}</span>
         </Fact>
@@ -458,13 +560,34 @@ export function WorkOrdersTab(props: Props) {
   );
 }
 
+/* THE QUOTES TAB IS A WORKLIST (quote-worklist.ts): every open quote in the
+   group that says what to do with it next, newest first in each. The quotes
+   open for more than six months are most of the list (210 of 340 live) and
+   are read together when they're read at all, so on "All" they fold into one
+   line with what's in them; their own filter lists them. */
+type QuoteShow = "all" | QuoteGroupKey;
+
 export function QuotesTab(props: Props) {
   const v = props.view;
-  const sel = useSelection(v.quotes);
+  const w = useMemo(() => quoteWorklist(v.quotes, props.today), [v.quotes, props.today]);
+  const [show, setShow] = useState<QuoteShow>("all");
+  const [staleOpen, setStaleOpen] = useState(false);
+
+  const groups = QUOTE_GROUPS.filter((g) => (show === "all" || show === g.key) && w.groups[g.key].length > 0);
+  const listed = (k: QuoteGroupKey) => k !== "stale" || show === "stale" || staleOpen;
+  const items = groups.flatMap((g) => (listed(g.key) ? w.groups[g.key] : []));
+  const sel = useSelection(items.map((i) => i.row));
+  const selItem = sel.row ? items.find((i) => i.row.key === sel.row!.key) : undefined;
+
+  const chips: FilterOption<QuoteShow>[] = [{ key: "all", label: "All", n: w.total }];
+  for (const g of QUOTE_GROUPS) {
+    const n = w.groups[g.key].length;
+    if (n > 0) chips.push({ key: g.key, label: g.key === "wait" ? "Waiting" : g.title, n });
+  }
 
   return (
     <>
-      {v.quotes.length > 0 && <ListBar sentence={quotesCountLine(v)} />}
+      {v.quotes.length > 0 && <ListBar value={show} onChange={setShow} chips={chips} />}
       <Split
         aside={
           sel.row && (
@@ -473,6 +596,7 @@ export function QuotesTab(props: Props) {
               moneyVisible={props.moneyVisible}
               onOpen={props.onOpen}
               onClose={sel.clear}
+              quote={selItem}
             />
           )
         }
@@ -487,13 +611,37 @@ export function QuotesTab(props: Props) {
             hint="Quotes live in ServiceM8 — anything quoted and unanswered shows here."
           />
         ) : (
-          <Rows
-            rows={v.quotes}
-            moneyVisible={props.moneyVisible}
-            selected={sel.key}
-            onSelect={sel.select}
-            onOpen={props.onOpen}
-          />
+          groups.map((g) => (
+            <Fragment key={g.key}>
+              <div className="wb2-sect wb2-qsect">
+                {g.title}
+                <span className="wb2-qcount">{w.groups[g.key].length}</span>
+              </div>
+              {listed(g.key) ? (
+                w.groups[g.key].map((item) => (
+                  <QuoteRow
+                    key={item.row.key}
+                    item={item}
+                    moneyVisible={props.moneyVisible}
+                    selected={item.row.key === sel.key}
+                    onSelect={sel.select}
+                    onOpen={props.onOpen}
+                  />
+                ))
+              ) : (
+                <div className="wb2-qfold">
+                  <p>
+                    Open for more than six months
+                    {w.stale.oldest ? `, the oldest since ${fmtAuDayMonth(w.stale.oldest)} ${w.stale.oldest.slice(0, 4)}` : ""}.{" "}
+                    {w.stale.neverPriced > 0 && `${w.stale.neverPriced} of them were never priced.`}
+                  </p>
+                  <button type="button" className="pbtn" onClick={() => setStaleOpen(true)}>
+                    Show them
+                  </button>
+                </div>
+              )}
+            </Fragment>
+          ))
         )}
       </Split>
     </>

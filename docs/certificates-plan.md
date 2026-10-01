@@ -91,9 +91,10 @@ job's.
      - evacuation (microns)
      - refrigerant type and charge added
      - date commissioned
-5. **Sign.** The signatory is whoever is issuing, and must be an admin or the
-   owner. Their **ARC licence** and **contractor licence** are read from their
-   staff card. Their signature is the one stored on their staff card (see
+5. **Sign.** The signatory is whoever is issuing. Their role doesn't matter;
+   what they hold does: a current **ARC licence** and a current **contractor
+   licence**, both read from their staff card and both printed on the
+   certificate. Their signature is the one stored on their staff card (see
    Signature), shown here for them to see, and then they Issue. Nothing is
    drawn at this step.
 
@@ -130,11 +131,9 @@ rides the profile's flat section save.
 
 ## Rules that block Issue (`certProblems`)
 
-- The issuer is an admin or the owner.
 - The signatory has a signature on file (or draws one at this step).
-- The signatory holds an ARC licence, and there is a contractor licence to
-  print (the signatory's own, or the named licence holder's; see Still open).
-  Both are on file and **current on the issue date**. A licence with no expiry on file counts as
+- The signatory holds their own ARC licence and their own contractor licence,
+  both on file and **current on the issue date**. A licence with no expiry on file counts as
   "check it" and blocks Issue, the same as an expired one. (Isaac's two were
   added on 2026-10-01 without expiry dates, because the cards in the photo
   show 2024. Their current expiry dates need adding before v1 can issue.)
@@ -208,10 +207,16 @@ opposite of the SWMS paper's live ticket read, on purpose.
 
 ## Gates
 
-- **Issue and reissue**: admin or owner (`hasMinRole(role, "admin")`), Isaac's
-  answer on 2026-10-01: "any admin or manager". In this app "Manager" is the
-  `admin` role. A certificate is outward-facing and goes out under the
-  business's name.
+- **Issue and reissue**: anyone who can open the job card (`workboard`) **and**
+  holds a current ARC licence and a current contractor licence on their own
+  staff card. Isaac, 2026-10-01: "anyone with a contractor licence and ARC
+  licence can sign it off". A role is not the test, because the licences
+  are what make the signature mean something. The server reads the licences
+  itself at Issue (`certProblems`) and never trusts the browser's word for
+  them.
+- **Create certificate** shows for anyone who can open the job card. Anyone
+  without both licences sees the wizard read-only, with one line naming the
+  licence they're missing, rather than a button that fails at the end.
 - **Approve the template**: owner, as for the SWMS library.
 - **Read the paper**: `workboard`.
 - **Email and Send to ServiceM8**: the existing footer's own gates
@@ -241,7 +246,10 @@ stylesheet, outside the guards like the other three.
 
 ## Decided (Isaac, 2026-10-01)
 
-1. **Who signs:** any admin or manager (the `admin` role), and the owner.
+1. **Who signs:** anyone with a current ARC licence and a current contractor
+   licence of their own, whatever their role. This replaces the earlier
+   "any admin or manager" answer, and closes the question of a manager
+   without a contractor licence: they can't sign.
 2. **Signature:** drawn once and stored on the person's staff card, then used
    on every certificate they issue.
 3. **Types:** mechanical only for now.
@@ -249,11 +257,3 @@ stylesheet, outside the guards like the other three.
    button and a share choice (email, download, the phone's share sheet).
 5. **Recipient:** the builder. The email draft starts with the builder's
    contact on the job.
-
-## Still open
-
-- **A manager without a contractor licence.** The contractor licence is
-  personal, and a manager may not hold one. Proposed: the certificate prints
-  the signatory's own ARC licence, which they must hold, and the contractor
-  licence of the person the business names as its licence holder (an
-  Organisation setting that defaults to the owner). Isaac to confirm.

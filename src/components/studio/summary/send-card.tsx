@@ -11,6 +11,7 @@ import {
   collectSheetRefs,
   defaultExportOptions,
   hasSheet,
+  unitMarks,
   type ExportOptions,
   type PrintModel,
 } from "@/lib/studio/export";
@@ -993,7 +994,7 @@ export function SendCard({
                       sections={sections}
                     >
                       {sections.picklist && paper && <PicklistSection rows={model.picklist} />}
-                      {dest === "link" && <SheetPlans doc={doc} floors={floorsOn} urls={previewUrls} />}
+                      {dest === "link" && <SheetPlans doc={doc} floors={floorsOn} urls={previewUrls} marks={unitMarks([doc], pack)} />}
                     </SheetDoc>
                   </Shrunk>
                 )}

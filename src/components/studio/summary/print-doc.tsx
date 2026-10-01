@@ -198,6 +198,7 @@ export function PrintDoc({
                   grayscale={options.grayscale}
                   legend={options.legend}
                   urls={urls}
+                  markOf={(m) => model.marks?.[m]}
                 />
               </div>
             </section>

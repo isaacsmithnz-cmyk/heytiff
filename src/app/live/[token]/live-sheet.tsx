@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { DesignDocument, Floor } from "@/lib/studio/document";
-import type { SheetSections } from "@/lib/studio/export";
+import { unitMarks, type SheetSections } from "@/lib/studio/export";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import type {
   DesignBasis,
@@ -149,7 +149,7 @@ export function LiveSheet({
           preparedOn={preparedOn}
           sections={sections}
         >
-          <SheetPlans doc={doc} floors={planFloors} urls={planUrls} />
+          <SheetPlans doc={doc} floors={planFloors} urls={planUrls} marks={unitMarks([doc], pack)} />
         </SheetDoc>
       </main>
     </div>

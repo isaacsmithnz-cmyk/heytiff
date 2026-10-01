@@ -30,6 +30,7 @@ import {
 } from "@/lib/studio/callouts";
 import { unitGlyph, type LayerFlags } from "../canvas";
 import { footprintBox, layoutPlanLabels, roomLabelFixed } from "@/lib/studio/plan-labels";
+import type { UnitMark } from "@/lib/studio/export";
 
 /* A STATIC plan rendering for print and image export — the same drawing the
    canvas shows, minus every interactive affordance (grid, handles, ghosts,
@@ -187,6 +188,7 @@ export function PlanFigure({
   grayscale,
   legend,
   urls,
+  markOf,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -195,6 +197,9 @@ export function PlanFigure({
   legend: boolean;
   /** sheet imageRef → resolvable URL (signed for print, data: for PNG) */
   urls: Record<string, string>;
+  /** a head's kind and ducted faces from the pack, so paper draws the same
+      mark the canvas does; absent, every head is the plain box */
+  markOf?: (model: string) => UnitMark | undefined;
 }) {
   const bounds = planFigureBounds(doc, floor);
   if (!bounds) return null;
@@ -452,6 +457,7 @@ export function PlanFigure({
         {layers.units &&
           units.map((o) => {
             const at = o.geometry.at;
+            const widthMm = Number(o.props.widthMm ?? 800);
             const fp = unitFp(o);
             const role = String(o.props.role ?? "idu");
             /* a turned unit prints turned — same rule as the canvas */
@@ -467,7 +473,15 @@ export function PlanFigure({
             return (
               <g key={o.id} className="ds-unit" style={{ color: colourOf(o) }}>
                 <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
-                  {unitGlyph(at.x, at.y, fp.w, fp.h, role, 1 / u)}
+                  {(() => {
+                    const mark = markOf?.(String(o.props.model ?? ""));
+                    return unitGlyph(at.x, at.y, fp.w, fp.h, role, 1 / u, mark?.form_factor, {
+                      supply: mark?.supply_opening,
+                      ret: mark?.return_opening,
+                      perMm: fp.w / Math.max(widthMm, 1),
+                      supplyDir: o.props.airFlip ? -1 : 1,
+                    });
+                  })()}
                 </g>
               </g>
             );

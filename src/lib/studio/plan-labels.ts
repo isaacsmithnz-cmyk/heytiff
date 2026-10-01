@@ -277,11 +277,19 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
   return { rooms, runs };
 }
 
-/** the box a unit's footprint covers, turned by `rotDeg` about its centre */
+/* a unit's symbol reaches a little past its footprint: a ducted head's
+   flanges and spigots stand off its supply and return faces (canvas.tsx
+   unitGlyph), so a name kept off the footprint alone sat on the flange
+   (Walk A, Level 1: "Zone 6" on its PEFY) */
+const SYMBOL_REACH = 0.12;
+
+/** the box a unit's symbol covers, turned by `rotDeg` about its centre:
+    its footprint, grown by what the symbol draws past it */
 export function footprintBox(at: Point, w: number, h: number, rotDeg = 0): Box {
   const rad = (rotDeg * Math.PI) / 180;
-  const hw = (Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h) / 2;
-  const hh = (Math.abs(Math.sin(rad)) * w + Math.abs(Math.cos(rad)) * h) / 2;
+  const reach = SYMBOL_REACH * Math.max(w, h);
+  const hw = (Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h) / 2 + reach;
+  const hh = (Math.abs(Math.sin(rad)) * w + Math.abs(Math.cos(rad)) * h) / 2 + reach;
   return { x0: at.x - hw, y0: at.y - hh, x1: at.x + hw, y1: at.y + hh };
 }
 

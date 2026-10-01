@@ -161,6 +161,41 @@ describe("where the deployment sends no notes", () => {
   });
 });
 
+/* A check-in left open (sm8CheckInLeftOpen) is a person on site whose time
+   is unknown: the hours leave them out, so the entry names them with it.
+   Job #3237's 12 Sep, off the live mirror. */
+describe("a visit with a check-in left open", () => {
+  type Visit = Extract<StoryEntry, { kind: "visit" }>;
+  const visit = (over: Partial<Visit>): Visit => ({
+    kind: "visit",
+    key: "visit:2026-09-12",
+    day: "2026-09-12",
+    at: null,
+    minutes: 406,
+    crew: ["Oleksii Khalameida", "Louis Jones"],
+    leftOpen: ["Louis Jones"],
+    ...over,
+  });
+
+  it("keeps the believable hours and names who they leave out", () => {
+    draw([visit({})]);
+    expect(screen.getByText("Site visit — 6h 46m")).toBeInTheDocument();
+    expect(screen.getByText("Oleksii Khalameida — Louis Jones, check-in left open")).toBeInTheDocument();
+  });
+
+  it("says no figure when nothing that day can be believed", () => {
+    draw([visit({ minutes: 0, crew: ["Louis Jones"] })]);
+    expect(screen.getByText("Site visit")).toBeInTheDocument();
+    expect(screen.queryByText(/Site visit —/)).toBeNull();
+    expect(screen.getByText("Louis Jones, check-in left open")).toBeInTheDocument();
+  });
+
+  it("is the plain comma list it always was when nobody left one open", () => {
+    draw([visit({ leftOpen: [] })]);
+    expect(screen.getByText("Oleksii Khalameida, Louis Jones")).toBeInTheDocument();
+  });
+});
+
 describe("Reply", () => {
   it("(F) shows only on a mention of you — not on your own note, not for someone not linked", () => {
     const { unmount } = draw([theirs(), theirs({ key: "note:other", sm8Uuid: "7e7e7e7e-0000-4000-8000-00000000a5c9", text: "Filters are in the van" })]);

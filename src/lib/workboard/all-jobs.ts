@@ -503,6 +503,29 @@ export function sm8MinutesBetween(start: string, end: string): number | null {
   return Math.round((b - a) / 60_000);
 }
 
+/** The longest a check-in can run and still be a day on the tools. The live
+    account's same-day check-ins thin out past 12 hours, and all 40 longer
+    ones end between 6:45pm and 11:45pm — a check-out tapped from home. */
+export const WORKING_DAY_MINUTES = 12 * 60;
+
+/** A CHECK-IN LEFT OPEN — one whose check-out came the next day or later, or
+    after more than a working day. Its span is not time on site: job #3237
+    carries a check-in from 7:43am on a Saturday to 6:58am on the Monday,
+    which ServiceM8 counts as 47 hours. The person WAS there, so they stay
+    on the visit; their hours are unknown, so they add none.
+
+    NOT CAPPED AT THE BOOKING'S END. A booking's end is a plan, and sometimes
+    a placeholder — job #723's crew, booked 8 to 9pm, worked to 3:40am — and
+    a figure nobody recorded is not honest just because it is plausible. The
+    one false alarm in the mirror's 5,334 check-ins is that job's night work
+    (three check-ins, 2024), which reads as left open too: less than
+    happened, never more. */
+export function sm8CheckInLeftOpen(start: string, end: string): boolean {
+  const m = sm8MinutesBetween(start, end);
+  if (m === null) return false;
+  return start.slice(0, 10) !== end.slice(0, 10) || m > WORKING_DAY_MINUTES;
+}
+
 /** "7:30am" from a naive local stamp, by slicing — never by parsing a wall
     clock into a Date, which would shift it by the browser's offset. Shared
     by the job card's booking line and the project card's day window. */

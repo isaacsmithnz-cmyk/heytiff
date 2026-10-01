@@ -2281,22 +2281,29 @@ export function JobSheet({
                           : v.crew.map((c, i) => (
                               <span key={c.name}>
                                 {/* A comma separates two bare names; once a
-                                    title is in the line a comma cannot say
-                                    where one person ends, so the pair takes
-                                    a dash instead. The dot before a title is
-                                    REAL TEXT, not a CSS ::before — jest
-                                    never loads the stylesheet, so a
-                                    separator that lives only in CSS is one
-                                    nothing here can see fail. */}
-                                {i > 0 ? (v.crew.some((m) => m.title) ? " — " : ", ") : ""}
+                                    title (or a check-in left open) is in the
+                                    line a comma cannot say where one person
+                                    ends, so the pair takes a dash instead.
+                                    The dot before a title is REAL TEXT, not
+                                    a CSS ::before — jest never loads the
+                                    stylesheet, so a separator that lives
+                                    only in CSS is one nothing here can see
+                                    fail. */}
+                                {i > 0 ? (v.crew.some((m) => m.title || m.leftOpen) ? " — " : ", ") : ""}
                                 {c.name}
                                 {c.title && (
                                   <i className="wb2-jcrole">{`, ${c.title}`}</i>
                                 )}
+                                {/* On site, time unknown: the hours at the
+                                    right leave this person out, so the
+                                    line says why. */}
+                                {c.leftOpen && (
+                                  <i className="wb2-jcrole">, check-in left open</i>
+                                )}
                               </span>
                             ))}
                       </em>
-                      <span>{fmtMinutesAsHours(v.minutes)}</span>
+                      <span>{v.minutes > 0 ? fmtMinutesAsHours(v.minutes) : "—"}</span>
                     </div>
                   ))}
                   {!allVisits && detail.visits.length > VISITS_SHOWN && (

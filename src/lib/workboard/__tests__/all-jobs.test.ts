@@ -9,6 +9,7 @@ import {
   quotesCountLine,
   sheetRowOf,
   sm8CategoryColour,
+  sm8CheckInLeftOpen,
   sm8JobIsOpen,
   sm8MinutesBetween,
   type AllJobsMirrorJob,
@@ -429,6 +430,42 @@ describe("sm8MinutesBetween", () => {
   it("returns null for anything malformed", () => {
     expect(sm8MinutesBetween("", "2026-08-13 07:30:00")).toBeNull();
     expect(sm8MinutesBetween("2026-08-13 07:30:00", "soon")).toBeNull();
+  });
+});
+
+/* A check-in LEFT OPEN is a person on site whose time is unknown. Every
+   stamp below is a real check-in off the live mirror. */
+describe("sm8CheckInLeftOpen", () => {
+  it("calls a check-out on a later day left open, however long it ran", () => {
+    // #3237: Louis, 7:43am Saturday to 6:58am Monday — 47h 15m to ServiceM8
+    expect(sm8CheckInLeftOpen("2026-09-12 07:43:40", "2026-09-14 06:58:24")).toBe(true);
+    // #3225: Louis, 5:27am to 6:59am the next morning
+    expect(sm8CheckInLeftOpen("2026-09-09 05:27:59", "2026-09-10 06:59:21")).toBe(true);
+    // #3237 again: Oleksii and Louis both on 31 Aug
+    expect(sm8CheckInLeftOpen("2026-08-31 10:38:47", "2026-09-01 06:28:42")).toBe(true);
+    expect(sm8CheckInLeftOpen("2026-08-31 13:55:43", "2026-09-01 07:17:18")).toBe(true);
+  });
+
+  it("calls a same-day check-in longer than a working day left open", () => {
+    // 6:50am to 10:38pm — a check-out tapped from home
+    expect(sm8CheckInLeftOpen("2025-09-13 06:50:41", "2025-09-13 22:38:44")).toBe(true);
+    expect(sm8CheckInLeftOpen("2026-09-12 07:00:00", "2026-09-12 19:01:00")).toBe(true);
+  });
+
+  it("believes a long day on the tools up to the working day itself", () => {
+    expect(sm8CheckInLeftOpen("2026-09-12 07:00:00", "2026-09-12 19:00:00")).toBe(false);
+    // #3237: Oleksii's real 12 Sep, 7:27am to 2:13pm
+    expect(sm8CheckInLeftOpen("2026-09-12 07:27:33", "2026-09-12 14:13:13")).toBe(false);
+  });
+
+  it("reads real night work as left open too — less than happened, never more", () => {
+    // #723: booked 8 to 9pm, worked to 3:40am. The one false alarm the rule makes.
+    expect(sm8CheckInLeftOpen("2024-12-16 20:08:52", "2024-12-17 03:40:11")).toBe(true);
+  });
+
+  it("leaves a span that isn't one to the minutes reader", () => {
+    expect(sm8CheckInLeftOpen("2026-08-13 08:00:00", "2026-08-13 07:00:00")).toBe(false);
+    expect(sm8CheckInLeftOpen("", "2026-08-13 07:30:00")).toBe(false);
   });
 });
 

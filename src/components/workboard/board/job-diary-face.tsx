@@ -542,13 +542,25 @@ function DiaryEntry({
           thread={thread}
         />
       );
-    case "visit":
+    case "visit": {
+      /* Somebody who left a check-in open is named with it, because the
+         hours above leave them out — the Visits face's words, and its rule
+         that once one name carries more than itself, people part on a dash.
+         A day with nothing believable says no figure at all. */
+      const open = new Set(entry.leftOpen);
       return (
         <Ev icon="clock" tone="cy">
-          <div className="wb2-evhd">{`Site visit — ${fmtStoryMinutes(entry.minutes)}`}</div>
-          <div className="wb2-evmeta">{entry.crew.join(", ") || "Nobody named"}</div>
+          <div className="wb2-evhd">
+            {entry.minutes > 0 ? `Site visit — ${fmtStoryMinutes(entry.minutes)}` : "Site visit"}
+          </div>
+          <div className="wb2-evmeta">
+            {entry.crew
+              .map((name) => (open.has(name) ? `${name}, check-in left open` : name))
+              .join(open.size > 0 ? " — " : ", ") || "Nobody named"}
+          </div>
         </Ev>
       );
+    }
     case "photos":
       return (
         <Ev icon="cam">

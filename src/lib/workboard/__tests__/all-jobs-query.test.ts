@@ -54,6 +54,7 @@ import {
   resolveJobCard,
   searchAllMirrorJobs,
 } from "@/lib/workboard/all-jobs-query";
+import { buildJobStory, storyLineOf } from "@/lib/workboard/job-story";
 
 const TODAY = "2026-08-14";
 
@@ -211,6 +212,162 @@ describe("who went, and what they are", () => {
       staffName: "Jack Reid",
       staffTitle: "Apprentice",
     });
+  });
+});
+
+/* ── check-ins left open ──────────────────────────────────────────────────
+   Jobs #3237 and #3225, every active activity row off the live mirror. A
+   check-in left open overnight is a person on site whose time is unknown —
+   ServiceM8 still counts its whole span, and the summary used to repeat it:
+   "Oleksii Khalameida and Louis Jones on site 12 September, 54 hours
+   logged" (#3237) and "Louis Jones and Leonardo Martins put in a 32h 36m
+   stint on 9 September" (#3225). The bookings ride along so the test also
+   proves nothing was capped at a booking's end. */
+
+describe("check-ins left open — #3237 and #3225", () => {
+  const STAFF = [
+    { uuid: "s-oleksii", first: "Oleksii", last: "Khalameida", job_title: "HVAC" },
+    { uuid: "s-louis", first: "Louis", last: "Jones", job_title: "HVAC" },
+    { uuid: "s-michael", first: "Michael", last: "Diamond", job_title: "Director" },
+    { uuid: "s-callum", first: "Callum", last: "Vrieze", job_title: "Apprentice " },
+    { uuid: "s-leo", first: "Leonardo", last: "Martins", job_title: "HVAC" },
+  ];
+  const act = (scheduled: 0 | 1, staff: string, start: string, end: string) => ({
+    start_date: start,
+    end_date: end,
+    staff_uuid: staff,
+    activity_was_scheduled: scheduled,
+  });
+  const storyLines = (detail: Awaited<ReturnType<typeof readMirrorJobDetail>>) =>
+    buildJobStory({
+      detail,
+      notes: null,
+      ourNotes: null,
+      ledger: null,
+      family: null,
+      invoicedOn: null,
+      media: null,
+      picklist: null,
+      timezone: null,
+    })
+      .filter((e) => e.kind === "visit")
+      .map(storyLineOf);
+
+  it("#3237: the 12 Sep is Oleksii's 6h 46m, with Louis on site and no 47 hours", async () => {
+    singleBy["sm8_jobs"] = { ...jobRow, uuid: "j-3237", generated_job_id: "3237" };
+    rowsBy["sm8_staff"] = STAFF;
+    rowsBy["sm8_job_activities"] = [
+      act(0, "s-oleksii", "2026-08-31 10:38:47", "2026-09-01 06:28:42"), // 19.8h, open
+      act(1, "s-michael", "2026-08-31 11:00:00", "2026-08-31 15:00:00"),
+      act(1, "s-oleksii", "2026-08-31 11:00:00", "2026-08-31 15:00:00"),
+      act(0, "s-michael", "2026-08-31 12:25:50", "2026-08-31 14:10:53"),
+      act(0, "s-louis", "2026-08-31 13:55:43", "2026-09-01 07:17:18"), // 17.4h, open
+      act(1, "s-callum", "2026-09-01 11:00:00", "2026-09-01 15:00:00"),
+      act(1, "s-oleksii", "2026-09-01 11:00:00", "2026-09-01 15:00:00"),
+      act(0, "s-callum", "2026-09-01 12:56:29", "2026-09-01 14:56:23"),
+      act(0, "s-oleksii", "2026-09-01 14:33:41", "2026-09-01 14:54:31"),
+      act(1, "s-oleksii", "2026-09-12 07:00:00", "2026-09-12 15:00:00"),
+      act(1, "s-louis", "2026-09-12 07:00:00", "2026-09-12 15:00:00"),
+      act(0, "s-oleksii", "2026-09-12 07:27:33", "2026-09-12 14:13:13"),
+      act(0, "s-louis", "2026-09-12 07:43:40", "2026-09-14 06:58:24"), // 47.2h, open
+    ];
+
+    const detail = await readMirrorJobDetail("org-1", "j-3237", "2026-10-01", {
+      includeMoney: false,
+    });
+
+    expect(detail?.visits).toEqual([
+      {
+        day: "2026-09-12",
+        /* Oleksii's own 6h 46m. Capped at the booking's 3pm, Louis would
+           have added 7h 16m nobody recorded — 842 here, not 406. */
+        minutes: 406,
+        crew: [
+          { name: "Oleksii Khalameida", title: "HVAC" },
+          { name: "Louis Jones", title: "HVAC", leftOpen: true },
+        ],
+      },
+      {
+        day: "2026-09-01",
+        minutes: 120 + 21,
+        crew: [
+          { name: "Callum Vrieze", title: "Apprentice" },
+          { name: "Oleksii Khalameida", title: "HVAC" },
+        ],
+      },
+      {
+        day: "2026-08-31",
+        minutes: 105, // Michael's 1h 45m; the other two left theirs open
+        crew: [
+          { name: "Oleksii Khalameida", title: "HVAC", leftOpen: true },
+          { name: "Michael Diamond", title: "Director" },
+          { name: "Louis Jones", title: "HVAC", leftOpen: true },
+        ],
+      },
+    ]);
+    /* The tally is the same believable sessions — it was 109h 19m. */
+    expect(detail?.timeOnSite).toEqual({ minutes: 406 + 141 + 105, sessions: 4 });
+
+    /* What the summary is written from: no 54 hours, and the day says whose
+       time it leaves out. */
+    expect(storyLines(detail)).toEqual([
+      "2026-09-12 — site visit, 6h 46m (Oleksii Khalameida, Louis Jones); Louis Jones left a check-in open, so that time isn't counted",
+      "2026-09-01 — site visit, 2h 21m (Callum Vrieze, Oleksii Khalameida)",
+      "2026-08-31 — site visit, 1h 45m (Oleksii Khalameida, Michael Diamond, Louis Jones); Oleksii Khalameida and Louis Jones left check-ins open, so that time isn't counted",
+    ]);
+  });
+
+  it("#3225: the 9 Sep is Leonardo's 7h 5m, not a 32h 36m stint", async () => {
+    singleBy["sm8_jobs"] = { ...jobRow, uuid: "j-3225", generated_job_id: "3225" };
+    rowsBy["sm8_staff"] = STAFF;
+    rowsBy["sm8_job_activities"] = [
+      act(1, "s-michael", "2026-09-02 07:00:00", "2026-09-02 08:00:00"),
+      act(0, "s-louis", "2026-09-09 05:27:59", "2026-09-10 06:59:21"), // 25.5h, open
+      act(1, "s-leo", "2026-09-09 06:00:00", "2026-09-09 14:00:00"),
+      act(1, "s-michael", "2026-09-09 06:00:00", "2026-09-09 14:00:00"),
+      act(1, "s-louis", "2026-09-09 06:00:00", "2026-09-09 14:00:00"),
+      act(0, "s-leo", "2026-09-09 06:12:15", "2026-09-09 13:16:52"),
+      act(0, "s-leo", "2026-09-10 06:05:15", "2026-09-10 10:03:16"),
+      act(1, "s-michael", "2026-09-10 07:00:00", "2026-09-10 12:00:00"),
+      act(1, "s-leo", "2026-09-10 07:00:00", "2026-09-10 12:00:00"),
+    ];
+
+    const detail = await readMirrorJobDetail("org-1", "j-3225", "2026-10-01", {
+      includeMoney: false,
+    });
+
+    expect(detail?.visits.map((v) => [v.day, v.minutes])).toEqual([
+      ["2026-09-10", 238],
+      ["2026-09-09", 425],
+    ]);
+    expect(detail?.visits[1].crew).toEqual([
+      { name: "Louis Jones", title: "HVAC", leftOpen: true },
+      { name: "Leonardo Martins", title: "HVAC" },
+    ]);
+    expect(detail?.timeOnSite).toEqual({ minutes: 238 + 425, sessions: 2 });
+
+    expect(storyLines(detail)).toEqual([
+      "2026-09-10 — site visit, 3h 58m (Leonardo Martins)",
+      "2026-09-09 — site visit, 7h 5m (Louis Jones, Leonardo Martins); Louis Jones left a check-in open, so that time isn't counted",
+    ]);
+  });
+
+  it("a day whose only check-in was left open names the person and says no figure", async () => {
+    rowsBy["sm8_staff"] = STAFF;
+    rowsBy["sm8_job_activities"] = [act(0, "s-louis", "2026-09-12 07:43:40", "2026-09-14 06:58:24")];
+
+    const detail = await readMirrorJobDetail("org-1", "j-3188", "2026-10-01", {
+      includeMoney: false,
+    });
+
+    expect(detail?.visits).toEqual([
+      { day: "2026-09-12", minutes: 0, crew: [{ name: "Louis Jones", title: "HVAC", leftOpen: true }] },
+    ]);
+    /* no believable minutes anywhere — the heading claims no time on site */
+    expect(detail?.timeOnSite).toBeNull();
+    expect(storyLines(detail)).toEqual([
+      "2026-09-12 — site visit, hours unknown (Louis Jones); Louis Jones left a check-in open",
+    ]);
   });
 });
 

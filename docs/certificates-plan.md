@@ -127,8 +127,8 @@ alone.
 the compliance certificate". The certificate is still built, from two facts
 about the job, and nothing waits on the certifier:
 
-1. **What kind of building it is.** Tiff suggests it from the address and the
-   client, and the person confirms it with one tap:
+1. **What kind of building it is**, as the person chose it in What it covers.
+   The suggestion comes from the address:
    - a unit number ("12/25-35 Lancaster Drive") suggests a Class 2 apartment
    - a level or suite ("Lv 3 Suite 4") suggests a Class 5 office or other
      commercial space
@@ -184,9 +184,22 @@ project number.
 
 ## The wizard
 
-Six steps, each one screen. The text is the library's; the inputs are the
-job's.
+The text is the library's; the inputs are the job's.
 
+0. **What it covers** (Isaac, 2026-10-01: "a template where we select what
+   we're certifying"). Two questions, each a row of large options, and
+   nothing is decided for the person:
+   - **What are you certifying?** Air conditioning, Ventilation, or both. This
+     names the certificate ("Air conditioning compliance certificate", or
+     "Air conditioning and ventilation compliance certificate"), decides which
+     equipment tables the paper has, and decides which clauses are offered.
+   - **What kind of building?** House or townhouse (Class 1), Apartment
+     (Class 2), Office or shop (Class 5 or 6), Other commercial (pub, school,
+     clinic, warehouse). The plain name is what the person picks and the
+     class is printed beside it. One option is preselected from the address
+     (a unit number, a level or suite, or a plain street address), and one
+     quiet line says why, so a wrong guess is visible and one tap fixes it.
+     The building class is never taken from the guess alone.
 1. **The certifier's list.** Attach it and confirm what Tiff read, as above.
 2. **The job.** Site address, builder, builder's contact, certifier, the
    certifier's project number, consent authority, date the works were
@@ -262,11 +275,19 @@ this dress was sent on 2026-10-01. It uses:
     ranged right.
 - **The row of figures** (`.dsd-figs`): certifier, project number, consent
   authority, works completed, connected capacity.
-- **The system band and rooms table** (`.dsd-band`, `.dsd-rt`): the system's
-  name, indoor count and controls, with the outdoor unit opposite, then one
-  row per room with the total in the foot.
-- **Certification**: one numbered statement per requirement, then the scope
-  line.
+- **One table per thing certified** (`.dsd-rt`): Air conditioning lists
+  location, model and capacity, with the outdoor unit as the first row and
+  the total in the foot. Ventilation lists location, model and airflow in
+  L/s. Identical units in adjacent rooms share a row ("Bedrooms 1, 2, 3",
+  "3 × PEFY-P32VMX-E1").
+- **Nothing else describes the equipment.** Isaac, 2026-10-01: "too much
+  extra information". There is no system band, no brand line, no feature
+  list (wi-fi, zones, grille styles) and no scope paragraph. The model number
+  says what the unit is. The figures row is four facts: what is certified,
+  the building, the completion date, the capacity.
+- **Certification**: one short numbered statement per requirement, naming
+  the standard and nothing more, then one line for what is not applicable or
+  not covered.
 - **Sign-off**: the stored signature, name and date, then the ARC and
   contractor licences, each with its number and class. Insurance goes in the
   foot.

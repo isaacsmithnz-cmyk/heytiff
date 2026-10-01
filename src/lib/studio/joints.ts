@@ -451,7 +451,10 @@ function slideRiserEnd(
   /* never back onto the pipe's other end */
   const first = path[0];
   if (best.seg === 0 && Math.hypot(best.at.x - first.x, best.at.y - first.y) < tol / 2) return null;
-  const kept = [...path.slice(0, best.seg + 1), best.at].filter(
+  /* pulled out along the last leg, the old end is no corner: it goes, so
+     the pipe is one straight leg again, not two in line */
+  const extended = best.seg === path.length - 1;
+  const kept = [...path.slice(0, extended ? best.seg : best.seg + 1), best.at].filter(
     (p, i, all) => i === 0 || Math.hypot(p.x - all[i - 1].x, p.y - all[i - 1].y) > 1e-6
   );
   const points = atStart ? [...kept].reverse() : kept;

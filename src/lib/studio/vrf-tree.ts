@@ -860,6 +860,23 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
   };
 }
 
+/* A dot where the pipe carries straight on is no bend (a riser slid back
+   out along its pipe left one, and a person can click one mid-line): only a
+   real change of direction counts, and a doubled dot is no corner either. */
+function cornersOf(points: readonly { x: number; y: number }[]): number {
+  const pts = points.filter((p, i) => i === 0 || p.x !== points[i - 1].x || p.y !== points[i - 1].y);
+  let n = 0;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const ax = pts[i].x - pts[i - 1].x;
+    const ay = pts[i].y - pts[i - 1].y;
+    const bx = pts[i + 1].x - pts[i].x;
+    const by = pts[i + 1].y - pts[i].y;
+    const straight = Math.abs(ax * by - ay * bx) <= 1e-6 * Math.hypot(ax, ay) * Math.hypot(bx, by) && ax * bx + ay * by > 0;
+    if (!straight) n++;
+  }
+  return n;
+}
+
 /** the tree as DRAWN on the plan: from the outdoor through the system's
     refrigerant runs, joints, branch boxes and risers (graph.ts). A riser, or
     a joint with one run on, is passed through — its lengths add into one
@@ -879,8 +896,7 @@ export function drawnVrfTree(
   /* a corner drawn on a run is a bend (the book's M counts them) */
   const bendsOf = new Map<string, number>();
   for (const o of doc.objects)
-    if (o.type === "pipe-run" && o.geometry.kind === "polyline")
-      bendsOf.set(o.id, Math.max(0, o.geometry.points.length - 2));
+    if (o.type === "pipe-run" && o.geometry.kind === "polyline") bendsOf.set(o.id, cornersOf(o.geometry.points));
   type Step = { to: string; lengthM: number | null; riseM: number; bends: number; edge: string };
   const adj = new Map<string, Step[]>();
   for (const e of graph.edges) {

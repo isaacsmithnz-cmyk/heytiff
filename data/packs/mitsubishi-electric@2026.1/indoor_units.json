@@ -4472,13 +4472,20 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-89; AU Ducted Brochure 2024 p.28-29; book A-88"
+   "page": "A-89; AU Ducted Brochure 2024 p.28-29 (Return Air Duct 2 x 400 (2 x 16\")); outline A-97; book A-88"
   },
   "supply_opening": {
    "w_mm": 1325,
    "h_mm": 266
   },
-  "return_opening": "spigots",
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
   "sound_low_dba": 29,
   "sound_high_dba": 38,
   "phase": "1",
@@ -4513,13 +4520,20 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-89; AU Ducted Brochure 2024 p.28-29"
+   "page": "A-89; AU Ducted Brochure 2024 p.28-29 (Return Air Duct 2 x 400 (2 x 16\")); outline A-97"
   },
   "supply_opening": {
    "w_mm": 1325,
    "h_mm": 266
   },
-  "return_opening": "spigots",
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
   "sound_low_dba": 35,
   "sound_high_dba": 45,
   "phase": "1",
@@ -4554,13 +4568,20 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-89; AU Ducted Brochure 2024 p.28-29"
+   "page": "A-89; AU Ducted Brochure 2024 p.28-29 (Return Air Duct 2 x 400 (2 x 16\")); outline A-97"
   },
   "supply_opening": {
    "w_mm": 1325,
    "h_mm": 266
   },
-  "return_opening": "spigots",
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
   "sound_low_dba": 35,
   "sound_high_dba": 45,
   "phase": "1",
@@ -4595,13 +4616,20 @@
    "kind": "extracted",
    "source": "M-P Series (Mr Slim) Data Book",
    "edition": "M-P0922 (2024)",
-   "page": "A-89; AU Ducted Brochure 2024 p.29 + LC Flyer 2023 p.4"
+   "page": "A-89; AU Ducted Brochure 2024 p.29 + LC Flyer 2023 p.4 (Return Air Duct 2 x 400 (2 x 16\")); outline A-97"
   },
   "supply_opening": {
    "w_mm": 1325,
    "h_mm": 266
   },
-  "return_opening": "spigots",
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
   "sound_low_dba": 35,
   "sound_high_dba": 45,
   "power_supply": "230 V, Single-phase, 50 Hz",

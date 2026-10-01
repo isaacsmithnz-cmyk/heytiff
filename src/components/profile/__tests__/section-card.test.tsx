@@ -99,15 +99,18 @@ describe("a rejected save", () => {
 });
 
 describe("the edit cycle", () => {
-  /* Compliance is the one tab holding TWO sections: the licence wall, which is
-     live (add/remove, never a read mode) and so takes the section head, and
-     Qualifications, which keeps a card's frame because the tab's title is
-     already spoken for. Opening one must not unlock the other. */
+  /* Compliance is the one tab holding several sections: the licence wall,
+     which is live (add/remove, never a read mode) and so takes the section
+     head, and Qualifications, which keeps a card's frame because the tab's
+     title is already spoken for. On your own card a third follows, your
+     Signature, which is static (it has no edit cycle). Opening one must not
+     unlock another. */
   it("unlocks only the section that was clicked", async () => {
     const user = userEvent.setup();
     const { container } = setup(okActions(), "licences");
 
-    expect(container.querySelectorAll(".card2")).toHaveLength(1);
+    expect(container.querySelectorAll(".card2")).toHaveLength(2);
+    expect(container.querySelectorAll(".card2[data-static]")).toHaveLength(1);
     expect(container.querySelectorAll("[data-live]")).toHaveLength(1);
     // only the framed one has an edit cycle. Its mode is the `readonly` class,
     // not the presence of Save: the card variant renders the whole button set
@@ -119,7 +122,8 @@ describe("the edit cycle", () => {
     await user.click(editButtons()[0]);
 
     expect(framed()).not.toHaveClass("readonly");
-    expect(screen.getAllByRole("button", { name: /^Save\b/ })).toHaveLength(1);
+    /* exactly "Save": the signature's own "Save signature" is not a section's */
+    expect(screen.getAllByRole("button", { name: /^Save$/ })).toHaveLength(1);
     // the live wall is untouched — it never had a mode to change
     expect(container.querySelectorAll("[data-live]")).toHaveLength(1);
   });

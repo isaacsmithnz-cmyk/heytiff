@@ -88,6 +88,24 @@ jest.mock('@/app/actions/swms', () => ({
   signOnSwms: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
 }))
 
+/* THE CERTIFICATE ACTIONS, for the same reason: the job card imports them at
+   module scope to list a job's certificates and open the wizard, and the staff
+   card for your signature. The defaults are the empty answers: no
+   certificates on the job, a wizard with nothing to open, no signature. The
+   certificate suites mock them locally. */
+jest.mock('@/app/actions/certificates', () => ({
+  listCertificatesForJob: jest.fn(async () => []),
+  certWizardContext: jest.fn(async () => null),
+  certPrevious: jest.fn(async () => null),
+  certificatePdfUrl: jest.fn(async () => null),
+  readCertifierList: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  approveCertWording: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  addFanModel: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  mySignature: jest.fn(async () => null),
+  saveMySignature: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  revalidateCertificates: jest.fn(async () => {}),
+}))
+
 /* Filing a document on a job, for the same reason: the job card imports it
    at module scope for its Documents face's upload. The default refuses, so no
    suite proceeds as though a file had been filed; job-documents.test.ts tests

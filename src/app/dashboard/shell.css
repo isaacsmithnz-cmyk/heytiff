@@ -3850,6 +3850,10 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* qualifications, as the list of tickets it is */
 .fg .qual-list { display:flex; flex-wrap:wrap; gap:8px; }
+/* your signature, kept for the certificates you sign (profile/signature-card) */
+.fg .sig-card { display:flex; flex-direction:column; align-items:flex-start; gap:12px; }
+.fg .sig-card > img { width:100%; max-width:320px; height:auto; border-bottom:1px solid var(--ink); }
+.fg .sig-acts { display:flex; gap:8px; }
 .fg .qual { padding:8px 12px; border-radius:var(--r-button); background:var(--tint); border:1px solid var(--line); font-size:13px; font-weight:700; color:var(--gray700); }
 
 /* work rights: the no-visa answer, in edit mode */

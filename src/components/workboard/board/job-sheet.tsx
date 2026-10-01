@@ -42,6 +42,9 @@ import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteFace } from "./job-quote-face";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
+import { CertWizard } from "@/components/certs/cert-wizard";
+import { listCertificatesForJob } from "@/app/actions/certificates";
+import type { CertSummary } from "@/lib/certs/query";
 import { listSwmsForJob } from "@/app/actions/swms";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { attachJobDocument, removeJobDocument } from "@/app/actions/job-documents";
@@ -213,6 +216,21 @@ const swmsPaper = (versionId: string): JobMediaItem => ({
   origin: null,
   takenAt: null,
   url: `/swms/${versionId}`,
+  width: null,
+  height: null,
+  fromClaim: null,
+});
+
+/** A certificate version as a page the card's viewer can hold — the paper,
+    with its own Print button; the PDF printed at issue is on the job too. */
+const certPaper = (versionId: string): JobMediaItem => ({
+  remoteId: `cert:${versionId}`,
+  name: "Compliance certificate",
+  fileType: "pdf",
+  kind: "document",
+  origin: null,
+  takenAt: null,
+  url: `/certificates/${versionId}`,
   width: null,
   height: null,
   fromClaim: null,
@@ -393,6 +411,11 @@ export function JobSheet({
   const [swms, setSwms] = useState<SwmsSummary[] | null>(null);
   const [swmsFailed, setSwmsFailed] = useState(false);
   const [swmsWizard, setSwmsWizard] = useState<{ revise: string | null } | null>(null);
+  /* THE JOB'S CERTIFICATES, and their wizard — a new one, or the next
+     version of one (`reissue` names the version it replaces). */
+  const [certs, setCerts] = useState<CertSummary[] | null>(null);
+  const [certsFailed, setCertsFailed] = useState(false);
+  const [certWizard, setCertWizard] = useState<{ reissue: string | null } | null>(null);
   /* THE BUSINESS'S PAPERS ON THIS JOB, and what this viewer may do with them
      — its own read on its own clock, like the SWMS. */
   const [papers, setPapers] = useState<JobPapersRead | null>(null);
@@ -418,6 +441,7 @@ export function JobSheet({
     /* a SWMS is paper HeyTiff writes, so it opens in the same viewer as the
        job's other paper instead of a new tab that loses the card */
     | { kind: "swms"; id: string }
+    | { kind: "cert"; id: string }
     /* a licence or certificate on the job — its pages, by where the arrows are */
     | { kind: "papers"; id: string; index: number }
     | null
@@ -459,7 +483,7 @@ export function JobSheet({
       /* INNERMOST FIRST. Closing the whole card out from under an open claim
          is the classic nested-dismiss bug. The SWMS wizard answers its own
          Escape — it asks before throwing choices away. */
-      if (swmsWizard) return;
+      if (swmsWizard || certWizard) return;
       if (viewer) {
         setViewer(null);
         return;
@@ -480,7 +504,7 @@ export function JobSheet({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, numbersOpen, openClaim, menuOpen, viewer, swmsWizard]);
+  }, [onClose, numbersOpen, openClaim, menuOpen, viewer, swmsWizard, certWizard]);
 
   useEffect(() => {
     if (!numbersOpen) return;
@@ -560,6 +584,25 @@ export function JobSheet({
       })
       .catch(() => {
         if (live) setFavourites(new Set());
+      });
+    return () => {
+      live = false;
+    };
+  }, [cardId]);
+
+  /* The job's certificates, on their own clock like the SWMS. A failed read
+     says so rather than offering Create on a job that may have one. */
+  useEffect(() => {
+    if (!cardId) return;
+    let live = true;
+    void listCertificatesForJob(cardId)
+      .then((list) => {
+        if (!live) return;
+        setCerts(list);
+        setCertsFailed(list === null);
+      })
+      .catch(() => {
+        if (live) setCertsFailed(true);
       });
     return () => {
       live = false;
@@ -787,6 +830,60 @@ export function JobSheet({
     const toast = sendToast(res, nameOf);
     if (toast) onToast(toast);
     setSm8Note(sendFailure(res.failed, nameOf));
+  };
+
+  /* A CERTIFICATE ISSUED: its PDF is a file on the job now, so the files and
+     the certificates are read again and the PDF arrives ticked — the next
+     press is Email or Send, not a hunt down the list. */
+  const certRead = useRef<Promise<void> | null>(null);
+  const certIssued = (issued: { documentId: string }) => {
+    if (!cardId) return;
+    certRead.current = (async () => {
+      const [fresh, list] = await Promise.all([
+        readJobFiles(cardId).catch(() => null),
+        listCertificatesForJob(cardId).catch(() => null),
+      ]);
+      if (!alive.current) return;
+      if (fresh) setMedia(fresh);
+      if (list) setCerts(list);
+      if (papers?.may.send) tick(ourDocumentSendKey(issued.documentId), true);
+    })();
+  };
+
+  /* After Issue, Email to the builder: the card's own letter, with the PDF
+     ticked, whose draft starts with the job's contact — the builder. */
+  const emailCertificate = async (documentId: string) => {
+    /* the letter names what the face holds, so the PDF must be on it first */
+    await certRead.current;
+    if (!alive.current) return;
+    setCertWizard(null);
+    setTab("documents");
+    tick(ourDocumentSendKey(documentId), true);
+    setWriting(true);
+  };
+
+  /* After Issue, Send to ServiceM8: this one file, through the card's own door. */
+  const sendCertificateToSm8 = async (documentId: string, fileName: string) => {
+    if (!cardId) return;
+    await certRead.current;
+    if (!alive.current) return;
+    setCertWizard(null);
+    setTab("documents");
+    setSm8Note(null);
+    const key = ourDocumentSendKey(documentId);
+    const res = await sendJobDocumentsToServiceM8({ jobUuid: cardId, keys: [key] }).catch((e: unknown) => ({
+      ok: false as const,
+      error: thrownWords(e, "Couldn't reach HeyTiff. Try again."),
+    }));
+    if (!alive.current) return;
+    if (!res.ok) {
+      setSm8Note(res.error);
+      return;
+    }
+    setSm8Read((cur) => (cur ? { ...cur, sends: res.sends } : cur));
+    const toast = sendToast(res, () => fileName);
+    if (toast) onToast(toast);
+    setSm8Note(sendFailure(res.failed, () => fileName));
   };
 
   /* Our OWN material picklist — pushed here from a Studio design. On its own
@@ -2380,6 +2477,11 @@ export function JobSheet({
               onCreateSwms={() => setSwmsWizard({ revise: null })}
               onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId })}
               onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
+              certificates={certs}
+              certificatesFailed={certsFailed}
+              onCreateCertificate={cardId ? () => setCertWizard({ reissue: null }) : undefined}
+              onOpenCertificate={(c) => setViewer({ kind: "cert", id: c.versionId })}
+              onReissueCertificate={(versionId) => setCertWizard({ reissue: versionId })}
               papers={papers ? papers.papers : null}
               papersFailed={papersFailed}
               mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
@@ -2476,6 +2578,35 @@ export function JobSheet({
         />
       )}
 
+      {/* The certificate wizard — the same portal, over the card, keyed like
+          the SWMS's so a reissue never inherits a new one's half-made answers. */}
+      {certWizard && cardId && (
+        <CertWizard
+          key={`${cardId}:${certWizard.reissue ?? "new"}`}
+          jobUuid={cardId}
+          reviseVersionId={certWizard.reissue}
+          onClose={() => setCertWizard(null)}
+          onIssued={certIssued}
+          onEmail={(documentId) => void emailCertificate(documentId)}
+          onSendToSm8={(documentId, fileName) => void sendCertificateToSm8(documentId, fileName)}
+          onOpen={(versionId) => {
+            setCertWizard(null);
+            setViewer({ kind: "cert", id: versionId });
+          }}
+          canSend={!!papers?.may.send}
+        />
+      )}
+
+      {viewer?.kind === "cert" && (
+        <JobMediaViewer
+          items={[certPaper(viewer.id)]}
+          index={0}
+          favourites={null}
+          onNav={() => {}}
+          onClose={() => setViewer(null)}
+        />
+      )}
+
       {viewer?.kind === "swms" && (
         <JobMediaViewer
           items={[swmsPaper(viewer.id)]}
@@ -2507,6 +2638,7 @@ export function JobSheet({
       {/* The shared viewer — same portal, same law as the claim modal. */}
       {viewer &&
         viewer.kind !== "swms" &&
+        viewer.kind !== "cert" &&
         viewer.kind !== "papers" &&
         media &&
         (() => {

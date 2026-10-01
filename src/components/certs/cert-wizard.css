@@ -1,0 +1,57 @@
+/* THE CERTIFICATE WIZARD'S OWN LAYOUT — the rows of fields the equipment and
+   the tests are typed into. Everything else it wears is the SWMS wizard's
+   (swms.css): the panel, the groups, the questions, the options. */
+
+/* two big options side by side, then they wrap: the building's five */
+.cz-big > .sw-opt { flex: 1 1 200px; }
+
+.swz .cz-date { width: 200px; }
+
+/* one outdoor unit and the indoor units it runs, as a block */
+.cz-sys {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.cz-sys:last-of-type { border-bottom: 1px solid var(--line); }
+
+/* a row of labelled fields: wide ones share the room, narrow ones keep theirs */
+.cz-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.cz-f { display: flex; flex-direction: column; gap: 4px; flex: 1 1 160px; min-width: 0; }
+.cz-f.m { flex: 0 1 160px; }
+.cz-f.s { flex: 0 0 96px; }
+.cz-f > span { font-size: 12px; font-weight: 500; color: var(--q); }
+.cz-row.out .cz-f > span { font-weight: 600; color: var(--ink); }
+.cz-row.test .cz-f { flex: 1 1 120px; }
+.cz-x { flex: none; margin-bottom: 4px; }
+.cz-for { font-size: 14px; font-weight: 600; }
+.cz-add { align-self: flex-start; }
+
+.cz-fanfoot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+
+.cz-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.swz .cz-pick .wb2-sel { flex: 1 1 240px; width: auto; }
+
+.cz-req {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.cz-sig {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  border-bottom: 1px solid var(--ink);
+}
+
+.cz-after { display: flex; flex-wrap: wrap; gap: 8px; }
+/* the phone's own share sheet; a desktop has Download */
+@media (hover: hover) and (pointer: fine) {
+  .cz-share { display: none; }
+}

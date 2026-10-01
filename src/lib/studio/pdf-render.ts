@@ -20,6 +20,14 @@ const LOCAL_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chro
 const READY_MS = 25_000;
 
 export async function renderDesignPdf(ticket: PdfTicket, origin: string): Promise<Uint8Array> {
+  /* PrintDoc raises the flag once every plan raster and the logo have decoded
+     — the moment the print window would have opened */
+  return renderPdfAt("/print/design", signPdfTicket(ticket), origin);
+}
+
+/** Any print page that takes a ticket as `t` and raises `window.__htPdfReady`
+    once it is ready to print. The design's and the certificate's both do. */
+export async function renderPdfAt(path: string, ticket: string, origin: string): Promise<Uint8Array> {
   const puppeteer = (await import("puppeteer-core")).default;
   const onVercel = Boolean(process.env.VERCEL);
   const chromium = onVercel ? (await import("@sparticuz/chromium")).default : null;
@@ -39,12 +47,10 @@ export async function renderDesignPdf(ticket: PdfTicket, origin: string): Promis
       process.env.VERCEL_ENV === "production" && process.env.APP_BASE_URL
         ? process.env.APP_BASE_URL
         : origin;
-    const url = new URL("/print/design", base);
-    url.searchParams.set("t", signPdfTicket(ticket));
+    const url = new URL(path, base);
+    url.searchParams.set("t", ticket);
     const res = await page.goto(url.toString(), { waitUntil: "load", timeout: READY_MS });
     if (!res || !res.ok()) throw new Error(`print page answered ${res?.status() ?? "nothing"}`);
-    /* PrintDoc raises this once every plan raster and the logo have decoded
-       — the moment the print window would have opened */
     await page.waitForFunction("window.__htPdfReady === true", { timeout: READY_MS });
     /* the page's own @page rule sets the paper and the orientation */
     return await page.pdf({ preferCSSPageSize: true, printBackground: true });

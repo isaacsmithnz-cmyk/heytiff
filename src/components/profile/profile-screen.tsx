@@ -12,6 +12,7 @@ import { SectionDone } from "./section-card";
 import { PersonalCard } from "./personal-card";
 import { EmergencyCard } from "./emergency-card";
 import { ComplianceCard } from "./compliance-card";
+import { SignatureCard } from "./signature-card";
 import { QualificationsCard } from "./qualifications-card";
 import { WorkRightsCard } from "./workrights-card";
 import { PayrollCard } from "./payroll-card";
@@ -328,6 +329,8 @@ export function ProfileScreen({
                       startAdding={startEditing > 0}
                     />
                     <QualificationsCard profile={profile} mode={mode} onSave={actions.onSave} />
+                    {/* yours only: a signature is the person's own mark */}
+                    {mode === "self" && <SignatureCard />}
                   </>
                 )}
                 {active === "workrights" && (

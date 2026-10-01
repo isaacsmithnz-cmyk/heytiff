@@ -1,8 +1,9 @@
 # Certificates on a job: plan
 
-Status: plan, revised 2026-10-01 after a day of mockups with Isaac. Nothing is
-built yet. Everything decided is listed at the end, and so is what must be on
-file before the first certificate can be issued.
+Status: built 2026-10-01, on branch `ccr-cbcfb7b2-v9vfy8`, steps 1 to 8 of the
+build order. Phase 2 is not built. Where the build differs from this plan, "As
+built" at the end says how and why. Everything decided is listed there too,
+and so is what must be on file before the first certificate can be issued.
 
 ## Why
 
@@ -475,9 +476,8 @@ The licences and the signature are copied onto the version, because a
 certificate states what was held on the day it was signed. That is the
 opposite of the SWMS paper's live ticket read, on purpose.
 
-`documents` takes two new kinds in its kind check, `certificate` and
-`certifier_requirements` (`documents_kind_catchup.sql` shows how it is
-widened).
+The PDF and the certifier's list are ordinary `job_document`s (see As built),
+so the `documents` kind check is unchanged.
 
 ## How it mirrors the SWMS
 
@@ -587,3 +587,49 @@ These are data, not code, and are needed whatever is built:
 - [POEO (Noise Control) Regulation 2017, reg 45](https://classic.austlii.edu.au/au/legis/nsw/consol_reg/poteocr2017693/s45.html)
 - [Design and Building Practitioners Act 2020, s 6](https://classic.austlii.edu.au/au/legis/nsw/consol_act/dabpa2020313/s6.html)
 - [AIRAH Residential Best Practice Guideline](https://airah.org.au/Common/Uploaded%20files/Archive/Resources/Best_Practice_Guideline/RBPG_VIC_version_3-2.pdf)
+
+## As built (2026-10-01)
+
+Built in one pass at Isaac's word ("just build it"), with these differences
+from the plan above:
+
+- **The PDF and the certifier's list are `job_document`s**, the kind the
+  Documents face's own upload uses, not two new kinds. That means the
+  Documents face lists them, the email attaches them and Send to ServiceM8
+  sends them with no new code, and there is no kind-check migration. The
+  certificate version points at its PDF (`document_id`) and at the list it
+  answered (`requirements_document_id`).
+- **The paper wears the design sheet's classes instead of extracted
+  components.** `components/certs/certificate-paper.tsx` renders the frame,
+  the masthead and the figures row with `sheet-doc.css`'s own `dsd-` rules,
+  so `sheet-doc.tsx` is untouched and the design sheet prints the same by
+  construction. The tables are the certificate's own (`certificate.css`):
+  `dsd-rt` is built for nine columns and becomes a list below 1024px, which
+  three columns never need. `certificate.css` keeps every design ratchet; it
+  is not one of the exempt paper sheets.
+- **Tiff only reads the certifier's list. Matching is a rule**
+  (`matchRequirement` in `lib/certs/quote.ts`), tested against FutureCert's
+  item 9.1, and the person can change any match. The read uses
+  `claude-opus-5-5`, falling back to `claude-opus-4-8` on a refusal, as the
+  proposal writer does.
+- **The wizard's steps** are What it covers (with the completion date),
+  Equipment, Certifier's list, Checks, Sign.
+- **The SWMS's controls are shared.** `Seg`, `Choice` and `SignaturePad`
+  moved to `components/swms/controls.tsx`, and the SWMS wizard and sign-on
+  import them from there.
+- **Issuing is a route handler** (`app/api/certificates/issue`), because
+  printing the PDF needs Chromium and a route segment's `maxDuration`. It is
+  all or nothing: a failed print or filing takes the version back out.
+- **The certificate opens in the card's viewer**, like the SWMS, at
+  `/certificates/[versionId]`. Headless Chrome prints `/print/certificate`
+  with a two-minute ticket (`lib/certs/pdf-ticket.ts`). Both draw from the
+  same read (`lib/certs/paper-data.ts`).
+- **Not built yet:** phase 2 (prefill from the Studio design, serial numbers
+  from nameplate photos, other states), and a bell item asking the owner to
+  approve the wording. The wording page is in Admin, as Certificate wording.
+
+The golden jobs are tested in `lib/certs/__tests__/mechanical.test.ts`, the
+quote reader and the matcher in `quote.test.ts`, the paper in
+`components/certs/__tests__/certificate-paper.test.tsx`, the wizard in
+`cert-wizard.test.tsx`, and the Documents face's rows in
+`job-documents-face.test.tsx`.

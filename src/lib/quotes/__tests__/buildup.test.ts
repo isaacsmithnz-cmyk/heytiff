@@ -148,6 +148,14 @@ describe("the wall-split kit", () => {
     expect([days(2.5), days(3.5), days(4.2), days(7.1)]).toEqual([1.5, 1.5, 2, 2]);
     expect([days(2.5, true), days(4.8, true)]).toEqual([1, 1.5]);
   });
+
+  it("goes by the crew the brief names: one installer puts a 4.2 kW at about $3,600, two higher", () => {
+    const days = (crew: 1 | 2) => splitVisits({ kw: 4.2, crew }).reduce((a, v) => a + v.people * v.days, 0);
+    expect([days(1), days(2)]).toEqual([1.5, 2]);
+    const price = (crew: 1 | 2) => priceBuildUp(splitLines(f, priceOf).lines, splitVisits({ kw: 4.2, crew })).exGstCents;
+    expect(Math.round(price(1) / 100)).toBe(3697);
+    expect(Math.round(price(2) / 100)).toBe(4357);
+  });
 });
 
 describe("the layout rules", () => {

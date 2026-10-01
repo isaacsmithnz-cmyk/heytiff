@@ -34,6 +34,9 @@ export type SplitFacts = {
   pump?: boolean;
   /** the outdoor straight through the wall behind the indoor */
   backToBack?: boolean;
+  /** who the brief says it takes: one installer, or a second pair of hands
+      for the lift or the run. Unsaid, it goes by the unit's size. */
+  crew?: 1 | 2;
 };
 
 /** AAD's 20 m rolls, by liquid + gas. */
@@ -97,11 +100,15 @@ export function splitLines(f: SplitFacts, priceOf: PriceOf): TemplateResult {
   return { lines, missing };
 }
 
-/** Person-days on site: 1.5 up to a 3.5 kW, 2 above; half a day less back
-    to back. As visits: the installer for the day, and a second pair of
-    hands for as long as the lift and the pipe run need them. */
-export function splitVisits(f: Pick<SplitFacts, "kw" | "backToBack">): Visit[] {
-  const helper = (f.kw <= 3.5 ? 0.5 : 1) - (f.backToBack ? 0.5 : 0);
+/** Person-days on site, by who the brief says it takes (Isaac, 2026-10-01:
+    "if one person can do the installation it will sit about 3600; if two
+    it will be higher"). One installer is 1.5 person-days, which puts a
+    4.2 kW at $3,697; two are 2, $4,357. Unsaid, a split up to 3.5 kW is a
+    one-person job and a bigger one takes two. Half a day less back to back.
+    As visits: the installer for the day, and the rest of the time. */
+export function splitVisits(f: Pick<SplitFacts, "kw" | "backToBack" | "crew">): Visit[] {
+  const crew = f.crew ?? (f.kw <= 3.5 ? 1 : 2);
+  const helper = (crew === 1 ? 0.5 : 1) - (f.backToBack ? 0.5 : 0);
   const visits: Visit[] = [{ stage: "Install", people: 1, days: 1 }];
   if (helper > 0) visits.push({ stage: "Install", people: 1, days: helper });
   return visits;

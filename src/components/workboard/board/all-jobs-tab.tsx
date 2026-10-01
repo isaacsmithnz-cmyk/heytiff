@@ -183,10 +183,10 @@ function NextWord({ next }: { next: QuoteNext }) {
   );
 }
 
-/* A QUOTE'S ROW says what was quoted first, because that is what a quote is
-   recognised by ("the Daikin 7 kW in Mosman"), then who, then where, how
-   long it has waited and what to do next. Same grid and the same reading
-   order as every other All jobs row. */
+/* A QUOTE'S ROW is who and where, how long it has waited and what to do
+   next. What was quoted stays in the inspector: on the row it made the list
+   too busy to scan (Isaac, 2026-10-01). Same grid as every other All jobs
+   row. */
 function QuoteRow({
   item,
   moneyVisible,
@@ -208,7 +208,7 @@ function QuoteRow({
       aria-pressed={selected}
       onClick={() => onSelect(row)}
       onDoubleClick={() => onOpen(row)}
-      aria-label={`${item.what ? `${item.what}, ${who}` : who}${row.number ? `, #${row.number}` : ""}`}
+      aria-label={`${who}${row.number ? `, #${row.number}` : ""}`}
     >
       <span className="wb2-ajnum">
         {row.number ? (
@@ -222,8 +222,8 @@ function QuoteRow({
       </span>
 
       <div className="wb2-trt">
-        <b>{item.what ?? who}</b>
-        {item.what && <em>{who}</em>}
+        <b>{who}</b>
+        {row.suburb && <em>{row.suburb}</em>}
       </div>
 
       <span className="wb2-ajmeta">
@@ -235,7 +235,6 @@ function QuoteRow({
             {row.categoryName}
           </i>
         )}
-        {row.suburb && <em>{row.suburb}</em>}
       </span>
 
       <div className="wb2-trd">

@@ -369,8 +369,11 @@ describe("quotes", () => {
     expect(screen.getByText("Waiting on an answer")).toBeInTheDocument();
     expect(screen.getByText("Start quote")).toBeInTheDocument();
     expect(screen.getByText("Follow up")).toBeInTheDocument();
-    expect(screen.getByText("Mitsubishi ducted 14 kW")).toBeInTheDocument();
+    /* the row is who and where; what was quoted is the inspector's */
+    expect(screen.queryByText("Mitsubishi ducted 14 kW")).toBeNull();
     expect(screen.getByText("Strathfield Dental")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Bradfield Badgerfield/ }));
+    expect(screen.getByText("Mitsubishi ducted 14 kW")).toBeInTheDocument();
     expect(screen.getByText("13 days")).toBeInTheDocument();
   });
 

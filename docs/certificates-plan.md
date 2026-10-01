@@ -233,6 +233,15 @@ quote):
   usually is. Where a certifier's list asks for an air balance or
   commissioning report (commercial, AS 1668.2 systems), the wizard asks for
   that report to be attached, or for it to be marked as by others.
+- **Small exhaust fans (bathroom, toilet, laundry, ceiling) are never typed
+  in one by one.** The figure comes from the fan's model, through a short
+  catalogue of the fans the business actually fits: each model is entered
+  once with its rated L/s from the spec sheet, and every certificate after
+  that fills the figure itself. The paper keeps one row per room, because a
+  certifier checks that every wet area has a fan, and one statement covers
+  them all: each fan is rated at or above the NCC minimum (25 L/s bathroom or
+  toilet, 40 L/s kitchen or laundry) and discharges to outdoor air. A model
+  not in the catalogue is added the first time it is used.
 - **Air conditioning certificates carry no airflow figures.** No
   measurement is in the default set.
 - Discharge goes to outdoor air, not the roof space (NCC 2022 Housing

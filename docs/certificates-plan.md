@@ -217,9 +217,24 @@ quote):
 
 **On every ventilation certificate:**
 
-- Each fan's location and model, with **measured airflow** in L/s against
-  the design or required airflow. Within ±10% of design is the usual
-  tolerance.
+- Each fan's location and model, and its airflow in L/s, marked as one of
+  two kinds (Isaac, 2026-10-01: "we don't measure every airflow against
+  design"):
+  - **Rated**: the manufacturer's airflow for that fan at the duct run
+    installed, read off its fan curve rather than its free-air figure. The
+    statement says the fan was selected and installed to the manufacturer's
+    instructions to deliver it. This is the default.
+  - **Measured**: read on site with a vane anemometer and hood, with the
+    reading printed. Only offered when someone measured.
+
+  The paper always says which kind it is, and a rated figure is never
+  printed as measured. Whether rated is enough is the certifier's call. For
+  a bathroom, kitchen or laundry fan meeting the 25 or 40 L/s minimum it
+  usually is. Where a certifier's list asks for an air balance or
+  commissioning report (commercial, AS 1668.2 systems), the wizard asks for
+  that report to be attached, or for it to be marked as by others.
+- **Air conditioning certificates carry no airflow figures.** No
+  measurement is in the default set.
 - Discharge goes to outdoor air, not the roof space (NCC 2022 Housing
   Provisions 10.8.2: at least 25 L/s for a bathroom or toilet, 40 L/s for a
   kitchen or laundry).

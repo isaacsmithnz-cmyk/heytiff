@@ -486,6 +486,7 @@ export type CertFacts = {
 
 export type CertProblemField =
   | "covers"
+  | "building"
   | "equipment"
   | "fans"
   | "tests"
@@ -509,6 +510,9 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
   const add = (field: CertProblemField, text: string) => out.push({ field, text });
 
   if (!a.covers.ac && !a.covers.vent) add("covers", "Choose what you're certifying.");
+  /* asked every time, never taken from the address: the guess is a hint the
+     person confirms, because the building decides which statements apply */
+  if (a.building === null) add("building", "Choose what kind of building it is.");
 
   if (a.covers.ac) {
     if (a.systems.length === 0) add("equipment", "Add the outdoor unit and the indoor units it runs.");

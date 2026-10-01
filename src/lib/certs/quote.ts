@@ -216,8 +216,9 @@ export function readQuote(description: string | null): QuoteReading {
 
 export type BuildingGuess = { building: Building; because: string };
 
-/** A preselection, said as such: the wizard prints "From the address", and
-    the class prints only once the person has picked it. */
+/** A hint, never an answer: the wizard marks the option the address
+    suggests and the person picks the building themselves, because the
+    building decides which statements the certificate makes. */
 export function suggestBuilding(address: string | null): BuildingGuess {
   const first = (address ?? "").split("\n")[0]?.trim() ?? "";
   if (/^shop\b/i.test(first)) return { building: "shop", because: "The address names a shop." };

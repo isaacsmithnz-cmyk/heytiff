@@ -39,7 +39,7 @@ create table if not exists public.certificates (
   org_id uuid not null,
   sm8_job_uuid text not null,
   type text not null default 'mechanical' check (type in ('mechanical')),
-  -- a snapshot, for "this builder's usual certifier" after the mirror is wiped
+  -- a snapshot of the builder it went to, kept after the mirror is wiped
   builder_company_uuid text,
   created_by_staff_id uuid,
   created_at timestamptz not null default now()
@@ -51,7 +51,9 @@ create index if not exists certificates_builder_idx on public.certificates (org_
 alter table public.certificates enable row level security;
 
 -- ---------------------------------------------------------------------------
--- What each certifier usually asks for, so their next job starts there.
+-- The certifiers named on certificates, so a name is spelled the same way
+-- twice. Never chosen for the person: certifiers change from job to job.
+-- clause_keys is a record of what each last asked for, not a prefill.
 -- ---------------------------------------------------------------------------
 create table if not exists public.certifier_profiles (
   id uuid primary key default gen_random_uuid(),
@@ -80,7 +82,8 @@ create table if not exists public.certificate_versions (
   answers jsonb not null,
   -- each certifier requirement as written, and how it was answered
   requirements jsonb not null default '[]'::jsonb,
-  -- the certifier's list this version answered, a job_document
+  -- the certifier's list this version answered: a job_document, or a
+  -- job_file brought across from ServiceM8. Null when the email was pasted.
   requirements_document_id uuid,
   certifier_profile_id uuid references public.certifier_profiles (id) on delete set null,
   content jsonb not null,

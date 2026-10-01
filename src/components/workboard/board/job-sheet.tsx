@@ -2594,6 +2594,13 @@ export function JobSheet({
             setViewer({ kind: "cert", id: versionId });
           }}
           canSend={!!papers?.may.send}
+          onFilesChanged={() =>
+            void readJobFiles(cardId)
+              .then((fresh) => {
+                if (alive.current && fresh) setMedia(fresh);
+              })
+              .catch(() => {})
+          }
         />
       )}
 

@@ -102,11 +102,12 @@ Two questions, each a row of large options.
   - Shop, café or restaurant (Class 6)
   - Other or not sure (no class is printed)
 
-  One option is preselected from the address, and that option's second line
-  says "From the address". An address can't settle it: a "2/15" unit can be a
+  Nothing is preselected: the person picks one every time, and the
+  certificate can't issue until they do. The option the address suggests
+  says so on its second line ("The address suggests this"), with the reason
+  above the options. An address can't settle it: a "2/15" unit can be a
   villa (Class 1a), and townhouses over a shared basement car park are
-  Class 2. So the class prints only when the person picked it. When the
-  certifier's list states the class, the list wins.
+  Class 2. When the certifier's list states the class, the list wins.
 
   The building changes very little, on purpose. It is printed. It suggests
   fire-rated penetrations for an apartment building, and AS 1668.2 for
@@ -267,9 +268,17 @@ ceiling exhaust fans" nobody should type a figure at all.
 Every certifier's list is a table of items, one per trade. The mechanical item
 is the brief for our certificate.
 
-1. **Attach it.** Upload a PDF or photo, or pick it from the job's Documents.
-   It is filed on the job as a document of a new kind,
-   `certifier_requirements`.
+1. **Bring it in**, one of three ways, all on the wizard's Certifier's list
+   screen:
+   - **File the builder's email on the job in ServiceM8** (its Inbox: forward
+     the email there and add it to the job). Its PDF attachments land on the
+     job, the card brings them across, and the screen lists them marked
+     "ServiceM8". This is the usual way: the account already holds 709 PDFs
+     that arrived like this. "Look again" brings across one filed a minute ago.
+   - **Upload the PDF or a photo** right on the screen. It is filed on the
+     job's Documents, as the Documents face's own upload files it.
+   - **Paste the email**, for when what the certificate must cover is in the
+     builder's own words and not an attached list.
 2. **Tiff reads it**, on the same scan-then-confirm contract as a licence or
    insurance policy (`org-credential-ai.ts`): one model call fills the form,
    the person checks it against the paper, and nothing is saved until they
@@ -290,11 +299,11 @@ is the brief for our certificate.
    off against their own list. The other trades' items (electrical, glazing,
    BASIX) are left alone.
 
-**Remembered:**
-
-- Each certifier's last set of matched clauses is kept. The next FutureCert
-  job starts with FutureCert's clauses already chosen.
-- A builder's last certifier is suggested on their next job.
+**Not remembered, on purpose.** Certifiers change from job to job, even for
+the same builder, so nothing is carried over: this job's certifier comes off
+this job's list or email, or is typed. Names already used are offered as the
+field's suggestions, so FutureCert is spelled the same way twice, and that is
+all.
 
 ## Prefill: where each fact comes from
 
@@ -306,12 +315,12 @@ is the brief for our certificate.
 | Business ARC trading authorisation, company contractor licence | `org_credentials`, kind `licence`. Both types exist on the Organisation screen, and both are empty for Diamond Air | 1 |
 | Insurance (foot) | `org_credentials`, kind `insurance` | 1 |
 | Signatory's ARC and contractor licences | `staff_licences` / `staff_licence_records` | 1 |
-| Kind of building (preselected only) | The address | 1 |
+| Kind of building (a hint; the person picks) | The address | 1 |
 | Equipment rows | The work-done description ("1 x 3.6KW indoor for Master Bed"), marked as read from the quote | 1 |
 | What else was installed | The work-done description ("fire rated pair coil", "plenums", "condensation pump") | 1 |
 | Fan airflow | The fan list | 1 |
 | Certifier, project number, the certifier's requirements | The certifier's list, read by Tiff | 1 |
-| A certifier's usual clauses, a builder's usual certifier | `certifier_profiles`, and the builder's last certificate | 1 |
+| Certifier names already used, for spelling | `certifier_profiles`. Never chosen for the person: certifiers change from job to job | 1 |
 | Equipment and refrigerant charge from the design | `studio_designs.sm8_job_uuid`, and `evaluateVrfCharge` as a suggestion for kg added | 2 |
 | Serial numbers | `job_photo_readings.ocr_text` on nameplate photos, offered to confirm, never filled in silently | 2 |
 
@@ -414,7 +423,7 @@ create table public.certificates (
   org_id uuid not null,
   sm8_job_uuid text not null,           -- the job card, never a claim
   type text not null check (type in ('mechanical')),
-  builder_company_uuid text,            -- snapshot, for "this builder's usual certifier"
+  builder_company_uuid text,            -- snapshot of the builder it went to
   created_by_staff_id uuid,
   created_at timestamptz not null default now()
 );

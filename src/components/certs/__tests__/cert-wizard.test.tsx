@@ -1,24 +1,32 @@
 /* The certificate wizard on the job card, walked as the person issuing it
-   uses it: the job's quote fills in the equipment, the address preselects
-   the building and says so, nothing issues until the test figures are typed
-   and the signer holds both licences, and an issue lands on the job with the
-   buttons for what happens next. */
+   uses it: the job's quote fills in the equipment, the address only hints at
+   the building and the person picks it, the certifier's list comes in from
+   ServiceM8, an upload or a pasted email, nothing issues until the test
+   figures are typed and the signer holds both licences, and an issue lands
+   on the job with the buttons for what happens next. */
 
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { CertWizardContext } from "@/app/actions/certificates";
+import type { CertListFile, CertWizardContext, ReadListResult } from "@/app/actions/certificates";
 import { readQuote, suggestBuilding } from "@/lib/certs/quote";
 import { JOB_3326 } from "@/lib/certs/__tests__/fixtures/jobs";
 
 const certWizardContext = jest.fn(async (): Promise<CertWizardContext | null> => null);
+const readCertifierList = jest.fn(async (..._a: unknown[]): Promise<ReadListResult> => ({ ok: false, error: "not in this test" }));
+const readCertifierEmail = jest.fn(async (..._a: unknown[]): Promise<ReadListResult> => ({ ok: false, error: "not in this test" }));
+const certListFiles = jest.fn(async (..._a: unknown[]): Promise<CertListFile[] | null> => null);
+const cacheJobFiles = jest.fn(async (..._a: unknown[]) => ({ ok: true, cached: 1, remaining: 0, media: null, note: null }));
 jest.mock("@/app/actions/certificates", () => ({
   certWizardContext: (...a: unknown[]) => certWizardContext(...(a as [])),
   certPrevious: async () => null,
   certificatePdfUrl: async () => "https://example.com/cert.pdf",
-  readCertifierList: async () => ({ ok: false, error: "not in this test" }),
+  readCertifierList: (...a: unknown[]) => readCertifierList(...a),
+  readCertifierEmail: (...a: unknown[]) => readCertifierEmail(...a),
+  certListFiles: (...a: unknown[]) => certListFiles(...a),
   saveMySignature: async () => ({ ok: true, svg: "<svg/>" }),
   addFanModel: async () => ({ ok: false, error: "not in this test" }),
 }));
+jest.mock("@/app/actions/workboard-media", () => ({ cacheJobFiles: (...a: unknown[]) => cacheJobFiles(...a) }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }));
 
 import { CertWizard } from "../cert-wizard";
@@ -45,7 +53,6 @@ const context = (over: Partial<CertWizardContext> = {}): CertWizardContext => ({
   ownerName: "Isaac Smith",
   fanModels: [],
   certifiers: [],
-  usualCertifier: null,
   existing: [],
   files: [],
   ...over,
@@ -67,13 +74,21 @@ beforeEach(() => {
 });
 
 describe("what the job already says", () => {
-  it("preselects the building from the address and says so, and dates it from ServiceM8", async () => {
+  it("hints at the building from the address but makes the person pick it, and dates it from ServiceM8", async () => {
     open();
     await screen.findByRole("tab", { name: "What it covers" });
     const covers = panel("covers");
     expect(covers.getByRole("checkbox", { name: /Air conditioning/ })).toBeChecked();
+    for (const r of covers.getAllByRole("radio")) expect(r).not.toBeChecked();
+    expect(covers.getByText("Class 5, The address suggests this")).toBeInTheDocument();
+    expect(covers.getByText("The address has a level or suite. Pick one to confirm.")).toBeInTheDocument();
+    await tab("Sign");
+    expect(panel("sign").getByRole("button", { name: "Choose what kind of building it is." })).toBeInTheDocument();
+    await tab("What it covers");
+    await userEvent.click(covers.getByRole("radio", { name: /Office/ }));
     expect(covers.getByRole("radio", { name: /Office/ })).toBeChecked();
-    expect(covers.getByText("Class 5, From the address")).toBeInTheDocument();
+    expect(covers.queryByText(/The address suggests this/)).toBeNull();
+    expect(panel("sign").queryByRole("button", { name: "Choose what kind of building it is." })).toBeNull();
     expect(covers.getByRole("button", { name: "Works completed" })).toHaveTextContent("25/09/2026");
     expect(covers.getByText("From ServiceM8")).toBeInTheDocument();
   });
@@ -104,6 +119,8 @@ describe("issuing", () => {
 
     /* the quote names the unit but not the room it went in */
     expect(panel("sign").getByRole("button", { name: /Say where indoor unit 1/ })).toBeInTheDocument();
+    await tab("What it covers");
+    await userEvent.click(panel("covers").getByRole("radio", { name: /Office/ }));
     await tab("Equipment");
     await userEvent.type(panel("equipment").getByLabelText("Room"), "Office");
 
@@ -140,6 +157,7 @@ describe("issuing", () => {
     );
     open(false);
     await screen.findByRole("tab", { name: "Sign" });
+    await userEvent.click(panel("covers").getByRole("radio", { name: /Office/ }));
     await tab("Sign");
     const issue = screen.getByRole("button", { name: "Issue the certificate" });
     await waitFor(() => expect(issue).toBeEnabled());
@@ -171,5 +189,82 @@ describe("issuing", () => {
     await tab("Sign");
     expect(panel("sign").getByText("No expiry date on file")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Issue the certificate" })).toBeDisabled();
+  });
+});
+
+describe("the certifier's list", () => {
+  const reading = (over: Partial<Extract<ReadListResult, { ok: true }>> = {}): ReadListResult => ({
+    ok: true,
+    certifier: "FutureCert",
+    projectNumber: "FC-2291",
+    consentAuthority: "Woollahra Council",
+    address: "",
+    requirements: [{ text: "Certification that the AC was installed to AS/NZS 5149.", clause: "refrigerant", notOurs: false }],
+    ...over,
+  });
+
+  it("lists the PDFs filed on the job in ServiceM8, and reads the one chosen", async () => {
+    certWizardContext.mockImplementation(async () =>
+      context({ files: [{ id: "f-sm8", name: "OC List of Requirements.pdf", fromSm8: true }, { id: "f-ours", name: "Photo of list.jpg", fromSm8: false }] })
+    );
+    readCertifierList.mockImplementation(async () => reading());
+    open();
+    await screen.findByRole("tab", { name: "Certifier's list" });
+    await tab("Certifier's list");
+    const list = panel("list");
+    const pick = list.getByRole("combobox", { name: "The certifier's list" });
+    expect(within(pick).getByRole("group", { name: "From ServiceM8" })).toHaveTextContent("OC List of Requirements.pdf");
+    expect(within(pick).getByRole("group", { name: "Uploaded here" })).toHaveTextContent("Photo of list.jpg");
+    await userEvent.selectOptions(pick, "f-sm8");
+    await userEvent.click(list.getByRole("button", { name: "Read the list" }));
+    expect(readCertifierList).toHaveBeenCalledWith("job-1", "f-sm8");
+    expect(await list.findByDisplayValue("Certification that the AC was installed to AS/NZS 5149.")).toBeInTheDocument();
+    expect(list.getByLabelText("Certifier")).toHaveValue("FutureCert");
+    expect(list.getByLabelText("Project no.")).toHaveValue("FC-2291");
+  });
+
+  it("never fills in a certifier from an earlier job: it is this job's, or typed", async () => {
+    certWizardContext.mockImplementation(async () => context({ certifiers: [{ id: "c-1", name: "FutureCert", clauses: ["refrigerant"] }] }));
+    open();
+    await screen.findByRole("tab", { name: "Certifier's list" });
+    await tab("Certifier's list");
+    const list = panel("list");
+    expect(list.queryByLabelText("Certifier")).toBeNull();
+    expect(list.queryByText(/FutureCert/)).toBeNull();
+    await userEvent.click(list.getByRole("button", { name: "Add the certifier" }));
+    expect(list.getByLabelText("Certifier")).toHaveValue("");
+  });
+
+  it("reads a pasted email, keeping a certifier typed already when the email names none", async () => {
+    readCertifierEmail.mockImplementation(async () =>
+      reading({ certifier: "", projectNumber: "", consentAuthority: "", requirements: [{ text: "Exhaust fans to AS 1668.2", clause: null, notOurs: false }] })
+    );
+    open();
+    await screen.findByRole("tab", { name: "Certifier's list" });
+    await tab("Certifier's list");
+    const list = panel("list");
+    await userEvent.click(list.getByRole("button", { name: "Add the certifier" }));
+    await userEvent.type(list.getByLabelText("Certifier"), "Certify Co");
+    await userEvent.click(list.getByRole("button", { name: "Paste the email" }));
+    const read = list.getByRole("button", { name: "Read the email" });
+    expect(read).toBeDisabled();
+    await userEvent.type(list.getByLabelText("The builder's email"), "Hi Isaac, can you send the compliance certificate. Exhaust fans to AS 1668.2. Thanks");
+    await userEvent.click(read);
+    expect(readCertifierEmail).toHaveBeenCalledWith("job-1", expect.stringContaining("Exhaust fans to AS 1668.2"));
+    expect(await list.findByDisplayValue("Exhaust fans to AS 1668.2")).toBeInTheDocument();
+    expect(list.getByLabelText("Certifier")).toHaveValue("Certify Co");
+    expect(list.queryByLabelText("The builder's email")).toBeNull();
+  });
+
+  it("looks again for a file filed in ServiceM8 a minute ago", async () => {
+    certListFiles.mockImplementation(async () => [{ id: "f-new", name: "Requirements.pdf", fromSm8: true }]);
+    open();
+    await screen.findByRole("tab", { name: "Certifier's list" });
+    await tab("Certifier's list");
+    const list = panel("list");
+    expect(list.getByRole("option", { name: "No PDFs on this job yet" })).toBeInTheDocument();
+    await userEvent.click(list.getByRole("button", { name: "Look again" }));
+    expect(cacheJobFiles).toHaveBeenCalledWith("job-1");
+    expect(await list.findByRole("option", { name: "Requirements.pdf" })).toBeInTheDocument();
   });
 });

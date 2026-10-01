@@ -13,9 +13,8 @@ import { signatureSvg } from "@/lib/swms/input";
 import { ownerName } from "@/lib/swms/query";
 import { CERT_LIBRARY_VERSION, type CertAnswers } from "@/lib/certs/mechanical";
 import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } from "@/lib/certs/quote";
-import { CERT_LIST_PROMPT, CERT_LIST_SCHEMA, parseListReading, type ListReading } from "@/lib/certs/list-reader";
+import { CERT_EMAIL_PROMPT, CERT_LIST_PROMPT, CERT_LIST_SCHEMA, parseListReading, type ListReading } from "@/lib/certs/list-reader";
 import {
-  buildersCertifier,
   certApproval,
   listCertifiers,
   listFanModels,
@@ -60,14 +59,56 @@ export type CertWizardContext = {
   canApprove: boolean;
   ownerName: string | null;
   fanModels: FanModel[];
+  /** Certifiers named on earlier certificates, so a name is spelled the
+      same way twice. Never chosen for the person: certifiers change from
+      job to job, so this job's comes off its own list or is typed. */
   certifiers: CertifierProfile[];
-  /** The certifier on this builder's last certificate, to suggest. */
-  usualCertifier: string | null;
   /** The certificates already on this job, newest first. */
   existing: CertSummary[];
-  /** The job's own files, for picking the certifier's list. */
-  files: { id: string; name: string }[];
+  /** The job's files Tiff can read, for picking the certifier's list. */
+  files: CertListFile[];
 };
+
+/** A PDF or photo uploaded on the Documents face, or a PDF brought across
+    from ServiceM8 (where an email filed on the job from its Inbox leaves its
+    attachments). */
+export type CertListFile = { id: string; name: string; fromSm8: boolean };
+
+const LIST_MEDIA = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"];
+
+/** The job's readable files, newest first. ServiceM8's arrive as the card
+    brings them across, so a file filed there a minute ago may need a look
+    again (certListFiles). */
+async function readableFiles(orgId: string, jobUuid: string): Promise<CertListFile[]> {
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select("id, file_name, kind")
+    .eq("org_id", orgId)
+    .eq("sm8_job_uuid", jobUuid)
+    .in("mime_type", LIST_MEDIA)
+    /* ServiceM8's own files are mostly site photos: only its PDFs are offered.
+       A photo of a list is one somebody uploaded here on purpose. */
+    .or("kind.eq.job_document,and(kind.eq.job_file,mime_type.eq.application/pdf)")
+    .not("uploaded_at", "is", null)
+    .order("uploaded_at", { ascending: false })
+    .limit(60);
+  return ((data ?? []) as { id: string; file_name: string | null; kind: string }[]).map((f) => ({
+    id: f.id,
+    name: f.file_name?.trim() || "Untitled file",
+    fromSm8: f.kind === "job_file",
+  }));
+}
+
+/** The job's readable files again, after an upload or a look again. */
+export async function certListFiles(jobUuid: string): Promise<CertListFile[] | null> {
+  try {
+    const { orgId } = await requireOrg("workboard");
+    const uuid = trim(jobUuid);
+    return uuid ? await readableFiles(orgId, uuid) : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Everything the wizard opens on. Null for a job this workspace doesn't hold. */
 export async function certWizardContext(jobUuid: string): Promise<CertWizardContext | null> {
@@ -83,24 +124,15 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
   const job = await loadCertJob(orgId, uuid);
   if (!job) return null;
   const today = todayInAu();
-  const [staffId, approval, role, owner, fanModels, certifiers, usual, existing, files] = await Promise.all([
+  const [staffId, approval, role, owner, fanModels, certifiers, existing, files] = await Promise.all([
     staffIdFor(orgId, userId),
     certApproval(orgId),
     getDbRole(),
     ownerName(orgId),
     listFanModels(orgId),
     listCertifiers(orgId),
-    buildersCertifier(orgId, job.companyUuid),
     listJobCerts(orgId, uuid),
-    supabaseAdmin
-      .from("documents")
-      .select("id, file_name")
-      .eq("org_id", orgId)
-      .eq("sm8_job_uuid", uuid)
-      .eq("kind", "job_document")
-      .not("uploaded_at", "is", null)
-      .order("uploaded_at", { ascending: false })
-      .limit(40),
+    readableFiles(orgId, uuid),
   ]);
   return {
     job,
@@ -114,12 +146,8 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
     ownerName: owner,
     fanModels,
     certifiers,
-    usualCertifier: usual,
     existing,
-    files: ((files.data ?? []) as { id: string; file_name: string | null }[]).map((f) => ({
-      id: f.id,
-      name: f.file_name?.trim() || "Untitled file",
-    })),
+    files,
   };
 }
 
@@ -289,6 +317,40 @@ export async function readCertifierList(jobUuid: string, documentId: string): Pr
   if (error || !blob) return { ok: false, error: "Couldn't open that file. Try again." };
   const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
 
+  return askTiff([
+    isPdf
+      ? { type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data: base64 } }
+      : { type: "image" as const, source: { type: "base64" as const, media_type: media as ImageMedia, data: base64 } },
+    { type: "text", text: CERT_LIST_PROMPT },
+  ]);
+}
+
+/** The most of an email Tiff is handed: a long thread is mostly quoted
+    replies, and the request is near the top. */
+const EMAIL_MAX = 30_000;
+
+/** Read the builder's email, pasted in, for when what the certificate must
+    cover is in the email's own words rather than an attached list. */
+export async function readCertifierEmail(jobUuid: string, text: string): Promise<ReadListResult> {
+  try {
+    await requireOrg("workboard");
+  } catch {
+    return { ok: false, error: "You can't read documents on jobs." };
+  }
+  if (!trim(jobUuid)) return { ok: false, error: "This certificate doesn't know its job." };
+  const email = String(text ?? "").trim().slice(0, EMAIL_MAX);
+  if (email.length < 20) return { ok: false, error: "Paste the email in first." };
+  if (!process.env.ANTHROPIC_API_KEY) return { ok: false, error: "Tiff isn't set up on this deployment." };
+  return askTiff([
+    { type: "text", text: `<email>\n${email.replace(/<\/?email>/gi, "")}\n</email>` },
+    { type: "text", text: CERT_EMAIL_PROMPT },
+  ]);
+}
+
+type ListContent = Anthropic.Beta.Messages.BetaContentBlockParam[];
+
+/** One reading, of a file or an email: what is on it, in the list's shape. */
+async function askTiff(content: ListContent): Promise<ReadListResult> {
   try {
     const client = new Anthropic();
     const response = await client.beta.messages.create({
@@ -299,19 +361,9 @@ export async function readCertifierList(jobUuid: string, documentId: string): Pr
       /* low, set rather than left to the default: this is copying lines off a
          page, not reasoning about them; the matching is done by rule */
       output_config: { effort: "low", format: { type: "json_schema", schema: CERT_LIST_SCHEMA } },
-      messages: [
-        {
-          role: "user",
-          content: [
-            isPdf
-              ? { type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data: base64 } }
-              : { type: "image" as const, source: { type: "base64" as const, media_type: media as ImageMedia, data: base64 } },
-            { type: "text", text: CERT_LIST_PROMPT },
-          ],
-        },
-      ],
+      messages: [{ role: "user", content }],
     });
-    if (response.stop_reason === "refusal") return { ok: false, error: "Tiff declined to read this document." };
+    if (response.stop_reason === "refusal") return { ok: false, error: "Tiff declined to read this." };
     if (response.stop_reason === "max_tokens") return { ok: false, error: "That list is too long to read in one go." };
     /* THE LAST text block: when the fallback model takes over, the first
        model's partial answer can stand ahead of the full one */

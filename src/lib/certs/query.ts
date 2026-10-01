@@ -211,30 +211,6 @@ export async function listCertifiers(orgId: string): Promise<CertifierProfile[]>
   }));
 }
 
-/** The certifier on this builder's last certificate, by name. */
-export async function buildersCertifier(orgId: string, companyUuid: string | null): Promise<string | null> {
-  if (!companyUuid) return null;
-  const { data: certs } = await supabaseAdmin
-    .from("certificates")
-    .select("id")
-    .eq("org_id", orgId)
-    .eq("builder_company_uuid", companyUuid);
-  const ids = ((certs ?? []) as { id: string }[]).map((c) => c.id);
-  if (!ids.length) return null;
-  const { data } = await supabaseAdmin
-    .from("certificate_versions")
-    .select("answers, issued_at")
-    .eq("org_id", orgId)
-    .in("certificate_id", ids)
-    .order("issued_at", { ascending: false })
-    .limit(10);
-  for (const v of (data ?? []) as { answers: CertAnswers }[]) {
-    const name = v.answers?.certifier?.name?.trim();
-    if (name) return name;
-  }
-  return null;
-}
-
 /* ── certificates on a job, and one version ────────────────────────────── */
 
 export type CertSummary = {

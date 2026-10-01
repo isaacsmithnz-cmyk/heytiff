@@ -1,7 +1,7 @@
 "use client";
 
 import { beginKbUpload, confirmKbUpload } from "@/app/actions/kb";
-import { checkKbUpload } from "./files";
+import { checkKbUpload, type KbLargeAllowance } from "./files";
 
 /* The browser half of putting a manual in the library.
 
@@ -24,6 +24,10 @@ export type KbUploadMeta = {
   /** Tag ids as the drawer left them. Re-checked against the org's own tags on
       the other side — this is a caller's suggestion, not a fact. */
   tagIds?: string[];
+  /** What this person may bring in over 50 MB this month, as the drawer was
+      told — without it the check below refused every large file before the
+      server could say yes (2026-10-01, Isaac's 131 MB data book). */
+  large?: KbLargeAllowance;
 };
 
 export type KbUploadOutcome =
@@ -33,7 +37,7 @@ export type KbUploadOutcome =
 export async function uploadKbFile(file: File, meta: KbUploadMeta): Promise<KbUploadOutcome> {
   // checked here so an obviously-wrong file is refused instantly rather than
   // after a round trip; beginKbUpload decides for real either way
-  const local = checkKbUpload({ type: file.type, size: file.size });
+  const local = checkKbUpload({ type: file.type, size: file.size }, meta.large ?? null);
   if (!local.ok) return { ok: false, error: local.error };
 
   const slot = await beginKbUpload({

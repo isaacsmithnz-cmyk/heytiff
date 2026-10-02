@@ -77,7 +77,9 @@ export function VrfSchematic({
       const ch = (kids.get(id) ?? []).filter((s) => !seen.has(s.to));
       if (!ch.length) {
         pos.set(id, { x: PAD + leaf * COL + COL / 2, y: PAD + 18 + d * row });
-        leaf++;
+        /* not `leaf++`: React Compiler 1.0 cannot lower an update to a
+           variable this closure captures, and refuses the whole component */
+        leaf = leaf + 1;
         return;
       }
       for (const c of ch) place(c.to, d + 1);

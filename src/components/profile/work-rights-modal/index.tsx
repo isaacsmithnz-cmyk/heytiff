@@ -35,6 +35,7 @@ import {
   type Check,
 } from "./check-fields";
 import { isNoVisa } from "@/lib/staff/work-rights";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* ONE PERSON'S RIGHT TO WORK, as a history of CHECKS.
 
@@ -110,12 +111,10 @@ export function WorkRightsModal({
   const run = async (fn: () => Promise<SaveResult>) => {
     setPending(true);
     setError(null);
-    try {
+    await withCleanup(async () => {
       const res = await fn();
       if (!res.ok) setError(res.error);
-    } finally {
-      setPending(false);
-    }
+    }, () => setPending(false));
   };
 
   const showFields = mode === "scanned" || mode === "manual";

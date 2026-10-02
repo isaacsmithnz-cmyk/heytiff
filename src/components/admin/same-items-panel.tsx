@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { PricedProposal, PricedSide, SameItemsView } from "@/lib/quotes/same-items-server";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* ONE PART AT TWO SUPPLIERS, in Admin → Quoting.
 
@@ -51,7 +52,7 @@ export function SameItemsPanel() {
   const decide = async (p: PricedProposal, decision: "confirmed" | "rejected") => {
     const key = `${refOf(p.a)}#${refOf(p.b)}`;
     setBusy(key);
-    try {
+    await withCleanup(async () => {
       const a = (await (
         await fetch(ROUTE, {
           method: "POST",
@@ -68,9 +69,7 @@ export function SameItemsPanel() {
             }
           : cur
       );
-    } finally {
-      setBusy(null);
-    }
+    }, () => setBusy(null));
   };
 
   if (failed) return <p className="qs-sub">The price lists couldn&rsquo;t be compared.</p>;

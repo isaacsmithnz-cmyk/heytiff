@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -310,7 +310,7 @@ export function ShowcaseView({
               role="tab"
               aria-selected={lit === family}
               className={`wb2-fchip${lit === family ? " on" : ""}`}
-              style={{ ["--sc" as string]: FAMILY_COLOUR[family] }}
+              style={{ "--sc": FAMILY_COLOUR[family] } as CSSProperties}
               onClick={() => pick({ kind: "family", family })}
             >
               <span className="wb2-showdot" aria-hidden />
@@ -373,7 +373,7 @@ export function ShowcaseView({
                         <i
                           className="wb2-showdot"
                           aria-hidden
-                          style={{ ["--sc" as string]: subjectColour(subject) }}
+                          style={{ "--sc": subjectColour(subject) } as CSSProperties}
                         />
                         {subjectLabel(subject)}
                         <em>{count}</em>

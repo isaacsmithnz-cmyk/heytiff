@@ -140,6 +140,25 @@ function attachWords(r: Extract<DesignToJobResult, { ok: true }>): string {
   return "On the job card and in ServiceM8.";
 }
 
+/* The PDF from the server, or a throw that says why. A function the try in
+   downloadPdf CALLS rather than code written inside it: React Compiler 1.0
+   cannot lower a `throw` inside a try/catch, and refuses the whole component
+   when it meets one. */
+async function designPdf(body: unknown): Promise<Blob> {
+  const res = await fetch("/api/studio/design-pdf", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`design-pdf answered ${res.status}`);
+  return res.blob();
+}
+
+/* the design's own name, less what a file name can't hold — out here for
+   the same reason: its `||`s are value blocks the compiler won't take in a
+   try */
+const pdfFileName = (name: string) => `${(name || "Design").replace(/[\\/:*?"<>|]+/g, " ").trim() || "Design"}.pdf`;
+
 export interface SendCheck {
   title: string;
   detail: string;
@@ -485,26 +504,20 @@ export function SendCard({
     setMaking(true);
     setMadeError(false);
     try {
-      const res = await fetch("/api/studio/design-pdf", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          designId: doc.id,
-          name: doc.meta.name,
-          options: {
-            ...opts,
-            sections,
-            floorIds: floorsOn.map((f) => f.id),
-            variantIds: othersOn.map((v) => v.id),
-          },
-        }),
+      const blob = await designPdf({
+        designId: doc.id,
+        name: doc.meta.name,
+        options: {
+          ...opts,
+          sections,
+          floorIds: floorsOn.map((f) => f.id),
+          variantIds: othersOn.map((v) => v.id),
+        },
       });
-      if (!res.ok) throw new Error(`design-pdf answered ${res.status}`);
-      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${(doc.meta.name || "Design").replace(/[\\/:*?"<>|]+/g, " ").trim() || "Design"}.pdf`;
+      a.download = pdfFileName(doc.meta.name);
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

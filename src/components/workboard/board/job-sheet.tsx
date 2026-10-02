@@ -603,7 +603,12 @@ export function JobSheet({
       const put = await attachJobDocument(up.file.documentId, cardId);
       if (!put.ok) return put.error;
       const fresh = await readJobFiles(cardId).catch(() => null);
-      if (alive.current && fresh) setMedia(fresh);
+      /* two guards rather than one `&&`, because React Compiler 1.0 cannot
+         lower a value block inside a try/catch — and one it can't lower
+         skips the whole card */
+      if (fresh) {
+        if (alive.current) setMedia(fresh);
+      }
       return null;
     } catch (e) {
       return thrownWords(e, "That upload didn't finish.");
@@ -1385,7 +1390,10 @@ export function JobSheet({
         return res.error;
       }
       setSender(res.sender);
-      if (answer === "yes" && thenSend) sendCopy(thenSend);
+      /* guards, not one `&&` — see the note in `uploadDocument` */
+      if (answer === "yes") {
+        if (thenSend) sendCopy(thenSend);
+      }
       return null;
     } catch (e) {
       return thrownWords(e, NOTE_WORDS.press.unknown);

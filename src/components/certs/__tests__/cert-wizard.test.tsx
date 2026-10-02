@@ -92,14 +92,14 @@ describe("what the job already says", () => {
     expect(covers.getByText("From ServiceM8")).toBeInTheDocument();
   });
 
-  it("fills the equipment in from the quote, and the condensate pump", async () => {
+  it("fills the equipment in from the quote, and asks about a condensate pump only when condensate was asked for", async () => {
     open();
     await screen.findByRole("tab", { name: "Equipment" });
     await tab("Equipment");
     const eq = panel("equipment");
     expect(eq.getByDisplayValue("MUZ-AP42VGD2-A2")).toBeInTheDocument();
     expect(eq.getByDisplayValue("MSZ-AP42VGKD2-A2")).toBeInTheDocument();
-    expect(eq.getByRole("checkbox", { name: /A condensate pump/ })).toBeChecked();
+    expect(eq.queryByRole("checkbox", { name: /A condensate pump/ })).toBeNull();
     expect(eq.getByRole("checkbox", { name: /Ductwork/ })).not.toBeChecked();
   });
 });

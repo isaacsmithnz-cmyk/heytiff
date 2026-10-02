@@ -101,6 +101,8 @@ export type FanRow = {
 /* ── the clauses ───────────────────────────────────────────────────────── */
 
 export type ClauseKey =
+  // whenever something was asked for: the approval the certifier holds the works to
+  | "approved"
   // every air conditioning certificate
   | "refrigerant"
   | "manufacturer"
@@ -125,6 +127,7 @@ export type ClauseKey =
 
 /** What each clause is about, for the wording page and the matcher's picker. */
 export const CLAUSE_NAME: Record<ClauseKey, string> = {
+  approved: "Approved documents and conditions of consent",
   refrigerant: "Refrigerant circuit, AS/NZS 5149.2",
   manufacturer: "Manufacturer's instructions",
   condensate: "Condensate drainage",
@@ -144,10 +147,20 @@ export const CLAUSE_NAME: Record<ClauseKey, string> = {
   noise: "Outdoor unit location and noise",
 };
 
-export const AC_CORE: readonly ClauseKey[] = ["refrigerant", "manufacturer", "condensate", "commissioned", "arc"];
+/* NO PADDING. Every line answers something asked for or is a statement the
+   certificate can't go without. Every air conditioning certificate states
+   the two the law asks of every installer: the refrigerant circuit to
+   AS/NZS 5149.2, with its figures, and ARC licensed handling. With nothing
+   asked for, it also says the equipment went in to the manufacturer's
+   instructions, so a bare "send me the certificate" still certifies the
+   installation. With something asked, the approved documents take that
+   place. Condensate and handover print only when asked for. */
+export const AC_CORE: readonly ClauseKey[] = ["refrigerant", "manufacturer", "arc"];
+export const AC_CORE_ASKED: readonly ClauseKey[] = ["refrigerant", "arc"];
 export const VENT_CORE: readonly ClauseKey[] = ["ventAirflow", "ventDischarge"];
 /** The clauses a certifier's requirement can be answered with. */
 export const MATCHABLE: readonly ClauseKey[] = [
+  "approved",
   "as1668",
   "fireMode",
   "j5",
@@ -248,7 +261,9 @@ export function clausesFor(a: CertAnswers): ClauseKey[] {
     if (!out.includes(k)) out.push(k);
   };
   for (const r of a.requirements) if (r.answer === "clause" && r.clause) add(r.clause);
-  if (a.covers.ac) AC_CORE.forEach(add);
+  const asked = a.requirements.length > 0;
+  if (asked) add("approved");
+  if (a.covers.ac) (asked ? AC_CORE_ASKED : AC_CORE).forEach(add);
   if (a.covers.vent) VENT_CORE.forEach(add);
   if (a.installed.ductwork) add("ductwork");
   if (a.installed.fireRated) add("fireRated");
@@ -355,6 +370,8 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
       return "The system was commissioned and checked in heating and cooling, and the operating instructions and maintenance schedule were handed over.";
     case "arc":
       return "All refrigerant was handled by people holding an ARC refrigerant handling licence.";
+    case "approved":
+      return "The works are installed in accordance with the documents approved under the Construction Certificate or Complying Development Certificate, and the relevant conditions of consent.";
     case "ventAirflow": {
       const measured = a.fans.some((f) => f.airflowKind === "measured");
       const wet = a.fans.some((f) => wetMinimum(f.location) !== null);
@@ -502,6 +519,10 @@ export type CertProblemField =
 export type CertProblem = { field: CertProblemField; text: string };
 
 const missing = (s: string) => s.trim() === "";
+/** A model number has a digit in it: "PEFY-P63VMX-E1", "FTXM35W". A brand or
+    a series ("Mitsubishi Electric VMX") names a family of units, not the one
+    on the plate, and a certifier can't check it against anything. */
+export const looksLikeModel = (s: string) => /\d/.test(s);
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Everything standing between these answers and an issue, in the order the
@@ -520,14 +541,14 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
     a.systems.forEach((s, i) => {
       const name = s.outdoor.model.trim() || `outdoor unit ${i + 1}`;
       if (missing(s.outdoor.model)) add("equipment", `Give outdoor unit ${i + 1} its model.`);
+      else if (!looksLikeModel(s.outdoor.model)) add("equipment", `"${s.outdoor.model.trim()}" isn't a model number. Enter the one on the outdoor unit's plate.`);
       if (missing(s.outdoor.location)) add("equipment", `Say where ${name} is.`);
-      if (s.outdoor.capacityKw === null || s.outdoor.capacityKw <= 0) add("equipment", `Give ${name} its capacity.`);
       if (s.indoors.length === 0) add("equipment", `Add the indoor units ${name} runs.`);
       s.indoors.forEach((r, j) => {
         const row = r.location.trim() || `indoor unit ${j + 1} on ${name}`;
         if (missing(r.location)) add("equipment", `Say where indoor unit ${j + 1} on ${name} is.`);
         if (missing(r.model)) add("equipment", `Give ${row} its model.`);
-        if (r.capacityKw === null || r.capacityKw <= 0) add("equipment", `Give ${row} its capacity.`);
+        else if (!looksLikeModel(r.model)) add("equipment", `"${r.model.trim()}" on ${row} isn't a model number. Enter the one on the unit's plate.`);
       });
       const t = s.test;
       if (t.pressureKpa === null || t.pressureKpa <= 0) add("tests", `Enter the test pressure for ${name}.`);
@@ -602,10 +623,11 @@ export function certProblems(a: CertAnswers, f: CertFacts): string[] {
 export type Wording = { clause: ClauseKey; name: string; when: string; texts: string[] };
 
 const WHEN: Record<ClauseKey, string> = {
+  approved: "Whenever something was asked for",
   refrigerant: "Every air conditioning certificate, followed by the test figures as typed",
-  manufacturer: "Every air conditioning certificate",
-  condensate: "Every air conditioning certificate",
-  commissioned: "Every air conditioning certificate",
+  manufacturer: "Air conditioning, when nothing was asked for, or when asked",
+  condensate: "Only when asked for",
+  commissioned: "Only when asked for",
   arc: "Every air conditioning certificate",
   ventAirflow: "Every ventilation certificate",
   ventDischarge: "Every ventilation certificate",
@@ -625,7 +647,7 @@ const WHEN: Record<ClauseKey, string> = {
     figures a person types are shown as what they are, in brackets. */
 export function wordingSamples(): Wording[] {
   const base: CertAnswers = { ...DEFAULT_CERT_ANSWERS, covers: { ac: true, vent: true } };
-  const order: ClauseKey[] = [...AC_CORE, ...VENT_CORE, "ductwork", "fireRated", "as16682", "as1668", "fireMode", "j5", "kitchenExhaust", "carPark", "airBalance", "noise"];
+  const order: ClauseKey[] = ["approved", ...AC_CORE, ...VENT_CORE, "ductwork", "fireRated", "as16682", "as1668", "fireMode", "j5", "kitchenExhaust", "carPark", "airBalance", "noise"];
   const variants: Partial<Record<ClauseKey, CertAnswers[]>> = {
     condensate: [base, { ...base, installed: { ...base.installed, condensatePump: true } }],
     ventAirflow: [

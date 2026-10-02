@@ -263,6 +263,7 @@ const MATCHERS: readonly [RegExp, ClauseKey | "smoke"][] = [
   [/penetration|fire[\s-]*rated|fire[\s-]*stop/i, "fireRated"],
   [/airflow|air flow|l\/s|exhaust fan/i, "ventAirflow"],
   [/discharge/i, "ventDischarge"],
+  [/approved (plans|documents|drawings|design)|construction certificate|complying development|conditions? of (consent|approval)|development consent/i, "approved"],
   [/manufacturer/i, "manufacturer"],
   [/condensate/i, "condensate"],
   [/commission/i, "commissioned"],

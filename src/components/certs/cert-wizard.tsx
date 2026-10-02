@@ -641,7 +641,10 @@ export function CertWizard({
               onChange={(e) => set({ installed: { ...a.installed, fireStopProduct: e.target.value } })}
             />
           )}
-          <Choice kind="checkbox" name="pump" checked={a.installed.condensatePump} onChange={(on) => set({ installed: { ...a.installed, condensatePump: on } })} title="A condensate pump" />
+          {/* only words it when condensate was asked for, so only asked then */}
+          {clauses.includes("condensate") && (
+            <Choice kind="checkbox" name="pump" checked={a.installed.condensatePump} onChange={(on) => set({ installed: { ...a.installed, condensatePump: on } })} title="A condensate pump" />
+          )}
           {a.covers.vent && (
             <Choice kind="checkbox" name="as16682" checked={a.ventAs16682} onChange={(on) => set({ ventAs16682: on })} title="Ventilation the building relies on, to AS 1668.2" sub="Offices, shops, car parks and common areas" />
           )}

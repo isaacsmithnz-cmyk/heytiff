@@ -1,7 +1,7 @@
 import { brandContact, hasBrand, type OrgBrand } from "@/lib/org/brand";
 import { BrandLogo } from "@/components/org/letterhead";
 import { themeVars } from "@/lib/org/theme";
-import { fmtKw, fmtNum, type AcRow, type CertContent, type FanRow } from "@/lib/certs/mechanical";
+import { fmtNum, type AcRow, type CertContent, type FanRow } from "@/lib/certs/mechanical";
 import type { BusinessPapers, HeldLicence } from "@/lib/certs/query";
 import "@/components/studio/summary/sheet-doc.css";
 import "./certificate.css";
@@ -71,6 +71,10 @@ function modelCell(r: AcRow | FanRow): string {
   return r.qty > 1 ? `${r.qty} × ${model}` : model;
 }
 
+/* THE MODEL, NOT THE KILOWATTS. A model number fixes a unit's capacity and
+   is what an inspector reads off its plate; the certifier never checks kW.
+   Capacity is still typed, for checking the quote's own total, and kept on
+   the version; it just isn't printed. */
 function AcTable({ content }: { content: CertContent }) {
   const serials = content.showSerials;
   return (
@@ -81,14 +85,12 @@ function AcTable({ content }: { content: CertContent }) {
           <col className="cer-c-loc" />
           <col />
           {serials && <col className="cer-c-ser" />}
-          <col className="cer-c-num" />
         </colgroup>
         <thead>
           <tr>
             <th>Location</th>
             <th>Model</th>
             {serials && <th>Serial</th>}
-            <th className="num">Capacity</th>
           </tr>
         </thead>
         <tbody>
@@ -99,9 +101,6 @@ function AcTable({ content }: { content: CertContent }) {
               </td>
               <td>{modelCell(s.outdoor)}</td>
               {serials && <td>{s.outdoor.serial}</td>}
-              <td className="num">
-                {s.outdoor.capacityKw !== null ? fmtKw(s.outdoor.capacityKw * Math.max(1, s.outdoor.qty)) : ""}
-              </td>
             </tr>,
             ...s.indoors.map((r, j) => (
               <tr key={`i${i}-${j}`}>
@@ -110,19 +109,10 @@ function AcTable({ content }: { content: CertContent }) {
                 </td>
                 <td>{modelCell(r)}</td>
                 {serials && <td>{r.serial}</td>}
-                <td className="num">
-                  {r.capacityKw !== null ? fmtKw(r.capacityKw * Math.max(1, r.qty)) : ""}
-                </td>
               </tr>
             )),
           ])}
         </tbody>
-        <tfoot>
-          <tr>
-            <td colSpan={serials ? 3 : 2}>Total indoor capacity</td>
-            <td className="num">{fmtKw(content.indoorKw)}</td>
-          </tr>
-        </tfoot>
       </table>
     </section>
   );
@@ -194,7 +184,6 @@ export function CertificatePaper({
       ? [{ label: "Building", value: content.building.cls ? `${content.building.label} (${content.building.cls})` : content.building.label }]
       : []),
     { label: "Completed", value: shortDay(content.completedOn) },
-    ...(content.covers.ac ? [{ label: "Outdoor capacity", value: fmtKw(content.outdoorKw) }] : []),
     ...(content.covers.vent ? [{ label: "Fans", value: String(content.fanCount) }] : []),
     ...(content.certifier
       ? [
@@ -232,7 +221,6 @@ export function CertificatePaper({
                     <div className="dsd-prep">
                       <span className="dsd-lab">Prepared by</span>
                       <span className="dsd-org">{named && brand.name ? brand.name : "HeyTiff"}</span>
-                      <span className="dsd-date">{longDay(signOff.signedOn)}</span>
                     </div>
                     <address className="dsd-to">
                       {job.builder && <span className="dsd-to-n">{job.builder}</span>}
@@ -278,7 +266,7 @@ export function CertificatePaper({
 
                 <section className="cer-sec">
                   <h2 className="cer-h">Certification</h2>
-                  <p className="cer-lede">I certify that the works on this certificate:</p>
+                  <p className="cer-lede">I certify that:</p>
                   <ol className="cer-st">
                     {content.statements.map((s, i) => (
                       <li key={i}>{s.text}</li>
@@ -315,12 +303,13 @@ export function CertificatePaper({
                   </div>
                 </dl>
 
-                <p className="cer-foot">
-                  {papers.insurance.map((line) => (
-                    <span key={line}>{line}</span>
-                  ))}
-                  {version > 1 && <span>Version {version}</span>}
-                </p>
+                {/* no insurance: the certifier doesn't need it to issue the
+                    Occupation Certificate, so it isn't on the page */}
+                {version > 1 && (
+                  <p className="cer-foot">
+                    <span>Version {version}</span>
+                  </p>
+                )}
               </div>
             </td>
           </tr>

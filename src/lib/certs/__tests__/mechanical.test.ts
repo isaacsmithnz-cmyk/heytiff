@@ -24,7 +24,7 @@ import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2699, JOB_279, JOB_33
 /* THE GOLDEN JOBS (docs/certificates-plan.md, Build order, step 1): six real
    finished jobs, each of which must get exactly these statements. */
 
-const AC_CORE = ["refrigerant", "manufacturer", "condensate", "commissioned", "arc"];
+const AC_CORE = ["refrigerant", "manufacturer", "arc"];
 
 const TESTED = { pressureKpa: 4150, holdMinutes: 30, vacuumMicrons: 350, manufacturerMicrons: null, refrigerant: "R32", addedKg: 0 };
 
@@ -60,7 +60,7 @@ function futureCert(): Requirement[] {
 }
 
 describe("the golden jobs", () => {
-  it("1383: FutureCert's three requirements first, in its order, then the standard set and ductwork", () => {
+  it("1383: FutureCert's three requirements first, in its order, then the approved documents, the refrigerant pair and ductwork", () => {
     const a = answersFor(JOB_1383, AC, "apartment", {
       requirements: futureCert(),
       certifier: { name: "FutureCert", projectNumber: "24-0108", consentAuthority: "Woollahra Municipal Council" },
@@ -68,7 +68,7 @@ describe("the golden jobs", () => {
       fireModeRatingsChecked: true,
       installed: { ductwork: true, fireRated: false, fireStopProduct: "", condensatePump: false },
     });
-    expect(clausesFor(a)).toEqual(["as1668", "fireMode", "j5", ...AC_CORE, "ductwork"]);
+    expect(clausesFor(a)).toEqual(["as1668", "fireMode", "j5", "approved", "refrigerant", "arc", "ductwork"]);
     expect(certProblems(a, FACTS)).toEqual([]);
     const c = buildCertificate(a);
     expect(c.statements.slice(0, 3).map((st) => st.requirement)).toEqual(FUTURECERT_9_1);
@@ -222,11 +222,24 @@ describe("certProblemList", () => {
     expect(fields(a)).toEqual(["tests"]);
   });
 
-  it("asks for models a quote didn't give, and what the person left out", () => {
+  it("asks for models a quote didn't give, and never for a capacity, which isn't printed", () => {
     const a = answersFor(JOB_1300, AC, "house");
     a.systems[0].outdoor.model = "";
     a.systems[0].indoors[0].capacityKw = null;
-    expect(certProblems(a, FACTS)).toEqual(["Give outdoor unit 1 its model.", "Give Kitchen its capacity."]);
+    expect(certProblems(a, FACTS)).toEqual(["Give outdoor unit 1 its model."]);
+  });
+
+  it("refuses a brand or a series where a model number belongs", () => {
+    const a = answersFor(JOB_1300, AC, "house");
+    a.systems[0].outdoor.model = "Mitsubishi Electric VRF";
+    a.systems[0].indoors[0].model = "Mitsubishi Electric VMX";
+    expect(certProblems(a, FACTS)).toEqual([
+      `"Mitsubishi Electric VRF" isn't a model number. Enter the one on the outdoor unit's plate.`,
+      `"Mitsubishi Electric VMX" on Kitchen isn't a model number. Enter the one on the unit's plate.`,
+    ]);
+    a.systems[0].outdoor.model = "PUMY-P200YKM";
+    a.systems[0].indoors[0].model = "PEFY-P28VMA";
+    expect(certProblems(a, FACTS)).toEqual([]);
   });
 
   it("refuses a bathroom fan under the NCC minimum", () => {
@@ -302,5 +315,25 @@ describe("normaliseCertAnswers", () => {
     expect(a.requirements).toEqual([{ text: "Part J5", answer: "clause", clause: null, own: "", reason: "" }]);
     expect(a.fireMode).toBeNull();
     expect("hacked" in a).toBe(false);
+  });
+});
+
+describe("no padding", () => {
+  it("with nothing asked for: the refrigerant pair and the manufacturer's instructions, and nothing about condensate or handover", () => {
+    const c = buildCertificate(answersFor(JOB_3326, AC, "office"));
+    expect(c.statements.map((st) => st.clause)).toEqual(["refrigerant", "manufacturer", "arc"]);
+  });
+
+  it("condensate and handover print when asked for, in the asker's place", () => {
+    const a = answersFor(JOB_3326, AC, "office", {
+      requirements: [{ text: "Condensate drains to an approved point", answer: "clause", clause: matchRequirement("Condensate drains to an approved point").clause, own: "", reason: "" }],
+    });
+    expect(clausesFor(a)).toEqual(["condensate", "approved", "refrigerant", "arc"]);
+  });
+
+  it("matches a request about the approved plans to the approved-documents statement", () => {
+    expect(matchRequirement("Installed in accordance with the approved plans").clause).toBe("approved");
+    expect(matchRequirement("Works comply with the Construction Certificate").clause).toBe("approved");
+    expect(matchRequirement("Installed in accordance with AS 1668.2 and the approved plans").clause).toBe("as1668");
   });
 });

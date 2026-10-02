@@ -9,7 +9,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CertListFile, CertWizardContext, ReadListResult } from "@/app/actions/certificates";
 import { readQuote, suggestBuilding } from "@/lib/certs/quote";
-import { JOB_3326 } from "@/lib/certs/__tests__/fixtures/jobs";
+import { JOB_1383, JOB_3326 } from "@/lib/certs/__tests__/fixtures/jobs";
 
 const certWizardContext = jest.fn(async (): Promise<CertWizardContext | null> => null);
 const readCertifierList = jest.fn(async (..._a: unknown[]): Promise<ReadListResult> => ({ ok: false, error: "not in this test" }));
@@ -101,6 +101,38 @@ describe("what the job already says", () => {
     expect(eq.getByDisplayValue("MSZ-AP42VGKD2-A2")).toBeInTheDocument();
     expect(eq.getByRole("checkbox", { name: /A condensate pump/ })).toBeChecked();
     expect(eq.getByRole("checkbox", { name: /Ductwork/ })).not.toBeChecked();
+  });
+});
+
+describe("what the quote says about itself", () => {
+  const job1383 = () =>
+    context({
+      job: { uuid: "job-1", number: "1383", address: "74/10 Etham Avenue\nDarling Point NSW 2027", description: JOB_1383, companyUuid: "co-1", clientName: "Reed Developments", contactName: null, completedOn: "2026-08-04" },
+      reading: readQuote(JOB_1383),
+      building: suggestBuilding("74/10 Etham Avenue"),
+    });
+
+  it("says when the quote's stated total and its rows don't agree, and updates as rows change", async () => {
+    certWizardContext.mockImplementation(async () => job1383());
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    const eq = panel("equipment");
+    expect(eq.getByText(/The quote says 29.0 kW connected, but these rows add to 19.8 kW/)).toBeInTheDocument();
+    const living = eq.getAllByLabelText("kW each")[0];
+    await userEvent.clear(living);
+    await userEvent.type(living, "18.2");
+    expect(eq.queryByText(/The quote says/)).toBeNull();
+  });
+
+  it("fills in what's not covered from the quote's exclusions, and says where it came from", async () => {
+    certWizardContext.mockImplementation(async () => job1383());
+    open();
+    await screen.findByRole("tab", { name: "Checks" });
+    await tab("Checks");
+    const checks = panel("checks");
+    expect(checks.getByLabelText("Also not covered")).toHaveValue("bulkheads, plasterboard and painting by others");
+    expect(checks.getByText("From the quote's exclusions")).toBeInTheDocument();
   });
 });
 

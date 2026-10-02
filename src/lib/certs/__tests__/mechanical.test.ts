@@ -73,6 +73,14 @@ describe("the golden jobs", () => {
     const c = buildCertificate(a);
     expect(c.statements.slice(0, 3).map((st) => st.requirement)).toEqual(FUTURECERT_9_1);
     expect(c.indoorKw).toBeCloseTo(19.8);
+    /* ductwork went in, so Part J5 says it is insulated and sealed too */
+    expect(c.statements[2].text).toBe(
+      "The installation complies with Part J5 of the BCA: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
+    );
+    const noDucts = buildCertificate({ ...a, installed: { ...a.installed, ductwork: false } });
+    expect(noDucts.statements[2].text).toBe(
+      "The installation complies with Part J5 of the BCA: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied."
+    );
   });
 
   it("279: air conditioning and ventilation, ductwork and the Lossnay at its rated airflow", () => {

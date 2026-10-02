@@ -119,6 +119,7 @@ function startingAnswers(ctx: CertWizardContext): CertAnswers {
     fans: r.fans.map((f) => ({ ...f, airflowLps: f.airflowLps ?? fanRated(f.model) })),
     installed: { ductwork: r.ductwork, fireRated: r.fireRated, fireStopProduct: "", condensatePump: r.condensatePump },
     ventAs16682: false,
+    notCoveredExtra: r.byOthers,
   };
 }
 
@@ -144,6 +145,38 @@ function Field({
       <span>{label}</span>
       <input id={id} className="wb2-fi" type="text" value={value} list={list} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
     </label>
+  );
+}
+
+/* A NUMBER FIELD KEEPS WHAT IS TYPED, not the number it reads as. Drawn
+   straight from the number, "2." read as 2 and redrew as "2", so the point
+   never stayed and 2.8 could not be typed. The text is the field's own; it
+   is taken from the number again only when the number changes from
+   elsewhere (a row filled in from the fan list). */
+function NumField({
+  label,
+  value,
+  onChange,
+  width,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (n: number | null) => void;
+  width?: "s" | "m";
+}) {
+  const [text, setText] = useState(() => numText(value));
+  if (readNum(text) !== value) setText(numText(value));
+  return (
+    <Field
+      label={label}
+      width={width}
+      inputMode="decimal"
+      value={text}
+      onChange={(v) => {
+        setText(v);
+        onChange(readNum(v));
+      }}
+    />
   );
 }
 
@@ -504,12 +537,19 @@ export function CertWizard({
         <span>{`${fmtKw(indoorTotalKw(a.systems))} indoor in total`}</span>
       </div>
       {live?.reading.systems.length ? <p className="sw-note">Filled in from the job&apos;s quote. Check every row.</p> : null}
+      {/* the quote's own total against its rows: a room left off it, or a
+          capacity typed wrong, shows here before it reaches the paper */}
+      {live?.reading.statedConnectedKw != null && Math.abs(live.reading.statedConnectedKw - indoorTotalKw(a.systems)) > 0.05 && (
+        <p className="sw-state bad">
+          {`The quote says ${fmtKw(live.reading.statedConnectedKw)} connected, but these rows add to ${fmtKw(indoorTotalKw(a.systems))}. Check for a missing room or a wrong capacity. If the rows are right, carry on.`}
+        </p>
+      )}
       {a.systems.map((s, i) => (
         <div key={i} className="cz-sys">
           <div className="cz-row out">
             <Field label="Outdoor unit, where" value={s.outdoor.location} onChange={(v) => setOutdoor(i, { location: v })} />
             <Field label="Model" value={s.outdoor.model} onChange={(v) => setOutdoor(i, { model: v })} />
-            <Field label="kW" width="s" inputMode="decimal" value={numText(s.outdoor.capacityKw)} onChange={(v) => setOutdoor(i, { capacityKw: readNum(v) })} />
+            <NumField label="kW" width="s" value={s.outdoor.capacityKw} onChange={(n) => setOutdoor(i, { capacityKw: n })} />
             <Field label="Serial" width="m" value={s.outdoor.serial} onChange={(v) => setOutdoor(i, { serial: v })} />
             <button type="button" className="wb2-ico cz-x" aria-label={`Clear outdoor unit ${i + 1}`} onClick={() => set({ systems: a.systems.filter((_, j) => j !== i) })}>
               <Icon name="x" size={14} />
@@ -519,7 +559,7 @@ export function CertWizard({
             <div key={j} className="cz-row">
               <Field label="Room" value={r.location} onChange={(v) => setIndoor(i, j, { location: v })} />
               <Field label="Model" value={r.model} onChange={(v) => setIndoor(i, j, { model: v })} />
-              <Field label="kW each" width="s" inputMode="decimal" value={numText(r.capacityKw)} onChange={(v) => setIndoor(i, j, { capacityKw: readNum(v) })} />
+              <NumField label="kW each" width="s" value={r.capacityKw} onChange={(n) => setIndoor(i, j, { capacityKw: n })} />
               <Field label="How many" width="s" inputMode="numeric" value={String(r.qty)} onChange={(v) => setIndoor(i, j, { qty: Math.max(1, Math.floor(readNum(v) ?? 1)) })} />
               <button
                 type="button"
@@ -559,7 +599,7 @@ export function CertWizard({
             <div className="cz-row fan">
               <Field label="Room" value={f.location} onChange={(v) => setFan(i, { location: v })} />
               <Field label="Model" list="cz-fans" value={f.model} onChange={(v) => setFan(i, { model: v })} />
-              <Field label="L/s" width="s" inputMode="decimal" value={numText(f.airflowLps)} onChange={(v) => setFan(i, { airflowLps: readNum(v) })} />
+              <NumField label="L/s" width="s" value={f.airflowLps} onChange={(n) => setFan(i, { airflowLps: n })} />
               <button type="button" className="wb2-ico cz-x" aria-label={`Clear the ${f.location || `fan ${i + 1}`} fan`} onClick={() => set({ fans: a.fans.filter((_, j) => j !== i) })}>
                 <Icon name="x" size={14} />
               </button>
@@ -731,9 +771,9 @@ export function CertWizard({
     <div key={i} className="cz-sys">
       {!sameTests && <b className="cz-for">{s.outdoor.model || s.outdoor.location || `Outdoor unit ${i + 1}`}</b>}
       <div className="cz-row test">
-        <Field label="Test pressure, kPa" inputMode="decimal" value={numText(s.test.pressureKpa)} onChange={(v) => setTest(i, { pressureKpa: readNum(v) })} />
-        <Field label="Held, minutes" inputMode="decimal" value={numText(s.test.holdMinutes)} onChange={(v) => setTest(i, { holdMinutes: readNum(v) })} />
-        <Field label="Vacuum, microns" inputMode="decimal" value={numText(s.test.vacuumMicrons)} onChange={(v) => setTest(i, { vacuumMicrons: readNum(v) })} />
+        <NumField label="Test pressure, kPa" value={s.test.pressureKpa} onChange={(n) => setTest(i, { pressureKpa: n })} />
+        <NumField label="Held, minutes" value={s.test.holdMinutes} onChange={(n) => setTest(i, { holdMinutes: n })} />
+        <NumField label="Vacuum, microns" value={s.test.vacuumMicrons} onChange={(n) => setTest(i, { vacuumMicrons: n })} />
         <label className="cz-f">
           <span>Refrigerant</span>
           <select className="wb2-sel" value={s.test.refrigerant} onChange={(e) => setTest(i, { refrigerant: e.target.value })}>
@@ -745,11 +785,11 @@ export function CertWizard({
             ))}
           </select>
         </label>
-        <Field label="Added, kg" inputMode="decimal" value={numText(s.test.addedKg)} onChange={(v) => setTest(i, { addedKg: readNum(v) })} />
+        <NumField label="Added, kg" value={s.test.addedKg} onChange={(n) => setTest(i, { addedKg: n })} />
       </div>
       {s.test.vacuumMicrons !== null && s.test.vacuumMicrons > 500 && (
         <div className="cz-row">
-          <Field label="Manufacturer's vacuum figure, microns" inputMode="decimal" value={numText(s.test.manufacturerMicrons)} onChange={(v) => setTest(i, { manufacturerMicrons: readNum(v) })} />
+          <NumField label="Manufacturer's vacuum figure, microns" value={s.test.manufacturerMicrons} onChange={(n) => setTest(i, { manufacturerMicrons: n })} />
         </div>
       )}
     </div>
@@ -821,7 +861,7 @@ export function CertWizard({
         <div className="sw-qa">
           <span>
             <label htmlFor="cz-notcov">Also not covered</label>
-            <em>Electrical work is always listed</em>
+            <em>{live?.reading.byOthers && a.notCoveredExtra === live.reading.byOthers ? "From the quote's exclusions" : "Electrical work is always listed"}</em>
           </span>
           <input id="cz-notcov" className="wb2-fi" placeholder="Like the building's outdoor-air ventilation" value={a.notCoveredExtra} onChange={(e) => set({ notCoveredExtra: e.target.value })} />
         </div>

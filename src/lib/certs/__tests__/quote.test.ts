@@ -1,4 +1,4 @@
-import { isOutdoorModel, matchRequirement, modelsIn, readQuote, suggestBuilding } from "../quote";
+import { byOthersIn, isOutdoorModel, matchRequirement, modelsIn, readQuote, statedConnectedKw, suggestBuilding } from "../quote";
 import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2699, JOB_279, JOB_3326 } from "./fixtures/jobs";
 
 /* The wizard's first draft, read off six real jobs. Each is only a
@@ -149,5 +149,28 @@ describe("matchRequirement", () => {
     expect(matchRequirement("Refrigeration installed to AS/NZS 5149").clause).toBe("refrigerant");
     expect(matchRequirement("Ductwork to AS 4254").clause).toBe("ductwork");
     expect(matchRequirement("Acoustic compliance of the condenser").clause).toBe("noise");
+  });
+});
+
+describe("what the quote says about itself", () => {
+  it("1383: says 29 kW connected while its rows add to 19.8, so the wizard can say so", () => {
+    const q = readQuote(JOB_1383);
+    expect(q.statedConnectedKw).toBe(29);
+    expect(q.systems[0].indoors.reduce((t, r) => t + (r.capacityKw ?? 0) * r.qty, 0)).toBeCloseTo(19.8);
+  });
+
+  it("reads a stated total either way round, and nothing when there is none", () => {
+    expect(statedConnectedKw("VRF with a connected capacity of 24.5 kW")).toBe(24.5);
+    expect(statedConnectedKw(JOB_279)).toBeNull();
+  });
+
+  it("1383: its excluded building works become the certificate's by others, and its Wi-Fi adaptors don't", () => {
+    expect(readQuote(JOB_1383).byOthers).toBe("bulkheads, plasterboard and painting by others");
+  });
+
+  it("stops at the next heading, leaves electrical to its own line, and is empty with no exclusions", () => {
+    expect(byOthersIn("Excludes:\n- Painting\n- Electrical\nWarranty:\n- 5 years on painting touch-ups")).toBe("painting by others");
+    expect(byOthersIn("Exclusions\n- Scaffolding\n- Making good of ceilings")).toBe("scaffolding and making good by others");
+    expect(byOthersIn(JOB_279)).toBe("");
   });
 });

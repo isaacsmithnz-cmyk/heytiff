@@ -28,6 +28,7 @@ import {
   type PaymentStage,
 } from "@/lib/quotes/payment";
 import type { StoredProposal } from "@/lib/quotes/proposal-writer";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* THE QUOTE FACE — a proposal draft on the skeleton, with Tiff as supervisor.
 
@@ -139,36 +140,39 @@ export function JobQuoteFace({
     if ((kind !== "apply" && !words.trim()) || working) return;
     setWorking(kind);
     setError(null);
-    try {
-      const res = await fetch(ROUTE, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(
-          kind === "draft"
-            ? { job, brief: words, replace: redraft }
-            : kind === "change"
-              ? { job, change: words }
-              : { job, apply: true }
-        ),
-      });
-      const a = (await res.json()) as Answer;
-      if (!a.ok) {
-        setError(a.reason);
-        if (a.proposal) {
-          land(a.proposal);
-          setRedraft(false);
+    /* chosen out here, not inside the try below: React Compiler 1.0 cannot
+       lower a ternary inside a try/catch, and gives up on the whole
+       component when it meets one */
+    const ask =
+      kind === "draft"
+        ? { job, brief: words, replace: redraft }
+        : kind === "change"
+          ? { job, change: words }
+          : { job, apply: true };
+    await withCleanup(async () => {
+      try {
+        const res = await fetch(ROUTE, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(ask),
+        });
+        const a = (await res.json()) as Answer;
+        if (!a.ok) {
+          setError(a.reason);
+          if (a.proposal) {
+            land(a.proposal);
+            setRedraft(false);
+          }
+          return;
         }
-        return;
+        land(a.proposal);
+        setRedraft(false);
+        setEditing(null);
+        if (kind === "change") setChange("");
+      } catch {
+        setError("Tiff couldn't be reached. Try again.");
       }
-      land(a.proposal);
-      setRedraft(false);
-      setEditing(null);
-      if (kind === "change") setChange("");
-    } catch {
-      setError("Tiff couldn't be reached. Try again.");
-    } finally {
-      setWorking(null);
-    }
+    }, () => setWorking(null));
   };
 
   const save = (edit: Edit): Promise<boolean> => {

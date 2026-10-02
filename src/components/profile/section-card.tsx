@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { PreValidation } from "@/lib/staff/pre-validate";
 import { useSectionSave } from "./use-section-save";
@@ -148,13 +148,17 @@ export function SectionCard({
   /* Focus is a DOM concern, so it is the one effect here. Mount-only on
      purpose: the screen remounts the section for every ask (its key carries
      the nonce), so asking twice focuses twice, and a later re-render never
-     steals the cursor back. */
+     steals the cursor back. The props it reads are an effect event's, so the
+     effect is honestly empty-dep'd rather than silenced — a `react-hooks`
+     disable makes React Compiler refuse the whole card. */
   const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  const focusAsked = useEffectEvent(() => {
     if (!startEditing || !focusField) return;
     const el = root.current?.querySelector<HTMLElement>(`#${CSS.escape(focusField)}`);
     el?.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    focusAsked();
   }, []);
 
   const startEdit = () => {

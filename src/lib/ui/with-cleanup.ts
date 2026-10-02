@@ -11,13 +11,18 @@
 
    A `return` inside `work` leaves `work`, not the caller. That is the same
    thing only while nothing follows the old try/finally in the caller; every
-   site converted so far ended there. Check before you convert another. */
-export async function withCleanup(
-  work: () => Promise<void>,
+   site converted so far ended there. Check before you convert another.
+
+   What `work` returns comes back out, so a try/finally that WAS the end of a
+   function returning a value converts as `return withCleanup(…)` — a
+   `return x` inside `work` then returns x from the caller too, exactly as it
+   did from inside the old try. */
+export async function withCleanup<T>(
+  work: () => Promise<T>,
   cleanup: () => void
-): Promise<void> {
+): Promise<T> {
   try {
-    await work();
+    return await work();
   } finally {
     cleanup();
   }

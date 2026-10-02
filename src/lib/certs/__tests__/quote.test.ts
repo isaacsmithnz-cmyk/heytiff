@@ -192,3 +192,10 @@ describe("1212: where the outdoor unit went", () => {
     expect(q.systems[0].indoors.map((r) => r.location)).toEqual(["Kitchen Area"]);
   });
 });
+
+describe("Section J, under either edition", () => {
+  it("matches a list that says J5 (BCA 2019) or J6 (NCC 2022)", () => {
+    expect(matchRequirement("Installation in accordance with Part J5 of the BCA").clause).toBe("j5");
+    expect(matchRequirement("Air-conditioning complies with Part J6 of NCC 2022").clause).toBe("j5");
+  });
+});

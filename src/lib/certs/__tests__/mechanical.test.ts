@@ -75,11 +75,11 @@ describe("the golden jobs", () => {
     expect(c.indoorKw).toBeCloseTo(19.8);
     /* ductwork went in, so Part J5 says it is insulated and sealed too */
     expect(c.statements[2].text).toBe(
-      "The installation complies with Part J5 of the BCA: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
+      "The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
     );
     const noDucts = buildCertificate({ ...a, installed: { ...a.installed, ductwork: false } });
     expect(noDucts.statements[2].text).toBe(
-      "The installation complies with Part J5 of the BCA: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied."
+      "The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied."
     );
   });
 
@@ -175,11 +175,11 @@ describe("the statements", () => {
 });
 
 describe("the paper's facts", () => {
-  it("name the certificate after what it covers", () => {
-    expect(certTitle(AC)).toBe("Air conditioning compliance certificate");
-    expect(certTitle({ ac: false, vent: true })).toBe("Ventilation compliance certificate");
-    expect(certTitle(BOTH)).toBe("Air conditioning and ventilation compliance certificate");
-    expect(certFileName(AC, "74/10 Etham Avenue", "1383")).toBe("Air conditioning certificate – 74-10 Etham Avenue – job 1383.pdf");
+  it("call every certificate a mechanical compliance certificate, whatever it covers", () => {
+    expect(certTitle(AC)).toBe("Mechanical compliance certificate");
+    expect(certTitle({ ac: false, vent: true })).toBe("Mechanical compliance certificate");
+    expect(certTitle(BOTH)).toBe("Mechanical compliance certificate");
+    expect(certFileName(BOTH, "74/10 Etham Avenue", "1383")).toBe("Mechanical compliance certificate – 74-10 Etham Avenue – job 1383.pdf");
   });
 
   it("print a class only when one was picked, and a serial column only when there is a serial", () => {

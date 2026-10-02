@@ -44,7 +44,7 @@ function render(a: CertAnswers = ANSWERS) {
 describe("CertificatePaper", () => {
   it("titles itself after what it covers and the street, and addresses the builder", () => {
     const html = render();
-    expect(html).toContain("Air conditioning and ventilation compliance certificate");
+    expect(html).toContain("Mechanical compliance certificate");
     expect(html).toContain("<h1>Lv 3 Suite 4/44-54 Botany Road</h1>");
     expect(html).toContain("Attention Lisa Harper");
     expect(html).toContain("ARC authorisation AU12345");

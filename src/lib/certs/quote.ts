@@ -314,7 +314,7 @@ export type Match = { clause: ClauseKey | null; notOurs: boolean };
 const MATCHERS: readonly [RegExp, ClauseKey | "smoke"][] = [
   [/fire mode|specification 21|spec\.? ?21\b|shuts? down/i, "fireMode"],
   [/stair pressuri|zone pressuri|smoke (exhaust|control system|management system|spill)/i, "smoke"],
-  [/\bJ5\b|part j\b|section j\b|energy efficiency/i, "j5"],
+  [/\bJ[56]\b|part j\b|section j\b|energy efficiency/i, "j5"],
   [/kitchen (exhaust|hood)|commercial kitchen/i, "kitchenExhaust"],
   [/car ?park|carbon monoxide|\bCO\b (monitor|detect)/i, "carPark"],
   [/air balanc|balance report|commissioning report|test(ing)? and balanc/i, "airBalance"],

@@ -26,16 +26,20 @@ export const CERT_LIBRARY_VERSION = "mech-2026.10";
 
 export type Covers = { ac: boolean; vent: boolean };
 
-export function certTitle(c: Covers): string {
-  if (c.ac && c.vent) return "Air conditioning and ventilation compliance certificate";
-  return c.vent ? "Ventilation compliance certificate" : "Air conditioning compliance certificate";
+/* ONE NAME FOR EVERY CERTIFICATE (Isaac, 2026-10-02): "Mechanical
+   compliance certificate" covers air conditioning, ventilation or both, so
+   the heading never needs to change with the job. What it covers is said
+   once, in the figures row ("Certifying"). */
+export const CERT_TITLE = "Mechanical compliance certificate";
+
+export function certTitle(_c?: Covers): string {
+  return CERT_TITLE;
 }
 
-/** The file's name, from what it covers and the site's first line. */
-export function certFileName(c: Covers, site: string, jobNumber: string | null): string {
-  const kind = c.ac && c.vent ? "Air conditioning and ventilation" : c.vent ? "Ventilation" : "Air conditioning";
+/** The file's name, from the site's first line and the job. */
+export function certFileName(_c: Covers, site: string, jobNumber: string | null): string {
   const where = site.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 80);
-  return [`${kind} certificate`, where || null, jobNumber ? `job ${jobNumber}` : null].filter(Boolean).join(" – ") + ".pdf";
+  return [CERT_TITLE, where || null, jobNumber ? `job ${jobNumber}` : null].filter(Boolean).join(" – ") + ".pdf";
 }
 
 /* THE BUILDING, in words that are true for their class. An address can't
@@ -148,7 +152,7 @@ export const CLAUSE_NAME: Record<ClauseKey, string> = {
   as16682: "Mechanical ventilation, AS 1668.2",
   as1668: "AS/NZS 1668.1 and AS 1668.2",
   fireMode: "Fire mode, Specification 21",
-  j5: "BCA Part J5",
+  j5: "BCA Section J, air-conditioning and ventilation",
   kitchenExhaust: "Kitchen exhaust",
   carPark: "Car park ventilation",
   airBalance: "Air balance report",
@@ -397,9 +401,13 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
       }
       return "The system comprises individual room units, each rated at not more than 1000 L/s, and is not part of a smoke control system, so it is not required to shut down in fire mode under Specification 21 and AS/NZS 1668.1.";
     case "j5":
+      /* SECTION J, NOT A PART NUMBER. Air-conditioning and ventilation is
+         Part J5 in BCA 2019 and Part J6 in NCC 2022, where J5 became
+         building sealing; certifiers' lists still say J5. Naming the
+         subject is true under either edition. */
       return a.installed.ductwork
-        ? "The installation complies with Part J5 of the BCA: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
-        : "The installation complies with Part J5 of the BCA: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied.";
+        ? "The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
+        : "The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied.";
     case "kitchenExhaust":
       return "The kitchen exhaust hood and ductwork are installed in accordance with AS/NZS 1668.1 and AS 1668.2.";
     case "carPark":

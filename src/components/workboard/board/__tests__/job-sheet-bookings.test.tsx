@@ -207,7 +207,7 @@ const visits = () => within(document.querySelector("#jcsec-visits") as HTMLEleme
 const open = async (extra: Partial<Parameters<typeof JobSheet>[0]> = {}) => {
   render(<JobSheet row={row()} {...props} {...extra} />);
   await screen.findByText("Rose Bay NSW 2029");
-  if (!extra.openBookIn && !extra.openClear) await userEvent.click(screen.getByRole("tab", { name: "Visits" }));
+  if (!extra.openBookIn && !extra.openClear) await userEvent.click(screen.getByRole("button", { name: /^Installation/ }));
 };
 
 beforeEach(() => {
@@ -270,7 +270,7 @@ describe("Book in on the card (D-1)", () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ booked: [] }), focusRemoteId: null });
     readJobRecord.mockResolvedValue(record(bookings()));
     await open({ openBookIn: true });
-    expect(screen.getByRole("tab", { name: "Visits" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: /^Installation/ })).toHaveAttribute("aria-pressed", "true");
     expect(await visits().findByRole("group", { name: "Book in job 3342" })).toBeInTheDocument();
   });
 });

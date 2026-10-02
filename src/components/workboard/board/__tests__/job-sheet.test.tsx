@@ -386,8 +386,14 @@ const props = {
     face, where the old suite waited on the Visits heading. */
 const detailLanded = () => screen.findByText("Rose Bay NSW 2029");
 
+/* The rail holds Summary, Timeline, Billing, Photos and Files; the quote,
+   the visits and the checklist open from their steps on the progress line.
+   The old face names still read here, so a test says what it opens. */
+const RAIL: Record<string, string> = { Diary: "Timeline", Money: "Billing", Documents: "Files" };
+const STEP: Record<string, RegExp> = { Visits: /^Installation/, Checklist: /^Materials sorted/, Quote: /^Quoted/ };
 const openTab = async (name: string) => {
-  await userEvent.click(screen.getByRole("tab", { name }));
+  if (STEP[name]) await userEvent.click(screen.getByRole("button", { name: STEP[name] }));
+  else await userEvent.click(screen.getByRole("tab", { name: RAIL[name] ?? name }));
 };
 
 /** Queries scoped to one face's panel. The inactive panels are `hidden` (so
@@ -409,23 +415,24 @@ const bodyLayers = () =>
 
 /* ── the anatomy ── */
 
-describe("the card is tabs", () => {
-  it("wears the fixed tab set, Summary first, and lands on it", async () => {
+describe("the card is a progress line over a rail", () => {
+  it("wears the fixed rail, Summary first, and lands on it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} moneyVisible manage />);
     await detailLanded();
 
     expect(
       screen.getAllByRole("tab").map((t) => t.textContent)
-    ).toEqual([
-      "Summary",
-      "Diary",
-      "Quote",
-      "Money",
-      "Visits",
-      "Checklist",
-      "Photos",
-      "Documents",
+    ).toEqual(["Summary", "Timeline", "Billing", "Photos", "Files"]);
+    const line = within(screen.getByRole("navigation", { name: "Where the job is up to" }));
+    expect(line.getAllByRole("button").map((b) => b.querySelector("b")?.textContent)).toEqual([
+      "Enquiry",
+      "Quoted",
+      "Accepted",
+      "Deposit paid",
+      "Materials sorted",
+      "Installation",
+      "Paid",
     ]);
     expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute(
       "aria-selected",
@@ -440,16 +447,21 @@ describe("the card is tabs", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Billing" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Deposit paid/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Paid/ })).toBeNull();
   });
 
-  /* THE QUOTE TAB IS OFFICE WORK and spends API credit on every draft: it
-     is there for whoever runs the board, absent for everyone else. */
-  it("has no Quote tab without Workboard manage", async () => {
+  /* THE QUOTE IS OFFICE WORK and spends API credit on every draft: it is
+     there for whoever runs the board. For everyone else the quote steps
+     open the summary. */
+  it("opens the summary from Quoted without Workboard manage", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} moneyVisible />);
     await detailLanded();
-    expect(screen.queryByRole("tab", { name: "Quote" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /^Quoted/ }));
+    expect(document.querySelector("#jcsec-quote")).toBeNull();
+    expect(document.querySelector("#jcsec-summary")).not.toHaveAttribute("hidden");
   });
 
   /* A DOOR THAT KNOWS WHAT IT CAME FOR opens the card on that face — the
@@ -458,7 +470,7 @@ describe("the card is tabs", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} initialTab="diary" />);
     await detailLanded();
-    expect(screen.getByRole("tab", { name: "Diary" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Timeline" })).toHaveAttribute("aria-selected", "true");
     expect(document.querySelector("#jcsec-diary")).not.toHaveAttribute("hidden");
     expect(document.querySelector("#jcsec-summary")).toHaveAttribute("hidden");
   });
@@ -1098,7 +1110,7 @@ describe("the attention strip", () => {
     expect(strip.getByText(/Flagged in ServiceM8/)).toBeInTheDocument();
 
     await userEvent.click(strip.getByRole("button", { name: /Open in the diary/ }));
-    expect(screen.getByRole("tab", { name: "Diary", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Timeline", selected: true })).toBeInTheDocument();
     const lit = face("diary").getByText("Send a 20% deposit invoice").closest(".wb2-ev");
     expect(lit).toHaveClass("flag");
   });
@@ -1376,7 +1388,7 @@ describe("notes to ServiceM8 on the card", () => {
 
     const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
     await userEvent.click(strip.getByRole("button", { name: "Reply" }));
-    expect(screen.getByRole("tab", { name: "Diary", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Timeline", selected: true })).toBeInTheDocument();
     const f = face("diary");
     await userEvent.type(f.getByPlaceholderText(NOTE_WORDS.door.replyPlaceholder), "on my way");
     await userEvent.click(f.getByRole("button", { name: NOTE_WORDS.door.sendReply }));
@@ -2367,7 +2379,7 @@ describe("a card opened from a progress claim", () => {
     render(<JobSheet row={row({ number: "2380A" })} {...props} moneyVisible />);
 
     expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Money" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Billing" })).toHaveAttribute(
       "aria-selected",
       "true"
     );
@@ -2787,7 +2799,7 @@ describe("money stays behind its grant", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
 
-    expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Billing" })).toBeNull();
     expect(screen.queryByText(/Job value/)).toBeNull();
   });
 

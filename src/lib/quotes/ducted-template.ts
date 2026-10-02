@@ -9,6 +9,7 @@ import {
   type ReturnSize,
   type Visit,
 } from "./buildup";
+import { brandOfCode, wrongBrand, type Brand } from "./brand";
 import { rollMetresOf } from "./components";
 import { CONSUMABLES_CENTS, PAIR_COIL_ROLL, VOLTEX_35A_CENTS, type SplitFacts } from "./split-template";
 
@@ -41,14 +42,14 @@ export type Priced = { buyCents: number; supplierKey: string; name: string };
 /** A code's price to buy: the preferred or lowest supplier's. */
 export type PriceOf = (code: string) => Priced | null;
 
-/** Whose unit it is, by the indoor's code: Daikin's start with F (FDYAN71,
-    FBA71), Mitsubishi's with PE (PEA-M125HAA). Decides the controller. */
-export const brandOf = (indoor: string): "daikin" | "mitsubishi" => (/^F[A-Z]/i.test(indoor) ? "daikin" : "mitsubishi");
+/** Whose system it is, by the indoor's code (FDYAN71 Daikin, PEA-M125HAA
+    Mitsubishi); null when we can't tell, and nothing is then filtered. */
+export const brandOf = (indoor: string): Brand | null => brandOfCode(indoor);
 
 export type DuctedFacts = {
   indoor: string;
   /** a person's call over the code's guess */
-  brand?: "daikin" | "mitsubishi";
+  brand?: Brand;
   outdoor: string;
   outdoorWidthMm: number | null;
   outdoorWeightKg: number | null;
@@ -140,6 +141,9 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf, materialMarkupPct 
   const lines: BuildLine[] = [];
   const missing: string[] = [];
   const DUCT = "Ductwork and grilles";
+  /* every part must fit the system's brand: another brand's is left out
+     and named, never priced in */
+  const brand = f.brand ?? brandOf(f.indoor);
   const add = (
     key: string,
     group: string,
@@ -153,6 +157,11 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf, materialMarkupPct 
       missing.push(code);
       return;
     }
+    const other = wrongBrand(brand, code, p.name);
+    if (other) {
+      missing.push(`${code} is ${other}, this is a ${brand} system`);
+      return;
+    }
     lines.push({ key, group, name: p.name, code, supplierKey: p.supplierKey, qty, unitBuyCents: p.buyCents, kind, ...extra });
   };
   const allowance = (key: string, group: string, name: string, qty: number, unitBuyCents: number, extra: Partial<BuildLine> = {}) =>
@@ -162,24 +171,28 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf, materialMarkupPct 
   add("indoor", "Units", f.indoor, 1, "unit");
   add("outdoor", "Units", f.outdoor, 1, "unit", { swap: "outdoor" });
 
-  /* zoning — or the unit's own controller when there is none */
+  /* zoning — or the unit's own controller when there is none. The zone kits
+     are Mitsubishi's; a Daikin asking for one is told so, once. */
   const z = Math.max(0, Math.round(f.zones));
   const outlets = Math.max(z, Math.round(f.outlets ?? z));
-  if (f.zoning === "me24") add("zone-kit", "Zoning", "PAC-ZC80L-E", 1, "material", { swap: "zoning" });
-  if (f.zoning === "meLinear") {
+  const zoningFits = f.zoning === "none" || brand !== "daikin";
+  if (!zoningFits) missing.push("a zone kit for a Daikin (the zoning kits here are Mitsubishi's)");
+  if (zoningFits && f.zoning === "me24") add("zone-kit", "Zoning", "PAC-ZC80L-E", 1, "material", { swap: "zoning" });
+  if (zoningFits && f.zoning === "meLinear") {
     add("zone-kit", "Zoning", z > 4 ? "PAC-ZC10L240C-A" : "PAC-ZC04L240C-A", 1, "material", { swap: "zoning" });
     add("zone-controller", "Zoning", "PAR-ZM01A-A", 1, "material");
     add("zone-receiver", "Zoning", "PAR-ZR01R-A", Math.ceil(z / 10), "material", { because: "any wireless sensor needs the receiver" });
     add("zone-sensors", "Zoning", "PAR-ZR01S-A", z, "material", { because: "a sensor per zone for its own temperature" });
     allowance("zone-batteries", "Zoning", "Batteries, 2 × AAA per sensor (not included)", z, 300);
   }
-  if (f.zoning !== "none" && z > 0 && !reuse.zoneMotors) {
+  if (zoningFits && f.zoning !== "none" && z > 0 && !reuse.zoneMotors) {
     add("zone-dampers", "Zoning", `MDM${f.zoneMm}L`, z, "material");
     add("zone-cables", "Zoning", "RZCAB12", z, "material", { because: "a cable per zone, motor to kit" });
   }
-  const brand = f.brand ?? brandOf(f.indoor);
-  if (f.zoning === "none") add("controller", "Zoning", brand === "daikin" ? "BRC1E63" : "PAR-41MAAM", 1, "material", { because: "no zone kit, so the unit's own wall controller" });
-  else if (brand === "daikin") missing.push("a zone kit for a Daikin (the zoning kits here are Mitsubishi's)");
+  if (f.zoning === "none") {
+    if (brand) add("controller", "Zoning", brand === "daikin" ? "BRC1E63" : "PAR-41MAAM", 1, "material", { because: "no zone kit, so the unit's own wall controller" });
+    else missing.push("the unit's wall controller (the brand isn't known)");
+  }
 
   /* supply ductwork, outlets and the return — or the old ductwork kept */
   let ret: ReturnSize | null = null;

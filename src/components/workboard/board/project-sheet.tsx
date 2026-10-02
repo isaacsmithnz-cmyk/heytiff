@@ -502,14 +502,17 @@ function DiaryRow({
   }
   const anyTitle = people.some((p) => p.title);
 
+  /* read into a name before the `??` below: React Compiler 1.0 refuses a
+     logical whose left side holds a `?.` or a `??`, and gives up on the
+     whole component when it meets one */
+  const bookedWindow = windowOf(diary?.bookedStart ?? null, diary?.bookedEnd ?? null);
   const right = past
     ? diary && diary.sessionMinutes > 0
       ? fmtMinutesAsHours(diary.sessionMinutes)
       : trip?.actualHours != null
         ? hoursLabel(trip.actualHours)
         : "—"
-    : windowOf(diary?.bookedStart ?? null, diary?.bookedEnd ?? null) ??
-      (trip?.status === "booked" ? "booked" : trip ? "to place" : "");
+    : bookedWindow ?? (trip?.status === "booked" ? "booked" : trip ? "to place" : "");
 
   const notes = trip ? toLines(trip.notes) : [];
   /* A project runs across years — job 279's diary starts in 2024 — so a day

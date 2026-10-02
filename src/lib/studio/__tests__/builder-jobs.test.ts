@@ -30,6 +30,7 @@ import {
   allocationsOf,
   chooseOutdoor,
   deleteZone,
+  handBackToProposal,
   moveAllocation,
   moveZone,
   outdoorsListing,
@@ -43,7 +44,6 @@ import {
   swapAllocation,
   systemCheck,
   trayItems,
-  useProposal,
   wrongRoomPlacements,
   zonesToAdd,
 } from "../builder";
@@ -684,7 +684,7 @@ describe("the five bedrooms on one multi (the mock's System 2)", () => {
     expect(allocationsOf(sysOf(d, made.systemId)).filter((a) => a.role === "idu")).toHaveLength(1);
     expect(oduOf(d, made.systemId)).toBe("MXZ-6F120VGD");
     // handed back: one head under one zone, and a multi outdoor still on it, stays a multi
-    d = useProposal(d, pack, made.systemId);
+    d = handBackToProposal(d, pack, made.systemId);
     expect(oduOf(d, made.systemId)).toBe("MXZ-2F52VGD");
     expect(sysOf(d, made.systemId).settings.oduChosen).toBeUndefined();
     // and with the last head gone the system stays, empty
@@ -768,7 +768,7 @@ describe("a zone moves with its units (the mock's step 12)", () => {
     expect(oduOf(d, t.two)).not.toBe(before);
     expect(combinationWord(d, pack, sysOf(d, t.two))).toBe("Valid");
     // one press: the only outdoor in the pack that takes an 80 and a 25
-    d = useProposal(d, pack, t.one);
+    d = handBackToProposal(d, pack, t.one);
     expect(oduOf(d, t.one)).toBe("MXZ-6F120VGD");
     expect(combinationWord(d, pack, sysOf(d, t.one))).toBe("Valid");
     expect(sysOf(d, t.one).type).toBe("multi-split");

@@ -532,6 +532,38 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Everything standing between these answers and an issue, in the order the
     wizard asks, each with the step it is about. Empty means it can issue. */
+const cap1 = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/* WHAT WAS ASKED AGAINST WHAT WAS INSTALLED. A builder's list is matched to
+   a statement by rule, but a statement is only true of works on this
+   certificate: a list that asks for exhaust fans on an air conditioning job,
+   or ductwork where none went in, would otherwise certify something that
+   isn't there. Each gap is said, and blocks the issue until it is answered
+   (marked not applicable with a reason, or the missing works added). */
+function notInstalled(k: ClauseKey, a: CertAnswers): string | null {
+  const vent = a.covers.vent && a.fans.length > 0;
+  const ac = a.covers.ac && a.systems.length > 0;
+  switch (k) {
+    case "ventAirflow":
+    case "ventDischarge":
+    case "as16682":
+    case "kitchenExhaust":
+    case "carPark":
+      return vent ? null : `${CLAUSE_NAME[k].toLowerCase()}, but no ventilation is on this certificate`;
+    case "refrigerant":
+    case "arc":
+    case "condensate":
+    case "fireMode":
+      return ac ? null : `${CLAUSE_NAME[k].toLowerCase()}, but no air conditioning is on this certificate`;
+    case "ductwork":
+      return a.installed.ductwork ? null : "ductwork, but no ductwork is ticked as installed";
+    case "fireRated":
+      return a.installed.fireRated ? null : "fire-rated penetrations, but none are ticked as installed";
+    default:
+      return null;
+  }
+}
+
 export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
   const out: CertProblem[] = [];
   const add = (field: CertProblemField, text: string) => out.push({ field, text });
@@ -584,6 +616,10 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
     if (r.answer === "clause" && !r.clause) add("requirements", `Choose a statement for ${which}, write one, or mark it not applicable.`);
     if (r.answer === "own" && missing(r.own)) add("requirements", `Write the statement for ${which}.`);
     if (r.answer === "na" && missing(r.reason)) add("requirements", `Say why ${which} doesn't apply.`);
+    if (r.answer === "clause" && r.clause) {
+      const gap = notInstalled(r.clause, a);
+      if (gap) add("requirements", `${cap1(which)} asks for ${gap}. Mark it not applicable with a reason, or add what's missing.`);
+    }
   });
 
   const clauses = clausesFor(a);

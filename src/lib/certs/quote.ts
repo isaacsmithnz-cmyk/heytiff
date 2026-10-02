@@ -324,8 +324,10 @@ const MATCHERS: readonly [RegExp, ClauseKey | "smoke"][] = [
   [/5149|refrigerat/i, "refrigerant"],
   [/4254|ductwork/i, "ductwork"],
   [/penetration|fire[\s-]*rated|fire[\s-]*stop/i, "fireRated"],
-  [/airflow|air flow|l\/s|exhaust fan/i, "ventAirflow"],
+  /* discharge first: "exhaust fans discharge to outdoor air" is about where
+     the air goes, not how much */
   [/discharge/i, "ventDischarge"],
+  [/airflow|air flow|l\/s|exhaust fan/i, "ventAirflow"],
   [/approved (plans|documents|drawings|design)|construction certificate|complying development|conditions? of (consent|approval)|development consent/i, "approved"],
   [/manufacturer/i, "manufacturer"],
   [/condensate/i, "condensate"],

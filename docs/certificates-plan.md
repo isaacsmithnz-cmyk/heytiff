@@ -669,3 +669,17 @@ no longer asks for kPa, hold time or microns. It still asks for the
 refrigerant and the kg added, which print after the statement, once, or per
 outdoor unit when they differ. The figure fields stay in `CircuitTest` so a
 version saved before still reads; nothing prints them.
+
+### Where the standards come from (2026-10-02)
+
+Every standard and statement lives in the wording library
+(`src/lib/certs/mechanical.ts`, `CERT_LIBRARY_VERSION`), approved once by the
+owner. Tiff never looks a standard up: the only model call reads what the
+builder sent (a pasted email or an attached list), and rules match each item
+to a statement in the library. A new standard is added to the library, as a
+new version that is approved again.
+
+Each matched item is checked against what is on the certificate. An item
+that asks for ventilation on an air conditioning job, or for ductwork or
+fire-rated penetrations that aren't ticked as installed, blocks the issue
+until it is marked not applicable with a reason, or the works are added.

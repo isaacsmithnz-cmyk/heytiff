@@ -326,3 +326,30 @@ describe("no padding", () => {
     expect(matchRequirement("Installed in accordance with AS 1668.2 and the approved plans").clause).toBe("as1668");
   });
 });
+
+describe("what was asked against what was installed", () => {
+  const ask = (text: string): Requirement => ({ text, answer: "clause", clause: matchRequirement(text).clause, own: "", reason: "" });
+
+  it("refuses to certify exhaust fans on an air conditioning-only job, and ductwork that isn't ticked", () => {
+    const a = answersFor(JOB_3326, AC, "office", {
+      requirements: [ask("Exhaust fans discharge to outdoor air"), ask("Ductwork installed to AS 4254")],
+      installed: { ductwork: false, fireRated: false, fireStopProduct: "", condensatePump: false },
+    });
+    expect(certProblems(a, FACTS)).toEqual([
+      "Requirement 1 asks for discharge to outdoor air, but no ventilation is on this certificate. Mark it not applicable with a reason, or add what's missing.",
+      "Requirement 2 asks for ductwork, but no ductwork is ticked as installed. Mark it not applicable with a reason, or add what's missing.",
+    ]);
+  });
+
+  it("is satisfied once the item is marked not applicable with a reason", () => {
+    const a = answersFor(JOB_3326, AC, "office", {
+      requirements: [{ ...ask("Exhaust fans discharge to outdoor air"), answer: "na", reason: "No exhaust fans in our scope." }],
+    });
+    expect(certProblems(a, FACTS)).toEqual([]);
+  });
+
+  it("raises nothing when what was asked is on the certificate", () => {
+    const a = answersFor(JOB_1383, AC, "apartment", { requirements: futureCert(), fireMode: "individual", fireModeRatingsChecked: true });
+    expect(certProblems(a, FACTS)).toEqual([]);
+  });
+});

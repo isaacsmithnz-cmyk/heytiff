@@ -127,7 +127,7 @@ describe("what the quote says about itself", () => {
 });
 
 describe("issuing", () => {
-  it("waits for the test figures, then issues and offers what happens next", async () => {
+  it("waits for the refrigerant charge and the room, then issues and offers what happens next", async () => {
     const fetchMock = jest.fn(async () => ({
       json: async () => ({ ok: true, versionId: "v-1", version: 1, documentId: "d-1", fileName: "Air conditioning certificate – Lv 3 – job 3326.pdf" }),
     }));
@@ -136,7 +136,8 @@ describe("issuing", () => {
     await screen.findByRole("tab", { name: "Sign" });
     await tab("Sign");
     expect(screen.getByRole("button", { name: "Issue the certificate" })).toBeDisabled();
-    expect(panel("sign").getByRole("button", { name: /Enter the test pressure/ })).toBeInTheDocument();
+    expect(panel("sign").getByRole("button", { name: /Enter the refrigerant added/ })).toBeInTheDocument();
+    expect(panel("sign").queryByRole("button", { name: /test pressure|vacuum/i })).toBeNull();
 
     /* the quote names the unit but not the room it went in */
     expect(panel("sign").getByRole("button", { name: /Say where indoor unit 1/ })).toBeInTheDocument();
@@ -147,9 +148,7 @@ describe("issuing", () => {
 
     await tab("Checks");
     const checks = panel("checks");
-    await userEvent.type(checks.getByLabelText("Test pressure, kPa"), "4150");
-    await userEvent.type(checks.getByLabelText("Held, minutes"), "30");
-    await userEvent.type(checks.getByLabelText("Vacuum, microns"), "350");
+    expect(checks.queryByLabelText(/Test pressure|Vacuum/)).toBeNull();
     await userEvent.type(checks.getByLabelText("Added, kg"), "0");
     await tab("Sign");
     const issue = screen.getByRole("button", { name: "Issue the certificate" });

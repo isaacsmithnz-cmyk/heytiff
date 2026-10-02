@@ -113,20 +113,25 @@ describe("the golden jobs", () => {
 });
 
 describe("the statements", () => {
-  it("print the test figures once when every circuit matches, and per outdoor unit when they differ", () => {
+  it("state the pressure test and vacuum as passed, with no gauge figures, and the charge once or per outdoor unit", () => {
     const a = answersFor(JOB_1245, AC, "house");
     const one = statementsFor(a).statements[0].text;
-    expect(one).toContain("Tested at 4150 kPa for 30 minutes, evacuated to 350 microns, R32, no additional charge needed for the pipe length installed.");
+    expect(one).toBe(
+      "Each refrigerant circuit was pressure tested with oxygen-free nitrogen and held without loss, evacuated to the manufacturer's specified vacuum, " +
+        "then charged and commissioned in accordance with AS/NZS 5149.2 and the ARC Refrigerant Handling Code of Practice 2025. " +
+        "Refrigerant R32, no additional charge needed for the pipe length installed."
+    );
+    expect(one).not.toMatch(/kPa|microns|minutes/);
     a.systems[1].test = { ...TESTED, addedKg: 0.4 };
     const two = statementsFor(a).statements[0].text;
-    expect(two).toContain("OUT-1: Tested at 4150 kPa");
-    expect(two).toContain("OUT-2: Tested at 4150 kPa for 30 minutes, evacuated to 350 microns, 0.4 kg of R32 added.");
+    expect(two).toContain("OUT-1: Refrigerant R32, no additional charge needed");
+    expect(two).toContain("OUT-2: Refrigerant R32, 0.4 kg added.");
   });
 
-  it("say a vacuum above 500 microns was within the manufacturer's figure", () => {
+  it("never prints a gauge figure, even one saved on an older version", () => {
     const a = answersFor(JOB_3326, AC, "office");
     a.systems[0].test = { ...TESTED, vacuumMicrons: 700, manufacturerMicrons: 1000 };
-    expect(statementsFor(a).statements[0].text).toContain("evacuated to 700 microns, within the manufacturer's figure of 1000");
+    expect(statementsFor(a).statements[0].text).not.toMatch(/700|1000|4150/);
     expect(certProblems(a, FACTS)).toEqual([]);
   });
 
@@ -204,22 +209,10 @@ describe("the paper's facts", () => {
 describe("certProblemList", () => {
   const fields = (a: CertAnswers, f: CertFacts = FACTS) => certProblemList(a, f).map((p) => p.field);
 
-  it("asks for every test figure, typed and never assumed", () => {
+  it("asks only for the refrigerant and the charge: the pressure test and vacuum print as passed", () => {
     const a = answersFor(JOB_3326, AC, "office");
     a.systems[0].test = { pressureKpa: null, holdMinutes: null, vacuumMicrons: null, manufacturerMicrons: null, refrigerant: "", addedKg: null };
-    expect(certProblems(a, FACTS)).toEqual([
-      "Enter the test pressure for MUZ-AP42VGD2-A2.",
-      "Enter how long MUZ-AP42VGD2-A2's test pressure held.",
-      "Enter the vacuum MUZ-AP42VGD2-A2 reached.",
-      "Enter MUZ-AP42VGD2-A2's refrigerant.",
-      "Enter the refrigerant added to MUZ-AP42VGD2-A2, or 0.",
-    ]);
-  });
-
-  it("refuses a vacuum above 500 microns without the manufacturer's figure", () => {
-    const a = answersFor(JOB_3326, AC, "office");
-    a.systems[0].test = { ...TESTED, vacuumMicrons: 800 };
-    expect(fields(a)).toEqual(["tests"]);
+    expect(certProblems(a, FACTS)).toEqual(["Enter MUZ-AP42VGD2-A2's refrigerant.", "Enter the refrigerant added to MUZ-AP42VGD2-A2, or 0."]);
   });
 
   it("asks for models a quote didn't give, and never for a capacity, which isn't printed", () => {

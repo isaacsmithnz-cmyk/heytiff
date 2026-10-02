@@ -658,3 +658,14 @@ quote reader and the matcher in `quote.test.ts`, the paper in
 `components/certs/__tests__/certificate-paper.test.tsx`, the wizard in
 `cert-wizard.test.tsx`, and the Documents face's rows in
 `job-documents-face.test.tsx`.
+
+### Pressure test and vacuum (2026-10-02)
+
+The refrigerant statement states the pressure test and vacuum as a result,
+not figures: "pressure tested with oxygen-free nitrogen and held without
+loss, evacuated to the manufacturer's specified vacuum, then charged and
+commissioned in accordance with AS/NZS 5149.2 and the ARC code". The wizard
+no longer asks for kPa, hold time or microns. It still asks for the
+refrigerant and the kg added, which print after the statement, once, or per
+outdoor unit when they differ. The figure fields stay in `CircuitTest` so a
+version saved before still reads; nothing prints them.

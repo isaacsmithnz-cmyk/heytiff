@@ -59,7 +59,15 @@ const COMMERCIAL: readonly Building[] = ["office", "shop", "other"];
 
 /* ── the equipment ─────────────────────────────────────────────────────── */
 
-/** One circuit's test results, typed on site and never assumed. */
+/** One circuit's refrigerant, typed on site and never assumed.
+
+    THE PRESSURE TEST AND THE VACUUM ARE A RESULT, NOT FIGURES (Isaac,
+    2026-10-02). The certificate states that the circuit held under
+    nitrogen and was evacuated to the manufacturer's specified vacuum, which
+    is true of every circuit done right and is what the certifier relies on;
+    the gauge readings stay on the job. The figure fields stay in the type
+    so a version saved before still reads, but nothing asks for them or
+    prints them. */
 export type CircuitTest = {
   pressureKpa: number | null;
   holdMinutes: number | null;
@@ -328,21 +336,13 @@ export type Statement = {
 };
 
 function testLine(t: CircuitTest): string {
-  const parts = [
-    `Tested at ${fmtNum(t.pressureKpa ?? 0)} kPa for ${fmtNum(t.holdMinutes ?? 0)} minutes`,
-    t.vacuumMicrons !== null && t.vacuumMicrons > 500 && t.manufacturerMicrons !== null
-      ? `evacuated to ${fmtNum(t.vacuumMicrons)} microns, within the manufacturer's figure of ${fmtNum(t.manufacturerMicrons)}`
-      : `evacuated to ${fmtNum(t.vacuumMicrons ?? 0)} microns`,
-  ];
-  const charge =
-    (t.addedKg ?? 0) === 0
-      ? `${t.refrigerant}, no additional charge needed for the pipe length installed`
-      : `${fmtNum(t.addedKg ?? 0)} kg of ${t.refrigerant} added`;
-  return `${parts.join(", ")}, ${charge}.`;
+  return (t.addedKg ?? 0) === 0
+    ? `Refrigerant ${t.refrigerant}, no additional charge needed for the pipe length installed.`
+    : `Refrigerant ${t.refrigerant}, ${fmtNum(t.addedKg ?? 0)} kg added.`;
 }
 
-/** The test figures, once when every circuit had the same, per outdoor unit
-    when they differ. */
+/** The refrigerant and charge, once when every circuit had the same, per
+    outdoor unit when they differ. */
 function testLines(systems: readonly AcSystem[]): string {
   if (systems.length === 0) return "";
   const lines = systems.map((s) => testLine(s.test));
@@ -356,9 +356,9 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
   switch (k) {
     case "refrigerant":
       return (
-        "Each refrigerant circuit was strength and tightness tested with oxygen-free nitrogen, evacuated, " +
-        "charged and commissioned in accordance with AS/NZS 5149.2 and the ARC Refrigerant Handling Code of " +
-        `Practice 2025. ${testLines(a.systems)}`
+        "Each refrigerant circuit was pressure tested with oxygen-free nitrogen and held without loss, evacuated " +
+        "to the manufacturer's specified vacuum, then charged and commissioned in accordance with AS/NZS 5149.2 " +
+        `and the ARC Refrigerant Handling Code of Practice 2025. ${testLines(a.systems)}`
       ).trim();
     case "manufacturer":
       return "The equipment is installed to the manufacturer's installation instructions, including clearances, mounting and pipe lengths.";
@@ -552,12 +552,6 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
         else if (!looksLikeModel(r.model)) add("equipment", `"${r.model.trim()}" on ${row} isn't a model number. Enter the one on the unit's plate.`);
       });
       const t = s.test;
-      if (t.pressureKpa === null || t.pressureKpa <= 0) add("tests", `Enter the test pressure for ${name}.`);
-      if (t.holdMinutes === null || t.holdMinutes <= 0) add("tests", `Enter how long ${name}'s test pressure held.`);
-      if (t.vacuumMicrons === null || t.vacuumMicrons <= 0) add("tests", `Enter the vacuum ${name} reached.`);
-      else if (t.vacuumMicrons > 500 && (t.manufacturerMicrons === null || t.vacuumMicrons > t.manufacturerMicrons)) {
-        add("tests", `${name} was evacuated to ${fmtNum(t.vacuumMicrons)} microns. Below 500 is needed, unless you enter the manufacturer's own figure.`);
-      }
       if (missing(t.refrigerant)) add("tests", `Enter ${name}'s refrigerant.`);
       if (t.addedKg === null || t.addedKg < 0) add("tests", `Enter the refrigerant added to ${name}, or 0.`);
     });
@@ -625,7 +619,7 @@ export type Wording = { clause: ClauseKey; name: string; when: string; texts: st
 
 const WHEN: Record<ClauseKey, string> = {
   approved: "Whenever something was asked for",
-  refrigerant: "Every air conditioning certificate, followed by the test figures as typed",
+  refrigerant: "Every air conditioning certificate, followed by the refrigerant and charge as typed",
   manufacturer: "Air conditioning, when nothing was asked for, or when asked",
   condensate: "Only when asked for",
   commissioned: "Only when asked for",

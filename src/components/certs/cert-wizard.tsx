@@ -773,9 +773,6 @@ export function CertWizard({
     <div key={i} className="cz-sys">
       {!sameTests && <b className="cz-for">{s.outdoor.model || s.outdoor.location || `Outdoor unit ${i + 1}`}</b>}
       <div className="cz-row test">
-        <NumField label="Test pressure, kPa" value={s.test.pressureKpa} onChange={(n) => setTest(i, { pressureKpa: n })} />
-        <NumField label="Held, minutes" value={s.test.holdMinutes} onChange={(n) => setTest(i, { holdMinutes: n })} />
-        <NumField label="Vacuum, microns" value={s.test.vacuumMicrons} onChange={(n) => setTest(i, { vacuumMicrons: n })} />
         <label className="cz-f">
           <span>Refrigerant</span>
           <select className="wb2-sel" value={s.test.refrigerant} onChange={(e) => setTest(i, { refrigerant: e.target.value })}>
@@ -789,11 +786,6 @@ export function CertWizard({
         </label>
         <NumField label="Added, kg" value={s.test.addedKg} onChange={(n) => setTest(i, { addedKg: n })} />
       </div>
-      {s.test.vacuumMicrons !== null && s.test.vacuumMicrons > 500 && (
-        <div className="cz-row">
-          <NumField label="Manufacturer's vacuum figure, microns" value={s.test.manufacturerMicrons} onChange={(n) => setTest(i, { manufacturerMicrons: n })} />
-        </div>
-      )}
     </div>
   );
 
@@ -802,8 +794,8 @@ export function CertWizard({
       {a.covers.ac && (
         <div className="sw-grp">
           <div className="sw-gh">
-            <b>Refrigerant tests</b>
-            <span>Typed from the gauges, never assumed. 0 kg when nothing was added.</span>
+            <b>Refrigerant</b>
+            <span>The pressure test and vacuum print as passed. 0 kg when nothing was added.</span>
           </div>
           {a.systems.length > 1 && (
             <Choice
@@ -814,7 +806,7 @@ export function CertWizard({
                 setSameTests(on);
                 if (on && a.systems[0]) set({ systems: a.systems.map((s) => ({ ...s, test: { ...a.systems[0].test } })) });
               }}
-              title="The same figures for every outdoor unit"
+              title="The same for every outdoor unit"
             />
           )}
           {(sameTests ? a.systems.slice(0, 1) : a.systems).map(testFor)}

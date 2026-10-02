@@ -1,4 +1,5 @@
 import { trunkingLengths, wallBracketCode, type BuildLine, type Visit } from "./buildup";
+import { brandOfCode, wrongBrand } from "./brand";
 import { rollMetresOf } from "./components";
 import type { PriceOf } from "./ducted-template";
 import { CONSUMABLES_CENTS, PAIR_COIL_ROLL, VOLTEX_35A_CENTS, type SplitFacts } from "./split-template";
@@ -34,9 +35,13 @@ export const NEW_CIRCUIT_SELL_CENTS = 70000;
 export function multiLines(f: MultiFacts, priceOf: PriceOf, materialMarkupPct = 40): { lines: BuildLine[]; missing: string[] } {
   const lines: BuildLine[] = [];
   const missing: string[] = [];
+  /* every head must be the outdoor's own brand */
+  const brand = brandOfCode(f.outdoor);
   const add = (key: string, group: string, code: string, qty: number, kind: "unit" | "material", extra: Partial<BuildLine> = {}) => {
     const p = priceOf(code);
     if (!p) return void missing.push(code);
+    const other = wrongBrand(brand, code, p.name);
+    if (other) return void missing.push(`${code} is ${other}, this is a ${brand} system`);
     lines.push({ key, group, name: p.name, code, supplierKey: p.supplierKey, qty, unitBuyCents: p.buyCents, kind, ...extra });
   };
   const allowance = (key: string, group: string, name: string, qty: number, unitBuyCents: number, extra: Partial<BuildLine> = {}) =>

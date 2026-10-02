@@ -7,7 +7,8 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import type { PluginObj, TransformOptions } from "@babel/core";
 
-/* EVERY COMPONENT IN src/components IS COMPILED, AND THIS KEEPS IT SO.
+/* EVERY COMPONENT AND HOOK IN src/components AND src/lib IS COMPILED, AND
+   THIS KEEPS IT SO.
 
    React Compiler refuses a component SILENTLY. Lint is quiet, the build is
    green, jest passes, and the component runs without its memoization. This
@@ -16,10 +17,17 @@ import type { PluginObj, TransformOptions } from "@babel/core";
    two `&&`s in a try (#960). A sweep is a snapshot; this is the sweep, run
    with the rest of the suite.
 
-   It compiles every source file under src/components with the plugin the
-   build uses, as the build uses it: for a production client bundle Next
-   leaves every option at its default. It counts the functions the compiler
-   REFUSES:
+   src/lib is swept for the hooks that live outside src/components. The
+   Library's three (use-kb-backfill, -ingest and -ocr) were refused whole
+   over a `finally` until 2026-10-03. src/app is not swept: the two
+   functions refused there are server components (the SWMS page and the
+   ServiceM8 integration page), and Next runs the compiler on client
+   bundles only.
+
+   It compiles every source file under those two directories with the
+   plugin the build uses, as the build uses it: for a production client
+   bundle Next leaves every option at its default. It counts the functions
+   the compiler REFUSES:
    - a CompileError or a PipelineError;
    - a CompileSkip, which is a function's own "use no memo";
    - every function in a file that opts out whole. The compiler reports
@@ -32,18 +40,19 @@ import type { PluginObj, TransformOptions } from "@babel/core";
    is at the bottom. Raising it needs Isaac's word, with the reason written
    beside it.
 
-   THE SWEEP IS CACHED, because it is not cheap. Compiling all of
-   src/components takes about 45s under jest, and studio/canvas.tsx alone
-   is a fifth of that. Each file's verdict is kept in node_modules/.cache,
-   keyed on the file's path and text, the compiler's and Babel's versions,
-   and this file's own text. A push recompiles only the files it changed,
-   about 2s in all, and an edit to this probe recompiles everything. A cold
-   run (a fresh checkout, CI) pays for the whole sweep. */
+   THE SWEEP IS CACHED, because it is not cheap. Compiling both directories
+   takes about 45s under jest (src/lib adds a second or two), and
+   studio/canvas.tsx alone is a fifth of that. Each file's verdict is kept
+   in node_modules/.cache, keyed on the file's path and text, the
+   compiler's and Babel's versions, and this file's own text. A push
+   recompiles only the files it changed, about 2s in all, and an edit to
+   this probe recompiles everything. A cold run (a fresh checkout, CI) pays
+   for the whole sweep. */
 
 const REFUSED = 0;
 
 const ROOT = process.cwd();
-const DIR = path.join(ROOT, "src/components");
+const SWEPT = ["src/components", "src/lib"];
 const CACHE = path.join(ROOT, "node_modules/.cache/compiler-ratchet.json");
 
 /* Node's own require, not jest's: the plugin is one 3.8 MB module, loaded
@@ -103,7 +112,10 @@ function compile(file: string, src: string): Verdict {
     babelrc: false,
     configFile: false,
     code: false,
-    parserOpts: { plugins: ["typescript", "jsx"] },
+    /* a .ts file is TypeScript, not TSX: `<HTMLElement>el` is a cast
+       there, and the jsx plugin reads it as a tag that never closes and
+       throws */
+    parserOpts: { plugins: file.endsWith(".ts") ? ["typescript"] : ["typescript", "jsx"] },
     plugins: [readsDirectives, [PLUGIN, { logger: { logEvent: (_f: string | null, e: CompilerEvent) => events.push(e) } }]],
   };
   babel.transformSync(src, options);
@@ -165,26 +177,30 @@ function sweep() {
   const salt = `${VERSIONS}|${hash(fs.readFileSync(__filename, "utf8"))}`;
   const cached = readCache();
   const kept: Record<string, Verdict> = {};
-  const files = sources(DIR);
-  let compiled = 0;
+  let files = 0;
+  const compiledIn: Record<string, number> = {};
   const refused: Refusal[] = [];
-  for (const abs of files) {
-    const file = path.relative(ROOT, abs);
-    const src = fs.readFileSync(abs, "utf8");
-    const key = hash(`${salt}\0${file}\0${src}`);
-    const verdict = cached[key] ?? compile(file, src);
-    kept[key] = verdict;
-    compiled += verdict.compiled;
-    for (const r of verdict.refused) refused.push({ file, ...r });
+  for (const dir of SWEPT) {
+    compiledIn[dir] = 0;
+    for (const abs of sources(path.join(ROOT, dir))) {
+      const file = path.relative(ROOT, abs);
+      const src = fs.readFileSync(abs, "utf8");
+      const key = hash(`${salt}\0${file}\0${src}`);
+      const verdict = cached[key] ?? compile(file, src);
+      kept[key] = verdict;
+      files++;
+      compiledIn[dir] += verdict.compiled;
+      for (const r of verdict.refused) refused.push({ file, ...r });
+    }
   }
   writeCache(kept);
-  return { files: files.length, compiled, refused };
+  return { files, compiledIn, refused };
 }
 
 const describeRefusal = (r: Refusal) =>
   `${r.file}:${r.fn ?? "?"} — ${r.reason}${r.at != null && r.at !== r.fn ? ` (line ${r.at})` : ""}`;
 
-describe("React Compiler over src/components", () => {
+describe(`React Compiler over ${SWEPT.join(" and ")}`, () => {
   let found: ReturnType<typeof sweep>;
   // cold, the whole sweep: ~45s here and slower on a CI runner
   beforeAll(() => {
@@ -205,9 +221,9 @@ describe("React Compiler over src/components", () => {
     expect(n).toBe(REFUSED);
   });
 
-  it("read the components and compiled them, so a sweep of nothing cannot pass for a clean one", () => {
+  it("read every directory it sweeps and compiled something in each, so a sweep of nothing cannot pass for a clean one", () => {
     expect(found.files).toBeGreaterThan(0);
-    expect(found.compiled).toBeGreaterThan(0);
+    expect(SWEPT.filter((dir) => !(found.compiledIn[dir] > 0))).toEqual([]);
   });
 });
 
@@ -267,5 +283,17 @@ export function Twice({ go }: { go: () => Promise<void> }) {
   return <i onClick={a} onBlur={b} />;
 }`);
     expect(r).toHaveLength(1);
+  });
+
+  it("reads a .ts file as TypeScript, so a hook beside an angle-bracket cast is still counted", () => {
+    const r = compile("canary.ts", `
+import { useCallback } from "react";
+const page = () => <HTMLElement>document.body;
+export function useBusy(go: () => Promise<void>) {
+  return useCallback(async () => {
+    try { await go(); } finally { page().focus(); }
+  }, [go]);
+}`).refused;
+    expect(r).toEqual([{ fn: 4, at: 6, reason: expect.stringMatching(/TryStatement/) }]);
   });
 });

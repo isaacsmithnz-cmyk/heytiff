@@ -83,7 +83,18 @@ export type StoryEntry =
           may be in ServiceM8. */
       removed?: boolean;
     }
-  | { kind: "visit"; key: string; day: string; at: null; minutes: number; crew: string[] }
+  | {
+      kind: "visit";
+      key: string;
+      day: string;
+      at: null;
+      /** What the day's check-ins recorded, less any left open. */
+      minutes: number;
+      crew: string[];
+      /** Of the crew, who left a check-in open that day — on site, their
+          time unknown. The minutes leave them out; the lines must say so. */
+      leftOpen: string[];
+    }
   | {
       kind: "photos";
       key: string;
@@ -322,6 +333,7 @@ export function buildJobStory(inputs: StoryInputs): StoryEntry[] {
          belongs on the Visits face, where the card is saying who someone
          is, not in a feed line about a day's work. */
       crew: v.crew.map((c) => c.name),
+      leftOpen: v.crew.filter((c) => c.leftOpen).map((c) => c.name),
     });
   }
 
@@ -589,7 +601,10 @@ export function storySince(entries: readonly StoryEntry[]): string | null {
 /** The identity of "what the story currently says", for the refresh rule:
     the stored summary is stale exactly when this string moves. The newest
     entry's own identity carries most changes; the count catches a backfilled
-    entry landing in the past, which would otherwise never re-write. */
+    entry landing in the past, which would otherwise never re-write. A
+    visit's HOURS are not in it — a second check-out on a day that already
+    has a visit, or a change to how hours are counted, leaves the stamp and
+    the stored words where they were; such a change clears its own rows. */
 export function storyStamp(entries: readonly StoryEntry[]): string | null {
   if (entries.length === 0) return null;
   const newest = entries[0];
@@ -656,7 +671,15 @@ export function storyLineOf(entry: StoryEntry): string {
     }
     case "visit": {
       const crew = entry.crew.length > 0 ? entry.crew.join(", ") : "crew unnamed";
-      return `${when} — site visit, ${fmtStoryMinutes(entry.minutes)} (${crew})`;
+      /* A check-in left open is a person on site whose time is unknown. The
+         line says so in words, or the writer reads a part of the day as the
+         whole crew's — and a day with nothing believable carries no figure. */
+      const hours = entry.minutes > 0 ? fmtStoryMinutes(entry.minutes) : "hours unknown";
+      if (entry.leftOpen.length === 0) return `${when} — site visit, ${hours} (${crew})`;
+      const open = `${andList(entry.leftOpen)} left ${entry.leftOpen.length === 1 ? "a check-in" : "check-ins"} open`;
+      return entry.minutes > 0
+        ? `${when} — site visit, ${hours} (${crew}); ${open}, so that time isn't counted`
+        : `${when} — site visit, ${hours} (${crew}); ${open}`;
     }
     case "photos":
       return `${when} — ${entry.count} photo${entry.count === 1 ? "" : "s"} added`;
@@ -685,6 +708,11 @@ export function fmtStoryMinutes(mins: number): string {
   const m = mins % 60;
   if (h === 0) return `${m}m`;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/** "Louis Jones", "Oleksii Khalameida and Louis Jones". */
+function andList(names: readonly string[]): string {
+  return names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 function fmtStoryAud(cents: number): string {

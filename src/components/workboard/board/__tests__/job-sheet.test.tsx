@@ -1623,6 +1623,45 @@ describe("the Visits face", () => {
     expect(f.getByText(/Lyle Irving, until Thu 20 Aug/)).toBeInTheDocument();
   });
 
+  it("names who left a check-in open, and the hours leave them out", async () => {
+    /* #3237's 12 Sep and 31 Aug, off the live mirror (sm8CheckInLeftOpen):
+       ServiceM8 counted 54h and 38h 57m; Oleksii's own 6h 46m and
+       Michael's 1h 45m are all anyone recorded. */
+    readMirrorJob.mockResolvedValueOnce(
+      card(
+        detail({
+          timeOnSite: { minutes: 511, sessions: 2 },
+          visits: [
+            {
+              day: "2026-09-12",
+              minutes: 406,
+              crew: [
+                { name: "Oleksii Khalameida", title: "HVAC" },
+                { name: "Louis Jones", title: "HVAC", leftOpen: true },
+              ],
+            },
+            {
+              day: "2026-08-31",
+              minutes: 0,
+              crew: [{ name: "Louis Jones", title: null, leftOpen: true }],
+            },
+          ],
+        })
+      )
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Visits");
+
+    const f = face("visits");
+    expect(crewLine(f, "Sat 12 Sept")).toBe("Oleksii Khalameida, HVAC — Louis Jones, HVAC, check-in left open");
+    expect(f.getByText("6h 46m")).toBeInTheDocument();
+    /* a day with nothing believable says no figure, never "0m" */
+    expect(crewLine(f, "Mon 31 Aug")).toBe("Louis Jones, check-in left open");
+    expect(f.getByText("Mon 31 Aug").parentElement?.lastElementChild?.textContent).toBe("—");
+    expect(f.queryByText("0m")).toBeNull();
+  });
+
   it("shows the recent visits and opens the rest in place", async () => {
     const many = Array.from({ length: 12 }, (_, i) => ({
       day: `2026-08-${String(20 - i).padStart(2, "0")}`,

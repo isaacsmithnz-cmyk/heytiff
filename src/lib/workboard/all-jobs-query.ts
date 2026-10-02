@@ -54,6 +54,7 @@ import {
 import {
   ALL_JOBS_HORIZON_DAYS,
   sm8CategoryColour,
+  sm8CheckInLeftOpen,
   sm8DateFacts,
   sm8MinutesBetween,
   type AllJobsMirrorJob,
@@ -461,7 +462,10 @@ export type MirrorJobDetail = {
   booked?: BookedEntry[];
   /** Recorded time across the job — the sum of NON-scheduled activity rows,
       which is what ServiceM8's own billing tab calls Job Time. Validated
-      against the live account: job #3137 sums to exactly its 18h 30m. */
+      against the live account: job #3137 sums to exactly its 18h 30m. LESS
+      ANY CHECK-IN LEFT OPEN (sm8CheckInLeftOpen), which ServiceM8 still
+      counts: there the tally falls short of Job Time on purpose, because
+      Job Time on #3237 includes one check-in's 47 hours. */
   timeOnSite: { minutes: number; sessions: number } | null;
   /** WHICH DAY THIS CARD IS SHOWN BY, and what to call it — derived here,
       where the account's own clock is known. The sheet cannot compute it: a
@@ -518,7 +522,8 @@ export type BookedEntry = {
 export type JobVisit = {
   /** The day itself — ServiceM8's naive stamp, sliced. */
   day: string;
-  /** Minutes recorded across every session that day. */
+  /** Minutes recorded across every session that day, less any check-in
+      left open — those add a name and no minutes. */
   minutes: number;
   /** Who went, in the order they first clocked on — and WHAT THEY ARE, off
       the staff mirror's own `job_title` (18 of the 21 live staff carry one;
@@ -527,8 +532,9 @@ export type JobVisit = {
       the card introduces people rather than just naming them. TRAVEL TIME IS
       ABSENT ON PURPOSE: ServiceM8's own diary shows it, but
       `sm8_job_activities` has no travel column, so there is nothing here to
-      say. */
-  crew: { name: string; title: string | null }[];
+      say. `leftOpen` marks someone who left a check-in open that day: on
+      site, and their time for it unknown. */
+  crew: { name: string; title: string | null; leftOpen?: true }[];
 };
 
 /** A Studio design that names this job, slimmed to what a row says. */
@@ -976,20 +982,27 @@ export async function readMirrorJobDetail(
   /* The sessions, counted AND kept. The tally is what the header says; the
      per-day rows are the Visits list, which is the same read the sheet was
      already paying for and then throwing away. Two techs on one day are ONE
-     visit with two names on it — that is how a job is talked about. */
+     visit with two names on it — that is how a job is talked about. A
+     check-in left open puts its person on the day and adds no minutes to
+     either figure: the story the summary is written from repeats these, and
+     it must not repeat 47 hours nobody worked. */
   let minutes = 0;
   let sessions = 0;
-  const byDay = new Map<string, { minutes: number; crew: string[] }>();
+  const byDay = new Map<string, { minutes: number; crew: string[]; leftOpen: Set<string> }>();
   for (const a of acts) {
     if (a.activity_was_scheduled !== 0 || !a.start_date || !a.end_date) continue;
     const m = sm8MinutesBetween(a.start_date, a.end_date);
     if (m === null || m <= 0) continue;
-    minutes += m;
-    sessions += 1;
+    const open = sm8CheckInLeftOpen(a.start_date, a.end_date);
+    if (!open) {
+      minutes += m;
+      sessions += 1;
+    }
     const day = dateOf(a.start_date);
     if (!day) continue;
-    const entry = byDay.get(day) ?? { minutes: 0, crew: [] };
-    entry.minutes += m;
+    const entry = byDay.get(day) ?? { minutes: 0, crew: [], leftOpen: new Set<string>() };
+    if (open) entry.leftOpen.add(a.staff_uuid ?? "");
+    else entry.minutes += m;
     entry.crew.push(a.staff_uuid ?? "");
     byDay.set(day, entry);
   }
@@ -1107,6 +1120,7 @@ export async function readMirrorJobDetail(
         crew: [...new Set(v.crew.filter((id) => !!id && staffName.has(id)))].map((id) => ({
           name: staffName.get(id)!,
           title: staffTitle.get(id) ?? null,
+          ...(v.leftOpen.has(id) ? { leftOpen: true as const } : {}),
         })),
       })),
     queue: queueName

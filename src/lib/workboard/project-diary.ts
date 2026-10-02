@@ -16,10 +16,14 @@
      what happened. One day can carry both, and usually does.
    - crew dedupes BY STAFF ID, never by name — namesakes must not collapse.
    - a check-in without a clock-off contributes presence but no minutes.
-   - minutes are what ServiceM8 recorded, stated without clamping — the
-     card repeats the mirror, it does not editorialise it. */
+   - so does a check-in LEFT OPEN — a clock-off the next day or later, or
+     past a working day (sm8CheckInLeftOpen). Its span is not time on site:
+     job 279 has one from 6:50am to 5:59am the next morning.
+   - every other session's minutes are what ServiceM8 recorded, stated
+     without clamping — the card repeats the mirror, it does not
+     editorialise it. */
 
-import { sm8MinutesBetween } from "./all-jobs";
+import { sm8CheckInLeftOpen, sm8MinutesBetween } from "./all-jobs";
 
 export type DiaryActivityRow = {
   start_date: string | null;
@@ -90,7 +94,7 @@ export function buildProjectDiary(
       if (a.staff_uuid && !entry.sessionCrew.some((p) => p.id === a.staff_uuid)) {
         entry.sessionCrew.push(personOf(a.staff_uuid));
       }
-      if (a.start_date && a.end_date) {
+      if (a.start_date && a.end_date && !sm8CheckInLeftOpen(a.start_date, a.end_date)) {
         /* The job card's own arithmetic — UTC on both sides, so a session
            spanning a DST switch reads the same here as on its Visits face.
            A first draft parsed local and would have drifted an hour. */

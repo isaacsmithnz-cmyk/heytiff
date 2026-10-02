@@ -22,6 +22,7 @@ import {
   adoptLegacySystem,
   allocationsOf,
   chooseOutdoor,
+  handBackToProposal,
   hasAllocations,
   moveAllocation,
   outdoorsListing,
@@ -30,9 +31,6 @@ import {
   removeZone,
   roomVerdict,
   swapAllocation,
-  /* the engine's name begins with "use", which the hooks rules read as a
-     hook; under this name it is the plain function it is */
-  useProposal as proposalHandedBack,
   zonesToAdd,
   type Allocation,
   type RoomVerdict,
@@ -706,7 +704,7 @@ export function SystemBuilder({
       systems: draft.systems.map((s) => (s.id === sys.id ? { ...s, settings: { ...s.settings, family } } : s)),
     };
     d = retypeSystem(d, pack, sys.id);
-    if (sys.settings.oduChosen !== true) d = proposalHandedBack(d, pack, sys.id);
+    if (sys.settings.oduChosen !== true) d = handBackToProposal(d, pack, sys.id);
     write(d);
   };
   const chooseFromBrowser = (choice: UnitChoice) => {
@@ -965,7 +963,7 @@ export function SystemBuilder({
                 view={view}
                 basis={basis}
                 onPick={dropOutdoor}
-                onProposal={() => write(proposalHandedBack(draft, pack, view.sys.id))}
+                onProposal={() => write(handBackToProposal(draft, pack, view.sys.id))}
                 onDrag={(oduModel, transfer) => {
                   transfer.setData(DRAG_TYPE, JSON.stringify({ oduModel }));
                   transfer.effectAllowed = "copy";
@@ -1664,7 +1662,11 @@ function PipingRail({
           /* its own fitting on the branch line; those above it stack up the trunk */
           let above = 0;
           return here.map((f) => {
-            const y = f === own ? "50%" : `${Math.max(8, 50 - 22 * ++above)}%`;
+            /* counted before it is read, as `++above` in the ternary did —
+               but as a statement: React Compiler 1.0 cannot lower an update
+               to a variable this closure captures, and refuses the rail */
+            if (f !== own) above = above + 1;
+            const y = f === own ? "50%" : `${Math.max(8, 50 - 22 * above)}%`;
             return f.kind === "box" ? (
               <rect key={f.nodeId} className="ds-sb-box" x={GUT_OFF - 7} y={y} width={14} height={10} rx={2} transform="translate(0 -5)">
                 {f.part && <title>{f.part}</title>}

@@ -1,8 +1,8 @@
 /* The build-up's rules, on job 2330 — a 12.5 kW Mitsubishi HAA with five
    zones, as Isaac described it and corrected it (2026-09-30), priced from
    the frozen book the past-job tests use. */
-import { ductTrunks, faceVelocity, priceBuildUp, recommendReturn, STANDARD_RETURNS, trunkingLengths, wallBracketCode } from "../buildup";
-import { ductedLines, ductedVisits, plenumRunFittings, type DuctedFacts, type PriceOf } from "../ducted-template";
+import { customerBreakdown, DEFAULT_BUILD_SETTINGS, ductTrunks, faceVelocity, priceBuildUp, recommendReturn, STANDARD_RETURNS, trunkingLengths, wallBracketCode } from "../buildup";
+import { brandOf, ductedLines, ductedVisits, plenumRunFittings, suggestedCrew, type DuctedFacts, type PriceOf } from "../ducted-template";
 import { multiLines, multiVisits } from "../multi-template";
 import { splitLines, splitVisits } from "../split-template";
 import { PAST_JOBS } from "./fixtures/past-jobs";
@@ -88,7 +88,7 @@ describe("a swap into the old system", () => {
     const keys = r.lines.map((l) => l.key);
     expect(keys).toEqual(expect.arrayContaining(["reconnect", "flush", "recovery"]));
     expect(keys.some((k) => /^(fitting|flex|grilles|return|nose-cone|pair-coil|trunking)/.test(k))).toBe(false);
-    expect(priceBuildUp(r.lines, ductedVisits({ reuse: { ductwork: true } })).contingency?.hours).toBe(0);
+    expect(priceBuildUp(r.lines, ductedVisits({ reuse: { ductwork: true } })).contingency).toBeNull();
     const unflushed = ductedLines({ ...job2330, reuse: { pipe: true, flush: false, ductwork: true } }, priceOf);
     expect(unflushed.lines.some((l) => l.key === "flush")).toBe(false);
   });
@@ -181,5 +181,84 @@ describe("the layout rules", () => {
     expect(trunkingLengths(4.8)).toBe(2);
     expect(trunkingLengths(9.6)).toBe(4);
     expect(trunkingLengths(0)).toBe(0);
+  });
+});
+
+describe("2749, a Daikin apartment changeover", () => {
+  const daikin: PriceOf = (code) =>
+    ({ BRC1E63: { supplierKey: "aad", buyCents: 10101, name: "DAI WIRED 7 DAY PROG CONTROL" }, "JH-ACCESS": { supplierKey: "jh", buyCents: 4500, name: "ACCESS PANEL" } })[code] ?? priceOf(code);
+  const swap = { ...job2330, indoor: "FDYAN71AV1", outdoor: "RZAC71C2V1", zoning: "none" as const, zones: 0, reuse: { ductwork: true }, replacing: true };
+
+  it("tells a Daikin from a Mitsubishi by the indoor's code", () => {
+    expect(brandOf("FDYAN71AV1")).toBe("daikin");
+    expect(brandOf("PEA-M125HAA")).toBe("mitsubishi");
+  });
+
+  it("gives a Daikin its own wall controller, and flags a zone kit it hasn't got", () => {
+    expect(ductedLines(swap, daikin).lines.find((l) => l.key === "controller")?.code).toBe("BRC1E63");
+    expect(ductedLines(job2330, daikin).lines.find((l) => l.key === "controller")).toBeUndefined();
+    expect(ductedLines({ ...swap, zoning: "me24", zones: 4 }, daikin).missing.join()).toMatch(/Daikin/);
+  });
+
+  it("takes the crew the brief names, over the suggestion", () => {
+    expect(suggestedCrew({ reuse: { ductwork: true } })).toBe(3);
+    const pd = (f: Parameters<typeof ductedVisits>[0]) => ductedVisits(f).reduce((a, v) => a + v.people * v.days, 0);
+    expect(pd({ reuse: { ductwork: true }, crew: 5 })).toBe(5);
+    expect(pd({ crew: 5 })).toBe(5);
+  });
+
+  it("adds a return visit only when the job needs one", () => {
+    expect(ductedVisits({ reuse: { ductwork: true } }).some((v) => v.stage === "Return")).toBe(false);
+    expect(ductedVisits({ reuse: { ductwork: true }, returnDays: 0.5 }).at(-1)).toEqual({ stage: "Return", people: 1, days: 0.5 });
+  });
+
+  it("a swap can still take a new plenum and an access panel", () => {
+    const keys = ductedLines({ ...swap, swapNew: { plenum: true, accessPanel: true } }, daikin).lines.map((l) => l.key);
+    expect(keys).toEqual(expect.arrayContaining(["reconnect", "plenum", "access-panel"]));
+  });
+});
+
+describe("a price offered below the build-up", () => {
+  const lines = () => ductedLines(job2330, priceOf).lines;
+  const visits = [{ stage: "Install" as const, people: 4, days: 1 }];
+
+  it("needs a reason, and shows what it gives away", () => {
+    const full = priceBuildUp(lines(), visits);
+    const offered = priceBuildUp(lines(), visits, undefined, null, { exGstCents: 990000, reason: "priced low to win it" });
+    expect(offered.exGstCents).toBe(990000);
+    expect(offered.buildExGstCents).toBe(full.exGstCents);
+    expect(offered.offered?.discountCents).toBe(full.exGstCents - 990000);
+    const bare = priceBuildUp(lines(), visits, undefined, null, { exGstCents: 990000, reason: "" });
+    expect(bare.exGstCents).toBe(full.exGstCents);
+    expect(bare.offeredNeedsReason).toBe(true);
+  });
+
+  it("a loading with no reason says so rather than vanishing", () => {
+    expect(priceBuildUp(lines(), visits, undefined, { pct: 15, reason: "" }).loadingNeedsReason).toBe(true);
+  });
+});
+
+describe("what the customer sees in a breakdown", () => {
+  const lines = ductedLines(job2330, priceOf).lines;
+  const visits = [{ stage: "Install" as const, people: 5, days: 1 }];
+
+  it("spreads the loading, contingency and a discount across the lines, summing to the cent", () => {
+    const b = priceBuildUp(lines, visits, undefined, { pct: 15, reason: "hard access" }, { exGstCents: 1_200_000, reason: "to win it" });
+    const c = customerBreakdown(b);
+    expect(c.lines.reduce((a, l) => a + l.sellCents, 0)).toBe(b.exGstCents);
+    expect(c.lines.some((l) => /loading|difficulty|contingency|discount/i.test(l.name))).toBe(false);
+    expect(c.hiddenCents).not.toBe(0);
+  });
+
+  it("leaves the lines as priced when nothing is hidden", () => {
+    const b = priceBuildUp(lines, visits, { ...DEFAULT_BUILD_SETTINGS, contingencyOn: false });
+    const c = customerBreakdown(b);
+    expect(c.hiddenCents).toBe(0);
+    expect(c.lines.reduce((a, l) => a + l.sellCents, 0)).toBe(b.exGstCents);
+  });
+
+  it("a wall split carries no contingency row", () => {
+    const split = priceBuildUp(splitLines({ indoor: "MSZ-AP42VGKD2-A2", outdoor: "MUZ-AP42VGD2-A2", kw: 4.2, pipe: "1/4+3/8" }, priceOf).lines, splitVisits({ kw: 4.2 }));
+    expect(split.contingency).toBeNull();
   });
 });

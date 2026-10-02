@@ -9,6 +9,8 @@ import {
   type ReturnSize,
   type Visit,
 } from "./buildup";
+import { brandOfCode, wrongBrand, type Brand } from "./brand";
+import { rollMetresOf } from "./components";
 import { CONSUMABLES_CENTS, PAIR_COIL_ROLL, VOLTEX_35A_CENTS, type SplitFacts } from "./split-template";
 
 /* A DUCTED SYSTEM WITHOUT A DRAWING — the lines a brief like "12.5 kW
@@ -40,8 +42,14 @@ export type Priced = { buyCents: number; supplierKey: string; name: string };
 /** A code's price to buy: the preferred or lowest supplier's. */
 export type PriceOf = (code: string) => Priced | null;
 
+/** Whose system it is, by the indoor's code (FDYAN71 Daikin, PEA-M125HAA
+    Mitsubishi); null when we can't tell, and nothing is then filtered. */
+export const brandOf = (indoor: string): Brand | null => brandOfCode(indoor);
+
 export type DuctedFacts = {
   indoor: string;
+  /** a person's call over the code's guess */
+  brand?: Brand;
   outdoor: string;
   outdoorWidthMm: number | null;
   outdoorWeightKg: number | null;
@@ -66,6 +74,8 @@ export type DuctedFacts = {
   pipeM: number | null;
   /** only when the job runs a new circuit */
   powerM?: number | null;
+  /** its cable, by the outdoor's current: 2.5, 4 or 6 mm² (6 unsaid) */
+  powerMm2?: 2.5 | 4 | 6;
   /** only when it's more than the consumables cover */
   interconnectM?: number | null;
   mount?: "ground" | "wall";
@@ -75,6 +85,16 @@ export type DuctedFacts = {
   /** a swap: what stays from the old system; kept pipe is flushed unless
       the scope says it won't be (an R410A line going on to R32) */
   reuse?: { pipe?: boolean; flush?: boolean; ductwork?: boolean; zoneMotors?: boolean };
+  /** a swap that still needs new ductwork parts: a new supply plenum
+      (2749's double-14), an access panel set and plastered in */
+  swapNew?: { plenum?: boolean; accessPanel?: boolean };
+  /** who the brief says it takes on the install day; unsaid, the builder
+      suggests (see suggestedCrew) and a person confirms */
+  crew?: number;
+  /** a visit back to finish, in person-days: patching, plaster and paint,
+      commissioning. Ducted jobs average about one person-day of it (past
+      jobs); 2749 took half a day to set and plaster an access panel. */
+  returnDays?: number;
   /** an old system comes out: its refrigerant recovered, the units gone */
   replacing?: boolean;
   /** a new build: the ductwork and pipe roughed in before the ceilings go up */
@@ -89,6 +109,7 @@ export type DuctedFacts = {
 export const FLUSH_SELL_CENTS = 63000;
 export const RECOVERY_SELL_CENTS = 75000;
 const RECONNECT_CENTS = 6000;
+const POWER_CABLE: Record<2.5 | 4 | 6, string> = { 2.5: "CAB2-5TCE", 4: "CAB4-0TCE", 6: "CAB6-0TCE" };
 
 const ASSUME = { pipeM: 15, trunkingM: 4.8 };
 const TIMBER_CENTS = 1834;
@@ -120,6 +141,9 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf, materialMarkupPct 
   const lines: BuildLine[] = [];
   const missing: string[] = [];
   const DUCT = "Ductwork and grilles";
+  /* every part must fit the system's brand: another brand's is left out
+     and named, never priced in */
+  const brand = f.brand ?? brandOf(f.indoor);
   const add = (
     key: string,
     group: string,
@@ -133,6 +157,11 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf, materialMarkupPct 
       missing.push(code);
       return;
     }
+    const other = wrongBrand(brand, code, p.name);
+    if (other) {
+      missing.push(`${code} is ${other}, this is a ${brand} system`);
+      return;
+    }
     lines.push({ key, group, name: p.name, code, supplierKey: p.supplierKey, qty, unitBuyCents: p.buyCents, kind, ...extra });
   };
   const allowance = (key: string, group: string, name: string, qty: number, unitBuyCents: number, extra: Partial<BuildLine> = {}) =>
@@ -142,27 +171,35 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf, materialMarkupPct 
   add("indoor", "Units", f.indoor, 1, "unit");
   add("outdoor", "Units", f.outdoor, 1, "unit", { swap: "outdoor" });
 
-  /* zoning — or the unit's own controller when there is none */
+  /* zoning — or the unit's own controller when there is none. The zone kits
+     are Mitsubishi's; a Daikin asking for one is told so, once. */
   const z = Math.max(0, Math.round(f.zones));
   const outlets = Math.max(z, Math.round(f.outlets ?? z));
-  if (f.zoning === "me24") add("zone-kit", "Zoning", "PAC-ZC80L-E", 1, "material", { swap: "zoning" });
-  if (f.zoning === "meLinear") {
+  const zoningFits = f.zoning === "none" || brand !== "daikin";
+  if (!zoningFits) missing.push("a zone kit for a Daikin (the zoning kits here are Mitsubishi's)");
+  if (zoningFits && f.zoning === "me24") add("zone-kit", "Zoning", "PAC-ZC80L-E", 1, "material", { swap: "zoning" });
+  if (zoningFits && f.zoning === "meLinear") {
     add("zone-kit", "Zoning", z > 4 ? "PAC-ZC10L240C-A" : "PAC-ZC04L240C-A", 1, "material", { swap: "zoning" });
     add("zone-controller", "Zoning", "PAR-ZM01A-A", 1, "material");
     add("zone-receiver", "Zoning", "PAR-ZR01R-A", Math.ceil(z / 10), "material", { because: "any wireless sensor needs the receiver" });
     add("zone-sensors", "Zoning", "PAR-ZR01S-A", z, "material", { because: "a sensor per zone for its own temperature" });
     allowance("zone-batteries", "Zoning", "Batteries, 2 × AAA per sensor (not included)", z, 300);
   }
-  if (f.zoning !== "none" && z > 0 && !reuse.zoneMotors) {
+  if (zoningFits && f.zoning !== "none" && z > 0 && !reuse.zoneMotors) {
     add("zone-dampers", "Zoning", `MDM${f.zoneMm}L`, z, "material");
     add("zone-cables", "Zoning", "RZCAB12", z, "material", { because: "a cable per zone, motor to kit" });
   }
-  if (f.zoning === "none") add("controller", "Zoning", "PAR-41MAAM", 1, "material", { because: "no zone kit, so the unit's own wall controller" });
+  if (f.zoning === "none") {
+    if (brand) add("controller", "Zoning", brand === "daikin" ? "BRC1E63" : "PAR-41MAAM", 1, "material", { because: "no zone kit, so the unit's own wall controller" });
+    else missing.push("the unit's wall controller (the brand isn't known)");
+  }
 
   /* supply ductwork, outlets and the return — or the old ductwork kept */
   let ret: ReturnSize | null = null;
   if (reuse.ductwork) {
     allowance("reconnect", DUCT, "Reconnect the existing ductwork: collars, tape, sealant", 1, RECONNECT_CENTS);
+    if (f.swapNew?.plenum) allowance("plenum", DUCT, "Supply plenum, new (JH)", 1, PLENUM_CENTS);
+    if (f.swapNew?.accessPanel) add("access-panel", DUCT, "JH-ACCESS", 1, "material", { because: "set in and plastered over on the return visit" });
   } else {
     const fittings = new Map<string, number>();
     const bags = new Map<string, number>();
@@ -221,17 +258,22 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf, materialMarkupPct 
   } else {
     const pipeM = f.pipeM ?? ASSUME.pipeM;
     const roll = PAIR_COIL_ROLL[f.pipe ?? "3/8+5/8"];
-    add("pair-coil", "Pipe and power", roll, Math.max(1, Math.ceil(pipeM / 20 - 1e-9)), "material", {
-      assumed: f.pipeM == null ? `${ASSUME.pipeM} m, one 20 m roll` : null,
+    const rollM = rollMetresOf(priceOf(roll)?.name) ?? 20;
+    add("pair-coil", "Pipe and power", roll, Math.max(1, Math.ceil(pipeM / rollM - 1e-9)), "material", {
+      assumed: f.pipeM == null ? `${ASSUME.pipeM} m, one ${rollM} m roll` : null,
     });
   }
   if (f.replacing) allowance("recovery", "Pipe and power", "Recover the old system's refrigerant, remove and dispose of the old units", 1, atCost(RECOVERY_SELL_CENTS));
   if (f.powerM) {
-    const tps = priceOf("CAB6-0TCE");
-    if (tps) lines.push({ key: "power", group: "Pipe and power", name: `6 mm² TPS, ${f.powerM} m`, code: "CAB6-0TCE", supplierKey: tps.supplierKey, qty: f.powerM, unitBuyCents: tps.buyCents / 100, kind: "material" });
+    const mm2 = f.powerMm2 ?? 6;
+    const code = POWER_CABLE[mm2];
+    const tps = priceOf(code);
+    if (tps) lines.push({ key: "power", group: "Pipe and power", name: `${mm2} mm² TPS, ${f.powerM} m`, code, supplierKey: tps.supplierKey, qty: f.powerM, unitBuyCents: tps.buyCents / (rollMetresOf(tps.name) ?? 100), kind: "material" });
+    else missing.push(code);
   }
   if (f.interconnectM) add("interconnect", "Pipe and power", "2706201-2", f.interconnectM, "material");
   if (f.threePhase) add("isolator", "Pipe and power", "3421175-1", 1, "material", { because: "the outdoor is three phase" });
+  else if (priceOf("WPS135")) add("isolator", "Pipe and power", "WPS135", 1, "material");
   else allowance("isolator", "Pipe and power", "Voltex isolator 35 A", 1, VOLTEX_35A_CENTS);
 
   /* mounting, drain, sundries */
@@ -253,18 +295,24 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf, materialMarkupPct 
   return { lines, missing, returnSize: ret, returnMs: ret && f.airflowLs ? Math.round(faceVelocity(f.airflowLs, ret) * 10) / 10 : null };
 }
 
-/** Four people for a new install's day — Isaac's own figure on 3283 and
-    3372; three for a swap into the old ductwork ("2 x trades + TA", 3210),
-    and a day more to fit new zone motors into it. A new build is roughed in
-    first, and a house on two levels takes a second pair a day to run the
-    upper floor (2716, 3272: both within 1% with the day, 14% under
-    without it). */
-export function ductedVisits(f: Partial<Pick<DuctedFacts, "reuse" | "zoning" | "newBuild" | "storeys">> = {}): Visit[] {
+/** What the builder suggests for the install day: four for a new install
+    (Isaac's own figure on 3283 and 3372), three for a swap into the old
+    ductwork ("2 x trades + TA", 3210). The brief overrides it — 2749, an
+    apartment changeover, took five — and a person confirms. */
+export const suggestedCrew = (f: Partial<Pick<DuctedFacts, "reuse">> = {}) => (f.reuse?.ductwork ? 3 : 4);
+
+/** The visits: the install day with the brief's crew (else the suggestion),
+    a day more to fit new zone motors into a swap, a rough-in first on a new
+    build, and a second pair a day to run the upper floor of a house on two
+    levels (2716, 3272: both within 1% with the day, 14% under without it).
+    A return visit is added when the job needs one. */
+export function ductedVisits(f: Partial<Pick<DuctedFacts, "reuse" | "zoning" | "newBuild" | "storeys" | "crew" | "returnDays">> = {}): Visit[] {
   const swap = !!f.reuse?.ductwork;
   const visits: Visit[] = [];
   if (f.newBuild) visits.push({ stage: "Rough-in", people: 2, days: 1 });
-  visits.push({ stage: "Install", people: swap ? 3 : 4, days: 1 });
+  visits.push({ stage: "Install", people: f.crew && f.crew > 0 ? Math.round(f.crew) : suggestedCrew(f), days: 1 });
   if (swap && f.zoning && f.zoning !== "none" && !f.reuse?.zoneMotors) visits.push({ stage: "Install", people: 1, days: 1 });
   if (!f.newBuild && (f.storeys ?? 1) > 1) visits.push({ stage: "Install", people: 2, days: 1 });
+  if (f.returnDays && f.returnDays > 0) visits.push({ stage: "Return", people: 1, days: f.returnDays });
   return visits;
 }

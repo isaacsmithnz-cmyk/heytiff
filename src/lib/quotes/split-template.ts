@@ -1,4 +1,6 @@
 import { trunkingLengths, wallBracketCode, type BuildLine, type Visit } from "./buildup";
+import { brandOfCode, wrongBrand } from "./brand";
+import { rollMetresOf } from "./components";
 import type { PriceOf } from "./ducted-template";
 
 /* A WALL SPLIT — the kit every one of Isaac's wall-split quotes carries,
@@ -60,9 +62,12 @@ export function splitLines(f: SplitFacts, priceOf: PriceOf): TemplateResult {
   const lines: BuildLine[] = [];
   const missing: string[] = [];
   const G = { units: "Units", pipe: "Pipe and power", mount: "Mounting, drain, sundries" };
+  const brand = brandOfCode(f.indoor);
   const add = (key: string, group: string, code: string, qty: number, kind: "unit" | "material", extra: Partial<BuildLine> = {}) => {
     const p = priceOf(code);
     if (!p) return void missing.push(code);
+    const other = wrongBrand(brand, code, p.name);
+    if (other) return void missing.push(`${code} is ${other}, this is a ${brand} system`);
     lines.push({ key, group, name: p.name, code, supplierKey: p.supplierKey, qty, unitBuyCents: p.buyCents, kind, ...extra });
   };
   const allowance = (key: string, group: string, name: string, qty: number, unitBuyCents: number, extra: Partial<BuildLine> = {}) =>
@@ -82,7 +87,7 @@ export function splitLines(f: SplitFacts, priceOf: PriceOf): TemplateResult {
       code: roll,
       supplierKey: coil.supplierKey,
       qty: pipeM,
-      unitBuyCents: coil.buyCents / 20,
+      unitBuyCents: coil.buyCents / (rollMetresOf(coil.name) ?? 20),
       kind: "material",
       assumed: f.pipeM == null ? `${ASSUME.pipeM} m` : null,
     });

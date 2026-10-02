@@ -62,6 +62,7 @@ const OUTDOOR_PLACE: readonly [RegExp, string][] = [
   [/courtyard/i, "Courtyard"],
   [/brackets?/i, "Wall brackets"],
   [/side passage/i, "Side passage"],
+  [/side of (?:the )?(?:property|house|home|building)|down the side/i, "Side of the house"],
 ];
 
 function outdoorPlaceIn(text: string): string {

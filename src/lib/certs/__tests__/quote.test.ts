@@ -184,3 +184,11 @@ describe("2043: an outdoor counted like an indoor, and fans named three ways", (
     expect(q.ductwork).toBe(true);
   });
 });
+
+describe("1212: where the outdoor unit went", () => {
+  it("reads 'down the side of property' as the side of the house", () => {
+    const q = readQuote("- 15.5KW Mitsubishi Electric VRF outdoor to be installed down the side of property.\n\nConnected units:\n- 1 x 7.1KW indoor for the Kitchen Area.");
+    expect(q.systems[0].outdoor).toMatchObject({ location: "Side of the house", capacityKw: 15.5 });
+    expect(q.systems[0].indoors.map((r) => r.location)).toEqual(["Kitchen Area"]);
+  });
+});

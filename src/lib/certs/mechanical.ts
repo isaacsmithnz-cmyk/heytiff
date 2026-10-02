@@ -336,9 +336,7 @@ export type Statement = {
 };
 
 function testLine(t: CircuitTest): string {
-  return (t.addedKg ?? 0) === 0
-    ? `Refrigerant ${t.refrigerant}, no additional charge needed for the pipe length installed.`
-    : `Refrigerant ${t.refrigerant}, ${fmtNum(t.addedKg ?? 0)} kg added.`;
+  return (t.addedKg ?? 0) === 0 ? `${t.refrigerant}, no additional charge.` : `${t.refrigerant}, ${fmtNum(t.addedKg ?? 0)} kg added.`;
 }
 
 /** The refrigerant and charge, once when every circuit had the same, per
@@ -356,9 +354,7 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
   switch (k) {
     case "refrigerant":
       return (
-        "Each refrigerant circuit was pressure tested with oxygen-free nitrogen and held without loss, evacuated " +
-        "to the manufacturer's specified vacuum, then charged and commissioned in accordance with AS/NZS 5149.2 " +
-        `and the ARC Refrigerant Handling Code of Practice 2025. ${testLines(a.systems)}`
+        `Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. ${testLines(a.systems)}`
       ).trim();
     case "manufacturer":
       return "The equipment is installed to the manufacturer's installation instructions, including clearances, mounting and pipe lengths.";
@@ -369,7 +365,7 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
     case "commissioned":
       return "The system was commissioned and checked in heating and cooling, and the operating instructions and maintenance schedule were handed over.";
     case "arc":
-      return "All refrigerant was handled by people holding an ARC refrigerant handling licence.";
+      return "All refrigerant was handled by ARC licence holders.";
     case "approved":
       return "The works are installed in accordance with the documents approved under the Construction Certificate or Complying Development Certificate, and the relevant conditions of consent.";
     case "ventAirflow": {

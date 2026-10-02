@@ -56,7 +56,7 @@ describe("CertificatePaper", () => {
     expect(html).toContain("MSZ-AP42VGKD2-A2");
     expect(html).toContain("40 L/s");
     expect(html).toContain("rated");
-    expect(html).toContain("Each refrigerant circuit was pressure tested with oxygen-free nitrogen and held without loss");
+    expect(html).toContain("Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2.");
     expect(html).not.toMatch(/kPa|microns/);
     expect(html).toContain("Not covered: electrical work, certified separately under AS/NZS 3000.");
     expect(html).toContain("L118650");

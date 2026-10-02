@@ -116,16 +116,12 @@ describe("the statements", () => {
   it("state the pressure test and vacuum as passed, with no gauge figures, and the charge once or per outdoor unit", () => {
     const a = answersFor(JOB_1245, AC, "house");
     const one = statementsFor(a).statements[0].text;
-    expect(one).toBe(
-      "Each refrigerant circuit was pressure tested with oxygen-free nitrogen and held without loss, evacuated to the manufacturer's specified vacuum, " +
-        "then charged and commissioned in accordance with AS/NZS 5149.2 and the ARC Refrigerant Handling Code of Practice 2025. " +
-        "Refrigerant R32, no additional charge needed for the pipe length installed."
-    );
+    expect(one).toBe("Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. R32, no additional charge.");
     expect(one).not.toMatch(/kPa|microns|minutes/);
     a.systems[1].test = { ...TESTED, addedKg: 0.4 };
     const two = statementsFor(a).statements[0].text;
-    expect(two).toContain("OUT-1: Refrigerant R32, no additional charge needed");
-    expect(two).toContain("OUT-2: Refrigerant R32, 0.4 kg added.");
+    expect(two).toContain("OUT-1: R32, no additional charge.");
+    expect(two).toContain("OUT-2: R32, 0.4 kg added.");
   });
 
   it("never prints a gauge figure, even one saved on an older version", () => {

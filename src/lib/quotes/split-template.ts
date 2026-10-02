@@ -1,4 +1,5 @@
 import { trunkingLengths, wallBracketCode, type BuildLine, type Visit } from "./buildup";
+import { rollMetresOf } from "./components";
 import type { PriceOf } from "./ducted-template";
 
 /* A WALL SPLIT — the kit every one of Isaac's wall-split quotes carries,
@@ -82,7 +83,7 @@ export function splitLines(f: SplitFacts, priceOf: PriceOf): TemplateResult {
       code: roll,
       supplierKey: coil.supplierKey,
       qty: pipeM,
-      unitBuyCents: coil.buyCents / 20,
+      unitBuyCents: coil.buyCents / (rollMetresOf(coil.name) ?? 20),
       kind: "material",
       assumed: f.pipeM == null ? `${ASSUME.pipeM} m` : null,
     });

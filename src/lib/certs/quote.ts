@@ -160,7 +160,15 @@ export function readQuote(description: string | null): QuoteReading {
 
     /* "1 x 9KW indoor for the Living", "2 x 3.5kw high wall indoors to lower ground bedroom and living" */
     const nX = /^(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*kw\b(.*)$/i.exec(line);
-    if (nX && !/outdoor/i.test(nX[3])) {
+    /* "1 x 15.5KW Mitsubishi Electric/Daikin VRF outdoor to be installed": an
+       outdoor counted like an indoor. It was dropped, by both branches. */
+    if (nX && OUTDOOR_LINE.test(nX[3])) {
+      current = blank();
+      current.outdoor = { ...EMPTY_ROW, model: outdoorModel, qty: Number(nX[1]), capacityKw: Number(nX[2]) };
+      systems.push(current);
+      continue;
+    }
+    if (nX) {
       indoorTo({ ...EMPTY_ROW, model: indoorModel, qty: Number(nX[1]), capacityKw: Number(nX[2]), location: placeIn(nX[3]) });
       continue;
     }
@@ -203,13 +211,9 @@ export function readQuote(description: string | null): QuoteReading {
   const place = outdoorPlaceIn(text);
   for (const s of systems) if (!s.outdoor.location && place) s.outdoor.location = place;
 
-  const fans: FanRow[] = [];
-  if (/lossnay/i.test(text)) {
-    fans.push({ location: "", model: "Lossnay", qty: 1, airflowLps: null, airflowKind: "rated", serial: "" });
-  }
-  for (const line of lines) {
-    const m = /^(?:(\d+)\s*x\s*)?.*\bexhaust fans?\b(.*)$/i.exec(line);
-    if (m) fans.push({ location: placeIn(m[2]), model: "", qty: m[1] ? Number(m[1]) : 1, airflowLps: null, airflowKind: "rated", serial: "" });
+  const fans = readFans(lines);
+  if (/lossnay/i.test(text) && !fans.some((f) => /lossnay/i.test(f.model))) {
+    fans.unshift({ location: "", model: "Lossnay", qty: 1, airflowLps: null, airflowKind: "rated", serial: "" });
   }
 
   return {
@@ -222,6 +226,64 @@ export function readQuote(description: string | null): QuoteReading {
     refrigerant,
     statedConnectedKw: statedConnectedKw(text),
   };
+}
+
+/* ── the fans ──────────────────────────────────────────────────────────── */
+
+/* A FAN IS A LINE THAT NAMES ONE, NOT A LINE THAT MENTIONS ONE. "the exhaust
+   fan will pull it back out" is a sentence about a fan already counted, and
+   "Excludes power and switching for these fans" is about wiring: neither is
+   a fan. A line names a fan when it counts one ("1 x Exhaust Air Fan"),
+   gives its model ("(SJMF150-S)"), or names the kind ("in-line mixed flow
+   fan", "exhaust fan" as the item). */
+const FAN_WORD = /\bfans?\b/i;
+const FAN_KIND = /in-?line|mixed flow|exhaust|supply air|extract|ceiling fan|wall fan|ventilation fan|fresh air/i;
+const NOT_A_FAN = /^(the|this|these|that|it|they|a|an|and)\b|\bthe (exhaust|supply|extract) fans?\b|exclud|power|switching|controller|\$|silent fans/i;
+const FAN_MODEL = /\(([A-Z0-9][A-Z0-9-]*\d[A-Z0-9-]*)\)/i;
+/** "*Total of 4 on ground floor and 2 on first floor." under a fan: its count.
+    "Total of 2 x Grilles" counts something else, so a count of fans is a
+    number followed by where they go. */
+const TOTAL_OF = /^\*?\s*total of (\d+)\s+(?:on|in|to|across|throughout)\b(?:[^\d]*?\band (\d+)\b)?/i;
+/** A section heading, in any case: "Sub Floor", "ventiallation:". */
+const ANY_HEADING = /^([A-Za-z][A-Za-z0-9 ,'’&/-]{1,40}?):?$/;
+
+function readFans(lines: readonly string[]): FanRow[] {
+  const fans: FanRow[] = [];
+  let heading = "";
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const head = ANY_HEADING.exec(line);
+    if (head && !FAN_WORD.test(line) && line.length <= 42) {
+      /* "Connected units x 5", "Includes": a new section, but not a place */
+      heading = NOT_A_PLACE.test(head[1]) ? "" : head[1].trim();
+      continue;
+    }
+    if (!FAN_WORD.test(line) || NOT_A_FAN.test(line)) continue;
+    /* "1 x Exhaust Air Fan", "Installation of 1 x Supply Air Fan" */
+    const counted = /\b(\d+)\s*x\b(?=[^\d]*\bfans?\b)/i.exec(line);
+    const model = (FAN_MODEL.exec(line)?.[1] ?? "").toUpperCase();
+    if (!counted && !model && !FAN_KIND.test(line)) continue;
+
+    let qty = counted ? Number(counted[1]) : 0;
+    if (!qty) {
+      /* the count, when the quote gives it a few lines on */
+      for (const next of lines.slice(i + 1, i + 8)) {
+        const t = TOTAL_OF.exec(next);
+        if (t) {
+          qty = Number(t[1]) + (t[2] ? Number(t[2]) : 0);
+          break;
+        }
+        if (FAN_WORD.test(next) && !NOT_A_FAN.test(next)) break;
+      }
+    }
+    /* where it is: the line's own place, or the heading it sits under, with
+       which way it moves air when the line says ("Sub floor, exhaust") */
+    const way = /\bsupply\b/i.test(line) ? "supply" : /\bexhaust|extract\b/i.test(line) ? "exhaust" : "";
+    const under = heading && !/^(ventilation|ventiallation|ventilaton|fans?|exhaust fans?)$/i.test(heading) ? cap(heading.toLowerCase()) : "";
+    const location = placeIn(line) || [under, under ? way : ""].filter(Boolean).join(", ");
+    fans.push({ location, model, qty: qty || 1, airflowLps: null, airflowKind: "rated", serial: "" });
+  }
+  return fans;
 }
 
 /* ── the building, from the address ────────────────────────────────────── */

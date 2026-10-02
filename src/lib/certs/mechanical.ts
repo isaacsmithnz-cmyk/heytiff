@@ -385,7 +385,8 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
         .join(" ");
     }
     case "ventDischarge":
-      return "Every fan discharges to outdoor air, not into the roof space.";
+      /* exhaust only: a supply fan draws outdoor air in, it discharges nothing */
+      return "Every exhaust fan discharges to outdoor air, not into the roof space.";
     case "ductwork":
       return "Ductwork, plenums and flexible duct are installed, supported, sealed and insulated in accordance with AS 4254.1 and AS 4254.2.";
     case "fireRated":

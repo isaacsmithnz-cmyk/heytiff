@@ -155,6 +155,71 @@ Scope of Work:
 Note: Quote price excludes switchboard upgrades and any building/strata works not specifically listed above.`;
 
 /* FutureCert's list for job 1383, item 9.1, as its three requirements. */
+/** 6 Urunga St, North Balgowlah, for JT Construct: a VRF upstairs, in-line
+    fans to louvres, and a supply and exhaust pair under the floor. */
+export const JOB_2043 = `Ground Floor
+- Decommission and removal of exisiting unit.
+- Reinstall under the floor of the house. 
+- Will provide air for Living, dining, kitchen, hall, bed 4, bed 5 and rumpus subject to floor space and access.
+- Each area to be controlled by zone system, type will depend on brand and age of existing unit.
+- Choice of floor grilles TBC. Allowance of $50 + GST Per Grille
+- Aluminium custom Kick board grilles included.
+- Return air grille location and style TBC. (Price will cover most options)
+
+First Floor:
+- 1 x 15.5KW Mitsubishi Electric/Daikin VRF outdoor to be installed.
+Connected units x 5:
+
+- 1 x 3.6KW indoor for Study 1
+- 1 x 2.8KW indoor for Study 2
+- 1 x 3.6KW indoor for Bedroom 1
+- 1 x 2.8KW indoor for Bedroom 2
+- 1 x 2.8KW indoor for Bedroom 3
+
+- Seperate wall controller for each unit.
+- Designed to fit into joinery bulkhead.
+- Custom grilles for each room as required.
+- Access to each indoor unit must be provided by builder for servicing and warranty retention.
+
+ventiallation:
+- 100mm JETFLOW IN-LINE MIXED FLOW FAN. (See attached)
+- Ducted to external louvre
+- External louvre included.
+- Includes frameless ceiling vent.
+
+*Total of 4 on ground floor and 2 on first floor.
+
+* Excludes power and switching for these fans.
+
+
+Sub Floor
+- Installation of 1 x Exhaust Air Fan (SJMF150-S) : Approx 350 l/s of air movement per fan, 40dba noise level
+- Installation of 1 x Supply Air Fan  (SJMF150-S): Approx 350 l/s of air movement per fan, 40dba noise level
+- Ductwork under the house will push fresh air to the furthest points, and the exhaust fan will pull it back out.
+- Speed controller to set suitable airflow included.
+- Includes ductwork, connections and penetrations to new external louvres (Supplied by us).
+- Total of 2 x Grilles on exterior walls.
+- Grille style TBC.
+* Excludes power and switching for these fans.
+
+Variations:
+** 5 x $180.00 Silent Fans
+
+** Removal of exisiting ACTRON AC system and alter design to have the whole house running off one outdoor unit.
+This means a new indoor unit to cater for the underfloor ducted set up.
+All upstairs units will link into this system.
+One outdoor will take up far less space and much quieter than the Actron. 
+Zoning system can be implemented for individual temp control in each room. (See brochure)
+
+Outcome:
+- One outdoor unit with a footprint less than half of current design.
+- Same result as planned inside.
+- 5 year warranty on all AC systems.
+- Wifi control over whole house in one app.
+- Comprehensive zoning for all of downstairs.
+
+Additional cost: $5900 + GST`;
+
 export const FUTURECERT_9_1 = [
   "Mechanical Ventilation and Air Conditioning System has been installed in accordance with AS 1668.1 and AS 1668.2.",
   "Any Air Handling System which does not form part of the smoke control system (other than individual room units with a capacity not more than 1000 L/s, system serving critical treatment areas and miscellaneous exhaust air systems installed in accordance with Sections 5 and 6 of AS/NZS 1668.1) shuts down in fire mode as required by Specification 21",

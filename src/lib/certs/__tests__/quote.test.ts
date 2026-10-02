@@ -1,5 +1,5 @@
 import { isOutdoorModel, matchRequirement, modelsIn, readQuote, statedConnectedKw, suggestBuilding } from "../quote";
-import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2699, JOB_279, JOB_3326 } from "./fixtures/jobs";
+import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2043, JOB_2699, JOB_279, JOB_3326 } from "./fixtures/jobs";
 
 /* The wizard's first draft, read off six real jobs. Each is only a
    suggestion the person corrects, but a good one saves the typing. */
@@ -162,5 +162,25 @@ describe("what the quote says about itself", () => {
   it("reads a stated total either way round, and nothing when there is none", () => {
     expect(statedConnectedKw("VRF with a connected capacity of 24.5 kW")).toBe(24.5);
     expect(statedConnectedKw(JOB_279)).toBeNull();
+  });
+});
+
+describe("2043: an outdoor counted like an indoor, and fans named three ways", () => {
+  const q = readQuote(JOB_2043);
+
+  it("keeps the 1 x 15.5 kW outdoor and the five rooms it runs", () => {
+    expect(q.systems).toHaveLength(1);
+    expect(q.systems[0].outdoor).toMatchObject({ qty: 1, capacityKw: 15.5 });
+    expect(q.systems[0].indoors.map((r) => r.location)).toEqual(["Study 1", "Study 2", "Bedroom 1", "Bedroom 2", "Bedroom 3"]);
+  });
+
+  it("counts the in-line fans from the total under them, names the subfloor pair by model, and invents none from a sentence", () => {
+    expect(q.fans.map((f) => ({ location: f.location, model: f.model, qty: f.qty }))).toEqual([
+      { location: "", model: "", qty: 6 },
+      { location: "Sub floor, exhaust", model: "SJMF150-S", qty: 1 },
+      { location: "Sub floor, supply", model: "SJMF150-S", qty: 1 },
+    ]);
+    expect(q.ventilation).toBe(true);
+    expect(q.ductwork).toBe(true);
   });
 });

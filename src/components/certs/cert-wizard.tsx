@@ -119,7 +119,6 @@ function startingAnswers(ctx: CertWizardContext): CertAnswers {
     fans: r.fans.map((f) => ({ ...f, airflowLps: f.airflowLps ?? fanRated(f.model) })),
     installed: { ductwork: r.ductwork, fireRated: r.fireRated, fireStopProduct: "", condensatePump: r.condensatePump },
     ventAs16682: false,
-    notCoveredExtra: r.byOthers,
   };
 }
 
@@ -861,7 +860,7 @@ export function CertWizard({
         <div className="sw-qa">
           <span>
             <label htmlFor="cz-notcov">Also not covered</label>
-            <em>{live?.reading.byOthers && a.notCoveredExtra === live.reading.byOthers ? "From the quote's exclusions" : "Electrical work is always listed"}</em>
+            <em>Electrical work is always listed</em>
           </span>
           <input id="cz-notcov" className="wb2-fi" placeholder="Like the building's outdoor-air ventilation" value={a.notCoveredExtra} onChange={(e) => set({ notCoveredExtra: e.target.value })} />
         </div>

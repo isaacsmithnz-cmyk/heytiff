@@ -85,11 +85,6 @@ export type QuoteReading = {
   /** "(29KW total connected capacity)": what the quote says the indoor units
       add up to, to check its own rows against. Null when it doesn't say. */
   statedConnectedKw: number | null;
-  /** The building works the quote excludes, as the certificate's "by
-      others": "bulkheads, plasterboard and painting by others". Empty when
-      it excludes none. Equipment it doesn't supply (a Wi-Fi adaptor) is not
-      a building work and is left out. */
-  byOthers: string;
 };
 
 const INDOOR_WORDS = /indoor|high ?wall|bulkhead|ducted|cassette|floor[ -]?(standing|mounted|console)|ceiling (concealed|suspended)|unit/i;
@@ -107,48 +102,6 @@ export function statedConnectedKw(text: string): number | null {
     /(\d+(?:\.\d+)?)\s*kw\s+(?:total\s+)?connected(?:\s+capacity)?/i.exec(text) ??
     /connected\s+capacity\s+(?:of\s+)?(\d+(?:\.\d+)?)\s*kw/i.exec(text);
   return m ? Number(m[1]) : null;
-}
-
-/* The building works a quote excludes, in the certificate's words. Electrical
-   work is left out: the certificate always names it, with its own standard. */
-const BY_OTHERS: [RegExp, string][] = [
-  [/bulkhead/i, "bulkheads"],
-  [/gyprock|plasterboard|plastering|sheeting/i, "plasterboard"],
-  [/\bpaint/i, "painting"],
-  [/patch|mak(?:e|ing) good/i, "making good"],
-  [/carpentry|joinery/i, "carpentry and joinery"],
-  [/scaffold/i, "scaffolding"],
-  [/\bcrane|hoist/i, "crane hire"],
-  [/core (?:hole|drill)|penetrations?\b/i, "core holes"],
-  [/plumb/i, "plumbing"],
-  [/structural/i, "structural work"],
-  [/asbestos/i, "asbestos removal"],
-  [/fire[\s-]*(?:stop|seal|collar)/i, "fire stopping"],
-  [/builder'?s works/i, "builder's works"],
-];
-const EXCLUDES_HEAD = /^(?:excludes?|exclusions|not included)\b[^:]*:?$/i;
-/** Another heading ends the list: "Includes:", "Notes:", "Warranty:". */
-const ANY_HEAD = /^[A-Za-z][A-Za-z '’&/-]{1,30}:$/;
-
-export function byOthersIn(text: string): string {
-  const lines = text.replace(/\r/g, "").split("\n").map(clean).filter(Boolean);
-  const found: string[] = [];
-  let inList = false;
-  for (const line of lines) {
-    if (EXCLUDES_HEAD.test(line)) {
-      inList = true;
-      continue;
-    }
-    if (!inList) continue;
-    if (ANY_HEAD.test(line)) {
-      inList = false;
-      continue;
-    }
-    for (const [re, label] of BY_OTHERS) if (re.test(line) && !found.includes(label)) found.push(label);
-  }
-  if (found.length === 0) return "";
-  const list = found.length === 1 ? found[0] : `${found.slice(0, -1).join(", ")} and ${found[found.length - 1]}`;
-  return `${list} by others`;
 }
 
 export function readQuote(description: string | null): QuoteReading {
@@ -268,7 +221,6 @@ export function readQuote(description: string | null): QuoteReading {
     ventilation: fans.length > 0 || /energy recovery|\berv\b|ventilation fan|fresh air fan|inline fan/i.test(text),
     refrigerant,
     statedConnectedKw: statedConnectedKw(text),
-    byOthers: byOthersIn(text),
   };
 }
 

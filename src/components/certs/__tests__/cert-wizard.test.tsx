@@ -124,16 +124,6 @@ describe("what the quote says about itself", () => {
     await userEvent.type(living, "18.2");
     expect(eq.queryByText(/The quote says/)).toBeNull();
   });
-
-  it("fills in what's not covered from the quote's exclusions, and says where it came from", async () => {
-    certWizardContext.mockImplementation(async () => job1383());
-    open();
-    await screen.findByRole("tab", { name: "Checks" });
-    await tab("Checks");
-    const checks = panel("checks");
-    expect(checks.getByLabelText("Also not covered")).toHaveValue("bulkheads, plasterboard and painting by others");
-    expect(checks.getByText("From the quote's exclusions")).toBeInTheDocument();
-  });
 });
 
 describe("issuing", () => {

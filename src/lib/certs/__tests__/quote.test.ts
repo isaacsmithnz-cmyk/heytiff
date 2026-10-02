@@ -1,4 +1,4 @@
-import { byOthersIn, isOutdoorModel, matchRequirement, modelsIn, readQuote, statedConnectedKw, suggestBuilding } from "../quote";
+import { isOutdoorModel, matchRequirement, modelsIn, readQuote, statedConnectedKw, suggestBuilding } from "../quote";
 import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2699, JOB_279, JOB_3326 } from "./fixtures/jobs";
 
 /* The wizard's first draft, read off six real jobs. Each is only a
@@ -162,15 +162,5 @@ describe("what the quote says about itself", () => {
   it("reads a stated total either way round, and nothing when there is none", () => {
     expect(statedConnectedKw("VRF with a connected capacity of 24.5 kW")).toBe(24.5);
     expect(statedConnectedKw(JOB_279)).toBeNull();
-  });
-
-  it("1383: its excluded building works become the certificate's by others, and its Wi-Fi adaptors don't", () => {
-    expect(readQuote(JOB_1383).byOthers).toBe("bulkheads, plasterboard and painting by others");
-  });
-
-  it("stops at the next heading, leaves electrical to its own line, and is empty with no exclusions", () => {
-    expect(byOthersIn("Excludes:\n- Painting\n- Electrical\nWarranty:\n- 5 years on painting touch-ups")).toBe("painting by others");
-    expect(byOthersIn("Exclusions\n- Scaffolding\n- Making good of ceilings")).toBe("scaffolding and making good by others");
-    expect(byOthersIn(JOB_279)).toBe("");
   });
 });

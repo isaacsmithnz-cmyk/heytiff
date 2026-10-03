@@ -1883,6 +1883,21 @@ const familyMoney = (over: Partial<FamilyInput> = {}): FamilyMoney =>
   });
 
 describe("the Money face", () => {
+  it("reads as an invoice: bill to, the terms a segment a claim, and the balance due as the hero", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      card(detail({ contacts: [{ name: "Accounts", type: "BILLING", phone: null, altPhone: null, email: "accounts@lsdb.com.au" }] }))
+    );
+    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await openMoney();
+    const f = face("money");
+    expect(await f.findByText("Bill to")).toBeInTheDocument();
+    expect(f.getByText("accounts@lsdb.com.au")).toBeInTheDocument();
+    expect(f.getByText("Payment terms")).toBeInTheDocument();
+    expect(f.getByText("Balance due")).toBeInTheDocument();
+    expect(f.getByText("Claim")).toBeInTheDocument();
+  });
+
   const openMoney = async () => {
     await detailLanded();
     await openTab("Money");
@@ -2093,7 +2108,9 @@ describe("the Money face", () => {
     render(<JobSheet row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    expect(await screen.findByText("Not yet invoiced")).toBeInTheDocument();
+    /* the claim still to bill says so in its own line, with no number */
+    const toBill = (await screen.findByText(/Not yet invoiced/)).textContent ?? "";
+    expect(toBill).not.toMatch(/Invoice #2380\b/);
     expect(screen.queryByText(/Invoice #2380 ·/)).toBeNull();
   });
 

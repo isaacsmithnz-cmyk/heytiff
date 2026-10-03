@@ -120,6 +120,16 @@ function fallbackLine(
   }
 }
 
+/** Who the invoices go to: the client, and the contact the bills are
+    addressed to when the job names one. */
+export type BillTo = { name: string; contact: { name: string; email: string | null } | null };
+
+/** A claim's segment on the terms bar: paid in ink's green, invoiced and
+    waiting in amber, still to bill in the tint — the same three the old bar
+    used, one segment a claim. */
+const segOf = (c: FamilyClaim) =>
+  c.state === "paid" || c.state === "paid_unknown" ? "paid" : c.state === "awaiting" || c.state === "part" ? "awaiting" : "tocome";
+
 export function JobMoneyBlock({
   family,
   money,
@@ -128,6 +138,7 @@ export function JobMoneyBlock({
   unavailable = false,
   focusRemoteId = null,
   onOpenClaim,
+  billTo = null,
 }: {
   family: FamilyMoney | null;
   money: JobMoney | null;
@@ -145,6 +156,7 @@ export function JobMoneyBlock({
   focusRemoteId?: string | null;
   /** Opens one claim's own modal; absent leaves the rows inert. */
   onOpenClaim?: (remoteId: string) => void;
+  billTo?: BillTo | null;
 }) {
   /* Collection is counted across the FAMILY when there is one. A parent whose
      deposit landed on #2380A used to read "Nothing paid yet" while $9,402 was
@@ -222,14 +234,103 @@ export function JobMoneyBlock({
   const barBasisSafe = !(family !== null && family.awaitingCents === null && family.paidCents > 0);
   const showBar = value !== null && value > 0 && segments.length > 1 && barBasisSafe;
 
+  /* THE BALANCE DUE — the hero (Isaac, 2026-10-02: "how other companies do
+     their invoicing pages… a hero total"). What is still owed on the whole
+     job: invoiced and waiting, plus still to bill. Only where both halves are
+     known and on one basis, and once something has been paid; otherwise the
+     job's value takes the hero's place as it always did. */
+  const balance =
+    /* until something has come in, the balance IS the job's value, and the
+       hero would say one figure twice */
+    unavailable || paidCents <= 0
+    ? null
+    : family
+      ? awaiting !== null && toCome !== null && barBasisSafe
+        ? awaiting + Math.max(0, toCome)
+        : null
+      : value !== null && basis === "inc" && !ladderSpeaksFirst
+        ? Math.max(0, value - paidCents)
+        : null;
+  /* the terms, a segment a claim, where the claims are a share of a total */
+  const terms =
+    !unavailable && isFamily && value !== null && value > 0 && barBasisSafe
+      ? family!.claims.filter((c) => c.amountCents !== null && c.amountCents > 0)
+      : null;
+
   return (
-    <div className="wb2-shsect wb2-jmoney">
-      {/* The head reads down the RIGHT edge, with the ledger's amounts. */}
-      <div className="wb2-jmhead">
-        <span className="wb2-sect">Job value{unavailable ? "" : basisWord}</span>
-        <b className="wb2-jmbig">{!unavailable && value !== null ? fmtAud(value) : "—"}</b>
-        {/* axis 1, and only axis 1 */}
-        {!unavailable && isFamily && invoicedLine && <em className="wb2-jmsub">{invoicedLine}</em>}
+    <div className="wb2-shsect wb2-jmoney jcl-bill">
+      {/* THE INVOICE'S HEAD (Isaac, 2026-10-02): who it's billed to on the
+          left, the payment terms across the middle, and the balance due big
+          on the right — where every invoice page puts it. */}
+      <div className="jcl-billhead">
+        {billTo && (
+          <div className="jcl-billto">
+            <span className="wb2-sect">Bill to</span>
+            <b>{billTo.name}</b>
+            {billTo.contact && <em>{billTo.contact.name}</em>}
+            {billTo.contact?.email && <em>{billTo.contact.email}</em>}
+          </div>
+        )}
+
+        <div className="jcl-terms">
+          {terms && terms.length > 1 ? (
+            <>
+              <span className="wb2-sect">Payment terms</span>
+              {/* A ZERO-WIDTH SEGMENT IS NOT DRAWN — it still owns its gap */}
+              <span className="wb2-jmbar" aria-hidden>
+                {terms.map((c) => (
+                  <i key={c.remoteId} className={segOf(c)} style={{ width: pct(c.amountCents!) }} />
+                ))}
+              </span>
+              <span className="jcl-termkey">
+                {terms.map((c) => (
+                  <span key={c.remoteId} style={{ width: pct(c.amountCents!) }}>
+                    {c.percent !== null ? `${c.percent === 0 ? "<1" : c.percent}% ${c.stage.toLowerCase()}` : c.stage}
+                  </span>
+                ))}
+              </span>
+            </>
+          ) : (
+            !unavailable &&
+            showBar && (
+              <>
+                <span className="wb2-jmbar" aria-hidden>
+                  {segments.map((seg) => (
+                    <i key={seg.key} className={seg.key} style={{ width: pct(seg.cents) }} />
+                  ))}
+                </span>
+                <span className="wb2-jmkey">
+                  {segments.map((seg) => (
+                    <span key={seg.key}>
+                      <i className={seg.key} />
+                      {seg.word}
+                    </span>
+                  ))}
+                </span>
+              </>
+            )
+          )}
+        </div>
+
+        <div className="wb2-jmhead">
+          {balance !== null ? (
+            <>
+              <span className="wb2-sect">Balance due</span>
+              <b className="wb2-jmbig hero">{fmtAud(balance)}</b>
+              <span className="jcl-billval">
+                <span className="wb2-sect">Job value{basisWord}</span>
+                <span>{value !== null ? fmtAud(value) : "—"}</span>
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="wb2-sect">Job value{unavailable ? "" : basisWord}</span>
+              <b className="wb2-jmbig">{!unavailable && value !== null ? fmtAud(value) : "—"}</b>
+            </>
+          )}
+          {/* axis 1, and only axis 1 */}
+          {!unavailable && isFamily && invoicedLine && <em className="wb2-jmsub">{invoicedLine}</em>}
+        </div>
       </div>
 
       {unavailable && (
@@ -237,30 +338,6 @@ export function JobMoneyBlock({
           ServiceM8&apos;s figures didn&apos;t load just now. Close the job and open it again to
           try.
         </p>
-      )}
-
-      {!unavailable && showBar && (
-        <>
-          {/* A ZERO-WIDTH SEGMENT IS NOT DRAWN. It still owns the flex gap
-              beside it, so a fully paid job grew a grey nub on the end that
-              read as money still to bill. */}
-          <span className="wb2-jmbar" aria-hidden>
-            {segments.map((seg) => (
-              <i key={seg.key} className={seg.key} style={{ width: pct(seg.cents) }} />
-            ))}
-          </span>
-          {/* and a key for a colour that isn't on the bar explains nothing */}
-          {segments.length > 1 && (
-            <span className="wb2-jmkey">
-              {segments.map((seg) => (
-                <span key={seg.key}>
-                  <i className={seg.key} />
-                  {seg.word}
-                </span>
-              ))}
-            </span>
-          )}
-        </>
       )}
 
       {/* axis 2 — the head row says where collection stands, in the tinted
@@ -292,6 +369,13 @@ export function JobMoneyBlock({
       {/* A CLAIM ROW IS A DOOR. Each opens that invoice's own modal — its
           lines, its payment, its writing, its paper — which is where those
           live now that a clone has stopped being a card of its own. */}
+      {!unavailable && isFamily && (
+        <div className="jcl-claimhead" aria-hidden>
+          <span>Claim</span>
+          <span>Status</span>
+          <span>Amount</span>
+        </div>
+      )}
       {!unavailable &&
         isFamily &&
         family!.claims.map((claim) => {

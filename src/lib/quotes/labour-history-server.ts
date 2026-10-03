@@ -11,7 +11,9 @@ import { sampleOf, type LabourSample } from "./labour-history";
 
 const SINCE_YEARS = 3;
 
-export async function readLabourSamples(orgId: string, now: Date = new Date()): Promise<LabourSample[]> {
+/** `dayHours`: the business's working day, which turns a brief's days into
+    hours; without it only briefs in hours count. */
+export async function readLabourSamples(orgId: string, dayHours: number | null, now: Date = new Date()): Promise<LabourSample[]> {
   const since = `${now.getUTCFullYear() - SINCE_YEARS}-01-01`;
   const [{ data: jobs, error }, { data: cats }] = await Promise.all([
     supabaseAdmin
@@ -34,7 +36,7 @@ export async function readLabourSamples(orgId: string, now: Date = new Date()): 
   for (const j of (jobs ?? []) as { generated_job_id: string | null; job_description: string | null; category_uuid: string | null }[]) {
     const base = splitJobNumber(j.generated_job_id)?.base ?? j.generated_job_id;
     if (!base || seen.has(base)) continue;
-    const s = sampleOf(base, j.job_description, j.category_uuid ? category.get(j.category_uuid) ?? null : null);
+    const s = sampleOf(base, j.job_description, j.category_uuid ? category.get(j.category_uuid) ?? null : null, dayHours);
     if (!s) continue;
     seen.add(base);
     out.push(s);

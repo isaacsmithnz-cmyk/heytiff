@@ -27,10 +27,11 @@ describe("job 2330", () => {
     expect(r.lines.find((l) => l.key === "pair-coil")).toMatchObject({ code: "PC3858", qty: 1, assumed: "15 m, one 20 m roll" });
   });
 
-  it("prices labour by the person-day, and the contingency's hours by the hour", () => {
+  it("prices a person-day as the working day at the charge-out rate, and the contingency's hours at that rate", () => {
     const b = priceBuildUp(ductedLines(job2330, priceOf).lines, [{ stage: "Install", people: 5, days: 1 }], ONE_BUSINESS);
     expect(b.contingency).toEqual({ buyCents: 20011, sellCents: 28015, hours: 2 });
-    expect(b.labour).toMatchObject({ personDays: 5, hours: 2, sellCents: 5 * 132000 + 2 * 14000 });
+    /* a person-day is the business's working hours at its charge-out rate; the contingency's hours at the same rate */
+    expect(b.labour).toMatchObject({ personDays: 5, hours: 2, sellCents: 5 * 8 * 16500 + 2 * 16500 });
     expect(b.incGstCents - b.exGstCents).toBe(b.gstCents);
   });
 
@@ -218,7 +219,7 @@ describe("what the customer sees in a breakdown", () => {
   });
 
   it("leaves the lines as priced when nothing is hidden", () => {
-    const b = priceBuildUp(lines, visits, { ...ONE_BUSINESS, contingencyOn: false });
+    const b = priceBuildUp(lines, visits, { ...ONE_BUSINESS, contingency: null });
     const c = customerBreakdown(b);
     expect(c.hiddenCents).toBe(0);
     expect(c.lines.reduce((a, l) => a + l.sellCents, 0)).toBe(b.exGstCents);

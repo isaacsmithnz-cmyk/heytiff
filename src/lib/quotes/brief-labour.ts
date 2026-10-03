@@ -1,4 +1,4 @@
-import type { Visit } from "./buildup";
+import type { VisitStage } from "./buildup";
 
 /* LABOUR IS READ FROM THE BRIEF, NEVER MADE UP (Isaac, 2026-10-04: "any job
    should not recommend labour without data… number one source is the
@@ -16,17 +16,28 @@ import type { Visit } from "./buildup";
    Each clause is read on its own and counts only when it says BOTH who and
    how long — a crew with no time, or a time with nobody, is left unread
    rather than guessed at. A patch-up, a following day or a return trip is
-   a Return visit. A day is 8 hours. Pure. */
+   a Return visit.
+
+   A DAY IS THE BUSINESS'S OWN (Isaac, 2026-10-04: "there are to be no made
+   up figures. Everything has to come from the orgs own settings"): its
+   working hours, from its Rate Calculator. A clause is kept as it was said
+   — days or hours — and turned into the other only by those hours; with
+   none set, "3 pax for 1 day" is three person-days and no hours. Pure. */
+
+/** A trip to site as the brief says it: in days, in hours, or both once
+    the business's day turns one into the other. */
+export type BriefVisit = { stage: VisitStage; people: number; days: number | null; hours: number | null };
 
 export type BriefLabour = {
-  visits: Visit[];
-  /** person-hours across every visit */
-  personHours: number;
+  visits: BriefVisit[];
+  /** person-hours across every visit; null when one is in days and the
+      business has no working day set */
+  personHours: number | null;
+  /** person-days, likewise */
+  personDays: number | null;
   /** the clauses it was read from, as written */
   said: string[];
 };
-
-const HOURS_A_DAY = 8;
 
 const NUMBER_WORDS: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, half: 0.5 };
 const num = (w: string): number | null => {
@@ -66,23 +77,34 @@ function peopleIn(c: string): number | null {
   return null;
 }
 
-function hoursIn(c: string): number | null {
+type Time = { days: number } | { hours: number };
+
+/** How long a clause says, as it says it. */
+function timeIn(c: string): Time | null {
   const h = HOURS.exec(c);
-  if (h) return Number(h[1]);
+  if (h) return { hours: Number(h[1]) };
   const d = DAYS.exec(c);
   if (d) {
     const n = num(d[1]!);
-    return n == null ? null : n * HOURS_A_DAY;
+    return n == null ? null : { days: n };
   }
-  if (FULL_DAY.test(c)) return HOURS_A_DAY;
+  if (FULL_DAY.test(c)) return { days: 1 };
   return null;
 }
 
-/** The labour a brief states, or null when it states none. */
-export function labourFromBrief(text: string | null | undefined): BriefLabour | null {
+const round = (n: number) => Math.round(n * 100) / 100;
+
+/** The labour a brief states, or null when it states none. `dayHours` is
+    the business's working day, when it has set one. */
+export function labourFromBrief(text: string | null | undefined, dayHours: number | null): BriefLabour | null {
   if (!text?.trim()) return null;
-  const visits: Visit[] = [];
+  const day = dayHours && dayHours > 0 ? dayHours : null;
+  const visits: BriefVisit[] = [];
   const said: string[] = [];
+  const visit = (stage: VisitStage, people: number, t: Time): BriefVisit =>
+    "days" in t
+      ? { stage, people, days: t.days, hours: day ? round(t.days * day) : null }
+      : { stage, people, days: day ? round(t.hours / day) : null, hours: t.hours };
   for (const c of clauses(text)) {
     const stage = RETURNING.test(c) ? "Return" : "Install";
     /* "two half day return trips": a person each, half a day each */
@@ -90,24 +112,25 @@ export function labourFromBrief(text: string | null | undefined): BriefLabour | 
     if (trips) {
       const n = num(trips[1]!);
       if (n && n > 0) {
-        for (let i = 0; i < n; i++) visits.push({ stage: "Return", people: 1, days: 0.5 });
+        for (let i = 0; i < n; i++) visits.push(visit("Return", 1, { days: 0.5 }));
         said.push(c);
       }
       /* the rest of the clause may hold the main crew: "4 guys x 3 days, plus two…" */
       const rest = c.replace(trips[0], " ");
       const p = peopleIn(rest);
-      const h = hoursIn(rest);
-      if (p && h) visits.push({ stage: RETURNING.test(rest) ? "Return" : "Install", people: p, days: h / HOURS_A_DAY });
-      if (p && h && !said.includes(c)) said.push(c);
+      const t = timeIn(rest);
+      if (p && t) visits.push(visit(RETURNING.test(rest) ? "Return" : "Install", p, t));
+      if (p && t && !said.includes(c)) said.push(c);
       continue;
     }
     const people = peopleIn(c);
-    const hours = hoursIn(c);
-    if (!people || !hours) continue;
-    visits.push({ stage, people, days: hours / HOURS_A_DAY });
+    const t = timeIn(c);
+    if (!people || !t) continue;
+    visits.push(visit(stage, people, t));
     said.push(c);
   }
   if (visits.length === 0) return null;
-  const personHours = visits.reduce((a, v) => a + v.people * v.days * HOURS_A_DAY, 0);
-  return { visits, personHours: Math.round(personHours * 100) / 100, said };
+  const sum = (of: (v: BriefVisit) => number | null) =>
+    visits.every((v) => of(v) != null) ? round(visits.reduce((a, v) => a + v.people * of(v)!, 0)) : null;
+  return { visits, personHours: sum((v) => v.hours), personDays: sum((v) => v.days), said };
 }

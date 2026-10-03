@@ -12,9 +12,16 @@ import type { SupplierView } from "@/lib/quotes/price-book-server";
 import { PriceBook } from "./price-book-panel";
 import { LinksPanel } from "./links-panel";
 import { SameItemsPanel } from "./same-items-panel";
-import { MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/settings";
+import { MAX_CHARGE_OUT_CENTS, MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/settings";
+import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
 
 /* QUOTING — what a quote is priced by.
+
+   THE RATE AND THE DAY: the charge-out rate and the working day, set here
+   so a business can quote before it has finished its Rate Calculator
+   (Isaac, 2026-10-04). Left blank, each is the Rate Calculator's, and the
+   field says so; a day on site is the one times the other, never a figure
+   of ours (org-day.ts).
 
    THE MARKUP says its profit share beside it, because 20% markup is 16.7% of
    the sell price and the two get confused on every quote otherwise.
@@ -31,24 +38,33 @@ import { MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
 const $ = (cents: number | null) => (cents == null ? "–" : money.format(cents / 100));
 
-/** A markup as its field shows it: blank when the business hasn't set one. */
-const field = (pct: number | null) => (pct == null ? "" : String(pct));
-const pctOrNone = (s: string) => (s.trim() === "" ? null : Number(s));
+/** A setting as its field shows it: blank when the business hasn't set one. */
+const field = (n: number | null) => (n == null ? "" : String(n));
+const numOrNone = (s: string) => (s.trim() === "" ? null : Number(s));
+/** dollars as typed to cents, blank as not set */
+const centsOrNone = (s: string) => (s.trim() === "" ? null : Math.round(Number(s.replace(/[$,\s]/g, "")) * 100));
+const dollarsField = (cents: number | null) => (cents == null ? "" : String(cents / 100));
+/** blank, or a number from lo to hi */
+const inRange = (s: string, lo: number, hi: number) => s.trim() === "" || (Number.isFinite(Number(s)) && Number(s) >= lo && Number(s) <= hi);
 
 export function QuotingScreen({
   initial,
   components,
   suppliers,
+  calc,
 }: {
   initial: QuoteSettings;
   components: ComponentShortlist[];
   suppliers: SupplierView[];
+  /** what the business's Rate Calculator says, when it has one */
+  calc: CalcDay | null;
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(initial);
   const [unit, setUnit] = useState(field(initial.unitMarkupPct));
   const [material, setMaterial] = useState(field(initial.materialMarkupPct));
-  const [hours, setHours] = useState(String(initial.dayHours));
+  const [rate, setRate] = useState(dollarsField(initial.chargeOutCents));
+  const [hours, setHours] = useState(field(initial.dayHours));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [open, setOpen] = useState<ComponentKey | null>(null);
@@ -65,20 +81,30 @@ export function QuotingScreen({
     setSaved(res.settings);
     setUnit(field(res.settings.unitMarkupPct));
     setMaterial(field(res.settings.materialMarkupPct));
-    setHours(String(res.settings.dayHours));
+    setRate(dollarsField(res.settings.chargeOutCents));
+    setHours(field(res.settings.dayHours));
     setNote({ tone: "ok", text: done });
     router.refresh();
     return true;
   };
 
-  const pct = (s: string) => Number(s);
+  const typed = {
+    unitMarkupPct: numOrNone(unit),
+    materialMarkupPct: numOrNone(material),
+    chargeOutCents: centsOrNone(rate),
+    dayHours: numOrNone(hours),
+  };
   const changed =
-    pctOrNone(unit) !== saved.unitMarkupPct || pctOrNone(material) !== saved.materialMarkupPct || pct(hours) !== saved.dayHours;
+    typed.unitMarkupPct !== saved.unitMarkupPct ||
+    typed.materialMarkupPct !== saved.materialMarkupPct ||
+    typed.chargeOutCents !== saved.chargeOutCents ||
+    typed.dayHours !== saved.dayHours;
   const valid =
-    [unit, material].every((s) => s.trim() !== "" && pct(s) >= 0 && pct(s) <= MAX_MARKUP_PCT) &&
-    hours.trim() !== "" &&
-    pct(hours) >= 1 &&
-    pct(hours) <= MAX_DAY_HOURS;
+    [unit, material].every((s) => inRange(s, 0, MAX_MARKUP_PCT)) &&
+    inRange(rate.replace(/[$,\s]/g, ""), 0.01, MAX_CHARGE_OUT_CENTS / 100) &&
+    inRange(hours, 1, MAX_DAY_HOURS);
+  /* what a quote will use, as typed: this page's figure, else the Rate Calculator's */
+  const day = orgDayOf(valid ? typed : saved, calc);
 
   const choose = (key: ComponentKey, group: ComponentGroup, offer: ComponentOffer, rollM: number | null) =>
     save(
@@ -113,12 +139,26 @@ export function QuotingScreen({
             {note && <div className={`int-note ${note.tone}`}>{note.text}</div>}
 
             <section className="qs-group">
-              <h2 className="qs-h">Markup and the install day</h2>
+              <h2 className="qs-h">Rate and markup</h2>
               <div className="qs-fields">
-                <MarkupField label="Units" value={unit} onChange={setUnit} disabled={busy} />
-                <MarkupField label="Materials" value={material} onChange={setMaterial} disabled={busy} />
                 <label className="qs-field">
-                  <span>Install day</span>
+                  <span>Charge-out rate</span>
+                  <span className="qs-in">
+                    <em>$</em>
+                    <input
+                      className="wb2-fi"
+                      inputMode="decimal"
+                      value={rate}
+                      disabled={busy}
+                      onChange={(e) => setRate(e.target.value)}
+                      aria-label="Charge-out rate, dollars an hour"
+                    />
+                    <em>an hour</em>
+                  </span>
+                  <em className="qs-share">{day.rate ? fromWords(rate, rateFromWords(day.rate.from), $(day.rate.perHourCents)) : "Not set"}</em>
+                </label>
+                <label className="qs-field">
+                  <span>Working day</span>
                   <span className="qs-in">
                     <input
                       className="wb2-fi"
@@ -126,25 +166,30 @@ export function QuotingScreen({
                       value={hours}
                       disabled={busy}
                       onChange={(e) => setHours(e.target.value)}
-                      aria-label="Hours in an install day"
+                      aria-label="Hours in a working day"
                     />
                     <em>hours</em>
                   </span>
+                  <em className="qs-share">
+                    {day.hours ? fromWords(hours, "your Rate Calculator's working hours", `${day.hours.hours} hours`) : "Not set"}
+                  </em>
                 </label>
+                <MarkupField label="Units" value={unit} onChange={setUnit} disabled={busy} />
+                <MarkupField label="Materials" value={material} onChange={setMaterial} disabled={busy} />
               </div>
+              <p className="qs-sub">
+                {day.dayCents != null && day.rate && day.hours
+                  ? `A day on site is ${$(day.dayCents)} a person: ${day.hours.hours} hours at ${$(day.rate.perHourCents)}.`
+                  : "A day on site needs a charge-out rate and a working day."}
+              </p>
               <div className="wb2-jqacts">
                 <button
                   type="button"
                   className="pbtn primary"
                   disabled={busy || !changed || !valid}
-                  onClick={() =>
-                    void save(
-                      { ...saved, unitMarkupPct: pct(unit), materialMarkupPct: pct(material), dayHours: pct(hours) },
-                      "Markup saved"
-                    )
-                  }
+                  onClick={() => void save({ ...saved, ...typed }, "Rate and markup saved")}
                 >
-                  Save markup
+                  Save
                 </button>
               </div>
             </section>
@@ -224,6 +269,11 @@ function MarkupField({
     </label>
   );
 }
+
+/** Under a blank field, where the figure a quote uses comes from; under a
+    filled one, nothing more to say. */
+const fromWords = (typedValue: string, source: string, value: string) =>
+  typedValue.trim() === "" ? `${value}, ${source}` : "Set here";
 
 const perUnitWord = (unit: "m" | "each") => (unit === "m" ? "a metre" : "each");
 

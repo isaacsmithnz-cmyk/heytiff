@@ -50,14 +50,14 @@ export type Visit = { stage: VisitStage; people: number; days: number };
 export type BuildSettings = {
   unitMarkupPct: number;
   materialMarkupPct: number;
-  /** one person for one day on site — ServiceM8's "Labour HVAC" */
-  dayRateCents: number;
-  /** by the hour, for the contingency's hours */
-  labourRateCents: number;
-  /** the duct contingency: a share of the duct lines, and hours on top */
-  contingencyPct: number;
-  contingencyHours: number;
-  contingencyOn: boolean;
+  /** the business's install charge-out rate, cents an hour */
+  chargeOutCents: number;
+  /** its working day: one person's day on site is the rate times these
+      hours (Isaac, 2026-10-04 — org-day.ts) */
+  dayHours: number;
+  /** the duct contingency, when the business uses one: a share of the duct
+      lines, and hours on top at the rate */
+  contingency: { pct: number; hours: number } | null;
 };
 
 export type PricedLine = BuildLine & { buyCents: number; sellCents: number };
@@ -122,21 +122,21 @@ export function priceBuildUp(
 
   let contingency: BuildUp["contingency"] = null;
   /* only ductwork carries it: a wall split has none to cover */
-  if (s.contingencyOn && ductBuy > 0) {
-    const cBuy = Math.round((ductBuy * s.contingencyPct) / 100);
-    contingency = { buyCents: cBuy, sellCents: markup(cBuy, s.materialMarkupPct), hours: s.contingencyHours };
+  if (s.contingency && ductBuy > 0) {
+    const cBuy = Math.round((ductBuy * s.contingency.pct) / 100);
+    contingency = { buyCents: cBuy, sellCents: markup(cBuy, s.materialMarkupPct), hours: s.contingency.hours };
     buy += contingency.buyCents;
     sell += contingency.sellCents;
   }
 
   const visitRows = visits.map((v) => {
     const personDays = Math.max(0, v.people) * Math.max(0, v.days);
-    return { ...v, personDays, sellCents: Math.round(personDays * s.dayRateCents) };
+    return { ...v, personDays, sellCents: Math.round(personDays * s.dayHours * s.chargeOutCents) };
   });
   const personDays = visitRows.reduce((a, v) => a + v.personDays, 0);
   const hours = contingency?.hours ?? 0;
   const visitsSell = visitRows.reduce((a, v) => a + v.sellCents, 0);
-  const labourSell = visitsSell + Math.round(hours * s.labourRateCents);
+  const labourSell = visitsSell + Math.round(hours * s.chargeOutCents);
   const asked = !!loadingIn && loadingIn.pct > 0;
   const loading =
     asked && loadingIn.reason.trim()

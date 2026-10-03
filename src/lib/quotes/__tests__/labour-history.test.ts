@@ -19,12 +19,15 @@ describe("the business's own labour history", () => {
   });
 
   it("a past job is a sample only when its brief states its labour", () => {
-    expect(sampleOf("3256", "Mits Elec 7kw multi outdoor\n3 x pax for 1 day\nDave for 4 hrs for patching following day", "Install")).toEqual({
+    expect(sampleOf("3256", "Mits Elec 7kw multi outdoor\n3 x pax for 1 day\nDave for 4 hrs for patching following day", "Install", 8)).toEqual({
       job: "3256",
       kind: "multi",
       personHours: 28,
     });
-    expect(sampleOf("3292", "Mits Elec 5.2kw multi outdoor, two heads", "Install")).toBeNull();
+    expect(sampleOf("3292", "Mits Elec 5.2kw multi outdoor, two heads", "Install", 8)).toBeNull();
+    /* a brief in days, from a business with no working day set, can't be counted in hours */
+    expect(sampleOf("3256", "Mits Elec 7kw multi outdoor\n3 x pax for 1 day", "Install", null)).toBeNull();
+    expect(sampleOf("3221", "Annual maintenance, allow 3 HRS x 1 PAX", "Maintenance", null)).toMatchObject({ personHours: 3 });
   });
 
   it(`says nothing until there are ${MIN_JOBS} of the same kind, then the middle of them`, () => {
@@ -40,9 +43,9 @@ describe("the business's own labour history", () => {
 
   it("the brief first, then the history, else nothing — never a rule of thumb", () => {
     const history = samples("multi", [16, 24, 28, 32, 40]);
-    expect(labourAdvice("4 guys x 3 days", "multi", history)).toMatchObject({ from: "brief", labour: { personHours: 96 } });
-    expect(labourAdvice("Five heads in a heritage apartment", "multi", history)).toMatchObject({ from: "history", typical: { hours: 28 } });
-    expect(labourAdvice("Five heads in a heritage apartment", "vrf", history)).toEqual({ from: "none" });
-    expect(labourAdvice("Five heads", null, history)).toEqual({ from: "none" });
+    expect(labourAdvice("4 guys x 3 days", "multi", history, 8)).toMatchObject({ from: "brief", labour: { personHours: 96 } });
+    expect(labourAdvice("Five heads in a heritage apartment", "multi", history, 8)).toMatchObject({ from: "history", typical: { hours: 28 } });
+    expect(labourAdvice("Five heads in a heritage apartment", "vrf", history, 8)).toEqual({ from: "none" });
+    expect(labourAdvice("Five heads", null, history, 8)).toEqual({ from: "none" });
   });
 });

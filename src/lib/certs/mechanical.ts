@@ -206,8 +206,6 @@ export type Requirement = {
   reason: string;
 };
 
-export type Certifier = { name: string; projectNumber: string; consentAuthority: string };
-
 /** Everything the person chooses or types. Stored as-is on the version. */
 export type CertAnswers = {
   covers: Covers;
@@ -219,7 +217,6 @@ export type CertAnswers = {
   installed: { ductwork: boolean; fireRated: boolean; fireStopProduct: string; condensatePump: boolean };
   /** Suggested for ventilation in a commercial building; removable. */
   ventAs16682: boolean;
-  certifier: Certifier | null;
   requirements: Requirement[];
   fireMode: FireMode | null;
   /** The person checked each unit's rated airflow against 1000 L/s. */
@@ -254,7 +251,6 @@ export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   fans: [],
   installed: { ductwork: false, fireRated: false, fireStopProduct: "", condensatePump: false },
   ventAs16682: false,
-  certifier: null,
   requirements: [],
   fireMode: null,
   fireModeRatingsChecked: false,
@@ -462,7 +458,6 @@ export type CertContent = {
   covers: Covers;
   building: { label: string; cls: string | null } | null;
   completedOn: string;
-  certifier: Certifier | null;
   systems: AcSystem[];
   fans: FanRow[];
   outdoorKw: number;
@@ -486,7 +481,6 @@ export function buildCertificate(a: CertAnswers): CertContent {
     covers: a.covers,
     building: b && b.key !== "other" ? { label: b.label, cls: b.cls } : null,
     completedOn: a.completedOn,
-    certifier: a.certifier && a.certifier.name.trim() ? a.certifier : null,
     systems,
     fans,
     outdoorKw: outdoorTotalKw(systems),

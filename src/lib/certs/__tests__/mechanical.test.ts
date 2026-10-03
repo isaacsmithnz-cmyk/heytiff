@@ -64,7 +64,6 @@ describe("the golden jobs", () => {
   it("1383: FutureCert's three requirements first, in its order, then the approved documents, the refrigerant pair and ductwork", () => {
     const a = answersFor(JOB_1383, AC, "apartment", {
       requirements: futureCert(),
-      certifier: { name: "FutureCert", projectNumber: "24-0108", consentAuthority: "Woollahra Municipal Council" },
       fireMode: "individual",
       fireModeRatingsChecked: true,
       installed: { ductwork: true, fireRated: false, fireStopProduct: "", condensatePump: false },
@@ -145,7 +144,6 @@ describe("the statements", () => {
   it("print what doesn't apply only when a certifier asked, with its reason", () => {
     const a = answersFor(JOB_1300, AC, "house", {
       requirements: [{ text: "Part J5 compliance", answer: "na", clause: "j5", own: "", reason: suggestedReason("j5", "house") }],
-      certifier: { name: "A Certifier", projectNumber: "1", consentAuthority: "" },
     });
     const { notApplicable } = statementsFor(a);
     expect(notApplicable.map((s) => s.text)).toEqual(["Part J5 compliance: House: energy efficiency is set by the BASIX certificate."]);
@@ -155,7 +153,6 @@ describe("the statements", () => {
   it("print a person's own statement as typed, in the certifier's order", () => {
     const a = answersFor(JOB_3326, AC, "office", {
       requirements: [{ text: "Provide a schedule of equipment", answer: "own", clause: null, own: "The equipment is scheduled in the table above.", reason: "" }],
-      certifier: { name: "A Certifier", projectNumber: "1", consentAuthority: "" },
     });
     expect(statementsFor(a).statements[0]).toEqual({
       clause: null,
@@ -241,7 +238,6 @@ describe("certProblemList", () => {
   it("stops at a smoke control system, and asks for the ratings check on individual units", () => {
     const base = answersFor(JOB_1383, AC, "apartment", {
       requirements: futureCert(),
-      certifier: { name: "FutureCert", projectNumber: "24-0108", consentAuthority: "" },
     });
     expect(certProblems({ ...base, fireMode: "smoke" }, FACTS)).toEqual([
       "A smoke control system needs the mechanical engineer's certificate, not this one.",
@@ -259,6 +255,13 @@ describe("certProblemList", () => {
     expect(certProblems(a, FACTS)).toEqual([
       "Choose a statement for requirement 1, write one, or mark it not applicable.",
     ]);
+  });
+
+  it("keeps no certifier, even when a saved draft still carries one", () => {
+    const saved = { ...answersFor(JOB_3326, AC, "office"), certifier: { name: "FutureCert", projectNumber: "24-0108", consentAuthority: "" } };
+    const a = normaliseCertAnswers(saved);
+    expect("certifier" in a).toBe(false);
+    expect(JSON.stringify(buildCertificate(a))).not.toMatch(/FutureCert|24-0108|certifier/i);
   });
 
   it("needs the signatory's own current licences, a signature and the approved wording", () => {

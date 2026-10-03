@@ -240,10 +240,6 @@ describe("issuing", () => {
 describe("what you've been asked to cover", () => {
   const reading = (requirements: { text: string; clause: "refrigerant" | null; notOurs: boolean }[]): ReadListResult => ({
     ok: true,
-    certifier: "FutureCert",
-    projectNumber: "FC-2291",
-    consentAuthority: "Woollahra Council",
-    address: "",
     requirements,
   });
   const openStep = async () => {
@@ -267,7 +263,6 @@ describe("what you've been asked to cover", () => {
     expect(list.queryByText(/Not read yet/)).toBeNull();
     expect(read).toBeDisabled();
     expect(list.queryByLabelText("Certifier")).toBeNull();
-    expect(list.queryByText(/FutureCert/)).toBeNull();
     await tab("Sign");
     expect(panel("sign").queryByText(/certifier/i)).toBeNull();
   });

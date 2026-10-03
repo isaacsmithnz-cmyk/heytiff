@@ -185,12 +185,6 @@ export function CertificatePaper({
       : []),
     { label: "Completed", value: shortDay(content.completedOn) },
     ...(content.covers.vent ? [{ label: "Fans", value: String(content.fanCount) }] : []),
-    ...(content.certifier
-      ? [
-          { label: "Certifier", value: content.certifier.name },
-          ...(content.certifier.projectNumber ? [{ label: "Project no.", value: content.certifier.projectNumber }] : []),
-        ]
-      : []),
   ];
 
   /* the figures row's column count, as a custom property: built here, as a

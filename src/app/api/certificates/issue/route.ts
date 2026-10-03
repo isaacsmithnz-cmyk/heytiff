@@ -13,7 +13,6 @@ import {
   certFileName,
   certProblems,
   CERT_LIBRARY_VERSION,
-  clausesFor,
   type CertAnswers,
 } from "@/lib/certs/mechanical";
 import { certApproval, loadCertJob, loadSignatory } from "@/lib/certs/query";
@@ -126,21 +125,6 @@ export async function POST(request: Request): Promise<Response> {
     .maybeSingle();
   const version = ((last as { version: number } | null)?.version ?? 0) + 1;
 
-  /* the certifier remembered, so their next job starts with these clauses */
-  let certifierProfileId: string | null = null;
-  const certifierName = answers.certifier?.name.trim() ?? "";
-  if (certifierName) {
-    const { data } = await supabaseAdmin
-      .from("certifier_profiles")
-      .upsert(
-        { org_id: orgId, name: certifierName, clause_keys: clausesFor(answers), updated_at: new Date().toISOString() },
-        { onConflict: "org_id,name" }
-      )
-      .select("id")
-      .maybeSingle();
-    certifierProfileId = (data as { id: string } | null)?.id ?? null;
-  }
-
   const content = buildCertificate(answers);
   const { data: row, error: vErr } = await supabaseAdmin
     .from("certificate_versions")
@@ -151,7 +135,6 @@ export async function POST(request: Request): Promise<Response> {
       answers,
       requirements: answers.requirements,
       requirements_document_id: requirementsDocumentId,
-      certifier_profile_id: certifierProfileId,
       content,
       library_version: CERT_LIBRARY_VERSION,
       reason: version === 1 ? "First issue" : trim(body?.reason, 300) || "Reissued",

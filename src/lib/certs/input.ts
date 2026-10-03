@@ -90,7 +90,6 @@ export function normaliseCertAnswers(raw: unknown): CertAnswers {
   const r = obj(raw);
   const covers = obj(r.covers);
   const installed = obj(r.installed);
-  const certifier = r.certifier && typeof r.certifier === "object" ? obj(r.certifier) : null;
   return {
     ...DEFAULT_CERT_ANSWERS,
     covers: { ac: bool(covers.ac), vent: bool(covers.vent) },
@@ -105,13 +104,6 @@ export function normaliseCertAnswers(raw: unknown): CertAnswers {
       condensatePump: bool(installed.condensatePump),
     },
     ventAs16682: bool(r.ventAs16682),
-    certifier: certifier
-      ? {
-          name: text(certifier.name, 120),
-          projectNumber: text(certifier.projectNumber, 60),
-          consentAuthority: text(certifier.consentAuthority, 120),
-        }
-      : null,
     requirements: list(r.requirements, 30).map(requirement).filter((q) => q.text !== ""),
     fireMode: oneOf<FireMode>(r.fireMode, ["individual", "shutdown", "smoke"]),
     fireModeRatingsChecked: bool(r.fireModeRatingsChecked),

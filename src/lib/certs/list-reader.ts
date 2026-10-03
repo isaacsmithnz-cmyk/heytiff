@@ -11,37 +11,29 @@ import type { ClauseKey } from "./mechanical";
    can change it: matching is a rule that can be tested, so it isn't left to
    the model. */
 
-const nullable = (t: "string") => ({ type: [t, "null"] });
-
+/* ONLY WHAT IS ASKED (Isaac, 2026-10-03). No certifier, project number,
+   consent authority or address is read: none is printed or kept, so the
+   model isn't asked for them. */
 export const CERT_LIST_SCHEMA = {
   type: "object",
   properties: {
-    certifier: nullable("string"),
-    projectNumber: nullable("string"),
-    consentAuthority: nullable("string"),
-    address: nullable("string"),
     requirements: { type: "array", items: { type: "string" } },
   },
-  required: ["certifier", "projectNumber", "consentAuthority", "address", "requirements"],
+  required: ["requirements"],
   additionalProperties: false,
 } as const;
 
 /* Whoever sent it: a certifier's list of requirements, an email or letter
    from the builder or the architect, a specification. What matters is what
-   it asks the certificate to cover; who sent it is only printed when it names
-   a certifier. */
+   it asks the certificate to cover; who sent it is never printed. */
 const WHAT_TO_TAKE =
   "Extract:\n" +
-  "- certifier: a building certifier's company name, only if one is named\n" +
-  "- projectNumber: that certifier's project or job number, only if one is given\n" +
-  "- consentAuthority: the council or consent authority, only if one is named\n" +
-  "- address: the address of the job or development, if given\n" +
   "- requirements: every thing it asks to be done, shown or certified for mechanical services, mechanical " +
   "ventilation or air conditioning, one string each, word for word as written. A request written as bullet points " +
   "is one string per bullet; an introductory line that only says what follows is not a requirement. Where items are " +
   "listed by trade, take only the mechanical ones. Leave out greetings, sign-offs and every other trade's items " +
   "(electrical, fire safety, glazing, waterproofing, structural, energy efficiency, BASIX).\n" +
-  "Use null for anything it doesn't say, and an empty list when it asks for nothing mechanical. Never guess.";
+  "Use an empty list when it asks for nothing mechanical. Never guess.";
 
 /** A file on the job: a PDF or a photo of one. */
 export const CERT_LIST_PROMPT =
@@ -58,10 +50,6 @@ export const CERT_EMAIL_PROMPT =
   WHAT_TO_TAKE;
 
 export type ListReading = {
-  certifier: string;
-  projectNumber: string;
-  consentAuthority: string;
-  address: string;
   requirements: { text: string; clause: ClauseKey | null; notOurs: boolean }[];
 };
 
@@ -72,10 +60,6 @@ export function parseListReading(raw: unknown): ListReading {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const reqs = Array.isArray(r.requirements) ? r.requirements : [];
   return {
-    certifier: str(r.certifier, 120),
-    projectNumber: str(r.projectNumber, 60),
-    consentAuthority: str(r.consentAuthority, 120),
-    address: str(r.address, 200),
     requirements: reqs
       .map((t) => str(t, 600))
       .filter(Boolean)

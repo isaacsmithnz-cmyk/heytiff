@@ -51,8 +51,9 @@ create index if not exists certificates_builder_idx on public.certificates (org_
 alter table public.certificates enable row level security;
 
 -- ---------------------------------------------------------------------------
--- The certifiers named on certificates, so a name is spelled the same way
--- twice. Never chosen for the person: certifiers change from job to job.
+-- UNUSED since 2026-10-03: no certifier is asked for or printed, and
+-- nothing writes this table or certifier_profile_id. Kept because it is
+-- already in production; dropping it needs its own migration.
 -- clause_keys is a record of what each last asked for, not a prefill.
 -- ---------------------------------------------------------------------------
 create table if not exists public.certifier_profiles (

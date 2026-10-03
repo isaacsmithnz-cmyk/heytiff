@@ -275,10 +275,11 @@ uploaded here) or upload one. One "Read it" button reads whatever is there,
 text and file together, and lists each thing asked for to check. Edit either
 after reading and it says "Not read yet".
 
-**No certifier is asked for or printed** (Isaac, 2026-10-01). The
-certificate's `certifier` field and the `certifier_profiles` table stay in
-the schema, unused, in case a certifier's name or project number is wanted
-on the paper later.
+**No certifier is asked for, read or printed** (Isaac, 2026-10-01; removed
+from the code 2026-10-03). The answers and the paper have no certifier
+field, and Tiff reads only the requirements, not who sent them. The
+`certifier_profiles` table and `certificate_versions.certifier_profile_id`
+are in production but unused; nothing writes them.
 
 The section below describes the commonest case, a certifier's list, which is
 a table of items, one per trade, whose mechanical item is the brief for our
@@ -299,10 +300,6 @@ certificate.
    insurance policy (`org-credential-ai.ts`): one model call fills the form,
    the person checks it against the paper, and nothing is saved until they
    do. It reads:
-   - the certifier, the project number, the consent authority, and who the
-     list is addressed to
-   - the address and scope, checked against the job, with a mismatch flagged
-     rather than overwritten
    - every requirement under the mechanical item, one line each, word for word
 3. **Each requirement is matched to a clause** in the library, by the model
    with the clause list in front of it. The person sees each requirement next

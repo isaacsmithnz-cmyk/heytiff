@@ -817,7 +817,7 @@ export function CertWizard({
             type="button"
             className="sw-more"
             onClick={() => {
-              set({ requirements: [], certifier: null });
+              set({ requirements: [] });
               setReadFrom(null);
               setLastRead("");
             }}

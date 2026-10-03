@@ -861,9 +861,15 @@ docs/certificates-plan.md is the design.
    `AUTH0_SECRET` for the print ticket), and reading a certifier's list uses
    `ANTHROPIC_API_KEY`. Without that key everything works except the read,
    which says Tiff isn't set up.
-3. Before the first certificate can be issued, in the app:
-   - the owner reads and approves the wording at
-     `/dashboard/certificates/template` (Admin, Certificate wording);
+3. Apply `docs/migrations/certificate_wording.sql` before the deploy that
+   writes it: one nullable column (`cert_template_approvals.wording`, the
+   statements as the owner read them) and the one earlier approval back-filled.
+   **Applied to production 2026-10-03** (migration
+   `certificate_wording_snapshot`).
+4. Before the first certificate can be issued, in the app:
+   - the owner reads and approves the wording in Admin → Paperwork →
+     Certificate wording (`/dashboard/admin/paperwork?sec=wording`; the bell
+     asks until they do);
    - whoever signs has a current ARC licence and contractor licence **with
      expiry dates** on their staff card, and draws their signature there
      (Licences, Signature).

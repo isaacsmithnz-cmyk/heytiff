@@ -175,12 +175,25 @@ stored on their staff card. Then they Issue.
 
 Every statement is short and names its standard, nothing more. The clauses are
 approved wording in a pure library, `lib/certs/mechanical.ts`, which the owner
-approves before anything issues. The wording page lists every clause in every
-wording it can take, built from the library itself, and a test holds it to
-that: a statement the owner hasn't read can't print. "I certify that:", the
-"Not applicable:" line and the "Not covered:" line come from the library too.
-Library mech-2026.10.1 (2026-10-03) was approved again because the page had
-left out condensate, commissioning and Section J with ductwork.
+approves before anything issues, in Admin → Paperwork → Certificate wording.
+
+The wording tab shows each statement once (`SHOWN`), grouped by when it
+prints: every air conditioning certificate, every ventilation certificate,
+what was installed, what was asked for. What the person types is named in
+brackets and what depends on the job is in the quiet colour, so a statement
+with three wordings is one line, not three. A test holds every wording the
+library can print to one of its clause's lines, so a statement the owner
+hasn't read can't print. An approval keeps the lines it approved
+(`cert_template_approvals.wording`), so the next version marks what changed
+and opens on just those. The bell asks the owner until this version is
+approved. "I certify that:", the "Not applicable:" line and the "Not
+covered:" line come from the library too.
+
+Library mech-2026.10.1 (2026-10-03) is approved again: the page had left
+out condensate, commissioning and Section J with ductwork, and the wording
+was tidied (title case for the document's name, "air conditioning" without a
+hyphen, "1,000 L/s", "Refrigerant R32, no additional charge.", and a "Not
+applicable" line that reads as two sentences instead of three colons).
 
 **Every air conditioning certificate:**
 
@@ -513,7 +526,7 @@ so the `documents` kind check is unchanged.
 |---|---|
 | `lib/swms/library.ts`: pure, versioned, every control sourced | `lib/certs/mechanical.ts`: pure, `CERT_LIBRARY_VERSION`, every clause names its standard |
 | `swms_library_approvals` | `cert_template_approvals` |
-| `/dashboard/swms/template`: read and approve | `/dashboard/certificates/template` |
+| Admin → Paperwork → SWMS template | Admin → Paperwork → Certificate wording, with the fan list beside it |
 | `swms` + `swms_versions`, frozen, a revision is a new row | `certificates` + `certificate_versions`, the same |
 | `issueProblems()` asked again on the server | `certProblems()`, the same |
 | `/swms/[versionId]`, paper outside the shell | `/certificates/[versionId]`, dressed as the design sheet |
@@ -654,8 +667,8 @@ from the plan above:
   with a two-minute ticket (`lib/certs/pdf-ticket.ts`). Both draw from the
   same read (`lib/certs/paper-data.ts`).
 - **Not built yet:** phase 2 (prefill from the Studio design, serial numbers
-  from nameplate photos, other states), and a bell item asking the owner to
-  approve the wording. The wording page is in Admin, as Certificate wording.
+  from nameplate photos, other states). The wording is in Admin → Paperwork,
+  and the bell asks the owner to approve each new version.
 
 The golden jobs are tested in `lib/certs/__tests__/mechanical.test.ts`, the
 quote reader and the matcher in `quote.test.ts`, the paper in

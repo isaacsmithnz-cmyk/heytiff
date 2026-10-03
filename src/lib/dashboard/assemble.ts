@@ -17,6 +17,7 @@ import {
   swmsIssueChip,
   swmsSignonChip,
   swmsTemplateChip,
+  certWordingChip,
   timesheetChip,
   vehicleChips,
   vehicleLabel,
@@ -102,6 +103,9 @@ export type ChipSources = {
   /** The SWMS template isn't approved yet — the loader reads it for owners
       only; `assembleChips` checks `isOwner` again. */
   swmsTemplatePending?: boolean;
+  /** This certificate wording version isn't approved yet — read for owners
+      only, as the SWMS template is. */
+  certWordingPending?: boolean;
   /** Files waiting to go to ServiceM8 that only the owner can unstick — the
       loader reads it for owners only; `assembleChips` checks again. */
   sm8Stuck?: {
@@ -170,6 +174,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
     for (const p of src.ownSwmsIssues ?? []) push(self, swmsIssueChip(p));
     /* the template is the owner's to approve, and nobody else can clear it */
     if (src.isOwner) push(self, swmsTemplateChip(src.swmsTemplatePending));
+    if (src.isOwner) push(self, certWordingChip(src.certWordingPending));
     /* a Done of yours that didn't go: yours to put right, and only yours */
     for (const d of src.ownUnsentDones ?? []) self.push(sm8DoneChip(d));
   }

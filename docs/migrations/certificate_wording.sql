@@ -1,0 +1,18 @@
+-- Approvals keep the wording they approved (2026-10-03).
+--
+-- An approval of the certificate wording now stores every statement's shown
+-- lines (lib/certs/mechanical SHOWN) as they were on the page, so the next
+-- version can mark what changed instead of asking the owner to read all of
+-- it again. Additive: a nullable column; nothing reads it as required.
+
+alter table public.cert_template_approvals add column if not exists wording jsonb;
+comment on column public.cert_template_approvals.wording is
+  'The statements as the owner read them when approving: {"clause": ["shown line", ...]}. Null for an approval made before 2026-10-03.';
+
+-- The one approval before this column (mech-2026.10, 2026-10-03 10:44): what
+-- its page showed. Statements unchanged since are stored as today's shown
+-- lines; the ones since reworded keep the words that page had; condensate
+-- and commissioning weren't on it.
+update public.cert_template_approvals
+   set wording = '{"refrigerant":["Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2."],"ventAirflow":["Each fan is selected and installed to the manufacturer''s instructions to deliver the rated airflow shown. Each exhaust fan is rated at or above the NCC minimum of 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or laundry.","Each fan is selected and installed to the manufacturer''s instructions to deliver the airflow shown. Figures marked measured were read on site. Each exhaust fan is rated at or above the NCC minimum of 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or laundry."],"as1668":["The mechanical ventilation and air-conditioning works are installed in accordance with AS/NZS 1668.1 and AS 1668.2."],"fireMode":["The system comprises individual room units, each rated at not more than 1000 L/s, and is not part of a smoke control system, so it is not required to shut down in fire mode under Specification 21 and AS/NZS 1668.1.","The air-handling system shuts down on a fire signal from [the interface], tested on [the date], as required by Specification 21 and AS/NZS 1668.1."],"j5":["The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied."],"airBalance":["The air balance and commissioning report is provided with this certificate.","The air balance and commissioning report is by others."],"approved":["The works are installed in accordance with the documents approved under the Construction Certificate or Complying Development Certificate, and the relevant conditions of consent."],"manufacturer":["The equipment is installed to the manufacturer''s installation instructions."],"arc":["All refrigerant was handled by ARC licence holders."],"ventDischarge":["Every exhaust fan discharges to outdoor air."],"ductwork":["Ductwork, plenums and flexible duct are installed, supported, sealed and insulated in accordance with AS 4254.1 and AS 4254.2."],"fireRated":["Penetrations through fire-rated walls and floors are sealed with [the fire-stopping product] to maintain the element''s fire resistance level."],"as16682":["The mechanical ventilation is installed in accordance with AS 1668.2."],"kitchenExhaust":["The kitchen exhaust hood and ductwork are installed in accordance with AS/NZS 1668.1 and AS 1668.2."],"carPark":["The car park ventilation is installed in accordance with AS 1668.2."],"noise":["The outdoor unit is installed in the location shown on the approved plans."]}'::jsonb
+ where type = 'mechanical' and library_version = 'mech-2026.10' and wording is null;

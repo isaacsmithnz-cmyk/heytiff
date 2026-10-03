@@ -35,6 +35,9 @@ const assembleChips = jest.fn((input: unknown) => ({ self: [], team: [], input }
 jest.mock("../assemble", () => ({ assembleChips: (input: unknown) => assembleChips(input) }));
 jest.mock("../query", () => ({ listStaffCompliance: jest.fn(async () => []) }));
 jest.mock("@/lib/staff/onboarding", () => ({ ownDetailsGap: jest.fn(async () => null) }));
+jest.mock("@/lib/certs/query", () => ({
+  certApproval: jest.fn(async () => ({ approvedById: "s1", approvedAt: "2026-10-03T00:00:00Z" })),
+}));
 jest.mock("@/lib/swms/query", () => ({
   isLibraryApproved: jest.fn(async () => true),
   pendingSignons: jest.fn(async () => []),

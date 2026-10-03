@@ -325,6 +325,9 @@ describe("assembleChips — the SWMS template", () => {
   it("asks nobody else, and nobody once it's approved", () => {
     expect(assembleChips({ ...FULL, isOwner: false, swmsTemplatePending: true }, caps("team")).self.some((c) => c.kind === "swms-template")).toBe(false);
     expect(assembleChips({ ...FULL, isOwner: true, swmsTemplatePending: false }, caps()).self.some((c) => c.kind === "swms-template")).toBe(false);
+    /* the certificate wording, the same way */
+    expect(assembleChips({ ...FULL, isOwner: true, certWordingPending: true }, caps()).self.find((c) => c.kind === "cert-wording")).toMatchObject({ label: "Approve the certificate wording" });
+    expect(assembleChips({ ...FULL, isOwner: false, certWordingPending: true }, caps("team")).self.some((c) => c.kind === "cert-wording")).toBe(false);
   });
 });
 

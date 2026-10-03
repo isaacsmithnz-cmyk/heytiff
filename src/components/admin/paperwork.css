@@ -1,0 +1,18 @@
+/* PAPERWORK'S OWN PARTS — the rest is the SWMS sheet's (swms.css) inside the
+   Organisation card's frame. A statement is its line or two, with a quiet
+   note above when it prints only sometimes, and "Changed" or "New" in the
+   warning colour when it differs from the last approval. What depends on the
+   job is the quiet colour; what is typed is named in brackets. */
+
+.pw-st { display:flex; flex-direction:column; gap:4px; }
+.pw-when { display:flex; flex-wrap:wrap; gap:8px; font-size:13px; font-weight:500; color:var(--q); }
+.pw-typed,
+.pw-choice { color:var(--q); }
+.pw-only { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; }
+
+.pw-fan { display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap; }
+.pw-fan label,
+.pw-add label { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:var(--q); }
+.pw-fan .wb2-fi { width:96px; }
+.pw-add { display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap; }
+.pw-add .wb2-fi { width:160px; }

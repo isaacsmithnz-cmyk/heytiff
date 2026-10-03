@@ -11,7 +11,7 @@ import { DOCUMENTS_BUCKET, signOne } from "@/lib/documents/query";
 import { refIsOrgs } from "@/lib/documents/files";
 import { signatureSvg } from "@/lib/swms/input";
 import { ownerName } from "@/lib/swms/query";
-import { CERT_LIBRARY_VERSION, type CertAnswers } from "@/lib/certs/mechanical";
+import { CERT_LIBRARY_VERSION, SHOWN, type CertAnswers } from "@/lib/certs/mechanical";
 import { normaliseCertAnswers } from "@/lib/certs/input";
 import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } from "@/lib/certs/quote";
 import { quoteHasEquipment, readingFromQuote } from "@/lib/certs/from-quote";
@@ -47,6 +47,7 @@ import {
    throws: the wizard says what went wrong in words. */
 
 const trim = (v: unknown, max = 80) => String(v ?? "").trim().slice(0, max);
+const PAPERWORK = "/dashboard/admin/paperwork";
 
 export type CertWizardContext = {
   job: CertJob;
@@ -203,10 +204,12 @@ export async function approveCertWording(): Promise<CertResult> {
     type: "mechanical",
     library_version: CERT_LIBRARY_VERSION,
     approved_by_staff_id: staffId,
+    /* the statements as the owner read them, so the next version can say what changed */
+    wording: SHOWN,
   });
   /* approved twice at once: the unique index kept one, and it is approved */
   if (error && (error as { code?: string }).code !== "23505") return { ok: false, error: "Couldn't save the approval." };
-  revalidatePath("/dashboard/certificates/template");
+  revalidatePath(PAPERWORK);
   return { ok: true };
 }
 
@@ -234,6 +237,43 @@ export async function addFanModel(model: string, ratedLps: number): Promise<FanM
   if (error || !data) return { ok: false, error: "Couldn't save that fan." };
   const row = data as { id: string; model: string; rated_lps: number | string };
   return { ok: true, fan: { id: row.id, model: row.model, ratedLps: Number(row.rated_lps) } };
+}
+
+/** A fan's rated airflow, corrected from its spec sheet. */
+export async function updateFanModel(id: string, ratedLps: number): Promise<FanModelResult> {
+  let orgId: string;
+  try {
+    ({ orgId } = await requireOrg("workboard"));
+  } catch {
+    return { ok: false, error: "You can't change the fan list." };
+  }
+  const lps = typeof ratedLps === "number" && Number.isFinite(ratedLps) ? Math.round(ratedLps * 10) / 10 : NaN;
+  if (!(lps > 0 && lps < 100000)) return { ok: false, error: "Give its rated airflow in L/s, from the spec sheet." };
+  const { data, error } = await supabaseAdmin
+    .from("fan_models")
+    .update({ rated_lps: lps })
+    .eq("org_id", orgId)
+    .eq("id", trim(id))
+    .select("id, model, rated_lps")
+    .maybeSingle();
+  if (error || !data) return { ok: false, error: "Couldn't save that fan." };
+  const row = data as { id: string; model: string; rated_lps: number | string };
+  revalidatePath(PAPERWORK);
+  return { ok: true, fan: { id: row.id, model: row.model, ratedLps: Number(row.rated_lps) } };
+}
+
+/** A fan off the list. Certificates already issued keep the figure they printed. */
+export async function removeFanModel(id: string): Promise<CertResult> {
+  let orgId: string;
+  try {
+    ({ orgId } = await requireOrg("workboard"));
+  } catch {
+    return { ok: false, error: "You can't change the fan list." };
+  }
+  const { error } = await supabaseAdmin.from("fan_models").delete().eq("org_id", orgId).eq("id", trim(id));
+  if (error) return { ok: false, error: "Couldn't remove that fan." };
+  revalidatePath(PAPERWORK);
+  return { ok: true };
 }
 
 /* ── your own signature ────────────────────────────────────────────────── */

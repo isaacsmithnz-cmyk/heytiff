@@ -20,6 +20,7 @@ import {
   swmsIssueChip,
   swmsSignonChip,
   swmsTemplateChip,
+  certWordingChip,
   sm8QueueChip,
   vehicleChips,
   vehicleLabel,
@@ -270,6 +271,7 @@ describe("chipGroup", () => {
       swms: true,
       "swms-issue": true,
       "swms-template": true,
+      "cert-wording": true,
       "sm8-writes": true,
       "sm8-done": true,
       "sm8-booking": true,
@@ -355,9 +357,22 @@ describe("swmsTemplateChip", () => {
       kind: "swms-template",
       state: "warn",
       label: "Approve the SWMS template",
-      href: "/dashboard/swms/template",
+      href: "/dashboard/admin/paperwork?sec=swms",
     });
     expect(chipGroup("swms-template")).toBe("Workboard");
+  });
+});
+
+describe("certWordingChip", () => {
+  it("asks the owner to approve the certificate wording, and opens it in Paperwork", () => {
+    expect(certWordingChip(true)).toMatchObject({
+      kind: "cert-wording",
+      state: "warn",
+      label: "Approve the certificate wording",
+      href: "/dashboard/admin/paperwork?sec=wording",
+    });
+    expect(certWordingChip(false)).toBeNull();
+    expect(chipGroup("cert-wording")).toBe("Workboard");
   });
 
   it("goes once it's approved", () => {

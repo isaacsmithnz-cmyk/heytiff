@@ -884,7 +884,7 @@ export function CertWizard({
             <span>Asked for: Specification 21</span>
           </div>
           <div className="sw-opts">
-            <Choice name="fire" checked={a.fireMode === "individual"} onChange={() => set({ fireMode: "individual" })} title="Individual room units, each 1000 L/s or less" sub="Not part of a smoke control system, so no shutdown is needed" />
+            <Choice name="fire" checked={a.fireMode === "individual"} onChange={() => set({ fireMode: "individual" })} title="Individual room units, each 1,000 L/s or less" sub="Not part of a smoke control system, so no shutdown is needed" />
             {a.fireMode === "individual" && (
               <Choice kind="checkbox" name="rated" checked={a.fireModeRatingsChecked} onChange={(on) => set({ fireModeRatingsChecked: on })} title="I've checked each unit's rated airflow on its spec sheet" />
             )}
@@ -910,7 +910,7 @@ export function CertWizard({
           </div>
           <div className="sw-opts row">
             <Choice name="balance" checked={a.airBalance === "attached"} onChange={() => set({ airBalance: "attached" })} title="Sent with the certificate" />
-            <Choice name="balance" checked={a.airBalance === "others"} onChange={() => set({ airBalance: "others" })} title="By others" />
+            <Choice name="balance" checked={a.airBalance === "others"} onChange={() => set({ airBalance: "others" })} title="Provided by others" />
           </div>
         </div>
       )}
@@ -987,7 +987,7 @@ export function CertWizard({
       {!live.approved &&
         (live.canApprove ? (
           <p className="sw-text">
-            The wording needs your approval before the first certificate goes out. <Link href="/dashboard/certificates/template">Read and approve the wording</Link>
+            The wording needs your approval before the first certificate goes out. <Link href="/dashboard/admin/paperwork?sec=wording">Read and approve the wording</Link>
           </p>
         ) : (
           <p className="sw-state warn">{`${live.ownerName ?? "The owner"} approves the certificate wording before the first one can be issued.`}</p>
@@ -1011,7 +1011,7 @@ export function CertWizard({
   let body: React.ReactNode;
   let foot: React.ReactNode = null;
   let tabs = false;
-  let title = prev ? "Reissue the certificate" : "Compliance certificate";
+  let title = prev ? "Reissue the certificate" : CERT_TITLE;
   const close = (
     <>
       <span />

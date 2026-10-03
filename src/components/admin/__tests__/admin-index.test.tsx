@@ -40,7 +40,7 @@ describe("AdminIndex", () => {
       expect(text).toContain(title);
     }
     // named, but not as something you can click or mistake for a row
-    expect(document.querySelectorAll(".adm-row")).toHaveLength(8);
+    expect(document.querySelectorAll(".adm-row")).toHaveLength(7);
   });
 
   it("keeps the owner's doors out of an admin's sight", () => {
@@ -72,17 +72,15 @@ describe("AdminIndex", () => {
     }
   });
 
-  it("gives an owner eight rows, all of them openable", () => {
+  it("gives an owner seven rows, all of them openable", () => {
     render(<AdminIndex isOwner canFinancials kbQueueCount={0} />);
 
     expect(linkHrefs()).toEqual([
       "/dashboard/admin/organization",
       "/dashboard/admin/integrations",
-      /* the SWMS template's permanent door: the owner's bell item goes the
-         moment they approve it, and nothing else led back to it */
-      "/dashboard/swms/template",
-      /* the certificate wording, the other paper the business writes */
-      "/dashboard/certificates/template",
+      /* the paper the business writes: the SWMS template, the certificate
+         wording and the fan list, a tab each */
+      "/dashboard/admin/paperwork",
       "/dashboard/admin/knowledge",
       "/dashboard/admin/rate-calculator",
       /* quoting's own settings, not the calculator's: markup and the
@@ -91,7 +89,7 @@ describe("AdminIndex", () => {
       "/dashboard/admin/tax",
     ]);
     // the seven that are coming are named in two lines, not seven rows
-    expect(document.querySelectorAll(".adm-row")).toHaveLength(8);
+    expect(document.querySelectorAll(".adm-row")).toHaveLength(7);
     expect(document.querySelectorAll(".adm-coming")).toHaveLength(2);
     expect(screen.queryByText("Planned")).not.toBeInTheDocument();
   });
@@ -119,9 +117,8 @@ describe("AdminIndex", () => {
   it("gives an ungranted admin the knowledge queue and nothing gated", () => {
     render(<AdminIndex isOwner={false} canFinancials={false} kbQueueCount={0} />);
 
-    /* the SWMS template and the certificate wording are the business's own,
-       readable by any admin */
-    expect(linkHrefs()).toEqual(["/dashboard/swms/template", "/dashboard/certificates/template", "/dashboard/admin/knowledge"]);
+    /* the business's own paperwork, readable by any admin */
+    expect(linkHrefs()).toEqual(["/dashboard/admin/paperwork", "/dashboard/admin/knowledge"]);
     expect(screen.queryByText("Nothing here for you yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Rate Calculator")).not.toBeInTheDocument();
     expect(screen.queryByText("Organisation")).not.toBeInTheDocument();

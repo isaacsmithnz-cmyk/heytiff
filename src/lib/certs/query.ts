@@ -314,3 +314,15 @@ export async function loadCertVersion(orgId: string, versionId: string): Promise
     job,
   };
 }
+
+/** Whether this person has drawn their signature yet: the profile's
+    Still to add asks for it until they have. */
+export async function hasSignature(orgId: string, staffId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("staff_signatures")
+    .select("staff_profile_id")
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffId)
+    .maybeSingle();
+  return !!data;
+}

@@ -35,6 +35,7 @@ import { signPhotoUrl } from "@/lib/staff/photo";
 import { todayInAu } from "@/lib/au-dates";
 import { DEFAULT_EXPIRY_WINDOW } from "@/lib/expiry";
 import { orgExpiryWindow } from "@/lib/org/query";
+import { hasSignature } from "@/lib/certs/query";
 
 /* My profile — your own staff card, and the values that fill in Team.
 
@@ -83,6 +84,9 @@ export default async function MyProfilePage({
       orgId ? documentsForWorkRights(orgId, profile.id) : Promise.resolve([]),
       orgId ? aliasesOf(orgId, profile.id) : Promise.resolve([]),
     ]);
+
+  /* a read that fails doesn't nag: Still to add only asks when it knows */
+  const signed = orgId ? await hasSignature(orgId, profile.id).catch(() => true) : true;
 
   const email = session.user.email ?? "";
   const displayName =
@@ -138,6 +142,7 @@ export default async function MyProfilePage({
       org={orgName}
       orgState={orgState}
       myPay={myPay}
+      hasSignature={signed}
       aliases={aliases}
       initialSec={typeof sec === "string" ? sec : undefined}
       // Whether address lookup is CONFIGURED, never the key: this is a server

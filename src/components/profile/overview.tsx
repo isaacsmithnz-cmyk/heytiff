@@ -54,7 +54,9 @@ import type {
    for it and nowhere else: the emergency card's red head, a hue of the
    person's own behind their initials, and the cost split's three colours. */
 
-type Go = (key: SectionKey, withEdit?: boolean, field?: keyof StaffProfile) => void;
+/** `field` is the control the section opens on: a profile column, or the
+    Signature card, which is no column. */
+type Go = (key: SectionKey, withEdit?: boolean, field?: keyof StaffProfile | "signature") => void;
 
 export function Overview({
   header,
@@ -69,6 +71,7 @@ export function Overview({
   completeness,
   extras,
   myPay,
+  hasSignature,
   onGo,
 }: {
   header: ProfileHeader;
@@ -92,6 +95,8 @@ export function Overview({
   };
   /** self only */
   myPay?: MyPay | null;
+  /** Self only: false while you haven't drawn your signature. */
+  hasSignature?: boolean;
   onGo: Go;
 }) {
   const p = profile;
@@ -125,7 +130,7 @@ export function Overview({
   const hasPay = pay?.hourly_wage != null;
   const perms = extras.permissions;
 
-  const todo = stillToAdd({ p, completeness, licences, header, uniform, showPayroll: extras.showPayroll, hasPay, onGo });
+  const todo = stillToAdd({ p, completeness, licences, header, uniform, showPayroll: extras.showPayroll, hasPay, hasSignature, onGo });
 
   const left = (
     <>
@@ -533,6 +538,7 @@ function stillToAdd({
   uniform,
   showPayroll,
   hasPay,
+  hasSignature,
   onGo,
 }: {
   p: StaffProfile | null;
@@ -542,6 +548,7 @@ function stillToAdd({
   uniform: string | null;
   showPayroll: boolean;
   hasPay: boolean;
+  hasSignature?: boolean;
   onGo: Go;
 }): { required: Todo[]; optional: Todo[] } {
   const miss = completeness.missing;
@@ -592,6 +599,16 @@ function stillToAdd({
       title: "Licences and tickets",
       sub: "Driver licence, ARC, white card",
       go: () => onGo("licences", true),
+    });
+  }
+  /* yours only (the prop is absent on someone else's card), and only once
+     it is known you haven't */
+  if (hasSignature === false) {
+    optional.push({
+      key: "signature",
+      title: "Signature",
+      sub: "Printed on the compliance certificates you sign",
+      go: () => onGo("licences", true, "signature"),
     });
   }
   if (!uniform) {

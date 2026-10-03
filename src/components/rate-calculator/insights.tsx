@@ -107,7 +107,7 @@ function Stat({ label, value, sub, color }: { label: string; value: string; sub:
   );
 }
 
-export function ProfitabilityCard({ calc, hoursPerDay = 8 }: { calc: CalcResult; hoursPerDay?: number }) {
+export function ProfitabilityCard({ calc, hoursPerDay }: { calc: CalcResult; hoursPerDay: number | null }) {
   const profInstHr = calc.profInst ?? 0;
   const profSvcHr = calc.profSvc ?? 0;
   const annualInstProfit = profInstHr * calc.effInst;
@@ -118,7 +118,7 @@ export function ProfitabilityCard({ calc, hoursPerDay = 8 }: { calc: CalcResult;
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         <Stat label="Profit / install hr" value={"+" + rate0(profInstHr)} sub="Above break-even" color={RC.service} />
         <Stat label="Profit / service hr" value={"+" + rate0(profSvcHr)} sub="Above break-even" color={RC.service} />
-        <Stat label="Day rate (full day on site)" value={money(calc.daily)} sub={`Blended hourly × ${hoursPerDay}hrs`} color={RC.ink} />
+        <Stat label="Day rate (full day on site)" value={money(calc.daily)} sub={hoursPerDay ? `Blended hourly × ${hoursPerDay}hrs` : "Hours in a full day not set"} color={RC.ink} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
         <Stat label="Install profit / yr" value={money(annualInstProfit)} sub={`${Math.round(calc.effInst).toLocaleString()} hrs × ${rate0(profInstHr)}/hr`} color={RC.install} />
@@ -174,7 +174,7 @@ export function InsightsView({ s, patch, calc, ready, go }: {
       <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 1120 }}>
         <EofyPanel s={s} patch={patch} calc={calc} />
         <UtilisationCard calc={calc} />
-        <ProfitabilityCard calc={calc} hoursPerDay={s.settings?.working_hours ?? 8} />
+        <ProfitabilityCard calc={calc} hoursPerDay={s.settings?.working_hours ?? null} />
         <BusinessSummaryPanel s={s} calc={calc} />
       </div>
     </div>

@@ -161,7 +161,9 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   payroll_tax_rate: 5.45,
   payroll_tax_fy: "2026-27",
   working_weeks: DEFAULT_WORKING_WEEKS,
-  working_hours: 8,
+  /* no working_hours: a full day on site is the business's own figure, never
+     ours (Isaac, 2026-10-04: "no made up figures… Fix the 8 hour default").
+     Until it's set the day rate isn't shown, and quoting says it isn't set. */
   annual_cost_increase_pct: 3,
   review_reminder_months: 6,
 };

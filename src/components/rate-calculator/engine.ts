@@ -106,7 +106,8 @@ export interface CalcSettings {
   payroll_tax_rate?: number;
   payroll_tax_fy?: string;
   working_weeks?: number;
-  working_hours?: number;
+  /** hours in a full day on site; unset until the business sets it */
+  working_hours?: number | null;
   annual_cost_increase_pct?: number;
   review_reminder_months?: number;
 }
@@ -201,7 +202,8 @@ export interface CalcResult {
   projSvc: number | null;
   profInst: number;
   profSvc: number;
-  daily: number;
+  /** the blended rate × the business's hours in a day; null until it sets them */
+  daily: number | null;
   // cost structure
   instLab: number;
   svcLab: number;
@@ -417,7 +419,7 @@ export function calculate(data: EngineData): CalcResult {
   } = data;
 
   const weeks = settings.working_weeks || DEFAULT_WORKING_WEEKS;
-  const hoursPerDay = settings.working_hours || 8;
+  const hoursPerDay = settings.working_hours && settings.working_hours > 0 ? settings.working_hours : null;
 
   // Declared here so both simple-mode and normal paths can set/read them
   let utilFromDefault = false;
@@ -545,7 +547,7 @@ export function calculate(data: EngineData): CalcResult {
         afterHrs: guard2(aH2, effSvc2), emergency: guard2(em2, effSvc2),
         projInst: guard2(rI2 * (1 + inc2), effInst2), projSvc: guard2(rS2 * (1 + inc2), effSvc2),
         profInst: rI2 - beI2, profSvc: rS2 - beS2,
-        daily: blended2 * (settings.working_hours || 8),
+        daily: hoursPerDay != null ? blended2 * hoursPerDay : null,
         instLab, svcLab, adminLab, instVehicle: instVehicle2,
         svcVehicle: svcVehicle2, adminVehicle: adminVehicle2,
         totalInst: totalInst2, totalSvc: totalSvc2,
@@ -744,7 +746,7 @@ export function calculate(data: EngineData): CalcResult {
   const instHrShare = safeDiv(effInst, effInst + effSvc);
   const svcHrShare  = 1 - instHrShare;
   const blended = recInst * instHrShare + recSvc * svcHrShare;
-  const daily = blended * hoursPerDay;
+  const daily = hoursPerDay != null ? blended * hoursPerDay : null;
 
   // ── Step 9: next-year projection ────────────────────────────────────────
   const inc = (profit.costIncrease ?? 3) / 100;

@@ -6,6 +6,7 @@ import { certApprovals } from "@/lib/certs/query";
 import { CERT_LIBRARY_VERSION, changedSince } from "@/lib/certs/mechanical";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import type { ApprovalProps, PaperApproval } from "@/components/admin/approved-templates";
+import type { TemplateStatus } from "@/components/admin/templates-list";
 
 /* WHERE THE TWO APPROVED TEMPLATES STAND — read once for the list (which
    says whether each waits for the owner) and for each one's page. */
@@ -36,4 +37,11 @@ export async function templateApprovals(orgId: string): Promise<TemplateApproval
       earlier: earlier.map((a) => ({ by: by(a.approvedById), on: day(a.approvedAt) })),
     },
   };
+}
+
+/** Where an approved template stands, in the words its row and page use. */
+export function approvalStatus(done: PaperApproval, isOwner: boolean, changes = 0): TemplateStatus {
+  if (done) return { text: "Approved", tone: "on" };
+  if (changes > 0) return { text: changes === 1 ? "1 change to approve" : `${changes} changes to approve`, tone: "warn" };
+  return { text: isOwner ? "Waiting for your approval" : "Waiting for approval", tone: "warn" };
 }

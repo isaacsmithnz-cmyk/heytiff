@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
-import { TemplatesList, type TemplateStatus } from "@/components/admin/templates-list";
+import { TemplatesList } from "@/components/admin/templates-list";
 import { templateFor, templateHref } from "@/components/admin/templates-catalogue";
-import type { PaperApproval } from "@/components/admin/approved-templates";
-import { templateApprovals } from "./approvals";
+import { approvalStatus, templateApprovals } from "./approvals";
 
 /* TEMPLATES — in Admin with the business's other settings. Anyone signed in
    can read them, as they could read the two template pages these replace;
@@ -22,8 +21,12 @@ export default async function TemplatesPage({
   if (sec) redirect(templateHref(sec.key));
 
   const a = await templateApprovals(orgId);
-  const approval = (done: PaperApproval): TemplateStatus =>
-    done ? { text: "Approved", tone: "on" } : { text: a.isOwner ? "Waiting for your approval" : "Waiting for approval", tone: "warn" };
-
-  return <TemplatesList status={{ certificate: approval(a.wording.approved), swms: approval(a.swms) }} />;
+  return (
+    <TemplatesList
+      status={{
+        certificate: approvalStatus(a.wording.approved, a.isOwner, a.wording.changed?.length ?? 0),
+        swms: approvalStatus(a.swms, a.isOwner),
+      }}
+    />
+  );
 }

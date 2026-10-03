@@ -66,8 +66,21 @@ export function TemplatesList({ status }: { status: Partial<Record<TemplateKey, 
   );
 }
 
-/** The frame around one template: the way back to the list, and its name. */
-export function TemplateFrame({ title, children }: { title: string; children: React.ReactNode }) {
+/** One template's page: the way back to the list, its name and where it
+    stands, who gets it, then the document beside what can be done with it. */
+export function TemplateFrame({
+  title,
+  who,
+  status,
+  doc,
+  side,
+}: {
+  title: string;
+  who: string;
+  status?: TemplateStatus | null;
+  doc: React.ReactNode;
+  side: React.ReactNode;
+}) {
   return (
     <div className="page in full">
       <div className="wrap">
@@ -80,8 +93,22 @@ export function TemplateFrame({ title, children }: { title: string; children: Re
               </Link>
             }
             title={title}
+            tools={
+              status ? (
+                <span className={"int-pill " + status.tone}>
+                  <span className="int-dot" />
+                  {status.text}
+                </span>
+              ) : null
+            }
           />
-          <ScreenPanel>{children}</ScreenPanel>
+          <ScreenPanel>
+            <p className="tpl-who">{who}</p>
+            <div className="tpl-work">
+              <div className="tpl-well">{doc}</div>
+              <aside className="tpl-side">{side}</aside>
+            </div>
+          </ScreenPanel>
         </div>
       </div>
     </div>

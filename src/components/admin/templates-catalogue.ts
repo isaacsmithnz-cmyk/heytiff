@@ -11,6 +11,7 @@
 export const TEMPLATES = [
   {
     key: "quote",
+    who: "Goes to the customer. Tiff writes the scope; the notes and payment terms are the same on every quote.",
     group: "Customers",
     title: "Quote",
     sub: "The notes, payment terms and site checklist every quote is written from",
@@ -18,6 +19,7 @@ export const TEMPLATES = [
   },
   {
     key: "handover",
+    who: "Printed from the project, and signed by the customer at handover.",
     group: "Customers",
     title: "Handover sheet",
     sub: "What the customer signs when the job is handed over",
@@ -25,6 +27,7 @@ export const TEMPLATES = [
   },
   {
     key: "documents-email",
+    who: "Goes to the customer or builder with the files picked on the job card.",
     group: "Customers",
     title: "Documents email",
     sub: "The email your licences, insurance and certificates go out with",
@@ -32,6 +35,7 @@ export const TEMPLATES = [
   },
   {
     key: "certificate",
+    who: "Goes to the builder or certifier, as a PDF filed on the job.",
     group: "Builders and certifiers",
     title: "Mechanical Compliance Certificate",
     sub: "What you certify, statement by statement",
@@ -39,6 +43,7 @@ export const TEMPLATES = [
   },
   {
     key: "swms",
+    who: "Printed for the site, and signed on to by the crew.",
     group: "Builders and certifiers",
     title: "SWMS",
     sub: "The safe work method statement the crew signs on to",
@@ -46,6 +51,7 @@ export const TEMPLATES = [
   },
   {
     key: "project-checklist",
+    who: "Every new project starts with these. Each project's own list can still be changed.",
     group: "Your team",
     title: "Project checklist",
     sub: "What every new project is ticked off against",

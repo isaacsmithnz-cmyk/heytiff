@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TemplatesList } from "../templates-list";
 import { CertificateTemplate, SwmsTemplate, type ApprovalProps } from "../approved-templates";
@@ -51,25 +51,33 @@ describe("the list", () => {
   });
 });
 
+const BRAND = { name: "Coolbreeze Air", logoUrl: null, color: "#436cad", abn: null, phone: "02 9000 0000", email: null, website: null };
+const PAPERS = { licences: ["Contractor licence 123"] };
+const WARN = { text: "1 change to approve", tone: "warn" as const };
+
 describe("the certificate", () => {
-  it("shows only what changed since the last approval, marked, and the whole certificate at a press", async () => {
-    render(<CertificateTemplate {...props()} />);
-    expect(screen.getByText("2 statements have changed since you approved the wording on Sat 3 Oct. Read them, then approve.")).toBeInTheDocument();
+  it("is the certificate itself, on the business's letterhead, with every statement saying when it prints", () => {
+    render(<CertificateTemplate {...props()} brand={BRAND} papers={PAPERS} status={WARN} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Mechanical Compliance Certificate" })).toBeInTheDocument();
+    expect(screen.getByText("Coolbreeze Air")).toBeInTheDocument();
+    expect(screen.getByText("I certify that:")).toBeInTheDocument();
+    expect(screen.getByLabelText("Refrigerant circuit, AS/NZS 5149.2")).toHaveTextContent("[The refrigerant and the charge added, per outdoor unit when they differ]");
+    expect(screen.getByLabelText("Refrigerant circuit, AS/NZS 5149.2")).toHaveTextContent("On every air conditioning certificate");
+    expect(screen.getByLabelText("Ductwork, AS 4254")).toHaveTextContent("When it was installed");
     expect(screen.getByLabelText("Air balance report")).toHaveTextContent("Changed");
     expect(screen.getByLabelText("Condensate drainage")).toHaveTextContent("New");
-    expect(screen.queryByLabelText("Refrigerant circuit, AS/NZS 5149.2")).toBeNull();
-    expect(screen.queryByText("I certify that:")).toBeNull();
-    await userEvent.click(screen.getByRole("checkbox", { name: "Show only what changed" }));
-    /* the certificate top to bottom: the job, the equipment, the statements, the signature */
-    expect(screen.getByText("I certify that:")).toBeInTheDocument();
-    expect(screen.getByText("The equipment")).toBeInTheDocument();
-    expect(screen.getByText("Signed")).toBeInTheDocument();
-    expect(screen.getByLabelText("Refrigerant circuit, AS/NZS 5149.2")).toHaveTextContent("[The refrigerant and the charge added, per outdoor unit when they differ]");
     expect(screen.getByRole("button", { name: "Approve the wording" })).toBeInTheDocument();
   });
 
+  it("shows only what changed at a tick", async () => {
+    render(<CertificateTemplate {...props()} brand={BRAND} papers={PAPERS} status={WARN} />);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Only what changed" }));
+    expect(screen.queryByLabelText("Refrigerant circuit, AS/NZS 5149.2")).toBeNull();
+    expect(screen.getByLabelText("Air balance report")).toBeInTheDocument();
+  });
+
   it("says who approves it, and offers no button, to someone who isn't the owner", () => {
-    render(<CertificateTemplate {...props({ isOwner: false })} />);
+    render(<CertificateTemplate {...props({ isOwner: false })} brand={BRAND} papers={PAPERS} status={WARN} />);
     expect(screen.getByText("Waiting for Isaac Smith to approve it. No certificate can be issued until then.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve the wording" })).toBeNull();
   });
@@ -77,30 +85,31 @@ describe("the certificate", () => {
 
 describe("the SWMS", () => {
   it("says who approved it", () => {
-    render(<SwmsTemplate approved={{ by: "Isaac Smith", on: "Sat 3 Oct" }} isOwner ownerName="Isaac Smith" />);
-    expect(screen.getByText("Approved by Isaac Smith on Sat 3 Oct. Every SWMS is written from these steps.")).toBeInTheDocument();
+    render(<SwmsTemplate approved={{ by: "Isaac Smith", on: "Sat 3 Oct" }} isOwner ownerName="Isaac Smith" status={{ text: "Approved", tone: "on" }} />);
+    expect(screen.getByText("Approved by Isaac Smith on Sat 3 Oct. Every SWMS is written from these steps and controls.")).toBeInTheDocument();
   });
 });
 
 describe("the templates written into HeyTiff", () => {
-  it("shows the quote's notes, payment terms and site checklist from the data the quote is drawn from", () => {
-    render(<QuoteTemplate />);
-    expect(screen.getByText(/^Roof access: Roof tiles are lifted/)).toBeInTheDocument();
-    expect(screen.getByText("Payment terms: Home, small job")).toBeInTheDocument();
-    expect(screen.getAllByText("10%: Deposit, on accepting")).toHaveLength(2);
-    expect(screen.getByText("Site checklist: Unit")).toBeInTheDocument();
+  it("draws the quote on the business's paper, with its notes and payment terms beside it", () => {
+    render(<QuoteTemplate brand={BRAND} />);
+    expect(screen.getByText("Air Conditioning Scope")).toBeInTheDocument();
+    expect(screen.getByText("Coolbreeze Air")).toBeInTheDocument();
+    expect(screen.getByText("Roof access")).toBeInTheDocument();
+    expect(screen.getByText("Home, small job")).toBeInTheDocument();
   });
 
-  it("shows the handover checks the project checklist prints", () => {
-    render(<HandoverTemplate />);
-    const checks = screen.getByText("Handover checks").closest(".sws-grp") as HTMLElement;
-    expect(within(checks).getByText("Customer walkthrough done")).toBeInTheDocument();
+  it("draws the handover sheet with the checks the project checklist prints", () => {
+    render(<HandoverTemplate brand={BRAND} />);
+    expect(screen.getByText("Handover sheet", { selector: ".ho-kicker" })).toBeInTheDocument();
+    expect(screen.getAllByText("Customer walkthrough done")).toHaveLength(2);
   });
 
-  it("shows the documents email as it starts", () => {
-    render(<DocumentsEmailTemplate />);
-    expect(screen.getByText("Documents for job [job number], [site address]")).toBeInTheDocument();
-    expect(screen.getByText("Please find our documents for this job attached.")).toBeInTheDocument();
+  it("shows the documents email as it arrives, from the letter it is sent as", () => {
+    render(<DocumentsEmailTemplate brand={BRAND} />);
+    expect(screen.getByText("Coolbreeze Air via HeyTiff")).toBeInTheDocument();
+    expect(screen.getAllByText("Documents for job [job number], [site address]")).toHaveLength(2);
+    expect(screen.getByTitle("The email as it arrives").getAttribute("srcdoc")).toContain("Documents from Coolbreeze Air");
   });
 
   it("shows every new project's checklist by section", () => {

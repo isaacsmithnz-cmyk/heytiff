@@ -1,34 +1,26 @@
-/* THE TEMPLATES WRITTEN INTO HEYTIFF — each as it reads, from the same data
-   the documents are drawn from, so this page can't say one thing while a
-   quote or a handover sheet says another.
+/* THE TEMPLATES WRITTEN INTO HEYTIFF — each drawn as the document it is, on
+   the business's own letterhead, from the same data and the same components
+   the real one is drawn from, so this page can't say one thing while a quote
+   or a handover sheet says another. Words in brackets are filled in from the
+   job.
 
-   No "use client": nothing here moves. Words in brackets are filled in from
-   the job. */
+   No "use client": nothing here moves yet. */
 
-import { EXTRA_NOTES, EXTRA_NOTE_KEYS, PRICING_WORDS } from "@/lib/quotes/proposal";
+import { DocPaper } from "@/components/documents/doc-paper";
+import { HandoverChrome } from "@/app/handover/[id]/sheet-chrome";
+import { Letterhead } from "@/components/org/letterhead";
+import { hasBrand, type OrgBrand } from "@/lib/org/brand";
+import { EXTRA_NOTES, EXTRA_NOTE_KEYS } from "@/lib/quotes/proposal";
 import { PAYMENT_PRESETS, PAYMENT_PRESET_KEYS } from "@/lib/quotes/payment";
-import { CHECKLIST, CHECKLIST_KEYS, GROUP_ORDER } from "@/lib/quotes/checklist";
+import { CHECKLIST_KEYS, GROUP_ORDER } from "@/lib/quotes/checklist";
 import { DEFAULT_CHECKLIST } from "@/lib/workboard/stages";
 import { defaultMessage, defaultSubject } from "@/lib/compliance/papers";
+import { documentsLetter } from "@/lib/email/documents-letter";
+import { TemplateFrame } from "./templates-list";
+import { templateFor } from "./templates-catalogue";
+import "./templates.css";
 
-const NOT_YET = "You can't change these here yet.";
-
-/** A heading and its lines. */
-function Part({ title, note, lines }: { title: string; note?: string; lines: readonly string[] }) {
-  return (
-    <div className="sws-grp">
-      <div className="sw-gh">
-        <b>{title}</b>
-        {note && <span>{note}</span>}
-      </div>
-      {lines.map((line, i) => (
-        <p key={i} className="sw-text">
-          {line}
-        </p>
-      ))}
-    </div>
-  );
-}
+const pct = (p: number | null) => (p === null ? "" : `${p}%`);
 
 /** The checklist's sections, in the order they're first named. */
 function sections(): { section: string; labels: string[] }[] {
@@ -40,83 +32,283 @@ function sections(): { section: string; labels: string[] }[] {
   }
   return out;
 }
+const HANDOVER = DEFAULT_CHECKLIST.filter((i) => i.section === "Handover").map((i) => i.label);
 
-export function QuoteTemplate() {
-  const pct = (p: number | null) => (p === null ? "" : `${p}%: `);
+function Ph({ children }: { children: string }) {
+  return <span className="tpl-ph">{`[${children}]`}</span>;
+}
+
+/* ── the quote ─────────────────────────────────────────────────────────── */
+
+export function QuoteTemplate({ brand }: { brand: OrgBrand }) {
+  const t = templateFor("quote")!;
+  const home = PAYMENT_PRESETS.domestic_small;
   return (
-    <div className="sws">
-      <p className="sws-lede">{`Tiff writes each quote's scope from what was said about the job, then adds the notes and payment terms below. ${NOT_YET}`}</p>
-      <Part
-        title="The quote"
-        lines={[
-          "Air Conditioning Scope – [site address]",
-          "Hi [first name], [why they're getting it, and the options to choose from]",
-          "[Each option: what's installed and how, one line each, with pros and cons when the options differ]",
-          `[Priced one of three ways: ${Object.values(PRICING_WORDS).join("; ").toLowerCase()}]`,
-          "[Extras they can add, and allowances for choices not made yet]",
-        ]}
-      />
-      <Part title="Notes" note="Added when the job needs them" lines={EXTRA_NOTE_KEYS.flatMap((k) => [`${EXTRA_NOTES[k].heading}: ${EXTRA_NOTES[k].lines.join(" ")}`])} />
-      {PAYMENT_PRESET_KEYS.map((k) => (
-        <Part
-          key={k}
-          title={`Payment terms: ${PAYMENT_PRESETS[k].label}`}
-          lines={PAYMENT_PRESETS[k].stages.map((s) => `${pct(s.percent)}${s.when}`)}
-        />
-      ))}
-      {GROUP_ORDER.map((g) => {
-        const topics = CHECKLIST_KEYS.filter((k) => CHECKLIST[k].group === g);
-        if (topics.length === 0) return null;
-        return (
-          <Part
-            key={g}
-            title={`Site checklist: ${g}`}
-            note={g === GROUP_ORDER[0] ? "Checked before the quote goes out" : undefined}
-            lines={topics.map((k) => {
-              const t: { label: string; question: string; choices: readonly string[] } = CHECKLIST[k];
-              return t.choices.length ? `${t.question} (${t.choices.join(", ")})` : t.question;
-            })}
-          />
-        );
-      })}
-    </div>
+    <TemplateFrame
+      title={t.title}
+      who={t.who}
+      doc={
+        <DocPaper eyebrow="Air Conditioning Scope" heading="[Site address]" brand={brand} toName="[Customer]" toLines={[]} jobNumber="[Job number]" figures={[]}>
+          <section className="cer-sec">
+            <p className="cer-lede">
+              Hi <Ph>first name</Ph>,
+            </p>
+            <p className="cer-lede">
+              <Ph>{"Why they're getting this, and the options to choose from"}</Ph>
+            </p>
+          </section>
+          <section className="cer-sec">
+            <h2 className="cer-h">
+              Option 1: <Ph>what it is</Ph>
+            </h2>
+            <ul className="cer-st">
+              <li>
+                <Ph>{"What's installed, one line each, in the order the work happens"}</Ph>
+              </li>
+              <li>
+                <Ph>Where the pipes, drain and power run</Ph>
+              </li>
+            </ul>
+            <p className="cer-note">
+              Pros and cons: <Ph>when the options differ</Ph>. Price: <Ph>from your price book</Ph>
+            </p>
+          </section>
+          <section className="cer-sec">
+            <h2 className="cer-h">Notes</h2>
+            <p className="cer-note">
+              <Ph>The notes this job needs, from the list beside</Ph>
+            </p>
+          </section>
+          <section className="cer-sec">
+            <h2 className="cer-h">Payment terms</h2>
+            <table className="cer-rt">
+              <tbody>
+                {home.stages.map((s) => (
+                  <tr key={s.when}>
+                    <td>{s.when}</td>
+                    <td className="num">{pct(s.percent)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="cer-note">
+              <Ph>The terms for this kind of job</Ph>
+            </p>
+          </section>
+        </DocPaper>
+      }
+      side={
+        <>
+          <div className="tpl-card">
+            <h2>Notes</h2>
+            <p className="tpl-quiet">Tiff adds the ones a job needs.</p>
+            <div className="tpl-rows">
+              {EXTRA_NOTE_KEYS.map((k) => (
+                <div key={k} className="tpl-row">
+                  <span>
+                    <b>{EXTRA_NOTES[k].heading}</b>
+                    <em>{EXTRA_NOTES[k].lines.join(" ")}</em>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="tpl-card">
+            <h2>Payment terms</h2>
+            {PAYMENT_PRESET_KEYS.map((k) => (
+              <div key={k} className="tpl-rows">
+                <div className="tpl-row">
+                  <span>
+                    <b>{PAYMENT_PRESETS[k].label}</b>
+                  </span>
+                </div>
+                {PAYMENT_PRESETS[k].stages.map((s) => (
+                  <div key={s.when} className="tpl-row">
+                    <span>
+                      <em>{s.when}</em>
+                    </span>
+                    <span className="tpl-num">{pct(s.percent)}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="tpl-card">
+            <h2>Before it goes out</h2>
+            <p className="tpl-quiet">{`Tiff checks ${CHECKLIST_KEYS.length} things before a quote is ready: ${GROUP_ORDER.join(", ").toLowerCase()}.`}</p>
+          </div>
+        </>
+      }
+    />
   );
 }
 
-export function HandoverTemplate() {
-  const handover = DEFAULT_CHECKLIST.filter((i) => i.section === "Handover").map((i) => i.label);
+/* ── the handover sheet ────────────────────────────────────────────────── */
+
+export function HandoverTemplate({ brand }: { brand: OrgBrand }) {
+  const t = templateFor("handover")!;
   return (
-    <div className="sws">
-      <p className="sws-lede">{`Printed from the project when the job is handed over, on your letterhead. ${NOT_YET}`}</p>
-      <Part title="Handover sheet" lines={["[Project name]", "Stage, promised finish, defects period ends, contract total"]} />
-      <Part title="Equipment installed" lines={["[Each unit: equipment, model, serial, where, manual]"]} />
-      <Part title="Scope of the installation" lines={["[The project's scope]"]} />
-      <Part title="Commissioning record" lines={["[The readings taken at commissioning]"]} />
-      <Part title="Handover checks" note="From the project checklist" lines={handover} />
-      <Part title="Signed" lines={["Handed over by: name, signature, date", "Received for the client: name, signature, date"]} />
-    </div>
+    <TemplateFrame
+      title={t.title}
+      who={t.who}
+      doc={
+        <HandoverChrome brand={brand}>
+          <div className="ho-head">
+            <Letterhead brand={brand} />
+            <p className="ho-kicker">Handover sheet</p>
+          </div>
+          <h1>[Project name]</h1>
+          <p className="ho-sub">[Customer], [site address]</p>
+          <div className="ho-meta">
+            {["Stage", "Promised finish", "Defects period ends", "Contract total"].map((m) => (
+              <div key={m}>
+                <span>{m}</span>
+                <b>[{m.toLowerCase()}]</b>
+              </div>
+            ))}
+          </div>
+          <h2>Equipment installed</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Equipment</th>
+                <th>Model</th>
+                <th>Serial</th>
+                <th>Where</th>
+                <th>Manual</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>[Unit]</td>
+                <td>[Model]</td>
+                <td>[Serial]</td>
+                <td>[Room]</td>
+                <td>[Left or not]</td>
+              </tr>
+            </tbody>
+          </table>
+          <h2>Scope of the installation</h2>
+          <p className="ho-note">[The project&apos;s scope: what&apos;s included, what isn&apos;t, and approved variations]</p>
+          <h2>Commissioning record</h2>
+          <p className="ho-note">[The readings taken at commissioning]</p>
+          <h2>Handover checks</h2>
+          <ul>
+            {HANDOVER.map((label) => (
+              <li key={label}>{label}</li>
+            ))}
+          </ul>
+          <div className="ho-sign">
+            <div>Handed over by — name, signature, date</div>
+            <div>Received for the client — name, signature, date</div>
+          </div>
+          {hasBrand(brand) && <p className="ho-note ho-foot">{`Installed by ${brand.name || "us"}${brand.phone ? ` — ${brand.phone}` : ""}`}</p>}
+        </HandoverChrome>
+      }
+      side={
+        <>
+          <div className="tpl-card">
+            <h2>Handover checks</h2>
+            <p className="tpl-quiet">The Handover section of the project checklist. Each is ticked on the project and printed here.</p>
+            <div className="tpl-rows">
+              {HANDOVER.map((label) => (
+                <div key={label} className="tpl-row">
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="tpl-card">
+            <h2>The rest of the sheet</h2>
+            <p className="tpl-quiet">The equipment, scope and commissioning record come from the project. The headings and signature lines are the same on every sheet.</p>
+          </div>
+        </>
+      }
+    />
   );
 }
 
-export function DocumentsEmailTemplate() {
+/* ── the documents email ───────────────────────────────────────────────── */
+
+export function DocumentsEmailTemplate({ brand }: { brand: OrgBrand }) {
+  const t = templateFor("documents-email")!;
+  const business = brand.name.trim() || null;
+  const subject = defaultSubject({ number: "[job number]", address: "[site address]" });
+  const message = defaultMessage("[your name]", business ?? "[your business]");
+  /* the letter as it is sent, drawn from the same function; its images are
+     the app's own, so a relative origin finds them */
+  const html = documentsLetter({ baseUrl: "", business, sender: "[your name]", message, files: ["[Each file picked]"] });
   return (
-    <div className="sws">
-      <p className="sws-lede">{`Sent from the job card's Documents with the files picked. The subject and message can be changed on each send; these are what they start as. ${NOT_YET}`}</p>
-      <Part title="Subject" lines={[defaultSubject({ number: "[job number]", address: "[site address]" })]} />
-      <Part title="Heading" lines={["Documents from [your business]"]} />
-      <Part title="Message" lines={defaultMessage("[your name]", "[your business]").split(/\n+/)} />
-      <Part title="Below the message" lines={["Attached: [each file]", "Reply to this email to reach [your name]."]} />
-    </div>
+    <TemplateFrame
+      title={t.title}
+      who={t.who}
+      doc={
+        <div className="tpl-mail">
+          <dl className="tpl-env">
+            <dt>From</dt>
+            <dd>{`${business ?? "[Your business]"} via HeyTiff`}</dd>
+            <dt>To</dt>
+            <dd>[Who you pick]</dd>
+            <dt>Subject</dt>
+            <dd>
+              <b>{subject}</b>
+            </dd>
+          </dl>
+          <iframe className="tpl-letter" title="The email as it arrives" srcDoc={html} sandbox="" />
+        </div>
+      }
+      side={
+        <div className="tpl-card">
+          <h2>What it starts as</h2>
+          <p className="tpl-quiet">Whoever sends it can change the subject and message on the job card before it goes.</p>
+          <div className="tpl-rows">
+            <div className="tpl-row">
+              <span>
+                <em>Subject</em>
+                {subject}
+              </span>
+            </div>
+            <div className="tpl-row">
+              <span>
+                <em>Message</em>
+                <span style={{ whiteSpace: "pre-line" }}>{message}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      }
+    />
   );
 }
+
+/* ── every new project's checklist ─────────────────────────────────────── */
 
 export function ProjectChecklistTemplate() {
+  const t = templateFor("project-checklist")!;
   return (
-    <div className="sws">
-      <p className="sws-lede">{`Every new project starts with these, and each project's own list can be changed on the project. The Handover items print on the handover sheet. ${NOT_YET}`}</p>
-      {sections().map((s) => (
-        <Part key={s.section} title={s.section} lines={s.labels} />
-      ))}
-    </div>
+    <TemplateFrame
+      title={t.title}
+      who={t.who}
+      doc={
+        <div className="tpl-sheet">
+          {sections().map((s) => (
+            <div key={s.section}>
+              <h3>{s.section}</h3>
+              <ul>
+                {s.labels.map((l) => (
+                  <li key={l}>{l}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      }
+      side={
+        <div className="tpl-card">
+          <h2>On the project</h2>
+          <p className="tpl-quiet">Each section unlocks with its stage. The Handover items print on the handover sheet.</p>
+        </div>
+      }
+    />
   );
 }

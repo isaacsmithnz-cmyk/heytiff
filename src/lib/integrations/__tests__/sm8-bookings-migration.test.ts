@@ -32,7 +32,7 @@ const NEW_COLUMNS = ["verb_id", "booking_staff_uuid", "booking_start", "booking_
 /* The kinds of its day: the code's own, less leave, which
    sm8_leave_queue.sql added after it (sm8-leave-migration.test holds that
    file to all four). */
-const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "leave");
+const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "leave" && k !== "job");
 
 /** One branch of the shape check's outer CASE, `when kind = '<kind>' then …`. */
 function branch(kind: string): string {

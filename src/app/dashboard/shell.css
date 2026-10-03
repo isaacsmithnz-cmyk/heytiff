@@ -4598,6 +4598,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-kinds { display:flex; flex-wrap:wrap; gap:8px 24px; margin-bottom:12px; }
 .fg .int-kind { display:flex; align-items:center; gap:8px; }
 .fg .int-kind b { font-size:14px; font-weight:600; }
+.fg .int-kind-why { order:3; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 .fg .int-wfoot { display:flex; align-items:center; gap:12px; padding-top:8px; border-top:1px solid var(--line); }
 .fg .int-failed { display:flex; align-items:center; gap:12px; margin-left:auto; }
 .fg .int-failed b { font-size:14px; font-weight:600; color:var(--bad-t); }

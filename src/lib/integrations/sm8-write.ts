@@ -42,6 +42,7 @@ import { fetchSm8Page, type Sm8Page } from "./sm8-read";
 import { dateOrNull, intOrNull, textOrNull } from "./sm8-sync-plan";
 import { STATUS_KEPT_FIELDS } from "./sm8-booking-plan";
 import { availabilityBody, LEAVE_STAMP, type Sm8LiveAvailability } from "./sm8-leave-plan";
+import { companyBody, jobBody, jobContactBody, type NewJobContact, type Sm8LiveRecord } from "./sm8-job-plan";
 import {
   classifyWrite,
   readRemoteError,
@@ -703,3 +704,66 @@ export async function readSm8Availability(call: Sm8Call, uuid: string): Promise<
   const availability = row ? shapeLiveAvailability(row) : null;
   return availability ? { ok: true, found: true, availability } : { ok: true, found: false };
 }
+
+/* ── new jobs: a client or site, the job, its contact ──
+
+   Read off ServiceM8's developer reference on 2026-10-03: "Create a new
+   Client" (POST company.json, manage_customers), "Create a new Job" (POST
+   job.json, create_jobs), "Create a new Job Contact" (POST jobcontact.json,
+   manage_job_contacts) — each takes a client uuid and answers with
+   x-record-uuid. A read goes through the list endpoint filtered to one uuid,
+   as leave's does: the single-record path answers 404 once deleted. */
+
+export type Sm8JobResult = Sm8BookingResult;
+
+/** A new client, or a site under `parentUuid`, under OUR uuid. */
+export async function postSm8Company(call: Sm8Call, c: { uuid: string; name: string; address: string; parentUuid?: string | null }): Promise<Sm8JobResult> {
+  if (!UUID.test(c.uuid) || (c.parentUuid && !UUID.test(c.parentUuid)) || !c.name.trim()) return NOT_SENT;
+  return bookingRequest(call, "POST company.json", "company.json", { method: "POST", json: companyBody(c) });
+}
+
+/** The job, as a Quote, under OUR uuid. */
+export async function postSm8NewJob(
+  call: Sm8Call,
+  j: { uuid: string; companyUuid: string; address: string; description: string; categoryUuid?: string | null }
+): Promise<Sm8JobResult> {
+  if (!UUID.test(j.uuid) || !UUID.test(j.companyUuid) || (j.categoryUuid && !UUID.test(j.categoryUuid))) return NOT_SENT;
+  if (!j.address.trim() || !j.description.trim()) return NOT_SENT;
+  return bookingRequest(call, "POST job.json", "job.json", { method: "POST", json: jobBody(j) });
+}
+
+/** The job's contact, under OUR uuid. */
+export async function postSm8JobContact(call: Sm8Call, c: { uuid: string; jobUuid: string } & NewJobContact): Promise<Sm8JobResult> {
+  if (!UUID.test(c.uuid) || !UUID.test(c.jobUuid)) return NOT_SENT;
+  if (!c.first && !c.last && !c.mobile && !c.phone && !c.email) return NOT_SENT;
+  return bookingRequest(call, "POST jobcontact.json", "jobcontact.json", { method: "POST", json: jobContactBody(c) });
+}
+
+export type Sm8RecordCheck = { ok: true; found: false } | { ok: true; found: true; record: Sm8LiveRecord } | Sm8ReadFailure;
+
+/** One record read back by its uuid, through the list endpoint. `parent` is
+    the field that says where it hangs: a company's parent, a job's client,
+    a contact's job. */
+async function readSm8Record(call: Sm8Call, path: "company.json" | "job.json" | "jobcontact.json", uuid: string, parentField: string): Promise<Sm8RecordCheck> {
+  if (!UUID.test(uuid)) return { ok: true, found: false };
+  const page = await fetchSm8Page(call, path, { cursor: "-1", filter: `uuid eq '${uuid}'`, timeoutMs: WRITE_READ_TIMEOUT_MS });
+  if (!page.ok) return readFailure(page);
+  const want = uuid.toLowerCase();
+  const r = page.rows.find((x) => typeof x.uuid === "string" && x.uuid.toLowerCase() === want);
+  if (!r) return { ok: true, found: false };
+  return {
+    ok: true,
+    found: true,
+    record: {
+      uuid: textOrNull(r.uuid) ?? uuid,
+      active: intOrNull(r.active),
+      parent: textOrNull(r[parentField]),
+      number: textOrNull(r.generated_job_id),
+      editDate: dateOrNull(r.edit_date),
+    },
+  };
+}
+
+export const readSm8Company = (call: Sm8Call, uuid: string) => readSm8Record(call, "company.json", uuid, "parent_company_uuid");
+export const readSm8NewJob = (call: Sm8Call, uuid: string) => readSm8Record(call, "job.json", uuid, "company_uuid");
+export const readSm8JobContact = (call: Sm8Call, uuid: string) => readSm8Record(call, "jobcontact.json", uuid, "job_uuid");

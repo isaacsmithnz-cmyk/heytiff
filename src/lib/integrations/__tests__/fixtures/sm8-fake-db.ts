@@ -80,6 +80,8 @@ const BOOKING_COLUMNS = ["verb_id", "booking_staff_uuid", "booking_start", "book
 
 const LEAVE_COLUMNS = ["leave_staff_uuid", "leave_start", "leave_end"];
 
+const JOB_COLUMNS = ["job_company_uuid", "job_company_new", "job_parent_uuid", "job_contact_uuid", "job_category_uuid", "job_draft", "job_done", "job_number"];
+
 /** sm8_writes_kind_check and sm8_writes_shape_check, exactly as
     sm8_leave_queue.sql writes them: one CASE per kind, every column a
     branch needs named "is not null", and the whole in coalesce(…, false),
@@ -91,8 +93,35 @@ export function sm8WriteShapeOk(r: Row): boolean {
   const op = r.op ?? "create";
   const bookingNone = BOOKING_COLUMNS.every(none);
   const leaveNone = LEAVE_COLUMNS.every(none);
+  const jobNone = JOB_COLUMNS.every(none);
   if (r.kind !== "leave" && !leaveNone) return false;
+  if (r.kind !== "job" && !jobNone) return false;
   switch (r.kind) {
+    /* sm8_new_job_queue.sql's branch */
+    case "job": {
+      const draft = r.job_draft as Record<string, unknown> | null;
+      const doneOk = r.job_done == null || (Array.isArray(r.job_done) && (r.job_done as unknown[]).every((d) => ["company", "job", "contact"].includes(String(d))));
+      return (
+        op === "create" &&
+        none("sm8_job_uuid") &&
+        none("note_id") &&
+        none("depends_on") &&
+        none("target_uuid") &&
+        none("flag_done") &&
+        none("note_text") &&
+        bookingNone &&
+        leaveNone &&
+        some("job_company_uuid") &&
+        (r.job_company_new == null || r.job_company_new === "client" || r.job_company_new === "site") &&
+        (r.job_company_new === "site") === (r.job_parent_uuid != null) &&
+        !!draft &&
+        typeof draft === "object" &&
+        !Array.isArray(draft) &&
+        "address" in draft &&
+        "description" in draft &&
+        doneOk
+      );
+    }
     case "leave": {
       if (!(none("sm8_job_uuid") && none("note_id") && none("flag_done") && none("note_text") && none("target_uuid") && bookingNone)) return false;
       if (op === "create") {
@@ -490,7 +519,7 @@ export function makeFakeDb() {
       return Promise.resolve({ data: !!conn, error: null });
     }
     if (name === "sm8_set_write_kind") {
-      if (!conn || !["attachment", "note", "booking", "leave"].includes(String(args.p_kind))) return Promise.resolve({ data: null, error: null });
+      if (!conn || !["attachment", "note", "booking", "leave", "job"].includes(String(args.p_kind))) return Promise.resolve({ data: null, error: null });
       const was = Array.isArray(conn.write_kinds) ? (conn.write_kinds as string[]) : ["attachment"];
       const kind = String(args.p_kind);
       conn.write_kinds = args.p_on ? [...new Set([...was, kind])].sort() : was.filter((k) => k !== kind);

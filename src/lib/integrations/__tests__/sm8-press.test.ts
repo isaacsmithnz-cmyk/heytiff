@@ -154,6 +154,20 @@ describe("only a person's press queues a write", () => {
     expect(queue.text.match(/isSm8Press\(press\)/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("only the job queue's helper queues a new job — nothing else passes kind \"job\"", () => {
+    const jobQueue = join("app", "actions", "sm8-job-queue.ts");
+    const writers = files.filter(
+      (f) =>
+        relative(SRC, f.path) !== join("lib", "integrations", "sm8-writes.ts") &&
+        /kind:\s*["']job["']/.test(f.text) &&
+        /\benqueueSm8Writes\b/.test(f.text)
+    );
+    expect(writers.map((f) => relative(SRC, f.path))).toEqual([jobQueue]);
+    const queue = files.find((f) => relative(SRC, f.path) === jobQueue)!;
+    expect(isServerAction(queue.path, queue.text)).toBe(true);
+    expect(queue.text.match(/isSm8Press\(press\)/g)?.length).toBeGreaterThanOrEqual(1);
+  });
+
   it("only the \"use server\" actions queue", () => {
     const queuers = files.filter(
       (f) =>

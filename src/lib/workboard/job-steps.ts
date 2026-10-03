@@ -25,7 +25,9 @@ export type StepInput = {
   status: string | null;
   /** when the enquiry came in — ServiceM8's job date */
   date: string | null;
-  quoteDate: string | null;
+  /** the day the quote was SENT — never quote_date, which ServiceM8 sets
+      the moment a job is made a Quote, priced or not */
+  quoteSentOn: string | null;
   workOrderDate: string | null;
   completionDate: string | null;
   /** past days on site, any order */
@@ -55,7 +57,7 @@ export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
   const declined = status === "unsuccessful";
   const completed = status === "completed";
   const accepted = !declined && (!!j.workOrderDate || status === "work order" || completed);
-  const quoted = !!j.quoteDate || accepted;
+  const quoted = !!j.quoteSentOn || accepted;
   const days = [...new Set(j.visitDays)].sort();
 
   const steps: Omit<JobStep, "label">[] = [];
@@ -64,7 +66,7 @@ export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
 
   steps.push(
     quoted
-      ? { key: "quoted", state: "done", fact: j.quoteDate ? `Sent ${day(j.quoteDate)}` : "" }
+      ? { key: "quoted", state: "done", fact: j.quoteSentOn ? `Sent ${day(j.quoteSentOn)}` : "" }
       : { key: "quoted", state: "next", fact: "" }
   );
 

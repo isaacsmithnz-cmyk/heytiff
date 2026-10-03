@@ -21,6 +21,7 @@ import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { offersSend } from "@/lib/integrations/sm8-write-plan";
 import { settlePressedWrites } from "@/lib/integrations/sm8-drain";
+import { syncSm8AfterSend } from "@/lib/integrations/sm8-freshness";
 import { sm8AccessResult } from "@/lib/integrations/sm8-store";
 import { sm8CallOf } from "@/lib/integrations/sm8-http";
 import { readSm8Raw } from "@/lib/integrations/sm8-write";
@@ -127,6 +128,8 @@ export async function saveCustomer(pressId: string, after: CustomerForm): Promis
   await settlePressedWrites(g.orgId, q.ids, { startedAt, budgetMs: SAVE_BUDGET_MS });
   const { data } = await supabaseAdmin.from("sm8_writes").select("id, status, last_error").eq("org_id", g.orgId).in("id", q.ids);
   const rows = (data ?? []) as { id: string; status: string; last_error: string | null }[];
+  /* job contacts get no live updates: read what landed back now */
+  if (rows.some((r) => r.status === "sent")) syncSm8AfterSend(g.orgId);
   return {
     ok: true,
     saved: rows.filter((r) => r.status === "sent").length,

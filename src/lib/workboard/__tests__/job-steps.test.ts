@@ -4,7 +4,7 @@ import { currentStep, jobSteps, type StepInput } from "../job-steps";
 const base: StepInput = {
   status: "Quote",
   date: "2026-08-20",
-  quoteDate: null,
+  quoteSentOn: null,
   workOrderDate: null,
   completionDate: null,
   visitDays: [],
@@ -52,7 +52,7 @@ describe("where a job is up to", () => {
   });
 
   it("a quote that's gone out is waiting on Accepted", () => {
-    expect(line({ quoteDate: "2026-08-27" }, false)).toEqual([
+    expect(line({ quoteSentOn: "2026-08-27" }, false)).toEqual([
       "enquiry:done:20 Aug",
       "quoted:done:Sent 27 Aug",
       "accepted:now",
@@ -62,7 +62,7 @@ describe("where a job is up to", () => {
   });
 
   it("an accepted job with its deposit invoiced shows the deposit as the warning", () => {
-    const s = jobSteps({ ...base, status: "Work Order", quoteDate: "2026-08-27", workOrderDate: "2026-08-28", family: family([claim({}), claim({ index: 2, stage: "Final", state: "not_invoiced", raisedOn: null })]) }, true);
+    const s = jobSteps({ ...base, status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", family: family([claim({}), claim({ index: 2, stage: "Final", state: "not_invoiced", raisedOn: null })]) }, true);
     expect(s.find((x) => x.key === "deposit")).toMatchObject({ state: "warn", fact: "Invoiced 28 Aug" });
     expect(currentStep(s)?.key).toBe("deposit");
   });
@@ -72,7 +72,7 @@ describe("where a job is up to", () => {
       {
         ...base,
         status: "Work Order",
-        quoteDate: "2026-08-27",
+        quoteSentOn: "2026-08-27",
         workOrderDate: "2026-08-28",
         visitDays: ["2026-09-01", "2026-08-31", "2026-09-01"],
         materials: { total: 4, in: 2 },
@@ -101,7 +101,7 @@ describe("where a job is up to", () => {
       {
         ...base,
         status: "Completed",
-        quoteDate: "2026-08-27",
+        quoteSentOn: "2026-08-27",
         workOrderDate: "2026-08-28",
         completionDate: "2026-09-12",
         visitDays: ["2026-09-12"],
@@ -121,7 +121,7 @@ describe("where a job is up to", () => {
   });
 
   it("a declined quote stops the line at Accepted", () => {
-    expect(line({ status: "Unsuccessful", quoteDate: "2026-08-27" }, false)).toEqual([
+    expect(line({ status: "Unsuccessful", quoteSentOn: "2026-08-27" }, false)).toEqual([
       "enquiry:done:20 Aug",
       "quoted:done:Sent 27 Aug",
       "accepted:bad:Declined",

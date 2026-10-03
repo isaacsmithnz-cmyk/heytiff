@@ -59,6 +59,33 @@ const KICK_WAIT_MS = 2_000;
 /** Register one after() that sends what is due and then syncs a stale
     mirror, for a workspace the caller has already gated. Synchronous: the
     caller never awaits it, and nothing here reads before the response. */
+/** A WRITE THAT LANDED reads back at once (10-03, #3387). A new job's
+    contact and a customer save's contacts are job contacts, which ServiceM8
+    can't send live updates for, so before this they waited for the next
+    stale page load or the night: the card said "catches up within a minute"
+    and didn't. So the press that sent something syncs behind its answer,
+    stale or not, under the same lease and inside the same function as a
+    page load's kick. A sync already running is the answer: it reads the
+    same records. */
+export function syncSm8AfterSend(orgId: string): void {
+  const calledAt = Date.now();
+  after(async () => {
+    try {
+      const syncStartBy = calledAt + FUNCTION_MAX_MS - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS;
+      const deadline = functionDeadline(calledAt, FUNCTION_MAX_MS / 1000);
+      if (Date.now() > syncStartBy) return;
+      await whenSm8LeaseFree(() => runSm8Sync(orgId, "kick", Date.now(), { deadline }), {
+        tries: KICK_TRIES,
+        waitMs: KICK_WAIT_MS,
+        startBy: syncStartBy,
+        onlyWhileHook: true,
+      });
+    } catch (err) {
+      console.error(`[sm8] the read-back after a send for org ${orgId} threw: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  });
+}
+
 export function freshenSm8AfterResponse(orgId: string): void {
   const calledAt = Date.now();
   after(async () => {

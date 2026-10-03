@@ -446,7 +446,11 @@ export type MirrorJobDetail = {
   categoryColour: string | null;
   purchaseOrder: string | null;
   date: string | null;
+  /** When ServiceM8 became a Quote — NOT when one was sent. */
   quoteDate: string | null;
+  /** The day the quote was SENT (quote_sent_stamp), or null: a job made a
+      Quote has a quote_date from the start, priced or not (#3387, 10-03). */
+  quoteSentOn?: string | null;
   workOrderDate: string | null;
   completionDate: string | null;
   nextBooking: {
@@ -817,7 +821,9 @@ export async function readMirrorJobDetail(
     "uuid, generated_job_id, status, company_uuid, job_address, geo_city, geo_state, geo_postcode, " +
     "category_uuid, queue_uuid, queue_expiry_date, queue_assigned_staff_uuid, " +
     "job_description, work_done_description, purchase_order_number, " +
-    "date, quote_date, work_order_date, completion_date";
+    /* aliased: the money columns select quote_sent_stamp too, and a sent
+       quote's DAY is the progress line's, money grant or not */
+    "date, quote_date, work_order_date, completion_date, quote_sent_on:quote_sent_stamp";
 
   const { data } = await supabaseAdmin
     .from("sm8_jobs")
@@ -837,6 +843,7 @@ export async function readMirrorJobDetail(
     work_done_description: string | null;
     purchase_order_number: string | null;
     work_order_date: string | null;
+    quote_sent_on: string | null;
   }) | null;
   if (!job) return null;
 
@@ -1100,6 +1107,7 @@ export async function readMirrorJobDetail(
     purchaseOrder: job.purchase_order_number,
     date: job.date,
     quoteDate: job.quote_date,
+    quoteSentOn: job.quote_sent_on ? job.quote_sent_on.slice(0, 10) : null,
     workOrderDate: job.work_order_date,
     completionDate: job.completion_date,
     nextBooking: next?.start_date

@@ -16,6 +16,7 @@ jest.mock("@/lib/integrations/sm8-store", () => ({ sm8AccessResult: (...a: unkno
 jest.mock("@/lib/integrations/sm8-write", () => ({ readSm8Raw: jest.fn() }));
 jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromSession: jest.fn() }));
 jest.mock("@/lib/integrations/sm8-drain", () => ({ settlePressedWrites: jest.fn() }));
+jest.mock("@/lib/integrations/sm8-freshness", () => ({ syncSm8AfterSend: jest.fn() }));
 jest.mock("@/app/actions/sm8-customer-queue", () => ({ queueCustomerChanges: jest.fn() }));
 
 import { customerEditOffered, readCustomerForEdit, saveCustomer } from "../job-customer";

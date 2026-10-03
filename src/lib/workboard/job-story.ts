@@ -170,6 +170,8 @@ export type StoryInputs = {
   detail: {
     date: string | null;
     quoteDate: string | null;
+    /** the day the quote was sent; quote_date is only when it became a Quote */
+    quoteSentOn?: string | null;
     workOrderDate: string | null;
     completionDate: string | null;
     visits: readonly JobVisit[];
@@ -471,7 +473,7 @@ export function buildJobStory(inputs: StoryInputs): StoryEntry[] {
     if (day) entries.push({ kind: "milestone", key: `milestone:${key}`, day, at: null, label });
   };
   milestone("Job raised", detail?.date, "raised");
-  milestone("Quote sent", detail?.quoteDate, "quoted");
+  milestone("Quote sent", detail?.quoteSentOn, "quoted");
   milestone("Became a work order", detail?.workOrderDate, "workorder");
   milestone("Job completed", detail?.completionDate, "completed");
 

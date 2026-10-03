@@ -94,7 +94,7 @@ jest.mock("../sm8-hook-drain", () => {
   };
 });
 
-import { freshenSm8AfterResponse } from "../sm8-freshness";
+import { freshenSm8AfterResponse, syncSm8AfterSend } from "../sm8-freshness";
 
 let clock = Date.parse("2026-09-25T00:00:00Z");
 
@@ -389,5 +389,26 @@ describe("live updates owed (two-way phase 4)", () => {
     await behind();
     expect(ensureSm8WebhooksIfOwed).not.toHaveBeenCalled();
     expect(drainSm8Hooks).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncSm8AfterSend", () => {
+  /* #3387, 10-03: a new job's contact and a customer save's contacts get no
+     live update, so the press that sent them reads them back — stale or not */
+  it("reads nothing before the answer, then syncs a mirror that isn't stale", async () => {
+    stale = false;
+    syncSm8AfterSend("org-1");
+    expect(reads).toHaveLength(0);
+    expect(runSm8Sync).not.toHaveBeenCalled();
+    await behind();
+    expect(runSm8Sync).toHaveBeenCalledWith("org-1", "kick", clock, { deadline: Date.parse("2026-09-25T00:00:00Z") + 280_000 });
+    expect(runSm8Writes).not.toHaveBeenCalled();
+  });
+
+  it("starts nothing once a whole sync lease no longer fits the function", async () => {
+    syncSm8AfterSend("org-1");
+    clock += 300_000;
+    await behind();
+    expect(runSm8Sync).not.toHaveBeenCalled();
   });
 });

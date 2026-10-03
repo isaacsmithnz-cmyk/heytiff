@@ -114,6 +114,20 @@ const inputs = (over: Partial<StoryInputs> = {}): StoryInputs => ({
   ...over,
 });
 
+describe("buildJobStory — the quote", () => {
+  /* #3387, 10-03: ServiceM8 gives a job its quote_date the moment it is made
+     a Quote, priced or not, so "Quote sent" waits for the sent stamp */
+  it("a job made a Quote but not sent says nothing about a quote", () => {
+    const story = buildJobStory(inputs({ detail: detail({ quoteDate: "2026-10-03" }) }));
+    expect(story.some((e) => e.kind === "milestone" && e.label === "Quote sent")).toBe(false);
+  });
+
+  it("a sent quote is a milestone on the day it went", () => {
+    const story = buildJobStory(inputs({ detail: detail({ quoteDate: "2026-10-01", quoteSentOn: "2026-10-02" }) }));
+    expect(story.find((e) => e.kind === "milestone" && e.label === "Quote sent")?.day).toBe("2026-10-02");
+  });
+});
+
 describe("buildJobStory — order", () => {
   it("reads newest first, day-grouped, with timed entries by clock inside a day", () => {
     const story = buildJobStory(

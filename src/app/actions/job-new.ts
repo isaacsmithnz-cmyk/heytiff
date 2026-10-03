@@ -22,6 +22,7 @@ import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { offersSend, sendRefusal } from "@/lib/integrations/sm8-write-plan";
 import { settlePressedWrites } from "@/lib/integrations/sm8-drain";
+import { syncSm8AfterSend } from "@/lib/integrations/sm8-freshness";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { jobLine, JOB_WORDS, validNewJob, type JobLine, type NewJobInput } from "@/lib/integrations/sm8-job-plan";
 import { sm8CategoryColour } from "@/lib/workboard/all-jobs";
@@ -184,7 +185,15 @@ export type CreateNewJob = NewJobInput & {
   next: string | null;
 };
 
-export type CreateAnswer = { ok: true; rowId: string; line: JobLine; sm8Url: string | null } | { ok: false; error: string };
+/** The office's words closed with a stop before the two facts follow them:
+    the card's one-line glance folds the blank line away, and "safe to
+    archive Came in by phone" ran together (#3387, 10-03). */
+function sentence(text: string): string {
+  const t = text.trim();
+  return t === "" || /[.!?:;)"'”’]$/.test(t) ? t : `${t}.`;
+}
+
+export type CreateAnswer ={ ok: true; rowId: string; line: JobLine; sm8Url: string | null } | { ok: false; error: string };
 
 /** Start the job in ServiceM8. */
 export async function createNewJob(input: CreateNewJob): Promise<CreateAnswer> {
@@ -198,7 +207,7 @@ export async function createNewJob(input: CreateNewJob): Promise<CreateAnswer> {
 
   /* the office's two facts, said in the job's own words */
   const tail = [input.via ? `Came in by ${input.via}.` : null, input.next ? `Next: ${input.next}.` : null].filter(Boolean).join(" ");
-  const v = validNewJob({ ...input, description: tail ? `${input.description.trim()}\n\n${tail}` : input.description });
+  const v = validNewJob({ ...input, description: tail ? `${sentence(input.description)}\n\n${tail}` : input.description });
   if (!v.ok) return { ok: false, error: v.error };
 
   /* the client, or a site's builder, still there */
@@ -211,7 +220,10 @@ export async function createNewJob(input: CreateNewJob): Promise<CreateAnswer> {
   const q = await queueNewJob(press, input.pressId, v.job, input.clientName.trim());
   if (!q.ok) return q;
   await settlePressedWrites(g.orgId, [q.rowId], { startedAt, budgetMs: CREATE_BUDGET_MS });
-  return readLine(g.orgId, q.rowId);
+  const answer = await readLine(g.orgId, q.rowId);
+  /* the job's contact gets no live update: read what landed back now */
+  if (answer.ok && answer.sm8Url) syncSm8AfterSend(g.orgId);
+  return answer;
 }
 
 async function readLine(orgId: string, rowId: string): Promise<CreateAnswer> {

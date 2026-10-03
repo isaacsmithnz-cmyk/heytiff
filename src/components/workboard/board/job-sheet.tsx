@@ -1080,7 +1080,7 @@ export function JobSheet({
         {
           status: detail?.status ?? null,
           date: detail?.date ?? null,
-          quoteDate: detail?.quoteDate ?? null,
+          quoteSentOn: detail?.quoteSentOn ?? null,
           workOrderDate: detail?.workOrderDate ?? null,
           completionDate: detail?.completionDate ?? null,
           visitDays: (detail?.visits ?? []).map((v) => v.day),
@@ -1166,6 +1166,7 @@ export function JobSheet({
           ? {
               date: detail.date,
               quoteDate: detail.quoteDate,
+              quoteSentOn: detail.quoteSentOn ?? null,
               workOrderDate: detail.workOrderDate,
               completionDate: detail.completionDate,
               visits: detail.visits,

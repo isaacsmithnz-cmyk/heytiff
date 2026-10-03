@@ -40,6 +40,7 @@ import {
 import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
+import { JobQuoteLabour } from "./job-quote-labour";
 import { JobQuoteFace } from "./job-quote-face";
 import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
@@ -2725,7 +2726,8 @@ export function JobSheet({
           {manage &&
             panel(
               "quote",
-              <JobQuoteFace
+              <>
+                <JobQuoteFace
                 job={cardId ?? row.id}
                 address={detail ? detail.address ?? detail.geoLine : null}
                 visible={tab === "quote"}
@@ -2744,6 +2746,8 @@ export function JobSheet({
                 }}
                 onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
               />
+                <JobQuoteLabour key={cardId ?? row.id} job={cardId ?? row.id} visible={tab === "quote"} />
+              </>
             )}
 
           {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,

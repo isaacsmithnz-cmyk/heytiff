@@ -192,6 +192,7 @@ it("shows a unit with no model as not given yet, and edits the equipment row by 
   fireEvent.click(screen.getByRole("button", { name: "Edit Option 1: Install client-supplied 6 kW split" }));
   fireEvent.change(screen.getByLabelText("Model"), { target: { value: "msz-ap60vgd" } });
   fireEvent.click(screen.getByRole("button", { name: "Add an outdoor unit" }));
+  expect(screen.getAllByLabelText("Unit").map((el) => (el as HTMLSelectElement).value)).toEqual(["indoor", "outdoor"]);
   fireEvent.change(screen.getByLabelText("Where outdoor unit 1 goes"), { target: { value: "Parapet wall" } });
   fireEvent.change(screen.getAllByLabelText("Model")[1], { target: { value: "MUZ-AP60VG" } });
   await act(async () => {

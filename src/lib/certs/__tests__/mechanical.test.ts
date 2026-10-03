@@ -1,16 +1,17 @@
 import {
+  CLAUSE_NAME,
   DEFAULT_CERT_ANSWERS,
   buildCertificate,
   certFileName,
   certProblemList,
   certProblems,
-  certTitle,
   clausesFor,
   fmtKw,
   indoorTotalKw,
   statementsFor,
   suggestedReason,
   wetMinimum,
+  wordingSamples,
   type Building,
   type CertAnswers,
   type CertFacts,
@@ -18,7 +19,8 @@ import {
   type Requirement,
 } from "../mechanical";
 import { normaliseCertAnswers } from "../input";
-import { matchRequirement, readQuote } from "../quote";
+import { matchRequirement } from "../match";
+import { readQuote } from "../quote";
 import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2699, JOB_279, JOB_3326 } from "./fixtures/jobs";
 
 /* THE GOLDEN JOBS (docs/certificates-plan.md, Build order, step 1): six real
@@ -26,7 +28,7 @@ import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2699, JOB_279, JOB_33
 
 const AC_CORE = ["refrigerant", "manufacturer", "arc"];
 
-const TESTED = { pressureKpa: 4150, holdMinutes: 30, vacuumMicrons: 350, manufacturerMicrons: null, refrigerant: "R32", addedKg: 0 };
+const TESTED = { refrigerant: "R32", addedKg: 0 };
 
 const FACTS: CertFacts = { today: "2026-10-01", approved: true, hasSignature: true, arcCurrent: true, contractorCurrent: true };
 
@@ -124,13 +126,6 @@ describe("the statements", () => {
     expect(two).toContain("OUT-2: R32, 0.4 kg added.");
   });
 
-  it("never prints a gauge figure, even one saved on an older version", () => {
-    const a = answersFor(JOB_3326, AC, "office");
-    a.systems[0].test = { ...TESTED, vacuumMicrons: 700, manufacturerMicrons: 1000 };
-    expect(statementsFor(a).statements[0].text).not.toMatch(/700|1000|4150/);
-    expect(certProblems(a, FACTS)).toEqual([]);
-  });
-
   it("claim the NCC minimum only when a wet area has a fan, and say when a figure was measured", () => {
     const a = answersFor(JOB_279, BOTH, "house");
     const plain = statementsFor(a).statements.find((s) => s.clause === "ventAirflow")!.text;
@@ -194,10 +189,8 @@ describe("the statements", () => {
 
 describe("the paper's facts", () => {
   it("call every certificate a mechanical compliance certificate, whatever it covers", () => {
-    expect(certTitle(AC)).toBe("Mechanical compliance certificate");
-    expect(certTitle({ ac: false, vent: true })).toBe("Mechanical compliance certificate");
-    expect(certTitle(BOTH)).toBe("Mechanical compliance certificate");
-    expect(certFileName(BOTH, "74/10 Etham Avenue", "1383")).toBe("Mechanical compliance certificate – 74-10 Etham Avenue – job 1383.pdf");
+    for (const covers of [AC, { ac: false, vent: true }, BOTH]) expect(buildCertificate(answersFor(JOB_279, covers, "house")).title).toBe("Mechanical compliance certificate");
+    expect(certFileName("74/10 Etham Avenue", "1383")).toBe("Mechanical compliance certificate – 74-10 Etham Avenue – job 1383.pdf");
   });
 
   it("print a class only when one was picked, and a serial column only when there is a serial", () => {
@@ -225,7 +218,7 @@ describe("certProblemList", () => {
 
   it("asks only for the refrigerant and the charge: the pressure test and vacuum print as passed", () => {
     const a = answersFor(JOB_3326, AC, "office");
-    a.systems[0].test = { pressureKpa: null, holdMinutes: null, vacuumMicrons: null, manufacturerMicrons: null, refrigerant: "", addedKg: null };
+    a.systems[0].test = { refrigerant: "", addedKg: null };
     expect(certProblems(a, FACTS)).toEqual(["Enter MUZ-AP42VGD2-A2's refrigerant.", "Enter the refrigerant added to MUZ-AP42VGD2-A2, or 0."]);
   });
 
@@ -365,6 +358,17 @@ describe("what was asked against what was installed", () => {
     ]);
   });
 
+  it("refuses statements worded for air conditioning on a ventilation-only certificate", () => {
+    const a = answersFor(JOB_279, { ac: false, vent: true }, "house", {
+      requirements: [ask("System commissioned and handed over"), ask("Complies with Section J"), ask("Outdoor unit noise to the approved plans")],
+    });
+    expect(certProblems(a, FACTS)).toEqual([
+      "Requirement 1 asks for commissioning and handover, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
+      "Requirement 2 asks for BCA Section J, air-conditioning and ventilation, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
+      "Requirement 3 asks for outdoor unit location and noise, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
+    ]);
+  });
+
   it("is satisfied once the item is marked not applicable with a reason", () => {
     const a = answersFor(JOB_3326, AC, "office", {
       requirements: [{ ...ask("Exhaust fans discharge to outdoor air"), answer: "na", reason: "No exhaust fans in our scope." }],
@@ -375,6 +379,34 @@ describe("what was asked against what was installed", () => {
   it("raises nothing when what was asked is on the certificate", () => {
     const a = answersFor(JOB_1383, AC, "apartment", { requirements: futureCert(), fireMode: "individual", fireModeRatingsChecked: true });
     expect(certProblems(a, FACTS)).toEqual([]);
+  });
+});
+
+describe("the wording the owner approves", () => {
+  it("shows every statement that can print, in every wording it can take", () => {
+    const shown = wordingSamples();
+    expect(shown.map((w) => w.clause)).toEqual(Object.keys(CLAUSE_NAME));
+    const j5 = shown.find((w) => w.clause === "j5")!.texts;
+    expect(j5).toHaveLength(2);
+    expect(j5.some((t) => t.includes("ductwork is sealed"))).toBe(true);
+    expect(shown.find((w) => w.clause === "ventAirflow")!.texts).toHaveLength(3);
+  });
+
+  it("covers every statement a golden job's certificate makes", () => {
+    const texts = wordingSamples().flatMap((w) => w.texts);
+    const jobs = [
+      answersFor(JOB_1383, AC, "apartment", { requirements: futureCert(), fireMode: "individual", fireModeRatingsChecked: true }),
+      answersFor(JOB_279, BOTH, "house"),
+      answersFor(JOB_2699, AC, "apartment", { installed: { ductwork: false, fireRated: true, fireStopProduct: "Promat collars" } }),
+    ];
+    for (const a of jobs) {
+      for (const st of statementsFor(a).statements) {
+        if (!st.clause) continue;
+        /* what a person typed is shown in brackets on the page: compare the words around it */
+        const stem = st.text.split(/R32|Promat collars/)[0].trim();
+        expect(texts.some((t) => t.startsWith(stem))).toBe(true);
+      }
+    }
   });
 });
 

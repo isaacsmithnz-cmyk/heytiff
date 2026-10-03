@@ -47,13 +47,11 @@ const context = (over: Partial<CertWizardContext> = {}): CertWizardContext => ({
   quoteToMark: 0,
   building: suggestBuilding("Lv 3 Suite 4/44-54 Example Road"),
   today: "2026-10-01",
-  viewerStaffId: "isaac",
   signatory: { staffId: "isaac", name: "Isaac Smith", arc: licence("L118650"), contractor: licence("315890C"), signatureSvg: "<svg/>" },
   approved: true,
   canApprove: true,
   ownerName: "Isaac Smith",
   fanModels: [],
-  existing: [],
   files: [],
   ...over,
 });
@@ -194,7 +192,7 @@ describe("issuing", () => {
     })) as unknown as typeof fetch;
     certWizardContext.mockImplementation(async () =>
       context({
-        reading: { ...readQuote(JOB_3326), systems: readQuote(JOB_3326).systems.map((x) => ({ ...x, indoors: x.indoors.map((r) => ({ ...r, location: "Office" })), test: { pressureKpa: 4150, holdMinutes: 30, vacuumMicrons: 350, manufacturerMicrons: null, refrigerant: "R32", addedKg: 0 } })) },
+        reading: { ...readQuote(JOB_3326), systems: readQuote(JOB_3326).systems.map((x) => ({ ...x, indoors: x.indoors.map((r) => ({ ...r, location: "Office" })), test: { refrigerant: "R32", addedKg: 0 } })) },
       })
     );
     open(false);
@@ -290,6 +288,16 @@ describe("what you've been asked to cover", () => {
     await userEvent.type(list.getByLabelText("What you've been asked to cover"), "Can you send the cert please");
     await userEvent.click(list.getByRole("button", { name: "Read it" }));
     expect(await list.findByText("Tiff found nothing in it for this certificate to cover.")).toBeInTheDocument();
+  });
+
+  it("lists as many requests as a certificate holds, and says so when Tiff found more", async () => {
+    readCertifierEmail.mockImplementation(async () => reading(Array.from({ length: 31 }, (_, i) => ({ text: `Item ${i + 1}`, clause: null, notOurs: false }))));
+    const list = await openStep();
+    await userEvent.type(list.getByLabelText("What you've been asked to cover"), "A long list");
+    await userEvent.click(list.getByRole("button", { name: "Read it" }));
+    expect(await list.findByText("Tiff found 31 things asked for. A certificate holds 30, so the first 30 are listed.")).toBeInTheDocument();
+    expect(list.getByDisplayValue("Item 30")).toBeInTheDocument();
+    expect(list.queryByDisplayValue("Item 31")).toBeNull();
   });
 
   it("looks again for a file filed in ServiceM8 a minute ago", async () => {

@@ -20,7 +20,10 @@
    matches no clause is written by the person, printed as typed, or marked not
    applicable with a reason. */
 
-export const CERT_LIBRARY_VERSION = "mech-2026.10";
+/* .1 (2026-10-03): the wording page now shows every statement that can
+   print, condensate, commissioning and Section J with ductwork among them,
+   so it is approved again with all of them in view. */
+export const CERT_LIBRARY_VERSION = "mech-2026.10.1";
 
 /* ── what the certificate covers, and where ────────────────────────────── */
 
@@ -28,16 +31,28 @@ export type Covers = { ac: boolean; vent: boolean };
 
 /* ONE NAME FOR EVERY CERTIFICATE (Isaac, 2026-10-02): "Mechanical
    compliance certificate" covers air conditioning, ventilation or both, so
-   the heading never needs to change with the job. What it covers is said
-   once, in the figures row ("Certifying"). */
+   the heading never needs to change with the job. What it covers is the
+   tables' own headings. */
 export const CERT_TITLE = "Mechanical compliance certificate";
 
-export function certTitle(_c?: Covers): string {
-  return CERT_TITLE;
+/** The words before the numbered statements, and before each thing asked
+    for that doesn't apply. */
+export const CERT_LEDE = "I certify that:";
+export const NOT_APPLICABLE = "Not applicable:";
+
+/** The site as lines: as written when it has lines, else split at its first
+    comma, so the title is the street and not the whole address. A trailing
+    comma, as ServiceM8 sometimes leaves one, isn't part of a line. */
+export function addressLines(address: string | null): string[] {
+  const lines = (address ?? "").split("\n").map((l) => l.trim().replace(/,$/, "").trim()).filter(Boolean);
+  if (lines.length !== 1) return lines;
+  const at = lines[0].indexOf(",");
+  return at > 0 ? [lines[0].slice(0, at).trim(), lines[0].slice(at + 1).trim()].filter(Boolean) : lines;
 }
 
-/** The file's name, from the site's first line and the job. */
-export function certFileName(_c: Covers, site: string, jobNumber: string | null): string {
+/** The file's name, from the site's first line (the paper's own title) and
+    the job. */
+export function certFileName(site: string, jobNumber: string | null): string {
   const where = site.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 80);
   return [CERT_TITLE, where || null, jobNumber ? `job ${jobNumber}` : null].filter(Boolean).join(" – ") + ".pdf";
 }
@@ -65,18 +80,10 @@ export function buildingOf(key: Building | null): (typeof BUILDINGS)[number] | n
 /** One circuit's refrigerant, typed on site and never assumed.
 
     THE PRESSURE TEST AND THE VACUUM ARE A RESULT, NOT FIGURES (Isaac,
-    2026-10-02). The certificate states that the circuit held under
-    nitrogen and was evacuated to the manufacturer's specified vacuum, which
-    is true of every circuit done right and is what the certifier relies on;
-    the gauge readings stay on the job. The figure fields stay in the type
-    so a version saved before still reads, but nothing asks for them or
-    prints them. */
+    2026-10-02). The certificate states that the circuit was pressure tested
+    and evacuated, which is true of every circuit done right and is what the
+    certifier relies on; the gauge readings stay on the job. */
 export type CircuitTest = {
-  pressureKpa: number | null;
-  holdMinutes: number | null;
-  vacuumMicrons: number | null;
-  /** The manufacturer's own figure, needed only for a vacuum above 500. */
-  manufacturerMicrons: number | null;
   refrigerant: string;
   /** Zero is an answer: the factory charge covered the pipe run. */
   addedKg: number | null;
@@ -158,18 +165,6 @@ export const CLAUSE_NAME: Record<ClauseKey, string> = {
   noise: "Outdoor unit location and noise",
 };
 
-/* NO PADDING. Every line answers something asked for or is a statement the
-   certificate can't go without. Every air conditioning certificate states
-   the two the law asks of every installer: the refrigerant circuit to
-   AS/NZS 5149.2, with its figures, and ARC licensed handling. With nothing
-   asked for, it also says the equipment went in to the manufacturer's
-   instructions, so a bare "send me the certificate" still certifies the
-   installation. With something asked, the approved documents take that
-   place. Condensate and handover print only when asked for. */
-export const AC_CORE: readonly ClauseKey[] = ["refrigerant", "manufacturer", "arc"];
-export const AC_CORE_ASKED: readonly ClauseKey[] = ["refrigerant", "arc"];
-export const VENT_CORE: readonly ClauseKey[] = ["ventAirflow", "ventDischarge"];
-
 /* WHERE THE EXHAUST GOES IS ASKED, NEVER ASSUMED (job 2933, 2026-10-03: a
    bathroom fan ducted into a warehouse). "Every exhaust fan discharges to
    outdoor air" prints only when the person says so; "none" is a job whose
@@ -242,16 +237,10 @@ export type CertAnswers = {
   equipmentConfirmed: boolean;
 };
 
-export const EMPTY_TEST: CircuitTest = {
-  pressureKpa: null,
-  holdMinutes: null,
-  vacuumMicrons: null,
-  manufacturerMicrons: null,
-  refrigerant: "",
-  addedKg: null,
-};
+export const EMPTY_TEST: CircuitTest = { refrigerant: "", addedKg: null };
 
 export const EMPTY_ROW: AcRow = { location: "", model: "", qty: 1, capacityKw: null, serial: "" };
+export const EMPTY_FAN: FanRow = { location: "", model: "", qty: 1, airflowLps: null, airflowKind: "rated", serial: "" };
 
 export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   covers: { ac: true, vent: false },
@@ -273,10 +262,20 @@ export const DEFAULT_CERT_ANSWERS: CertAnswers = {
 
 /* ── the rules for which statements a job gets ─────────────────────────── */
 
-/** The clauses this job's certificate makes, in order: the certifier's
-    requirements first, in the certifier's order, so they can tick them off;
-    then the standard set; then what the installation adds. A clause appears
-    once however many requirements point at it. */
+/** The clauses this job's certificate makes, in order: what was asked for
+    first, in the order it was asked, so it can be ticked off; then the
+    standard set; then what the installation adds. A clause appears once
+    however many requirements point at it.
+
+    NO PADDING. Every line answers something asked for or is a statement the
+    certificate can't go without. Every air conditioning certificate states
+    the two the law asks of every installer: the refrigerant circuit to
+    AS/NZS 5149.2, with the refrigerant and its charge, and ARC licensed
+    handling. With nothing asked for, it also says the equipment went in to
+    the manufacturer's instructions, so a bare "send me the certificate"
+    still certifies the installation. With something asked, the approved
+    documents take that place. Condensate and handover print only when
+    asked for. */
 export function clausesFor(a: CertAnswers): ClauseKey[] {
   const out: ClauseKey[] = [];
   const add = (k: ClauseKey) => {
@@ -285,7 +284,11 @@ export function clausesFor(a: CertAnswers): ClauseKey[] {
   for (const r of a.requirements) if (r.answer === "clause" && r.clause) add(r.clause);
   const asked = a.requirements.length > 0;
   if (asked) add("approved");
-  if (a.covers.ac) (asked ? AC_CORE_ASKED : AC_CORE).forEach(add);
+  if (a.covers.ac) {
+    add("refrigerant");
+    if (!asked) add("manufacturer");
+    add("arc");
+  }
   if (a.covers.vent) {
     add("ventAirflow");
     if (a.exhaustTo === "outdoors") add("ventDischarge");
@@ -294,6 +297,10 @@ export function clausesFor(a: CertAnswers): ClauseKey[] {
   if (a.installed.fireRated) add("fireRated");
   return out;
 }
+
+/** The reason given when what was asked is a smoke control system, which
+    this certificate never covers. The person can change it. */
+export const NOT_OURS_REASON = "Not part of these works: a smoke control system is certified by the mechanical engineer.";
 
 /** The reason offered when a certifier asks for something that doesn't apply.
     The person can change it; it is only a start. */
@@ -307,10 +314,9 @@ export function suggestedReason(clause: ClauseKey | null, b: Building | null): s
   return "";
 }
 
-/* ── numbers, as paper prints them ─────────────────────────────────────── */
+/* ── numbers, as they're shown ─────────────────────────────────────────── */
 
-const kw = (n: number) => `${Number.isInteger(n) ? n.toFixed(1) : String(Math.round(n * 100) / 100)} kW`;
-export const fmtKw = kw;
+export const fmtKw = (n: number) => `${Number.isInteger(n) ? n.toFixed(1) : String(Math.round(n * 100) / 100)} kW`;
 export const fmtNum = (n: number) => String(Math.round(n * 100) / 100);
 
 export function indoorTotalKw(systems: readonly AcSystem[]): number {
@@ -318,10 +324,6 @@ export function indoorTotalKw(systems: readonly AcSystem[]): number {
     (sum, s) => sum + s.indoors.reduce((t, r) => t + (r.capacityKw ?? 0) * Math.max(1, r.qty), 0),
     0
   );
-}
-
-export function outdoorTotalKw(systems: readonly AcSystem[]): number {
-  return systems.reduce((sum, s) => sum + (s.outdoor.capacityKw ?? 0) * Math.max(1, s.outdoor.qty), 0);
 }
 
 /* ── wet areas and the NCC minimum ─────────────────────────────────────── */
@@ -480,7 +482,7 @@ export function buildCertificate(a: CertAnswers): CertContent {
   const rows = [...systems.flatMap((s) => [s.outdoor, ...s.indoors]), ...fans];
   return {
     libraryVersion: CERT_LIBRARY_VERSION,
-    title: certTitle(a.covers),
+    title: CERT_TITLE,
     covers: a.covers,
     building: b && b.key !== "other" ? { label: b.label, cls: b.cls } : null,
     completedOn: a.completedOn,
@@ -528,9 +530,12 @@ const missing = (s: string) => s.trim() === "";
 export const looksLikeModel = (s: string) => /\d/.test(s);
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Everything standing between these answers and an issue, in the order the
-    wizard asks, each with the step it is about. Empty means it can issue. */
-const cap1 = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+/** A clause's name inside a sentence: lower case to start, but a standard's
+    or the code's own letters ("AS/NZS 5149.2", "BCA") as they are. */
+const nameInSentence = (k: ClauseKey) => {
+  const n = CLAUSE_NAME[k];
+  return /^[A-Z]{2}/.test(n) ? n : n.charAt(0).toLowerCase() + n.slice(1);
+};
 
 /* WHAT WAS ASKED AGAINST WHAT WAS INSTALLED. A builder's list is matched to
    a statement by rule, but a statement is only true of works on this
@@ -549,12 +554,17 @@ function notInstalled(k: ClauseKey, a: CertAnswers): string | null {
     case "as16682":
     case "kitchenExhaust":
     case "carPark":
-      return vent ? null : `${CLAUSE_NAME[k].toLowerCase()}, but no ventilation is on this certificate`;
+      return vent ? null : `${nameInSentence(k)}, but no ventilation is on this certificate`;
+    /* worded for air conditioning: refrigerant pipework, heating and
+       cooling, the outdoor unit */
     case "refrigerant":
     case "arc":
     case "condensate":
+    case "commissioned":
     case "fireMode":
-      return ac ? null : `${CLAUSE_NAME[k].toLowerCase()}, but no air conditioning is on this certificate`;
+    case "j5":
+    case "noise":
+      return ac ? null : `${nameInSentence(k)}, but no air conditioning is on this certificate`;
     case "ductwork":
       return a.installed.ductwork ? null : "ductwork, but no ductwork is ticked as installed";
     case "fireRated":
@@ -564,6 +574,8 @@ function notInstalled(k: ClauseKey, a: CertAnswers): string | null {
   }
 }
 
+/** Everything standing between these answers and an issue, in the order the
+    wizard asks, each with the step it is about. Empty means it can issue. */
 export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
   const out: CertProblem[] = [];
   const add = (field: CertProblemField, text: string) => out.push({ field, text });
@@ -621,12 +633,13 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
 
   a.requirements.forEach((r, i) => {
     const which = `requirement ${i + 1}`;
+    const Which = `Requirement ${i + 1}`;
     if (r.answer === "clause" && !r.clause) add("requirements", `Choose a statement for ${which}, write one, or mark it not applicable.`);
     if (r.answer === "own" && missing(r.own)) add("requirements", `Write the statement for ${which}.`);
     if (r.answer === "na" && missing(r.reason)) add("requirements", `Say why ${which} doesn't apply.`);
     if (r.answer === "clause" && r.clause) {
       const gap = notInstalled(r.clause, a);
-      if (gap) add("requirements", `${cap1(which)} asks for ${gap}. Mark it not applicable with a reason, or add what's missing.`);
+      if (gap) add("requirements", `${Which} asks for ${gap}. Mark it not applicable with a reason, or add what's missing.`);
     }
   });
 
@@ -686,16 +699,19 @@ const WHEN: Record<ClauseKey, string> = {
   noise: "Only when asked for",
 };
 
-/** Every clause as it prints, with each wording a clause can take. The
-    figures a person types are shown as what they are, in brackets. */
+/** Every clause as it prints, with each wording a clause can take, in the
+    order CLAUSE_NAME lists them: all of them, so nothing can print that the
+    owner hasn't read. The figures a person types are shown as what they
+    are, in brackets. */
 export function wordingSamples(): Wording[] {
   const base: CertAnswers = { ...DEFAULT_CERT_ANSWERS, covers: { ac: true, vent: true } };
-  const order: ClauseKey[] = ["approved", ...AC_CORE, ...VENT_CORE, "ductwork", "fireRated", "as16682", "as1668", "fireMode", "j5", "kitchenExhaust", "carPark", "airBalance", "noise"];
   const variants: Partial<Record<ClauseKey, CertAnswers[]>> = {
     ventAirflow: [
-      { ...base, fans: [{ location: "Bathroom", model: "", qty: 1, airflowLps: 30, airflowKind: "rated", serial: "" }] },
-      { ...base, fans: [{ location: "Bathroom", model: "", qty: 1, airflowLps: 30, airflowKind: "measured", serial: "" }] },
+      { ...base, fans: [{ ...EMPTY_FAN, location: "Living", airflowLps: 60 }] },
+      { ...base, fans: [{ ...EMPTY_FAN, location: "Bathroom", airflowLps: 30 }] },
+      { ...base, fans: [{ ...EMPTY_FAN, location: "Bathroom", airflowLps: 30, airflowKind: "measured" }] },
     ],
+    j5: [base, { ...base, installed: { ...base.installed, ductwork: true } }],
     fireRated: [{ ...base, installed: { ...base.installed, fireStopProduct: "[the fire-stopping product]" } }],
     fireMode: [
       { ...base, fireMode: "individual" },
@@ -706,7 +722,7 @@ export function wordingSamples(): Wording[] {
       { ...base, airBalance: "others" },
     ],
   };
-  return order.map((k) => ({
+  return (Object.keys(CLAUSE_NAME) as ClauseKey[]).map((k) => ({
     clause: k,
     name: CLAUSE_NAME[k],
     when: WHEN[k],

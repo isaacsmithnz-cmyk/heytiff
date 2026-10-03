@@ -1,4 +1,4 @@
-import { matchRequirement } from "./quote";
+import { matchRequirement } from "./match";
 import type { ClauseKey } from "./mechanical";
 
 /* A CERTIFIER'S LIST, READ BY TIFF — the prompt, the shape asked for, and
@@ -7,7 +7,7 @@ import type { ClauseKey } from "./mechanical";
    THE SAME CONTRACT AS A SCANNED LICENCE (lib/org/cred-readers): one model
    call fills the form, the person checks it against the paper, and nothing
    is saved until they do. Tiff only READS the list. Which clause answers each
-   requirement is decided here, by the pure matcher (quote.ts), and the person
+   requirement is decided here, by the pure matcher (match.ts), and the person
    can change it: matching is a rule that can be tested, so it isn't left to
    the model. */
 

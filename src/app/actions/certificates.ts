@@ -12,6 +12,7 @@ import { refIsOrgs } from "@/lib/documents/files";
 import { signatureSvg } from "@/lib/swms/input";
 import { ownerName } from "@/lib/swms/query";
 import { CERT_LIBRARY_VERSION, type CertAnswers } from "@/lib/certs/mechanical";
+import { normaliseCertAnswers } from "@/lib/certs/input";
 import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } from "@/lib/certs/quote";
 import { quoteHasEquipment, readingFromQuote } from "@/lib/certs/from-quote";
 import { acceptedOptions } from "@/lib/quotes/proposal";
@@ -22,7 +23,6 @@ import {
   listFanModels,
   listJobCerts,
   loadCertJob,
-  loadCertVersion,
   loadSignatory,
   type CertJob,
   type CertSummary,
@@ -46,7 +46,6 @@ import {
    itself, and every id from a browser is re-resolved in this org. Nothing here
    throws: the wizard says what went wrong in words. */
 
-const WB = "/dashboard/workboard";
 const trim = (v: unknown, max = 80) => String(v ?? "").trim().slice(0, max);
 
 export type CertWizardContext = {
@@ -60,14 +59,11 @@ export type CertWizardContext = {
   quoteToMark: number;
   building: BuildingGuess;
   today: string;
-  viewerStaffId: string | null;
   signatory: Signatory | null;
   approved: boolean;
   canApprove: boolean;
   ownerName: string | null;
   fanModels: FanModel[];
-  /** The certificates already on this job, newest first. */
-  existing: CertSummary[];
   /** The job's files Tiff can read, for picking the certifier's list. */
   files: CertListFile[];
 };
@@ -124,19 +120,18 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
   }
   const uuid = trim(jobUuid);
   if (!uuid) return null;
-  const job = await loadCertJob(orgId, uuid);
-  if (!job) return null;
   const today = todayInAu();
-  const [staffId, approval, role, owner, fanModels, existing, files, quote] = await Promise.all([
-    staffIdFor(orgId, userId),
+  const [job, signatory, approval, role, owner, fanModels, files, quote] = await Promise.all([
+    loadCertJob(orgId, uuid),
+    staffIdFor(orgId, userId).then((id) => (id ? loadSignatory(orgId, id, today) : null)),
     certApproval(orgId),
     getDbRole(),
     ownerName(orgId),
     listFanModels(orgId),
-    listJobCerts(orgId, uuid),
     readableFiles(orgId, uuid),
     readStoredProposal(orgId, uuid).catch(() => null),
   ]);
+  if (!job) return null;
   /* THE ACCEPTED QUOTE FIRST: its equipment rows are the job's equipment,
      one for one. A job quoted before the quote builder has only its
      description, read as well as free text allows. */
@@ -149,25 +144,31 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
     quoteToMark: quote && accepted.length === 0 && quote.draft.options.length > 1 ? quote.draft.options.length : 0,
     building: suggestBuilding(job.address),
     today,
-    viewerStaffId: staffId,
-    signatory: staffId ? await loadSignatory(orgId, staffId, today) : null,
+    signatory,
     approved: approval !== null,
     canApprove: hasMinRole(role, "owner"),
     ownerName: owner,
     fanModels,
-    existing,
     files,
   };
 }
 
-/** A version's answers, for a reissue to start from. */
+/** A version's answers, for a reissue to start from: read back through the
+    same normaliser the issue uses, so a version saved before a field
+    existed starts with that field asked, as the issue will ask it. */
 export async function certPrevious(
   versionId: string
 ): Promise<{ certificateId: string; version: number; answers: CertAnswers } | null> {
   try {
     const { orgId } = await requireOrg("workboard");
-    const v = await loadCertVersion(orgId, trim(versionId));
-    return v ? { certificateId: v.certificateId, version: v.version, answers: v.answers } : null;
+    const { data } = await supabaseAdmin
+      .from("certificate_versions")
+      .select("certificate_id, version, answers")
+      .eq("org_id", orgId)
+      .eq("id", trim(versionId))
+      .maybeSingle();
+    const v = data as { certificate_id: string; version: number; answers: unknown } | null;
+    return v ? { certificateId: v.certificate_id, version: v.version, answers: normaliseCertAnswers(v.answers) } : null;
   } catch {
     return null;
   }
@@ -384,22 +385,23 @@ async function askTiff(content: ListContent): Promise<ReadListResult> {
   }
 }
 
-/** The Documents face's read after an issue: the card shows it at once. */
-export async function revalidateCertificates(): Promise<void> {
-  revalidatePath(WB);
-}
-
 /** A short-lived link to a version's PDF, for Download and the share sheet. */
 export async function certificatePdfUrl(versionId: string): Promise<string | null> {
   try {
     const { orgId } = await requireOrg("workboard");
-    const v = await loadCertVersion(orgId, trim(versionId));
-    if (!v?.documentId) return null;
+    const { data: v } = await supabaseAdmin
+      .from("certificate_versions")
+      .select("document_id")
+      .eq("org_id", orgId)
+      .eq("id", trim(versionId))
+      .maybeSingle();
+    const documentId = (v as { document_id: string | null } | null)?.document_id;
+    if (!documentId) return null;
     const { data } = await supabaseAdmin
       .from("documents")
       .select("storage_ref")
       .eq("org_id", orgId)
-      .eq("id", v.documentId)
+      .eq("id", documentId)
       .not("uploaded_at", "is", null)
       .maybeSingle();
     const ref = (data as { storage_ref: string } | null)?.storage_ref;

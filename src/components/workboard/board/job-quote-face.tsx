@@ -10,11 +10,13 @@ import {
   MAX_UNIT_QTY,
   MAX_UNITS,
   PRICING_WORDS,
+  UNIT_ROLES,
   acceptedAfterRemoving,
   blankUnit,
   optionHeading,
   proposalTitle,
   removeUnit,
+  setUnitRole,
   toggleAccepted,
   unitPlace,
   unitWords,
@@ -654,7 +656,7 @@ function OptionBody({ option }: { option: ProposalOption }) {
     <>
       <Bullets lines={option.lines} />
       {option.units.length > 0 && (
-        <ul className="wb2-jqlines wb2-jqunits">
+        <ul className="wb2-jqlines">
           {option.units.map((u, i) => (
             <li key={i}>
               <span>{unitPlace(u)}</span>
@@ -948,76 +950,65 @@ function UnitsEdit({ units, onChange, disabled }: { units: UnitLine[]; onChange:
     const n = Math.floor(Number(v.trim()));
     return Number.isFinite(n) && n >= 1 ? Math.min(max, n) : null;
   };
-  /* each outdoor unit's number, counted before the map: React Compiler 1.0
-     can't lower a counter bumped inside one */
-  const numbers: number[] = [];
-  let count = 0;
-  for (const u of units) {
-    if (u.role === "outdoor") count += 1;
-    numbers.push(u.role === "outdoor" ? count : 0);
-  }
   return (
     <div className="wb2-jqunited">
-      {units.map((u, i) => {
-        const number = numbers[i];
-        return (
-          <div key={i} className="wb2-jqunit">
+      {units.map((u, i) => (
+        <div key={i} className="wb2-jqunit">
+          <label className="m">
+            <span>Unit</span>
+            <select className="wb2-sel" value={u.role} disabled={disabled} onChange={(e) => onChange(setUnitRole(units, i, e.target.value as UnitRole))}>
+              {UNIT_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_WORDS[r]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{u.role === "outdoor" ? `Where outdoor unit ${u.system} goes` : "Room"}</span>
+            <input className="wb2-fi" value={u.room} disabled={disabled} onChange={(e) => set(i, { room: e.target.value })} />
+          </label>
+          {u.role !== "fan" && (
+            <label className="s">
+              <span>Capacity</span>
+              <input className="wb2-fi" placeholder="3.5 kW" value={u.capacity} disabled={disabled} onChange={(e) => set(i, { capacity: e.target.value })} />
+            </label>
+          )}
+          <label>
+            <span>Type</span>
+            <input className="wb2-fi" value={u.type} disabled={disabled} onChange={(e) => set(i, { type: e.target.value })} />
+          </label>
+          <label>
+            <span>Model</span>
+            <input className="wb2-fi" placeholder="As on the plate" value={u.model} disabled={disabled} onChange={(e) => set(i, { model: e.target.value })} />
+          </label>
+          <label className="s">
+            <span>How many</span>
+            <input className="wb2-fi" inputMode="numeric" value={String(u.qty)} disabled={disabled} onChange={(e) => set(i, { qty: whole(e.target.value, MAX_UNIT_QTY) ?? 1 })} />
+          </label>
+          {u.role === "indoor" && outdoors > 1 && (
             <label className="m">
-              <span>Unit</span>
-              <select className="wb2-sel" value={u.role} disabled={disabled} onChange={(e) => set(i, { role: e.target.value as UnitRole, lps: null })}>
-                {(Object.keys(ROLE_WORDS) as UnitRole[]).map((r) => (
-                  <option key={r} value={r}>
-                    {ROLE_WORDS[r]}
+              <span>Runs from</span>
+              <select className="wb2-sel" value={u.system} disabled={disabled} onChange={(e) => set(i, { system: Number(e.target.value) })}>
+                {Array.from({ length: outdoors }, (_, k) => (
+                  <option key={k} value={k + 1}>
+                    {`Outdoor unit ${k + 1}`}
                   </option>
                 ))}
               </select>
             </label>
-            <label>
-              <span>{u.role === "outdoor" ? `Where outdoor unit ${number} goes` : "Room"}</span>
-              <input className="wb2-fi" value={u.room} disabled={disabled} onChange={(e) => set(i, { room: e.target.value })} />
-            </label>
-            {u.role !== "fan" && (
-              <label className="s">
-                <span>Capacity</span>
-                <input className="wb2-fi" placeholder="3.5 kW" value={u.capacity} disabled={disabled} onChange={(e) => set(i, { capacity: e.target.value })} />
-              </label>
-            )}
-            <label>
-              <span>Type</span>
-              <input className="wb2-fi" value={u.type} disabled={disabled} onChange={(e) => set(i, { type: e.target.value })} />
-            </label>
-            <label>
-              <span>Model</span>
-              <input className="wb2-fi" placeholder="As on the plate" value={u.model} disabled={disabled} onChange={(e) => set(i, { model: e.target.value })} />
-            </label>
+          )}
+          {u.role === "fan" && (
             <label className="s">
-              <span>How many</span>
-              <input className="wb2-fi" inputMode="numeric" value={String(u.qty)} disabled={disabled} onChange={(e) => set(i, { qty: whole(e.target.value, MAX_UNIT_QTY) ?? 1 })} />
+              <span>Rated L/s</span>
+              <input className="wb2-fi" inputMode="numeric" value={u.lps === null ? "" : String(u.lps)} disabled={disabled} onChange={(e) => set(i, { lps: whole(e.target.value, 5000) })} />
             </label>
-            {u.role === "indoor" && outdoors > 1 && (
-              <label className="m">
-                <span>Runs from</span>
-                <select className="wb2-sel" value={u.system} disabled={disabled} onChange={(e) => set(i, { system: Number(e.target.value) })}>
-                  {Array.from({ length: outdoors }, (_, k) => (
-                    <option key={k} value={k + 1}>
-                      {`Outdoor unit ${k + 1}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {u.role === "fan" && (
-              <label className="s">
-                <span>Rated L/s</span>
-                <input className="wb2-fi" inputMode="numeric" value={u.lps === null ? "" : String(u.lps)} disabled={disabled} onChange={(e) => set(i, { lps: whole(e.target.value, 5000) })} />
-              </label>
-            )}
-            <button type="button" className="wb2-ico wb2-jqunitx" aria-label={`Clear ${unitPlace(u)}`} disabled={disabled} onClick={() => onChange(removeUnit(units, i))}>
-              <Icon name="x" size={14} />
-            </button>
-          </div>
-        );
-      })}
+          )}
+          <button type="button" className="wb2-ico wb2-jqunitx" aria-label={`Clear ${unitPlace(u)}`} disabled={disabled} onClick={() => onChange(removeUnit(units, i))}>
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+      ))}
       {units.length < MAX_UNITS && (
         <div className="wb2-jqacts">
           <button type="button" className="pbtn ghost sm" disabled={disabled} onClick={() => add("outdoor")}>

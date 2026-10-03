@@ -1,12 +1,4 @@
-import {
-  EMPTY_ROW,
-  EMPTY_TEST,
-  type AcRow,
-  type AcSystem,
-  type Building,
-  type ClauseKey,
-  type FanRow,
-} from "./mechanical";
+import { EMPTY_FAN, EMPTY_ROW, EMPTY_TEST, type AcRow, type AcSystem, type Building, type FanRow } from "./mechanical";
 
 /* WHAT THE JOB ALREADY SAYS — the wizard's first draft, read off the job's
    work-done description and address. Pure, so each reading can be tested
@@ -120,6 +112,16 @@ export function statedConnectedKw(text: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/** What a job's words say was installed besides the units: the same three
+    facts from a description or from an accepted quote's own lines. */
+export function installedFrom(text: string): { refrigerant: string; ductwork: boolean; fireRated: boolean } {
+  return {
+    refrigerant: (/\b(R32|R410A|R454B|R290)\b/i.exec(text)?.[1] ?? "").toUpperCase(),
+    ductwork: /\bducted\b|ductwork|plenum|bulkhead|ceiling concealed|flexible duct|sheet ?metal|under ?floor|linear bar|diffuser/i.test(text),
+    fireRated: /fire[\s-]*rated|fire collar|fire[\s-]*stop/i.test(text),
+  };
+}
+
 export function readQuote(description: string | null): QuoteReading {
   const text = (description ?? "").replace(/\r/g, "");
   /* one sentence at a time: "Remove the existing split system. Supply and
@@ -129,7 +131,8 @@ export function readQuote(description: string | null): QuoteReading {
     .flatMap((l) => l.split(/(?<=[a-z0-9)]\.)\s+(?=[A-Z])/))
     .map(clean)
     .filter(Boolean);
-  const refrigerant = (/\b(R32|R410A|R454B|R290)\b/i.exec(text)?.[1] ?? "").toUpperCase();
+  const installed = installedFrom(text);
+  const refrigerant = installed.refrigerant;
 
   const systems: AcSystem[] = [];
   const blank = (): AcSystem => ({ outdoor: { ...EMPTY_ROW }, indoors: [], test: { ...EMPTY_TEST, refrigerant } });
@@ -330,14 +333,14 @@ export function readQuote(description: string | null): QuoteReading {
 
   const fans = readFans(lines);
   if (/lossnay/i.test(text) && !fans.some((f) => /lossnay/i.test(f.model))) {
-    fans.unshift({ location: "", model: "Lossnay", qty: 1, airflowLps: null, airflowKind: "rated", serial: "" });
+    fans.unshift({ ...EMPTY_FAN, model: "Lossnay" });
   }
 
   return {
     systems,
     fans,
-    ductwork: /\bducted\b|ductwork|plenum|bulkhead|ceiling concealed|flexible duct|sheet ?metal|under ?floor|linear bar|diffuser/i.test(text),
-    fireRated: /fire[\s-]*rated|fire collar|fire[\s-]*stop/i.test(text),
+    ductwork: installed.ductwork,
+    fireRated: installed.fireRated,
     ventilation: fans.length > 0 || /energy recovery|\berv\b|ventilation fan|fresh air fan|inline fan/i.test(text),
     refrigerant,
     statedConnectedKw: statedConnectedKw(text),
@@ -400,7 +403,7 @@ function readFans(lines: readonly string[]): FanRow[] {
     const way = /\bsupply\b/i.test(line) ? "supply" : /\bexhaust|extract\b/i.test(line) ? "exhaust" : "";
     const under = heading && !/^(ventilation|ventiallation|ventilaton|fans?|exhaust fans?)$/i.test(heading) ? cap(heading.toLowerCase()) : "";
     const location = placeIn(line) || [under, under ? way : ""].filter(Boolean).join(", ");
-    fans.push({ location, model, qty: qty || 1, airflowLps: null, airflowKind: "rated", serial: "" });
+    fans.push({ ...EMPTY_FAN, location, model, qty: qty || 1 });
   }
   return fans;
 }
@@ -420,42 +423,4 @@ export function suggestBuilding(address: string | null): BuildingGuess {
     return { building: "apartment", because: "The address has a unit number." };
   }
   return { building: "house", because: "The address is a street address." };
-}
-
-/* ── a certifier's requirement, matched to a clause ────────────────────── */
-
-export type Match = { clause: ClauseKey | null; notOurs: boolean };
-
-/* Checked in this order, because one requirement often names several things:
-   FutureCert's fire-mode line also mentions AS/NZS 1668.1 and "smoke control
-   system", and is about fire mode. */
-const MATCHERS: readonly [RegExp, ClauseKey | "smoke"][] = [
-  [/fire mode|specification 21|spec\.? ?21\b|shuts? down/i, "fireMode"],
-  [/stair pressuri|zone pressuri|smoke (exhaust|control system|management system|spill)/i, "smoke"],
-  [/\bJ[56]\b|part j\b|section j\b|energy efficiency/i, "j5"],
-  [/kitchen (exhaust|hood)|commercial kitchen/i, "kitchenExhaust"],
-  [/car ?park|carbon monoxide|\bCO\b (monitor|detect)/i, "carPark"],
-  [/air balanc|balance report|commissioning report|test(ing)? and balanc/i, "airBalance"],
-  [/noise|acoustic|db\(?a\)?/i, "noise"],
-  [/1668\.2.*\b(only|exhaust)|exhaust.*1668\.2/i, "as16682"],
-  [/1668/i, "as1668"],
-  [/5149|refrigerat/i, "refrigerant"],
-  [/4254|ductwork/i, "ductwork"],
-  [/penetration|fire[\s-]*rated|fire[\s-]*stop/i, "fireRated"],
-  /* discharge first: "exhaust fans discharge to outdoor air" is about where
-     the air goes, not how much */
-  [/discharge/i, "ventDischarge"],
-  [/airflow|air flow|l\/s|exhaust fan/i, "ventAirflow"],
-  [/approved (plans|documents|drawings|design)|construction certificate|complying development|conditions? of (consent|approval)|development consent/i, "approved"],
-  [/manufacturer/i, "manufacturer"],
-  [/condensate/i, "condensate"],
-  [/commission/i, "commissioned"],
-];
-
-export function matchRequirement(text: string): Match {
-  for (const [re, key] of MATCHERS) {
-    if (!re.test(text)) continue;
-    return key === "smoke" ? { clause: null, notOurs: true } : { clause: key, notOurs: false };
-  }
-  return { clause: null, notOurs: false };
 }

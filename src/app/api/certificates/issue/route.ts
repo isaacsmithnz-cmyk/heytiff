@@ -9,6 +9,7 @@ import { renderPdfAt } from "@/lib/studio/pdf-render";
 import { signCertTicket } from "@/lib/certs/pdf-ticket";
 import { normaliseCertAnswers } from "@/lib/certs/input";
 import {
+  addressLines,
   buildCertificate,
   certFileName,
   certProblems,
@@ -39,7 +40,7 @@ export const maxDuration = 60;
 
 export type IssueCertResult =
   | { ok: true; versionId: string; version: number; documentId: string; fileName: string }
-  | { ok: false; error: string; problems?: string[] };
+  | { ok: false; error: string };
 
 const answer = (r: IssueCertResult, status = 200) => Response.json(r, { status });
 const trim = (v: unknown, max = 80) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -56,14 +57,17 @@ export async function POST(request: Request): Promise<Response> {
   const jobUuid = trim(body?.jobUuid);
   if (!jobUuid) return answer({ ok: false, error: "Which job?" }, 400);
 
-  const staffId = await staffIdFor(orgId, userId);
-  if (!staffId) return answer({ ok: false, error: "Your staff card is missing, so a certificate can't be signed in your name." });
-  const job = await loadCertJob(orgId, jobUuid);
+  const today = todayInAu();
+  const [signatory, job, approval] = await Promise.all([
+    staffIdFor(orgId, userId).then((id) => (id ? loadSignatory(orgId, id, today) : null)),
+    loadCertJob(orgId, jobUuid),
+    certApproval(orgId),
+  ]);
+  if (!signatory) return answer({ ok: false, error: "Your staff card is missing, so a certificate can't be signed in your name." });
   if (!job) return answer({ ok: false, error: "That job isn't in ServiceM8's copy any more." });
+  const staffId = signatory.staffId;
 
   const answers: CertAnswers = normaliseCertAnswers(body?.answers);
-  const today = todayInAu();
-  const [approval, signatory] = await Promise.all([certApproval(orgId), loadSignatory(orgId, staffId, today)]);
   const problems = certProblems(answers, {
     today,
     approved: approval !== null,
@@ -71,7 +75,7 @@ export async function POST(request: Request): Promise<Response> {
     arcCurrent: !!signatory.arc?.current,
     contractorCurrent: !!signatory.contractor?.current,
   });
-  if (problems.length > 0) return answer({ ok: false, error: problems[0], problems });
+  if (problems.length > 0) return answer({ ok: false, error: problems[0] });
 
   /* the certifier's list this version answers, when one was read: a file on THIS job */
   const listId = trim(body?.requirementsDocumentId);
@@ -102,6 +106,31 @@ export async function POST(request: Request): Promise<Response> {
     certificateId = (data as { id: string } | null)?.id ?? null;
     if (!certificateId) return answer({ ok: false, error: "That certificate isn't on this job any more." });
   } else {
+    /* ONE CERTIFICATE PER JOB. Issuing again is a reissue of the job's
+       certificate, never a second one beside it, which two wizards open on
+       one job would otherwise make. A certificate with no version yet, left
+       by an issue cut off part way, is taken up again. */
+    const { data: held } = await supabaseAdmin
+      .from("certificates")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("sm8_job_uuid", jobUuid)
+      .eq("type", "mechanical");
+    const heldIds = ((held ?? []) as { id: string }[]).map((c) => c.id);
+    if (heldIds.length > 0) {
+      const { data: versions } = await supabaseAdmin
+        .from("certificate_versions")
+        .select("id")
+        .eq("org_id", orgId)
+        .in("certificate_id", heldIds)
+        .limit(1);
+      if ((versions ?? []).length > 0) {
+        return answer({ ok: false, error: "This job already has a certificate. Reissue it from the job's Compliance section." });
+      }
+      certificateId = heldIds[0];
+    }
+  }
+  if (!certificateId) {
     const { data, error } = await supabaseAdmin
       .from("certificates")
       .insert({ org_id: orgId, sm8_job_uuid: jobUuid, type: "mechanical", builder_company_uuid: job.companyUuid, created_by_staff_id: staffId })
@@ -115,14 +144,17 @@ export async function POST(request: Request): Promise<Response> {
     if (created) await supabaseAdmin.from("certificates").delete().eq("org_id", orgId).eq("id", certificateId);
   };
 
-  const { data: last } = await supabaseAdmin
-    .from("certificate_versions")
-    .select("version")
-    .eq("org_id", orgId)
-    .eq("certificate_id", certificateId)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  /* a certificate started just now has no versions yet */
+  const { data: last } = created
+    ? { data: null }
+    : await supabaseAdmin
+        .from("certificate_versions")
+        .select("version")
+        .eq("org_id", orgId)
+        .eq("certificate_id", certificateId)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
   const version = ((last as { version: number } | null)?.version ?? 0) + 1;
 
   const content = buildCertificate(answers);
@@ -169,7 +201,7 @@ export async function POST(request: Request): Promise<Response> {
     return answer({ ok: false, error: "The PDF came out too big to put on the job." });
   }
 
-  const fileName = certFileName(answers.covers, (job.address ?? "").split("\n")[0] ?? "", job.number);
+  const fileName = certFileName(addressLines(job.address)[0] ?? "", job.number);
   const { data: doc, error: dErr } = await supabaseAdmin
     .from("documents")
     .insert({

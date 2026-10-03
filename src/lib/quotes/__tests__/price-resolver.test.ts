@@ -1,8 +1,15 @@
 /* Which price a quote line takes: every supplier selling the code or a
    confirmed same part, at what the business pays, the business's own choice
    first, else the lowest real price. */
-import { DEFAULT_SUPPLIERS } from "../price-book";
+import { BUILT_IN_SUPPLIERS, type Supplier } from "../price-book";
 import { makePriceOf, type BookRow } from "../price-resolver";
+
+/* one business's suppliers, as it set them up: its Mitsubishi discount, and
+   the invoice workbook it added */
+const SUPPLIERS: Supplier[] = [
+  ...BUILT_IN_SUPPLIERS.map((s) => (s.key === "mitsubishi" ? { ...s, discountPct: 30, rules: [{ prefix: "PUMY", discountPct: 48 }] } : s)),
+  { key: "mitsubishi_invoiced", name: "Mitsubishi Electric, invoiced", pricing: "net", file: "xlsx", format: "headed", discountPct: 0, rules: [] },
+];
 
 const items: BookRow[] = [
   { supplierKey: "aad", code: "PEA-M100HAA", name: "MITSUBISHI ELEC. 2PCE DUCTED IND 10KW", cents: 103439 },
@@ -14,7 +21,7 @@ const items: BookRow[] = [
   { supplierKey: "aad", code: "HAX1", name: "BONAIRE SPIGOT", cents: 0 },
 ];
 const priceOf = (chosen?: Map<string, string>) =>
-  makePriceOf({ items, suppliers: DEFAULT_SUPPLIERS, confirmed: [["aad|PC1412", "reece|9800006-1"]], chosenSupplier: chosen });
+  makePriceOf({ items, suppliers: SUPPLIERS, confirmed: [["aad|PC1412", "reece|9800006-1"]], chosenSupplier: chosen });
 
 it("takes the lowest of what the business pays across suppliers (Mitsubishi list less 30%)", () => {
   expect(priceOf()("PEA-M100HAA")).toEqual({ buyCents: 93660, supplierKey: "mitsubishi", name: "2-Piece Ducted Unit" });
@@ -43,7 +50,7 @@ it("pairs Mitsubishi's Thai-built code with a wholesaler's code for the same mod
     { supplierKey: "aad", code: "PAR-ZM01A-A", name: "ME ACC SMART ZONE CONTROLLER", cents: 27831 },
     { supplierKey: "aad", code: "PAR-ZM01A", name: "SOMETHING ELSE", cents: 100 },
   ];
-  const p = makePriceOf({ items: book, suppliers: DEFAULT_SUPPLIERS, confirmed: [] });
+  const p = makePriceOf({ items: book, suppliers: SUPPLIERS, confirmed: [] });
   expect(p("PUZ-ZM140YKA2")).toMatchObject({ supplierKey: "mitsubishi_invoiced", buyCents: 306250 });
   expect(p("PUZ-ZM140YKA2-A.TH")).toMatchObject({ supplierKey: "mitsubishi_invoiced", buyCents: 306250 });
   expect(p("PEAD-M140JAAD")).toMatchObject({ buyCents: 156800 });

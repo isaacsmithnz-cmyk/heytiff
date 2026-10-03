@@ -3,6 +3,7 @@ import { can } from "@/lib/permissions-server";
 import { openPdf } from "@/lib/tiff/extract";
 import {
   COLUMN_FIELDS,
+  MAX_DISCOUNT_PCT,
   csvRows,
   parseAadCsv,
   parseHeadedRows,
@@ -96,7 +97,7 @@ export async function POST(req: Request) {
       parsed = parseAadCsv(await file.text());
     } else if (supplier.format === "reece_csv") {
       parsed = parseReeceCsv(await file.text());
-    } else if (supplier.format === "me_invoice_xlsx" || supplier.format === "headed") {
+    } else if (supplier.format === "headed") {
       /* the first sheet whose headings name a code and a price — or read
          by the columns a person matched, just now or for the last file */
       const given = matchedColumns(form?.get("columns"));
@@ -114,7 +115,7 @@ export async function POST(req: Request) {
       }
       if (given && parsed.rows.length > 0) {
         const pricing: PricingKind = form?.get("pricing") === "list_less" ? "list_less" : "net";
-        const pct = Math.min(90, Math.max(0, Number(form?.get("discountPct")) || 0));
+        const pct = Math.min(MAX_DISCOUNT_PCT, Math.max(0, Number(form?.get("discountPct")) || 0));
         await saveSupplierLayout(who.orgId, supplier, given, pricing, pricing === "list_less" ? pct : 0);
         supplier = { ...supplier, columns: given, pricing, discountPct: pricing === "list_less" ? pct : 0 };
       }

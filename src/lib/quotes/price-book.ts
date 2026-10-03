@@ -1,15 +1,18 @@
 /* HEYTIFF'S PRICE BOOK — the business's own, built from its suppliers'
    files rather than from whatever has piled up in ServiceM8's catalogue.
 
-   Two suppliers to start, priced two ways:
+   Every business brings its own (Isaac, 2026-10-04: "price books etc have
+   to be injected by its own org"). HeyTiff knows how to READ three
+   suppliers' files out of the box, and any other supplier's CSV or workbook
+   by its headings; what a business pays, and any discount it gets, is its
+   own and is never a default:
    - AAD sends a CSV of the business's NET buy prices (code, name, price) —
      the "individual" export; the "kits" export is a list-price level and
-     is not used (checked 2026-09-30: the AP71 pair is $1,678.67 in the
-     individual file, to the cent the supplier portal's price, and $2,315.41
-     as a kit).
-   - Mitsubishi Electric sends a PDF trade book of LIST prices, and the
-     business's discount comes off: 30% on everything, 48% on PUMY
-     (2026-09-30).
+     is not used (checked 2026-09-30).
+   - Reece sends a monthly account price file with the net ex GST in it.
+   - Mitsubishi Electric sends a PDF trade book of LIST prices; the
+     business's own discount comes off, set on the Quoting page (one for
+     everything, and any range by its codes, e.g. PUMY).
 
    Kits in the Mitsubishi book (…KIT) are the indoor and outdoor units' sum
    under a third code, so they are left out: HeyTiff pairs the units itself,
@@ -24,10 +27,9 @@ export type DiscountRule = { prefix: string; discountPct: number };
 
 /** The file a supplier's prices come in, and how it's laid out. */
 export type FileKind = "csv" | "pdf" | "xlsx";
-/** me_invoice_xlsx: any workbook of headed price rows, read by heading;
-    headed: a supplier the business added, any CSV or workbook, read by
+/** headed: a supplier the business added, any CSV or workbook, read by
     heading or by the columns a person matched once */
-export type FileFormat = "aad_csv" | "reece_csv" | "me_pdf" | "me_invoice_xlsx" | "headed";
+export type FileFormat = "aad_csv" | "reece_csv" | "me_pdf" | "headed";
 
 export type Supplier = {
   key: string;
@@ -37,37 +39,24 @@ export type Supplier = {
   format: FileFormat;
   /** list_less: taken off every list price */
   discountPct: number;
-  /** list_less: a range with a different discount (PUMY at 48) */
+  /** list_less: a range with a different discount (e.g. PUMY) */
   rules: DiscountRule[];
   /** the columns a person matched for a layout HeyTiff didn't know */
   columns?: Columns | null;
 };
 
-/** The two the business buys from, as agreed 2026-09-30. */
-export const DEFAULT_SUPPLIERS: Supplier[] = [
+/** The suppliers whose files HeyTiff reads out of the box, for every
+    business: no discount, no prices — those come from the business. */
+export const BUILT_IN_SUPPLIERS: Supplier[] = [
   { key: "aad", name: "AAD", pricing: "net", file: "csv", format: "aad_csv", discountPct: 0, rules: [] },
   /* Reece's monthly account price file: section and sub-section rows, then
      code, description, unit, list and net prices ex and incl GST
-     (2026-09-30, 1055793_September_2026.csv) — the net ex GST is used. */
+     (2026-09-30) — the net ex GST is used. */
   { key: "reece", name: "Reece", pricing: "net", file: "csv", format: "reece_csv", discountPct: 0, rules: [] },
-  {
-    key: "mitsubishi",
-    name: "Mitsubishi Electric",
-    pricing: "list_less",
-    file: "pdf",
-    format: "me_pdf",
-    discountPct: 30,
-    rules: [{ prefix: "PUMY", discountPct: 48 }],
-  },
-  /* What Mitsubishi actually charged, from its tax invoices (the office's
-     workbook, "Current Net Prices"): the price for the City Multi indoor
-     units and older builds the trade book doesn't list, dated, with how
-     often each was bought. */
-  { key: "mitsubishi_invoiced", name: "Mitsubishi Electric, invoiced", pricing: "net", file: "xlsx", format: "me_invoice_xlsx", discountPct: 0, rules: [] },
-  /* Ideal Air Group — ventilation: diffusers, EC fans, duct fittings —
-     from the office's workbook of its invoices, orders and quotes */
-  { key: "idealair", name: "Ideal Air Group", pricing: "net", file: "xlsx", format: "me_invoice_xlsx", discountPct: 0, rules: [] },
+  { key: "mitsubishi", name: "Mitsubishi Electric", pricing: "list_less", file: "pdf", format: "me_pdf", discountPct: 0, rules: [] },
 ];
+
+export const MAX_DISCOUNT_PCT = 90;
 
 export type PriceRow = {
   code: string;
@@ -324,6 +313,7 @@ export function netCents(supplier: Supplier, code: string, cents: number): numbe
 export function pricingWords(s: Supplier): string {
   if (s.file === "xlsx") return "What was charged, by invoice";
   if (s.pricing === "net") return "Net prices";
+  if (!s.discountPct && s.rules.length === 0) return "List prices, no discount set";
   const rules = s.rules.map((r) => `${r.prefix} less ${r.discountPct}%`).join(", ");
   return `List less ${s.discountPct}%${rules ? `, ${rules}` : ""}`;
 }

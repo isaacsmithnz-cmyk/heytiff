@@ -77,12 +77,12 @@ export const SECTIONS: AdminGroup[] = [
         show: owner,
       },
       {
-        /* Each document the business issues, as it reads before a job fills
-           it in: the SWMS and the Mechanical Compliance Certificate, a tab
-           each (2026-10-03). It was two pages, each with a way back to Home;
-           after the owner approved, nothing said what changed. */
+        /* Every document and message the business sends from fixed wording,
+           grouped by who receives it (2026-10-03): quotes, the handover
+           sheet, the documents email, the certificate, the SWMS and the
+           project checklist. */
         title: "Templates",
-        sub: "SWMS and Mechanical Compliance Certificate",
+        sub: "Quotes, certificates, SWMS, emails and checklists",
         icon: "file",
         accent: "#FF8A00",
         href: "/dashboard/admin/templates",

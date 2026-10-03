@@ -1,34 +1,24 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { Icon } from "@/components/shell/icon";
-import { ViewTabs } from "@/components/shell/view-tabs";
 import { TemplateSteps } from "@/components/swms/template-steps";
 import { ApproveTemplate } from "@/components/swms/approve-template";
 import { ApproveWording } from "@/components/certs/approve-wording";
 import { CERT_LEDE, CLAUSE_NAME, NOT_APPLICABLE, SHOWN, WORDING_GROUPS, shownParts, type ClauseKey } from "@/lib/certs/mechanical";
-import { TEMPLATE_TABS, templateTabFromParam, type TemplateTabKey } from "./templates-tabs";
 import "@/components/swms/swms.css";
 import "./templates.css";
 
-/* TEMPLATES — each document the business issues, as it is written before a
-   job fills it in: the SWMS, and the Mechanical Compliance Certificate with
-   its wording in place. Anyone signed in reads them; the owner approves each
-   one, and what changed since the last approval is marked, so a new version
-   is read in seconds rather than from the top.
-
-   Neither is edited here: the wording is a fixed, reviewed library
-   (lib/swms/library, lib/certs/mechanical) and a new version comes with the
-   app, waiting for the owner's approval. */
+/* THE TWO TEMPLATES THE OWNER APPROVES — the SWMS and the Mechanical
+   Compliance Certificate. Their wording is a fixed, reviewed library
+   (lib/swms/library, lib/certs/mechanical) checked against the standards; a
+   new version comes with the app and waits for the owner. What changed since
+   the last approval is marked, so a new version is read in seconds. */
 
 export type PaperApproval = { by: string; on: string } | null;
 
-export type TemplatesProps = {
-  initialSec?: string;
+export type ApprovalProps = {
   isOwner: boolean;
   ownerName: string | null;
-  swms: PaperApproval;
   wording: {
     approved: PaperApproval;
     /** Statements changed since the last approval, when this version isn't
@@ -78,7 +68,7 @@ function Part({ title, lines }: { title: string; lines: readonly string[] }) {
 }
 
 /** The certificate as it reads, top to bottom, with the statements in place. */
-function CertificateTemplate({ wording, isOwner, ownerName }: { wording: TemplatesProps["wording"]; isOwner: boolean; ownerName: string | null }) {
+export function CertificateTemplate({ wording, isOwner, ownerName }: ApprovalProps) {
   const changed = new Map((wording.changed ?? []).map((c) => [c.clause, c.isNew]));
   const [onlyChanged, setOnlyChanged] = useState(changed.size > 0);
   const shows = (k: ClauseKey) => !onlyChanged || changed.has(k);
@@ -153,70 +143,24 @@ function CertificateTemplate({ wording, isOwner, ownerName }: { wording: Templat
   );
 }
 
-export function TemplatesScreen({ initialSec, isOwner, ownerName, swms, wording }: TemplatesProps) {
-  /* opens on the one that needs approving, else the first */
-  const [tab, setTab] = useState<TemplateTabKey>(() => templateTabFromParam(initialSec) ?? (swms && !wording.approved ? "certificate" : "swms"));
-
-  const go = (key: TemplateTabKey) => {
-    setTab(key);
-    /* which tab you're on, not a navigation: the server render stays put */
-    const url = new URL(window.location.href);
-    url.searchParams.set("sec", key);
-    window.history.replaceState(null, "", url.toString());
-    document.querySelector(".outlet")?.scrollTo({ top: 0 });
-  };
-
+export function SwmsTemplate({ approved, isOwner, ownerName }: { approved: PaperApproval; isOwner: boolean; ownerName: string | null }) {
   return (
-    <div className="page in full">
-      <div className="wrap">
-        <div className="stg">
-          <div className="orgcard2">
-            <div className="wb2-crumbline">
-              <Link href="/dashboard/admin" className="int-back">
-                <Icon name="chevL" size={15} />
-                Admin
-              </Link>
-            </div>
-            <ViewTabs
-              lead={<h1 className="wb2-h1">Templates</h1>}
-              ariaLabel="Templates"
-              idPrefix="tpltab"
-              panelPrefix="tplsec"
-              active={tab}
-              onGo={(k) => go(k as TemplateTabKey)}
-              items={TEMPLATE_TABS.map((t) => ({ key: t.key, label: t.label }))}
-            />
-            <div className="wb2-card">
-              <div className="wb2-panel">
-                <div className="ppanel2">
-                  <section id={`tplsec-${tab}`} role="tabpanel" aria-labelledby={`tpltab-${tab}`} tabIndex={-1} className="psec2" data-sec={tab}>
-                    {tab === "swms" && (
-                      <div className="sws">
-                        <p className="sws-lede">
-                          {swms
-                            ? `Approved by ${swms.by} on ${swms.on}. Every SWMS is written from these steps.`
-                            : isOwner
-                              ? "Read the steps and controls, then approve them at the end. No SWMS can be issued until you do."
-                              : `${waiting(ownerName)}. No SWMS can be issued until then.`}
-                        </p>
-                        <div className="sws-grp">
-                          <TemplateSteps />
-                        </div>
-                        {!swms && isOwner && (
-                          <div className="sws-actions">
-                            <ApproveTemplate />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {tab === "certificate" && <CertificateTemplate wording={wording} isOwner={isOwner} ownerName={ownerName} />}
-                  </section>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="sws">
+      <p className="sws-lede">
+        {approved
+          ? `Approved by ${approved.by} on ${approved.on}. Every SWMS is written from these steps.`
+          : isOwner
+            ? "Read the steps and controls, then approve them at the end. No SWMS can be issued until you do."
+            : `${waiting(ownerName)}. No SWMS can be issued until then.`}
+      </p>
+      <div className="sws-grp">
+        <TemplateSteps />
       </div>
+      {!approved && isOwner && (
+        <div className="sws-actions">
+          <ApproveTemplate />
+        </div>
+      )}
     </div>
   );
 }

@@ -869,7 +869,7 @@ docs/certificates-plan.md is the design.
 4. Before the first certificate can be issued, in the app:
    - the owner reads and approves the wording in Admin → Templates →
      Mechanical Compliance Certificate
-     (`/dashboard/admin/templates?sec=certificate`; the bell asks until they
+     (`/dashboard/admin/templates/certificate`; the bell asks until they
      do);
    - whoever signs has a current ARC licence and contractor licence **with
      expiry dates** on their staff card, and draws their signature there

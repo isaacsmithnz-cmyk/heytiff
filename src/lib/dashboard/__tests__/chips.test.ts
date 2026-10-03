@@ -357,7 +357,7 @@ describe("swmsTemplateChip", () => {
       kind: "swms-template",
       state: "warn",
       label: "Approve the SWMS template",
-      href: "/dashboard/admin/templates?sec=swms",
+      href: "/dashboard/admin/templates/swms",
     });
     expect(chipGroup("swms-template")).toBe("Workboard");
   });
@@ -369,7 +369,7 @@ describe("certWordingChip", () => {
       kind: "cert-wording",
       state: "warn",
       label: "Approve the certificate wording",
-      href: "/dashboard/admin/templates?sec=certificate",
+      href: "/dashboard/admin/templates/certificate",
     });
     expect(certWordingChip(false)).toBeNull();
     expect(chipGroup("cert-wording")).toBe("Workboard");

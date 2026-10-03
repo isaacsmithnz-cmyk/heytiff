@@ -207,7 +207,8 @@ export type JobSheetTab =
   | "visits"
   | "checklist"
   | "photos"
-  | "documents";
+  | "documents"
+  | "compliance";
 type TabKey = JobSheetTab;
 
 /** A face's name, for the faces a step opens rather than the rail. */
@@ -220,6 +221,7 @@ const FACE_NAME: Record<TabKey, string> = {
   checklist: "Checklist",
   photos: "Photos",
   documents: "Files",
+  compliance: "Compliance",
 };
 
 /** A SWMS version as a page the card's viewer can hold — the printable
@@ -1768,6 +1770,7 @@ export function JobSheet({
     ...(moneyVisible ? [{ key: "money" as const, label: "Billing" }] : []),
     { key: "photos", label: "Photos" },
     { key: "documents", label: "Files" },
+    { key: "compliance", label: "Compliance" },
   ];
 
   /* What each step opens. The quote is office work and only there for whoever
@@ -2530,41 +2533,50 @@ export function JobSheet({
               />
             )}
 
-          {panel(
-            "documents",
-            <JobDocumentsFace
-              documents={media ? media.documents : null}
-              elsewhere={media ? media.elsewhere : null}
-              designs={detail?.designs ?? []}
-              swms={swms}
-              swmsFailed={swmsFailed}
-              canCreateSwms={!!cardId}
-              /* a SWMS is a before-work document: once ServiceM8 has the job
-                 finished, nobody is asked to sign one and the bell won't ring */
-              swmsClosed={SWMS_CLOSED.has(detail?.status ?? "")}
-              loading={media === null}
-              truncated={!!media?.truncated}
-              onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
-              onUpload={cardId ? uploadDocument : undefined}
-              onRemove={removeDocument}
-              onCreateSwms={() => setSwmsWizard({ revise: null })}
-              onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId })}
-              onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
-              papers={papers ? papers.papers : null}
-              papersFailed={papersFailed}
-              mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
-              today={todayInAu()}
-              picked={papers?.may.send ? picked : undefined}
-              onPick={papers?.may.send ? tick : undefined}
-              onLoadChoices={cardId ? () => readComplianceChoices(cardId) : undefined}
-              onAddPapers={cardId ? addPapers : undefined}
-              onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
-              onRemovePaper={removePaper}
-              onRenewPaper={renewPaper}
-              sends={sm8Read?.sends ?? null}
-              sendHold={sm8Read?.hold ?? null}
+          {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,
+              2026-10-02: "compliance is supposed to sit underneath files").
+              One face, told which part it holds; a tick to send carries
+              across both. */}
+          {(["documents", "compliance"] as const).map((key) => (
+            <Fragment key={key}>
+              {panel(
+                key,
+                <JobDocumentsFace
+                  part={key === "documents" ? "files" : "compliance"}
+                  documents={media ? media.documents : null}
+                  elsewhere={media ? media.elsewhere : null}
+                  designs={detail?.designs ?? []}
+                  swms={swms}
+                  swmsFailed={swmsFailed}
+                  canCreateSwms={!!cardId}
+                  /* a SWMS is a before-work document: once ServiceM8 has the job
+                     finished, nobody is asked to sign one and the bell won't ring */
+                  swmsClosed={SWMS_CLOSED.has(detail?.status ?? "")}
+                  loading={media === null}
+                  truncated={!!media?.truncated}
+                  onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+                  onUpload={cardId ? uploadDocument : undefined}
+                  onRemove={removeDocument}
+                  onCreateSwms={() => setSwmsWizard({ revise: null })}
+                  onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId })}
+                  onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
+                  papers={papers ? papers.papers : null}
+                  papersFailed={papersFailed}
+                  mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
+                  today={todayInAu()}
+                  picked={papers?.may.send ? picked : undefined}
+                  onPick={papers?.may.send ? tick : undefined}
+                  onLoadChoices={cardId ? () => readComplianceChoices(cardId) : undefined}
+                  onAddPapers={cardId ? addPapers : undefined}
+                  onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
+                  onRemovePaper={removePaper}
+                  onRenewPaper={renewPaper}
+                  sends={sm8Read?.sends ?? null}
+                  sendHold={sm8Read?.hold ?? null}
             />
-          )}
+              )}
+            </Fragment>
+          ))}
 
           {/* No Actions face. The once-per-job acts live behind the band's
               ⋯; the naming row below is the only floor furniture, and only
@@ -2576,7 +2588,7 @@ export function JobSheet({
         {/* SENDING WHAT'S TICKED — the card's footer, under the scrolling body,
             so the list keeps scrolling above it. Only on the face the ticks
             are on, and never over the naming row. */}
-        {tab === "documents" && !naming && cardId && papers?.may.send && (pickedList.length > 0 || writing) && (
+        {(tab === "documents" || tab === "compliance") && !naming && cardId && papers?.may.send && (pickedList.length > 0 || writing) && (
           <DocumentsSend
             picked={pickedList}
             writing={writing}

@@ -334,6 +334,7 @@ function issueLine(s: SwmsSummary): string {
 }
 
 export function JobDocumentsFace({
+  part = "all",
   documents,
   elsewhere,
   designs,
@@ -363,6 +364,11 @@ export function JobDocumentsFace({
   sends = null,
   sendHold = null,
 }: {
+  /** Which part of the job's paper this face holds (Isaac, 2026-10-02:
+      Compliance is its own section under Files): the files — uploads, the
+      client's paper, drawings — or the compliance — SWMS, licences and
+      insurance. "all" is both, as one face. */
+  part?: "files" | "compliance" | "all";
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
   /** Absent for a reader without `studio` — the action doesn't fetch it. */
@@ -484,12 +490,15 @@ export function JobDocumentsFace({
     const g = documentGroupOf(d);
     byGroup.set(g, [...(byGroup.get(g) ?? []), d]);
   }
-  const statements = swms ?? [];
-  const ours = papers ?? [];
-  const total = docs.length + designs.length + statements.length + ours.length;
+  const showFiles = part !== "compliance";
+  const showCompliance = part !== "files";
+  const statements = showCompliance ? (swms ?? []) : [];
+  const ours = showCompliance ? (papers ?? []) : [];
+  const total = (showFiles ? docs.length + designs.length : 0) + statements.length + ours.length;
 
-  const offerSwms = !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
-  const offerPapers = !!onLoadChoices && !!onAddPapers && (mayAdd.company || mayAdd.staff);
+  const offerSwms = showCompliance && !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
+  const offerPapers = showCompliance && !!onLoadChoices && !!onAddPapers && (mayAdd.company || mayAdd.staff);
+  const offerUpload = showFiles ? onUpload : undefined;
 
   /* THE TICK A ROW CARRIES while the face is sending: a box for a file with
      bytes to send, and for anything else an empty box-sized gap, so a column
@@ -510,15 +519,15 @@ export function JobDocumentsFace({
   };
 
   return (
-    <div className="wb2-jcdoc" data-over={over ? "" : undefined} {...dropProps}>
+    <div className="wb2-jcdoc" data-over={over ? "" : undefined} {...(showFiles ? dropProps : {})}>
       <div className="wb2-jcdhead">
-        <b>Documents</b>
+        <b>{part === "compliance" ? "Compliance" : part === "files" ? "Files" : "Documents"}</b>
         {total > 0 && <em>{total === 1 ? "1 file" : `${total} files`}</em>}
       </div>
 
-      {(onUpload || offerSwms || offerPapers) && (
+      {(offerUpload || offerSwms || offerPapers) && (
         <div className="wb2-jcdadd">
-          {onUpload && (
+          {offerUpload && (
             <>
               <button
                 type="button"
@@ -585,14 +594,14 @@ export function JobDocumentsFace({
         />
       )}
 
-      {swmsFailed && <p className="int-hint">Couldn&apos;t read this job&apos;s SWMS. Close the card and open it again.</p>}
-      {papersFailed && (
+      {showCompliance && swmsFailed && <p className="int-hint">Couldn&apos;t read this job&apos;s SWMS. Close the card and open it again.</p>}
+      {showCompliance && papersFailed && (
         <p className="int-hint">Couldn&apos;t read this job&apos;s licences and insurance. Close the card and open it again.</p>
       )}
 
       {statements.length + ours.length > 0 && (
         <div className="wb2-jcsec">
-          <span className="wb2-sect">{`Compliance — ${statements.length + ours.length}`}</span>
+          {part === "all" && <span className="wb2-sect">{`Compliance — ${statements.length + ours.length}`}</span>}
           {statements.map((s) => (
             <div key={s.swmsId} className="wb2-docrow">
               {pickOf(null, "Safe Work Method Statement")}
@@ -654,7 +663,7 @@ export function JobDocumentsFace({
         </div>
       )}
 
-      {designs.length > 0 && (
+      {showFiles && designs.length > 0 && (
         <div className="wb2-jcsec">
           <span className="wb2-sect">
             {designs.length === 1
@@ -687,7 +696,7 @@ export function JobDocumentsFace({
         </div>
       )}
 
-      {GROUPS.map(({ key, label }) => {
+      {(showFiles ? GROUPS : []).map(({ key, label }) => {
         const items = byGroup.get(key) ?? [];
         if (items.length === 0) return null;
         return (
@@ -719,11 +728,17 @@ export function JobDocumentsFace({
 
       {total === 0 && (
         <p className="int-hint">
-          {loading && documents === null ? "Reading the files…" : "No documents on this job."}
+          {part === "compliance"
+            ? swms === null && papers === null && !swmsFailed && !papersFailed
+              ? "Reading the compliance…"
+              : "No SWMS, licences or insurance on this job."
+            : loading && documents === null
+              ? "Reading the files…"
+              : "No documents on this job."}
         </p>
       )}
 
-      {unshowable > 0 && (
+      {showFiles && unshowable > 0 && (
         <p className="int-hint">
           {unshowable === 1
             ? "1 file stays in ServiceM8"
@@ -731,7 +746,7 @@ export function JobDocumentsFace({
           — file types this screen can&apos;t show.
         </p>
       )}
-      {truncated && (
+      {showFiles && truncated && (
         <p className="int-hint">
           Showing the newest of each kind — this job has more in ServiceM8.
         </p>

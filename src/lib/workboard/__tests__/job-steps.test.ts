@@ -92,8 +92,27 @@ describe("where a job is up to", () => {
     expect(currentStep(s)?.key).toBe("installation");
   });
 
-  it("a job billed in one invoice has no deposit step to wait on", () => {
-    expect(line({ status: "Work Order", workOrderDate: "2026-08-28", family: family([claim({ stage: "Final", state: "not_invoiced" })]) })).toContain("deposit:skip:No deposit");
+  /* Isaac, 2026-10-03: "if no deposit required make that as an option so it
+     can get ticked off" — none invoiced is asked, not guessed */
+  it("an accepted job with no deposit invoiced waits at Deposit until it's ticked", () => {
+    const one = { status: "Work Order", workOrderDate: "2026-08-28", family: family([claim({ stage: "Final", state: "not_invoiced" })]) };
+    expect(line(one)).toContain("deposit:now");
+    expect(line({ ...one, noDeposit: true })).toContain("deposit:done:Not needed");
+    expect(currentStep(jobSteps({ ...base, ...one, noDeposit: true }, true))?.key).toBe("installation");
+  });
+
+  it("the tick shows before the claims are read", () => {
+    expect(line({ status: "Work Order", workOrderDate: "2026-08-28", noDeposit: true })).toContain("deposit:done:Not needed");
+  });
+
+  it("once the work has started, no deposit invoiced means there wasn't one", () => {
+    expect(
+      line({ status: "Work Order", workOrderDate: "2026-08-28", visitDays: ["2026-09-01"], family: family([claim({ stage: "Final", state: "not_invoiced" })]) })
+    ).toContain("deposit:skip:No deposit");
+  });
+
+  it("a deposit that was invoiced beats the tick", () => {
+    expect(line({ status: "Work Order", workOrderDate: "2026-08-28", noDeposit: true, family: family([claim({})]) })).toContain("deposit:warn:Invoiced 28 Aug");
   });
 
   it("a completed job paid in full is done all the way along", () => {

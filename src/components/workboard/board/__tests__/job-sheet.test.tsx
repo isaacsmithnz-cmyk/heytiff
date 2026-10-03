@@ -83,6 +83,7 @@ const checkOut = jest.fn(async (_job: string): Promise<unknown> => null);
 const customerEditOffered = jest.fn(async () => false);
 const readCustomerForEdit = jest.fn();
 const saveCustomer = jest.fn();
+jest.mock("@/app/actions/job-deposit", () => ({ setNoDeposit: jest.fn(async (_j: string, on: boolean) => ({ ok: true, noDeposit: on })) }));
 jest.mock("@/app/actions/job-customer", () => ({
   customerEditOffered: () => customerEditOffered(),
   readCustomerForEdit: (...a: unknown[]) => readCustomerForEdit(...a),

@@ -38,6 +38,8 @@ export type StepInput = {
   materials: { total: number; in: number } | null;
   /** the job's claims, once read; null until then, or without the grant */
   family: FamilyMoney | null;
+  /** somebody ticked the job as taking no deposit (job_no_deposit) */
+  noDeposit?: boolean;
 };
 
 const LABEL: Record<StepKey, string> = {
@@ -80,11 +82,17 @@ export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
 
   /* With the grant the money steps are there from first paint; until the
      claims are read they say nothing, rather than popping in when they land. */
-  if (moneyVisible && !j.family) steps.push({ key: "deposit", state: "next", fact: "" });
+  const started = j.visitDays.length > 0 || completed;
+  if (moneyVisible && !j.family) steps.push({ key: "deposit", state: j.noDeposit ? "done" : "next", fact: j.noDeposit ? "Not needed" : "" });
   else if (moneyVisible && j.family) {
     const first = j.family.claims[0];
     const deposit = first && first.stage === "Deposit" ? first : null;
-    if (!deposit) steps.push({ key: "deposit", state: accepted ? "skip" : "next", fact: accepted ? "No deposit" : "" });
+    /* NONE INVOICED is asked, not guessed (Isaac, 2026-10-03: "if no deposit
+       required make that as an option so it can get ticked off"). Ticked,
+       it is done. Unticked, an accepted job waits here for a deposit or the
+       tick; once the work has started, there was none, and it is passed. */
+    if (!deposit && j.noDeposit) steps.push({ key: "deposit", state: "done", fact: "Not needed" });
+    else if (!deposit) steps.push({ key: "deposit", state: started ? "skip" : "next", fact: started ? "No deposit" : "" });
     else if (deposit.state === "paid" || deposit.state === "paid_unknown")
       steps.push({ key: "deposit", state: "done", fact: deposit.paidOn ? `Paid ${day(deposit.paidOn)}` : "Paid" });
     else if (deposit.state === "awaiting" || deposit.state === "part")
@@ -92,7 +100,6 @@ export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
     else steps.push({ key: "deposit", state: "next", fact: "" });
   }
 
-  const started = days.length > 0 || completed;
   const m = j.materials;
   if (!m || m.total === 0) steps.push({ key: "materials", state: accepted || started ? "skip" : "next", fact: accepted || started ? "None listed" : "" });
   else if (m.in >= m.total) steps.push({ key: "materials", state: "done", fact: "All in" });

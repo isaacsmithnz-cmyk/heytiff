@@ -30,6 +30,7 @@ jest.mock("@/app/actions/workboard", () => ({
 jest.mock("@/app/actions/workboard-media", () => ({
   cacheJobFiles: jest.fn(async () => ({ ok: true, cached: 0, remaining: 0, media: null, note: null })),
 }));
+jest.mock("@/app/actions/job-deposit", () => ({ setNoDeposit: jest.fn(async (_j: string, on: boolean) => ({ ok: true, noDeposit: on })) }));
 jest.mock("@/app/actions/job-customer", () => ({
   customerEditOffered: jest.fn(async () => false),
   readCustomerForEdit: jest.fn(),

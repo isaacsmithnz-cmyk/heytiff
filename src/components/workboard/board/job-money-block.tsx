@@ -139,6 +139,7 @@ export function JobMoneyBlock({
   focusRemoteId = null,
   onOpenClaim,
   billTo = null,
+  deposit = null,
 }: {
   family: FamilyMoney | null;
   money: JobMoney | null;
@@ -157,6 +158,10 @@ export function JobMoneyBlock({
   /** Opens one claim's own modal; absent leaves the rows inert. */
   onOpenClaim?: (remoteId: string) => void;
   billTo?: BillTo | null;
+  /** The deposit tick (Isaac, 2026-10-03: "if no deposit required make
+      that as an option so it can get ticked off"). Absent where there is
+      nothing to ask: a deposit invoice exists, or the work has started. */
+  deposit?: { noDeposit: boolean; busy: boolean; error: string | null; onSet: (on: boolean) => void } | null;
 }) {
   /* Collection is counted across the FAMILY when there is one. A parent whose
      deposit landed on #2380A used to read "Nothing paid yet" while $9,402 was
@@ -365,6 +370,20 @@ export function JobMoneyBlock({
           <span>{fmtAud(paidCents)}</span>
         </div>
       )}
+
+      {/* NO DEPOSIT, said once and ticked here: the progress line's Deposit
+          step is done on the tick, and waits for it otherwise */}
+      {!unavailable && deposit && (
+        <div className="wb2-mline head">
+          <b>Deposit</b>
+          <em>{deposit.noDeposit ? "Not needed on this job" : "None invoiced"}</em>
+          <span />
+          <button type="button" className="pbtn ghost" disabled={deposit.busy} aria-pressed={deposit.noDeposit} onClick={() => deposit.onSet(!deposit.noDeposit)}>
+            {deposit.noDeposit ? "Undo" : "No deposit needed"}
+          </button>
+        </div>
+      )}
+      {!unavailable && deposit?.error && <p className="wb2-sherr">{deposit.error}</p>}
 
       {/* A CLAIM ROW IS A DOOR. Each opens that invoice's own modal — its
           lines, its payment, its writing, its paper — which is where those

@@ -2105,12 +2105,16 @@ html[data-ds-display] .dstudio.editing {
   stroke-dasharray: 6 3;
   vector-effect: non-scaling-stroke;
 }
-/* Split to new floor: the area that stays is the same dashed outline, with no
-   fill, and the rest of the page fades toward the ground while you drag and
-   while the panel asks */
+/* Split to new floor: each area is the same dashed outline with no fill — the
+   second (the new floor's) in a finer dash so the two read apart — and the
+   rest of the page fades toward the ground while you draw and while the panel
+   asks */
 .dstudio .ds-crop-keep {
   fill: none;
   pointer-events: none;
+}
+.dstudio .ds-crop-keep.other {
+  stroke-dasharray: 2 4;
 }
 .dstudio .ds-crop-dim {
   fill: var(--paper);

@@ -210,9 +210,10 @@ describe("Plans stage", () => {
     });
   });
 
-  /* Split to new floor: drag the area to keep; the rest of the page becomes a
-     floor above or below, showing the SAME image through a different crop. */
-  async function openSplit() {
+  /* Split to new floor: draw the area this floor keeps, then the area for the
+     new floor — a rectangle (drag) or a freeform outline (click each corner).
+     Both floors show the SAME image through their own area. */
+  async function openTool(label: RegExp) {
     const user = await openSeeded(new FakePlanImages());
     await clickFloorDesign(user);
     const canvas = await screen.findByTestId("studio-canvas");
@@ -220,29 +221,49 @@ describe("Plans stage", () => {
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
     const svg = canvas.querySelector("svg")!;
     await user.click(screen.getByTitle("Calibrate — set the scale and north"));
-    await user.click(screen.getByRole("button", { name: /Split to new floor/ }));
+    await user.click(screen.getByRole("button", { name: label }));
     return { user, canvas, svg };
   }
-  // the left ~half of the 1200×900 sheet (screen ≈ 90,70 → 400,530)
-  const dragLeftHalf = (svg: Element) => {
-    fireEvent.pointerDown(svg, ptc(90, 70));
-    fireEvent.pointerMove(svg, ptc(400, 530));
-    fireEvent.pointerUp(svg, ptc(400, 530));
+  const openSplit = () => openTool(/Split to new floor/);
+  // the 1200×900 sheet fills screen ≈ 80,60 → 720,540
+  const drag = (svg: Element, a: [number, number], b: [number, number]) => {
+    fireEvent.pointerDown(svg, ptc(...a));
+    fireEvent.pointerMove(svg, ptc(...b));
+    fireEvent.pointerUp(svg, ptc(...b));
+  };
+  const click = (svg: Element, at: [number, number]) => {
+    fireEvent.pointerDown(svg, ptc(...at));
+    fireEvent.pointerUp(svg, ptc(...at));
+  };
+  const LEFT: [[number, number], [number, number]] = [[90, 70], [400, 530]];
+  const RIGHT: [[number, number], [number, number]] = [[410, 70], [710, 530]];
+  const rectOf = (el: Element | null) => {
+    const r = el!.querySelector("clipPath rect")!;
+    return ["x", "y", "width", "height"].map((k) => Number(r.getAttribute(k)));
   };
 
-  it("Split to new floor keeps the dragged area and adds the rest as a floor above", async () => {
+  it("Split to new floor: draw what this floor keeps, then the new floor's area, then place it", async () => {
     const { user, canvas, svg } = await openSplit();
-    dragLeftHalf(svg);
+    drag(svg, ...LEFT);
 
-    // nothing has changed yet — the panel asks where the rest goes
+    // the first area is held and the page outside it fades; the tool waits for
+    // the second area — no panel yet, nothing changed
+    expect(canvas.querySelector(".ds-crop-dim")).not.toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
+    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
+
+    drag(svg, ...RIGHT);
     const panel = await screen.findByRole("dialog", { name: "Split the plan" });
     expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
     await user.click(within(panel).getByRole("button", { name: "Add floor above" }));
 
-    // this floor keeps its part, and the other part shows faded for context
+    // this floor keeps the LEFT area, and the other part shows faded
     await waitFor(() =>
       expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toMatch(/url\(#clip-/)
     );
+    const [x, , w] = rectOf(canvas);
+    expect(x).toBeLessThan(40);
+    expect(x + w).toBeLessThan(640); // ends in the left half, not the whole page
     expect(canvas.querySelector("image.ds-plan-ghost")).not.toBeNull();
     expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
 
@@ -253,9 +274,29 @@ describe("Plans stage", () => {
     expect(screen.getByRole("button", { name: "Delete Sketch level" })).toBeInTheDocument();
   });
 
+  it("the new floor gets the area drawn for it, not a guess at the rest of the page", async () => {
+    const { user, canvas, svg } = await openSplit();
+    // this floor: the LEFT area; the new floor: only the top-right corner —
+    // nothing like "everything not on the left"
+    drag(svg, ...LEFT);
+    drag(svg, [500, 70], [700, 200]);
+    await user.click(await screen.findByRole("button", { name: "Add floor above" }));
+    await waitFor(() => expect(canvas.querySelector("image.ds-plan-ghost")).not.toBeNull());
+
+    // switch to the new floor and read its area
+    await user.click(screen.getByRole("button", { name: /^(GF|L1)$/ }));
+    await user.click(screen.getByRole("button", { name: "L1 Level 1" }));
+    const there = await screen.findByTestId("studio-canvas");
+    await waitFor(() => expect(there.querySelector("clipPath rect")).not.toBeNull());
+    const [, , w, h] = rectOf(there);
+    expect(w).toBeLessThan(450); // the 200-px-wide area, not half the page
+    expect(h).toBeLessThan(300); // the 130-px-tall area, not the full height
+  });
+
   it("one undo takes the whole split back", async () => {
     const { user, canvas, svg } = await openSplit();
-    dragLeftHalf(svg);
+    drag(svg, ...LEFT);
+    drag(svg, ...RIGHT);
     await user.click(await screen.findByRole("button", { name: "Add floor above" }));
     await waitFor(() => expect(canvas.querySelector("image.ds-plan-ghost")).not.toBeNull());
 
@@ -268,7 +309,8 @@ describe("Plans stage", () => {
 
   it("Add floor below puts the new floor on this level and moves this floor up", async () => {
     const { user, svg } = await openSplit();
-    dragLeftHalf(svg);
+    drag(svg, ...LEFT);
+    drag(svg, ...RIGHT);
     await user.click(await screen.findByRole("button", { name: "Add floor below" }));
     // the switcher now reads this floor as level 1 (it moved up, and its
     // default name followed), with the new Ground floor beneath
@@ -277,26 +319,110 @@ describe("Plans stage", () => {
     expect(screen.getByRole("button", { name: "Delete Level 1" })).toBeInTheDocument();
   });
 
-  it("the page outside the area fades while you drag, and Esc drops the drag untouched", async () => {
-    const { canvas, svg } = await openSplit();
-    fireEvent.pointerDown(svg, ptc(90, 70));
-    fireEvent.pointerMove(svg, ptc(400, 530));
-    expect(canvas.querySelector(".ds-crop-dim")).not.toBeNull();
+  it("a freeform area: click each corner and close on the first — for either floor", async () => {
+    const { user, canvas, svg } = await openSplit();
+    // this floor keeps a triangle (closed on its first corner)…
+    click(svg, [100, 80]);
+    click(svg, [380, 80]);
+    click(svg, [100, 500]);
+    expect(canvas.querySelector(".ds-draft polyline")).not.toBeNull(); // corners so far
+    click(svg, [100, 80]); // back on the first corner
+    expect(canvas.querySelector(".ds-draft polyline")).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull(); // still the second area to draw
+    // …and the new floor a rectangle
+    drag(svg, ...RIGHT);
+    await user.click(await screen.findByRole("button", { name: "Add floor above" }));
 
+    await waitFor(() => expect(canvas.querySelector("clipPath polygon")).not.toBeNull());
+    expect(canvas.querySelector("clipPath polygon")!.getAttribute("points")!.split(" ")).toHaveLength(3);
+    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toMatch(/url\(#clip-/);
+  });
+
+  it("Esc drops a split drag untouched, and Esc after the first area drops the split", async () => {
+    const { canvas, svg } = await openSplit();
+    fireEvent.pointerDown(svg, ptc(...LEFT[0]));
+    fireEvent.pointerMove(svg, ptc(...LEFT[1]));
+    expect(canvas.querySelector(".ds-crop-dim")).not.toBeNull();
     fireEvent.keyDown(window, { key: "Escape" });
-    fireEvent.pointerUp(svg, ptc(400, 530));
+    fireEvent.pointerUp(svg, ptc(...LEFT[1]));
     expect(canvas.querySelector(".ds-crop-dim")).toBeNull();
     expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
     expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
+
+    // with the first area drawn, Esc throws the whole split away
+    drag(svg, ...LEFT);
+    expect(canvas.querySelector(".ds-crop-dim")).not.toBeNull();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(canvas.querySelector(".ds-crop-dim")).toBeNull();
   });
 
   it("Cancel leaves the plan as it was", async () => {
     const { user, canvas, svg } = await openSplit();
-    dragLeftHalf(svg);
+    drag(svg, ...LEFT);
+    drag(svg, ...RIGHT);
     await user.click(await screen.findByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
     expect(canvas.querySelector(".ds-crop-dim")).toBeNull();
     expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
+  });
+
+  /* Crop's freeform shape: the same click-the-corners gesture */
+  describe("freeform crop", () => {
+    it("clicking corners and closing on the first clips the plan to the outline", async () => {
+      const { canvas, svg } = await openTool(/Crop/);
+      click(svg, [100, 100]);
+      click(svg, [400, 120]);
+      click(svg, [300, 420]);
+      click(svg, [120, 380]);
+      expect(canvas.querySelector("clipPath")).toBeNull(); // nothing yet
+      click(svg, [100, 100]);
+      await waitFor(() => expect(canvas.querySelector("clipPath polygon")).not.toBeNull());
+      expect(canvas.querySelector("clipPath polygon")!.getAttribute("points")!.split(" ")).toHaveLength(4);
+    });
+
+    it("Enter closes the outline", async () => {
+      const { canvas, svg } = await openTool(/Crop/);
+      click(svg, [100, 100]);
+      click(svg, [400, 120]);
+      click(svg, [300, 420]);
+      fireEvent.keyDown(window, { key: "Enter" });
+      await waitFor(() => expect(canvas.querySelector("clipPath polygon")).not.toBeNull());
+    });
+
+    it("a double-click closes the outline without leaving a doubled corner", async () => {
+      const { canvas, svg } = await openTool(/Crop/);
+      click(svg, [100, 100]);
+      click(svg, [400, 120]);
+      click(svg, [300, 420]);
+      click(svg, [300, 420]); // the double-click's own two clicks
+      fireEvent.doubleClick(svg, ptc(300, 420));
+      await waitFor(() => expect(canvas.querySelector("clipPath polygon")).not.toBeNull());
+      expect(canvas.querySelector("clipPath polygon")!.getAttribute("points")!.split(" ")).toHaveLength(3);
+    });
+
+    it("Esc mid-outline drops the corners and leaves the plan alone", async () => {
+      const { canvas, svg } = await openTool(/Crop/);
+      click(svg, [100, 100]);
+      click(svg, [400, 120]);
+      expect(canvas.querySelector(".ds-draft polyline")).not.toBeNull();
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(canvas.querySelector(".ds-draft polyline")).toBeNull();
+      expect(canvas.querySelector("clipPath")).toBeNull();
+    });
+
+    it("a rectangle crop afterwards replaces the outline", async () => {
+      const { user, canvas, svg } = await openTool(/Crop/);
+      click(svg, [100, 100]);
+      click(svg, [400, 120]);
+      click(svg, [300, 420]);
+      fireEvent.keyDown(window, { key: "Enter" });
+      await waitFor(() => expect(canvas.querySelector("clipPath polygon")).not.toBeNull());
+      await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+      await user.click(screen.getByRole("button", { name: /Crop/ }));
+      drag(svg, [200, 150], [400, 300]);
+      await waitFor(() => expect(canvas.querySelector("clipPath rect")).not.toBeNull());
+      expect(canvas.querySelector("clipPath polygon")).toBeNull();
+    });
   });
 
   it("a plain crop trims the page fully — no faded ghost of what was cut", async () => {

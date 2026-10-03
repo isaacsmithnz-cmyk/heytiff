@@ -270,15 +270,19 @@ describe("installer scenarios: upload → floors", () => {
     await user.click(screen.getByRole("button", { name: /Start design/ }));
     const canvas = await screen.findByTestId("studio-canvas");
 
-    // split the page: keep the left part here, the rest becomes the floor above
+    // split the page: draw what this floor keeps, then the floor above's area
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
     await user.click(screen.getByTitle("Calibrate — set the scale and north"));
     await user.click(screen.getByRole("button", { name: /Split to new floor/ }));
     const svg = canvas.querySelector("svg")!;
     const at = (x: number, y: number) => ({ clientX: x, clientY: y, button: 0, pointerId: 1 });
+    // the area this floor keeps, then the area for the new floor
     fireEvent.pointerDown(svg, at(70, 70));
     fireEvent.pointerMove(svg, at(400, 530));
     fireEvent.pointerUp(svg, at(400, 530));
+    fireEvent.pointerDown(svg, at(410, 70));
+    fireEvent.pointerMove(svg, at(720, 530));
+    fireEvent.pointerUp(svg, at(720, 530));
     await user.click(await screen.findByRole("button", { name: "Add floor above" }));
 
     await gotoPlans(user);

@@ -31,6 +31,7 @@ import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
 import { AllJobsBoard } from "./board/all-jobs-board";
 import { JobMediaViewer } from "./board/job-media-viewer";
+import { NewJobModal } from "./board/new-job-modal";
 import { showcaseMediaItem } from "./board/showcase-view";
 import { WorkSearchField, WorkSearchPanel, type PhotoSearchState } from "./board/work-search";
 
@@ -121,6 +122,8 @@ export function OverviewScreen({
 }) {
   const router = useRouter();
   const [display, setDisplay] = useState(false);
+  /* the New job form, where the page data offers it (new jobs to ServiceM8) */
+  const [newJob, setNewJob] = useState(false);
   const [tab, setTab] = useState<SideKey>(!openJob && openVisit ? "maintenance" : "jobs");
   /* THE HANDOFF. Following a tracked job off the All jobs side, or choosing
      anything the universal search found: the switcher changes side AND the
@@ -716,6 +719,12 @@ export function OverviewScreen({
     <>
       {searchField}
       <div className="wb2-headtools">
+        {data.newJob && !display && (
+          <button className="pbtn" onClick={() => setNewJob(true)}>
+            <Icon name="plus" size={16} />
+            New job
+          </button>
+        )}
         {display ? (
           <button
             className="pbtn ghost"
@@ -747,6 +756,7 @@ export function OverviewScreen({
        reach up. It is a class rather than an effect-set attribute so the first
        paint is already right. */
     <div className="page in full">
+      {newJob && <NewJobModal onClose={() => setNewJob(false)} />}
       <div className="wrap">
         <div className="stg">
           <div className="wb-board">

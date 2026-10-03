@@ -12,6 +12,8 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
   readMirrorJobRow: (...a: unknown[]) => readMirrorJobRow(...a),
 }));
 jest.mock("next/server", () => ({ after: jest.fn() }));
+/* the New job offer reads the ServiceM8 write state: never offered here */
+jest.mock("@/lib/workboard/new-job-offer", () => ({ newJobOffered: jest.fn(async () => false) }));
 jest.mock("@/lib/permissions-server", () => ({ can: jest.fn() }));
 jest.mock("@/lib/integrations/store", () => ({ getConnectionView: jest.fn() }));
 jest.mock("@/lib/integrations/sm8-sync", () => ({ listSm8SyncStatus: jest.fn() }));

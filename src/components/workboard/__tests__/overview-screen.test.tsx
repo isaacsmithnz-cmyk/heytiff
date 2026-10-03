@@ -7,6 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OverviewScreen } from "../overview-screen";
 import { NoteScopeProvider, useNoteScope } from "@/components/notes/note-context";
@@ -38,6 +39,14 @@ const searchPhotos = jest.fn(
     capped: boolean;
   }> => ({ ok: true, hits: [], banked: 0, capped: false })
 );
+/* the New job form's actions are server actions: mocked so the screen loads */
+jest.mock("@/app/actions/job-new", () => ({
+  searchNewJobClients: jest.fn(async () => []),
+  searchClientSites: jest.fn(async () => []),
+  matchPreviousSite: jest.fn(async () => null),
+  readNewJobCategories: jest.fn(async () => []),
+  createNewJob: jest.fn(),
+}));
 jest.mock("@/app/actions/photo-search", () => ({
   searchPhotos: (...a: unknown[]) => searchPhotos(...(a as [])),
 }));
@@ -242,6 +251,15 @@ describe("standalone", () => {
     render(<OverviewScreen data={{ ...base, manage: true }} />);
     expect(screen.queryByText(/Running standalone/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Connect ServiceM8/)).not.toBeInTheDocument();
+  });
+
+  it("offers New job only where the page data does, and opens the form on it", async () => {
+    const { unmount } = render(<OverviewScreen data={{ ...base, manage: true }} />);
+    expect(screen.queryByRole("button", { name: "New job" })).not.toBeInTheDocument();
+    unmount();
+    render(<OverviewScreen data={{ ...base, manage: true, newJob: true }} />);
+    fireEvent.click(screen.getByRole("button", { name: "New job" }));
+    expect(screen.getByRole("dialog", { name: "New job" })).toBeInTheDocument();
   });
 
   it("hands the board the backfill state, so it can tell empty from not-yet", () => {

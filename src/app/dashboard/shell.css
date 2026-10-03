@@ -7007,6 +7007,38 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-bill .wb2-jmclaim > i { grid-column:2; justify-self:start; }
 .jcl-bill .wb2-jmclaim > span { grid-column:3; text-align:right; }
 .jcl-bill button.wb2-jmclaim:first-of-type { border-top:0; }
+/* NEW JOB — a job off the phone: who first, then where, then the rest, a
+   label on the left and the field on the right */
+.wb2-newmodal.njob { width:min(760px, calc(100vw - 40px)); }
+.njob-title { margin:0; font-size:20px; font-weight:600; }
+.njob-body { display:flex; flex-direction:column; gap:16px; }
+.njob-row { display:grid; grid-template-columns:120px minmax(0,1fr); gap:8px 16px; align-items:start; }
+.njob-k { padding-top:8px; font-size:13px; font-weight:500; color:var(--q); }
+.njob-v { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.njob-chips { flex-direction:row; flex-wrap:wrap; gap:4px; }
+.njob-two { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
+.njob-addr { min-height:56px; resize:vertical; }
+.njob-desc { min-height:88px; resize:vertical; }
+.njob-hits { display:flex; flex-direction:column; gap:2px; padding:4px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); }
+.njob-hit { display:flex; align-items:baseline; gap:8px; padding:8px; border:0; border-radius:var(--r-control); background:none; font:inherit; text-align:left; color:var(--ink); cursor:pointer; }
+.njob-hit:hover { background:var(--tint); }
+.njob-hit:focus-visible { outline:none; box-shadow:var(--ring); }
+.njob-hit b { font-size:14px; font-weight:600; }
+.njob-hit em { margin-left:auto; font-style:normal; font-size:13px; color:var(--q); }
+.njob-hit.add { align-items:center; font-size:14px; font-weight:500; }
+.njob-who { display:flex; align-items:baseline; gap:8px; padding:8px 0; }
+.njob-who b { font-size:14px; font-weight:600; }
+.njob-who em { font-style:normal; font-size:13px; color:var(--q); }
+.njob-link { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.njob-who .njob-link { margin-left:auto; align-self:auto; }
+.njob-link:focus-visible { outline:none; box-shadow:var(--ring); }
+.njob-match { display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:var(--r-button); background:var(--info-tint); font-size:13px; }
+.njob-match .pbtn { margin-left:auto; }
+.njob-done { display:flex; flex-direction:column; gap:4px; padding:16px; border-radius:var(--r-button); background:var(--ok-tint); }
+.njob-done b { font-size:16px; font-weight:600; }
+.njob-done p { margin:0; font-size:14px; color:var(--q); }
+.njob-line { margin:0; font-size:14px; }
+.njob-charge { margin-right:auto; font-size:13px; color:var(--q); }
 .wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:8px; }

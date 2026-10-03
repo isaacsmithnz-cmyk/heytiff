@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { CertificatePaper, longDay } from "../certificate-paper";
-import { addressLines } from "@/lib/certs/mechanical";
+import { CertificatePaper } from "../certificate-paper";
+import { addressLines, longDay } from "@/lib/certs/mechanical";
 import { buildCertificate, DEFAULT_CERT_ANSWERS, type CertAnswers } from "@/lib/certs/mechanical";
 import { signatureSvg } from "@/lib/swms/input";
 
@@ -19,7 +19,7 @@ const ANSWERS: CertAnswers = {
       test: TEST,
     },
   ],
-  fans: [{ location: "Bathroom", model: "XF100", qty: 1, airflowLps: 40, airflowKind: "rated", serial: "" }],
+  fans: [{ location: "Bathroom", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 40, airflowKind: "rated", serial: "" }],
 };
 const brand = { name: "Diamond Air Solutions", logoUrl: null, color: "#436cad", abn: "14603285409", phone: null, email: "service@example.com", website: null };
 
@@ -45,7 +45,7 @@ function render(a: CertAnswers = ANSWERS) {
 describe("CertificatePaper", () => {
   it("titles itself after the street and addresses the builder, with no attention line or counts", () => {
     const html = render();
-    expect(html).toContain("Mechanical compliance certificate");
+    expect(html).toContain("Mechanical Compliance Certificate");
     expect(html).toContain("<h1>Lv 3 Suite 4/44-54 Botany Road</h1>");
     expect(html).not.toContain("Attention");
     expect(html).not.toMatch(/Certifying|<dt>Fans<\/dt>/);

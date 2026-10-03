@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffDisplayNames as namesOf } from "@/lib/workboard/job-notes-query";
 import { familyNumbersFor, splitJobNumber } from "@/lib/workboard/job-family";
-import { CERT_LIBRARY_VERSION, CERT_TITLE, type CertContent } from "./mechanical";
+import { CERT_LIBRARY_VERSION, CERT_TITLE, type ApprovedWording, type CertContent } from "./mechanical";
 
 /* THE CERTIFICATE READS. Every query is scoped by org_id: an id from a
    browser names a choice, and this decides whether it's real in this
@@ -162,16 +162,22 @@ export async function certApproval(orgId: string): Promise<{ approvedById: strin
   return row ? { approvedById: row.approved_by_staff_id, approvedAt: row.approved_at } : null;
 }
 
-/* ── the fan list ─────────────────────────────────────────────────────── */
+/** Every approval of the wording, newest first, each with the statements
+    as the owner read them (null before approvals kept them). */
+export type CertWordingApproval = { version: string; approvedById: string; approvedAt: string; wording: ApprovedWording | null };
 
-export type FanModel = { id: string; model: string; ratedLps: number };
-
-export async function listFanModels(orgId: string): Promise<FanModel[]> {
-  const { data } = await supabaseAdmin.from("fan_models").select("id, model, rated_lps").eq("org_id", orgId).order("model");
-  return ((data ?? []) as { id: string; model: string; rated_lps: number | string }[]).map((f) => ({
-    id: f.id,
-    model: f.model,
-    ratedLps: Number(f.rated_lps),
+export async function certApprovals(orgId: string): Promise<CertWordingApproval[]> {
+  const { data } = await supabaseAdmin
+    .from("cert_template_approvals")
+    .select("library_version, approved_by_staff_id, approved_at, wording")
+    .eq("org_id", orgId)
+    .eq("type", "mechanical")
+    .order("approved_at", { ascending: false });
+  return ((data ?? []) as { library_version: string; approved_by_staff_id: string; approved_at: string; wording: ApprovedWording | null }[]).map((r) => ({
+    version: r.library_version,
+    approvedById: r.approved_by_staff_id,
+    approvedAt: r.approved_at,
+    wording: r.wording,
   }));
 }
 

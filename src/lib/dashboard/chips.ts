@@ -50,6 +50,7 @@ export type ChipKind =
   | "swms"
   | "swms-issue"
   | "swms-template"
+  | "cert-wording"
   | "sm8-writes"
   | "sm8-done"
   | "sm8-booking";
@@ -147,6 +148,8 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   swms: "Workboard",
   "swms-issue": "Workboard",
   "swms-template": "Workboard",
+  /* the certificate's wording is the SWMS template's twin: same screen */
+  "cert-wording": "Workboard",
   /* The connection's own screen is under the business's settings, beside
      the company's papers. */
   "sm8-writes": "Business",
@@ -670,7 +673,27 @@ export function swmsTemplateChip(pending: boolean | undefined): ActionChip | nul
     state: "warn",
     label: "Approve the SWMS template",
     subject: "Before the first SWMS",
-    href: "/dashboard/swms/template",
+    href: "/dashboard/admin/templates?sec=swms",
+    urgency: urgency("warn", 0),
+    due: null,
+    ref: null,
+  };
+}
+
+/** The certificate wording, waiting on the owner to approve this version.
+
+    Without it the owner only found out when somebody pressed Issue and was
+    stopped, which is the worst moment: the job's done and the builder is
+    waiting. A new version (reworded statements) raises it again. */
+export function certWordingChip(pending: boolean | undefined): ActionChip | null {
+  if (!pending) return null;
+  return {
+    key: "cert-wording",
+    kind: "cert-wording",
+    state: "warn",
+    label: "Approve the certificate wording",
+    subject: "Before the next certificate",
+    href: "/dashboard/admin/templates?sec=certificate",
     urgency: urgency("warn", 0),
     due: null,
     ref: null,

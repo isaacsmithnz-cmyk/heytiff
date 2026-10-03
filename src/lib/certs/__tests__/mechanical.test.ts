@@ -10,9 +10,15 @@ import {
   indoorTotalKw,
   statementsFor,
   suggestedReason,
+  changedSince,
+  readsAs,
+  shownParts,
+  SHOWN,
+  WORDING_GROUPS,
   wetMinimum,
-  wordingSamples,
+  type ApprovedWording,
   type Building,
+  type ClauseKey,
   type CertAnswers,
   type CertFacts,
   type Covers,
@@ -46,7 +52,7 @@ function answersFor(description: string, covers: Covers, building: Building, mor
       indoors: sys.indoors.map((r, j) => ({ ...r, model: r.model || `IN-${j + 1}`, location: r.location || "Office" })),
       test: { ...TESTED, refrigerant: sys.test.refrigerant || "R32" },
     })),
-    fans: q.fans.map((f) => ({ ...f, location: f.location || "Whole house", airflowLps: 60 })),
+    fans: q.fans.map((f) => ({ ...f, location: f.location || "Whole house", airflowGiven: true, airflowLps: 60 })),
     installed: { ductwork: q.ductwork, fireRated: q.fireRated, fireStopProduct: "Promat collars" },
     exhaustTo: covers.vent ? "outdoors" : null,
     equipmentConfirmed: true,
@@ -76,11 +82,11 @@ describe("the golden jobs", () => {
     expect(indoorTotalKw(a.systems)).toBeCloseTo(19.8);
     /* ductwork went in, so Part J5 says it is insulated and sealed too */
     expect(c.statements[2].text).toBe(
-      "The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
+      "The installation complies with Section J of the BCA for air conditioning and ventilation: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
     );
     const noDucts = buildCertificate({ ...a, installed: { ...a.installed, ductwork: false } });
     expect(noDucts.statements[2].text).toBe(
-      "The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied."
+      "The installation complies with Section J of the BCA for air conditioning and ventilation: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied."
     );
   });
 
@@ -118,22 +124,22 @@ describe("the statements", () => {
   it("state the pressure test and vacuum as passed, with no gauge figures, and the charge once or per outdoor unit", () => {
     const a = answersFor(JOB_1245, AC, "house");
     const one = statementsFor(a).statements[0].text;
-    expect(one).toBe("Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. R32, no additional charge.");
+    expect(one).toBe("Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. Refrigerant R32, no additional charge.");
     expect(one).not.toMatch(/kPa|microns|minutes/);
     a.systems[1].test = { ...TESTED, addedKg: 0.4 };
     const two = statementsFor(a).statements[0].text;
-    expect(two).toContain("OUT-1: R32, no additional charge.");
-    expect(two).toContain("OUT-2: R32, 0.4 kg added.");
+    expect(two).toContain("OUT-1: refrigerant R32, no additional charge.");
+    expect(two).toContain("OUT-2: refrigerant R32, 0.4 kg added.");
   });
 
   it("claim the NCC minimum only when a wet area has a fan, and say when a figure was measured", () => {
     const a = answersFor(JOB_279, BOTH, "house");
     const plain = statementsFor(a).statements.find((s) => s.clause === "ventAirflow")!.text;
     expect(plain).not.toContain("NCC minimum");
-    a.fans = [{ location: "Ensuite", model: "XF100", qty: 1, airflowLps: 30, airflowKind: "measured", serial: "" }];
+    a.fans = [{ location: "Ensuite", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 30, airflowKind: "measured", serial: "" }];
     const wet = statementsFor(a).statements.find((s) => s.clause === "ventAirflow")!.text;
     expect(wet).toContain("NCC minimum");
-    expect(wet).toContain("Figures marked measured were read on site.");
+    expect(wet).toContain("Figures marked as measured were read on site.");
   });
 
   it("print what doesn't apply only when a certifier asked, with its reason", () => {
@@ -141,7 +147,7 @@ describe("the statements", () => {
       requirements: [{ text: "Part J5 compliance", answer: "na", clause: "j5", own: "", reason: suggestedReason("j5", "house") }],
     });
     const { notApplicable } = statementsFor(a);
-    expect(notApplicable.map((s) => s.text)).toEqual(["Part J5 compliance: House: energy efficiency is set by the BASIX certificate."]);
+    expect(notApplicable.map((s) => s.text)).toEqual(["Part J5 compliance. For a house, energy efficiency is set by the BASIX certificate."]);
     expect(statementsFor(answersFor(JOB_1300, AC, "house")).notApplicable).toEqual([]);
   });
 
@@ -189,8 +195,8 @@ describe("the statements", () => {
 
 describe("the paper's facts", () => {
   it("call every certificate a mechanical compliance certificate, whatever it covers", () => {
-    for (const covers of [AC, { ac: false, vent: true }, BOTH]) expect(buildCertificate(answersFor(JOB_279, covers, "house")).title).toBe("Mechanical compliance certificate");
-    expect(certFileName("74/10 Etham Avenue", "1383")).toBe("Mechanical compliance certificate – 74-10 Etham Avenue – job 1383.pdf");
+    for (const covers of [AC, { ac: false, vent: true }, BOTH]) expect(buildCertificate(answersFor(JOB_279, covers, "house")).title).toBe("Mechanical Compliance Certificate");
+    expect(certFileName("74/10 Etham Avenue", "1383")).toBe("Mechanical Compliance Certificate – 74-10 Etham Avenue – job 1383.pdf");
   });
 
   it("print a class only when one was picked, and a serial column only when there is a serial", () => {
@@ -244,7 +250,7 @@ describe("certProblemList", () => {
 
   it("refuses a bathroom fan under the NCC minimum", () => {
     const a = answersFor(JOB_279, BOTH, "house");
-    a.fans = [{ location: "Bathroom", model: "XF100", qty: 1, airflowLps: 20, airflowKind: "rated", serial: "" }];
+    a.fans = [{ location: "Bathroom", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 20, airflowKind: "rated", serial: "" }];
     expect(certProblems(a, FACTS)).toEqual(["The Bathroom fan is 20 L/s, under the NCC minimum of 25 L/s."]);
   });
 
@@ -256,7 +262,7 @@ describe("certProblemList", () => {
       "A smoke control system needs the mechanical engineer's certificate, not this one.",
     ]);
     expect(certProblems({ ...base, fireMode: "individual" }, FACTS)).toEqual([
-      "Confirm each unit is rated at 1000 L/s or less, from its spec sheet.",
+      "Confirm each unit is rated at 1,000 L/s or less, from its spec sheet.",
     ]);
     expect(certProblems({ ...base, fireMode: "shutdown", fireModeInterface: "FIP relay", fireModeTestedOn: "2026-09-29" }, FACTS)).toEqual([]);
   });
@@ -364,7 +370,7 @@ describe("what was asked against what was installed", () => {
     });
     expect(certProblems(a, FACTS)).toEqual([
       "Requirement 1 asks for commissioning and handover, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
-      "Requirement 2 asks for BCA Section J, air-conditioning and ventilation, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
+      "Requirement 2 asks for BCA Section J, air conditioning and ventilation, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
       "Requirement 3 asks for outdoor unit location and noise, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
     ]);
   });
@@ -383,17 +389,41 @@ describe("what was asked against what was installed", () => {
 });
 
 describe("the wording the owner approves", () => {
-  it("shows every statement that can print, in every wording it can take", () => {
-    const shown = wordingSamples();
-    expect(shown.map((w) => w.clause)).toEqual(Object.keys(CLAUSE_NAME));
-    const j5 = shown.find((w) => w.clause === "j5")!.texts;
-    expect(j5).toHaveLength(2);
-    expect(j5.some((t) => t.includes("ductwork is sealed"))).toBe(true);
-    expect(shown.find((w) => w.clause === "ventAirflow")!.texts).toHaveLength(3);
+  /* every way each clause can read, from answers that make it print */
+  const asked = (clause: ClauseKey, more: Partial<CertAnswers> = {}) => {
+    const a = answersFor(JOB_279, BOTH, "house", {
+      requirements: [{ text: "Asked", answer: "clause", clause, own: "", reason: "" }],
+      installed: { ductwork: false, fireRated: true, fireStopProduct: "Promat collars" },
+      ...more,
+    });
+    return statementsFor(a).statements.find((st) => st.clause === clause)!.text;
+  };
+  const twoCharges = (): Partial<CertAnswers> => {
+    const a = answersFor(JOB_1245, AC, "house");
+    a.systems[1].test = { ...TESTED, addedKg: 0.4 };
+    return { covers: BOTH, systems: a.systems };
+  };
+  const printed = (clause: ClauseKey): string[] => {
+    const wet = [{ ...readQuote(JOB_279).fans[0], location: "Ensuite", model: "XF100", airflowGiven: true, airflowLps: 30 }];
+    const extra: Partial<Record<ClauseKey, Partial<CertAnswers>[]>> = {
+      refrigerant: [{}, twoCharges()],
+      ventAirflow: [{}, { fans: wet }, { fans: [{ ...wet[0], airflowKind: "measured" }] }],
+      j5: [{}, { installed: { ductwork: true, fireRated: false, fireStopProduct: "" } }],
+      fireMode: [{ fireMode: "individual" }, { fireMode: "shutdown", fireModeInterface: "FIP relay", fireModeTestedOn: "2026-09-29" }],
+      airBalance: [{ airBalance: "attached" }, { airBalance: "others" }],
+    };
+    return (extra[clause] ?? [{}]).map((more) => asked(clause, more));
+  };
+
+  it("groups every statement once, and shows each line it can print", () => {
+    const grouped = WORDING_GROUPS.flatMap((g) => g.clauses.map((c) => c.clause));
+    expect([...grouped].sort()).toEqual(Object.keys(CLAUSE_NAME).sort());
+    for (const k of Object.keys(CLAUSE_NAME) as ClauseKey[]) {
+      for (const text of printed(k)) expect([k, SHOWN[k].some((line) => readsAs(line, text))]).toEqual([k, true]);
+    }
   });
 
-  it("covers every statement a golden job's certificate makes", () => {
-    const texts = wordingSamples().flatMap((w) => w.texts);
+  it("shows every statement a golden job's certificate makes", () => {
     const jobs = [
       answersFor(JOB_1383, AC, "apartment", { requirements: futureCert(), fireMode: "individual", fireModeRatingsChecked: true }),
       answersFor(JOB_279, BOTH, "house"),
@@ -401,12 +431,27 @@ describe("the wording the owner approves", () => {
     ];
     for (const a of jobs) {
       for (const st of statementsFor(a).statements) {
-        if (!st.clause) continue;
-        /* what a person typed is shown in brackets on the page: compare the words around it */
-        const stem = st.text.split(/R32|Promat collars/)[0].trim();
-        expect(texts.some((t) => t.startsWith(stem))).toBe(true);
+        if (st.clause) expect([st.clause, SHOWN[st.clause].some((line) => readsAs(line, st.text))]).toEqual([st.clause, true]);
       }
     }
+  });
+
+  it("splits a shown line into its words, what's typed and the choices", () => {
+    expect(shownParts("The report is {provided with this certificate|provided by others}, sealed with [the product].")).toEqual([
+      { kind: "text", text: "The report is " },
+      { kind: "choice", options: ["provided with this certificate", "provided by others"] },
+      { kind: "text", text: ", sealed with " },
+      { kind: "typed", text: "the product" },
+      { kind: "text", text: "." },
+    ]);
+  });
+
+  it("says which statements changed since an approval, and when it can't", () => {
+    expect(changedSince(null)).toBeNull();
+    expect(changedSince({ ...SHOWN })?.size).toBe(0);
+    const before = { ...SHOWN, airBalance: ["The air balance and commissioning report is by others."] } as ApprovedWording;
+    delete before.condensate;
+    expect([...changedSince(before)!].sort()).toEqual(["airBalance", "condensate"]);
   });
 });
 

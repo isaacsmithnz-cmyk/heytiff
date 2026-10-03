@@ -77,25 +77,15 @@ export const SECTIONS: AdminGroup[] = [
         show: owner,
       },
       {
-        /* The one compliance document the business writes itself. Its only
-           door used to be the owner's bell item, which goes the moment they
-           approve it — after that nobody could read the method their own
-           SWMS are written from. */
-        title: "SWMS template",
-        sub: "The steps and controls every SWMS is written from",
-        icon: "shield",
-        accent: "#FF8A00",
-        href: "/dashboard/swms/template",
-        show: anyone,
-      },
-      {
-        /* The other paper the business writes itself: every statement an
-           installer's certificate can make, read and approved by the owner. */
-        title: "Certificate wording",
-        sub: "The statements every compliance certificate is written from",
+        /* Each document the business issues, as it reads before a job fills
+           it in: the SWMS and the Mechanical Compliance Certificate, a tab
+           each (2026-10-03). It was two pages, each with a way back to Home;
+           after the owner approved, nothing said what changed. */
+        title: "Templates",
+        sub: "SWMS and Mechanical Compliance Certificate",
         icon: "file",
         accent: "#FF8A00",
-        href: "/dashboard/certificates/template",
+        href: "/dashboard/admin/templates",
         show: anyone,
       },
       {

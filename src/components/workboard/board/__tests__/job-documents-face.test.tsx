@@ -509,7 +509,7 @@ const cert = {
   certificateId: "c-1",
   versionId: "cv-1",
   version: 1,
-  title: "Mechanical compliance certificate",
+  title: "Mechanical Compliance Certificate",
   issuedAt: "2026-10-01T03:00:00Z",
   issuedBy: "Isaac Smith",
   documentId: "d-9",
@@ -534,12 +534,12 @@ it("files a certificate under Compliance with who signed it, its PDF's tick, and
   expect(screen.getByText("Compliance — 1")).toBeInTheDocument();
   /* one per job: a later one is a reissue */
   expect(screen.queryByRole("button", { name: "Create certificate" })).toBeNull();
-  const open = screen.getByRole("button", { name: /Mechanical compliance certificate/ });
+  const open = screen.getByRole("button", { name: /Mechanical Compliance Certificate/ });
   expect(within(open).getByText(/signed by Isaac Smith/)).toBeInTheDocument();
   await userEvent.click(open);
   expect(onOpenCertificate).toHaveBeenCalledWith(cert);
   const row = open.closest(".wb2-docrow") as HTMLElement;
-  await userEvent.click(within(row).getByRole("checkbox", { name: "Select Mechanical compliance certificate" }));
+  await userEvent.click(within(row).getByRole("checkbox", { name: "Select Mechanical Compliance Certificate" }));
   expect(onPick).toHaveBeenCalledWith("d:d-9", true);
   await userEvent.click(within(row).getByRole("button", { name: "Reissue" }));
   expect(onReissueCertificate).toHaveBeenCalledWith("cv-1");
@@ -554,11 +554,11 @@ it("says so when the certificates can't be read, rather than offering a second o
 it("keeps a certificate in the Compliance section, with the SWMS and the licences, never in Files", () => {
   const props = { documents: [], elsewhere: [], designs: [], loading: false, truncated: false, onOpen: () => {}, certificates: [cert], onCreateCertificate: () => {} };
   const { rerender } = render(<JobDocumentsFace {...props} part="files" />);
-  expect(screen.queryByRole("button", { name: /Mechanical compliance certificate/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Mechanical Compliance Certificate/ })).toBeNull();
   rerender(<JobDocumentsFace {...props} certificates={[]} part="files" />);
   expect(screen.queryByRole("button", { name: "Create certificate" })).toBeNull();
   rerender(<JobDocumentsFace {...props} certificates={[]} part="compliance" />);
   expect(screen.getByRole("button", { name: "Create certificate" })).toBeInTheDocument();
   rerender(<JobDocumentsFace {...props} part="compliance" />);
-  expect(screen.getByRole("button", { name: /Mechanical compliance certificate/ })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Mechanical Compliance Certificate/ })).toBeInTheDocument();
 });

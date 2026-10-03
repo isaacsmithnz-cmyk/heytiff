@@ -29,11 +29,20 @@ export const CERT_LIBRARY_VERSION = "mech-2026.10.1";
 
 export type Covers = { ac: boolean; vent: boolean };
 
-/* ONE NAME FOR EVERY CERTIFICATE (Isaac, 2026-10-02): "Mechanical
-   compliance certificate" covers air conditioning, ventilation or both, so
+/* ONE NAME FOR EVERY CERTIFICATE (Isaac, 2026-10-02; title case, as the
+   document's own name, 2026-10-03): "Mechanical Compliance Certificate" covers air conditioning, ventilation or both, so
    the heading never needs to change with the job. What it covers is the
    tables' own headings. */
-export const CERT_TITLE = "Mechanical compliance certificate";
+export const CERT_TITLE = "Mechanical Compliance Certificate";
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "1 October 2026": paper outlives the year. Empty for anything else. */
+export function longDay(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return "";
+  return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
+}
 
 /** The words before the numbered statements, and before each thing asked
     for that doesn't apply. */
@@ -106,15 +115,24 @@ export type AcSystem = {
   test: CircuitTest;
 };
 
+/* A FAN'S AIRFLOW IS PRINTED ONLY WHEN SOMEBODY ADDS IT (2026-10-03).
+   A tick box puts a number on the fan, typed from its spec sheet or a
+   measurement; without it the certificate shows the fan and claims nothing
+   about how much air it moves. There is no fan list to look figures up in. */
 export type FanRow = {
   location: string;
   model: string;
   qty: number;
+  /** The person ticked "Add its airflow". */
+  airflowGiven: boolean;
   airflowLps: number | null;
   /** Rated is the default; measured only when somebody measured it. */
   airflowKind: "rated" | "measured";
   serial: string;
 };
+
+/** The airflow a fan prints, or null when none was added. */
+export const airflowOf = (f: FanRow): number | null => (f.airflowGiven ? f.airflowLps : null);
 
 /* ── the clauses ───────────────────────────────────────────────────────── */
 
@@ -158,7 +176,7 @@ export const CLAUSE_NAME: Record<ClauseKey, string> = {
   as16682: "Mechanical ventilation, AS 1668.2",
   as1668: "AS/NZS 1668.1 and AS 1668.2",
   fireMode: "Fire mode, Specification 21",
-  j5: "BCA Section J, air-conditioning and ventilation",
+  j5: "BCA Section J, air conditioning and ventilation",
   kitchenExhaust: "Kitchen exhaust",
   carPark: "Car park ventilation",
   airBalance: "Air balance report",
@@ -224,7 +242,7 @@ export type CertAnswers = {
   exhaustTo: ExhaustTo | null;
   requirements: Requirement[];
   fireMode: FireMode | null;
-  /** The person checked each unit's rated airflow against 1000 L/s. */
+  /** The person checked each unit's rated airflow against 1,000 L/s. */
   fireModeRatingsChecked: boolean;
   fireModeInterface: string;
   /** yyyy-mm-dd */
@@ -240,7 +258,7 @@ export type CertAnswers = {
 export const EMPTY_TEST: CircuitTest = { refrigerant: "", addedKg: null };
 
 export const EMPTY_ROW: AcRow = { location: "", model: "", qty: 1, capacityKw: null, serial: "" };
-export const EMPTY_FAN: FanRow = { location: "", model: "", qty: 1, airflowLps: null, airflowKind: "rated", serial: "" };
+export const EMPTY_FAN: FanRow = { location: "", model: "", qty: 1, airflowGiven: false, airflowLps: null, airflowKind: "rated", serial: "" };
 
 export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   covers: { ac: true, vent: false },
@@ -300,14 +318,14 @@ export function clausesFor(a: CertAnswers): ClauseKey[] {
 
 /** The reason given when what was asked is a smoke control system, which
     this certificate never covers. The person can change it. */
-export const NOT_OURS_REASON = "Not part of these works: a smoke control system is certified by the mechanical engineer.";
+export const NOT_OURS_REASON = "A smoke control system is certified by the mechanical engineer, not under these works.";
 
 /** The reason offered when a certifier asks for something that doesn't apply.
     The person can change it; it is only a start. */
 export function suggestedReason(clause: ClauseKey | null, b: Building | null): string {
-  if (b === "house" && clause === "j5") return "House: energy efficiency is set by the BASIX certificate.";
+  if (b === "house" && clause === "j5") return "For a house, energy efficiency is set by the BASIX certificate.";
   if (b === "house" && (clause === "fireMode" || clause === "as1668")) {
-    return "House: no air-handling system needs to shut down in fire mode.";
+    return "A house has no air-handling system that needs to shut down in fire mode.";
   }
   if (clause === "carPark") return "No car park ventilation is part of these works.";
   if (clause === "kitchenExhaust") return "No commercial kitchen exhaust is part of these works.";
@@ -348,15 +366,16 @@ export type Statement = {
 };
 
 function testLine(t: CircuitTest): string {
-  return (t.addedKg ?? 0) === 0 ? `${t.refrigerant}, no additional charge.` : `${t.refrigerant}, ${fmtNum(t.addedKg ?? 0)} kg added.`;
+  return (t.addedKg ?? 0) === 0 ? `refrigerant ${t.refrigerant}, no additional charge.` : `refrigerant ${t.refrigerant}, ${fmtNum(t.addedKg ?? 0)} kg added.`;
 }
 
-/** The refrigerant and charge, once when every circuit had the same, per
-    outdoor unit when they differ. */
+/** The refrigerant and charge, once when every circuit had the same
+    ("Refrigerant R32, no additional charge."), per outdoor unit when they
+    differ ("MUZ-AP42VGD2-A2: refrigerant R32, 0.4 kg added."). */
 function testLines(systems: readonly AcSystem[]): string {
   if (systems.length === 0) return "";
   const lines = systems.map((s) => testLine(s.test));
-  if (lines.every((l) => l === lines[0])) return lines[0];
+  if (lines.every((l) => l === lines[0])) return lines[0].charAt(0).toUpperCase() + lines[0].slice(1);
   return systems
     .map((s, i) => `${s.outdoor.model || s.outdoor.location || `Outdoor unit ${i + 1}`}: ${lines[i]}`)
     .join(" ");
@@ -379,13 +398,18 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
     case "approved":
       return "The works are installed in accordance with the documents approved under the Construction Certificate or Complying Development Certificate, and the relevant conditions of consent.";
     case "ventAirflow": {
-      const measured = a.fans.some((f) => f.airflowKind === "measured");
-      const wet = a.fans.some((f) => wetMinimum(f.location) !== null);
+      const shown = a.fans.filter((f) => airflowOf(f) !== null);
+      if (shown.length === 0) return "Each fan is selected and installed to the manufacturer's instructions.";
+      const measured = shown.some((f) => f.airflowKind === "measured");
+      /* the NCC minimum is claimed only when every wet-area fan shows the
+         figure it is checked against */
+      const wet = a.fans.filter((f) => wetMinimum(f.location) !== null);
+      const ncc = wet.length > 0 && wet.every((f) => airflowOf(f) !== null);
       return [
         measured
-          ? "Each fan is selected and installed to the manufacturer's instructions to deliver the airflow shown. Figures marked measured were read on site."
+          ? "Each fan is selected and installed to the manufacturer's instructions to deliver the airflow shown. Figures marked as measured were read on site."
           : "Each fan is selected and installed to the manufacturer's instructions to deliver the rated airflow shown.",
-        wet ? "Each exhaust fan is rated at or above the NCC minimum of 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or laundry." : "",
+        ncc ? "Each exhaust fan is rated at or above the NCC minimum of 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or laundry." : "",
       ]
         .filter(Boolean)
         .join(" ");
@@ -400,32 +424,40 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
     case "as16682":
       return "The mechanical ventilation is installed in accordance with AS 1668.2.";
     case "as1668":
-      return "The mechanical ventilation and air-conditioning works are installed in accordance with AS/NZS 1668.1 and AS 1668.2.";
+      return "The mechanical ventilation and air conditioning works are installed in accordance with AS/NZS 1668.1 and AS 1668.2.";
     case "fireMode":
       if (a.fireMode === "shutdown") {
-        return `The air-handling system shuts down on a fire signal from ${a.fireModeInterface.trim() || "the fire indicator panel"}, tested on ${a.fireModeTestedOn || "the commissioning date"}, as required by Specification 21 and AS/NZS 1668.1.`;
+        return `The air-handling system shuts down on a fire signal from ${a.fireModeInterface.trim() || "the fire indicator panel"}, tested on ${longDay(a.fireModeTestedOn) || "the commissioning date"}, as required by Specification 21 and AS/NZS 1668.1.`;
       }
-      return "The system comprises individual room units, each rated at not more than 1000 L/s, and is not part of a smoke control system, so it is not required to shut down in fire mode under Specification 21 and AS/NZS 1668.1.";
+      return "The system comprises individual room units, each rated at not more than 1,000 L/s, and is not part of a smoke control system, so it is not required to shut down in fire mode under Specification 21 and AS/NZS 1668.1.";
     case "j5":
       /* SECTION J, NOT A PART NUMBER. Air-conditioning and ventilation is
          Part J5 in BCA 2019 and Part J6 in NCC 2022, where J5 became
          building sealing; certifiers' lists still say J5. Naming the
          subject is true under either edition. */
       return a.installed.ductwork
-        ? "The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
-        : "The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied.";
+        ? "The installation complies with Section J of the BCA for air conditioning and ventilation: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
+        : "The installation complies with Section J of the BCA for air conditioning and ventilation: refrigerant pipework is insulated, and each unit can be switched off when its space is unoccupied.";
     case "kitchenExhaust":
       return "The kitchen exhaust hood and ductwork are installed in accordance with AS/NZS 1668.1 and AS 1668.2.";
     case "carPark":
       return "The car park ventilation is installed in accordance with AS 1668.2.";
     case "airBalance":
       return a.airBalance === "others"
-        ? "The air balance and commissioning report is by others."
+        ? "The air balance and commissioning report is provided by others."
         : "The air balance and commissioning report is provided with this certificate.";
     case "noise":
       return "The outdoor unit is installed in the location shown on the approved plans.";
   }
 }
+
+/** Text as one sentence: a capital to start and one full stop to end, so
+    what was asked and why it doesn't apply read as two sentences, not a
+    run of colons. */
+const sentence = (t: string) => {
+  const x = t.trim().replace(/[\s.:;,]+$/, "");
+  return x ? `${x.charAt(0).toUpperCase()}${x.slice(1)}${/[?!]$/.test(x) ? "" : "."}` : "";
+};
 
 /** Every statement the certificate makes, in order, then what doesn't apply. */
 export function statementsFor(a: CertAnswers): { statements: Statement[]; notApplicable: Statement[] } {
@@ -440,7 +472,7 @@ export function statementsFor(a: CertAnswers): { statements: Statement[]; notApp
     } else if (r.answer === "own" && r.own.trim()) {
       statements.push({ clause: null, text: r.own.trim(), requirement: r.text });
     } else if (r.answer === "na") {
-      notApplicable.push({ clause: r.clause, text: `${r.text.trim()}: ${r.reason.trim()}`, requirement: r.text });
+      notApplicable.push({ clause: r.clause, text: `${sentence(r.text)} ${sentence(r.reason)}`, requirement: r.text });
     }
   }
   for (const k of clausesFor(a)) {
@@ -477,7 +509,8 @@ export type CertContent = {
 export function buildCertificate(a: CertAnswers): CertContent {
   const b = buildingOf(a.building);
   const systems = a.covers.ac ? a.systems : [];
-  const fans = a.covers.vent ? a.fans : [];
+  /* a figure typed and then unticked isn't on the paper */
+  const fans = a.covers.vent ? a.fans.map((f) => ({ ...f, airflowLps: airflowOf(f) })) : [];
   const { statements, notApplicable } = statementsFor({ ...a, systems, fans });
   const rows = [...systems.flatMap((s) => [s.outdoor, ...s.indoors]), ...fans];
   return {
@@ -611,9 +644,9 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
       const row = fan.location.trim() || `fan ${i + 1}`;
       if (missing(fan.location)) add("fans", `Say where fan ${i + 1} is.`);
       if (missing(fan.model)) add("fans", `Give the ${row} fan its model.`);
-      if (fan.airflowLps === null || fan.airflowLps <= 0) add("fans", `Give the ${row} fan its airflow.`);
+      if (fan.airflowGiven && (fan.airflowLps === null || fan.airflowLps <= 0)) add("fans", `Give the ${row} fan its airflow, or untick it.`);
       const min = wetMinimum(fan.location);
-      if (min !== null && fan.airflowLps !== null && fan.airflowLps > 0 && fan.airflowLps < min) {
+      if (fan.airflowGiven && min !== null && fan.airflowLps !== null && fan.airflowLps > 0 && fan.airflowLps < min) {
         add("fans", `The ${row} fan is ${fmtNum(fan.airflowLps)} L/s, under the NCC minimum of ${min} L/s.`);
       }
     });
@@ -650,14 +683,14 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
       add("fireMode", "A smoke control system needs the mechanical engineer's certificate, not this one.");
     }
     if (a.fireMode === "individual" && !a.fireModeRatingsChecked) {
-      add("fireMode", "Confirm each unit is rated at 1000 L/s or less, from its spec sheet.");
+      add("fireMode", "Confirm each unit is rated at 1,000 L/s or less, from its spec sheet.");
     }
     if (a.fireMode === "shutdown" && (missing(a.fireModeInterface) || !ISO_DAY.test(a.fireModeTestedOn))) {
       add("fireMode", "Name the fire signal interface and the date the shutdown was tested.");
     }
   }
   if (clauses.includes("airBalance") && a.airBalance === null) {
-    add("airBalance", "Say whether the air balance report is attached or by others.");
+    add("airBalance", "Say whether the air balance report is attached or provided by others.");
   }
 
   if (!ISO_DAY.test(a.completedOn)) add("completedOn", "Enter the date the works were completed.");
@@ -676,56 +709,114 @@ export function certProblems(a: CertAnswers, f: CertFacts): string[] {
 
 /* ── the wording, for the owner to read before approving ───────────────── */
 
-export type Wording = { clause: ClauseKey; name: string; when: string; texts: string[] };
-
-const WHEN: Record<ClauseKey, string> = {
-  approved: "Whenever something was asked for",
-  refrigerant: "Every air conditioning certificate, followed by the refrigerant and charge as typed",
-  manufacturer: "Air conditioning, when nothing was asked for, or when asked",
-  condensate: "Only when asked for",
-  commissioned: "Only when asked for",
-  arc: "Every air conditioning certificate",
-  ventAirflow: "Every ventilation certificate",
-  ventDischarge: "Ventilation, when you say every exhaust fan discharges outdoors",
-  ductwork: "When ductwork, plenums or flexible duct were installed",
-  fireRated: "When penetrations went through fire-rated walls or floors",
-  as16682: "Only when asked for",
-  as1668: "Only when asked for",
-  fireMode: "Only when asked for, worded by the answer",
-  j5: "Only when asked for",
-  kitchenExhaust: "Only when asked for",
-  carPark: "Only when asked for",
-  airBalance: "Only when asked for, worded by the answer",
-  noise: "Only when asked for",
+/* ONE LINE PER STATEMENT, GROUPED BY WHEN IT PRINTS (Isaac, 2026-10-03:
+   the page was noise, a heading and a "when" line over every statement and
+   statements repeated in full for one changed phrase). Each clause is shown
+   as one line, or two when its answer rewrites the whole sentence:
+     [words]   what the person types, named
+     {a|b}     one of these, as the job is
+     {a|}      printed only when it applies
+   A test holds every wording clauseText produces to one of its clause's
+   lines, so the page can't say less than the paper. The lines are also what
+   an approval keeps, so the next version can say what changed. */
+export const SHOWN: Record<ClauseKey, readonly string[]> = {
+  approved: [
+    "The works are installed in accordance with the documents approved under the Construction Certificate or Complying Development Certificate, and the relevant conditions of consent.",
+  ],
+  refrigerant: [
+    "Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. [The refrigerant and the charge added, per outdoor unit when they differ].",
+  ],
+  manufacturer: ["The equipment is installed to the manufacturer's installation instructions."],
+  condensate: ["Condensate is drained to a suitable point without damage or nuisance."],
+  commissioned: [
+    "The system was commissioned and checked in heating and cooling, and the operating instructions and maintenance schedule were handed over.",
+  ],
+  arc: ["All refrigerant was handled by ARC licence holders."],
+  ventAirflow: [
+    "Each fan is selected and installed to the manufacturer's instructions{ to deliver the rated airflow shown| to deliver the airflow shown|}.{ Figures marked as measured were read on site.|}{ Each exhaust fan is rated at or above the NCC minimum of 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or laundry.|}",
+  ],
+  ventDischarge: ["Every exhaust fan discharges to outdoor air."],
+  ductwork: [
+    "Ductwork, plenums and flexible duct are installed, supported, sealed and insulated in accordance with AS 4254.1 and AS 4254.2.",
+  ],
+  fireRated: [
+    "Penetrations through fire-rated walls and floors are sealed with [the fire-stopping product] to maintain the element's fire resistance level.",
+  ],
+  as16682: ["The mechanical ventilation is installed in accordance with AS 1668.2."],
+  as1668: ["The mechanical ventilation and air conditioning works are installed in accordance with AS/NZS 1668.1 and AS 1668.2."],
+  fireMode: [
+    "The system comprises individual room units, each rated at not more than 1,000 L/s, and is not part of a smoke control system, so it is not required to shut down in fire mode under Specification 21 and AS/NZS 1668.1.",
+    "The air-handling system shuts down on a fire signal from [the fire signal interface], tested on [the date], as required by Specification 21 and AS/NZS 1668.1.",
+  ],
+  j5: [
+    "The installation complies with Section J of the BCA for air conditioning and ventilation: refrigerant pipework {is insulated|and ductwork are insulated, ductwork is sealed}, and each unit can be switched off when its space is unoccupied.",
+  ],
+  kitchenExhaust: ["The kitchen exhaust hood and ductwork are installed in accordance with AS/NZS 1668.1 and AS 1668.2."],
+  carPark: ["The car park ventilation is installed in accordance with AS 1668.2."],
+  airBalance: ["The air balance and commissioning report is {provided with this certificate|provided by others}."],
+  noise: ["The outdoor unit is installed in the location shown on the approved plans."],
 };
 
-/** Every clause as it prints, with each wording a clause can take, in the
-    order CLAUSE_NAME lists them: all of them, so nothing can print that the
-    owner hasn't read. The figures a person types are shown as what they
-    are, in brackets. */
-export function wordingSamples(): Wording[] {
-  const base: CertAnswers = { ...DEFAULT_CERT_ANSWERS, covers: { ac: true, vent: true } };
-  const variants: Partial<Record<ClauseKey, CertAnswers[]>> = {
-    ventAirflow: [
-      { ...base, fans: [{ ...EMPTY_FAN, location: "Living", airflowLps: 60 }] },
-      { ...base, fans: [{ ...EMPTY_FAN, location: "Bathroom", airflowLps: 30 }] },
-      { ...base, fans: [{ ...EMPTY_FAN, location: "Bathroom", airflowLps: 30, airflowKind: "measured" }] },
+export type ShownPart = { kind: "text"; text: string } | { kind: "typed"; text: string } | { kind: "choice"; options: string[] };
+
+/** A shown line, in its parts: the words, what is typed, and the choices. */
+export function shownParts(line: string): ShownPart[] {
+  return line
+    .split(/(\[[^\]]+\]|\{[^}]*\})/)
+    .filter(Boolean)
+    .map((t): ShownPart => {
+      if (t.startsWith("[")) return { kind: "typed", text: t.slice(1, -1) };
+      if (t.startsWith("{")) return { kind: "choice", options: t.slice(1, -1).split("|") };
+      return { kind: "text", text: t };
+    });
+}
+
+/** Whether a printed statement is one of the ways a shown line can read. */
+export function readsAs(line: string, printed: string): boolean {
+  const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  const pattern = shownParts(line)
+    .map((p) => (p.kind === "text" ? esc(p.text) : p.kind === "typed" ? ".+?" : `(?:${p.options.map(esc).join("|")})`))
+    .join("");
+  return new RegExp(`^${pattern}$`).test(printed);
+}
+
+/** The page's groups, in the order a certificate prints them. A note says
+    when a statement inside its group prints, where the group alone doesn't. */
+export const WORDING_GROUPS: readonly { title: string; clauses: readonly { clause: ClauseKey; note?: string }[] }[] = [
+  {
+    title: "Every air conditioning certificate",
+    clauses: [{ clause: "refrigerant" }, { clause: "arc" }, { clause: "manufacturer", note: "When nothing was asked for" }],
+  },
+  {
+    title: "Every ventilation certificate",
+    clauses: [{ clause: "ventAirflow" }, { clause: "ventDischarge", note: "When every exhaust fan discharges outdoors" }],
+  },
+  { title: "What was installed", clauses: [{ clause: "ductwork" }, { clause: "fireRated" }] },
+  {
+    title: "What was asked for",
+    clauses: [
+      { clause: "approved", note: "Whenever anything was asked for" },
+      { clause: "condensate" },
+      { clause: "commissioned" },
+      { clause: "as16682" },
+      { clause: "as1668" },
+      { clause: "fireMode" },
+      { clause: "j5" },
+      { clause: "kitchenExhaust" },
+      { clause: "carPark" },
+      { clause: "airBalance" },
+      { clause: "noise" },
     ],
-    j5: [base, { ...base, installed: { ...base.installed, ductwork: true } }],
-    fireRated: [{ ...base, installed: { ...base.installed, fireStopProduct: "[the fire-stopping product]" } }],
-    fireMode: [
-      { ...base, fireMode: "individual" },
-      { ...base, fireMode: "shutdown", fireModeInterface: "[the interface]", fireModeTestedOn: "[the date]" },
-    ],
-    airBalance: [
-      { ...base, airBalance: "attached" },
-      { ...base, airBalance: "others" },
-    ],
-  };
-  return (Object.keys(CLAUSE_NAME) as ClauseKey[]).map((k) => ({
-    clause: k,
-    name: CLAUSE_NAME[k],
-    when: WHEN[k],
-    texts: [...new Set((variants[k] ?? [base]).map((a) => clauseText(k, a)))],
-  }));
+  },
+];
+
+/** What an approval keeps: every clause's shown lines. */
+export type ApprovedWording = Partial<Record<ClauseKey, readonly string[]>>;
+
+/** The clauses whose lines differ from an earlier approval's, new ones
+    included; null when that approval kept no lines to compare with. */
+export function changedSince(approved: ApprovedWording | null): Set<ClauseKey> | null {
+  if (!approved) return null;
+  const same = (a: readonly string[] | undefined, b: readonly string[]) => !!a && a.length === b.length && a.every((x, i) => x === b[i]);
+  return new Set((Object.keys(SHOWN) as ClauseKey[]).filter((k) => !same(approved[k], SHOWN[k])));
 }

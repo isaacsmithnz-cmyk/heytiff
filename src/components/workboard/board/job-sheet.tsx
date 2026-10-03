@@ -51,6 +51,7 @@ import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { CertWizard } from "@/components/certs/cert-wizard";
 import { listCertificatesForJob } from "@/app/actions/certificates";
 import type { CertSummary } from "@/lib/certs/query";
+import { CERT_TITLE } from "@/lib/certs/mechanical";
 import { listSwmsForJob } from "@/app/actions/swms";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { attachJobDocument, removeJobDocument } from "@/app/actions/job-documents";
@@ -248,7 +249,7 @@ const paperPage = (remoteId: string, name: string, url: string): JobMediaItem =>
   fromClaim: null,
 });
 const swmsPaper = (versionId: string) => paperPage(`swms:${versionId}`, "Safe Work Method Statement", `/swms/${versionId}`);
-const certPaper = (versionId: string) => paperPage(`cert:${versionId}`, "Compliance certificate", `/certificates/${versionId}`);
+const certPaper = (versionId: string) => paperPage(`cert:${versionId}`, CERT_TITLE, `/certificates/${versionId}`);
 
 /** A paper's files as pages the card's viewer can hold — a licence's two
     sides are two stops on its arrow keys. Only what this viewer may open. */

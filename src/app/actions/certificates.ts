@@ -11,7 +11,7 @@ import { DOCUMENTS_BUCKET, signOne } from "@/lib/documents/query";
 import { refIsOrgs } from "@/lib/documents/files";
 import { signatureSvg } from "@/lib/swms/input";
 import { ownerName } from "@/lib/swms/query";
-import { CERT_LIBRARY_VERSION, type CertAnswers } from "@/lib/certs/mechanical";
+import { CERT_LIBRARY_VERSION, SHOWN, type CertAnswers } from "@/lib/certs/mechanical";
 import { normaliseCertAnswers } from "@/lib/certs/input";
 import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } from "@/lib/certs/quote";
 import { quoteHasEquipment, readingFromQuote } from "@/lib/certs/from-quote";
@@ -20,13 +20,11 @@ import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { CERT_EMAIL_PROMPT, CERT_LIST_PROMPT, CERT_LIST_SCHEMA, parseListReading, type ListReading } from "@/lib/certs/list-reader";
 import {
   certApproval,
-  listFanModels,
   listJobCerts,
   loadCertJob,
   loadSignatory,
   type CertJob,
   type CertSummary,
-  type FanModel,
   type Signatory,
 } from "@/lib/certs/query";
 
@@ -38,7 +36,6 @@ import {
      opening the wizard        `workboard` — anyone who can open the job card
      issuing                   `workboard` AND their own current ARC licence
                                and contractor licence (checked at issue)
-     the fan list              `workboard`
      approving the wording     the owner, as for the SWMS library
      your own signature        being a signed-in member: it is your own mark
 
@@ -47,6 +44,7 @@ import {
    throws: the wizard says what went wrong in words. */
 
 const trim = (v: unknown, max = 80) => String(v ?? "").trim().slice(0, max);
+const TEMPLATES = "/dashboard/admin/templates";
 
 export type CertWizardContext = {
   job: CertJob;
@@ -63,7 +61,6 @@ export type CertWizardContext = {
   approved: boolean;
   canApprove: boolean;
   ownerName: string | null;
-  fanModels: FanModel[];
   /** The job's files Tiff can read, for picking the certifier's list. */
   files: CertListFile[];
 };
@@ -121,13 +118,12 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
   const uuid = trim(jobUuid);
   if (!uuid) return null;
   const today = todayInAu();
-  const [job, signatory, approval, role, owner, fanModels, files, quote] = await Promise.all([
+  const [job, signatory, approval, role, owner, files, quote] = await Promise.all([
     loadCertJob(orgId, uuid),
     staffIdFor(orgId, userId).then((id) => (id ? loadSignatory(orgId, id, today) : null)),
     certApproval(orgId),
     getDbRole(),
     ownerName(orgId),
-    listFanModels(orgId),
     readableFiles(orgId, uuid),
     readStoredProposal(orgId, uuid).catch(() => null),
   ]);
@@ -148,7 +144,6 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
     approved: approval !== null,
     canApprove: hasMinRole(role, "owner"),
     ownerName: owner,
-    fanModels,
     files,
   };
 }
@@ -203,37 +198,13 @@ export async function approveCertWording(): Promise<CertResult> {
     type: "mechanical",
     library_version: CERT_LIBRARY_VERSION,
     approved_by_staff_id: staffId,
+    /* the statements as the owner read them, so the next version can say what changed */
+    wording: SHOWN,
   });
   /* approved twice at once: the unique index kept one, and it is approved */
   if (error && (error as { code?: string }).code !== "23505") return { ok: false, error: "Couldn't save the approval." };
-  revalidatePath("/dashboard/certificates/template");
+  revalidatePath(TEMPLATES);
   return { ok: true };
-}
-
-export type FanModelResult = { ok: true; fan: FanModel } | { ok: false; error: string };
-
-/** A fan the business fits, with its rated airflow from the spec sheet. */
-export async function addFanModel(model: string, ratedLps: number): Promise<FanModelResult> {
-  let orgId: string;
-  let userId: string;
-  try {
-    ({ orgId, userId } = await requireOrg("workboard"));
-  } catch {
-    return { ok: false, error: "You can't add fans." };
-  }
-  const name = trim(model, 80);
-  const lps = typeof ratedLps === "number" && Number.isFinite(ratedLps) ? Math.round(ratedLps * 10) / 10 : NaN;
-  if (!name) return { ok: false, error: "Give the fan its model." };
-  if (!(lps > 0 && lps < 100000)) return { ok: false, error: "Give its rated airflow in L/s, from the spec sheet." };
-  const staffId = await staffIdFor(orgId, userId);
-  const { data, error } = await supabaseAdmin
-    .from("fan_models")
-    .upsert({ org_id: orgId, model: name, rated_lps: lps, created_by_staff_id: staffId }, { onConflict: "org_id,model" })
-    .select("id, model, rated_lps")
-    .maybeSingle();
-  if (error || !data) return { ok: false, error: "Couldn't save that fan." };
-  const row = data as { id: string; model: string; rated_lps: number | string };
-  return { ok: true, fan: { id: row.id, model: row.model, ratedLps: Number(row.rated_lps) } };
 }
 
 /* ── your own signature ────────────────────────────────────────────────── */

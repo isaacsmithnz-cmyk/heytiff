@@ -12,6 +12,7 @@ import { BOOKING_BELL_DAYS, CLAIM_NUDGE_DAYS, type BookingTroubleOp } from "./ch
 import { listStaffCompliance, type StaffCompliance } from "./query";
 import { ownDetailsGap } from "@/lib/staff/onboarding";
 import { isLibraryApproved, pendingSignons, raisedIssues } from "@/lib/swms/query";
+import { certApproval } from "@/lib/certs/query";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
 import { ownDeclinedLeave, pendingLeaveCount } from "@/lib/timepay/leave-query";
 import { listJournal } from "./journal-query";
@@ -496,7 +497,7 @@ async function loadChips(
   const bookingBellP = caps.has("workboard")
     ? loadBookingBell(orgId, userId, isOwner, today).catch(() => null)
     : Promise.resolve(null);
-  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons, swmsIssues, swmsTemplatePending, sm8Stuck] = await Promise.all([
+  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons, swmsIssues, swmsTemplatePending, certWordingPending, sm8Stuck] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
     viewerStaffId ? loadOwnSheet(orgId, viewerStaffId) : Promise.resolve(null),
@@ -517,6 +518,8 @@ async function loadChips(
     // the SWMS template, for the one person who can approve it; a read that
     // fails says nothing is pending rather than nagging on a guess
     isOwner ? isLibraryApproved(orgId).then((approved) => !approved).catch(() => false) : Promise.resolve(false),
+    // the certificate wording at this version, the same way
+    isOwner ? certApproval(orgId).then((approval) => approval === null).catch(() => false) : Promise.resolve(false),
     // files stuck on their way to ServiceM8, for the one person who can
     // unstick them; a read that fails raises no chip
     isOwner ? sm8QueueStuck(orgId).catch(() => null) : Promise.resolve(null),
@@ -559,6 +562,7 @@ async function loadChips(
       ownSwmsSignons: swmsSignons,
       ownSwmsIssues: swmsIssues,
       swmsTemplatePending,
+      certWordingPending,
       sm8Stuck,
       ownUnsentDones: unsentDones,
       /* only where the deployment books: anywhere else the chips' input is

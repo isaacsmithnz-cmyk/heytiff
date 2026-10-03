@@ -24,7 +24,6 @@ jest.mock("@/app/actions/certificates", () => ({
   readCertifierEmail: (...a: unknown[]) => readCertifierEmail(...a),
   certListFiles: (...a: unknown[]) => certListFiles(...a),
   saveMySignature: async () => ({ ok: true, svg: "<svg/>" }),
-  addFanModel: async () => ({ ok: false, error: "not in this test" }),
 }));
 jest.mock("@/app/actions/workboard-media", () => ({ cacheJobFiles: (...a: unknown[]) => cacheJobFiles(...a) }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }));
@@ -51,7 +50,6 @@ const context = (over: Partial<CertWizardContext> = {}): CertWizardContext => ({
   approved: true,
   canApprove: true,
   ownerName: "Isaac Smith",
-  fanModels: [],
   files: [],
   ...over,
 });
@@ -331,6 +329,27 @@ describe("where the exhaust goes", () => {
     await userEvent.click(eq.getByRole("radio", { name: /not every one/ }));
     expect(eq.getByText("The certificate won't say where the exhaust goes.")).toBeInTheDocument();
     expect(panel("sign").queryByRole("button", { name: "Say whether every exhaust fan discharges outdoors." })).toBeNull();
+  });
+});
+
+describe("a fan's airflow", () => {
+  it("is asked for only when somebody ticks it, and then needs a figure", async () => {
+    certWizardContext.mockImplementation(async () =>
+      context({
+        job: { uuid: "job-1", number: "2933", address: "8/119 McEvoy St\nAlexandria NSW 2015", description: JOB_2933, companyUuid: "co-1", clientName: "RCC", completedOn: "2026-07-16" },
+        reading: readQuote(JOB_2933),
+        building: suggestBuilding("8/119 McEvoy St"),
+      })
+    );
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    const eq = panel("equipment");
+    expect(eq.queryByLabelText("L/s")).toBeNull();
+    await userEvent.click(eq.getAllByRole("checkbox", { name: "Add its airflow" })[0]);
+    expect(eq.getByLabelText("L/s")).toBeInTheDocument();
+    await tab("Sign");
+    expect(panel("sign").getByRole("button", { name: /its airflow, or untick it\./ })).toBeInTheDocument();
   });
 });
 

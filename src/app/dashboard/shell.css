@@ -6981,6 +6981,11 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-vhrs { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
 .jcl-vlen + .jcl-vhrs { margin-top:0; padding-top:0; }
 .jcl-visit > em + .jcl-vhrs { margin-top:auto; padding-top:8px; }
+/* check in / check out, at the head of Installation */
+.jcl-check { display:flex; align-items:center; gap:12px; margin-bottom:16px; padding:12px 16px; border-radius:var(--r-button); background:var(--tint); font-size:14px; }
+.jcl-check.on { background:var(--ok-tint); }
+.jcl-check.on span { font-weight:600; }
+.jcl-check .pbtn { margin-left:auto; }
 .wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:8px; }

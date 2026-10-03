@@ -75,6 +75,15 @@ const listJobPicklist = jest.fn(async (): Promise<unknown[]> => []);
 const setPicklistItemPicked = jest.fn(async (): Promise<unknown> => null);
 const removePicklistItem = jest.fn(async () => {});
 const addJobPicklistItem = jest.fn(async (): Promise<unknown> => ({}));
+/* Check in / check out — controllable, for the Installation tests below. */
+const readMyCheckIn = jest.fn(async (): Promise<unknown> => null);
+const checkIn = jest.fn(async (_job: string): Promise<unknown> => null);
+const checkOut = jest.fn(async (_job: string): Promise<unknown> => null);
+jest.mock("@/app/actions/job-check-ins", () => ({
+  readMyCheckIn: () => readMyCheckIn(),
+  checkIn: (j: string) => checkIn(j),
+  checkOut: (j: string) => checkOut(j),
+}));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: (...a: unknown[]) => listJobPicklist(...(a as [])),
   setPicklistItemPicked: (...a: unknown[]) => setPicklistItemPicked(...(a as [])),
@@ -1657,6 +1666,42 @@ const crewLine = (f: ReturnType<typeof face>, day: string): string =>
 
 
 describe("the Visits face", () => {
+  it("checks the reader in on this job, and the card reads the job again", async () => {
+    readMyCheckIn.mockResolvedValueOnce(null);
+    checkIn.mockResolvedValueOnce({ jobUuid: "j-1", jobNumber: "3137", since: "2026-10-02T21:32:00Z" });
+    readMirrorJob.mockResolvedValue(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Visits");
+    const reads = readMirrorJob.mock.calls.length;
+    await userEvent.click(face("visits").getByRole("button", { name: "Check in" }));
+    expect(checkIn).toHaveBeenCalledWith("j-1");
+    expect(await face("visits").findByText(/^On site since 7:32\sam$/)).toBeInTheDocument();
+    expect(face("visits").getByRole("button", { name: "Check out" })).toBeInTheDocument();
+    await waitFor(() => expect(readMirrorJob.mock.calls.length).toBe(reads + 1));
+    readMirrorJob.mockReset();
+  });
+
+  it("offers to check in here when the reader is on another job, and says which", async () => {
+    readMyCheckIn.mockResolvedValueOnce({ jobUuid: "j-other", jobNumber: "3225", since: "2026-10-02T21:00:00Z" });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Visits");
+    expect(await face("visits").findByText(/^Checked in at #3225 since 7:00\sam$/)).toBeInTheDocument();
+    expect(face("visits").getByRole("button", { name: "Check in here" })).toBeInTheDocument();
+  });
+
+  it("says who is on site now on the day's card", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      card(detail({ visits: [{ day: "2026-10-03", minutes: 90, crew: [{ name: "Luke Ingold", title: null, onSite: true }] }] }))
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Visits");
+    expect(crewLine(face("visits"), "Sat 3 Oct")).toBe("Luke Ingold, on site now");
+  });
+
   it("names a visit's length by the hours each person spent there", () => {
     const two = [{}, {}];
     expect(visitLength({ minutes: 960, crew: two })).toBe("Full day");

@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "r
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import {
   createProjectFromJob,
@@ -42,6 +42,7 @@ import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteFace } from "./job-quote-face";
 import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
+import { checkIn, checkOut, readMyCheckIn, type MyCheckIn } from "@/app/actions/job-check-ins";
 import { jobSteps, type StepKey } from "@/lib/workboard/job-steps";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { listSwmsForJob } from "@/app/actions/swms";
@@ -403,6 +404,9 @@ export function JobSheet({
   const [naming, setNaming] = useState(false);
   /* the visit strip, opened at its newest end */
   const visitStrip = useRef<HTMLOListElement>(null);
+  /* WHERE THE READER IS CHECKED IN, if anywhere — undefined until read */
+  const [mine, setMine] = useState<MyCheckIn | undefined>(undefined);
+  const [checking, setChecking] = useState(false);
   /* The claim this card was opened FOR, when a clone's row was clicked. It
      names the row in the ledger — the card is always the job. */
   const [focus, setFocus] = useState<string | null>(null);
@@ -544,6 +548,16 @@ export function JobSheet({
   useEffect(() => {
     if (focus && moneyVisible && !touchedTab.current) setTab("money");
   }, [focus, moneyVisible]);
+
+  useEffect(() => {
+    let live = true;
+    void readMyCheckIn()
+      .then((m) => live && setMine(m))
+      .catch(() => live && setMine(null));
+    return () => {
+      live = false;
+    };
+  }, []);
 
   /* The visit strip opens on its newest end — the day the reader came for. */
   useEffect(() => {
@@ -1697,6 +1711,21 @@ export function JobSheet({
       });
   };
 
+  /* CHECK IN / CHECK OUT — the reader, on this job. The card reads the job
+     again after, so the day's card shows them on site (or their hours). */
+  const pressCheck = (out: boolean) => {
+    if (!cardId || checking) return;
+    setChecking(true);
+    void (out ? checkOut(cardId) : checkIn(cardId))
+      .then((m) => {
+        if (!alive.current) return;
+        setMine(m);
+        void readMirrorJob(row.id).then((res) => alive.current && res.detail && setDetail(res.detail));
+      })
+      .catch((e: unknown) => alive.current && onToast(thrownWords(e, out ? "Could not check you out" : "Could not check you in")))
+      .finally(() => alive.current && setChecking(false));
+  };
+
   const removeChecklistItem = (id: string) => {
     setPicklist((cur) => (cur ?? []).filter((p) => p.id !== id));
     void removePicklistItem(id).catch((e: unknown) => onToast(thrownWords(e, "Could not remove that line")));
@@ -2252,6 +2281,31 @@ export function JobSheet({
           {panel(
             "visits",
             <>
+              {/* CHECK IN / CHECK OUT (Isaac, 2026-10-02): the record of who
+                  was on site, over ServiceM8's check-ins, which miss most
+                  days. One press; checking in here checks out of anywhere
+                  else. */}
+              {cardId && mine !== undefined && (
+                <div className={"jcl-check" + (mine?.jobUuid === cardId ? " on" : "")}>
+                  {mine?.jobUuid === cardId ? (
+                    <>
+                      <span>{`On site since ${fmtAuTime(new Date(mine.since))}`}</span>
+                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(true)}>
+                        Check out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {mine && (
+                        <span>{`Checked in at ${mine.jobNumber ? `#${mine.jobNumber}` : "another job"} since ${fmtAuTime(new Date(mine.since))}`}</span>
+                      )}
+                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(false)}>
+                        {mine ? "Check in here" : "Check in"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
               {/* BOOK IN (two-way phase 3): the door, or its panel in place,
                   then every press on the job whose booking isn't standing
                   on the list below — newest first, a status change said
@@ -2406,6 +2460,7 @@ export function JobSheet({
                                   {c.leftOpen && (
                                     <i className="wb2-jcrole">, check-in left open</i>
                                   )}
+                                  {c.onSite && <i className="wb2-jcrole">, on site now</i>}
                                 </span>
                               ))}
                         </em>

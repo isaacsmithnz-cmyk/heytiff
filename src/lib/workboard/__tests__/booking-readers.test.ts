@@ -291,6 +291,8 @@ describe("readMirrorJobDetail, where the deployment doesn't book (D-14)", () => 
       "sm8_job_activities start_date, end_date, staff_uuid, activity_was_scheduled",
       "sm8_job_contacts first, last, type, mobile, phone, email",
       "sm8_job_checklists name, item_type, section_name, sort_order, completed_timestamp, completed_by_staff_uuid",
+      /* the check-ins pressed on the card; none here, so no read of who */
+      "job_check_ins id, user_id, checked_in_at, checked_out_at",
       "sm8_staff uuid, first, last, job_title",
     ]);
     expect(readSm8WriteState).not.toHaveBeenCalled();
@@ -386,5 +388,33 @@ describe("the board's next booking", () => {
     );
     expect(Object.fromEntries(next)).toEqual({ [JOB]: `${TOMORROW} 10:00:00` });
     expect(fake.log).toEqual([]);
+  });
+});
+
+describe("readMirrorJobDetail, with check-ins pressed on the card", () => {
+  it("counts a person's HeyTiff check-in over their ServiceM8 sessions that day, and names someone ServiceM8 doesn't know", async () => {
+    process.env.SM8_WRITES = "";
+    fake.db.sm8_job_activities.push(
+      /* Sam's ServiceM8 check-in on 5 Oct: 1h 35m, missed most of the day */
+      act(5, { activity_was_scheduled: 0, start_date: "2026-10-05 08:05:00", end_date: "2026-10-05 09:40:00" }),
+      /* Alex's on the same day, with nothing of ours to replace it */
+      act(6, { staff_uuid: ALEX, activity_was_scheduled: 0, start_date: "2026-10-05 10:00:00", end_date: "2026-10-05 11:00:00" })
+    );
+    fake.db.staff_profiles = [
+      { id: "p-sam", org_id: ORG, user_id: "u-sam", first_name: "Sam", last_name: "Tester" },
+      { id: "p-new", org_id: ORG, user_id: "u-new", first_name: "Nova", last_name: "Apprentice" },
+    ];
+    fake.db.integration_links = [];
+    fake.db.job_check_ins = [
+      /* Sam, by name: 7:30am to 4pm Sydney on 5 Oct (daylight time) */
+      { id: "c1", org_id: ORG, sm8_job_uuid: JOB, user_id: "u-sam", checked_in_at: "2026-10-04T20:30:00Z", checked_out_at: "2026-10-05T05:00:00Z" },
+      /* Nova, not in ServiceM8: 8am to noon */
+      { id: "c2", org_id: ORG, sm8_job_uuid: JOB, user_id: "u-new", checked_in_at: "2026-10-04T21:00:00Z", checked_out_at: "2026-10-05T01:00:00Z" },
+    ];
+    const d = await readMirrorJobDetail(ORG, JOB, TODAY, { timezone: ZONE });
+    const day = d?.visits.find((v) => v.day === "2026-10-05");
+    /* 8h 30m (Sam, ours) + 1h (Alex, ServiceM8) + 4h (Nova, ours); Sam's 1h 35m gave way */
+    expect(day?.minutes).toBe(510 + 60 + 240);
+    expect(day?.crew.map((c) => c.name).sort()).toEqual(["Alex Sample", "Nova Apprentice", "Sam Tester"]);
   });
 });

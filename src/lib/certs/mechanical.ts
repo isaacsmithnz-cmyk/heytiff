@@ -1,3 +1,4 @@
+import { STATE_NAME, type AuState } from "@/lib/swms/library";
 /* THE MECHANICAL CERTIFICATE — the approved wording an installer's
    certificate is written from, the rules for which statements a job gets, and
    what stands between a draft and an issued version.
@@ -23,7 +24,7 @@
 /* .1 (2026-10-03): the wording page now shows every statement that can
    print, condensate, commissioning and Section J with ductwork among them,
    so it is approved again with all of them in view. */
-export const CERT_LIBRARY_VERSION = "mech-2026.10.1";
+export const CERT_LIBRARY_VERSION = "mech-2026.10.2";
 
 /* ── what the certificate covers, and where ────────────────────────────── */
 
@@ -232,6 +233,9 @@ export type Requirement = {
 /** Everything the person chooses or types. Stored as-is on the version. */
 export type CertAnswers = {
   covers: Covers;
+  /** The site's state, which the wording follows: NSW's planning terms in
+      NSW, plain ones elsewhere. Null until it is known. */
+  state: AuState | null;
   building: Building | null;
   /** yyyy-mm-dd */
   completedOn: string;
@@ -262,6 +266,7 @@ export const EMPTY_FAN: FanRow = { location: "", model: "", qty: 1, airflowGiven
 
 export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   covers: { ac: true, vent: false },
+  state: null,
   building: null,
   completedOn: "",
   systems: [],
@@ -316,14 +321,39 @@ export function clausesFor(a: CertAnswers): ClauseKey[] {
   return out;
 }
 
+/* THE WORDING FOLLOWS THE SITE'S STATE (2026-10-03). Everything else on the
+   certificate is national (the NCC, the Australian Standards, the ARC
+   licence). What isn't is how a state approves building work: NSW's
+   Construction and Complying Development Certificates, and its BASIX for
+   a house's energy. Every other state gets plain words that name no state's
+   instruments; the certifier's own list, read in Requirements, fills in what
+   that state's certifier asks for. */
+const APPROVED_NSW =
+  "The works are installed in accordance with the documents approved under the Construction Certificate or Complying Development Certificate, and the relevant conditions of consent.";
+const APPROVED_ELSEWHERE = "The works are installed in accordance with the approved building documents and the conditions of the building approval.";
+
+/** The form a certifier in some states also needs, which this certificate
+    goes alongside and doesn't replace; null where there is none to name. */
+export function stateFormNote(state: AuState | null): string | null {
+  if (state === "VIC") return "In Victoria, air conditioning is plumbing work: you also lodge a VBA plumbing compliance certificate for work of $750 or more.";
+  if (state === "QLD") return "In Queensland, the certifier may also ask for a Form 16 inspection certificate.";
+  if (state === "TAS") return "In Tasmania, the certifier may also ask for a Form 55 certificate of qualified person.";
+  if (state && state !== "NSW") return `Check with the certifier whether ${STATE_NAME[state]} needs a form of its own as well.`;
+  return null;
+}
+
 /** The reason given when what was asked is a smoke control system, which
     this certificate never covers. The person can change it. */
 export const NOT_OURS_REASON = "A smoke control system is certified by the mechanical engineer, not under these works.";
 
 /** The reason offered when a certifier asks for something that doesn't apply.
     The person can change it; it is only a start. */
-export function suggestedReason(clause: ClauseKey | null, b: Building | null): string {
-  if (b === "house" && clause === "j5") return "For a house, energy efficiency is set by the BASIX certificate.";
+export function suggestedReason(clause: ClauseKey | null, b: Building | null, state: AuState | null = "NSW"): string {
+  if (b === "house" && clause === "j5") {
+    return state === "NSW"
+      ? "For a house, energy efficiency is set by the BASIX certificate."
+      : "For a house, energy efficiency is assessed under the NCC Housing Provisions, not Section J.";
+  }
   if (b === "house" && (clause === "fireMode" || clause === "as1668")) {
     return "A house has no air-handling system that needs to shut down in fire mode.";
   }
@@ -396,7 +426,7 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
     case "arc":
       return "All refrigerant was handled by ARC licence holders.";
     case "approved":
-      return "The works are installed in accordance with the documents approved under the Construction Certificate or Complying Development Certificate, and the relevant conditions of consent.";
+      return a.state === "NSW" ? APPROVED_NSW : APPROVED_ELSEWHERE;
     case "ventAirflow": {
       const shown = a.fans.filter((f) => airflowOf(f) !== null);
       if (shown.length === 0) return "Each fan is selected and installed to the manufacturer's instructions.";
@@ -616,6 +646,7 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
   if (!a.covers.ac && !a.covers.vent) add("covers", "Choose what you're certifying.");
   /* asked every time, never taken from the address: the guess is a hint the
      person confirms, because the building decides which statements apply */
+  if (a.state === null) add("building", "Say which state the job is in.");
   if (a.building === null) add("building", "Choose what kind of building it is.");
 
   if (a.covers.ac) {
@@ -720,9 +751,7 @@ export function certProblems(a: CertAnswers, f: CertFacts): string[] {
    lines, so the page can't say less than the paper. The lines are also what
    an approval keeps, so the next version can say what changed. */
 export const SHOWN: Record<ClauseKey, readonly string[]> = {
-  approved: [
-    "The works are installed in accordance with the documents approved under the Construction Certificate or Complying Development Certificate, and the relevant conditions of consent.",
-  ],
+  approved: [APPROVED_NSW, APPROVED_ELSEWHERE],
   refrigerant: [
     "Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. [The refrigerant and the charge added, per outdoor unit when they differ].",
   ],
@@ -795,7 +824,7 @@ export const WORDING_GROUPS: readonly { title: string; clauses: readonly { claus
   {
     title: "What was asked for",
     clauses: [
-      { clause: "approved", note: "Whenever anything was asked for" },
+      { clause: "approved", note: "Whenever anything was asked for: the first in NSW, the second in other states" },
       { clause: "condensate" },
       { clause: "commissioned" },
       { clause: "as16682" },

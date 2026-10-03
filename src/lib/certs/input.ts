@@ -14,6 +14,7 @@ import {
   type FireMode,
   type Requirement,
 } from "./mechanical";
+import { AU_STATES, type AuState } from "@/lib/swms/library";
 
 /* WHAT ARRIVES FROM THE BROWSER IS A CLAIM, NOT AN ANSWER — the SWMS rule
    (lib/swms/input.ts), for the same reason: a version is paperwork frozen
@@ -99,6 +100,8 @@ export function normaliseCertAnswers(raw: unknown): CertAnswers {
   return {
     ...DEFAULT_CERT_ANSWERS,
     covers: { ac: bool(covers.ac), vent: bool(covers.vent) },
+    /* a version saved before the state was asked is a NSW job: there was no other */
+    state: r.state === undefined ? "NSW" : oneOf<AuState>(r.state, AU_STATES),
     building: oneOf<Building>(r.building, BUILDINGS.map((b) => b.key)),
     completedOn: day(r.completedOn),
     systems: list(r.systems, 20).map(system),

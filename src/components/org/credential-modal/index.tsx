@@ -16,6 +16,7 @@ import type {
   CredentialScanDetails,
   OrgCredentialRecord,
 } from "@/lib/org/credential-records";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 import type { CredResult } from "../types";
 import { IdentityScreen, type IdentityDraft } from "./identity-screen";
 import { RecordScreen } from "./record-screen";
@@ -104,7 +105,7 @@ export function CredentialModal({
   const run = async (fn: () => Promise<CredResult>, after?: () => void) => {
     setPending(true);
     setError(null);
-    try {
+    await withCleanup(async () => {
       const res = await fn();
       if (!res.ok) {
         setError(res.error);
@@ -112,9 +113,7 @@ export function CredentialModal({
       }
       if (after) after();
       else onClose();
-    } finally {
-      setPending(false);
-    }
+    }, () => setPending(false));
   };
 
   const saveIdentity = (draft: IdentityDraft) =>

@@ -6,6 +6,10 @@
 import {
   asKbCategory,
   checkKbUpload,
+  fmtResets,
+  isLargeKb,
+  KB_LARGE_PER_MONTH,
+  MAX_KB_LARGE_BYTES,
   KB_BUCKET,
   KB_CATEGORIES,
   kbRefIsOrgs,
@@ -50,6 +54,48 @@ describe("what may be stored", () => {
     const over = checkKbUpload({ type: "application/pdf", size: MAX_KB_BYTES + 1 });
     expect(over.ok).toBe(false);
     expect(over.ok === false && over.error).toContain("50 MB");
+  });
+});
+
+/* A whole data book (Isaac, 2026-09-30): up to 150 MB, owners only, twice a
+   month for the org. */
+describe("large uploads", () => {
+  const pdf = (size: number) => ({ type: "application/pdf", size });
+  const owner = (left: number) => ({ left, resetsOn: "2026-11-01" });
+
+  it("lets an owner with a turn left bring in up to 150 MB, and no further", () => {
+    expect(MAX_KB_LARGE_BYTES).toBe(150 * 1024 * 1024);
+    expect(KB_LARGE_PER_MONTH).toBe(2);
+    expect(checkKbUpload(pdf(131 * 1024 * 1024), owner(2)).ok).toBe(true);
+    expect(checkKbUpload(pdf(MAX_KB_LARGE_BYTES), owner(1)).ok).toBe(true);
+    const over = checkKbUpload(pdf(MAX_KB_LARGE_BYTES + 1), owner(2));
+    expect(over.ok === false && over.error).toBe("That file is too big — 150 MB is the most the library takes.");
+  });
+
+  it("tells everyone else the 50 MB limit, and that an owner can go bigger", () => {
+    const r = checkKbUpload(pdf(60 * 1024 * 1024), null);
+    expect(r.ok === false && r.error).toBe(
+      "That file is too big — 50 MB is the limit. An owner can add one up to 150 MB."
+    );
+  });
+
+  it("says when the month's two are used, and when more come", () => {
+    const r = checkKbUpload(pdf(60 * 1024 * 1024), owner(0));
+    expect(r.ok === false && r.error).toBe(
+      "That's over 50 MB, and this month's 2 large uploads are used. More from 1 November."
+    );
+  });
+
+  it("never touches an ordinary upload, whoever makes it", () => {
+    expect(checkKbUpload(pdf(MAX_KB_BYTES), null).ok).toBe(true);
+    expect(checkKbUpload(pdf(MAX_KB_BYTES), owner(0)).ok).toBe(true);
+    expect(isLargeKb(MAX_KB_BYTES)).toBe(false);
+    expect(isLargeKb(MAX_KB_BYTES + 1)).toBe(true);
+  });
+
+  it("names the reset day the way a person says it", () => {
+    expect(fmtResets("2026-11-01")).toBe("1 November");
+    expect(fmtResets("2027-01-01")).toBe("1 January");
   });
 });
 

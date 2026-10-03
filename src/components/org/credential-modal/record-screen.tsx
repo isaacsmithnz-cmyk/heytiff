@@ -107,15 +107,17 @@ export function RecordScreen({
     : loose.length > 0
       ? `${docsText} filed against this card`
       : "Nothing filed against this card yet";
-  const subline = !recorded
-    ? noTermLine
-    : [
-        current?.issuer,
-        current?.number ? `No. ${current.number}` : null,
-        expiry ? `expires ${fmtDay(expiry)}` : null,
-      ]
-        .filter(Boolean)
-        .join(", ") || credentialStatusText(days);
+  /* read into a name before the `||` below: React Compiler 1.0 refuses a
+     logical whose left side holds a ternary or a `?.`, and gives up on the
+     whole component when it meets one */
+  const termLine = [
+    current?.issuer,
+    current?.number ? `No. ${current.number}` : null,
+    expiry ? `expires ${fmtDay(expiry)}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const subline = !recorded ? noTermLine : termLine || credentialStatusText(days);
   const tone = state === "none" ? "neutral" : state;
 
   const facts: DetailItem[] = current ? recordFacts(kind, current, state, credential.name) : [];

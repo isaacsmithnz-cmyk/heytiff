@@ -180,10 +180,19 @@ async function fail(
   return progressOf("failed", doc, { error });
 }
 
+/* THE PDF IS DOWNLOADED ONCE PER RUN, not once per batch. Every batch of 20
+   pages used to fetch the whole file again: harmless for a 4 MB manual, but a
+   150 MB data book (files.ts, the large uploads) is ~50 batches, so 7.5 GB
+   pulled from storage to read one book. driveDocument hands the same cache to
+   every batch it runs; a lone call (the first batch, a Retry) passes none and
+   downloads as before. Keyed by the storage ref so a cache can never feed one
+   document's bytes to another. */
+export type PdfBytesCache = { ref?: string; bytes?: Uint8Array };
+
 /** Read the next window of pages into kb_chunks. Never throws: every failure
     lands on the row as `failed` + a reason, which the library shows with a
     Retry that re-enters at the bookmark. */
-export async function processBatch(documentId: string, orgId: string): Promise<IngestProgress> {
+export async function processBatch(documentId: string, orgId: string, cache?: PdfBytesCache): Promise<IngestProgress> {
   const { data } = await supabaseAdmin
     .from("kb_documents")
     .select(DOC_COLUMNS)
@@ -230,15 +239,26 @@ export async function processBatch(documentId: string, orgId: string): Promise<I
   if (!kbRefIsOrgs(doc.storageRef!, orgId))
     return fail(documentId, orgId, doc, "That file doesn't belong to this organisation.");
 
-  const file = await supabaseAdmin.storage.from(KB_BUCKET).download(doc.storageRef!);
-  if (file.error || !file.data) {
-    logIngestFailure(documentId, "download", file.error);
-    return fail(documentId, orgId, doc, "That file couldn't be read.");
+  let bytes: Uint8Array;
+  if (cache?.bytes && cache.ref === doc.storageRef) {
+    bytes = cache.bytes;
+  } else {
+    const file = await supabaseAdmin.storage.from(KB_BUCKET).download(doc.storageRef!);
+    if (file.error || !file.data) {
+      logIngestFailure(documentId, "download", file.error);
+      return fail(documentId, orgId, doc, "That file couldn't be read.");
+    }
+    bytes = new Uint8Array(await file.data.arrayBuffer());
+    if (cache) {
+      cache.ref = doc.storageRef!;
+      cache.bytes = bytes;
+    }
   }
 
   let pdf: Awaited<ReturnType<typeof openPdf>>;
   try {
-    pdf = await openPdf(new Uint8Array(await file.data.arrayBuffer()));
+    // pdfjs may take the buffer it is given, so a kept copy is never handed over
+    pdf = await openPdf(cache ? bytes.slice() : bytes);
   } catch (err) {
     logIngestFailure(documentId, "openPdf", err);
     return fail(documentId, orgId, doc, reasonForOpenFailure(err));
@@ -406,7 +426,7 @@ export async function readProgress(documentId: string, orgId: string): Promise<I
 /** What the loop needs, so "did it stop at the right moment" can be tested
     without a PDF, a clock or a database. */
 export type DriveDeps = {
-  batch: (documentId: string, orgId: string) => Promise<IngestProgress>;
+  batch: (documentId: string, orgId: string, cache?: PdfBytesCache) => Promise<IngestProgress>;
   read: (documentId: string, orgId: string) => Promise<IngestProgress>;
   renew: (documentId: string, orgId: string) => Promise<void>;
   clock: () => number;
@@ -426,8 +446,9 @@ export async function driveDocument(
   const started = clock();
   let last = await read(documentId, orgId);
 
+  const cache: PdfBytesCache = {};
   while (last.status === "processing" && hasBudget(clock() - started, budgetMs)) {
-    last = await batch(documentId, orgId);
+    last = await batch(documentId, orgId, cache);
     // renewed AFTER the batch, so the clock restarts from the work being done
     if (last.status === "processing") await renew(documentId, orgId);
   }

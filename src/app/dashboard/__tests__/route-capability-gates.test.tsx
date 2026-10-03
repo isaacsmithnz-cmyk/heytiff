@@ -51,6 +51,7 @@ jest.mock("@/lib/tiff/tags-query", () => ({
   kbTagUsage: jest.fn(async () => ({})),
   ensureKbSeedTags: jest.fn(async () => {}),
 }));
+jest.mock("@/lib/tiff/large", () => ({ kbLargeAllowance: async () => null }));
 jest.mock("@/lib/tiff/quota", () => ({
   kbQuotaFor: jest.fn(async () => ({
     plan: "standard",

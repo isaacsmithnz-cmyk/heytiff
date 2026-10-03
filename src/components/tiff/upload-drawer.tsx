@@ -6,7 +6,14 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { KB_CATEGORIES } from "./kb";
 import { TagPicker } from "./tag-picker";
-import { checkKbUpload, type KbCategory } from "@/lib/tiff/files";
+import {
+  checkKbUpload,
+  fmtResets,
+  isLargeKb,
+  KB_LARGE_PER_MONTH,
+  type KbCategory,
+  type KbLargeAllowance,
+} from "@/lib/tiff/files";
 import { guessKbCategory, titleFromFilename } from "@/lib/tiff/guess";
 import { guessKbTags, type KbTagRef } from "@/lib/tiff/tags";
 import { uploadKbFile } from "@/lib/tiff/upload-client";
@@ -47,8 +54,8 @@ type Pending = {
 
 let seq = 0;
 
-function toPending(file: File, tags: KbTagRef[]): Pending {
-  const check = checkKbUpload({ type: file.type, size: file.size });
+function toPending(file: File, tags: KbTagRef[], large: KbLargeAllowance): Pending {
+  const check = checkKbUpload({ type: file.type, size: file.size }, large);
   return {
     key: `f${(seq += 1)}`,
     file,
@@ -71,12 +78,15 @@ const fmtSize = (bytes: number) =>
 
 export function UploadDrawer({
   tags = [],
+  large = null,
   progress,
   onIngest,
   onClose,
 }: {
   /** The org's tags, for the per-file picker and the filename guess. */
   tags?: KbTagRef[];
+  /** What this person may bring in over 50 MB this month (null: nothing). */
+  large?: KbLargeAllowance;
   /** documentId → live ingest progress, from the library's queue. */
   progress: Record<string, KbIngestProgress>;
   onIngest: (documentIds: string[]) => void;
@@ -113,7 +123,15 @@ export function UploadDrawer({
 
   const add = (files: FileList | File[] | null) => {
     if (!files) return;
-    const next = Array.from(files).map((f) => toPending(f, known));
+    /* each large file already in the list uses one of this month's turns,
+       so a third dropped in with two waiting is refused here rather than by
+       the server once the first two have gone up */
+    let left = large ? large.left - items.filter((i) => !i.invalid && isLargeKb(i.file.size)).length : 0;
+    const next = Array.from(files).map((f) => {
+      const p = toPending(f, known, large ? { ...large, left } : null);
+      if (!p.invalid && isLargeKb(f.size)) left -= 1;
+      return p;
+    });
     if (next.length > 0) setItems((list) => [...list, ...next]);
   };
 
@@ -147,6 +165,7 @@ export function UploadDrawer({
         category: item.category,
         source: item.source.trim() || undefined,
         tagIds: item.tagIds,
+        large,
       });
 
       if (!res.ok) {
@@ -181,7 +200,13 @@ export function UploadDrawer({
         <header className="tk-shtop">
           <div>
             <h2>Add documents</h2>
-            <p>PDFs up to 50 MB. Tiff reads every page it can, then answers from them.</p>
+            <p>
+              PDFs up to 50 MB. Tiff reads every page it can, then answers from them.
+              {large &&
+                (large.left > 0
+                  ? ` A whole data book can go up to 150 MB: ${large.left} of ${KB_LARGE_PER_MONTH} large uploads left this month.`
+                  : ` This month's ${KB_LARGE_PER_MONTH} large uploads (up to 150 MB) are used; more from ${fmtResets(large.resetsOn)}.`)}
+            </p>
           </div>
           <button
             type="button"

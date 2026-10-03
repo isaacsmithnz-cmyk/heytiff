@@ -21,6 +21,7 @@ import { useKbOcr, type KbOcrProgress } from "@/lib/tiff/use-kb-ocr";
 import { useKbBackfill } from "@/lib/tiff/use-kb-backfill";
 import type { KbDocRow } from "@/lib/tiff/query";
 import type { KbQuota } from "@/lib/tiff/quota";
+import type { KbLargeAllowance } from "@/lib/tiff/files";
 
 /* The library — what Tiff has read, and what it hasn't yet.
 
@@ -121,6 +122,7 @@ export function Library({
   tagUsage = {},
   initialTagIds = [],
   initialDocId = null,
+  large = null,
 }: {
   docs: KbLibraryDoc[];
   quota?: KbQuotaView | null;
@@ -141,6 +143,8 @@ export function Library({
   /** From `?doc=` — the document to open on arrival, already checked to be one
       of `docs`. A journal chip naming a knowledge entry lands here. */
   initialDocId?: string | null;
+  /** What this person may bring in over 50 MB this month (null: nothing). */
+  large?: KbLargeAllowance;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -499,6 +503,7 @@ export function Library({
       {drawer && canManage && (
         <UploadDrawer
           tags={tags}
+          large={large}
           progress={ingest.progress}
           onIngest={(ids) => ingest.start(ids)}
           onClose={() => setDrawer(false)}

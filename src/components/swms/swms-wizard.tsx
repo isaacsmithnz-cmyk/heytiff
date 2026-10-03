@@ -11,6 +11,7 @@ import {
   type SwmsWizardContext,
 } from "@/app/actions/swms";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 import {
   andList,
   AU_STATES,
@@ -113,6 +114,11 @@ const PLAIN = new Map(HRCW.map((c) => [c.n, c.plain]));
 /** A current first aid ticket on their staff card. */
 const hasFirstAid = (t: SwmsTeamMember) => t.tickets.some((k) => k.current && isFirstAidTicket(k.name));
 const capital = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
+
+const ISSUE_FAILED = "Couldn't issue the SWMS. Try again.";
+/* the first thing the server refused it for — out here, not in issue's
+   try, where React Compiler 1.0 cannot lower the `??` */
+const issueRefusal = (problems: string[]) => problems[0] ?? ISSUE_FAILED;
 
 export function SwmsWizard({
   jobUuid,
@@ -353,37 +359,44 @@ export function SwmsWizard({
     return key;
   };
 
+  /* What issue sends, built by a function its try CALLS rather than written
+     inside it: React Compiler 1.0 cannot lower a value block — these `??`s
+     and ternaries — inside a try/catch, and gives up on the whole component
+     when it meets one. Called from the try, a throw while it is built still
+     lands in the same catch. */
+  const request = (responsibleStaffId: string) => ({
+    jobUuid,
+    swmsId: prev?.swmsId ?? null,
+    reason: prev ? reason : null,
+    material: !correction,
+    answers: a,
+    staffIds: covers,
+    outsiders: named.map((o) => ({ name: o.name.trim(), company: o.company.trim() || null })),
+    responsibleStaffId,
+    electrician: stepOn(a, "power") ? serverKey(electrician) : null,
+    firstAider: serverKey(aider),
+    siteChecked: checked,
+  });
+
   const issue = async () => {
     if (!ctx || ctx === "failed" || !responsible) return;
     setBusy(true);
     setError(null);
-    try {
-      const res = await issueSwms({
-        jobUuid,
-        swmsId: prev?.swmsId ?? null,
-        reason: prev ? reason : null,
-        material: !correction,
-        answers: a,
-        staffIds: covers,
-        outsiders: named.map((o) => ({ name: o.name.trim(), company: o.company.trim() || null })),
-        responsibleStaffId: responsible,
-        electrician: stepOn(a, "power") ? serverKey(electrician) : null,
-        firstAider: serverKey(aider),
-        siteChecked: checked,
-      });
-      if (res.ok) {
-        setIssued({ versionId: res.versionId, version: res.version });
-        /* the people it names are asked in their bells — this one included */
-        window.dispatchEvent(new Event(BELL_REFRESH_EVENT));
-        onIssued();
-      } else {
-        setError(res.problems[0] ?? "Couldn't issue the SWMS. Try again.");
+    await withCleanup(async () => {
+      try {
+        const res = await issueSwms(request(responsible));
+        if (res.ok) {
+          setIssued({ versionId: res.versionId, version: res.version });
+          /* the people it names are asked in their bells — this one included */
+          window.dispatchEvent(new Event(BELL_REFRESH_EVENT));
+          onIssued();
+        } else {
+          setError(issueRefusal(res.problems));
+        }
+      } catch {
+        setError(ISSUE_FAILED);
       }
-    } catch {
-      setError("Couldn't issue the SWMS. Try again.");
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
 

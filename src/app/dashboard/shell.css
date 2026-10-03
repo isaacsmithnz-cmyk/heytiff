@@ -6902,6 +6902,114 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the fact tiles were dressed for the old header's shoulder — inside a face
    the face's own gap spaces them, and inside a section the head is closer */
 .wb2-sheet.mv .wb2-jcface > .wb2-facts, .wb2-sheet.pv .wb2-jcface > .wb2-facts { margin-top:0; }
+/* ── THE JOB CARD'S PROGRESS LINE AND RAIL (.jcl) ────────────────────────
+   Isaac, 2026-10-01: a progress line across the top whose steps open their
+   part of the job below, and a rail down the left for what isn't a step.
+   A bigger box than the eight-tab card, because the rail takes a column.
+   The visit sheets (.mv, .pv) keep the folder tabs; only .jcl changes. */
+.wb2-sheet.jc.jcl { width:min(1280px, calc(100vw - 40px)); }
+.jcl-line { display:flex; align-items:center; gap:4px; margin:8px -8px 0; padding:0 0 12px; overflow-x:auto; scrollbar-width:none; }
+.jcl-line::-webkit-scrollbar { display:none; }
+.jcl-step { display:flex; align-items:center; gap:8px; flex:none; padding:8px 12px; border:0; border-radius:var(--r-button); background:none; font:inherit; text-align:left; color:var(--ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.jcl-step:hover { background:rgba(255,255,255,.6); }
+.jcl-step.on { background:var(--paper); }
+.jcl-step:focus-visible { outline:none; box-shadow:var(--ring); }
+.jcl-sl { display:flex; flex-direction:column; gap:2px; }
+.jcl-sl b { font-size:13px; font-weight:600; }
+.jcl-sl em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; }
+.jcl-step.next .jcl-sl b, .jcl-step.skip .jcl-sl b { color:var(--q); font-weight:500; }
+.jcl-step.now .jcl-sl em { color:var(--ink); font-weight:600; }
+.jcl-step.warn .jcl-sl em { color:var(--warn-t); }
+.jcl-step.bad .jcl-sl em { color:var(--bad-t); }
+.jcl-dot { flex:none; width:12px; height:12px; border-radius:50%; border:1.5px solid var(--q); background:var(--paper); }
+.jcl-step.done .jcl-dot { background:var(--ink); border-color:var(--ink); }
+.jcl-step.now .jcl-dot { border:4px solid var(--ink); }
+.jcl-step.warn .jcl-dot { border:4px solid var(--warn-t); }
+.jcl-step.bad .jcl-dot { background:var(--bad-t); border-color:var(--bad-t); }
+.jcl-step.skip .jcl-dot { border-style:dashed; }
+.jcl-link { flex:1 1 8px; min-width:8px; height:1px; background:var(--line); }
+.jcl-link.done { background:var(--ink); }
+/* the rail and the face side by side, under the band; the face is the
+   scroller, so the rail stays in reach however long a timeline runs */
+.jcl-body { flex:1 1 auto; min-height:0; display:grid; grid-template-columns:200px minmax(0,1fr); grid-template-rows:minmax(0,1fr); border-top:1px solid var(--line); }
+.wb2-sheet.jc.jcl .jcl-body > .wb2-jcbody { min-height:0; }
+.jcl-rail { border-right:1px solid var(--line); padding:16px 12px 24px; overflow-y:auto; }
+.jcl-nav { display:flex; flex-direction:column; gap:2px; }
+.jcl-ni { display:flex; align-items:center; height:40px; padding:0 12px; border:0; border-radius:var(--r-button); background:none; font:inherit; font-size:14px; font-weight:500; color:var(--ink); text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.jcl-ni:hover { background:var(--tint); }
+.jcl-ni.on { background:var(--tint-2); font-weight:600; }
+.jcl-ni:focus-visible { outline:none; box-shadow:var(--ring); }
+/* the customer, under the rail's sections, on every part of the card */
+.jcl-cust { display:flex; flex-direction:column; gap:12px; margin-top:16px; padding:16px 4px 0; border-top:1px solid var(--line); }
+.jcl-cust h3 { margin:0; font-size:13px; font-weight:500; color:var(--q); }
+.jcl-contacts { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:12px; }
+.jcl-contacts li { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.jcl-contacts b { font-size:13px; font-weight:600; }
+.jcl-contacts em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+.jcl-tel { font-size:13px; color:var(--ink); overflow-wrap:anywhere; }
+/* an address is one token: it ends in an ellipsis, never breaks mid-word */
+.jcl-mail { display:block; font-size:13px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
+.jcl-po { margin:0; display:flex; flex-direction:column; gap:2px; font-size:13px; }
+.jcl-po em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+/* THE SUMMARY: the job on a tinted panel, then where it's up to beside
+   who's been on site */
+.jcl-job { display:flex; flex-direction:column; gap:8px; padding:16px; border-radius:var(--r-button); background:var(--tint); }
+.jcl-kind { margin:0; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--q); }
+.jcl-what { margin:0; font-size:16px; line-height:1.45; white-space:pre-wrap; max-width:96ch; }
+.jcl-what.folded { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:normal; }
+.jcl-more { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.jcl-more:focus-visible { outline:none; box-shadow:var(--ring); }
+.jcl-two { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:16px; }
+.jcl-card { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
+.jcl-cardhead { display:flex; align-items:baseline; gap:12px; }
+.jcl-cardhead h3 { margin:0; font-size:16px; font-weight:600; }
+.jcl-cardhead em { margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+.jcl-card .wb2-jcups-pts { margin:0; }
+.jcl-hrs { margin:0; display:flex; align-items:baseline; gap:8px; }
+.jcl-hrs b { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.jcl-hrs span { font-size:13px; font-weight:500; color:var(--q); }
+.jcl-days { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
+.jcl-days li { display:grid; grid-template-columns:96px minmax(0,1fr) auto; gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
+.jcl-days li:first-child { border-top:0; }
+.jcl-days b { font-weight:600; }
+.jcl-days span { color:var(--q); }
+.jcl-days em { font-style:normal; font-variant-numeric:tabular-nums; }
+/* INSTALLATION: a card per visit, oldest on the left, scrolling sideways */
+.jcl-visits { margin:0; padding:0 0 8px; list-style:none; display:grid; grid-auto-flow:column; grid-auto-columns:240px; gap:12px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; }
+.jcl-visit { display:flex; flex-direction:column; gap:4px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); scroll-snap-align:end; }
+.jcl-vn { font-size:12px; font-weight:500; color:var(--q); }
+.jcl-visit > b { font-size:16px; font-weight:600; }
+.jcl-visit > em { font-style:normal; font-size:13px; line-height:1.45; color:var(--ink); }
+.jcl-vlen { margin-top:auto; padding-top:8px; font-size:12px; font-weight:500; color:var(--q); }
+.jcl-vhrs { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
+.jcl-vlen + .jcl-vhrs { margin-top:0; padding-top:0; }
+.jcl-visit > em + .jcl-vhrs { margin-top:auto; padding-top:8px; }
+/* check in / check out, at the head of Installation */
+.jcl-check { display:flex; align-items:center; gap:12px; margin-bottom:16px; padding:12px 16px; border-radius:var(--r-button); background:var(--tint); font-size:14px; }
+.jcl-check.on { background:var(--ok-tint); }
+.jcl-check.on span { font-weight:600; }
+.jcl-check .pbtn { margin-left:auto; }
+/* BILLING AS AN INVOICE: who it's billed to, the payment terms, and the
+   balance due big on the right, on a grey head; the claims as a table
+   under it — Claim, Status, Amount — the way every invoice page reads */
+.jcl-billhead { display:grid; grid-template-columns:minmax(160px,1fr) minmax(0,2fr) auto; gap:24px; align-items:start; padding:16px; border-radius:var(--r-button); background:var(--tint); }
+.jcl-billto { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.jcl-billto b { font-size:14px; font-weight:600; overflow-wrap:anywhere; }
+.jcl-billto em { font-style:normal; font-size:13px; color:var(--q); overflow-wrap:anywhere; }
+.jcl-terms { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.jcl-terms .wb2-jmbar { margin-top:4px; height:8px; }
+.jcl-termkey { display:flex; gap:2px; }
+.jcl-termkey > span { min-width:0; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.jcl-bill .wb2-jmhead { min-width:180px; }
+.wb2-jmbig.hero { font-size:32px; }
+.jcl-billval { display:flex; gap:8px; align-items:baseline; margin-top:4px; font-size:13px; font-variant-numeric:tabular-nums; }
+.jcl-claimhead { display:grid; grid-template-columns:minmax(0,1fr) 160px 120px; gap:8px; margin-top:16px; padding:0 2px 8px; border-bottom:1px solid var(--line); font-size:13px; font-weight:500; color:var(--q); }
+.jcl-claimhead > span:last-child { text-align:right; }
+.jcl-bill .wb2-jmclaim { grid-template-columns:minmax(0,1fr) 160px 120px; }
+.jcl-bill .wb2-jmclaim > i { grid-column:2; justify-self:start; }
+.jcl-bill .wb2-jmclaim > span { grid-column:3; text-align:right; }
+.jcl-bill button.wb2-jmclaim:first-of-type { border-top:0; }
 .wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:8px; }

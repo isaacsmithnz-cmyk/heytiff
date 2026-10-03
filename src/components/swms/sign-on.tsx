@@ -10,6 +10,7 @@ import { HRCW } from "@/lib/swms/library";
 import type { SwmsDocument, SwmsPerson } from "@/lib/swms/query";
 import { siteWhen } from "@/lib/swms/when";
 import { SignaturePad } from "./controls";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 import "./swms.css";
 
 /* THE SIGN-ON — read the SWMS, confirm the briefing, sign in the box.
@@ -48,15 +49,19 @@ function SignOnForm({
   const submit = async () => {
     setBusy(true);
     setError(null);
-    try {
-      const res = await signOnSwms({ personId: person.id, pathData: path, issue: raising ? issue : null });
-      if (res.ok) onSigned();
-      else setError(res.error);
-    } catch {
-      setError("Couldn't save the sign-on. Try again.");
-    } finally {
-      setBusy(false);
-    }
+    /* read out here, not inside the try below: React Compiler 1.0 cannot
+       lower a ternary inside a try/catch, and gives up on the whole
+       component when it meets one */
+    const raised = raising ? issue : null;
+    await withCleanup(async () => {
+      try {
+        const res = await signOnSwms({ personId: person.id, pathData: path, issue: raised });
+        if (res.ok) onSigned();
+        else setError(res.error);
+      } catch {
+        setError("Couldn't save the sign-on. Try again.");
+      }
+    }, () => setBusy(false));
   };
 
   return (
@@ -123,17 +128,17 @@ function RaiseIssue({
   const save = async () => {
     setBusy(true);
     setError(null);
-    try {
-      const res = await raiseSwmsIssue({ personId: person.id, issue: text });
-      if (res.ok) {
-        onClose();
-        onDone();
-      } else setError(res.error);
-    } catch {
-      setError("Couldn't save the issue. Try again.");
-    } finally {
-      setBusy(false);
-    }
+    await withCleanup(async () => {
+      try {
+        const res = await raiseSwmsIssue({ personId: person.id, issue: text });
+        if (res.ok) {
+          onClose();
+          onDone();
+        } else setError(res.error);
+      } catch {
+        setError("Couldn't save the issue. Try again.");
+      }
+    }, () => setBusy(false));
   };
 
   if (!open) {
@@ -177,15 +182,15 @@ function SortedOnSite({ personId, onDone }: { personId: string; onDone: () => vo
         onClick={async () => {
           setBusy(true);
           setError(null);
-          try {
-            const res = await clearSwmsIssue(personId);
-            if (res.ok) onDone();
-            else setError(res.error);
-          } catch {
-            setError("Couldn't record it. Try again.");
-          } finally {
-            setBusy(false);
-          }
+          await withCleanup(async () => {
+            try {
+              const res = await clearSwmsIssue(personId);
+              if (res.ok) onDone();
+              else setError(res.error);
+            } catch {
+              setError("Couldn't record it. Try again.");
+            }
+          }, () => setBusy(false));
         }}
       >
         {busy ? "Recording…" : "Record it as sorted"}

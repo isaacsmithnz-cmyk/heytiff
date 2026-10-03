@@ -169,8 +169,8 @@ export function outdoorsListing(pack: DataPack, heads: IndoorUnit[]): OutdoorUni
     in the system means no outdoor. A one-head system whose family is multi
     (two zones claimed) is proposed a multi outdoor, so the set can grow.
     An outdoor picked by hand stays, listed or not, until Use the proposal
-    hands the choice back (useProposal) — the picker shows Valid or Fails
-    against it instead. */
+    hands the choice back (handBackToProposal) — the picker shows Valid or
+    Fails against it instead. */
 /** what the proposal would put on a system, hand pick or not: "" when
     nothing in it asks for an outdoor */
 export function proposedOutdoorModel(doc: DesignDocument, pack: DataPack, systemId: string): string {
@@ -216,8 +216,11 @@ function proposeOutdoor(doc: DesignDocument, pack: DataPack, systemId: string): 
   return d;
 }
 
-/** hand the outdoor choice back to the proposal */
-export function useProposal(doc: DesignDocument, pack: DataPack, systemId: string): DesignDocument {
+/** hand the outdoor choice back to the proposal — the Use the proposal
+    button's work. Not `useProposal`: a name that begins with "use" is a hook
+    to React, and React Compiler refused the whole builder for calling one
+    inside a callback, alias or no alias. */
+export function handBackToProposal(doc: DesignDocument, pack: DataPack, systemId: string): DesignDocument {
   const d = mapSystem(doc, systemId, (s) => {
     const settings = { ...s.settings };
     delete settings.oduChosen;

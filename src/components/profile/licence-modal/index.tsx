@@ -9,6 +9,7 @@ import type { StoredDocument } from "@/lib/documents/query";
 import { credBadgeCode } from "@/lib/staff/licence";
 import type { StaffLicence } from "@/lib/staff/types";
 import type { LicenceScanDetails, LicenceTermInput, StaffLicenceRecord } from "@/lib/staff/licence-records";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 import type { LicenceInput, SaveResult } from "../types";
 import { IdentityScreen, type IdentityDraft } from "./identity-screen";
 import { RecordScreen } from "./record-screen";
@@ -93,7 +94,7 @@ export function LicenceModal({
   const run = async (fn: () => Promise<SaveResult>, after?: () => void) => {
     setPending(true);
     setError(null);
-    try {
+    await withCleanup(async () => {
       const res = await fn();
       if (!res.ok) {
         setError(res.error);
@@ -101,9 +102,7 @@ export function LicenceModal({
       }
       if (after) after();
       else onClose();
-    } finally {
-      setPending(false);
-    }
+    }, () => setPending(false));
   };
 
   const saveIdentity = (draft: IdentityDraft) =>

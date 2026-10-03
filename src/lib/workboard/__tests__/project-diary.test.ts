@@ -1,6 +1,6 @@
 /* The project diary — bookings-as-visits, pinned on job 279's real shapes:
    several crew booked one day, check-ins beside bookings on the same day, a
-   check-in with no clock-off, and one session that ran past midnight. */
+   check-in with no clock-off, and one left open past midnight. */
 
 import {
   buildProjectDiary,
@@ -85,7 +85,7 @@ describe("buildProjectDiary", () => {
     expect(days[0].sessionMinutes).toBe(0);
   });
 
-  it("a session past midnight states what the mirror recorded — no clamping", () => {
+  it("a check-in left open past midnight proves presence but adds no minutes", () => {
     const days = buildProjectDiary(
       [
         row({
@@ -97,9 +97,33 @@ describe("buildProjectDiary", () => {
       ],
       staff
     );
-    // it lands on the day it STARTED, minutes as recorded (~23h)
+    /* it lands on the day it STARTED, and its ~23h is not time on site —
+       the job card's rule (sm8CheckInLeftOpen), so the two cards agree */
     expect(days[0].day).toBe("2025-12-19");
-    expect(days[0].sessionMinutes).toBe(1389);
+    expect(days[0].sessionCrew.map((p) => p.name)).toEqual(["David Hanby"]);
+    expect(days[0].sessionMinutes).toBe(0);
+  });
+
+  it("a check-in left open beside a believable one keeps only the believable minutes", () => {
+    const days = buildProjectDiary(
+      [
+        row({
+          start_date: "2026-09-12 07:27:33",
+          end_date: "2026-09-12 14:13:13",
+          staff_uuid: "s-alex",
+          activity_was_scheduled: 0,
+        }),
+        row({
+          start_date: "2026-09-12 07:43:40",
+          end_date: "2026-09-14 06:58:24",
+          staff_uuid: "s-cal",
+          activity_was_scheduled: 0,
+        }),
+      ],
+      staff
+    );
+    expect(days[0].sessionMinutes).toBe(406);
+    expect(days[0].sessionCrew.map((p) => p.name)).toEqual(["Alex Morozoff", "Callum Vallis"]);
   });
 
   it("an unknown staff uuid still shows up rather than vanishing the booking", () => {

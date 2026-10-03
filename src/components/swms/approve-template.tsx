@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { approveSwmsLibrary } from "@/app/actions/swms";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /** The owner's one press. The bell item it clears goes at once. */
 export function ApproveTemplate({ onApproved }: { onApproved?: () => void }) {
@@ -14,20 +15,20 @@ export function ApproveTemplate({ onApproved }: { onApproved?: () => void }) {
   const approve = async () => {
     setBusy(true);
     setError(null);
-    try {
-      const res = await approveSwmsLibrary();
-      if (res.ok) {
-        window.dispatchEvent(new Event(BELL_REFRESH_EVENT));
-        if (onApproved) onApproved();
-        else router.refresh();
-      } else {
-        setError(res.error);
+    await withCleanup(async () => {
+      try {
+        const res = await approveSwmsLibrary();
+        if (res.ok) {
+          window.dispatchEvent(new Event(BELL_REFRESH_EVENT));
+          if (onApproved) onApproved();
+          else router.refresh();
+        } else {
+          setError(res.error);
+        }
+      } catch {
+        setError("Couldn't record the approval. Try again.");
       }
-    } catch {
-      setError("Couldn't record the approval. Try again.");
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   return (

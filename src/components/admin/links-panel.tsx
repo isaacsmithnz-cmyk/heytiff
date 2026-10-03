@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { PricedLink } from "@/lib/quotes/links-server";
 import type { Offer } from "@/lib/quotes/price-book";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* THE PACK'S MODELS AND THEIR ORDER CODES, in Admin → Quoting.
 
@@ -55,7 +56,7 @@ export function LinksPanel() {
 
   const decide = async (model: string, code: string, decision: "confirmed" | "rejected") => {
     setBusy(`${model}|${code}`);
-    try {
+    await withCleanup(async () => {
       const a = (await (
         await fetch(ROUTE, {
           method: "POST",
@@ -79,9 +80,7 @@ export function LinksPanel() {
           };
         })
       );
-    } finally {
-      setBusy(null);
-    }
+    }, () => setBusy(null));
   };
 
   if (failed) return <p className="qs-sub">The pack&rsquo;s links couldn&rsquo;t be read.</p>;

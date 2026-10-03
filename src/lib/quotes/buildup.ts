@@ -76,10 +76,23 @@ export type PricedGroup = { name: string; lines: PricedLine[]; buyCents: number;
     quote as a decision, never shown to the client as a line. */
 export type Loading = { pct: number; reason: string };
 
+/** A price offered below the build-up, to win the job (2749 went at $9,900
+    against a build-up near $12,000 and cost us). The gap is a cost we chose,
+    so it needs a reason, and it shows on our side as a discount. */
+export type Offered = { exGstCents: number; reason: string };
+
 export type BuildUp = {
   groups: PricedGroup[];
   contingency: { buyCents: number; sellCents: number; hours: number } | null;
   loading: (Loading & { sellCents: number }) | null;
+  /** a loading was asked for with no reason, so it isn't applied */
+  loadingNeedsReason: boolean;
+  /** the price offered below the build-up, and what that gives away */
+  offered: (Offered & { discountCents: number }) | null;
+  /** an offered price with no reason, or above the build-up, isn't applied */
+  offeredNeedsReason: boolean;
+  /** what the lines add up to before an offered price */
+  buildExGstCents: number;
   labour: { personDays: number; hours: number; sellCents: number; visits: (Visit & { personDays: number; sellCents: number })[] };
   buyCents: number;
   exGstCents: number;
@@ -95,7 +108,8 @@ export function priceBuildUp(
   lines: BuildLine[],
   visits: Visit[],
   s: BuildSettings = DEFAULT_BUILD_SETTINGS,
-  loadingIn: Loading | null = null
+  loadingIn: Loading | null = null,
+  offeredIn: Offered | null = null
 ): BuildUp {
   const groups: PricedGroup[] = [];
   let buy = 0;
@@ -115,9 +129,10 @@ export function priceBuildUp(
   }
 
   let contingency: BuildUp["contingency"] = null;
-  if (s.contingencyOn && (ductBuy > 0 || s.contingencyHours > 0)) {
+  /* only ductwork carries it: a wall split has none to cover */
+  if (s.contingencyOn && ductBuy > 0) {
     const cBuy = Math.round((ductBuy * s.contingencyPct) / 100);
-    contingency = { buyCents: cBuy, sellCents: markup(cBuy, s.materialMarkupPct), hours: ductBuy > 0 ? s.contingencyHours : 0 };
+    contingency = { buyCents: cBuy, sellCents: markup(cBuy, s.materialMarkupPct), hours: s.contingencyHours };
     buy += contingency.buyCents;
     sell += contingency.sellCents;
   }
@@ -130,17 +145,28 @@ export function priceBuildUp(
   const hours = contingency?.hours ?? 0;
   const visitsSell = visitRows.reduce((a, v) => a + v.sellCents, 0);
   const labourSell = visitsSell + Math.round(hours * s.labourRateCents);
+  const asked = !!loadingIn && loadingIn.pct > 0;
   const loading =
-    loadingIn && loadingIn.pct > 0 && loadingIn.reason.trim()
+    asked && loadingIn.reason.trim()
       ? { pct: loadingIn.pct, reason: loadingIn.reason.trim(), sellCents: Math.round((visitsSell * loadingIn.pct) / 100) }
       : null;
 
-  const exGst = sell + labourSell + (loading?.sellCents ?? 0);
+  const buildExGst = sell + labourSell + (loading?.sellCents ?? 0);
+  const below = !!offeredIn && offeredIn.exGstCents > 0 && offeredIn.exGstCents < buildExGst;
+  const offered =
+    below && offeredIn!.reason.trim()
+      ? { exGstCents: offeredIn!.exGstCents, reason: offeredIn!.reason.trim(), discountCents: buildExGst - offeredIn!.exGstCents }
+      : null;
+  const exGst = offered ? offered.exGstCents : buildExGst;
   const gst = Math.round(exGst / 10);
   return {
     groups,
     contingency,
     loading,
+    loadingNeedsReason: asked && !loading,
+    offered,
+    offeredNeedsReason: below && !offered,
+    buildExGstCents: buildExGst,
     labour: { personDays, hours, sellCents: labourSell, visits: visitRows },
     buyCents: buy,
     exGstCents: exGst,
@@ -216,3 +242,35 @@ export function wallBracketCode(outdoorWidthMm: number | null, outdoorWeightKg: 
     the half length (a wall split's run is 1.5 of them; the rest of the
     length goes on the next job). */
 export const trunkingLengths = (metres: number) => Math.max(0, Math.ceil(metres / 1.2 - 1e-9) / 2);
+
+/* ── what the customer sees when they ask for a breakdown ─────────────────
+   Every line at its price, and the amounts that are ours alone — the
+   difficulty loading, the duct contingency, and a discount we chose to give —
+   spread across all of them in proportion, so the lines add up to the price
+   offered and nothing in it is named. Our own breakdown keeps them as lines
+   (the loading as a grey one, with a note that it's hidden from the client).
+   Rounded by largest remainder, so the lines sum to the cent. */
+
+export type CustomerLine = { group: string; name: string; qty: number; sellCents: number };
+export type CustomerBreakdown = { lines: CustomerLine[]; exGstCents: number; hiddenCents: number };
+
+export function customerBreakdown(b: BuildUp): CustomerBreakdown {
+  const base: CustomerLine[] = [
+    ...b.groups.flatMap((g) => g.lines.map((l) => ({ group: g.name, name: l.name, qty: l.qty, sellCents: l.sellCents }))),
+    ...b.labour.visits.map((v) => ({ group: "Labour", name: v.stage, qty: v.personDays, sellCents: v.sellCents })),
+  ].filter((l) => l.sellCents > 0);
+  const baseSum = base.reduce((a, l) => a + l.sellCents, 0);
+  const hidden = b.exGstCents - baseSum;
+  if (baseSum <= 0 || hidden === 0) return { lines: base, exGstCents: b.exGstCents, hiddenCents: hidden };
+
+  const shares = base.map((l) => (l.sellCents / baseSum) * hidden);
+  const floors = shares.map((x) => Math.floor(x));
+  let left = hidden - floors.reduce((a, x) => a + x, 0);
+  const order = shares.map((x, i) => [x - Math.floor(x), i] as const).sort((a, c) => c[0] - a[0]);
+  for (const [, i] of order) {
+    if (left <= 0) break;
+    floors[i]! += 1;
+    left -= 1;
+  }
+  return { lines: base.map((l, i) => ({ ...l, sellCents: l.sellCents + floors[i]! })), exGstCents: b.exGstCents, hiddenCents: hidden };
+}

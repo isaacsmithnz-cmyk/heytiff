@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* The client half of ingestion: WATCHING the server read a document, and
    restarting it if nobody is.
@@ -236,9 +237,9 @@ export function useKbIngest(processingIds: readonly string[] = []): KbIngestHand
     running.current = true;
     setBusy(true);
 
-    void (async () => {
-      const stopped = () => abort.current?.signal.aborted ?? false;
-      try {
+    const stopped = () => abort.current?.signal.aborted ?? false;
+    void withCleanup(
+      async () => {
         while (queue.current.length > 0 && !stopped()) {
           const id = queue.current.shift();
           if (!id) continue;
@@ -254,11 +255,12 @@ export function useKbIngest(processingIds: readonly string[] = []): KbIngestHand
             },
           });
         }
-      } finally {
+      },
+      () => {
         running.current = false;
         setBusy(false);
       }
-    })();
+    );
   }, [router]);
 
   const start = useCallback(

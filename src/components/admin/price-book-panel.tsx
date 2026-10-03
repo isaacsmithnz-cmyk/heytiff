@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CategoryKey } from "@/lib/quotes/categories";
 import { COLUMN_FIELDS, pricingWords, type ColumnField, type Columns } from "@/lib/quotes/price-book";
 import type { CategoryCount, ModelOffers, SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* THE PRICE BOOK in Admin → Quoting: the suppliers the business buys from,
    each with its latest file and how it prices, and one search that finds a
@@ -42,6 +43,38 @@ type ImportAnswer =
 /** A file waiting for its columns to be matched. */
 type Matching = { supplier: SupplierView; file: File; preview: Preview };
 
+type SearchAnswer = { ok: boolean; models?: ModelOffers[]; total?: number };
+
+/* What each answer says, read OUT HERE rather than in the try/catch that
+   asks for it: React Compiler 1.0 cannot lower a value block — a ternary,
+   an `&&`, a `??` — inside a try, and gives up on the whole component when
+   it meets one. Each is still called from inside the same try, so a
+   malformed answer still lands in the same catch. */
+
+/** The file's first rows, when the refusal is that its headings aren't ones HeyTiff reads. */
+const columnsToMatch = (a: Extract<ImportAnswer, { ok: false }>) => (a.needsColumns ? a.preview : undefined);
+
+/** What a price list that went in changed, said once. */
+const importedNote = (name: string, a: Extract<ImportAnswer, { ok: true }>) => {
+  const { read, changed, added, gone } = a.summary;
+  const parts = [
+    `${read.toLocaleString("en-AU")} items read`,
+    changed ? `${changed.toLocaleString("en-AU")} prices changed` : "no price changed",
+    added ? `${added.toLocaleString("en-AU")} new` : null,
+    gone ? `${gone.toLocaleString("en-AU")} no longer listed` : null,
+  ].filter(Boolean);
+  const twice = a.conflicts.length
+    ? `Listed twice at different prices, the first kept: ${[...new Set(a.conflicts.map((c) => c.code))].join(", ")}.`
+    : undefined;
+  return { tone: "ok" as const, text: `${name} price list in: ${parts.join(", ")}.`, detail: twice };
+};
+
+const addRefusal = (reason: string | undefined) => reason ?? "That supplier couldn't be added.";
+
+const foundModels = (a: SearchAnswer) => (a.ok ? (a.models ?? []) : []);
+/** A shelf counts what it holds; a search of the whole book doesn't. */
+const shelfTotal = (a: SearchAnswer, on: CategoryKey | null) => (a.ok && on ? (a.total ?? null) : null);
+
 export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]; onImported: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string; detail?: string } | null>(null);
@@ -70,39 +103,30 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
   const upload = async (s: SupplierView, file: File, layout?: { columns: Columns; pricing: "net" | "list_less"; discountPct: number }) => {
     setBusy(s.key);
     setNote(null);
-    try {
-      const form = new FormData();
-      form.set("supplier", s.key);
-      form.set("file", file);
-      if (layout) {
-        form.set("columns", JSON.stringify(layout.columns));
-        form.set("pricing", layout.pricing);
-        form.set("discountPct", String(layout.discountPct));
+    await withCleanup(async () => {
+      try {
+        const form = new FormData();
+        form.set("supplier", s.key);
+        form.set("file", file);
+        if (layout) {
+          form.set("columns", JSON.stringify(layout.columns));
+          form.set("pricing", layout.pricing);
+          form.set("discountPct", String(layout.discountPct));
+        }
+        const a = (await (await fetch(ROUTE, { method: "POST", body: form })).json()) as ImportAnswer;
+        if (!a.ok) {
+          const preview = columnsToMatch(a);
+          if (preview) setMatching({ supplier: s, file, preview });
+          else setNote({ tone: "bad", text: a.reason });
+          return;
+        }
+        setMatching(null);
+        setNote(importedNote(s.name, a));
+        onImported();
+      } catch {
+        setNote({ tone: "bad", text: "The file couldn't be sent. Try again." });
       }
-      const a = (await (await fetch(ROUTE, { method: "POST", body: form })).json()) as ImportAnswer;
-      if (!a.ok) {
-        if (a.needsColumns && a.preview) setMatching({ supplier: s, file, preview: a.preview });
-        else setNote({ tone: "bad", text: a.reason });
-        return;
-      }
-      setMatching(null);
-      const { read, changed, added, gone } = a.summary;
-      const parts = [
-        `${read.toLocaleString("en-AU")} items read`,
-        changed ? `${changed.toLocaleString("en-AU")} prices changed` : "no price changed",
-        added ? `${added.toLocaleString("en-AU")} new` : null,
-        gone ? `${gone.toLocaleString("en-AU")} no longer listed` : null,
-      ].filter(Boolean);
-      const twice = a.conflicts.length
-        ? `Listed twice at different prices, the first kept: ${[...new Set(a.conflicts.map((c) => c.code))].join(", ")}.`
-        : undefined;
-      setNote({ tone: "ok", text: `${s.name} price list in: ${parts.join(", ")}.`, detail: twice });
-      onImported();
-    } catch {
-      setNote({ tone: "bad", text: "The file couldn't be sent. Try again." });
-    } finally {
-      setBusy(null);
-    }
+    }, () => setBusy(null));
   };
 
   const add = async () => {
@@ -110,42 +134,42 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
     if (name.length < 2) return;
     setBusy("add");
     setNote(null);
-    try {
-      const a = (await (
-        await fetch("/api/quoting/suppliers", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ name }),
-        })
-      ).json()) as { ok: boolean; reason?: string };
-      if (!a.ok) {
-        setNote({ tone: "bad", text: a.reason ?? "That supplier couldn't be added." });
-        return;
+    await withCleanup(async () => {
+      try {
+        const a = (await (
+          await fetch("/api/quoting/suppliers", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name }),
+          })
+        ).json()) as { ok: boolean; reason?: string };
+        if (!a.ok) {
+          setNote({ tone: "bad", text: addRefusal(a.reason) });
+          return;
+        }
+        setNewName("");
+        setNote({ tone: "ok", text: `${name} added. Upload its price list.` });
+        onImported();
+      } catch {
+        setNote({ tone: "bad", text: "That supplier couldn't be added. Try again." });
       }
-      setNewName("");
-      setNote({ tone: "ok", text: `${name} added. Upload its price list.` });
-      onImported();
-    } catch {
-      setNote({ tone: "bad", text: "That supplier couldn't be added. Try again." });
-    } finally {
-      setBusy(null);
-    }
+    }, () => setBusy(null));
   };
 
   const look = async (value: string, on: CategoryKey | null) => {
     setSearching(true);
-    try {
-      const params = new URLSearchParams({ q: value.trim() });
-      if (on) params.set("category", on);
-      const a = (await (await fetch(`${ROUTE}?${params}`)).json()) as { ok: boolean; models?: ModelOffers[]; total?: number };
-      setModels(a.ok ? (a.models ?? []) : []);
-      setTotal(a.ok && on ? (a.total ?? null) : null);
-    } catch {
-      setModels([]);
-      setTotal(null);
-    } finally {
-      setSearching(false);
-    }
+    await withCleanup(async () => {
+      try {
+        const params = new URLSearchParams({ q: value.trim() });
+        if (on) params.set("category", on);
+        const a = (await (await fetch(`${ROUTE}?${params}`)).json()) as SearchAnswer;
+        setModels(foundModels(a));
+        setTotal(shelfTotal(a, on));
+      } catch {
+        setModels([]);
+        setTotal(null);
+      }
+    }, () => setSearching(false));
   };
 
   const search = (value: string) => {

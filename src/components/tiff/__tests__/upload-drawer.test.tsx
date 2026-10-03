@@ -82,6 +82,39 @@ describe("what the drawer offers before anything is stored", () => {
     expect(screen.getByText(/too big/)).toBeInTheDocument();
   });
 
+  it("tells an owner how many whole data books are left this month, and takes one", async () => {
+    render(
+      <UploadDrawer large={{ left: 2, resetsOn: "2026-11-01" }} progress={{}} onIngest={jest.fn()} onClose={jest.fn()} />
+    );
+    expect(screen.getByText(/2 of 2 large uploads left this month/)).toBeInTheDocument();
+    await drop([sized(pdf("2024_M-S-P_DATA_BOOK.pdf"), 131 * 1024 * 1024)]);
+    expect(screen.queryByText(/too big/)).toBeNull();
+    // and the upload itself is told the allowance, or it refuses the file again
+    uploadKbFile.mockResolvedValue({ ok: true, documentId: "doc-big" });
+    await userEvent.click(screen.getByRole("button", { name: /Upload 1 document/ }));
+    await waitFor(() => expect(uploadKbFile).toHaveBeenCalled());
+    expect(uploadKbFile.mock.calls[0][1]).toMatchObject({ large: { left: 2, resetsOn: "2026-11-01" } });
+  });
+
+  it("refuses a third large file dropped in with two already waiting", async () => {
+    render(
+      <UploadDrawer large={{ left: 2, resetsOn: "2026-11-01" }} progress={{}} onIngest={jest.fn()} onClose={jest.fn()} />
+    );
+    await drop([
+      sized(pdf("book-1.pdf"), 120 * 1024 * 1024),
+      sized(pdf("book-2.pdf"), 120 * 1024 * 1024),
+      sized(pdf("book-3.pdf"), 120 * 1024 * 1024),
+    ]);
+    expect(screen.getAllByText(/large uploads are used/)).toHaveLength(1);
+  });
+
+  it("says when the month's large uploads are used", () => {
+    render(
+      <UploadDrawer large={{ left: 0, resetsOn: "2026-11-01" }} progress={{}} onIngest={jest.fn()} onClose={jest.fn()} />
+    );
+    expect(screen.getByText(/large uploads \(up to 150 MB\) are used; more from 1 November/)).toBeInTheDocument();
+  });
+
   it("lets a file be taken back out of the list before anything starts", async () => {
     render(<UploadDrawer progress={{}} onIngest={jest.fn()} onClose={jest.fn()} />);
     await drop([pdf("fault-codes.pdf")]);

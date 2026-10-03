@@ -75,6 +75,15 @@ const listJobPicklist = jest.fn(async (): Promise<unknown[]> => []);
 const setPicklistItemPicked = jest.fn(async (): Promise<unknown> => null);
 const removePicklistItem = jest.fn(async () => {});
 const addJobPicklistItem = jest.fn(async (): Promise<unknown> => ({}));
+/* Check in / check out — controllable, for the Installation tests below. */
+const readMyCheckIn = jest.fn(async (): Promise<unknown> => null);
+const checkIn = jest.fn(async (_job: string): Promise<unknown> => null);
+const checkOut = jest.fn(async (_job: string): Promise<unknown> => null);
+jest.mock("@/app/actions/job-check-ins", () => ({
+  readMyCheckIn: () => readMyCheckIn(),
+  checkIn: (j: string) => checkIn(j),
+  checkOut: (j: string) => checkOut(j),
+}));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: (...a: unknown[]) => listJobPicklist(...(a as [])),
   setPicklistItemPicked: (...a: unknown[]) => setPicklistItemPicked(...(a as [])),
@@ -231,7 +240,7 @@ jest.mock("@/app/actions/job-note-sm8", () => ({
 }));
 
 
-import { JobSheet } from "../job-sheet";
+import { JobSheet, visitLength } from "../job-sheet";
 
 /* The summary refresh posts to a route handler; jsdom has no fetch, and a
    real one would be a network call from a unit test anyway. */
@@ -386,8 +395,14 @@ const props = {
     face, where the old suite waited on the Visits heading. */
 const detailLanded = () => screen.findByText("Rose Bay NSW 2029");
 
+/* The rail holds Summary, Timeline, Billing, Photos and Files; the quote,
+   the visits and the checklist open from their steps on the progress line.
+   The old face names still read here, so a test says what it opens. */
+const RAIL: Record<string, string> = { Diary: "Timeline", Money: "Billing", Documents: "Files" };
+const STEP: Record<string, RegExp> = { Visits: /^Installation/, Checklist: /^Materials sorted/, Quote: /^Quoted/ };
 const openTab = async (name: string) => {
-  await userEvent.click(screen.getByRole("tab", { name }));
+  if (STEP[name]) await userEvent.click(screen.getByRole("button", { name: STEP[name] }));
+  else await userEvent.click(screen.getByRole("tab", { name: RAIL[name] ?? name }));
 };
 
 /** Queries scoped to one face's panel. The inactive panels are `hidden` (so
@@ -409,23 +424,24 @@ const bodyLayers = () =>
 
 /* ── the anatomy ── */
 
-describe("the card is tabs", () => {
-  it("wears the fixed tab set, Summary first, and lands on it", async () => {
+describe("the card is a progress line over a rail", () => {
+  it("wears the fixed rail, Summary first, and lands on it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} moneyVisible manage />);
     await detailLanded();
 
     expect(
       screen.getAllByRole("tab").map((t) => t.textContent)
-    ).toEqual([
-      "Summary",
-      "Diary",
-      "Quote",
-      "Money",
-      "Visits",
-      "Checklist",
-      "Photos",
-      "Documents",
+    ).toEqual(["Summary", "Timeline", "Billing", "Photos", "Files", "Compliance"]);
+    const line = within(screen.getByRole("navigation", { name: "Where the job is up to" }));
+    expect(line.getAllByRole("button").map((b) => b.querySelector("b")?.textContent)).toEqual([
+      "Enquiry",
+      "Quoted",
+      "Accepted",
+      "Deposit paid",
+      "Materials sorted",
+      "Installation",
+      "Paid",
     ]);
     expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute(
       "aria-selected",
@@ -440,16 +456,21 @@ describe("the card is tabs", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Billing" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Deposit paid/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Paid/ })).toBeNull();
   });
 
-  /* THE QUOTE TAB IS OFFICE WORK and spends API credit on every draft: it
-     is there for whoever runs the board, absent for everyone else. */
-  it("has no Quote tab without Workboard manage", async () => {
+  /* THE QUOTE IS OFFICE WORK and spends API credit on every draft: it is
+     there for whoever runs the board. For everyone else the quote steps
+     open the summary. */
+  it("opens the summary from Quoted without Workboard manage", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} moneyVisible />);
     await detailLanded();
-    expect(screen.queryByRole("tab", { name: "Quote" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /^Quoted/ }));
+    expect(document.querySelector("#jcsec-quote")).toBeNull();
+    expect(document.querySelector("#jcsec-summary")).not.toHaveAttribute("hidden");
   });
 
   /* A DOOR THAT KNOWS WHAT IT CAME FOR opens the card on that face — the
@@ -458,7 +479,7 @@ describe("the card is tabs", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} initialTab="diary" />);
     await detailLanded();
-    expect(screen.getByRole("tab", { name: "Diary" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Timeline" })).toHaveAttribute("aria-selected", "true");
     expect(document.querySelector("#jcsec-diary")).not.toHaveAttribute("hidden");
     expect(document.querySelector("#jcsec-summary")).toHaveAttribute("hidden");
   });
@@ -558,19 +579,19 @@ describe("the band", () => {
 /* ── the Summary face ── */
 
 describe("the Summary face", () => {
-  it("leads with the scope, verbatim, and keeps what-was-done beside it", async () => {
+  it("leads with the job, verbatim, and keeps what-was-done under it", async () => {
     readMirrorJob.mockResolvedValueOnce(
       card(detail({ workDone: "Installed and commissioned." }))
     );
     render(<JobSheet row={row()} {...props} />);
 
     expect(await screen.findByText("Supply and install Daikin multi system")).toBeInTheDocument();
-    expect(screen.getByText("Scope")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "The job" })).toBeInTheDocument();
     expect(screen.getByText("What was done")).toBeInTheDocument();
     expect(screen.getByText("Installed and commissioned.")).toBeInTheDocument();
   });
 
-  it("renders the stored lead and its points with the stamp — when it changed and why", async () => {
+  it("renders the stored points as bullets with the stamp — when it changed and why", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(
       record({
@@ -585,7 +606,9 @@ describe("the Summary face", () => {
     );
     render(<JobSheet row={row()} {...props} />);
 
-    expect(await screen.findByText("First fix done across two visits.")).toBeInTheDocument();
+    expect(await screen.findByText("The crew returns Thursday")).toBeInTheDocument();
+    /* the lead was the header Isaac called messy: with points it goes */
+    expect(screen.queryByText("First fix done across two visits.")).toBeNull();
     expect(screen.getByText("Where it’s up to")).toBeInTheDocument();
     expect(screen.getByText("Updated Thu 13 Aug, Nathan's note")).toBeInTheDocument();
     /* each point is its own list line, not a clause of the lead */
@@ -619,14 +642,55 @@ describe("the Summary face", () => {
     expect(screen.queryByText("Where it’s up to")).toBeNull();
   });
 
-  it("renders a contact's email as a mailto link, in Contacts", async () => {
+  it("a summary written as one sentence is its one bullet", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(
+      record({ summary: { lead: "Quoted, waiting on an answer.", points: [], stamp: "s-1", eventOn: null, eventLabel: null } })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    expect(await screen.findByText("Quoted, waiting on an answer.")).toBeInTheDocument();
+    expect([...document.querySelectorAll(".wb2-jcups-pts li")].map((p) => p.textContent)).toEqual(["Quoted, waiting on an answer."]);
+  });
+
+  it("folds long words to two lines and opens the rest in place", async () => {
+    const long = "Supply and install a 14 kW ducted system. ".repeat(8).trim();
+    readMirrorJob.mockResolvedValueOnce(card(detail({ description: long })));
+    render(<JobSheet row={row()} {...props} />);
+    const words = await screen.findByText(long);
+    expect(words).toHaveClass("folded");
+    await userEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(words).not.toHaveClass("folded");
+    expect(screen.getByRole("button", { name: "Show less" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("counts the hours on site beside the days, newest first", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      card(
+        detail({
+          timeOnSite: { minutes: 1050, sessions: 3 },
+          visits: [
+            { day: "2026-09-01", minutes: 510, crew: [{ name: "Luke", title: null }, { name: "Jake", title: null }] },
+            { day: "2026-08-31", minutes: 540, crew: [{ name: "Luke", title: null }] },
+          ],
+        })
+      )
+    );
+    render(<JobSheet row={row()} {...props} />);
+    const onSite = within(await screen.findByRole("region", { name: "On site" }));
+    expect(onSite.getByText("17h 30m")).toBeInTheDocument();
+    expect(onSite.getByText("2 days")).toBeInTheDocument();
+    expect(onSite.getByText("Luke, Jake")).toBeInTheDocument();
+  });
+
+  it("puts the customer in the rail: a contact's email as a mailto link, and their role", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
 
-    const link = (await screen.findByText("Email")) as HTMLAnchorElement;
+    const cust = within(await screen.findByRole("region", { name: "Customer" }));
+    const link = (await cust.findByText("josh@lsdb.com.au")) as HTMLAnchorElement;
     expect(link.getAttribute("href")).toBe("mailto:josh@lsdb.com.au");
-    expect(screen.getByText("Josh")).toBeInTheDocument();
-    expect(screen.getByText("property manager")).toBeInTheDocument();
+    expect(cust.getByText("Josh")).toBeInTheDocument();
+    expect(cust.getByText("Property manager")).toBeInTheDocument();
   });
 
   it("dials a phone number, and refuses a field holding more than one", async () => {
@@ -710,7 +774,8 @@ describe("the summary refresh", () => {
     expect(url).toBe("/api/workboard/job-summary");
     expect(JSON.parse(String(init.body))).toEqual({ job: "j-1" });
 
-    expect(await screen.findByText("Fresh words about the job.")).toBeInTheDocument();
+    expect(await screen.findByText("A fresh point")).toBeInTheDocument();
+    expect(screen.queryByText("Old words.")).toBeNull();
     expect(screen.getByText("Updated Fri 14 Aug, a site visit")).toBeInTheDocument();
   });
 
@@ -1098,7 +1163,7 @@ describe("the attention strip", () => {
     expect(strip.getByText(/Flagged in ServiceM8/)).toBeInTheDocument();
 
     await userEvent.click(strip.getByRole("button", { name: /Open in the diary/ }));
-    expect(screen.getByRole("tab", { name: "Diary", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Timeline", selected: true })).toBeInTheDocument();
     const lit = face("diary").getByText("Send a 20% deposit invoice").closest(".wb2-ev");
     expect(lit).toHaveClass("flag");
   });
@@ -1376,7 +1441,7 @@ describe("notes to ServiceM8 on the card", () => {
 
     const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
     await userEvent.click(strip.getByRole("button", { name: "Reply" }));
-    expect(screen.getByRole("tab", { name: "Diary", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Timeline", selected: true })).toBeInTheDocument();
     const f = face("diary");
     await userEvent.type(f.getByPlaceholderText(NOTE_WORDS.door.replyPlaceholder), "on my way");
     await userEvent.click(f.getByRole("button", { name: NOTE_WORDS.door.sendReply }));
@@ -1601,6 +1666,52 @@ const crewLine = (f: ReturnType<typeof face>, day: string): string =>
 
 
 describe("the Visits face", () => {
+  it("checks the reader in on this job, and the card reads the job again", async () => {
+    readMyCheckIn.mockResolvedValueOnce(null);
+    checkIn.mockResolvedValueOnce({ jobUuid: "j-1", jobNumber: "3137", since: "2026-10-02T21:32:00Z" });
+    readMirrorJob.mockResolvedValue(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Visits");
+    const reads = readMirrorJob.mock.calls.length;
+    await userEvent.click(face("visits").getByRole("button", { name: "Check in" }));
+    expect(checkIn).toHaveBeenCalledWith("j-1");
+    expect(await face("visits").findByText(/^On site since 7:32\sam$/)).toBeInTheDocument();
+    expect(face("visits").getByRole("button", { name: "Check out" })).toBeInTheDocument();
+    await waitFor(() => expect(readMirrorJob.mock.calls.length).toBe(reads + 1));
+    readMirrorJob.mockReset();
+  });
+
+  it("offers to check in here when the reader is on another job, and says which", async () => {
+    readMyCheckIn.mockResolvedValueOnce({ jobUuid: "j-other", jobNumber: "3225", since: "2026-10-02T21:00:00Z" });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Visits");
+    expect(await face("visits").findByText(/^Checked in at #3225 since 7:00\sam$/)).toBeInTheDocument();
+    expect(face("visits").getByRole("button", { name: "Check in here" })).toBeInTheDocument();
+  });
+
+  it("says who is on site now on the day's card", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      card(detail({ visits: [{ day: "2026-10-03", minutes: 90, crew: [{ name: "Luke Ingold", title: null, onSite: true }] }] }))
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Visits");
+    expect(crewLine(face("visits"), "Sat 3 Oct")).toBe("Luke Ingold, on site now");
+  });
+
+  it("names a visit's length by the hours each person spent there", () => {
+    const two = [{}, {}];
+    expect(visitLength({ minutes: 960, crew: two })).toBe("Full day");
+    expect(visitLength({ minutes: 300, crew: two })).toBe("Half day");
+    expect(visitLength({ minutes: 20, crew: [{}] })).toBe("Pop-in");
+    /* a person who left a check-in open adds no hours, so they don't divide them */
+    expect(visitLength({ minutes: 406, crew: [{}, { leftOpen: true }] })).toBe("Full day");
+    expect(visitLength({ minutes: 0, crew: [{ leftOpen: true }] })).toBe("");
+  });
+
   it("lists every visit with who went, tallies the heading, and puts the booking first", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
@@ -1623,7 +1734,46 @@ describe("the Visits face", () => {
     expect(f.getByText(/Lyle Irving, until Thu 20 Aug/)).toBeInTheDocument();
   });
 
-  it("shows the recent visits and opens the rest in place", async () => {
+  it("names who left a check-in open, and the hours leave them out", async () => {
+    /* #3237's 12 Sep and 31 Aug, off the live mirror (sm8CheckInLeftOpen):
+       ServiceM8 counted 54h and 38h 57m; Oleksii's own 6h 46m and
+       Michael's 1h 45m are all anyone recorded. */
+    readMirrorJob.mockResolvedValueOnce(
+      card(
+        detail({
+          timeOnSite: { minutes: 511, sessions: 2 },
+          visits: [
+            {
+              day: "2026-09-12",
+              minutes: 406,
+              crew: [
+                { name: "Oleksii Khalameida", title: "HVAC" },
+                { name: "Louis Jones", title: "HVAC", leftOpen: true },
+              ],
+            },
+            {
+              day: "2026-08-31",
+              minutes: 0,
+              crew: [{ name: "Louis Jones", title: null, leftOpen: true }],
+            },
+          ],
+        })
+      )
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Visits");
+
+    const f = face("visits");
+    expect(crewLine(f, "Sat 12 Sept")).toBe("Oleksii Khalameida, HVAC — Louis Jones, HVAC, check-in left open");
+    expect(f.getByText("6h 46m")).toBeInTheDocument();
+    /* a day with nothing believable says no figure, never "0m" */
+    expect(crewLine(f, "Mon 31 Aug")).toBe("Louis Jones, check-in left open");
+    expect(f.getByText("Mon 31 Aug").parentElement?.lastElementChild?.textContent).toBe("—");
+    expect(f.queryByText("0m")).toBeNull();
+  });
+
+  it("lays every visit out as a card, oldest first, numbered by day", async () => {
     const many = Array.from({ length: 12 }, (_, i) => ({
       day: `2026-08-${String(20 - i).padStart(2, "0")}`,
       minutes: 60,
@@ -1634,13 +1784,15 @@ describe("the Visits face", () => {
     await detailLanded();
     await openTab("Visits");
 
-    const f = face("visits");
-    expect(f.getByText("Thu 20 Aug")).toBeInTheDocument();
-    expect(f.queryByText("Wed 12 Aug")).toBeNull();
-
-    await userEvent.click(f.getByText("All 12 visits"));
-    expect(f.getByText("Wed 12 Aug")).toBeInTheDocument();
-    expect(f.queryByText("All 12 visits")).toBeNull();
+    const strip = within(screen.getByRole("list", { name: "Visits, oldest first" }));
+    const cards = strip.getAllByRole("listitem");
+    expect(cards).toHaveLength(12);
+    expect(within(cards[0]!).getByText("Day 1")).toBeInTheDocument();
+    expect(within(cards[0]!).getByText("Sun 9 Aug")).toBeInTheDocument();
+    expect(within(cards[11]!).getByText("Day 12")).toBeInTheDocument();
+    expect(within(cards[11]!).getByText("Thu 20 Aug")).toBeInTheDocument();
+    /* an hour for one person is a pop-in */
+    expect(within(cards[0]!).getByText("Pop-in")).toBeInTheDocument();
   });
 
   it("says so when nobody has been on site and nothing is booked", async () => {
@@ -1731,6 +1883,21 @@ const familyMoney = (over: Partial<FamilyInput> = {}): FamilyMoney =>
   });
 
 describe("the Money face", () => {
+  it("reads as an invoice: bill to, the terms a segment a claim, and the balance due as the hero", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      card(detail({ contacts: [{ name: "Accounts", type: "BILLING", phone: null, altPhone: null, email: "accounts@lsdb.com.au" }] }))
+    );
+    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await openMoney();
+    const f = face("money");
+    expect(await f.findByText("Bill to")).toBeInTheDocument();
+    expect(f.getByText("accounts@lsdb.com.au")).toBeInTheDocument();
+    expect(f.getByText("Payment terms")).toBeInTheDocument();
+    expect(f.getByText("Balance due")).toBeInTheDocument();
+    expect(f.getByText("Claim")).toBeInTheDocument();
+  });
+
   const openMoney = async () => {
     await detailLanded();
     await openTab("Money");
@@ -1941,7 +2108,9 @@ describe("the Money face", () => {
     render(<JobSheet row={row()} {...props} moneyVisible />);
     await openMoney();
 
-    expect(await screen.findByText("Not yet invoiced")).toBeInTheDocument();
+    /* the claim still to bill says so in its own line, with no number */
+    const toBill = (await screen.findByText(/Not yet invoiced/)).textContent ?? "";
+    expect(toBill).not.toMatch(/Invoice #2380\b/);
     expect(screen.queryByText(/Invoice #2380 ·/)).toBeNull();
   });
 
@@ -2328,7 +2497,7 @@ describe("a card opened from a progress claim", () => {
     render(<JobSheet row={row({ number: "2380A" })} {...props} moneyVisible />);
 
     expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Money" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Billing" })).toHaveAttribute(
       "aria-selected",
       "true"
     );
@@ -2748,7 +2917,7 @@ describe("money stays behind its grant", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
 
-    expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Billing" })).toBeNull();
     expect(screen.queryByText(/Job value/)).toBeNull();
   });
 
@@ -3024,13 +3193,13 @@ describe("files on the job", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    await openTab("Documents");
+    await openTab("Compliance");
 
-    await userEvent.click(await face("documents").findByRole("button", { name: /Safe Work Method Statement/ }));
+    await userEvent.click(await face("compliance").findByRole("button", { name: /Safe Work Method Statement/ }));
     const dialog = await screen.findByRole("dialog", { name: "Safe Work Method Statement" });
     expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("/swms/v-2");
     /* the job already has its SWMS, so the head doesn't offer a second */
-    expect(face("documents").queryByRole("button", { name: "Create SWMS" })).toBeNull();
+    expect(face("compliance").queryByRole("button", { name: "Create SWMS" })).toBeNull();
   });
 
   /* a SWMS is signed BEFORE the work: on a job ServiceM8 has finished, the
@@ -3041,19 +3210,19 @@ describe("files on the job", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     const { unmount } = render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    await openTab("Documents");
-    expect(await face("documents").findByRole("button", { name: "Create SWMS" })).toBeEnabled();
+    await openTab("Compliance");
+    expect(await face("compliance").findByRole("button", { name: "Create SWMS" })).toBeEnabled();
     unmount();
 
     swmsActions.listSwmsForJob.mockClear();
     readMirrorJob.mockResolvedValueOnce(card(detail({ status: "Completed" })));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    await openTab("Documents");
+    await openTab("Compliance");
     /* not a greyed-out button that says nothing: there is nothing to create */
     await waitFor(() => expect(swmsActions.listSwmsForJob).toHaveBeenCalled());
     await act(async () => {});
-    expect(face("documents").queryByRole("button", { name: "Create SWMS" })).toBeNull();
+    expect(face("compliance").queryByRole("button", { name: "Create SWMS" })).toBeNull();
   });
 
   /* PAPER WE FILE OURSELVES. The certificate, the builder's plans — they had
@@ -3990,7 +4159,7 @@ describe("the job's own checklist", () => {
   it("a checklist that will not load never takes the sheet down", async () => {
     listJobPicklist.mockRejectedValue(new Error("offline"));
     render(<JobSheet row={row()} {...props} />);
-    expect(await screen.findByText("Scope")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "The job" })).toBeInTheDocument();
     await openTab("Checklist");
     expect(screen.queryByText("Materials")).not.toBeInTheDocument();
   });
@@ -4037,14 +4206,14 @@ describe("compliance on the card", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} onToast={onToast} />);
     await detailLanded();
-    await openTab("Documents");
+    await openTab("Compliance");
 
-    expect(await face("documents").findByText("Public liability")).toBeInTheDocument();
+    expect(await face("compliance").findByText("Public liability")).toBeInTheDocument();
     expect(compliance.listJobPapers).toHaveBeenCalledWith("j-1");
     /* nothing ticked, no footer */
     expect(screen.queryByRole("button", { name: "Email documents" })).toBeNull();
 
-    await userEvent.click(face("documents").getByRole("checkbox", { name: "Select Public liability" }));
+    await userEvent.click(face("compliance").getByRole("checkbox", { name: "Select Public liability" }));
     const bar = screen.getByText("1 document ticked").closest(".wb2-shft") as HTMLElement;
     /* THE CARD'S FOOTER, under the scrolling body — not inside it */
     expect(bar.parentElement).toHaveClass("wb2-sheet");
@@ -4064,7 +4233,7 @@ describe("compliance on the card", () => {
     await waitFor(() => expect(onToast).toHaveBeenCalledWith("Email sent to josh@lsdb.com.au"));
     /* sent: the ticks clear and the footer goes with them */
     expect(screen.queryByText("1 document ticked")).toBeNull();
-    expect(face("documents").getByRole("checkbox", { name: "Select Public liability" })).not.toBeChecked();
+    expect(face("compliance").getByRole("checkbox", { name: "Select Public liability" })).not.toBeChecked();
 
     /* and the diary says what went, without a reload */
     await openTab("Diary");
@@ -4083,29 +4252,41 @@ describe("compliance on the card", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    await openTab("Documents");
+    await openTab("Compliance");
 
-    await userEvent.click(await face("documents").findByRole("button", { name: "Add compliance" }));
-    const chooser = await face("documents").findByRole("group", { name: "Add compliance" });
+    await userEvent.click(await face("compliance").findByRole("button", { name: "Add compliance" }));
+    const chooser = await face("compliance").findByRole("group", { name: "Add compliance" });
     await userEvent.click(await within(chooser).findByRole("checkbox", { name: /Public liability/ }));
     await userEvent.click(within(chooser).getByRole("button", { name: "Add to job" }));
 
     expect(compliance.addJobPapers).toHaveBeenCalledWith("j-1", ["c:pl"]);
-    expect(await face("documents").findByRole("checkbox", { name: "Select Public liability" })).toBeChecked();
+    expect(await face("compliance").findByRole("checkbox", { name: "Select Public liability" })).toBeChecked();
     expect(screen.getByText("1 document ticked")).toBeInTheDocument();
-    expect(face("documents").queryByRole("group", { name: "Add compliance" })).toBeNull();
+    expect(face("compliance").queryByRole("group", { name: "Add compliance" })).toBeNull();
+  });
+
+  it("keeps compliance in its own section, and the files in theirs", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Compliance");
+    expect(await face("compliance").findByText("Public liability")).toBeInTheDocument();
+    expect(face("compliance").queryByRole("button", { name: "Upload a document" })).toBeNull();
+    await openTab("Documents");
+    expect(face("documents").queryByText("Public liability")).toBeNull();
+    expect(face("documents").queryByRole("button", { name: "Add compliance" })).toBeNull();
   });
 
   it("keeps the footer to the face the ticks are on", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    await openTab("Documents");
-    await userEvent.click(await face("documents").findByRole("checkbox", { name: "Select Public liability" }));
+    await openTab("Compliance");
+    await userEvent.click(await face("compliance").findByRole("checkbox", { name: "Select Public liability" }));
     expect(screen.getByText("1 document ticked")).toBeInTheDocument();
     await openTab("Summary");
     expect(screen.queryByText("1 document ticked")).toBeNull();
-    await openTab("Documents");
+    await openTab("Compliance");
     expect(screen.getByText("1 document ticked")).toBeInTheDocument();
   });
 
@@ -4113,8 +4294,8 @@ describe("compliance on the card", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    await openTab("Documents");
-    await userEvent.click(await face("documents").findByRole("button", { name: /Public liability/ }));
+    await openTab("Compliance");
+    await userEvent.click(await face("compliance").findByRole("button", { name: /Public liability/ }));
     expect(await screen.findByTitle("Public liability")).toHaveAttribute("src", "https://signed/coc.pdf");
   });
 
@@ -4143,9 +4324,9 @@ describe("compliance on the card", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} onToast={onToast} />);
     await detailLanded();
-    await openTab("Documents");
+    await openTab("Compliance");
 
-    await userEvent.click(await face("documents").findByRole("checkbox", { name: "Select Public liability" }));
+    await userEvent.click(await face("compliance").findByRole("checkbox", { name: "Select Public liability" }));
     const bar = screen.getByText("1 document ticked").closest(".wb2-shft") as HTMLElement;
     await userEvent.click(within(bar).getByRole("button", { name: "Send to ServiceM8" }));
 
@@ -4153,7 +4334,7 @@ describe("compliance on the card", () => {
     await waitFor(() => expect(onToast).toHaveBeenCalledWith("Public liability sent to ServiceM8"));
     /* it went: the tick clears, the footer with it, and the row says so */
     expect(screen.queryByText("1 document ticked")).toBeNull();
-    expect(face("documents").getByText("In ServiceM8")).toBeInTheDocument();
+    expect(face("compliance").getByText("In ServiceM8")).toBeInTheDocument();
   });
 
   it("keeps a file that didn't go ticked, and says why in the footer until the ticks change", async () => {
@@ -4170,9 +4351,9 @@ describe("compliance on the card", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    await openTab("Documents");
+    await openTab("Compliance");
 
-    const tick = await face("documents").findByRole("checkbox", { name: "Select Public liability" });
+    const tick = await face("compliance").findByRole("checkbox", { name: "Select Public liability" });
     await userEvent.click(tick);
     await userEvent.click(screen.getByRole("button", { name: "Send to ServiceM8" }));
 
@@ -4180,7 +4361,7 @@ describe("compliance on the card", () => {
       await screen.findByText("Public liability wasn't sent. ServiceM8 said the file is too big.")
     ).toBeInTheDocument();
     expect(tick).toBeChecked();
-    expect(face("documents").getByText("Not sent to ServiceM8. ServiceM8 said the file is too big.")).toBeInTheDocument();
+    expect(face("compliance").getByText("Not sent to ServiceM8. ServiceM8 said the file is too big.")).toBeInTheDocument();
 
     await userEvent.click(tick);
     await userEvent.click(tick);
@@ -4197,9 +4378,9 @@ describe("compliance on the card", () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    await openTab("Documents");
-    expect(await face("documents").findByText("Not in ServiceM8 yet. Sending is paused.")).toBeInTheDocument();
-    expect(face("documents").queryByText("Sending to ServiceM8…")).toBeNull();
+    await openTab("Compliance");
+    expect(await face("compliance").findByText("Not in ServiceM8 yet. Sending is paused.")).toBeInTheDocument();
+    expect(face("compliance").queryByText("Sending to ServiceM8…")).toBeNull();
   });
 
   /* The copy ServiceM8's mirror brings back is left off on the SERVER, by

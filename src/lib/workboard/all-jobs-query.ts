@@ -37,6 +37,8 @@ import {
   type MediaSource,
 } from "./job-media-query";
 import { plusDays } from "./dates";
+import { readJobCheckInSessions } from "./job-check-ins-server";
+import { overriddenDays } from "./job-check-ins";
 import { summariseQuoteLines, type QuoteLine } from "./quote-worklist";
 import { sm8Handle } from "./sm8-mentions";
 import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "./job-money";
@@ -54,6 +56,7 @@ import {
 import {
   ALL_JOBS_HORIZON_DAYS,
   sm8CategoryColour,
+  sm8CheckInLeftOpen,
   sm8DateFacts,
   sm8MinutesBetween,
   type AllJobsMirrorJob,
@@ -461,7 +464,10 @@ export type MirrorJobDetail = {
   booked?: BookedEntry[];
   /** Recorded time across the job — the sum of NON-scheduled activity rows,
       which is what ServiceM8's own billing tab calls Job Time. Validated
-      against the live account: job #3137 sums to exactly its 18h 30m. */
+      against the live account: job #3137 sums to exactly its 18h 30m. LESS
+      ANY CHECK-IN LEFT OPEN (sm8CheckInLeftOpen), which ServiceM8 still
+      counts: there the tally falls short of Job Time on purpose, because
+      Job Time on #3237 includes one check-in's 47 hours. */
   timeOnSite: { minutes: number; sessions: number } | null;
   /** WHICH DAY THIS CARD IS SHOWN BY, and what to call it — derived here,
       where the account's own clock is known. The sheet cannot compute it: a
@@ -518,7 +524,8 @@ export type BookedEntry = {
 export type JobVisit = {
   /** The day itself — ServiceM8's naive stamp, sliced. */
   day: string;
-  /** Minutes recorded across every session that day. */
+  /** Minutes recorded across every session that day, less any check-in
+      left open — those add a name and no minutes. */
   minutes: number;
   /** Who went, in the order they first clocked on — and WHAT THEY ARE, off
       the staff mirror's own `job_title` (18 of the 21 live staff carry one;
@@ -527,8 +534,9 @@ export type JobVisit = {
       the card introduces people rather than just naming them. TRAVEL TIME IS
       ABSENT ON PURPOSE: ServiceM8's own diary shows it, but
       `sm8_job_activities` has no travel column, so there is nothing here to
-      say. */
-  crew: { name: string; title: string | null }[];
+      say. `leftOpen` marks someone who left a check-in open that day: on
+      site, and their time for it unknown. */
+  crew: { name: string; title: string | null; leftOpen?: true; onSite?: true }[];
 };
 
 /** A Studio design that names this job, slimmed to what a row says. */
@@ -976,20 +984,40 @@ export async function readMirrorJobDetail(
   /* The sessions, counted AND kept. The tally is what the header says; the
      per-day rows are the Visits list, which is the same read the sheet was
      already paying for and then throwing away. Two techs on one day are ONE
-     visit with two names on it — that is how a job is talked about. */
+     visit with two names on it — that is how a job is talked about. A
+     check-in left open puts its person on the day and adds no minutes to
+     either figure: the story the summary is written from repeats these, and
+     it must not repeat 47 hours nobody worked. */
+  /* CHECK-INS PRESSED ON THE CARD count as sessions, and on a day a person
+     has one, their ServiceM8 sessions on this job that day give way to it
+     (lib/workboard/job-check-ins). A stint still open is counted to now. */
+  const ours = await readJobCheckInSessions(orgId, remoteId, opts.timezone ?? null, new Date());
+  const ourDays = overriddenDays(ours.sessions);
+  const liveOn = new Map<string, Set<string>>();
+  for (const o of ours.sessions)
+    if (o.live) liveOn.set(o.start.slice(0, 10), (liveOn.get(o.start.slice(0, 10)) ?? new Set()).add(o.staffId));
+  const sessionsRead = [
+    ...acts.filter((a) => !(a.activity_was_scheduled === 0 && a.start_date && ourDays.has(`${a.start_date.slice(0, 10)}|${a.staff_uuid ?? ""}`))),
+    ...ours.sessions.map((o) => ({ uuid: o.uuid, start_date: o.start, end_date: o.end, staff_uuid: o.staffId, activity_was_scheduled: 0 })),
+  ];
+
   let minutes = 0;
   let sessions = 0;
-  const byDay = new Map<string, { minutes: number; crew: string[] }>();
-  for (const a of acts) {
+  const byDay = new Map<string, { minutes: number; crew: string[]; leftOpen: Set<string> }>();
+  for (const a of sessionsRead) {
     if (a.activity_was_scheduled !== 0 || !a.start_date || !a.end_date) continue;
     const m = sm8MinutesBetween(a.start_date, a.end_date);
     if (m === null || m <= 0) continue;
-    minutes += m;
-    sessions += 1;
+    const open = sm8CheckInLeftOpen(a.start_date, a.end_date);
+    if (!open) {
+      minutes += m;
+      sessions += 1;
+    }
     const day = dateOf(a.start_date);
     if (!day) continue;
-    const entry = byDay.get(day) ?? { minutes: 0, crew: [] };
-    entry.minutes += m;
+    const entry = byDay.get(day) ?? { minutes: 0, crew: [], leftOpen: new Set<string>() };
+    if (open) entry.leftOpen.add(a.staff_uuid ?? "");
+    else entry.minutes += m;
     entry.crew.push(a.staff_uuid ?? "");
     byDay.set(day, entry);
   }
@@ -1104,9 +1132,10 @@ export async function readMirrorJobDetail(
         /* Two sessions by one person on one day are ONE name on the visit —
            deduped by the STAFF ID now the row carries a title as well, so a
            namesake can never collapse two people into one. */
-        crew: [...new Set(v.crew.filter((id) => !!id && staffName.has(id)))].map((id) => ({
-          name: staffName.get(id)!,
+        crew: [...new Set(v.crew.filter((id) => !!id && (staffName.has(id) || ours.names.has(id))))].map((id) => ({
+          name: staffName.get(id) ?? ours.names.get(id)!,
           title: staffTitle.get(id) ?? null,
+          ...(v.leftOpen.has(id) ? { leftOpen: true as const } : liveOn.get(day)?.has(id) ? { onSite: true as const } : {}),
         })),
       })),
     queue: queueName

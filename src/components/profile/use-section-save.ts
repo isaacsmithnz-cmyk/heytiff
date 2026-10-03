@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { PreValidation } from "@/lib/staff/pre-validate";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 import type { SaveResult } from "./types";
 
 /* One card's save cycle: pre-flight, in-flight, and what came back.
@@ -22,6 +23,10 @@ export type SectionSave = {
 };
 
 const NETWORK_ERROR = "Couldn’t save — check your connection and try again.";
+
+/* out here, not inside submit's try: React Compiler 1.0 cannot lower a `??`
+   inside a try/catch, and gives up on the whole hook when it meets one */
+const fieldsOf = (res: Extract<SaveResult, { ok: false }>) => res.fields ?? [];
 
 export function useSectionSave(
   onSave?: (fields: Record<string, string>) => Promise<SaveResult>,
@@ -50,18 +55,18 @@ export function useSectionSave(
       if (!onSave) return true;
 
       setSaving(true);
-      try {
-        const res = await onSave(fields);
-        if (res.ok) return true;
-        setError(res.error);
-        setFieldErrors(res.fields ?? []);
-        return false;
-      } catch {
-        setError(NETWORK_ERROR);
-        return false;
-      } finally {
-        setSaving(false);
-      }
+      return withCleanup(async () => {
+        try {
+          const res = await onSave(fields);
+          if (res.ok) return true;
+          setError(res.error);
+          setFieldErrors(fieldsOf(res));
+          return false;
+        } catch {
+          setError(NETWORK_ERROR);
+          return false;
+        }
+      }, () => setSaving(false));
     },
     [onSave, validate, clear]
   );

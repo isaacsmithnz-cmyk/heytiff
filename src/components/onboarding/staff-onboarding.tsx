@@ -144,7 +144,9 @@ export function StaffOnboarding({
     setBadFields([]);
   };
   const bad = (field: string) => badFields.includes(field);
-  const input = (field: keyof OnboardingDraft, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
+  /* not `input`: React Compiler 1.0 reads the `<input>` this returns as the
+     helper naming itself before it exists, and refuses the whole component */
+  const textInput = (field: keyof OnboardingDraft, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <input
       id={field}
       name={field}
@@ -245,13 +247,13 @@ export function StaffOnboarding({
 
         <Group id="ob-you" title="About you">
           <Field id="first_name" label="First name" req>
-            {input("first_name", { autoComplete: "given-name", onBlur: capitalise("first_name") })}
+            {textInput("first_name", { autoComplete: "given-name", onBlur: capitalise("first_name") })}
           </Field>
           <Field id="last_name" label="Last name" req>
-            {input("last_name", { autoComplete: "family-name", onBlur: capitalise("last_name") })}
+            {textInput("last_name", { autoComplete: "family-name", onBlur: capitalise("last_name") })}
           </Field>
           <Field id="preferred_name" label="Preferred name" className="sm:col-span-2">
-            {input("preferred_name", { autoComplete: "nickname", onBlur: capitalise("preferred_name") })}
+            {textInput("preferred_name", { autoComplete: "nickname", onBlur: capitalise("preferred_name") })}
           </Field>
           <Field id="birthday" label="Date of birth">
             {/* Typed, and shaped as it is typed: see maskAuDate for why a
@@ -270,7 +272,7 @@ export function StaffOnboarding({
             />
           </Field>
           <Field id="phone" label="Mobile">
-            {input("phone", { type: "tel", autoComplete: "tel" })}
+            {textInput("phone", { type: "tel", autoComplete: "tel" })}
           </Field>
           <Field id="address" label="Home address" className="sm:col-span-2">
             {/* The staff card's own address box, Google suggestions and all. Its
@@ -291,7 +293,7 @@ export function StaffOnboarding({
 
         <Group id="ob-emergency" title="Emergency contact">
           <Field id="emergency_name" label="Name" className="sm:col-span-2">
-            {input("emergency_name", { onBlur: capitalise("emergency_name") })}
+            {textInput("emergency_name", { onBlur: capitalise("emergency_name") })}
           </Field>
           <Field id="emergency_relationship" label="Relationship">
             <select
@@ -310,7 +312,7 @@ export function StaffOnboarding({
             </select>
           </Field>
           <Field id="emergency_phone" label="Phone">
-            {input("emergency_phone", { type: "tel" })}
+            {textInput("emergency_phone", { type: "tel" })}
           </Field>
         </Group>
 

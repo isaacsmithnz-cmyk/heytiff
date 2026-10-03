@@ -4,8 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "r
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { ViewTabs, type ViewTab } from "@/components/shell/view-tabs";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import {
   createProjectFromJob,
@@ -41,6 +40,10 @@ import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteFace } from "./job-quote-face";
+import { JobProgressLine } from "./job-progress-line";
+import { JobCustomer } from "./job-customer";
+import { checkIn, checkOut, readMyCheckIn, type MyCheckIn } from "@/app/actions/job-check-ins";
+import { jobSteps, type StepKey } from "@/lib/workboard/job-steps";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { CertWizard } from "@/components/certs/cert-wizard";
 import { listCertificatesForJob } from "@/app/actions/certificates";
@@ -187,10 +190,15 @@ import type { ScheduleJobState } from "./schedule-tab";
 const MAX_CACHE_ROUNDS = 60;
 const MAX_READ_ROUNDS = 70;
 
-/** How many visits the face shows before it offers the rest. Live, the
-    median job has 2 sessions, one in ten runs past 12 and the worst runs to
-    103 — so the list has to hold its shape without a scrollbar of its own. */
-const VISITS_SHOWN = 6;
+/** A visit's length in the words the crew use (Isaac, 2026-10-02: a visit
+    can be a full day or "a 20-minute pop-in"), by the hours each person who
+    recorded time spent there. A day nobody's time can be believed has none. */
+export function visitLength(v: { minutes: number; crew: { leftOpen?: true }[] }): string {
+  const counted = v.crew.filter((c) => !c.leftOpen).length;
+  if (v.minutes <= 0 || counted === 0) return "";
+  const each = v.minutes / counted;
+  return each >= 300 ? "Full day" : each >= 120 ? "Half day" : "Pop-in";
+}
 
 /** The card's faces. A door that knows which face it wants opens on it
     with `initialTab`. */
@@ -202,8 +210,22 @@ export type JobSheetTab =
   | "visits"
   | "checklist"
   | "photos"
-  | "documents";
+  | "documents"
+  | "compliance";
 type TabKey = JobSheetTab;
+
+/** A face's name, for the faces a step opens rather than the rail. */
+const FACE_NAME: Record<TabKey, string> = {
+  summary: "Summary",
+  diary: "Timeline",
+  quote: "Quote",
+  money: "Billing",
+  visits: "Visits",
+  checklist: "Checklist",
+  photos: "Photos",
+  documents: "Files",
+  compliance: "Compliance",
+};
 
 /** A SWMS version as a page the card's viewer can hold — the printable
     document, which carries its own Print button and its own version. */
@@ -396,8 +418,15 @@ export function JobSheet({
         ? initialTab
         : "summary"
   );
+  /* THE STEP whose part is open below, when the progress line opened it;
+     null when the rail did. A door that came to book opens on Installation. */
+  const [step, setStep] = useState<StepKey | null>(() => (openBookIn || openClear ? "installation" : null));
   const [naming, setNaming] = useState(false);
-  const [allVisits, setAllVisits] = useState(false);
+  /* the visit strip, opened at its newest end */
+  const visitStrip = useRef<HTMLOListElement>(null);
+  /* WHERE THE READER IS CHECKED IN, if anywhere — undefined until read */
+  const [mine, setMine] = useState<MyCheckIn | undefined>(undefined);
+  const [checking, setChecking] = useState(false);
   /* The claim this card was opened FOR, when a clone's row was clicked. It
      names the row in the ledger — the card is always the job. */
   const [focus, setFocus] = useState<string | null>(null);
@@ -546,6 +575,22 @@ export function JobSheet({
     if (focus && moneyVisible && !touchedTab.current) setTab("money");
   }, [focus, moneyVisible]);
 
+  useEffect(() => {
+    let live = true;
+    void readMyCheckIn()
+      .then((m) => live && setMine(m))
+      .catch(() => live && setMine(null));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  /* The visit strip opens on its newest end — the day the reader came for. */
+  useEffect(() => {
+    const el = visitStrip.current;
+    if (tab === "visits" && el) el.scrollLeft = el.scrollWidth;
+  }, [tab, detail]);
+
   /* THE COMPANION READS FOLLOW THE CARD, not the row that was clicked. A
      clone's row opens its parent, so asking for the clone's files, ledger or
      picklist would fetch a different job's answers into this card. */
@@ -646,7 +691,12 @@ export function JobSheet({
       const put = await attachJobDocument(up.file.documentId, cardId);
       if (!put.ok) return put.error;
       const fresh = await readJobFiles(cardId).catch(() => null);
-      if (alive.current && fresh) setMedia(fresh);
+      /* two guards rather than one `&&`, because React Compiler 1.0 cannot
+         lower a value block inside a try/catch — and one it can't lower
+         skips the whole card */
+      if (fresh) {
+        if (alive.current) setMedia(fresh);
+      }
       return null;
     } catch (e) {
       return thrownWords(e, "That upload didn't finish.");
@@ -1006,6 +1056,29 @@ export function JobSheet({
   const money = moneyVisible ? (detail?.money ?? null) : null;
   const materials = (record?.ledger?.materials ?? []).filter((m) => !isPartialInvoiceLine(m));
   const family = record?.family ?? null;
+  const steps = useMemo(
+    () =>
+      jobSteps(
+        {
+          status: detail?.status ?? null,
+          date: detail?.date ?? null,
+          quoteDate: detail?.quoteDate ?? null,
+          workOrderDate: detail?.workOrderDate ?? null,
+          completionDate: detail?.completionDate ?? null,
+          visitDays: (detail?.visits ?? []).map((v) => v.day),
+          nextBookingDay: detail?.nextBooking?.start.slice(0, 10) ?? null,
+          materials: picklist
+            ? (() => {
+                const m = picklist.filter((p) => p.kind === "material");
+                return { total: m.length, in: m.filter((p) => p.picked).length };
+              })()
+            : null,
+          family,
+        },
+        moneyVisible
+      ),
+    [detail, picklist, family, moneyVisible]
+  );
   /* The card's own number — the PARENT's, even when a claim's row opened it. */
   const cardNumber = detail?.jobNumber ?? row.number ?? null;
   const focusClaim = claimFor(family, focus);
@@ -1482,7 +1555,10 @@ export function JobSheet({
         return res.error;
       }
       setSender(res.sender);
-      if (answer === "yes" && thenSend) sendCopy(thenSend);
+      /* guards, not one `&&` — see the note in `uploadDocument` */
+      if (answer === "yes") {
+        if (thenSend) sendCopy(thenSend);
+      }
       return null;
     } catch (e) {
       return thrownWords(e, NOTE_WORDS.press.unknown);
@@ -1734,6 +1810,21 @@ export function JobSheet({
       });
   };
 
+  /* CHECK IN / CHECK OUT — the reader, on this job. The card reads the job
+     again after, so the day's card shows them on site (or their hours). */
+  const pressCheck = (out: boolean) => {
+    if (!cardId || checking) return;
+    setChecking(true);
+    void (out ? checkOut(cardId) : checkIn(cardId))
+      .then((m) => {
+        if (!alive.current) return;
+        setMine(m);
+        void readMirrorJob(row.id).then((res) => alive.current && res.detail && setDetail(res.detail));
+      })
+      .catch((e: unknown) => alive.current && onToast(thrownWords(e, out ? "Could not check you out" : "Could not check you in")))
+      .finally(() => alive.current && setChecking(false));
+  };
+
   const removeChecklistItem = (id: string) => {
     setPicklist((cur) => (cur ?? []).filter((p) => p.id !== id));
     void removePicklistItem(id).catch((e: unknown) => onToast(thrownWords(e, "Could not remove that line")));
@@ -1765,22 +1856,34 @@ export function JobSheet({
       });
   };
 
-  /* THE TAB SET IS FIXED FROM FIRST PAINT — the money grant is known at
-     open, so no face pops in as a read lands and the thumb never jumps.
-     Once-per-job acts live behind the band's ⋯, not on a face: two buttons
-     never earned one. */
-  const tabs: ViewTab[] = [
+  /* THE RAIL — the parts of the job that aren't a step: its summary, the
+     timeline, billing, photos and files (Isaac, 2026-10-01: "the left-hand
+     side is like the selection point"). Fixed from first paint, the money
+     grant known at open, so nothing pops in as reads land. The quote, the
+     visits and the checklist open from their steps on the line above. */
+  const rail: { key: TabKey; label: string }[] = [
     { key: "summary", label: "Summary" },
-    { key: "diary", label: "Diary" },
-    /* the proposal draft is office work, and every draft spends API credit:
-       it is there for whoever runs the board, and absent otherwise */
-    ...(manage ? [{ key: "quote", label: "Quote" }] : []),
-    ...(moneyVisible ? [{ key: "money", label: "Money" }] : []),
-    { key: "visits", label: "Visits" },
-    { key: "checklist", label: "Checklist" },
+    { key: "diary", label: "Timeline" },
+    ...(moneyVisible ? [{ key: "money" as const, label: "Billing" }] : []),
     { key: "photos", label: "Photos" },
-    { key: "documents", label: "Documents" },
+    { key: "documents", label: "Files" },
+    { key: "compliance", label: "Compliance" },
   ];
+
+  /* What each step opens. The quote is office work and only there for whoever
+     runs the board; without it the quote steps open the summary. */
+  const faceOf = (k: StepKey): TabKey =>
+    k === "quoted" || k === "accepted"
+      ? manage
+        ? "quote"
+        : "summary"
+      : k === "deposit" || k === "paid"
+        ? "money"
+        : k === "materials"
+          ? "checklist"
+          : k === "installation"
+            ? "visits"
+            : "summary";
 
   const go = (key: string) => {
     touchedTab.current = true;
@@ -1788,15 +1891,32 @@ export function JobSheet({
       setFlagFocus(false);
       setReplyFor(null);
     }
+    setStep(null);
     setTab(key as TabKey);
+  };
+
+  const openStep = (k: StepKey) => {
+    go(faceOf(k));
+    setStep(k);
+  };
+
+  /* Up and down walk the rail, as a vertical tab list does. */
+  const railKey = (e: React.KeyboardEvent, i: number) => {
+    const d = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const next = rail[(i + d + rail.length) % rail.length]!;
+    go(next.key);
+    document.getElementById(`jctab-${next.key}`)?.focus();
   };
 
   const panel = (key: TabKey, body: React.ReactNode) => (
     <section
       className="wb2-jcface"
       id={`jcsec-${key}`}
-      role="tabpanel"
-      aria-labelledby={`jctab-${key}`}
+      role={rail.some((r) => r.key === key) ? "tabpanel" : "region"}
+      aria-labelledby={rail.some((r) => r.key === key) ? `jctab-${key}` : undefined}
+      aria-label={rail.some((r) => r.key === key) ? undefined : FACE_NAME[key]}
       hidden={tab !== key}
     >
       {body}
@@ -1812,7 +1932,7 @@ export function JobSheet({
     <>
       <div className="wb2-scrim" onClick={onClose} />
       <aside
-        className="wb2-sheet jc"
+        className="wb2-sheet jc jcl"
         role="dialog"
         aria-modal="true"
         aria-label={`${row.clientName ?? "Job"}${row.number ? ` — job ${row.number}` : ""}`}
@@ -2045,14 +2165,30 @@ export function JobSheet({
             />
           )}
 
-          <ViewTabs
-            items={tabs}
-            active={tab}
-            onGo={go}
-            ariaLabel="Job card"
-            idPrefix="jctab"
-            panelPrefix="jcsec"
-          />
+          <JobProgressLine steps={steps} open={step} onOpen={openStep} />
+        </div>
+
+        <div className="jcl-body">
+        <div className="jcl-rail">
+          <div className="jcl-nav" role="tablist" aria-orientation="vertical" aria-label="Job card">
+            {rail.map((r, i) => (
+              <button
+                key={r.key}
+                type="button"
+                role="tab"
+                id={`jctab-${r.key}`}
+                aria-controls={`jcsec-${r.key}`}
+                aria-selected={step === null && tab === r.key}
+                tabIndex={step === null && tab === r.key ? 0 : -1}
+                className={"jcl-ni" + (step === null && tab === r.key ? " on" : "")}
+                onClick={() => go(r.key)}
+                onKeyDown={(e) => railKey(e, i)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <JobCustomer detail={detail} />
         </div>
 
         <div className="wb2-jcbody">
@@ -2066,6 +2202,7 @@ export function JobSheet({
               row={row}
               summary={summary}
               pending={summaryPending}
+              category={categoryName ? { name: categoryName, colour: categoryColour } : null}
             />
           )}
 
@@ -2118,6 +2255,12 @@ export function JobSheet({
                       statusLabel={row.statusLabel}
                       focusRemoteId={focus}
                       onOpenClaim={setOpenClaim}
+                      billTo={(() => {
+                        const name = detail?.clientName ?? row.clientName;
+                        if (!name) return null;
+                        const c = detail?.contacts.find((x) => (x.type ?? "").trim().toLowerCase() === "billing");
+                        return { name, contact: c ? { name: c.name, email: c.email } : null };
+                      })()}
                     />
                   ) : (
                     <p className="int-hint">Reading the figures…</p>
@@ -2244,6 +2387,31 @@ export function JobSheet({
           {panel(
             "visits",
             <>
+              {/* CHECK IN / CHECK OUT (Isaac, 2026-10-02): the record of who
+                  was on site, over ServiceM8's check-ins, which miss most
+                  days. One press; checking in here checks out of anywhere
+                  else. */}
+              {cardId && mine !== undefined && (
+                <div className={"jcl-check" + (mine?.jobUuid === cardId ? " on" : "")}>
+                  {mine?.jobUuid === cardId ? (
+                    <>
+                      <span>{`On site since ${fmtAuTime(new Date(mine.since))}`}</span>
+                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(true)}>
+                        Check out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {mine && (
+                        <span>{`Checked in at ${mine.jobNumber ? `#${mine.jobNumber}` : "another job"} since ${fmtAuTime(new Date(mine.since))}`}</span>
+                      )}
+                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(false)}>
+                        {mine ? "Check in here" : "Check in"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
               {/* BOOK IN (two-way phase 3): the door, or its panel in place,
                   then every press on the job whose booking isn't standing
                   on the list below — newest first, a status change said
@@ -2364,44 +2532,49 @@ export function JobSheet({
                         : ""}
                     </em>
                   </div>
-                  {(allVisits ? detail.visits : detail.visits.slice(0, VISITS_SHOWN)).map((v) => (
-                    <div className="wb2-mline visit" key={v.day}>
-                      <b>{fmtAuWeekdayDayMonth(v.day)}</b>
-                      {/* A NAME PLUS WHAT THEY ARE — the only place on the
-                          card a title appears, because this is the only
-                          place the card is introducing people rather than
-                          naming them: an apprentice day and a senior tech
-                          day are different days. */}
-                      <em>
-                        {v.crew.length === 0
-                          ? "Nobody named"
-                          : v.crew.map((c, i) => (
-                              <span key={c.name}>
-                                {/* A comma separates two bare names; once a
-                                    title is in the line a comma cannot say
-                                    where one person ends, so the pair takes
-                                    a dash instead. The dot before a title is
-                                    REAL TEXT, not a CSS ::before — jest
-                                    never loads the stylesheet, so a
-                                    separator that lives only in CSS is one
-                                    nothing here can see fail. */}
-                                {i > 0 ? (v.crew.some((m) => m.title) ? " — " : ", ") : ""}
-                                {c.name}
-                                {c.title && (
-                                  <i className="wb2-jcrole">{`, ${c.title}`}</i>
-                                )}
-                              </span>
-                            ))}
-                      </em>
-                      <span>{fmtMinutesAsHours(v.minutes)}</span>
-                    </div>
-                  ))}
-                  {!allVisits && detail.visits.length > VISITS_SHOWN && (
-                    <button className="wb2-shmore" onClick={() => setAllVisits(true)}>
-                      {`All ${detail.visits.length} visits`}
-                      <Icon name="chevR" size={14} />
-                    </button>
-                  )}
+                  {/* A CARD PER VISIT, oldest on the left, scrolling sideways
+                      (Isaac, 2026-10-02: "day one card, day two card… day
+                      three might just be a 20-minute pop-in"). The strip
+                      opens on its newest end. */}
+                  <ol className="jcl-visits" ref={visitStrip} aria-label="Visits, oldest first">
+                    {[...detail.visits].reverse().map((v, i) => (
+                      <li className="jcl-visit" key={v.day}>
+                        <span className="jcl-vn">{`Day ${i + 1}`}</span>
+                        <b>{fmtAuWeekdayDayMonth(v.day)}</b>
+                        <em>
+                          {v.crew.length === 0
+                            ? "Nobody named"
+                            : v.crew.map((c, i) => (
+                                <span key={c.name}>
+                                  {/* A comma separates two bare names; once a
+                                      title (or a check-in left open) is in the
+                                      line a comma cannot say where one person
+                                      ends, so the pair takes a dash instead.
+                                      The dot before a title is REAL TEXT, not
+                                      a CSS ::before — jest never loads the
+                                      stylesheet, so a separator that lives
+                                      only in CSS is one nothing here can see
+                                      fail. */}
+                                  {i > 0 ? (v.crew.some((m) => m.title || m.leftOpen) ? " — " : ", ") : ""}
+                                  {c.name}
+                                  {c.title && (
+                                    <i className="wb2-jcrole">{`, ${c.title}`}</i>
+                                  )}
+                                  {/* On site, time unknown: the hours at the
+                                      right leave this person out, so the
+                                      line says why. */}
+                                  {c.leftOpen && (
+                                    <i className="wb2-jcrole">, check-in left open</i>
+                                  )}
+                                  {c.onSite && <i className="wb2-jcrole">, on site now</i>}
+                                </span>
+                              ))}
+                        </em>
+                        {visitLength(v) && <span className="jcl-vlen">{visitLength(v)}</span>}
+                        <span className="jcl-vhrs">{v.minutes > 0 ? fmtMinutesAsHours(v.minutes) : "—"}</span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               ) : (
                 !(standing ? standing.length > 0 || above.length > 0 : detail?.nextBooking) &&
@@ -2457,57 +2630,67 @@ export function JobSheet({
               />
             )}
 
-          {panel(
-            "documents",
-            <JobDocumentsFace
-              documents={media ? media.documents : null}
-              elsewhere={media ? media.elsewhere : null}
-              designs={detail?.designs ?? []}
-              swms={swms}
-              swmsFailed={swmsFailed}
-              canCreateSwms={!!cardId}
-              /* a SWMS is a before-work document: once ServiceM8 has the job
-                 finished, nobody is asked to sign one and the bell won't ring */
-              swmsClosed={SWMS_CLOSED.has(detail?.status ?? "")}
-              loading={media === null}
-              truncated={!!media?.truncated}
-              onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
-              onUpload={cardId ? uploadDocument : undefined}
-              onRemove={removeDocument}
-              onCreateSwms={() => setSwmsWizard({ revise: null })}
-              onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId })}
-              onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
-              certificates={certs}
-              certificatesFailed={certsFailed}
-              onCreateCertificate={cardId ? () => setCertWizard({ reissue: null }) : undefined}
-              onOpenCertificate={(c) => setViewer({ kind: "cert", id: c.versionId })}
-              onReissueCertificate={(versionId) => setCertWizard({ reissue: versionId })}
-              papers={papers ? papers.papers : null}
-              papersFailed={papersFailed}
-              mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
-              today={todayInAu()}
-              picked={papers?.may.send ? picked : undefined}
-              onPick={papers?.may.send ? tick : undefined}
-              onLoadChoices={cardId ? () => readComplianceChoices(cardId) : undefined}
-              onAddPapers={cardId ? addPapers : undefined}
-              onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
-              onRemovePaper={removePaper}
-              onRenewPaper={renewPaper}
-              sends={sm8Read?.sends ?? null}
-              sendHold={sm8Read?.hold ?? null}
+          {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,
+              2026-10-02: "compliance is supposed to sit underneath files").
+              One face, told which part it holds; a tick to send carries
+              across both. */}
+          {(["documents", "compliance"] as const).map((key) => (
+            <Fragment key={key}>
+              {panel(
+                key,
+                <JobDocumentsFace
+                  part={key === "documents" ? "files" : "compliance"}
+                  documents={media ? media.documents : null}
+                  elsewhere={media ? media.elsewhere : null}
+                  designs={detail?.designs ?? []}
+                  swms={swms}
+                  swmsFailed={swmsFailed}
+                  canCreateSwms={!!cardId}
+                  /* a SWMS is a before-work document: once ServiceM8 has the job
+                     finished, nobody is asked to sign one and the bell won't ring */
+                  swmsClosed={SWMS_CLOSED.has(detail?.status ?? "")}
+                  loading={media === null}
+                  truncated={!!media?.truncated}
+                  onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+                  onUpload={cardId ? uploadDocument : undefined}
+                  onRemove={removeDocument}
+                  onCreateSwms={() => setSwmsWizard({ revise: null })}
+                  onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId })}
+                  onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
+                  certificates={certs}
+                  certificatesFailed={certsFailed}
+                  onCreateCertificate={cardId ? () => setCertWizard({ reissue: null }) : undefined}
+                  onOpenCertificate={(c) => setViewer({ kind: "cert", id: c.versionId })}
+                  onReissueCertificate={(versionId) => setCertWizard({ reissue: versionId })}
+                  papers={papers ? papers.papers : null}
+                  papersFailed={papersFailed}
+                  mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
+                  today={todayInAu()}
+                  picked={papers?.may.send ? picked : undefined}
+                  onPick={papers?.may.send ? tick : undefined}
+                  onLoadChoices={cardId ? () => readComplianceChoices(cardId) : undefined}
+                  onAddPapers={cardId ? addPapers : undefined}
+                  onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
+                  onRemovePaper={removePaper}
+                  onRenewPaper={renewPaper}
+                  sends={sm8Read?.sends ?? null}
+                  sendHold={sm8Read?.hold ?? null}
             />
-          )}
+              )}
+            </Fragment>
+          ))}
 
           {/* No Actions face. The once-per-job acts live behind the band's
               ⋯; the naming row below is the only floor furniture, and only
               while a project is being named — and the send row, only while
               the Documents face has something ticked. */}
         </div>
+        </div>
 
         {/* SENDING WHAT'S TICKED — the card's footer, under the scrolling body,
             so the list keeps scrolling above it. Only on the face the ticks
             are on, and never over the naming row. */}
-        {tab === "documents" && !naming && cardId && papers?.may.send && (pickedList.length > 0 || writing) && (
+        {(tab === "documents" || tab === "compliance") && !naming && cardId && papers?.may.send && (pickedList.length > 0 || writing) && (
           <DocumentsSend
             picked={pickedList}
             writing={writing}

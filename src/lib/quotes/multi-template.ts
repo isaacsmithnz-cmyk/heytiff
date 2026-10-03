@@ -1,4 +1,6 @@
 import { trunkingLengths, wallBracketCode, type BuildLine, type Visit } from "./buildup";
+import { brandOfCode, wrongBrand } from "./brand";
+import { rollMetresOf } from "./components";
 import type { PriceOf } from "./ducted-template";
 import { CONSUMABLES_CENTS, PAIR_COIL_ROLL, VOLTEX_35A_CENTS, type SplitFacts } from "./split-template";
 
@@ -20,6 +22,8 @@ export type MultiFacts = {
   mount?: "ground" | "wall";
   outdoorWidthMm?: number | null;
   outdoorWeightKg?: number | null;
+  /** who the brief says it takes on the day */
+  crew?: number;
   /** a new circuit from the board: an allowance until the electrician prices it */
   newCircuit?: boolean;
 };
@@ -31,9 +35,13 @@ export const NEW_CIRCUIT_SELL_CENTS = 70000;
 export function multiLines(f: MultiFacts, priceOf: PriceOf, materialMarkupPct = 40): { lines: BuildLine[]; missing: string[] } {
   const lines: BuildLine[] = [];
   const missing: string[] = [];
+  /* every head must be the outdoor's own brand */
+  const brand = brandOfCode(f.outdoor);
   const add = (key: string, group: string, code: string, qty: number, kind: "unit" | "material", extra: Partial<BuildLine> = {}) => {
     const p = priceOf(code);
     if (!p) return void missing.push(code);
+    const other = wrongBrand(brand, code, p.name);
+    if (other) return void missing.push(`${code} is ${other}, this is a ${brand} system`);
     lines.push({ key, group, name: p.name, code, supplierKey: p.supplierKey, qty, unitBuyCents: p.buyCents, kind, ...extra });
   };
   const allowance = (key: string, group: string, name: string, qty: number, unitBuyCents: number, extra: Partial<BuildLine> = {}) =>
@@ -53,7 +61,7 @@ export function multiLines(f: MultiFacts, priceOf: PriceOf, materialMarkupPct = 
         code: roll,
         supplierKey: coil.supplierKey,
         qty: m,
-        unitBuyCents: coil.buyCents / 20,
+        unitBuyCents: coil.buyCents / (rollMetresOf(coil.name) ?? 20),
         kind: "material",
         assumed: h.pipeM == null ? `${ASSUME.pipeM} m` : null,
       });
@@ -72,9 +80,15 @@ export function multiLines(f: MultiFacts, priceOf: PriceOf, materialMarkupPct = 
   return { lines, missing };
 }
 
-/** A day for the outdoor and half a day a head. */
-export function multiVisits(f: Pick<MultiFacts, "heads">): Visit[] {
+/** A day for the outdoor and half a day a head. When the brief names a
+    crew, they take the day: the days stretch to cover the work, and the job
+    never prices below it (three people for a day is three person-days). */
+export function multiVisits(f: Pick<MultiFacts, "heads" | "crew">): Visit[] {
   const personDays = Math.round((1 + f.heads.length / 2) * 2) / 2;
+  if (f.crew && f.crew > 0) {
+    const days = Math.max(1, Math.ceil((personDays / f.crew) * 2 - 1e-9) / 2);
+    return [{ stage: "Install", people: Math.round(f.crew), days }];
+  }
   const full = Math.floor(personDays);
   const visits: Visit[] = [{ stage: "Install", people: full, days: 1 }];
   if (personDays > full) visits.push({ stage: "Install", people: 1, days: 0.5 });

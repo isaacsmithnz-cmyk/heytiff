@@ -179,8 +179,11 @@ describe("Design Studio shell", () => {
     await user.click(pill);
     const crop = screen.getByRole("button", { name: /Crop/ });
     const move = screen.getByRole("button", { name: /Move plans/ });
+    const split = screen.getByRole("button", { name: /Split to new floor/ });
     expect(crop).toBeDisabled();
     expect(move).toBeDisabled();
+    expect(split).toBeDisabled();
+    expect(split.textContent).toContain("No plan");
     // the reason sits in the row, not only in a tooltip
     expect(crop.textContent).toContain("No plan");
     expect(move.textContent).toContain("No plan");

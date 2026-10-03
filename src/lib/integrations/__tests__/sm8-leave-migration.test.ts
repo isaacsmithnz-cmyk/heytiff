@@ -20,7 +20,10 @@ const bookings = read("docs/migrations/sm8_bookings_queue.sql");
 const code = sql.replace(/--.*$/gm, "");
 const bookingsCode = bookings.replace(/--.*$/gm, "");
 const flat = (s: string) => s.replace(/\s+/g, " ").trim();
-const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES);
+/* the kinds of its day: the code's own, less new jobs, which
+   sm8_new_job_queue.sql added after it (sm8-job-migration.test holds that
+   one) */
+const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "job");
 const NEW_COLUMNS = ["leave_staff_uuid", "leave_start", "leave_end"];
 
 function branchOf(src: string, kind: string): string {

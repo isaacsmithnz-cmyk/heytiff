@@ -161,7 +161,7 @@ export default async function Servicem8IntegrationPage({
           /* kind by kind only where the deployment sends more than files —
              files and notes, and bookings where it sends them; otherwise
              today's one count */
-          ...(kinds.includes("note") || kinds.includes("booking") || kinds.includes("leave")
+          ...(kinds.includes("note") || kinds.includes("booking") || kinds.includes("leave") || kinds.includes("job")
             ? {
                 cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "attachment"),
                 notes: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "note"),
@@ -177,6 +177,9 @@ export default async function Servicem8IntegrationPage({
                   : {}),
                 ...(kinds.includes("leave")
                   ? { leave: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "leave") }
+                  : {}),
+                ...(kinds.includes("job")
+                  ? { jobs: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "job") }
                   : {}),
               }
             : { cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at) }),
@@ -218,6 +221,7 @@ export default async function Servicem8IntegrationPage({
       /* only where the deployment sends leave: anywhere else the screen's
          props are exactly today's (sm8-hooks-prod.test) */
       {...(kinds.includes("leave") ? { waitingLeave: queue.waitingKinds.leave } : {})}
+      {...(kinds.includes("job") ? { waitingJobs: queue.waitingKinds.job ?? 0 } : {})}
       previousAccount={previousAccount ? { name: previousAccount.from, at: previousAccount.at } : null}
       /* only when there is something to say: otherwise the props are today's */
       {...(liveUpdates ? { liveUpdates } : {})}

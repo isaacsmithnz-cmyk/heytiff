@@ -14,6 +14,7 @@ import {
 import { fillWords, NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
 import { LEAVE_WORDS } from "@/lib/integrations/sm8-leave-words";
+import { JOB_WORDS } from "@/lib/integrations/sm8-job-words";
 import type { RecentSm8Write } from "@/lib/integrations/sm8-writes";
 import {
   retryFailedServiceM8WritesAction,
@@ -89,6 +90,7 @@ const KIND_ROWS: { kind: Sm8WriteKind; label: string; group: string }[] = [
   { kind: "note", label: NOTE_WORDS.card.notes, group: NOTE_WORDS.card.notesGroup },
   { kind: "booking", label: BOOKING_WORDS.card.bookings, group: BOOKING_WORDS.card.bookingsGroup },
   { kind: "leave", label: LEAVE_WORDS.card.leave, group: LEAVE_WORDS.card.leaveGroup },
+  { kind: "job", label: JOB_WORDS.card.jobs, group: JOB_WORDS.card.jobsGroup },
 ];
 
 /** The setting as a sentence, with the one figure worth having. With more
@@ -222,6 +224,8 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
             return (
               <div className="int-kind" key={k}>
                 <b>{label}</b>
+                {/* a job may be charged: said where it's switched on */}
+                {k === "job" && <em className="int-kind-why">{JOB_WORDS.card.charges}</em>}
                 <div className="wb2-ckseg" role="radiogroup" aria-label={group}>
                   <button
                     type="button"
@@ -263,6 +267,8 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
                 BOOKING_WORDS.card.bookingsConsent
               ) : k === "leave" ? (
                 LEAVE_WORDS.card.leaveConsent
+              ) : k === "job" ? (
+                JOB_WORDS.card.jobsConsent
               ) : (
                 <>
                   ServiceM8 hasn&apos;t given HeyTiff permission to add files yet, so nothing can go. Reconnect

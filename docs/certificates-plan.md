@@ -683,3 +683,27 @@ Each matched item is checked against what is on the certificate. An item
 that asks for ventilation on an air conditioning job, or for ductwork or
 fire-rated penetrations that aren't ticked as installed, blocks the issue
 until it is marked not applicable with a reason, or the works are added.
+
+### Equipment from the accepted quote (2026-10-03)
+
+Going forward jobs are quoted in HeyTiff's quote builder, so the quote is the
+equipment record:
+
+- **Each quote option holds its equipment as rows** (`UnitLine` in
+  `src/lib/quotes/proposal.ts`). Each row has a role (outdoor, indoor or
+  fan), a room or location, a capacity, a type, a model, a quantity, and the
+  outdoor unit an indoor runs from. A fan row also has its rated L/s. The
+  quote writer fills the rows from the brief and never invents a model. A
+  missing model is left empty and shown as "Model not given yet". The option
+  editor edits the rows field by field.
+- **An option is marked Accepted on the Quote face.** It's one option when
+  the client picks one, and any number when they tick areas.
+- **The certificate reads the accepted options' rows** one for one
+  (`src/lib/certs/from-quote.ts`), and says so. When a quote has several
+  options and none is marked, the wizard says to mark one. The free-text
+  quote reader (`src/lib/certs/quote.ts`) is only used for jobs quoted
+  before the quote builder, and its note says to check every row against
+  what was installed.
+
+Nothing needed migrating: `quote_drafts.draft` is jsonb, no quote had been
+saved yet, and a row saved before roles existed reads as an indoor unit.

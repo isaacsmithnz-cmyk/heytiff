@@ -44,6 +44,8 @@ const context = (over: Partial<CertWizardContext> = {}): CertWizardContext => ({
     completedOn: "2026-09-25",
   },
   reading: readQuote(JOB_3326),
+  equipmentFrom: "description",
+  quoteToMark: 0,
   building: suggestBuilding("Lv 3 Suite 4/44-54 Example Road"),
   today: "2026-10-01",
   viewerStaffId: "isaac",
@@ -123,6 +125,25 @@ describe("what the quote says about itself", () => {
     await userEvent.clear(living);
     await userEvent.type(living, "18.2");
     expect(eq.queryByText(/The quote says/)).toBeNull();
+  });
+});
+
+describe("where the equipment came from", () => {
+  it("says it came from the accepted quote when it did", async () => {
+    certWizardContext.mockImplementation(async () => context({ equipmentFrom: "quote" }));
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    expect(panel("equipment").getByText("Filled in from the accepted quote. Check every row.")).toBeInTheDocument();
+  });
+
+  it("says to mark the accepted option when the quote has several and none is marked", async () => {
+    certWizardContext.mockImplementation(async () => context({ quoteToMark: 2 }));
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    expect(panel("equipment").getByText(/This job's quote has 2 options and none is marked accepted/)).toBeInTheDocument();
+    expect(panel("equipment").getByText("Filled in from the job's description. Check every row against what was installed.")).toBeInTheDocument();
   });
 });
 

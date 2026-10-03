@@ -13,6 +13,9 @@ import { signatureSvg } from "@/lib/swms/input";
 import { ownerName } from "@/lib/swms/query";
 import { CERT_LIBRARY_VERSION, type CertAnswers } from "@/lib/certs/mechanical";
 import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } from "@/lib/certs/quote";
+import { quoteHasEquipment, readingFromQuote } from "@/lib/certs/from-quote";
+import { acceptedOptions } from "@/lib/quotes/proposal";
+import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { CERT_EMAIL_PROMPT, CERT_LIST_PROMPT, CERT_LIST_SCHEMA, parseListReading, type ListReading } from "@/lib/certs/list-reader";
 import {
   certApproval,
@@ -49,6 +52,12 @@ const trim = (v: unknown, max = 80) => String(v ?? "").trim().slice(0, max);
 export type CertWizardContext = {
   job: CertJob;
   reading: QuoteReading;
+  /** Where the equipment came from: the accepted quote's equipment rows, or
+      (for a job quoted before HeyTiff's quote builder) its description. */
+  equipmentFrom: "quote" | "description";
+  /** A quote with several options and none marked accepted: how many, so the
+      wizard can say to mark one. 0 otherwise. */
+  quoteToMark: number;
   building: BuildingGuess;
   today: string;
   viewerStaffId: string | null;
@@ -118,7 +127,7 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
   const job = await loadCertJob(orgId, uuid);
   if (!job) return null;
   const today = todayInAu();
-  const [staffId, approval, role, owner, fanModels, existing, files] = await Promise.all([
+  const [staffId, approval, role, owner, fanModels, existing, files, quote] = await Promise.all([
     staffIdFor(orgId, userId),
     certApproval(orgId),
     getDbRole(),
@@ -126,10 +135,18 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
     listFanModels(orgId),
     listJobCerts(orgId, uuid),
     readableFiles(orgId, uuid),
+    readStoredProposal(orgId, uuid).catch(() => null),
   ]);
+  /* THE ACCEPTED QUOTE FIRST: its equipment rows are the job's equipment,
+     one for one. A job quoted before the quote builder has only its
+     description, read as well as free text allows. */
+  const accepted = quote ? acceptedOptions(quote.draft) : [];
+  const fromQuote = quoteHasEquipment(accepted);
   return {
     job,
-    reading: readQuote(job.description),
+    reading: fromQuote ? readingFromQuote(accepted) : readQuote(job.description),
+    equipmentFrom: fromQuote ? "quote" : "description",
+    quoteToMark: quote && accepted.length === 0 && quote.draft.options.length > 1 ? quote.draft.options.length : 0,
     building: suggestBuilding(job.address),
     today,
     viewerStaffId: staffId,

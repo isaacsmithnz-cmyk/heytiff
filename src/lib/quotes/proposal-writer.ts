@@ -121,8 +121,17 @@ const DRAFT_SCHEMA = {
             type: "array",
             items: {
               type: "object",
-              properties: { room: { type: "string" }, capacity: { type: "string" }, type: { type: "string" } },
-              required: ["room", "capacity", "type"],
+              properties: {
+                role: { type: "string", enum: ["outdoor", "indoor", "fan"] },
+                room: { type: "string" },
+                capacity: { type: "string" },
+                type: { type: "string" },
+                model: { type: "string" },
+                qty: { type: "integer" },
+                system: { type: "integer" },
+                lps: { type: ["number", "null"] },
+              },
+              required: ["role", "room", "capacity", "type", "model", "qty", "system", "lps"],
               additionalProperties: false,
             },
           },
@@ -205,7 +214,14 @@ options — One per real choice the client has. When there is only one way of do
   "Power supplied from a new circuit at the switchboard."
   "Drain run to the downpipe beside the laundry."
   Write capacities as "3.5 kW". Put a model number in brackets only when it was given. Access work (roof tiles, ceiling space, EWP, wall cavity) is its own line.
-- units: for a multi-split, VRF or ducted system, one entry per indoor unit: room, capacity, type (for example "Master bedroom", "3.6 kW", "High wall"). Empty for a single split.
+- units: every piece of equipment this option installs, one entry each. These rows become the job's equipment record and its compliance certificate, so they must match the scope exactly.
+  - role "outdoor": each outdoor unit. room is where it goes ("Side of the house", "Rooftop", "Wall brackets, rear"), or empty when not said. system is its number, counting outdoor units from 1 in the order you list them.
+  - role "indoor": each indoor unit. room is the room it serves. system is the number of the outdoor unit it runs from.
+  - role "fan": each exhaust or ventilation fan. room is the room it serves. system is 0. lps is its rated airflow in L/s only when given, otherwise null.
+  - A single split is one outdoor and one indoor. A multi-split or VRF is one outdoor and each of its indoor units.
+  - capacity like "3.6 kW" for air conditioning units, empty for fans. type in a few words: "High wall", "Ducted", "Bulkhead", "Cassette", "Floor console", "Outdoor unit", "In-line fan", "Ceiling exhaust fan".
+  - model exactly as given, for example "PEA-M140HAA"; empty when it was not given. Never invent or guess a model; put "model" on the checklist as "ask" instead.
+  - qty for identical units in the same room or place, otherwise 1.
 - pros, cons: only when the options are genuinely different ways of doing the job, two or three short points each, with the figures that make the difference. Empty with a single option.
 
 pricing_mode — "multiple_choice" when the client picks one option. "optional" when each block is a separate area or add-on they can take any of (name each by its area). "itemised" for work priced line by line, such as building works; then list the lines in items with a quantity.

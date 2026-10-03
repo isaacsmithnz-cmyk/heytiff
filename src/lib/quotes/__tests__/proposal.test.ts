@@ -9,7 +9,20 @@
 
 import { CHECKLIST, CHECKLIST_KEYS, orderChecklist } from "../checklist";
 import { PAYMENT_PRESETS, paymentProblems } from "../payment";
-import { MAX_OPTIONS, normaliseDraft, optionHeading, proposalTitle, type ProposalDraft } from "../proposal";
+import {
+  MAX_OPTIONS,
+  acceptedAfterRemoving,
+  acceptedOptions,
+  blankUnit,
+  normaliseDraft,
+  optionHeading,
+  proposalTitle,
+  removeUnit,
+  toggleAccepted,
+  unitPlace,
+  unitWords,
+  type ProposalDraft,
+} from "../proposal";
 
 const base = (over: Record<string, unknown> = {}) => ({
   intro: "Hi Jane,",
@@ -41,7 +54,8 @@ describe("normaliseDraft", () => {
     expect(d.options[0]).toEqual({
       name: "Whole house VRF",
       lines: ["2 x 15.5 kW outdoor units under the house."],
-      units: [{ room: "Master bedroom", capacity: "7 kW", type: "High wall" }],
+      /* a row saved before roles were kept reads as an indoor unit */
+      units: [{ role: "indoor", room: "Master bedroom", capacity: "7 kW", type: "High wall", model: "", qty: 1, system: 0, lps: null }],
       pros: [],
       cons: [],
     });
@@ -152,5 +166,80 @@ describe("the words around the fields", () => {
   it("numbers options the client picks from, and names areas they tick", () => {
     expect(optionHeading(two("multiple_choice"), 1)).toBe("Option 2: Upstairs");
     expect(optionHeading(two("optional"), 1)).toBe("Upstairs");
+  });
+});
+
+describe("the equipment rows", () => {
+  const vrf = () =>
+    normaliseDraft(
+      base({
+        options: [
+          {
+            name: "VRF",
+            lines: ["x"],
+            units: [
+              { role: "outdoor", room: "Side of the house", capacity: "15.5 kW", type: "Outdoor unit", model: "(pumy-p140ykm)", qty: 1, system: 7, lps: null },
+              { role: "indoor", room: "Kitchen", capacity: "7.1 kW", type: "Ducted", model: "PEAD-M71JAA", qty: 1, system: 1, lps: 30 },
+              { role: "indoor", room: "Bed 2", capacity: "2.2 kW", type: "High wall", model: "", qty: 2, system: 9, lps: null },
+              { role: "fan", room: "Bathroom", capacity: "1 kW", type: "In-line fan", model: "SJMF100", qty: 1, system: 3, lps: "67" },
+              { role: "outdoor", room: "", capacity: "", type: "", model: "", qty: 0, system: 0, lps: null },
+            ],
+          },
+        ],
+      })
+    )!.options[0].units;
+
+  it("numbers outdoors in order, points every indoor at one that exists, and keeps a fan's airflow only on a fan", () => {
+    const u = vrf();
+    expect(u.map((r) => [r.role, r.system])).toEqual([
+      ["outdoor", 1],
+      ["indoor", 1],
+      ["indoor", 1],
+      ["fan", 0],
+    ]);
+    expect(u[0].model).toBe("PUMY-P140YKM");
+    expect(u[1].lps).toBeNull();
+    expect(u[3]).toMatchObject({ capacity: "", lps: 67 });
+    expect(u[2].qty).toBe(2);
+  });
+
+  it("says each row as the card shows it, and never fills in a model that wasn't given", () => {
+    const u = vrf();
+    expect(unitPlace(u[0])).toBe("Outdoor unit 1, side of the house");
+    expect(unitWords(u[0])).toBe("15.5 kW, Outdoor unit, PUMY-P140YKM");
+    expect(unitWords(u[2])).toBe("2 x 2.2 kW, High wall");
+    expect(unitWords(u[3])).toBe("In-line fan, SJMF100, 67 L/s");
+  });
+
+  it("keeps an indoor unit on its own outdoor when an earlier outdoor is removed", () => {
+    const rows = [blankUnit("outdoor", 0), blankUnit("outdoor", 1), { ...blankUnit("indoor", 2), room: "Study" }];
+    expect(rows[2].system).toBe(2);
+    expect(removeUnit(rows, 0).map((r) => [r.role, r.system])).toEqual([
+      ["outdoor", 2],
+      ["indoor", 1],
+    ]);
+  });
+});
+
+describe("the accepted option", () => {
+  const two = (mode: string) => normaliseDraft(base({ pricing_mode: mode, options: [{ name: "A", lines: ["x"] }, { name: "B", lines: ["y"] }] }))!;
+
+  it("is one option when the client picks one, and any number when they tick the ones they want", () => {
+    const pick = two("multiple_choice");
+    expect(toggleAccepted({ ...pick, accepted: [0] }, 1)).toEqual([1]);
+    const tick = two("optional");
+    expect(toggleAccepted({ ...tick, accepted: [1] }, 0)).toEqual([0, 1]);
+    expect(normaliseDraft({ ...base({ options: [{ name: "A", lines: ["x"] }, { name: "B", lines: ["y"] }] }), accepted: [1, 0, 9] })!.accepted).toEqual([0]);
+  });
+
+  it("is the only option when there is one, and nothing when several are unmarked", () => {
+    expect(acceptedOptions(normaliseDraft(base())!).map((o) => o.name)).toEqual(["A"]);
+    expect(acceptedOptions(two("multiple_choice"))).toEqual([]);
+    expect(acceptedOptions({ ...two("multiple_choice"), accepted: [1] }).map((o) => o.name)).toEqual(["B"]);
+  });
+
+  it("follows its option when an earlier one is removed", () => {
+    expect(acceptedAfterRemoving([0, 2], 1)).toEqual([0, 1]);
+    expect(acceptedAfterRemoving([1], 1)).toEqual([]);
   });
 });

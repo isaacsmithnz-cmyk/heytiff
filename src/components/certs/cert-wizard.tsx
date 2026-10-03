@@ -535,7 +535,14 @@ export function CertWizard({
         <b>Air conditioning</b>
         <span>{`${fmtKw(indoorTotalKw(a.systems))} indoor in total`}</span>
       </div>
-      {live?.reading.systems.length ? <p className="sw-note">Filled in from the job&apos;s quote. Check every row.</p> : null}
+      {live && live.quoteToMark > 0 && (
+        <p className="sw-state bad">{`This job's quote has ${live.quoteToMark} options and none is marked accepted. Mark the one the client took on the Quote face, then open the certificate again.`}</p>
+      )}
+      {live?.reading.systems.length ? (
+        <p className="sw-note">
+          {live.equipmentFrom === "quote" ? "Filled in from the accepted quote. Check every row." : "Filled in from the job's description. Check every row against what was installed."}
+        </p>
+      ) : null}
       {/* the quote's own total against its rows: a room left off it, or a
           capacity typed wrong, shows here before it reaches the paper */}
       {live?.reading.statedConnectedKw != null && Math.abs(live.reading.statedConnectedKw - indoorTotalKw(a.systems)) > 0.05 && (

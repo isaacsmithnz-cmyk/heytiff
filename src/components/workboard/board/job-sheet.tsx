@@ -108,6 +108,7 @@ import { thrownWords } from "@/lib/stale-deploy";
 import { somethingWaiting, useNoteStatePoll } from "./use-note-poll";
 import {
   clearLeftoverBooking,
+  makeWorkOrder,
   readBookingStates,
   retryBooking,
   takeBackBooking,
@@ -1754,6 +1755,34 @@ export function JobSheet({
     return res?.detail ?? null;
   };
 
+  /* MAKE IT A WORK ORDER (Isaac, 2026-10-03): "do and charge" decided on
+     site, before anyone is booked. Asked once, then pressed; one press id
+     for the card's life, so a second press is the same change. */
+  const [woPressId] = useState(() => mintPressId());
+  const [wo, setWo] = useState<"ask" | "busy" | "done" | null>(null);
+  const offerWorkOrder =
+    !!cardId && !!bookings?.canBook && (detail?.status ?? "").trim().toLowerCase() === "quote" && wo !== "done";
+  const pressWorkOrder = async () => {
+    if (!cardId) return;
+    setWo("busy");
+    const a = await makeWorkOrder({ jobUuid: cardId, pressId: woPressId }).catch(() => ({ ok: false as const, error: BOOKING_WORDS.press.unqueued }));
+    if (!alive.current) return;
+    if (!a.ok) {
+      setWo(null);
+      onToast(a.error);
+      return;
+    }
+    setWo("done");
+    onToast(
+      a.state === "sent"
+        ? "Made a Work Order in ServiceM8."
+        : a.state === "trial"
+          ? "Trial run: nothing went to ServiceM8."
+          : "Making it a Work Order in ServiceM8."
+    );
+    void reloadVisits();
+  };
+
   const seedOf = (b: { staffUuid: string | null; start: string | null; end: string | null }): BookInSeed => ({
     staffUuid: b.staffUuid,
     start: b.start,
@@ -2076,6 +2105,24 @@ export function JobSheet({
                   {!dateStandsAlone && cardDate ? `, ${fmtAuWeekdayDayMonth(cardDate)}` : ""}
                 </span>
               )}
+              {offerWorkOrder &&
+                (wo === "ask" || wo === "busy" ? (
+                  <>
+                    <span className="wb2-chip">Make it a Work Order in ServiceM8?</span>
+                    <button type="button" className="wb2-chip" disabled={wo === "busy"} onClick={() => void pressWorkOrder()}>
+                      {wo === "busy" ? "Making it…" : "Yes"}
+                    </button>
+                    {wo === "ask" && (
+                      <button type="button" className="wb2-chip" onClick={() => setWo(null)}>
+                        No
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <button type="button" className="wb2-chip" onClick={() => setWo("ask")}>
+                    Make it a work order
+                  </button>
+                ))}
               {dateStandsAlone && cardDate && (
                 <span className="wb2-chip">
                   {`${cardDateLabel === "booked" ? "Booked" : "Raised"} ${fmtAuWeekdayDayMonth(cardDate)}`}

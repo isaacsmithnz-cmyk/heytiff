@@ -110,6 +110,8 @@ export type TakeBackResult =
 
 export type ClearResult = { ok: true; rowIds: string[] } | { ok: false; refusal: BookingRefusal };
 
+export type MakeWorkOrderResult = { ok: true; rowId: string } | { ok: false; refusal: BookingRefusal };
+
 export type RetryResult =
   | { ok: true; rowIds: string[] }
   | { ok: false; refusal: BookingRefusal; lookAgain?: true; slot?: BookInSlot; presser?: string | null };
@@ -288,6 +290,63 @@ async function slotFate(
     return removed ? { fate: "release", row } : { fate: "refuse", refusal: "kept_other" };
   }
   return standing() ? { fate: "refuse", refusal: "already_booked" } : { fate: "release", row };
+}
+
+/* ── Make it a work order ── */
+
+/** A Quote made a Work Order with nobody booked (Isaac, 2026-10-03: "do and
+    charge" decided on site, before anyone is booked). The same row Book in
+    queues ahead of its bookings — same subject, same key, so one press of
+    each is one change — marked `alone`, the one status row the sender lets
+    go with no booking behind it. */
+export async function queueMakeWorkOrder(
+  press: Sm8Press,
+  state: Sm8WriteState,
+  input: { jobUuid: string; verbId: string; seenEditDate: string }
+): Promise<MakeWorkOrderResult> {
+  if (!isSm8Press(press)) {
+    console.error("[sm8] refused to queue a status change that nobody pressed for (no press, or a stale one)");
+    return { ok: false, refusal: "unqueued" };
+  }
+  const orgId = press.orgId;
+  const { jobUuid: given, verbId, seenEditDate } = input ?? ({} as never);
+  if (typeof given !== "string" || !UUID.test(given) || typeof verbId !== "string" || !UUID.test(verbId) || !EDIT_STAMP.test(seenEditDate ?? "")) {
+    return { ok: false, refusal: "unqueued" };
+  }
+  if (!state.readable) return { ok: false, refusal: "unreadable" };
+  if (!offersSend(state, "booking")) return { ok: false, refusal: "not_offered" };
+  const jobUuid = given.toLowerCase();
+
+  const subject = bookingSubject.status(seenEditDate);
+  const key = dedupeKey("booking", jobUuid, subject);
+  const there = await readByKeys(orgId, [key]);
+  if (!there) return { ok: false, refusal: "unqueued" };
+  const old = there.get(key);
+  if (old?.taken_back_at) {
+    if (old.status === "sending" && leaseLive(old, Date.now())) return { ok: false, refusal: "in_flight" };
+    if (!(await release(orgId, old))) return { ok: false, refusal: "unqueued" };
+  }
+  const queued = await enqueueSm8Writes(press, state, [
+    {
+      kind: "booking",
+      op: "update",
+      jobUuid,
+      subject,
+      payload: { name: BOOKING_WORDS.label.status, alone: true },
+      ref: subject,
+      targetUuid: jobUuid,
+      statusFrom: "Quote",
+      statusTo: "Work Order",
+      seenEditDate,
+      verbId,
+    },
+  ]);
+  if (!queued) return { ok: false, refusal: "unqueued" };
+  if (queued.capped) return { ok: false, refusal: "capped" };
+  const made = await readByKeys(orgId, [key]);
+  const row = made?.get(key);
+  if (!row) return { ok: false, refusal: "unqueued" };
+  return { ok: true, rowId: row.id };
 }
 
 /* ── Book in ── */

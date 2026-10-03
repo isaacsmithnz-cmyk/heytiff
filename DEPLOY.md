@@ -771,7 +771,8 @@ docs/certificates-plan.md is the design.
 1. Apply `docs/migrations/certificates.sql` **before the deploy that reads it**.
    It is additive (six new tables nothing reads yet), so applying it early is
    safe. Without it, the Create certificate button opens a wizard that can't
-   read the job and says so.
+   read the job and says so. **Applied to production 2026-10-03** (migration
+   `certificates`).
 2. Nothing new in Vercel. Issuing prints the PDF through the same headless
    Chromium as the Studio's Send to job (`@sparticuz/chromium`, `APP_BASE_URL`,
    `AUTH0_SECRET` for the print ticket), and reading a certifier's list uses

@@ -948,11 +948,18 @@ function UnitsEdit({ units, onChange, disabled }: { units: UnitLine[]; onChange:
     const n = Math.floor(Number(v.trim()));
     return Number.isFinite(n) && n >= 1 ? Math.min(max, n) : null;
   };
-  let seen = 0;
+  /* each outdoor unit's number, counted before the map: React Compiler 1.0
+     can't lower a counter bumped inside one */
+  const numbers: number[] = [];
+  let count = 0;
+  for (const u of units) {
+    if (u.role === "outdoor") count += 1;
+    numbers.push(u.role === "outdoor" ? count : 0);
+  }
   return (
     <div className="wb2-jqunited">
       {units.map((u, i) => {
-        const number = u.role === "outdoor" ? ++seen : 0;
+        const number = numbers[i];
         return (
           <div key={i} className="wb2-jqunit">
             <label className="m">

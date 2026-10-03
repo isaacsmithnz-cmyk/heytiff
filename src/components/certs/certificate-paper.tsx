@@ -193,6 +193,10 @@ export function CertificatePaper({
       : []),
   ];
 
+  /* the figures row's column count, as a custom property: built here, as a
+     plain object, because React Compiler 1.0 can't lower a computed key */
+  const figsStyle = { "--cer-n": figures.length } as React.CSSProperties;
+
   return (
     <article className="dsd cer" style={themeVars(brand.color)}>
       <div className="dsd-bband" aria-hidden="true" />
@@ -252,7 +256,7 @@ export function CertificatePaper({
                   )}
                 </div>
 
-                <dl className="dsd-figs cer-figs" style={{ ["--cer-n" as string]: figures.length }}>
+                <dl className="dsd-figs cer-figs" style={figsStyle}>
                   {figures.map((f) => (
                     <div key={f.label}>
                       <dt>{f.label}</dt>

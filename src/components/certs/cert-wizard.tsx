@@ -21,6 +21,7 @@ import {
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { attachJobDocument } from "@/app/actions/job-documents";
 import { uploadFile } from "@/lib/documents/upload-client";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 import type { IssueCertResult } from "@/app/api/certificates/issue/route";
 import {
   BUILDINGS,
@@ -108,6 +109,54 @@ const readNum = (s: string): number | null => {
     while this stays the same. */
 const unitsKey = (a: CertAnswers) =>
   JSON.stringify([a.covers, a.systems.map((s) => [s.outdoor, s.indoors]), a.fans]);
+
+/* A FILE ONTO THE JOB'S DOCUMENTS, as the Documents face's own upload files
+   it. Out here, as a plain function, because React Compiler 1.0 can't lower
+   a throw, an `&&` or a ternary inside a component's try. */
+const uploadRefusal = (e: unknown): string => (e instanceof Error && e.message ? e.message : "That upload didn't finish.");
+
+/** The issue, posted; null when the server couldn't be reached or answered
+    with nothing readable. */
+async function postIssue(body: Record<string, unknown>): Promise<IssueCertResult | null> {
+  try {
+    const res = await fetch("/api/certificates/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return ((await res.json().catch(() => null)) as IssueCertResult | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The PDF through the phone's share sheet. False when it can't be shared
+    (a desktop, or the person cancelled), and the caller opens it instead. */
+async function sharePdf(url: string, fileName: string): Promise<boolean> {
+  if (typeof navigator.share !== "function") return false;
+  try {
+    const blob = await (await fetch(url)).blob();
+    const file = new File([blob], fileName, { type: "application/pdf" });
+    if (!navigator.canShare || !navigator.canShare({ files: [file] })) return false;
+    await navigator.share({ files: [file], title: fileName });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function fileOnJob(file: File, jobUuid: string): Promise<{ ok: true; documentId: string } | { ok: false; error: string }> {
+  try {
+    const up = await uploadFile(file, "job_document");
+    if (!up.ok) return { ok: false, error: up.error };
+    if (up.file.previewUrl) URL.revokeObjectURL(up.file.previewUrl);
+    const put = await attachJobDocument(up.file.documentId, jobUuid);
+    if (!put.ok) return { ok: false, error: put.error };
+    return { ok: true, documentId: up.file.documentId };
+  } catch (e) {
+    return { ok: false, error: uploadRefusal(e) };
+  }
+}
 
 /** The first draft, from the job. */
 function startingAnswers(ctx: CertWizardContext): CertAnswers {
@@ -409,21 +458,20 @@ export function CertWizard({
     if (!file) return;
     setUploading(true);
     setListError(null);
-    try {
-      const up = await uploadFile(file, "job_document");
-      if (!up.ok) throw new Error(up.error);
-      if (up.file.previewUrl) URL.revokeObjectURL(up.file.previewUrl);
-      const put = await attachJobDocument(up.file.documentId, jobUuid);
-      if (!put.ok) throw new Error(put.error);
-      const files = await certListFiles(jobUuid).catch(() => null);
-      if (files) setFiles(files);
-      onFilesChanged?.();
-      setListDoc(up.file.documentId);
-    } catch (e) {
-      setListError(e instanceof Error && e.message ? e.message : "That upload didn't finish.");
-    } finally {
-      setUploading(false);
-    }
+    await withCleanup(
+      async () => {
+        const filed = await fileOnJob(file, jobUuid);
+        if (!filed.ok) {
+          setListError(filed.error);
+          return;
+        }
+        const files = await certListFiles(jobUuid).catch(() => null);
+        if (files) setFiles(files);
+        if (onFilesChanged) onFilesChanged();
+        setListDoc(filed.documentId);
+      },
+      () => setUploading(false)
+    );
   };
 
   const setReq = (i: number, patch: Partial<Requirement>) => set({ requirements: a.requirements.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
@@ -445,31 +493,24 @@ export function CertWizard({
   const issue = async () => {
     setBusy(true);
     setError(null);
-    try {
-      const res = await fetch("/api/certificates/issue", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          jobUuid,
-          answers: a,
-          certificateId: prev?.certificateId,
-          reason: prev ? "Reissued" : undefined,
-          requirementsDocumentId: a.requirements.length > 0 ? readFrom ?? undefined : undefined,
-        }),
-      });
-      const out = (await res.json().catch(() => null)) as IssueCertResult | null;
-      if (!out) throw new Error("no answer");
-      if (!out.ok) {
-        setError(out.error);
-        return;
-      }
-      setIssued(out);
-      onIssued({ versionId: out.versionId, documentId: out.documentId, fileName: out.fileName });
-    } catch {
+    const out = await postIssue({
+      jobUuid,
+      answers: a,
+      certificateId: prev?.certificateId,
+      reason: prev ? "Reissued" : undefined,
+      requirementsDocumentId: a.requirements.length > 0 ? readFrom ?? undefined : undefined,
+    });
+    setBusy(false);
+    if (!out) {
       setError("Couldn't reach HeyTiff, so nothing was issued. Try again.");
-    } finally {
-      setBusy(false);
+      return;
     }
+    if (!out.ok) {
+      setError(out.error);
+      return;
+    }
+    setIssued(out);
+    onIssued({ versionId: out.versionId, documentId: out.documentId, fileName: out.fileName });
   };
 
   const download = async (share: boolean) => {
@@ -479,18 +520,7 @@ export function CertWizard({
       setError("Couldn't open the PDF. Try again.");
       return;
     }
-    if (share && typeof navigator.share === "function") {
-      try {
-        const blob = await (await fetch(url)).blob();
-        const file = new File([blob], issued.fileName, { type: "application/pdf" });
-        if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: issued.fileName });
-          return;
-        }
-      } catch {
-        /* a share the person cancelled, or a phone that can't: open it instead */
-      }
-    }
+    if (share && (await sharePdf(url, issued.fileName))) return;
     window.open(url, "_blank", "noopener");
   };
 

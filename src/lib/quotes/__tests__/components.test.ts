@@ -91,8 +91,10 @@ describe("the sums", () => {
 });
 
 describe("the settings", () => {
-  it("starts at 20% on units, 40% on materials and an 8-hour day", () => {
+  it("starts with no markup set — never another business's — and an 8-hour day", () => {
     expect(normaliseQuoteSettings({})).toEqual(DEFAULT_QUOTE_SETTINGS);
+    expect(DEFAULT_QUOTE_SETTINGS).toEqual({ unitMarkupPct: null, materialMarkupPct: null, dayHours: 8, preferred: {} });
+    expect(normaliseQuoteSettings({ unit_markup_pct: null, material_markup_pct: "" })).toMatchObject({ unitMarkupPct: null, materialMarkupPct: null });
   });
 
   it("keeps a preferred item and a corrected roll, and drops what it doesn't know", () => {

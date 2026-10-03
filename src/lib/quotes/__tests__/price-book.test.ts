@@ -1,7 +1,7 @@
 /* The price book's two imports and its sums, on lines taken from the
    business's real files (2026-09-30). */
 import {
-  DEFAULT_SUPPLIERS,
+  BUILT_IN_SUPPLIERS,
   columnLetter,
   compareOffers,
   csvRows,
@@ -14,8 +14,9 @@ import {
   pricingWords,
 } from "../price-book";
 
-const aad = DEFAULT_SUPPLIERS.find((s) => s.key === "aad")!;
-const me = DEFAULT_SUPPLIERS.find((s) => s.key === "mitsubishi")!;
+const aad = BUILT_IN_SUPPLIERS.find((s) => s.key === "aad")!;
+/* the business's own discount, as it set it on the Quoting page */
+const me = { ...BUILT_IN_SUPPLIERS.find((s) => s.key === "mitsubishi")!, discountPct: 30, rules: [{ prefix: "PUMY", discountPct: 48 }] };
 
 describe("AAD's CSV", () => {
   it("reads code, name and net price, quotes and all", () => {
@@ -67,6 +68,13 @@ describe("what the business pays", () => {
     expect(netCents(me, "PUMY-SP125VKMD3-A", 580300)).toBe(301756);
     expect(pricingWords(me)).toBe("List less 30%, PUMY less 48%");
     expect(pricingWords(aad)).toBe("Net prices");
+  });
+
+  it("knows no business's discount: a list-price supplier starts at list, and says so", () => {
+    const fresh = BUILT_IN_SUPPLIERS.find((s) => s.key === "mitsubishi")!;
+    expect(BUILT_IN_SUPPLIERS.every((s) => s.discountPct === 0 && s.rules.length === 0)).toBe(true);
+    expect(netCents(fresh, "PUMY-SP125VKMD3-A", 580300)).toBe(580300);
+    expect(pricingWords(fresh)).toBe("List prices, no discount set");
   });
 
   it("puts the cheaper supplier first and says by how much", () => {

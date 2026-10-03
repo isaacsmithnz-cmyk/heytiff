@@ -12147,13 +12147,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    that lays a model's price at every supplier side by side, the cheaper in
    the state's green (law 31: it means something) */
 .qs-notedetail { display:block; margin-top:4px; font-weight:500; }
-.qs-suprow { grid-template-columns:200px minmax(0, 1fr) 180px; }
+.qs-suprow { grid-template-columns:200px minmax(0, 1fr) 260px; }
 .qs-upload { position:relative; cursor:pointer; }
 .qs-upload[aria-disabled="true"] { opacity:.5; cursor:default; }
 .qs-file { position:absolute; inset:0; opacity:0; cursor:pointer; }
 /* a supplier added by name, and a file's columns matched by hand: its
    first rows as they are, a column to choose for each field */
 .qs-addsup .wb2-fi { width:100%; }
+/* a list-price supplier's discount: a range per row, its Remove on the
+   fields' baseline */
+.qs-rule { align-items:flex-end; }
 .qs-match { margin-top:16px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); }
 .qs-preview { margin-top:12px; overflow-x:auto; }
 .qs-preview table { border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }

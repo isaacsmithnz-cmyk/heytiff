@@ -8,9 +8,11 @@
    share of the ductwork and grilles, and a couple of hours at the hourly
    rate.
 
-   Labour is counted as ServiceM8's quotes count it: "Labour HVAC" is one
-   person for one day at $1,320, in half days (1.5 for a small wall split).
-   Tested against 40-odd real jobs — see past-jobs.test.ts.
+   Labour is counted as ServiceM8's quotes count it: one person for one day
+   at the business's own day rate, in half days. There is no default
+   rate, markup or contingency: each is the business's (Isaac, 2026-10-04).
+   Tested against 40-odd real jobs at one business's settings — see
+   past-jobs.test.ts.
 
    Pure: the quote screen, the proposal's price and the tests all read the
    same sums. */
@@ -58,16 +60,6 @@ export type BuildSettings = {
   contingencyOn: boolean;
 };
 
-export const DEFAULT_BUILD_SETTINGS: BuildSettings = {
-  unitMarkupPct: 25,
-  materialMarkupPct: 40,
-  dayRateCents: 132000,
-  labourRateCents: 14000,
-  contingencyPct: 15,
-  contingencyHours: 2,
-  contingencyOn: true,
-};
-
 export type PricedLine = BuildLine & { buyCents: number; sellCents: number };
 export type PricedGroup = { name: string; lines: PricedLine[]; buyCents: number; sellCents: number };
 
@@ -107,7 +99,7 @@ const markup = (cents: number, pct: number) => Math.round(cents * (1 + pct / 100
 export function priceBuildUp(
   lines: BuildLine[],
   visits: Visit[],
-  s: BuildSettings = DEFAULT_BUILD_SETTINGS,
+  s: BuildSettings,
   loadingIn: Loading | null = null,
   offeredIn: Offered | null = null
 ): BuildUp {

@@ -4,10 +4,11 @@
 
    The numbers below are ratchets: a change to the rules may tighten them,
    never loosen them. PAST_JOBS_REPORT=1 prints the job-by-job table. */
-import { DEFAULT_BUILD_SETTINGS, priceBuildUp, type BuildSettings } from "../buildup";
+import { priceBuildUp, type BuildSettings } from "../buildup";
 import { ductedLines, type PriceOf } from "../ducted-template";
 import { splitLines } from "../split-template";
 import { PAST_JOBS, type PastJob } from "./fixtures/past-jobs";
+import { ONE_BUSINESS } from "./fixtures/one-business";
 import { PAST_JOBS_BOOK } from "./fixtures/past-jobs-book";
 
 const priceOf: PriceOf = (code) => {
@@ -25,7 +26,7 @@ type Row = {
   sell: [ours: number, his: number | null];
 };
 
-function bench(j: PastJob, s: BuildSettings = DEFAULT_BUILD_SETTINGS): Row {
+function bench(j: PastJob, s: BuildSettings = ONE_BUSINESS): Row {
   const built = j.kind === "split" ? splitLines(j.facts, priceOf) : ductedLines(j.facts, priceOf);
   /* labour is never the builder's guess (Isaac, 2026-10-04): each job is
      priced with the person-days it was actually quoted at, so what is held

@@ -7,6 +7,7 @@ import { ductedLines, type PriceOf } from "../ducted-template";
 import { multiLines } from "../multi-template";
 import { splitLines } from "../split-template";
 import { BLIND_JOBS, type BlindJob } from "./fixtures/blind-jobs";
+import { ONE_BUSINESS } from "./fixtures/one-business";
 import { BLIND_JOBS_BOOK } from "./fixtures/blind-jobs-book";
 
 const priceOf: PriceOf = (code) => {
@@ -26,7 +27,7 @@ function build(j: BlindJob) {
   /* labour only where Isaac's own notes give it — never the builder's guess
      (2026-10-04) */
   if (j.notedPersonDays != null) visits.push({ stage: "Install", people: 1, days: j.notedPersonDays });
-  const b = priceBuildUp(lines, visits);
+  const b = priceBuildUp(lines, visits, ONE_BUSINESS);
   return { b, missing, gap: ((b.exGstCents - j.quotedCents) / j.quotedCents) * 100 };
 }
 

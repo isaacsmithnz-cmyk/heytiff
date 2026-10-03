@@ -109,12 +109,10 @@ Two questions, each a row of large options.
   villa (Class 1a), and townhouses over a shared basement car park are
   Class 2. When the certifier's list states the class, the list wins.
 
-  The building changes very little, on purpose. It is printed. It suggests
-  fire-rated penetrations for an apartment building, and AS 1668.2 for
-  ventilation in an office, shop or other commercial building. It gives the
-  reason when a certifier asks for something that doesn't apply ("house:
-  energy efficiency is set by the BASIX certificate"). It never adds fire mode
-  or Part J5 by itself.
+  The building changes very little, on purpose. It is printed. It adds no
+  statement and ticks nothing (Isaac, 2026-10-03: nothing goes on that wasn't
+  needed). It only offers a reason when something asked for doesn't apply
+  ("house: energy efficiency is set by the BASIX certificate").
 
 ### 2. Equipment
 
@@ -131,11 +129,10 @@ Filled in from the job (see Prefill), then corrected.
 - **Serial numbers** are optional in v1, because nothing captures them yet.
   The paper shows a serial column only when at least one row has a serial.
   Phase 2 reads them off nameplate photos.
-- **What else was installed**, as three ticks, each suggested from the quote:
+- **What else was installed**, as two ticks, each suggested from the quote:
   - ductwork, plenums or flexible duct
   - penetrations through fire-rated walls or floors (asks which fire-stopping
     product was used)
-  - a condensate pump
 
 ### 3. Certifier's list
 
@@ -186,8 +183,8 @@ approves before anything issues.
    oxygen-free nitrogen, evacuated below 500 microns, charged and commissioned
    to AS/NZS 5149.2 and the ARC Refrigerant Handling Code of Practice (2025).
    The test figures print with it.
-2. **Installed to the manufacturer's instructions:** clearances, mounting and
-   pipe lengths.
+2. **Installed to the manufacturer's instructions**, when nothing was asked
+   for.
 3. **Condensate** drained to a suitable point without damage or nuisance.
 4. **Commissioned:** run and checked in heating and cooling, with operating
    instructions and the maintenance schedule handed over.
@@ -196,7 +193,7 @@ approves before anything issues.
 **Every ventilation certificate:**
 
 1. **Each fan's airflow**, marked as rated or measured (see The fan list).
-2. **Discharge to outdoor air**, not the roof space. NCC 2022 sets 25 L/s for
+2. **Discharge to outdoor air.** NCC 2022 sets 25 L/s for
    a bathroom or toilet and 40 L/s for a kitchen or laundry: Housing
    Provisions 10.8.2 for houses, Part F8 of Volume One for apartments.
 
@@ -204,14 +201,11 @@ approves before anything issues.
 
 - Ductwork, plenums or flexible duct: AS 4254.1 and AS 4254.2.
 - Fire-rated penetrations: sealed with the named fire-stopping product to keep
-  the element's fire resistance level. The certifier's penetration schedule is
-  a separate document, by others.
-- Ventilation in an office, shop or other commercial building: AS 1668.2,
-  suggested and removable.
+  the element's fire resistance level.
 
 **Only when the certifier's list asks for it:**
 
-- Installation to AS/NZS 1668.1 and AS 1668.2.
+- Installation to AS/NZS 1668.1 and AS 1668.2, or to AS 1668.2 alone.
 - Fire mode (Specification 21 and AS/NZS 1668.1), as one of the three answers.
 - BCA Part J5: pipework insulated, and each unit can be switched off when its
   space is unoccupied.
@@ -225,10 +219,9 @@ approves before anything issues.
 **Not applicable** is printed only for something the certifier asked for,
 with its reason. A certificate doesn't list the standards it isn't about.
 
-**Not covered**, one line on every certificate: electrical work, which the
-electrician certifies separately under AS/NZS 3000. The person may add one
-more item to that line (for example, "the building's outdoor-air
-ventilation").
+**Not covered** prints only when the person types something (for example,
+"the building's outdoor-air ventilation"). What a certificate covers is its
+tables, so nothing is ruled out by default (Isaac, 2026-10-03).
 
 **Never ours:**
 
@@ -348,24 +341,23 @@ Cut down after Isaac's "too much extra information".
   hasn't chosen a colour.
 - **The masthead:**
   - Left: the certificate's title as the small heading, the site address as
-    the title, "Prepared by" with the business and the date, then the builder,
-    their contact, the site and the job number.
+    the title, "Prepared by" with the business, then the builder, the site
+    and the job number. No "Attention" line: a certificate isn't a letter.
   - Right: the logo through `BrandLogo` (initials stand in), then legal name,
     ABN, the business's ARC authorisation and contractor licence when on file,
     address and contact lines.
-- **The facts row:** what is certified, the building (when picked), the
-  completion date, the outdoor capacity for air conditioning, and the number
-  of fans for ventilation. The certifier and project number join the row when
-  there is a list.
+- **The facts row:** the building (when picked) and the completion date.
+  What is certified is already the tables' headings, and the fans are
+  counted by their rows, so neither is repeated.
 - **One table per thing certified:**
-  - Air conditioning: location, model, capacity, plus serial when any row has
-    one. Outdoor unit first, total indoor capacity in the foot.
+  - Air conditioning: location and model, plus serial when any row has one.
+    Outdoor unit first. No capacity and no total.
   - Ventilation: location, model, airflow, with "rated" or "measured" on the
     figure.
 - **Nothing else describes the equipment.** No system box, no brand line, no
   feature list, no scope paragraph.
-- **Certification:** the numbered statements, then one line each for not
-  applicable (only if a certifier asked) and not covered.
+- **Certification:** the numbered statements, then not applicable (only for
+  something asked) and not covered (only when typed).
 - **Sign-off:** the stored signature, name and date, then the signatory's ARC
   licence and contractor licence numbers. Insurance in the foot.
 - Plus Jakarta Sans, ink and greys. The brand colour is the frame and nowhere

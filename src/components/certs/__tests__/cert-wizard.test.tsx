@@ -40,7 +40,6 @@ const context = (over: Partial<CertWizardContext> = {}): CertWizardContext => ({
     description: JOB_3326,
     companyUuid: "co-1",
     clientName: "Helix Venture Studio Pty Ltd",
-    contactName: "Lisa Harper",
     completedOn: "2026-09-25",
   },
   reading: readQuote(JOB_3326),
@@ -109,7 +108,7 @@ describe("what the job already says", () => {
 describe("what the quote says about itself", () => {
   const job1383 = () =>
     context({
-      job: { uuid: "job-1", number: "1383", address: "74/10 Etham Avenue\nDarling Point NSW 2027", description: JOB_1383, companyUuid: "co-1", clientName: "Reed Developments", contactName: null, completedOn: "2026-08-04" },
+      job: { uuid: "job-1", number: "1383", address: "74/10 Etham Avenue\nDarling Point NSW 2027", description: JOB_1383, companyUuid: "co-1", clientName: "Reed Developments", completedOn: "2026-08-04" },
       reading: readQuote(JOB_1383),
       building: suggestBuilding("74/10 Etham Avenue"),
     });

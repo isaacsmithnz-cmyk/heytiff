@@ -57,7 +57,6 @@ export function readingFromQuote(options: readonly ProposalOption[]): QuoteReadi
     fans,
     ductwork: said.ductwork,
     fireRated: said.fireRated,
-    condensatePump: said.condensatePump,
     ventilation: fans.length > 0,
     refrigerant: said.refrigerant,
     statedConnectedKw: null,

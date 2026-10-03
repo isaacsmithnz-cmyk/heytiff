@@ -44,8 +44,9 @@ export function certFileName(_c: Covers, site: string, jobNumber: string | null)
 
 /* THE BUILDING, in words that are true for their class. An address can't
    settle it (a "2/15" can be a villa; townhouses over a shared basement are
-   Class 2), so the class prints only when somebody picked it. It decides very
-   little on purpose: it never adds fire mode or Part J5 by itself. */
+   Class 2), so the class prints only when somebody picked it. It adds no
+   statement and ticks nothing: it only offers a reason when something asked
+   for doesn't apply. */
 export const BUILDINGS = [
   { key: "house", label: "House, townhouse or duplex", cls: "Class 1a" },
   { key: "apartment", label: "Apartment building", cls: "Class 2" },
@@ -58,8 +59,6 @@ export type Building = (typeof BUILDINGS)[number]["key"];
 export function buildingOf(key: Building | null): (typeof BUILDINGS)[number] | null {
   return BUILDINGS.find((b) => b.key === key) ?? null;
 }
-
-const COMMERCIAL: readonly Building[] = ["office", "shop", "other"];
 
 /* ── the equipment ─────────────────────────────────────────────────────── */
 
@@ -127,8 +126,8 @@ export type ClauseKey =
   // added by what was installed
   | "ductwork"
   | "fireRated"
+  // only when asked for
   | "as16682"
-  // only when a certifier's list asks
   | "as1668"
   | "fireMode"
   | "j5"
@@ -214,9 +213,7 @@ export type CertAnswers = {
   completedOn: string;
   systems: AcSystem[];
   fans: FanRow[];
-  installed: { ductwork: boolean; fireRated: boolean; fireStopProduct: string; condensatePump: boolean };
-  /** Suggested for ventilation in a commercial building; removable. */
-  ventAs16682: boolean;
+  installed: { ductwork: boolean; fireRated: boolean; fireStopProduct: string };
   requirements: Requirement[];
   fireMode: FireMode | null;
   /** The person checked each unit's rated airflow against 1000 L/s. */
@@ -225,7 +222,7 @@ export type CertAnswers = {
   /** yyyy-mm-dd */
   fireModeTestedOn: string;
   airBalance: "attached" | "others" | null;
-  /** One more item for the Not covered line. */
+  /** What the certificate doesn't cover, printed only when typed. */
   notCoveredExtra: string;
   /** The person confirmed every unit installed is on the certificate, with
       its model off the plate. Cleared whenever a unit changes. */
@@ -249,8 +246,7 @@ export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   completedOn: "",
   systems: [],
   fans: [],
-  installed: { ductwork: false, fireRated: false, fireStopProduct: "", condensatePump: false },
-  ventAs16682: false,
+  installed: { ductwork: false, fireRated: false, fireStopProduct: "" },
   requirements: [],
   fireMode: null,
   fireModeRatingsChecked: false,
@@ -279,14 +275,7 @@ export function clausesFor(a: CertAnswers): ClauseKey[] {
   if (a.covers.vent) VENT_CORE.forEach(add);
   if (a.installed.ductwork) add("ductwork");
   if (a.installed.fireRated) add("fireRated");
-  if (a.covers.vent && a.ventAs16682) add("as16682");
   return out;
-}
-
-/** What the building suggests, never decides: fire-rated penetrations in an
-    apartment building, AS 1668.2 for ventilation in a commercial one. */
-export function buildingSuggests(b: Building | null): { fireRated: boolean; ventAs16682: boolean } {
-  return { fireRated: b === "apartment", ventAs16682: b !== null && COMMERCIAL.includes(b) };
 }
 
 /** The reason offered when a certifier asks for something that doesn't apply.
@@ -361,11 +350,9 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
         `Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. ${testLines(a.systems)}`
       ).trim();
     case "manufacturer":
-      return "The equipment is installed to the manufacturer's installation instructions, including clearances, mounting and pipe lengths.";
+      return "The equipment is installed to the manufacturer's installation instructions.";
     case "condensate":
-      return a.installed.condensatePump
-        ? "Condensate is drained to a suitable point, by condensate pump where fitted, without damage or nuisance."
-        : "Condensate is drained to a suitable point without damage or nuisance.";
+      return "Condensate is drained to a suitable point without damage or nuisance.";
     case "commissioned":
       return "The system was commissioned and checked in heating and cooling, and the operating instructions and maintenance schedule were handed over.";
     case "arc":
@@ -386,11 +373,11 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
     }
     case "ventDischarge":
       /* exhaust only: a supply fan draws outdoor air in, it discharges nothing */
-      return "Every exhaust fan discharges to outdoor air, not into the roof space.";
+      return "Every exhaust fan discharges to outdoor air.";
     case "ductwork":
       return "Ductwork, plenums and flexible duct are installed, supported, sealed and insulated in accordance with AS 4254.1 and AS 4254.2.";
     case "fireRated":
-      return `Penetrations through fire-rated walls and floors are sealed with ${a.installed.fireStopProduct.trim() || "a tested fire-stopping system"} to maintain the element's fire resistance level. The penetration schedule is by others.`;
+      return `Penetrations through fire-rated walls and floors are sealed with ${a.installed.fireStopProduct.trim() || "a tested fire-stopping system"} to maintain the element's fire resistance level.`;
     case "as16682":
       return "The mechanical ventilation is installed in accordance with AS 1668.2.";
     case "as1668":
@@ -445,9 +432,11 @@ export function statementsFor(a: CertAnswers): { statements: Statement[]; notApp
   return { statements, notApplicable };
 }
 
+/** Empty unless the person typed something: what a certificate covers is
+    its tables, so nothing is ruled out by default. */
 export function notCoveredLine(a: CertAnswers): string {
-  const extra = a.notCoveredExtra.trim().replace(/\.$/, "");
-  return `Not covered: electrical work, certified separately under AS/NZS 3000${extra ? `; ${extra}` : ""}.`;
+  const what = a.notCoveredExtra.trim().replace(/\.$/, "");
+  return what ? `Not covered: ${what}.` : "";
 }
 
 /* ── the frozen document ───────────────────────────────────────────────── */
@@ -460,9 +449,6 @@ export type CertContent = {
   completedOn: string;
   systems: AcSystem[];
   fans: FanRow[];
-  outdoorKw: number;
-  indoorKw: number;
-  fanCount: number;
   showSerials: boolean;
   statements: Statement[];
   notApplicable: Statement[];
@@ -483,9 +469,6 @@ export function buildCertificate(a: CertAnswers): CertContent {
     completedOn: a.completedOn,
     systems,
     fans,
-    outdoorKw: outdoorTotalKw(systems),
-    indoorKw: indoorTotalKw(systems),
-    fanCount: fans.reduce((n, f) => n + Math.max(1, f.qty), 0),
     showSerials: rows.some((r) => r.serial.trim() !== ""),
     statements,
     notApplicable,
@@ -673,7 +656,7 @@ const WHEN: Record<ClauseKey, string> = {
   ventDischarge: "Every ventilation certificate",
   ductwork: "When ductwork, plenums or flexible duct were installed",
   fireRated: "When penetrations went through fire-rated walls or floors",
-  as16682: "When ventilation the building relies on was installed",
+  as16682: "Only when asked for",
   as1668: "Only when asked for",
   fireMode: "Only when asked for, worded by the answer",
   j5: "Only when asked for",
@@ -689,7 +672,6 @@ export function wordingSamples(): Wording[] {
   const base: CertAnswers = { ...DEFAULT_CERT_ANSWERS, covers: { ac: true, vent: true } };
   const order: ClauseKey[] = ["approved", ...AC_CORE, ...VENT_CORE, "ductwork", "fireRated", "as16682", "as1668", "fireMode", "j5", "kitchenExhaust", "carPark", "airBalance", "noise"];
   const variants: Partial<Record<ClauseKey, CertAnswers[]>> = {
-    condensate: [base, { ...base, installed: { ...base.installed, condensatePump: true } }],
     ventAirflow: [
       { ...base, fans: [{ location: "Bathroom", model: "", qty: 1, airflowLps: 30, airflowKind: "rated", serial: "" }] },
       { ...base, fans: [{ location: "Bathroom", model: "", qty: 1, airflowLps: 30, airflowKind: "measured", serial: "" }] },

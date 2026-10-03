@@ -31,7 +31,6 @@ export async function certPaperProps(orgId: string, versionId: string, logoSecon
     job: {
       number: v.job?.number ?? null,
       builder: v.job?.clientName ?? null,
-      contact: v.job?.contactName ?? null,
       address: v.job?.address ?? null,
     },
     signOff: {

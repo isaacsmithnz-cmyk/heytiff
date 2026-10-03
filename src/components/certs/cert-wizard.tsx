@@ -30,7 +30,6 @@ import {
   EMPTY_ROW,
   EMPTY_TEST,
   MATCHABLE,
-  buildingSuggests,
   certProblemList,
   certTitle,
   clausesFor,
@@ -39,7 +38,6 @@ import {
   suggestedReason,
   type AcRow,
   type AcSystem,
-  type Building,
   type CertAnswers,
   type CertProblemField,
   type CircuitTest,
@@ -171,8 +169,7 @@ function startingAnswers(ctx: CertWizardContext): CertAnswers {
     completedOn: ctx.job.completedOn ?? "",
     systems: r.systems.length > 0 ? r.systems.map((x) => ({ ...x, indoors: x.indoors.length ? x.indoors : [{ ...EMPTY_ROW }] })) : ac ? [blankSystem(r.refrigerant)] : [],
     fans: r.fans.map((f) => ({ ...f, airflowLps: f.airflowLps ?? fanRated(f.model) })),
-    installed: { ductwork: r.ductwork, fireRated: r.fireRated, fireStopProduct: "", condensatePump: r.condensatePump },
-    ventAs16682: false,
+    installed: { ductwork: r.ductwork, fireRated: r.fireRated, fireStopProduct: "" },
   };
 }
 
@@ -548,10 +545,7 @@ export function CertWizard({
               key={b.key}
               name="building"
               checked={a.building === b.key}
-              onChange={() => {
-                const s = buildingSuggests(b.key as Building);
-                set({ building: b.key, ventAs16682: a.covers.vent && s.ventAs16682, installed: { ...a.installed, fireRated: a.installed.fireRated || s.fireRated } });
-              }}
+              onChange={() => set({ building: b.key })}
               title={b.label}
               sub={[b.cls, a.building === null && live.building.building === b.key ? "The address suggests this" : null].filter(Boolean).join(", ") || null}
             />
@@ -700,13 +694,6 @@ export function CertWizard({
               value={a.installed.fireStopProduct}
               onChange={(e) => set({ installed: { ...a.installed, fireStopProduct: e.target.value } })}
             />
-          )}
-          {/* only words it when condensate was asked for, so only asked then */}
-          {clauses.includes("condensate") && (
-            <Choice kind="checkbox" name="pump" checked={a.installed.condensatePump} onChange={(on) => set({ installed: { ...a.installed, condensatePump: on } })} title="A condensate pump" />
-          )}
-          {a.covers.vent && (
-            <Choice kind="checkbox" name="as16682" checked={a.ventAs16682} onChange={(on) => set({ ventAs16682: on })} title="Ventilation the building relies on, to AS 1668.2" sub="Offices, shops, car parks and common areas" />
           )}
         </div>
       </div>
@@ -914,8 +901,8 @@ export function CertWizard({
       <div className="sw-qas">
         <div className="sw-qa">
           <span>
-            <label htmlFor="cz-notcov">Also not covered</label>
-            <em>Electrical work is always listed</em>
+            <label htmlFor="cz-notcov">Not covered</label>
+            <em>Optional. Printed only when filled in</em>
           </span>
           <input id="cz-notcov" className="wb2-fi" placeholder="Like the building's outdoor-air ventilation" value={a.notCoveredExtra} onChange={(e) => set({ notCoveredExtra: e.target.value })} />
         </div>

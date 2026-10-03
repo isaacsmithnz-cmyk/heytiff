@@ -25,7 +25,7 @@ describe("readQuote on the golden jobs", () => {
         ],
       },
     ]);
-    expect([q.ductwork, q.fireRated, q.condensatePump, q.ventilation]).toEqual([true, false, false, false]);
+    expect([q.ductwork, q.fireRated, q.ventilation]).toEqual([true, false, false]);
   });
 
   it("279: the VRF's model, units grouped with their rooms, and the Lossnay", () => {
@@ -79,7 +79,7 @@ describe("readQuote on the golden jobs", () => {
     ]);
     expect(q.systems[0].test.refrigerant).toBe("R32");
     /* "Trunking/Duct for external" is not ductwork */
-    expect([q.ductwork, q.fireRated, q.condensatePump]).toEqual([false, false, true]);
+    expect([q.ductwork, q.fireRated]).toEqual([false, false]);
   });
 
   it("2699: a multi split on the balcony, and its fire-rated penetrations", () => {

@@ -25,8 +25,6 @@ export type CertJob = {
   description: string | null;
   companyUuid: string | null;
   clientName: string | null;
-  /** The job's own contact, the builder's person: "Attention Edward Reed". */
-  contactName: string | null;
   /** yyyy-mm-dd, the latest completion across the card and its claims. */
   completedOn: string | null;
 };
@@ -55,25 +53,14 @@ export async function loadCertJob(orgId: string, jobUuid: string): Promise<CertJ
   if (!job) return null;
   const number = job.generated_job_id?.trim() || null;
 
-  const [company, contacts, claims] = await Promise.all([
+  const [company, claims] = await Promise.all([
     job.company_uuid
       ? supabaseAdmin.from("sm8_companies").select("name").eq("org_id", orgId).eq("uuid", job.company_uuid).maybeSingle()
       : Promise.resolve({ data: null }),
-    supabaseAdmin
-      .from("sm8_job_contacts")
-      .select("first, last, type")
-      .eq("org_id", orgId)
-      .eq("job_uuid", jobUuid)
-      .eq("active", 1),
     number && /^\d+$/.test(number)
       ? supabaseAdmin.from("sm8_jobs").select("generated_job_id, completion_date").eq("org_id", orgId).like("generated_job_id", `${number}%`)
       : Promise.resolve({ data: [] }),
   ]);
-
-  const people = ((contacts.data ?? []) as { first: string | null; last: string | null; type: string | null }[])
-    .map((c) => ({ name: [c.first, c.last].map((p) => p?.trim()).filter(Boolean).join(" "), type: (c.type ?? "").toUpperCase() }))
-    .filter((c) => c.name);
-  const contact = people.find((c) => c.type === "JOB") ?? people[0] ?? null;
 
   const dates = [
     job.completion_date,
@@ -92,7 +79,6 @@ export async function loadCertJob(orgId: string, jobUuid: string): Promise<CertJ
     description: job.work_done_description?.trim() ? job.work_done_description : job.job_description,
     companyUuid: job.company_uuid,
     clientName: ((company.data as { name?: string | null } | null)?.name ?? "").trim() || null,
-    contactName: contact?.name ?? null,
     completedOn: dates[dates.length - 1] ?? null,
   };
 }

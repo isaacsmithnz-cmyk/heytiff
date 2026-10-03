@@ -1,13 +1,13 @@
 import {
   DEFAULT_CERT_ANSWERS,
   buildCertificate,
-  buildingSuggests,
   certFileName,
   certProblemList,
   certProblems,
   certTitle,
   clausesFor,
   fmtKw,
+  indoorTotalKw,
   statementsFor,
   suggestedReason,
   wetMinimum,
@@ -34,7 +34,6 @@ const FACTS: CertFacts = { today: "2026-10-01", approved: true, hasSignature: tr
     picked, every row completed, and the tests typed in. */
 function answersFor(description: string, covers: Covers, building: Building, more: Partial<CertAnswers> = {}): CertAnswers {
   const q = readQuote(description);
-  const s = buildingSuggests(building);
   return {
     ...DEFAULT_CERT_ANSWERS,
     covers,
@@ -46,8 +45,7 @@ function answersFor(description: string, covers: Covers, building: Building, mor
       test: { ...TESTED, refrigerant: sys.test.refrigerant || "R32" },
     })),
     fans: q.fans.map((f) => ({ ...f, location: f.location || "Whole house", airflowLps: 60 })),
-    installed: { ductwork: q.ductwork, fireRated: q.fireRated || s.fireRated, fireStopProduct: "Promat collars", condensatePump: q.condensatePump },
-    ventAs16682: covers.vent && s.ventAs16682,
+    installed: { ductwork: q.ductwork, fireRated: q.fireRated, fireStopProduct: "Promat collars" },
     equipmentConfirmed: true,
     ...more,
   };
@@ -66,13 +64,13 @@ describe("the golden jobs", () => {
       requirements: futureCert(),
       fireMode: "individual",
       fireModeRatingsChecked: true,
-      installed: { ductwork: true, fireRated: false, fireStopProduct: "", condensatePump: false },
+      installed: { ductwork: true, fireRated: false, fireStopProduct: "" },
     });
     expect(clausesFor(a)).toEqual(["as1668", "fireMode", "j5", "approved", "refrigerant", "arc", "ductwork"]);
     expect(certProblems(a, FACTS)).toEqual([]);
     const c = buildCertificate(a);
     expect(c.statements.slice(0, 3).map((st) => st.requirement)).toEqual(FUTURECERT_9_1);
-    expect(c.indoorKw).toBeCloseTo(19.8);
+    expect(indoorTotalKw(a.systems)).toBeCloseTo(19.8);
     /* ductwork went in, so Part J5 says it is insulated and sealed too */
     expect(c.statements[2].text).toBe(
       "The installation complies with Section J of the BCA for air-conditioning and ventilation: refrigerant pipework and ductwork are insulated, ductwork is sealed, and each unit can be switched off when its space is unoccupied."
@@ -87,7 +85,7 @@ describe("the golden jobs", () => {
     const a = answersFor(JOB_279, BOTH, "house");
     expect(clausesFor(a)).toEqual([...AC_CORE, "ventAirflow", "ventDischarge", "ductwork"]);
     expect(certProblems(a, FACTS)).toEqual([]);
-    expect(buildCertificate(a).indoorKw).toBeCloseTo(46.7);
+    expect(indoorTotalKw(a.systems)).toBeCloseTo(46.7);
   });
 
   it("1300 and 1245: the standard set and ductwork", () => {
@@ -104,8 +102,9 @@ describe("the golden jobs", () => {
     expect(certProblems(a, FACTS)).toEqual([]);
   });
 
-  it("2699: the standard set and fire-rated penetrations", () => {
-    const a = answersFor(JOB_2699, AC, "apartment");
+  it("2699: the standard set and fire-rated penetrations, ticked by the person and never by the building", () => {
+    expect(clausesFor(answersFor(JOB_2699, AC, "apartment", { installed: { ductwork: false, fireRated: false, fireStopProduct: "" } }))).toEqual(AC_CORE);
+    const a = answersFor(JOB_2699, AC, "apartment", { installed: { ductwork: false, fireRated: true, fireStopProduct: "Promat collars" } });
     expect(clausesFor(a)).toEqual([...AC_CORE, "fireRated"]);
     expect(certProblems(a, FACTS)).toEqual([]);
     expect(buildCertificate(a).statements.find((s) => s.clause === "fireRated")?.text).toContain("Promat collars");
@@ -161,14 +160,18 @@ describe("the statements", () => {
     });
   });
 
-  it("say what isn't covered on every certificate, with one more item when given", () => {
-    expect(buildCertificate(answersFor(JOB_3326, AC, "office")).notCovered).toBe(
-      "Not covered: electrical work, certified separately under AS/NZS 3000."
-    );
+  it("say what isn't covered only when the person typed it", () => {
+    expect(buildCertificate(answersFor(JOB_3326, AC, "office")).notCovered).toBe("");
     const a = answersFor(JOB_3326, AC, "office", { notCoveredExtra: "the building's outdoor-air ventilation." });
-    expect(buildCertificate(a).notCovered).toBe(
-      "Not covered: electrical work, certified separately under AS/NZS 3000; the building's outdoor-air ventilation."
-    );
+    expect(buildCertificate(a).notCovered).toBe("Not covered: the building's outdoor-air ventilation.");
+  });
+
+  it("add nothing the building or the job didn't call for", () => {
+    for (const b of ["house", "apartment", "office", "shop", "other"] as Building[]) {
+      expect(clausesFor(answersFor(JOB_279, BOTH, b))).toEqual([...AC_CORE, "ventAirflow", "ventDischarge", "ductwork"]);
+    }
+    const text = statementsFor(answersFor(JOB_279, BOTH, "house")).statements.map((st) => st.text).join(" ");
+    expect(text).not.toMatch(/roof space|clearances|by others|AS\/NZS 3000|AS 1668\.2/);
   });
 });
 
@@ -337,7 +340,7 @@ describe("what was asked against what was installed", () => {
   it("refuses to certify exhaust fans on an air conditioning-only job, and ductwork that isn't ticked", () => {
     const a = answersFor(JOB_3326, AC, "office", {
       requirements: [ask("Exhaust fans discharge to outdoor air"), ask("Ductwork installed to AS 4254")],
-      installed: { ductwork: false, fireRated: false, fireStopProduct: "", condensatePump: false },
+      installed: { ductwork: false, fireRated: false, fireStopProduct: "" },
     });
     expect(certProblems(a, FACTS)).toEqual([
       "Requirement 1 asks for discharge to outdoor air, but no ventilation is on this certificate. Mark it not applicable with a reason, or add what's missing.",

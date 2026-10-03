@@ -28,7 +28,7 @@ function render(a: CertAnswers = ANSWERS) {
       content={buildCertificate(a)}
       brand={brand}
       papers={{ licences: ["ARC authorisation AU12345"], insurance: ["Public liability: QBE 08U693177BPK"] }}
-      job={{ number: "3326", builder: "Helix Venture Studio Pty Ltd", contact: "Lisa Harper", address: "Lv 3 Suite 4/44-54 Botany Road, Alexandria, NSW, 2015" }}
+      job={{ number: "3326", builder: "Helix Venture Studio Pty Ltd", address: "Lv 3 Suite 4/44-54 Botany Road, Alexandria, NSW, 2015" }}
       signOff={{
         name: "Isaac Smith",
         signedOn: "2026-10-01",
@@ -42,15 +42,16 @@ function render(a: CertAnswers = ANSWERS) {
 }
 
 describe("CertificatePaper", () => {
-  it("titles itself after what it covers and the street, and addresses the builder", () => {
+  it("titles itself after the street and addresses the builder, with no attention line or counts", () => {
     const html = render();
     expect(html).toContain("Mechanical compliance certificate");
     expect(html).toContain("<h1>Lv 3 Suite 4/44-54 Botany Road</h1>");
-    expect(html).toContain("Attention Lisa Harper");
+    expect(html).not.toContain("Attention");
+    expect(html).not.toMatch(/Certifying|<dt>Fans<\/dt>/);
     expect(html).toContain("ARC authorisation AU12345");
   });
 
-  it("prints the tables, the statements, the sign-off and what isn't covered", () => {
+  it("prints the tables, the statements and the sign-off, and no Not covered line nobody typed", () => {
     const html = render();
     expect(html).toContain("Outdoor unit, roof");
     expect(html).toContain("MSZ-AP42VGKD2-A2");
@@ -58,7 +59,7 @@ describe("CertificatePaper", () => {
     expect(html).toContain("rated");
     expect(html).toContain("Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2.");
     expect(html).not.toMatch(/kPa|microns/);
-    expect(html).toContain("Not covered: electrical work, certified separately under AS/NZS 3000.");
+    expect(html).not.toContain("Not covered");
     expect(html).toContain("L118650");
     expect(html).toContain("315890C");
     expect(html).toContain('alt="Signature of Isaac Smith"');

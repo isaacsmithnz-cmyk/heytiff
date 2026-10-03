@@ -24,7 +24,6 @@ import "./certificate.css";
 export type PaperJob = {
   number: string | null;
   builder: string | null;
-  contact: string | null;
   address: string | null;
 };
 
@@ -59,11 +58,6 @@ export function addressLines(address: string | null): string[] {
   if (lines.length !== 1) return lines;
   const at = lines[0].indexOf(",");
   return at > 0 ? [lines[0].slice(0, at).trim(), lines[0].slice(at + 1).trim()].filter(Boolean) : lines;
-}
-
-function coversLabel(c: CertContent["covers"]): string {
-  if (c.ac && c.vent) return "Air conditioning, ventilation";
-  return c.vent ? "Ventilation" : "Air conditioning";
 }
 
 function modelCell(r: AcRow | FanRow): string {
@@ -179,12 +173,10 @@ export function CertificatePaper({
   const contact = [...papers.licences, ...brandContact(brand)];
 
   const figures: { label: string; value: string }[] = [
-    { label: "Certifying", value: coversLabel(content.covers) },
     ...(content.building
       ? [{ label: "Building", value: content.building.cls ? `${content.building.label} (${content.building.cls})` : content.building.label }]
       : []),
     { label: "Completed", value: shortDay(content.completedOn) },
-    ...(content.covers.vent ? [{ label: "Fans", value: String(content.fanCount) }] : []),
   ];
 
   /* the figures row's column count, as a custom property: built here, as a
@@ -222,7 +214,6 @@ export function CertificatePaper({
                     </div>
                     <address className="dsd-to">
                       {job.builder && <span className="dsd-to-n">{job.builder}</span>}
-                      {job.contact && <span className="dsd-to-l">Attention {job.contact}</span>}
                       {address.map((line) => (
                         <span key={line} className="dsd-to-l">
                           {line}
@@ -275,7 +266,7 @@ export function CertificatePaper({
                       Not applicable: {s.text}
                     </p>
                   ))}
-                  <p className="cer-note">{content.notCovered}</p>
+                  {content.notCovered && <p className="cer-note">{content.notCovered}</p>}
                 </section>
 
                 <dl className="cer-sign">

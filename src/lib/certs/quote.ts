@@ -92,7 +92,6 @@ export type QuoteReading = {
   fans: FanRow[];
   ductwork: boolean;
   fireRated: boolean;
-  condensatePump: boolean;
   ventilation: boolean;
   refrigerant: string;
   /** "(29KW total connected capacity)": what the quote says the indoor units
@@ -336,7 +335,6 @@ export function readQuote(description: string | null): QuoteReading {
     fans,
     ductwork: /\bducted\b|ductwork|plenum|bulkhead|ceiling concealed|flexible duct|sheet ?metal|under ?floor|linear bar|diffuser/i.test(text),
     fireRated: /fire[\s-]*rated|fire collar|fire[\s-]*stop/i.test(text),
-    condensatePump: /condensat\w*\s+pump/i.test(text),
     ventilation: fans.length > 0 || /energy recovery|\berv\b|ventilation fan|fresh air fan|inline fan/i.test(text),
     refrigerant,
     statedConnectedKw: statedConnectedKw(text),

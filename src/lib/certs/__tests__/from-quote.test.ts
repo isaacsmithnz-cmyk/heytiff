@@ -36,9 +36,9 @@ describe("the accepted quote's equipment", () => {
     expect(JSON.stringify(r)).not.toContain("WRONG-1");
   });
 
-  it("brings the fans with their rated airflow, and reads the refrigerant and ductwork from the option's own scope", () => {
+  it("brings the fans with their rated airflow ready behind the tick box, and reads the refrigerant and ductwork from the option's own scope", () => {
     const r = readingFromQuote(acceptedOptions(draft));
-    expect(r.fans).toEqual([{ location: "Bathroom", model: "SJMF100", qty: 2, airflowLps: 67, airflowKind: "rated", serial: "" }]);
+    expect(r.fans).toEqual([{ location: "Bathroom", model: "SJMF100", qty: 2, airflowGiven: false, airflowLps: 67, airflowKind: "rated", serial: "" }]);
     expect(r.ventilation).toBe(true);
     expect(r.refrigerant).toBe("R32");
     expect(r.systems[0].test.refrigerant).toBe("R32");

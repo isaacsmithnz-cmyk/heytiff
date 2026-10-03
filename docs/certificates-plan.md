@@ -175,9 +175,12 @@ stored on their staff card. Then they Issue.
 
 Every statement is short and names its standard, nothing more. The clauses are
 approved wording in a pure library, `lib/certs/mechanical.ts`, which the owner
-approves before anything issues, in Admin → Paperwork → Certificate wording.
+approves before anything issues, in Admin → Templates → Mechanical Compliance
+Certificate.
 
-The wording tab shows each statement once (`SHOWN`), grouped by when it
+The certificate's template reads top to bottom as the certificate does (the
+job, the equipment, the statements, not applicable, the signature) and shows
+each statement once (`SHOWN`), grouped by when it
 prints: every air conditioning certificate, every ventilation certificate,
 what was installed, what was asked for. What the person types is named in
 brackets and what depends on the job is in the quiet colour, so a statement
@@ -210,7 +213,8 @@ applicable" line that reads as two sentences instead of three colons).
 
 **Every ventilation certificate:**
 
-1. **Each fan's airflow**, marked as rated or measured (see The fan list).
+1. **Each fan's airflow**, when added, marked as rated or measured (see A
+   fan's airflow).
    NCC 2022 sets 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or
    laundry: Housing Provisions 10.8.2 for houses, Part F8 of Volume One for
    apartments.
@@ -255,29 +259,30 @@ tables, so nothing is ruled out by default (Isaac, 2026-10-03).
   that person cannot be the installer. Our fire-mode statement only says what
   was installed and how it behaves.
 
-## The fan list
+## A fan's airflow
 
 Isaac: "we don't measure every airflow against design", and for "tiny little
 ceiling exhaust fans" nobody should type a figure at all.
 
-- **A short list of the fans the business fits.** Each model is entered once,
-  with its rated L/s from the spec sheet and the spec sheet itself. Every
-  certificate after that fills in the figure from the model. A model not on
-  the list is added the first time it's used.
-- **Rated is the default.** It's the manufacturer's figure at the duct run
-  installed, read off the fan curve rather than the free-air number. The
-  statement says the fan was selected and installed to the manufacturer's
-  instructions to deliver it.
-- **Measured** is offered only when someone measured it on site (a vane
-  anemometer and hood), and prints the reading.
-- **The paper always says which kind it is.** A rated figure is never printed
-  as measured.
-- **One row per room.** The certifier checks that every wet area has a fan,
-  and one statement covers them all: each fan is rated at or above the NCC
-  minimum and discharges to outdoor air.
+- **No figure unless somebody adds one** (2026-10-03). A fan is its room and
+  model. Each fan has an "Add its airflow" tick box; ticked, it asks for the
+  L/s and whether that is rated or measured. Unticked, the certificate prints
+  no airflow for that fan, and the table drops the column when no fan has one.
+- **A figure on the accepted quote waits behind the tick box**, filled in
+  but not printed until it is ticked.
+- **No fan list.** There was one (a model with its rated L/s, filled in
+  wherever the model was typed). It was removed on 2026-10-03: the figure is
+  only printed when asked for, and then it is typed. The `fan_models` table
+  is left in place, unused.
+- **Rated** is the manufacturer's figure at the duct run installed, read off
+  the fan curve rather than the free-air number. **Measured** is a reading on
+  site (a vane anemometer and hood). The paper always says which: a rated
+  figure is never printed as measured.
+- **The NCC minimum** is claimed only when every wet-area fan shows a figure,
+  and a ticked figure under it stops the issue.
 - **When a certifier wants more**, such as an air balance or commissioning
-  report on a commercial job, rated isn't enough. The wizard asks for the
-  report to be attached, or marked as by others.
+  report on a commercial job, the wizard asks for the report to be attached,
+  or marked as by others.
 
 ## The requirements (the wizard's "Requirements" step)
 
@@ -347,7 +352,7 @@ all.
 | Kind of building (a hint; the person picks) | The address | 1 |
 | Equipment rows | The work-done description ("1 x 3.6KW indoor for Master Bed"), marked as read from the quote | 1 |
 | What else was installed | The work-done description ("fire rated pair coil", "plenums", "condensation pump") | 1 |
-| Fan airflow | The fan list | 1 |
+| Fan airflow | Typed, when the fan's "Add its airflow" is ticked; the accepted quote's figure waits there | 1 |
 | Certifier, project number, the certifier's requirements | The certifier's list, read by Tiff | 1 |
 | Certifier names already used, for spelling | `certifier_profiles`. Never chosen for the person: certifiers change from job to job | 1 |
 | Equipment and refrigerant charge from the design | `studio_designs.sm8_job_uuid`, and `evaluateVrfCharge` as a suggestion for kg added | 2 |
@@ -491,6 +496,7 @@ create table public.certifier_profiles (
   unique (org_id, name)
 );
 
+-- removed from the app 2026-10-03; the table stays, unused
 create table public.fan_models (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null,
@@ -526,7 +532,7 @@ so the `documents` kind check is unchanged.
 |---|---|
 | `lib/swms/library.ts`: pure, versioned, every control sourced | `lib/certs/mechanical.ts`: pure, `CERT_LIBRARY_VERSION`, every clause names its standard |
 | `swms_library_approvals` | `cert_template_approvals` |
-| Admin → Paperwork → SWMS template | Admin → Paperwork → Certificate wording, with the fan list beside it |
+| Admin → Templates → SWMS | Admin → Templates → Mechanical Compliance Certificate |
 | `swms` + `swms_versions`, frozen, a revision is a new row | `certificates` + `certificate_versions`, the same |
 | `issueProblems()` asked again on the server | `certProblems()`, the same |
 | `/swms/[versionId]`, paper outside the shell | `/certificates/[versionId]`, dressed as the design sheet |
@@ -542,7 +548,6 @@ so the `documents` kind check is unchanged.
 - **Create certificate** shows for anyone who can open the job card. Without
   both licences the wizard opens read-only, with one line naming the licence
   that's missing.
-- **The fan list:** anyone who can issue can add a model.
 - **Approve the wording:** the owner, as for the SWMS library.
 - **Read the paper:** `workboard`.
 - **Email and Send to ServiceM8:** the footer's existing gates
@@ -572,7 +577,7 @@ Each step is its own PR. The design ratchets in
    back as its three requirements, matched to AS 1668.1/.2, fire mode and
    Part J5, with nothing left over.
 3. **Migration and actions.** `app/actions/certificates.ts`: wizard context,
-   read the list, the fan list, issue, reissue, approve, list for a job.
+   read the list, issue, reissue, approve, list for a job.
 4. **Shared paper parts.** Pull the masthead, frame and table out of the
    design sheet. It must print the same before and after.
 5. **The paper.** `/certificates/[versionId]` from those parts, then the PDF
@@ -602,7 +607,8 @@ Each step is its own PR. The design ratchets in
    decide what is certified.
 9. **Fire mode and Part J5 only when a certifier asks.**
 10. **Airflow is rated by default and measured only when measured.** Small
-    exhaust fans take their figure from the fan list.
+    exhaust fans take their figure from the fan list. (Since 2026-10-03: no
+    fan list, and a figure only when someone adds it.)
 
 ## Before the first certificate can be issued
 
@@ -615,8 +621,6 @@ These are data, not code, and are needed whatever is built:
   the Organisation screen. The type exists there, and it's empty.
 - **A company contractor licence**, if DAS Pty Ltd holds one, on the same
   screen.
-- **The fan list:** the exhaust fan models the business fits, each with its
-  rated L/s and spec sheet.
 - **The wording, read and approved,** with the standards references checked
   by someone who knows them.
 
@@ -667,7 +671,7 @@ from the plan above:
   with a two-minute ticket (`lib/certs/pdf-ticket.ts`). Both draw from the
   same read (`lib/certs/paper-data.ts`).
 - **Not built yet:** phase 2 (prefill from the Studio design, serial numbers
-  from nameplate photos, other states). The wording is in Admin → Paperwork,
+  from nameplate photos, other states). The wording is in Admin → Templates,
   and the bell asks the owner to approve each new version.
 
 The golden jobs are tested in `lib/certs/__tests__/mechanical.test.ts`, the

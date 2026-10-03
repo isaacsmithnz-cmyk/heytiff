@@ -77,15 +77,15 @@ export const SECTIONS: AdminGroup[] = [
         show: owner,
       },
       {
-        /* The paper the business writes itself: the SWMS template, the
-           certificate wording and the fan list, one screen with a tab each
-           (2026-10-03). It was two rows, each its own page with a way back
-           to Home; after the owner approved, nothing said what changed. */
-        title: "Paperwork",
-        sub: "SWMS template, certificate wording and fan list",
+        /* Each document the business issues, as it reads before a job fills
+           it in: the SWMS and the Mechanical Compliance Certificate, a tab
+           each (2026-10-03). It was two pages, each with a way back to Home;
+           after the owner approved, nothing said what changed. */
+        title: "Templates",
+        sub: "SWMS and Mechanical Compliance Certificate",
         icon: "file",
         accent: "#FF8A00",
-        href: "/dashboard/admin/paperwork",
+        href: "/dashboard/admin/templates",
         show: anyone,
       },
       {

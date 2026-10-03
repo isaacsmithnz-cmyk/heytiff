@@ -357,19 +357,19 @@ describe("swmsTemplateChip", () => {
       kind: "swms-template",
       state: "warn",
       label: "Approve the SWMS template",
-      href: "/dashboard/admin/paperwork?sec=swms",
+      href: "/dashboard/admin/templates?sec=swms",
     });
     expect(chipGroup("swms-template")).toBe("Workboard");
   });
 });
 
 describe("certWordingChip", () => {
-  it("asks the owner to approve the certificate wording, and opens it in Paperwork", () => {
+  it("asks the owner to approve the certificate wording, and opens it in Templates", () => {
     expect(certWordingChip(true)).toMatchObject({
       kind: "cert-wording",
       state: "warn",
       label: "Approve the certificate wording",
-      href: "/dashboard/admin/paperwork?sec=wording",
+      href: "/dashboard/admin/templates?sec=certificate",
     });
     expect(certWordingChip(false)).toBeNull();
     expect(chipGroup("cert-wording")).toBe("Workboard");

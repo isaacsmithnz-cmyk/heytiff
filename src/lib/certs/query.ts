@@ -181,19 +181,6 @@ export async function certApprovals(orgId: string): Promise<CertWordingApproval[
   }));
 }
 
-/* ── the fan list ─────────────────────────────────────────────────────── */
-
-export type FanModel = { id: string; model: string; ratedLps: number };
-
-export async function listFanModels(orgId: string): Promise<FanModel[]> {
-  const { data } = await supabaseAdmin.from("fan_models").select("id, model, rated_lps").eq("org_id", orgId).order("model");
-  return ((data ?? []) as { id: string; model: string; rated_lps: number | string }[]).map((f) => ({
-    id: f.id,
-    model: f.model,
-    ratedLps: Number(f.rated_lps),
-  }));
-}
-
 /* ── certificates on a job, and one version ────────────────────────────── */
 
 export type CertSummary = {

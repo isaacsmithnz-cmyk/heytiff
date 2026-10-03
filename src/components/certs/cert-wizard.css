@@ -29,7 +29,8 @@
 .cz-for { font-size: 14px; font-weight: 600; }
 .cz-add { align-self: flex-start; }
 
-.cz-fanfoot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.cz-fanfoot { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; min-height: 32px; }
+.cz-tick { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 13px; font-weight: 500; }
 
 .cz-pick { display: flex; flex-wrap: wrap; gap: 8px; }
 .swz .cz-pick .wb2-sel { flex: 1 1 240px; width: auto; }

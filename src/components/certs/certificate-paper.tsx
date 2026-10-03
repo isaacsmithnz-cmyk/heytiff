@@ -91,6 +91,8 @@ function AcTable({ content }: { content: CertContent }) {
 
 function FanTable({ content }: { content: CertContent }) {
   const serials = content.showSerials;
+  /* airflow is printed only for the fans someone gave a figure */
+  const airflow = content.fans.some((f) => f.airflowLps !== null);
   return (
     <section className="cer-sec">
       <h2 className="cer-h">Ventilation</h2>
@@ -99,14 +101,14 @@ function FanTable({ content }: { content: CertContent }) {
           <col className="cer-c-loc" />
           <col />
           {serials && <col className="cer-c-ser" />}
-          <col className="cer-c-num" />
+          {airflow && <col className="cer-c-num" />}
         </colgroup>
         <thead>
           <tr>
             <th>Location</th>
             <th>Model</th>
             {serials && <th>Serial</th>}
-            <th className="num">Airflow</th>
+            {airflow && <th className="num">Airflow</th>}
           </tr>
         </thead>
         <tbody>
@@ -117,10 +119,16 @@ function FanTable({ content }: { content: CertContent }) {
               </td>
               <td>{modelCell(f)}</td>
               {serials && <td>{f.serial}</td>}
-              <td className="num">
-                {f.airflowLps !== null ? `${fmtNum(f.airflowLps)} L/s` : ""}
-                <span className="cer-kind">{f.airflowKind === "measured" ? "measured" : "rated"}</span>
-              </td>
+              {airflow && (
+                <td className="num">
+                  {f.airflowLps !== null && (
+                    <>
+                      {fmtNum(f.airflowLps)} L/s
+                      <span className="cer-kind">{f.airflowKind === "measured" ? "measured" : "rated"}</span>
+                    </>
+                  )}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

@@ -19,7 +19,7 @@ const ANSWERS: CertAnswers = {
       test: TEST,
     },
   ],
-  fans: [{ location: "Bathroom", model: "XF100", qty: 1, airflowLps: 40, airflowKind: "rated", serial: "" }],
+  fans: [{ location: "Bathroom", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 40, airflowKind: "rated", serial: "" }],
 };
 const brand = { name: "Diamond Air Solutions", logoUrl: null, color: "#436cad", abn: "14603285409", phone: null, email: "service@example.com", website: null };
 

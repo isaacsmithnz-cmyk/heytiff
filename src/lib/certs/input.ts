@@ -67,6 +67,7 @@ function fan(raw: unknown): FanRow {
     location: r.location,
     model: r.model,
     qty: r.qty,
+    airflowGiven: bool(f.airflowGiven),
     airflowLps: num(f.airflowLps, 100000),
     airflowKind: oneOf(f.airflowKind, ["rated", "measured"] as const) ?? "rated",
     serial: r.serial,

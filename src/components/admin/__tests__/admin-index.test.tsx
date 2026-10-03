@@ -78,9 +78,9 @@ describe("AdminIndex", () => {
     expect(linkHrefs()).toEqual([
       "/dashboard/admin/organization",
       "/dashboard/admin/integrations",
-      /* the paper the business writes: the SWMS template, the certificate
-         wording and the fan list, a tab each */
-      "/dashboard/admin/paperwork",
+      /* the documents the business issues, as templates: the SWMS and the
+         Mechanical Compliance Certificate, a tab each */
+      "/dashboard/admin/templates",
       "/dashboard/admin/knowledge",
       "/dashboard/admin/rate-calculator",
       /* quoting's own settings, not the calculator's: markup and the
@@ -117,8 +117,8 @@ describe("AdminIndex", () => {
   it("gives an ungranted admin the knowledge queue and nothing gated", () => {
     render(<AdminIndex isOwner={false} canFinancials={false} kbQueueCount={0} />);
 
-    /* the business's own paperwork, readable by any admin */
-    expect(linkHrefs()).toEqual(["/dashboard/admin/paperwork", "/dashboard/admin/knowledge"]);
+    /* the business's own templates, readable by any admin */
+    expect(linkHrefs()).toEqual(["/dashboard/admin/templates", "/dashboard/admin/knowledge"]);
     expect(screen.queryByText("Nothing here for you yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Rate Calculator")).not.toBeInTheDocument();
     expect(screen.queryByText("Organisation")).not.toBeInTheDocument();

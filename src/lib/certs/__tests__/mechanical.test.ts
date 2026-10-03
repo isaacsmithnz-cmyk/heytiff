@@ -52,7 +52,7 @@ function answersFor(description: string, covers: Covers, building: Building, mor
       indoors: sys.indoors.map((r, j) => ({ ...r, model: r.model || `IN-${j + 1}`, location: r.location || "Office" })),
       test: { ...TESTED, refrigerant: sys.test.refrigerant || "R32" },
     })),
-    fans: q.fans.map((f) => ({ ...f, location: f.location || "Whole house", airflowLps: 60 })),
+    fans: q.fans.map((f) => ({ ...f, location: f.location || "Whole house", airflowGiven: true, airflowLps: 60 })),
     installed: { ductwork: q.ductwork, fireRated: q.fireRated, fireStopProduct: "Promat collars" },
     exhaustTo: covers.vent ? "outdoors" : null,
     equipmentConfirmed: true,
@@ -136,7 +136,7 @@ describe("the statements", () => {
     const a = answersFor(JOB_279, BOTH, "house");
     const plain = statementsFor(a).statements.find((s) => s.clause === "ventAirflow")!.text;
     expect(plain).not.toContain("NCC minimum");
-    a.fans = [{ location: "Ensuite", model: "XF100", qty: 1, airflowLps: 30, airflowKind: "measured", serial: "" }];
+    a.fans = [{ location: "Ensuite", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 30, airflowKind: "measured", serial: "" }];
     const wet = statementsFor(a).statements.find((s) => s.clause === "ventAirflow")!.text;
     expect(wet).toContain("NCC minimum");
     expect(wet).toContain("Figures marked as measured were read on site.");
@@ -250,7 +250,7 @@ describe("certProblemList", () => {
 
   it("refuses a bathroom fan under the NCC minimum", () => {
     const a = answersFor(JOB_279, BOTH, "house");
-    a.fans = [{ location: "Bathroom", model: "XF100", qty: 1, airflowLps: 20, airflowKind: "rated", serial: "" }];
+    a.fans = [{ location: "Bathroom", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 20, airflowKind: "rated", serial: "" }];
     expect(certProblems(a, FACTS)).toEqual(["The Bathroom fan is 20 L/s, under the NCC minimum of 25 L/s."]);
   });
 
@@ -404,7 +404,7 @@ describe("the wording the owner approves", () => {
     return { covers: BOTH, systems: a.systems };
   };
   const printed = (clause: ClauseKey): string[] => {
-    const wet = [{ ...readQuote(JOB_279).fans[0], location: "Ensuite", model: "XF100", airflowLps: 30 }];
+    const wet = [{ ...readQuote(JOB_279).fans[0], location: "Ensuite", model: "XF100", airflowGiven: true, airflowLps: 30 }];
     const extra: Partial<Record<ClauseKey, Partial<CertAnswers>[]>> = {
       refrigerant: [{}, twoCharges()],
       ventAirflow: [{}, { fans: wet }, { fans: [{ ...wet[0], airflowKind: "measured" }] }],

@@ -115,15 +115,24 @@ export type AcSystem = {
   test: CircuitTest;
 };
 
+/* A FAN'S AIRFLOW IS PRINTED ONLY WHEN SOMEBODY ADDS IT (2026-10-03).
+   A tick box puts a number on the fan, typed from its spec sheet or a
+   measurement; without it the certificate shows the fan and claims nothing
+   about how much air it moves. There is no fan list to look figures up in. */
 export type FanRow = {
   location: string;
   model: string;
   qty: number;
+  /** The person ticked "Add its airflow". */
+  airflowGiven: boolean;
   airflowLps: number | null;
   /** Rated is the default; measured only when somebody measured it. */
   airflowKind: "rated" | "measured";
   serial: string;
 };
+
+/** The airflow a fan prints, or null when none was added. */
+export const airflowOf = (f: FanRow): number | null => (f.airflowGiven ? f.airflowLps : null);
 
 /* ── the clauses ───────────────────────────────────────────────────────── */
 
@@ -249,7 +258,7 @@ export type CertAnswers = {
 export const EMPTY_TEST: CircuitTest = { refrigerant: "", addedKg: null };
 
 export const EMPTY_ROW: AcRow = { location: "", model: "", qty: 1, capacityKw: null, serial: "" };
-export const EMPTY_FAN: FanRow = { location: "", model: "", qty: 1, airflowLps: null, airflowKind: "rated", serial: "" };
+export const EMPTY_FAN: FanRow = { location: "", model: "", qty: 1, airflowGiven: false, airflowLps: null, airflowKind: "rated", serial: "" };
 
 export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   covers: { ac: true, vent: false },
@@ -389,13 +398,18 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
     case "approved":
       return "The works are installed in accordance with the documents approved under the Construction Certificate or Complying Development Certificate, and the relevant conditions of consent.";
     case "ventAirflow": {
-      const measured = a.fans.some((f) => f.airflowKind === "measured");
-      const wet = a.fans.some((f) => wetMinimum(f.location) !== null);
+      const shown = a.fans.filter((f) => airflowOf(f) !== null);
+      if (shown.length === 0) return "Each fan is selected and installed to the manufacturer's instructions.";
+      const measured = shown.some((f) => f.airflowKind === "measured");
+      /* the NCC minimum is claimed only when every wet-area fan shows the
+         figure it is checked against */
+      const wet = a.fans.filter((f) => wetMinimum(f.location) !== null);
+      const ncc = wet.length > 0 && wet.every((f) => airflowOf(f) !== null);
       return [
         measured
           ? "Each fan is selected and installed to the manufacturer's instructions to deliver the airflow shown. Figures marked as measured were read on site."
           : "Each fan is selected and installed to the manufacturer's instructions to deliver the rated airflow shown.",
-        wet ? "Each exhaust fan is rated at or above the NCC minimum of 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or laundry." : "",
+        ncc ? "Each exhaust fan is rated at or above the NCC minimum of 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or laundry." : "",
       ]
         .filter(Boolean)
         .join(" ");
@@ -495,7 +509,8 @@ export type CertContent = {
 export function buildCertificate(a: CertAnswers): CertContent {
   const b = buildingOf(a.building);
   const systems = a.covers.ac ? a.systems : [];
-  const fans = a.covers.vent ? a.fans : [];
+  /* a figure typed and then unticked isn't on the paper */
+  const fans = a.covers.vent ? a.fans.map((f) => ({ ...f, airflowLps: airflowOf(f) })) : [];
   const { statements, notApplicable } = statementsFor({ ...a, systems, fans });
   const rows = [...systems.flatMap((s) => [s.outdoor, ...s.indoors]), ...fans];
   return {
@@ -629,9 +644,9 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
       const row = fan.location.trim() || `fan ${i + 1}`;
       if (missing(fan.location)) add("fans", `Say where fan ${i + 1} is.`);
       if (missing(fan.model)) add("fans", `Give the ${row} fan its model.`);
-      if (fan.airflowLps === null || fan.airflowLps <= 0) add("fans", `Give the ${row} fan its airflow.`);
+      if (fan.airflowGiven && (fan.airflowLps === null || fan.airflowLps <= 0)) add("fans", `Give the ${row} fan its airflow, or untick it.`);
       const min = wetMinimum(fan.location);
-      if (min !== null && fan.airflowLps !== null && fan.airflowLps > 0 && fan.airflowLps < min) {
+      if (fan.airflowGiven && min !== null && fan.airflowLps !== null && fan.airflowLps > 0 && fan.airflowLps < min) {
         add("fans", `The ${row} fan is ${fmtNum(fan.airflowLps)} L/s, under the NCC minimum of ${min} L/s.`);
       }
     });
@@ -718,7 +733,7 @@ export const SHOWN: Record<ClauseKey, readonly string[]> = {
   ],
   arc: ["All refrigerant was handled by ARC licence holders."],
   ventAirflow: [
-    "Each fan is selected and installed to the manufacturer's instructions to deliver the {rated airflow|airflow} shown.{ Figures marked as measured were read on site.|}{ Each exhaust fan is rated at or above the NCC minimum of 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or laundry.|}",
+    "Each fan is selected and installed to the manufacturer's instructions{ to deliver the rated airflow shown| to deliver the airflow shown|}.{ Figures marked as measured were read on site.|}{ Each exhaust fan is rated at or above the NCC minimum of 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or laundry.|}",
   ],
   ventDischarge: ["Every exhaust fan discharges to outdoor air."],
   ductwork: [

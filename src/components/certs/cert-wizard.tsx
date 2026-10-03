@@ -7,7 +7,6 @@ import { ViewTabs } from "@/components/shell/view-tabs";
 import { Choice, Seg, SignaturePad } from "@/components/swms/controls";
 import { DateField } from "@/components/ui/date-field";
 import {
-  addFanModel,
   certPrevious,
   certListFiles,
   certWizardContext,
@@ -18,7 +17,6 @@ import {
   type CertListFile,
   type CertWizardContext,
 } from "@/app/actions/certificates";
-import type { FanModel } from "@/lib/certs/query";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { attachJobDocument } from "@/app/actions/job-documents";
 import { uploadFile } from "@/lib/documents/upload-client";
@@ -160,10 +158,6 @@ async function fileOnJob(file: File, jobUuid: string): Promise<{ ok: true; docum
   }
 }
 
-/** A fan on the business's fan list, by its model as typed. */
-const onFanList = (fans: readonly FanModel[] | undefined, model: string): FanModel | undefined =>
-  fans?.find((f) => f.model.toLowerCase() === model.trim().toLowerCase());
-
 /** The first draft, from the job. */
 function startingAnswers(ctx: CertWizardContext): CertAnswers {
   const r = ctx.reading;
@@ -175,7 +169,7 @@ function startingAnswers(ctx: CertWizardContext): CertAnswers {
     building: null,
     completedOn: ctx.job.completedOn ?? "",
     systems: r.systems.length > 0 ? r.systems.map((x) => ({ ...x, indoors: x.indoors.length ? x.indoors : [{ ...EMPTY_ROW }] })) : ac ? [blankSystem(r.refrigerant)] : [],
-    fans: r.fans.map((f) => ({ ...f, airflowLps: f.airflowLps ?? onFanList(ctx.fanModels, f.model)?.ratedLps ?? null })),
+    fans: r.fans,
     installed: { ductwork: r.ductwork, fireRated: r.fireRated, fireStopProduct: "" },
   };
 }
@@ -207,7 +201,7 @@ function Field({
    straight from the number, "2." read as 2 and redrew as "2", so the point
    never stayed and 2.8 could not be typed. The text is the field's own; it
    is taken from the number again only when the number changes from
-   elsewhere (a row filled in from the fan list). */
+   elsewhere. */
 function NumField({
   label,
   value,
@@ -286,7 +280,6 @@ export function CertWizard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issued, setIssued] = useState<Extract<IssueCertResult, { ok: true }> | null>(null);
-  const [fanNote, setFanNote] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -376,25 +369,7 @@ export function CertWizard({
     if (sameTests) set({ systems: a.systems.map((s) => ({ ...s, test: { ...s.test, ...patch } })) });
     else setSystem(i, { ...a.systems[i], test: { ...a.systems[i].test, ...patch } });
   };
-  const setFan = (i: number, patch: Partial<FanRow>) => {
-    const next = { ...a.fans[i], ...patch };
-    /* a model on the fan list brings its rated figure with it */
-    if (patch.model !== undefined && next.airflowKind === "rated") {
-      const known = onFanList(live?.fanModels, next.model);
-      if (known) next.airflowLps = known.ratedLps;
-    }
-    set({ fans: a.fans.map((f, j) => (j === i ? next : f)) });
-  };
-  const saveFan = async (f: FanRow) => {
-    if (!f.model.trim() || f.airflowLps === null) return;
-    const res = await addFanModel(f.model, f.airflowLps).catch(() => ({ ok: false as const, error: "Couldn't save that fan." }));
-    if (!res.ok) {
-      setFanNote(res.error);
-      return;
-    }
-    setCtx((c) => (c && c !== "failed" ? { ...c, fanModels: [...c.fanModels.filter((m) => m.id !== res.fan.id), res.fan] } : c));
-    setFanNote(`${res.fan.model} is on the fan list at ${res.fan.ratedLps} L/s.`);
-  };
+  const setFan = (i: number, patch: Partial<FanRow>) => set({ fans: a.fans.map((f, j) => (j === i ? { ...f, ...patch } : f)) });
 
   /* ── the requirements: whatever says what the certificate must cover ──── */
 
@@ -633,35 +608,30 @@ export function CertWizard({
       <div className="sw-gh">
         <b>Ventilation</b>
       </div>
-      <datalist id="cz-fans">
-        {live?.fanModels.map((f) => (
-          <option key={f.id} value={f.model} />
-        ))}
-      </datalist>
-      {a.fans.map((f, i) => {
-        const known = !!onFanList(live?.fanModels, f.model);
-        return (
-          <div key={i} className="cz-sys">
-            <div className="cz-row fan">
-              <Field label="Room" value={f.location} onChange={(v) => setFan(i, { location: v })} />
-              <Field label="Model" list="cz-fans" value={f.model} onChange={(v) => setFan(i, { model: v })} />
-              <NumField label="L/s" width="s" value={f.airflowLps} onChange={(n) => setFan(i, { airflowLps: n })} />
-              <button type="button" className="wb2-ico cz-x" aria-label={`Clear the ${f.location || `fan ${i + 1}`} fan`} onClick={() => set({ fans: a.fans.filter((_, j) => j !== i) })}>
-                <Icon name="x" size={14} />
-              </button>
-            </div>
-            <div className="cz-fanfoot">
-              <Seg label="How the airflow is known" value={f.airflowKind} options={[["rated", "Rated"], ["measured", "Measured"]] as const} onChange={(v) => setFan(i, { airflowKind: v })} />
-              {f.airflowKind === "rated" && f.model.trim() && f.airflowLps !== null && !known && (
-                <button type="button" className="sw-more" onClick={() => void saveFan(f)}>
-                  Save this fan to the list
-                </button>
-              )}
-            </div>
+      {a.fans.map((f, i) => (
+        <div key={i} className="cz-sys">
+          <div className="cz-row fan">
+            <Field label="Room" value={f.location} onChange={(v) => setFan(i, { location: v })} />
+            <Field label="Model" value={f.model} onChange={(v) => setFan(i, { model: v })} />
+            <button type="button" className="wb2-ico cz-x" aria-label={`Clear the ${f.location || `fan ${i + 1}`} fan`} onClick={() => set({ fans: a.fans.filter((_, j) => j !== i) })}>
+              <Icon name="x" size={14} />
+            </button>
           </div>
-        );
-      })}
-      {fanNote && <p className="sw-note">{fanNote}</p>}
+          {/* the airflow is printed only when someone wants it on the certificate */}
+          <div className="cz-fanfoot">
+            <label className="cz-tick">
+              <input type="checkbox" checked={f.airflowGiven} onChange={(e) => setFan(i, { airflowGiven: e.target.checked })} />
+              Add its airflow
+            </label>
+            {f.airflowGiven && (
+              <>
+                <NumField label="L/s" width="s" value={f.airflowLps} onChange={(n) => setFan(i, { airflowLps: n })} />
+                <Seg label="How the airflow is known" value={f.airflowKind} options={[["rated", "Rated"], ["measured", "Measured"]] as const} onChange={(v) => setFan(i, { airflowKind: v })} />
+              </>
+            )}
+          </div>
+        </div>
+      ))}
       <button type="button" className="pbtn ghost sm cz-add" onClick={() => set({ fans: [...a.fans, blankFan()] })}>
         Add a fan
       </button>
@@ -987,7 +957,7 @@ export function CertWizard({
       {!live.approved &&
         (live.canApprove ? (
           <p className="sw-text">
-            The wording needs your approval before the first certificate goes out. <Link href="/dashboard/admin/paperwork?sec=wording">Read and approve the wording</Link>
+            The wording needs your approval before the first certificate goes out. <Link href="/dashboard/admin/templates?sec=certificate">Read and approve the wording</Link>
           </p>
         ) : (
           <p className="sw-state warn">{`${live.ownerName ?? "The owner"} approves the certificate wording before the first one can be issued.`}</p>

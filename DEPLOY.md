@@ -867,9 +867,10 @@ docs/certificates-plan.md is the design.
    **Applied to production 2026-10-03** (migration
    `certificate_wording_snapshot`).
 4. Before the first certificate can be issued, in the app:
-   - the owner reads and approves the wording in Admin → Paperwork →
-     Certificate wording (`/dashboard/admin/paperwork?sec=wording`; the bell
-     asks until they do);
+   - the owner reads and approves the wording in Admin → Templates →
+     Mechanical Compliance Certificate
+     (`/dashboard/admin/templates?sec=certificate`; the bell asks until they
+     do);
    - whoever signs has a current ARC licence and contractor licence **with
      expiry dates** on their staff card, and draws their signature there
      (Licences, Signature).

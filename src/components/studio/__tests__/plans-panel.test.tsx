@@ -369,4 +369,27 @@ describe("Plans stage", () => {
     expect(screen.queryByDisplayValue("Ground floor")).not.toBeInTheDocument();
     await waitFor(() => expect(fake.removed).toEqual(["org/o1/p1.png"]));
   });
+
+  it("deleting one half of a split plan leaves the shared image in storage", async () => {
+    const fake = new FakePlanImages();
+    const store = new LocalDesignStore(window.localStorage);
+    const d = seedDesign(store);
+    // the sketch level now shows the right half of the same page
+    d.floors[1].plans.push({
+      ...d.floors[0].plans[0],
+      id: "sht_2",
+      crop: { x: 600, y: 0, w: 600, h: 900 },
+    });
+    void store.save(d);
+    const user = userEvent.setup();
+    render(<Studio store={store} planImages={fake} />);
+    await user.click(await screen.findByText("Plan job"));
+    await gotoPlans(user);
+
+    await user.click(screen.getByRole("button", { name: "Delete Ground floor" })); // arm
+    await user.click(screen.getByRole("button", { name: "Delete Ground floor" }));
+    expect(screen.queryByDisplayValue("Ground floor")).not.toBeInTheDocument();
+    // the other floor still shows that image, so it must not leave storage
+    expect(fake.removed).toEqual([]);
+  });
 });

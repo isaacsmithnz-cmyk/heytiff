@@ -14,6 +14,7 @@ import {
   formatLevel,
   insertPageRow,
   labelPagesSequentially,
+  orphanedRefs,
   previewInsertLevel,
   removePageFromRows,
   restackLevels,
@@ -319,5 +320,68 @@ describe("rehydrating a saved import", () => {
     rows = dropPageOnRow(rows, 1, rows[0].key); // add r1 to floor a
     const committed = applyBuilderRows(rows, uploadsFor([upl("r0"), upl("r1")], [0, 1]), floors);
     expect(committed[0].plans.map((s) => s.imageRef)).toEqual(["r0", "r1"]);
+  });
+
+  it("a page two floors share shows on the first floor only, so no card is in two rows", () => {
+    // a split plan: floors a and b both show r0 (different crops)
+    const floors = [floorWith("a", 0, ["r0"]), floorWith("b", 1, ["r0"])];
+    const rows = builderRowsFromFloors(floors, [pageWithRef("r0")]);
+    expect(rows.map((r) => [r.floorId, r.pageIdxs])).toEqual([
+      ["a", [0]],
+      ["b", []],
+    ]);
+    // …and the page is not also waiting in the tray
+    expect(trayPageIdxs(rows, [0])).toEqual([]);
+  });
+
+  it("one floor holding the same image twice lists the page once", () => {
+    const rows = builderRowsFromFloors([floorWith("a", 0, ["r0", "r0"])], [pageWithRef("r0")]);
+    expect(rows[0].pageIdxs).toEqual([0]);
+  });
+
+  it("re-committing a rehydrated split keeps both floors' sheets", () => {
+    const floors = [floorWith("a", 0, ["r0"]), floorWith("b", 1, ["r0"])];
+    const rows = builderRowsFromFloors(floors, [pageWithRef("r0")]);
+    const committed = applyBuilderRows(rows, uploadsFor([upl("r0")], [0]), floors);
+    expect(committed.map((f) => [f.id, f.plans.length])).toEqual([
+      ["a", 1],
+      ["b", 1],
+    ]);
+  });
+});
+
+describe("orphanedRefs", () => {
+  const floor = (id: string, refs: string[]): Floor => ({
+    id,
+    name: id,
+    level: 0,
+    scaleMmPerUnit: 10,
+    northDeg: null,
+    northPos: null,
+    plans: refs.map((r, i) => ({
+      id: `${id}_${i}`,
+      imageRef: r,
+      pageNumber: 1,
+      name: r,
+      width: 100,
+      height: 100,
+      x: 0,
+      y: 0,
+    })),
+  });
+
+  it("returns every ref of the floor when nothing else uses them", () => {
+    expect(orphanedRefs([floor("a", ["r0", "r1"]), floor("b", ["r2"])], "a")).toEqual(["r0", "r1"]);
+  });
+
+  it("keeps a ref another floor still shows (a split plan)", () => {
+    expect(orphanedRefs([floor("a", ["r0"]), floor("b", ["r0"])], "a")).toEqual([]);
+    // once the last floor holding it goes, the image is orphaned
+    expect(orphanedRefs([floor("b", ["r0"])], "b")).toEqual(["r0"]);
+  });
+
+  it("lists a ref once, and nothing for an unknown floor", () => {
+    expect(orphanedRefs([floor("a", ["r0", "r0"])], "a")).toEqual(["r0"]);
+    expect(orphanedRefs([floor("a", ["r0"])], "zzz")).toEqual([]);
   });
 });

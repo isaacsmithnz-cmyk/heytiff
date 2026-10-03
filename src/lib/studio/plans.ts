@@ -146,23 +146,39 @@ export function builderStackFromFloors(floors: Floor[]): BuilderRow[] {
     Same as builderStackFromFloors, but each floor row is re-populated with the
     page indices of the sheets it holds — matched by storage ref — so the yard
     shows every floor with its plan card(s) exactly where they were left. Pages
-    not on any floor fall through to the tray (via trayPageIdxs). */
+    not on any floor fall through to the tray (via trayPageIdxs).
+    A page sits in ONE row (every row operation and card key assumes it), so a
+    page that two floors share — a split plan — shows on the first floor that
+    holds it; the sibling's row is empty, which re-committing leaves alone. */
 export function builderRowsFromFloors(floors: Floor[], pages: PageImage[]): BuilderRow[] {
   const idxByRef = new Map<string, number>();
   pages.forEach((p, i) => {
     if (p.ref) idxByRef.set(p.ref, i);
   });
+  const claimed = new Set<number>();
   return [...floors]
     .sort((a, b) => a.level - b.level)
-    .map((f) => ({
-      key: `ex_${f.id}`,
-      floorId: f.id,
-      level: f.level,
-      name: f.name,
-      pageIdxs: f.plans
-        .map((s) => idxByRef.get(s.imageRef))
-        .filter((i): i is number => i !== undefined),
-    }));
+    .map((f) => {
+      const pageIdxs: number[] = [];
+      for (const s of f.plans) {
+        const i = idxByRef.get(s.imageRef);
+        if (i === undefined || claimed.has(i)) continue;
+        claimed.add(i);
+        pageIdxs.push(i);
+      }
+      return { key: `ex_${f.id}`, floorId: f.id, level: f.level, name: f.name, pageIdxs };
+    });
+}
+
+/** Storage refs that deleting `floorId` leaves with no sheet anywhere. A split
+    plan puts one image on two floors, so a floor's refs are only safe to delete
+    when no OTHER floor still shows them. */
+export function orphanedRefs(floors: Floor[], floorId: string): string[] {
+  const held = new Set(
+    floors.filter((f) => f.id !== floorId).flatMap((f) => f.plans.map((s) => s.imageRef))
+  );
+  const gone = floors.find((f) => f.id === floorId)?.plans ?? [];
+  return [...new Set(gone.map((s) => s.imageRef))].filter((ref) => !held.has(ref));
 }
 
 /** Selected page indices not yet placed on any floor — i.e. the tray. */

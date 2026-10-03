@@ -82,6 +82,7 @@ import { StepPrompt } from "./step-prompt";
 import {
   floorDisplayName,
   formatLevel,
+  orphanedRefs,
   RemotePlanImages,
   type PlanImages,
 } from "@/lib/studio/plans";
@@ -1689,8 +1690,10 @@ function Editor({
      later Plans return sends those pages back to the tray, not a dead ref). */
   const deleteFloor = useCallback(
     (id: string) => {
-      const sheets = doc.floors.find((f) => f.id === id)?.plans ?? [];
-      const removedRefs = new Set(sheets.map((s) => s.imageRef));
+      // a split plan shares one image across floors: only refs no other floor
+      // still shows are really going away
+      const goneRefs = orphanedRefs(doc.floors, id);
+      const removedRefs = new Set(goneRefs);
       const keep = (o: DesignObject) => o.floorId !== id;
       mutate((doc0) => {
         // the floor's zones leave every system that claims them first
@@ -1710,7 +1713,7 @@ function Editor({
             : d.planImport,
         };
       });
-      for (const s of sheets) void planImages.remove(s.imageRef).catch(() => {});
+      for (const ref of goneRefs) void planImages.remove(ref).catch(() => {});
     },
     [doc.floors, mutate, pack, planImages]
   );

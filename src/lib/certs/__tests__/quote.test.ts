@@ -1,5 +1,5 @@
 import { isOutdoorModel, matchRequirement, modelsIn, readQuote, statedConnectedKw, suggestBuilding } from "../quote";
-import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2043, JOB_2699, JOB_2885, JOB_279, JOB_3326 } from "./fixtures/jobs";
+import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_1930, JOB_2043, JOB_2147, JOB_2207, JOB_248, JOB_2699, JOB_2885, JOB_279, JOB_2933, JOB_3140, JOB_3326 } from "./fixtures/jobs";
 
 /* The wizard's first draft, read off six real jobs. Each is only a
    suggestion the person corrects, but a good one saves the typing. */
@@ -209,5 +209,45 @@ describe("2885: one system said twice", () => {
     expect(q.systems[0].indoors).toEqual([expect.objectContaining({ model: "FDYBA71AV1", location: "Kitchen" })]);
     expect(q.systems[0].test.refrigerant).toBe("R32");
     expect(q.ductwork).toBe(true);
+  });
+});
+
+describe("readQuote on the October samples", () => {
+  it("3140: a two-port multi and its two bulkheads, and not the controller fitted one per indoor unit", () => {
+    const q = readQuote(JOB_3140);
+    expect(rows(q)).toEqual([
+      {
+        outdoor: ["MXZ-2F52VF-A2", 5.2, ""],
+        indoors: [
+          [1, "SEZ-M35DA3", 3.5, ""],
+          [1, "SEZ-M25DA3", 2.5, ""],
+        ],
+      },
+    ]);
+    expect([q.refrigerant, q.ductwork]).toEqual(["R32", true]);
+  });
+
+  it("2933: one 24 kW ducted system on the roof, ductwork, and the bathroom fan", () => {
+    const q = readQuote(JOB_2933);
+    expect(rows(q)).toEqual([{ outdoor: ["", 24, "Roof"], indoors: [[1, "", 24, ""]] }]);
+    expect([q.ductwork, q.ventilation, q.fans.length]).toEqual([true, true, 1]);
+  });
+
+  it("248: two ducted systems, each with the floor it serves", () => {
+    expect(rows(readQuote(JOB_248))).toEqual([
+      { outdoor: ["", 8.5, ""], indoors: [[1, "", 8.5, "First floor beds"]] },
+      { outdoor: ["", 8.5, ""], indoors: [[1, "", 8.5, "Ground floor"]] },
+    ]);
+  });
+
+  /* Held for the Sonnet 5.5 comparison (Isaac, 2026-10-03): if a model reads
+     older descriptions, these are its test, not more rules. */
+  it.todo("2933: the Daikin models written with trailing asterisks (FDYQN250LBV1**, RZQ250LY1**)");
+  it.todo("2207: the VRF's three ducted indoor units written as \"63 VMHS ducted system to …\"");
+  it.todo("1930: the bold room headings (Master Bedroom, Pool Room), not \"Return air located in hallway\"");
+  it.todo("2147: \"final agreed location\" is not where the outdoor unit is");
+  /* referenced so the fixtures stay in use until the todos are written */
+  it("keeps the held samples readable", () => {
+    for (const job of [JOB_2207, JOB_1930, JOB_2147]) expect(readQuote(job).systems.length).toBeGreaterThan(0);
   });
 });

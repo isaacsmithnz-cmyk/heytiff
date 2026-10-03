@@ -46,6 +46,7 @@ function answersFor(description: string, covers: Covers, building: Building, mor
     })),
     fans: q.fans.map((f) => ({ ...f, location: f.location || "Whole house", airflowLps: 60 })),
     installed: { ductwork: q.ductwork, fireRated: q.fireRated, fireStopProduct: "Promat collars" },
+    exhaustTo: covers.vent ? "outdoors" : null,
     equipmentConfirmed: true,
     ...more,
   };
@@ -158,6 +159,22 @@ describe("the statements", () => {
       text: "The equipment is scheduled in the table above.",
       requirement: "Provide a schedule of equipment",
     });
+  });
+
+  it("say the exhaust goes outdoors only when the person said so (job 2933: a fan into a warehouse)", () => {
+    const base = answersFor(JOB_279, BOTH, "house");
+    const discharge = (a: CertAnswers) => statementsFor(a).statements.some((st) => st.clause === "ventDischarge");
+    expect(discharge(base)).toBe(true);
+    expect(discharge({ ...base, exhaustTo: "not" })).toBe(false);
+    expect(discharge({ ...base, exhaustTo: "none" })).toBe(false);
+    expect(certProblems({ ...base, exhaustTo: "not" }, FACTS)).toEqual([]);
+    expect(certProblems({ ...base, exhaustTo: null }, FACTS)).toEqual(["Say whether every exhaust fan discharges outdoors."]);
+    /* asked for, but not true of every fan: answered, never certified */
+    const asked = { ...base, exhaustTo: "not" as const, requirements: [{ text: "Exhaust to discharge outside", answer: "clause" as const, clause: "ventDischarge" as const, own: "", reason: "" }] };
+    expect(certProblems(asked, FACTS)).toEqual([
+      "Requirement 1 asks for discharge to outdoor air, but not every exhaust fan is marked as discharging outdoors. Mark it not applicable with a reason, or add what's missing.",
+    ]);
+    expect(normaliseCertAnswers({ ...base, exhaustTo: "roof" }).exhaustTo).toBeNull();
   });
 
   it("say what isn't covered only when the person typed it", () => {

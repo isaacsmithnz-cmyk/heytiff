@@ -1,6 +1,7 @@
 import {
   BUILDINGS,
   DEFAULT_CERT_ANSWERS,
+  EXHAUST_TO,
   MATCHABLE,
   type AcRow,
   type AcSystem,
@@ -8,6 +9,7 @@ import {
   type CertAnswers,
   type CircuitTest,
   type ClauseKey,
+  type ExhaustTo,
   type FanRow,
   type FireMode,
   type Requirement,
@@ -102,6 +104,7 @@ export function normaliseCertAnswers(raw: unknown): CertAnswers {
       fireRated: bool(installed.fireRated),
       fireStopProduct: text(installed.fireStopProduct, 160),
     },
+    exhaustTo: oneOf<ExhaustTo>(r.exhaustTo, EXHAUST_TO.map((e) => e.key)),
     requirements: list(r.requirements, 30).map(requirement).filter((q) => q.text !== ""),
     fireMode: oneOf<FireMode>(r.fireMode, ["individual", "shutdown", "smoke"]),
     fireModeRatingsChecked: bool(r.fireModeRatingsChecked),

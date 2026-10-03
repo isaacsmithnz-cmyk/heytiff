@@ -197,8 +197,11 @@ export function readQuote(description: string | null): QuoteReading {
        old system coming out, a duct modified to suit the new one */
     /* ("to service the bedrooms" is serving them, not a service call) */
     if (/\b(serviced|servicing|routine service|annual service|service (?:on|of|completion|call)|maintenance|relocat|disconnect|decommission|removal|remove|existing|modify|rectif|repair|fault)/i.test(line)) continue;
-    /* an accessory's own line, with its own model code and no size */
-    if (kw === null && /controller|zone|motor|isolat|switch|grille?s?\b|grills?\b|damper|thermostat|interface|adaptor|ladder/i.test(line) && !/indoor|outdoor/i.test(line)) continue;
+    /* an accessory's own line, with its own model code and no size. "One
+       per indoor unit" says how many, not what it is (job 3140's PAR-41MAAM
+       controller). */
+    const itself = line.replace(/\b(?:one |1 )?(?:per|each|to each|for each)\s+(?:indoor|outdoor)\s+units?\b/gi, "");
+    if (kw === null && /accessor|controller|zone|motor|isolat|switch|grille?s?\b|grills?\b|damper|thermostat|interface|adaptor|ladder/i.test(itself) && !/indoor|outdoor/i.test(itself)) continue;
 
     /* A model with no size on its line: "MUZ-AP35VGD2-A2 outdoor unit (DRED)",
        "Model: MSZ-AP35VGKD2". It names a unit the reading may already have

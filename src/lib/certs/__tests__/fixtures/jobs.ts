@@ -233,6 +233,178 @@ Includes custom linear bar grille up to 4.0m total length (powder coated to Colo
 
 Service existing air conditioning system and carry out minor repairs up to an allowance of $1,000.00 ex GST, including full clean and service, supply and installation of new 600 x 100 linear bar grille and matching boot to suit, and supply and installation of new wall controller. Any additional repairs or parts outside the allowance to be quoted prior to proceeding.`;
 
+/* SAMPLE JOBS, 2026-10-03: completed builder jobs with no certifier list,
+   chosen for their spread. 2207, 1930, 248 and 2147 each have the
+   mechanical certificate that was issued filed on the job in ServiceM8. */
+
+export const JOB_3140 = `Option.1
+Supply & Install – Mitsubishi Electric Multi-Split Bulkhead System 
+
+Supply and installation of a new Mitsubishi Electric multi-split ducted/bulkhead air conditioning system, comprising:
+
+WK-MXZ-2F52VF-A2 – Mitsubishi Electric Multi Outdoor Unit, 5.2kW, single phase, R32 refrigerant, 2-port multi system
+SEZ-M35DA3 – Mitsubishi Electric Bulkhead Indoor Unit, 3.5kW, ducted/wall
+SEZ-M25DA3 – Mitsubishi Electric Bulkhead Indoor Unit, 2.5kW, ducted/wall
+PAR-41MAAM –ME Accessory Wired Controller with Backlight (x2, one per indoor unit)
+
+Installation includes:
+
+Mounting of outdoor multi unit on suitable brackets/frame with vibration isolation
+Installation of both bulkhead indoor units to specified locations
+Refrigerant piping runs and interconnecting wiring between outdoor unit and each indoor unit
+Condensate drainage from each indoor unit to suitable discharge point
+Supply and installation of wired controllers with backlight to each zone
+System evacuation, pressure test, vacuum and refrigerant charge as required
+Electrical connection and circuit testing
+Commissioning, testing and handover with operational demonstration
+
+All work to be carried out by licensed technicians in accordance with AS/NZS 3000 and relevant refrigerant handling regulations.`;
+
+export const JOB_2933 = `Quotation – Supply & Installation of Daikin 24kW Ducted Air Conditioning System
+ Equipment Included
+Air Conditioning System
+
+1 x Daikin FDYQN250LBV1** – Standard Static Pressure Indoor Ducted Unit (24kW)
+1 x Daikin RZQ250LY1** – Three Phase Outdoor Condensing Unit (24kW)
+* Refrigerant pipework, condensate drain, interconnecting cabling and commissioning.
+
+Zoning & Controls
+
+Advantage Air Zone Control System** including:
+
+  * Touchscreen controller
+  * Zone control module
+  * Motorised zone dampers
+  * System commissioning and balancing
+
+Ductwork & Air Distribution
+
+Supply and install insulated ductwork and sheet metal components as required, including:
+
+* 5 x 1.4m sheet metal duct sections
+* 3 x swirl diffusers to open-plan office area
+* 5 x round ceiling grilles to offices
+* 1 x ceiling outlet to meeting room (swirl diffuser or round grille to be confirmed)
+* Airflow balancing and commissioning of all outlets
+
+Zoned Areas
+
+The Advantage Air zoning system will provide independent temperature control to:
+
+* Office 1
+* Office 2
+* Office 3
+* Office 4
+* Office 5
+* Meeting Room
+* Open Plan Area (Constant Flow)
+
+Bathroom Exhaust Ventilation
+
+Supply and install:
+
+* 1 x 200mm Silent Series exhaust fan
+* Ductwork and fittings to exhaust bathroom air into warehouse area
+* Electrical connection and commissioning
+
+Installation Includes
+
+* Delivery of equipment to site
+* Installation of indoor and outdoor units
+* Refrigerant pipework and insulation
+* Condensate drainage
+* Interconnecting electrical and control cabling
+* Ductwork installation
+* Diffusers and grilles
+* Advantage Air zoning system
+* Testing, commissioning and system handover
+
+Exclusions
+* Asbestos testing or removal
+* After-hours works
+
+EXCLUDING - Pricing to Be confirmed:
+
+** HIAB Charges for crane lift of unit onto roof
+** Platform for roof Outdoor Unit
+
+Warranty
+* Daikin manufacturer's warranty in accordance with current warranty terms
+* Advantage Air manufacturer's warranty`;
+
+export const JOB_2207 = `Supply and installation of Mitsubishi Electric 15.5kW VRF outdoor unit to serve the following indoor areas:
+
+- 63 VMHS ducted system to first floor bedrooms, with MDO type supply grills and egg crate type return grills in each bedroom
+- 32 VMX  ducted system to ground floor guest bedroom/office, with heavy duty linear bar supply and return grills (colour to be confirmed)
+- 63 VMX ducted system to kitchen and living room, with supply grill for living room installed in wall and supply grill for kitchen installed in ceiling or wall as required
+- WIFI x 3 as discussed 
+
+Scope of works as per email corresponded with Michael Diamond.
+
+Includes all necessary mains electrical connections to the switchboard.
+
+An allowance of $3,500 plus GST is included for gyprocking and painting works.
+
+20% deposit on Acceptance of Quote
+
+total: $28578.00`;
+
+export const JOB_1930 = `Supply and install Mitsubishi Electric air conditioning systems as follows:
+
+**Main House:**
+- 10kW Ducted Mitsubishi Electric System
+  - Includes 5 zones with an 8-zone kit, motors, and necessary components
+  - Installation of pipes, drain, cable, and electrical connections
+  - Flexible duct and zone motors to suit the setup
+ - Standard Supply grills (round or MDO Square)
+ - Return air located in hallway
+ - Allowance for 2 x Bar Grills as required for bulk head vents
+
+**Master Bedroom:**
+- 3.5kW High Wall AP Series Mitsubishi Electric System
+  - Includes pipes, drains, and cable installation
+
+**Pool Room:**
+- 5kW High Wall AP Series Mitsubishi Electric System
+  - Includes pipe, drain, and cable installation
+
+**Additional Inclusions:**
+- Electrical cable runs to the switchboard location, to be fitted off by others
+
+Note: This quote does not include switchboard electrical upgrades if required.`;
+
+export const JOB_248 = `Supply and installation of Daikin 8.5kw ducted system to serve first floor beds
+Supply of Daikin zone controller and 4 x zones
+Grills to be standard round outlets
+Return air grill to be egg crate type
+
+Supply and installation of Daikin 8.5kw ducted system to serve ground floor 
+Grills to be linear bar grill type in kitchen bulkhead
+Grill in study to be linear bar grill size TBA
+Supply of 2 x zones
+Supply of Daikin zone controller
+
+Mains electrical to switchboard`;
+
+export const JOB_2147 = `4 x 3.5kw high walls 
+
+Scope of Works:
+Site Visit.1 (Rough In)
+* Rough in of Pipes, drain and cables
+* Electrical to switchboard + RCBO
+* Remove rubbish from site
+
+Site Visit.2 (Fit Off)
+* Mount High Wall Split Units x 4
+* Mount Condenser in final agreed location
+* Test and Commission the unit
+* Ensure system operation correctly
+* Remove rubbish from site
+
+Optional:
+*** Outdoor to be located on the Roof
+Variation of: $3000.00 ex. GST`;
+
 export const FUTURECERT_9_1 = [
   "Mechanical Ventilation and Air Conditioning System has been installed in accordance with AS 1668.1 and AS 1668.2.",
   "Any Air Handling System which does not form part of the smoke control system (other than individual room units with a capacity not more than 1000 L/s, system serving critical treatment areas and miscellaneous exhaust air systems installed in accordance with Sections 5 and 6 of AS/NZS 1668.1) shuts down in fire mode as required by Specification 21",

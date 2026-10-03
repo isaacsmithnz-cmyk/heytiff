@@ -44,6 +44,7 @@ import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
 import { JobCustomerDialog } from "./job-customer-dialog";
 import { customerEditOffered } from "@/app/actions/job-customer";
+import { setNoDeposit } from "@/app/actions/job-deposit";
 import { checkIn, checkOut, readMyCheckIn, type MyCheckIn } from "@/app/actions/job-check-ins";
 import { jobSteps, type StepKey } from "@/lib/workboard/job-steps";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
@@ -1074,6 +1075,21 @@ export function JobSheet({
   const money = moneyVisible ? (detail?.money ?? null) : null;
   const materials = (record?.ledger?.materials ?? []).filter((m) => !isPartialInvoiceLine(m));
   const family = record?.family ?? null;
+  /* NO DEPOSIT, ticked on Billing: the press's answer stands over the
+     record's until the record is read again */
+  const [depositTick, setDepositTick] = useState<{ card: string; on: boolean } | null>(null);
+  const [depositBusy, setDepositBusy] = useState(false);
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const noDeposit = depositTick && depositTick.card === cardId ? depositTick.on : record?.noDeposit === true;
+  const tickNoDeposit = async (on: boolean) => {
+    if (!cardId) return;
+    setDepositBusy(true);
+    setDepositError(null);
+    const a = await setNoDeposit(cardId, on).catch(() => ({ ok: false as const, error: "That didn't save. Try again." }));
+    setDepositBusy(false);
+    if (a.ok) setDepositTick({ card: cardId, on: a.noDeposit });
+    else setDepositError(a.error);
+  };
   const steps = useMemo(
     () =>
       jobSteps(
@@ -1092,10 +1108,11 @@ export function JobSheet({
               })()
             : null,
           family,
+          noDeposit,
         },
         moneyVisible
       ),
-    [detail, picklist, family, moneyVisible]
+    [detail, picklist, family, noDeposit, moneyVisible]
   );
   /* The card's own number — the PARENT's, even when a claim's row opened it. */
   const cardNumber = detail?.jobNumber ?? row.number ?? null;
@@ -2274,6 +2291,16 @@ export function JobSheet({
                       statusLabel={row.statusLabel}
                       focusRemoteId={focus}
                       onOpenClaim={setOpenClaim}
+                      deposit={(() => {
+                        const status = (detail?.status ?? "").trim().toLowerCase();
+                        const started = (detail?.visits.length ?? 0) > 0 || status === "completed";
+                        /* asked while a deposit could still be wanted: no
+                           deposit invoice, work not started, not declined */
+                        const ask = !!family && family.claims[0]?.stage !== "Deposit" && !started && status !== "unsuccessful";
+                        return noDeposit || ask
+                          ? { noDeposit, busy: depositBusy, error: depositError, onSet: (on: boolean) => void tickNoDeposit(on) }
+                          : null;
+                      })()}
                       billTo={(() => {
                         const name = detail?.clientName ?? row.clientName;
                         if (!name) return null;

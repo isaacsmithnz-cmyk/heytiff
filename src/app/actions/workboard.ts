@@ -61,6 +61,9 @@ export type JobRecordRead = {
   /** Every job ServiceM8 cloned out of this one, read as one ledger. Null
       without `workboard_money`, and null for a job number this can't read. */
   family: FamilyMoney | null;
+  /** Somebody ticked this job as taking no deposit (job_no_deposit). Read
+      with the money, so absent without `workboard_money`. */
+  noDeposit?: boolean;
   /** The stored "Where it's up to" paragraph, its money sentence already
       stripped for a reader without the grant. Null until one is written. */
   summary: JobSummaryRead | null;
@@ -660,13 +663,27 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
      THE COMMON CASE and stays honest: null makes the claim rows say when
      they were RAISED and nothing about when they were due, rather than
      inventing a fortnight and calling somebody late against it. */
-  const [ledger, family] = await Promise.all([
+  const [ledger, family, noDeposit] = await Promise.all([
     readJobLedger(ctx.orgId, id),
     orgPaymentTermsDays(ctx.orgId).then((termsDays) =>
       readJobFamily(ctx.orgId, id, today, termsDays)
     ),
+    readNoDeposit(ctx.orgId, id),
   ]);
-  return { notes, ourNotes, attention, assignable, ledger, family, summary, ...sm8, ...booking };
+  return { notes, ourNotes, attention, assignable, ledger, family, noDeposit, summary, ...sm8, ...booking };
+}
+
+/** Whether somebody ticked the job as taking no deposit. A read that fails
+    answers false: the Deposit step then asks, which is the safe way round. */
+async function readNoDeposit(orgId: string, jobUuid: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("job_no_deposit")
+    .select("sm8_job_uuid")
+    .eq("org_id", orgId)
+    .eq("sm8_job_uuid", jobUuid)
+    .maybeSingle();
+  if (error) console.error(`[deposit] couldn't read job ${jobUuid}'s deposit tick:`, error);
+  return !!data;
 }
 
 /** Whether the viewer may press a booking's door: Workboard manage, and the

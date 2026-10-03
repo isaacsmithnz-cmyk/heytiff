@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* The client half of reading scanned pages.
 
@@ -104,18 +105,19 @@ export function useKbOcr(): KbOcrHandle {
         return next;
       });
 
-      void (async () => {
-        try {
+      void withCleanup(
+        async () => {
           const result = await postOcrRun(documentId);
           setProgress((m) => ({ ...m, [documentId]: result }));
           /* The row's caveat and the quota line are both stale the moment a run
              lands, and neither is this component's to compute. */
           if (result.status !== "failed") router.refresh();
-        } finally {
+        },
+        () => {
           busy.current = false;
           setRunning(null);
         }
-      })();
+      );
     },
     [router]
   );

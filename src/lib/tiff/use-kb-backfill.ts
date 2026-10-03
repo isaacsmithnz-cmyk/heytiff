@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 import type { BackfillResult, BackfillStop } from "./backfill";
 
 /* The client half of the embedding backfill: the loop that keeps asking for
@@ -146,22 +147,22 @@ export function useKbBackfill(initialRemaining: number): KbBackfillHandle {
     setRunning(true);
     setState((s) => ({ ...s, done: 0, stopped: null }));
 
-    void (async () => {
-      const stopped = () => abort.current?.signal.aborted ?? false;
-      try {
-        await runBackfill({
+    const stopped = () => abort.current?.signal.aborted ?? false;
+    void withCleanup(
+      () =>
+        runBackfill({
           post: () => postBackfillBatch(abort.current?.signal),
           stopped,
           onProgress: (r) =>
             setState({ done: r.done, remaining: r.remaining, stopped: r.stopped ?? null }),
-        });
-      } finally {
+        }),
+      () => {
         busy.current = false;
         setRunning(false);
         // the count on the page is the server's, and it is now wrong
         if (!stopped()) router.refresh();
       }
-    })();
+    );
   }, [router]);
 
   return { ...state, running, start };

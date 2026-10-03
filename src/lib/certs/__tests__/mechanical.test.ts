@@ -1,4 +1,5 @@
 import {
+  CLAUSE_NAME,
   DEFAULT_CERT_ANSWERS,
   buildCertificate,
   certFileName,
@@ -10,6 +11,7 @@ import {
   statementsFor,
   suggestedReason,
   wetMinimum,
+  wordingSamples,
   type Building,
   type CertAnswers,
   type CertFacts,
@@ -356,6 +358,17 @@ describe("what was asked against what was installed", () => {
     ]);
   });
 
+  it("refuses statements worded for air conditioning on a ventilation-only certificate", () => {
+    const a = answersFor(JOB_279, { ac: false, vent: true }, "house", {
+      requirements: [ask("System commissioned and handed over"), ask("Complies with Section J"), ask("Outdoor unit noise to the approved plans")],
+    });
+    expect(certProblems(a, FACTS)).toEqual([
+      "Requirement 1 asks for commissioning and handover, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
+      "Requirement 2 asks for BCA Section J, air-conditioning and ventilation, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
+      "Requirement 3 asks for outdoor unit location and noise, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
+    ]);
+  });
+
   it("is satisfied once the item is marked not applicable with a reason", () => {
     const a = answersFor(JOB_3326, AC, "office", {
       requirements: [{ ...ask("Exhaust fans discharge to outdoor air"), answer: "na", reason: "No exhaust fans in our scope." }],
@@ -366,6 +379,34 @@ describe("what was asked against what was installed", () => {
   it("raises nothing when what was asked is on the certificate", () => {
     const a = answersFor(JOB_1383, AC, "apartment", { requirements: futureCert(), fireMode: "individual", fireModeRatingsChecked: true });
     expect(certProblems(a, FACTS)).toEqual([]);
+  });
+});
+
+describe("the wording the owner approves", () => {
+  it("shows every statement that can print, in every wording it can take", () => {
+    const shown = wordingSamples();
+    expect(shown.map((w) => w.clause)).toEqual(Object.keys(CLAUSE_NAME));
+    const j5 = shown.find((w) => w.clause === "j5")!.texts;
+    expect(j5).toHaveLength(2);
+    expect(j5.some((t) => t.includes("ductwork is sealed"))).toBe(true);
+    expect(shown.find((w) => w.clause === "ventAirflow")!.texts).toHaveLength(3);
+  });
+
+  it("covers every statement a golden job's certificate makes", () => {
+    const texts = wordingSamples().flatMap((w) => w.texts);
+    const jobs = [
+      answersFor(JOB_1383, AC, "apartment", { requirements: futureCert(), fireMode: "individual", fireModeRatingsChecked: true }),
+      answersFor(JOB_279, BOTH, "house"),
+      answersFor(JOB_2699, AC, "apartment", { installed: { ductwork: false, fireRated: true, fireStopProduct: "Promat collars" } }),
+    ];
+    for (const a of jobs) {
+      for (const st of statementsFor(a).statements) {
+        if (!st.clause) continue;
+        /* what a person typed is shown in brackets on the page: compare the words around it */
+        const stem = st.text.split(/R32|Promat collars/)[0].trim();
+        expect(texts.some((t) => t.startsWith(stem))).toBe(true);
+      }
+    }
   });
 });
 

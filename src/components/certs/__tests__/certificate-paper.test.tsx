@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { CertificatePaper, addressLines, longDay } from "../certificate-paper";
+import { CertificatePaper, longDay } from "../certificate-paper";
+import { addressLines } from "@/lib/certs/mechanical";
 import { buildCertificate, DEFAULT_CERT_ANSWERS, type CertAnswers } from "@/lib/certs/mechanical";
 import { signatureSvg } from "@/lib/swms/input";
 
@@ -87,5 +88,7 @@ describe("the paper's words", () => {
     expect(addressLines("Lv 3 Suite 4/44-54 Botany Road, Alexandria, NSW, 2015")).toEqual(["Lv 3 Suite 4/44-54 Botany Road", "Alexandria, NSW, 2015"]);
     expect(addressLines("74/10 Etham Avenue\nDarling Point NSW 2027")).toEqual(["74/10 Etham Avenue", "Darling Point NSW 2027"]);
     expect(addressLines(null)).toEqual([]);
+    /* ServiceM8 sometimes leaves a comma at a line's end */
+    expect(addressLines("260 Birrell St,\nBondi NSW 2026")).toEqual(["260 Birrell St", "Bondi NSW 2026"]);
   });
 });

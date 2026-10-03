@@ -18,6 +18,7 @@ import {
   optionHeading,
   proposalTitle,
   removeUnit,
+  setUnitRole,
   toggleAccepted,
   unitPlace,
   unitWords,
@@ -215,7 +216,37 @@ describe("the equipment rows", () => {
     const rows = [blankUnit("outdoor", 0), blankUnit("outdoor", 1), { ...blankUnit("indoor", 2), room: "Study" }];
     expect(rows[2].system).toBe(2);
     expect(removeUnit(rows, 0).map((r) => [r.role, r.system])).toEqual([
+      ["outdoor", 1],
+      ["indoor", 1],
+    ]);
+  });
+
+  it("keeps every indoor unit on its own outdoor when a row changes kind", () => {
+    const rows = [blankUnit("outdoor", 0), blankUnit("outdoor", 1), blankUnit("outdoor", 2), { ...blankUnit("indoor", 3), room: "Study" }];
+    expect(rows[3].system).toBe(3);
+    /* outdoor 2 becomes an indoor unit: the study stays on the old outdoor 3, now numbered 2 */
+    const fewer = setUnitRole(rows, 1, "indoor");
+    expect(fewer.map((r) => [r.role, r.system])).toEqual([
+      ["outdoor", 1],
+      ["indoor", 1],
       ["outdoor", 2],
+      ["indoor", 2],
+    ]);
+    /* and back: a new outdoor above moves the units below it with their own */
+    expect(setUnitRole(fewer, 1, "outdoor").map((r) => [r.role, r.system])).toEqual([
+      ["outdoor", 1],
+      ["outdoor", 2],
+      ["outdoor", 3],
+      ["indoor", 3],
+    ]);
+    /* a fan runs from no outdoor, and its airflow goes when it stops being one */
+    expect(setUnitRole([{ ...blankUnit("fan", 0), lps: 40 }], 0, "indoor")[0]).toMatchObject({ role: "indoor", system: 0, lps: null });
+  });
+
+  it("puts an indoor unit whose outdoor is removed under the nearest outdoor above it", () => {
+    const rows = [blankUnit("outdoor", 0), blankUnit("outdoor", 1), { ...blankUnit("indoor", 2), room: "Study" }];
+    expect(removeUnit(rows, 1).map((r) => [r.role, r.system])).toEqual([
+      ["outdoor", 1],
       ["indoor", 1],
     ]);
   });

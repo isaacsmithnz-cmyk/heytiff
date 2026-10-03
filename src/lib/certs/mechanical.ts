@@ -20,7 +20,10 @@
    matches no clause is written by the person, printed as typed, or marked not
    applicable with a reason. */
 
-export const CERT_LIBRARY_VERSION = "mech-2026.10";
+/* .1 (2026-10-03): the wording page now shows every statement that can
+   print, condensate, commissioning and Section J with ductwork among them,
+   so it is approved again with all of them in view. */
+export const CERT_LIBRARY_VERSION = "mech-2026.10.1";
 
 /* ── what the certificate covers, and where ────────────────────────────── */
 
@@ -32,7 +35,23 @@ export type Covers = { ac: boolean; vent: boolean };
    tables' own headings. */
 export const CERT_TITLE = "Mechanical compliance certificate";
 
-/** The file's name, from the site's first line and the job. */
+/** The words before the numbered statements, and before each thing asked
+    for that doesn't apply. */
+export const CERT_LEDE = "I certify that:";
+export const NOT_APPLICABLE = "Not applicable:";
+
+/** The site as lines: as written when it has lines, else split at its first
+    comma, so the title is the street and not the whole address. A trailing
+    comma, as ServiceM8 sometimes leaves one, isn't part of a line. */
+export function addressLines(address: string | null): string[] {
+  const lines = (address ?? "").split("\n").map((l) => l.trim().replace(/,$/, "").trim()).filter(Boolean);
+  if (lines.length !== 1) return lines;
+  const at = lines[0].indexOf(",");
+  return at > 0 ? [lines[0].slice(0, at).trim(), lines[0].slice(at + 1).trim()].filter(Boolean) : lines;
+}
+
+/** The file's name, from the site's first line (the paper's own title) and
+    the job. */
 export function certFileName(site: string, jobNumber: string | null): string {
   const where = site.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 80);
   return [CERT_TITLE, where || null, jobNumber ? `job ${jobNumber}` : null].filter(Boolean).join(" – ") + ".pdf";
@@ -279,6 +298,10 @@ export function clausesFor(a: CertAnswers): ClauseKey[] {
   return out;
 }
 
+/** The reason given when what was asked is a smoke control system, which
+    this certificate never covers. The person can change it. */
+export const NOT_OURS_REASON = "Not part of these works: a smoke control system is certified by the mechanical engineer.";
+
 /** The reason offered when a certifier asks for something that doesn't apply.
     The person can change it; it is only a start. */
 export function suggestedReason(clause: ClauseKey | null, b: Building | null): string {
@@ -507,6 +530,13 @@ const missing = (s: string) => s.trim() === "";
 export const looksLikeModel = (s: string) => /\d/.test(s);
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
+/** A clause's name inside a sentence: lower case to start, but a standard's
+    or the code's own letters ("AS/NZS 5149.2", "BCA") as they are. */
+const nameInSentence = (k: ClauseKey) => {
+  const n = CLAUSE_NAME[k];
+  return /^[A-Z]{2}/.test(n) ? n : n.charAt(0).toLowerCase() + n.slice(1);
+};
+
 /* WHAT WAS ASKED AGAINST WHAT WAS INSTALLED. A builder's list is matched to
    a statement by rule, but a statement is only true of works on this
    certificate: a list that asks for exhaust fans on an air conditioning job,
@@ -524,12 +554,17 @@ function notInstalled(k: ClauseKey, a: CertAnswers): string | null {
     case "as16682":
     case "kitchenExhaust":
     case "carPark":
-      return vent ? null : `${CLAUSE_NAME[k].toLowerCase()}, but no ventilation is on this certificate`;
+      return vent ? null : `${nameInSentence(k)}, but no ventilation is on this certificate`;
+    /* worded for air conditioning: refrigerant pipework, heating and
+       cooling, the outdoor unit */
     case "refrigerant":
     case "arc":
     case "condensate":
+    case "commissioned":
     case "fireMode":
-      return ac ? null : `${CLAUSE_NAME[k].toLowerCase()}, but no air conditioning is on this certificate`;
+    case "j5":
+    case "noise":
+      return ac ? null : `${nameInSentence(k)}, but no air conditioning is on this certificate`;
     case "ductwork":
       return a.installed.ductwork ? null : "ductwork, but no ductwork is ticked as installed";
     case "fireRated":
@@ -664,16 +699,19 @@ const WHEN: Record<ClauseKey, string> = {
   noise: "Only when asked for",
 };
 
-/** Every clause as it prints, with each wording a clause can take. The
-    figures a person types are shown as what they are, in brackets. */
+/** Every clause as it prints, with each wording a clause can take, in the
+    order CLAUSE_NAME lists them: all of them, so nothing can print that the
+    owner hasn't read. The figures a person types are shown as what they
+    are, in brackets. */
 export function wordingSamples(): Wording[] {
   const base: CertAnswers = { ...DEFAULT_CERT_ANSWERS, covers: { ac: true, vent: true } };
-  const order: ClauseKey[] = ["approved", "refrigerant", "manufacturer", "arc", "ventAirflow", "ventDischarge", "ductwork", "fireRated", "as16682", "as1668", "fireMode", "j5", "kitchenExhaust", "carPark", "airBalance", "noise"];
   const variants: Partial<Record<ClauseKey, CertAnswers[]>> = {
     ventAirflow: [
+      { ...base, fans: [{ ...EMPTY_FAN, location: "Living", airflowLps: 60 }] },
       { ...base, fans: [{ ...EMPTY_FAN, location: "Bathroom", airflowLps: 30 }] },
       { ...base, fans: [{ ...EMPTY_FAN, location: "Bathroom", airflowLps: 30, airflowKind: "measured" }] },
     ],
+    j5: [base, { ...base, installed: { ...base.installed, ductwork: true } }],
     fireRated: [{ ...base, installed: { ...base.installed, fireStopProduct: "[the fire-stopping product]" } }],
     fireMode: [
       { ...base, fireMode: "individual" },
@@ -684,7 +722,7 @@ export function wordingSamples(): Wording[] {
       { ...base, airBalance: "others" },
     ],
   };
-  return order.map((k) => ({
+  return (Object.keys(CLAUSE_NAME) as ClauseKey[]).map((k) => ({
     clause: k,
     name: CLAUSE_NAME[k],
     when: WHEN[k],

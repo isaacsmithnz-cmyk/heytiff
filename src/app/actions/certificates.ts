@@ -12,6 +12,7 @@ import { refIsOrgs } from "@/lib/documents/files";
 import { signatureSvg } from "@/lib/swms/input";
 import { ownerName } from "@/lib/swms/query";
 import { CERT_LIBRARY_VERSION, type CertAnswers } from "@/lib/certs/mechanical";
+import { normaliseCertAnswers } from "@/lib/certs/input";
 import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } from "@/lib/certs/quote";
 import { quoteHasEquipment, readingFromQuote } from "@/lib/certs/from-quote";
 import { acceptedOptions } from "@/lib/quotes/proposal";
@@ -152,7 +153,9 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
   };
 }
 
-/** A version's answers, for a reissue to start from. */
+/** A version's answers, for a reissue to start from: read back through the
+    same normaliser the issue uses, so a version saved before a field
+    existed starts with that field asked, as the issue will ask it. */
 export async function certPrevious(
   versionId: string
 ): Promise<{ certificateId: string; version: number; answers: CertAnswers } | null> {
@@ -164,8 +167,8 @@ export async function certPrevious(
       .eq("org_id", orgId)
       .eq("id", trim(versionId))
       .maybeSingle();
-    const v = data as { certificate_id: string; version: number; answers: CertAnswers } | null;
-    return v ? { certificateId: v.certificate_id, version: v.version, answers: v.answers } : null;
+    const v = data as { certificate_id: string; version: number; answers: unknown } | null;
+    return v ? { certificateId: v.certificate_id, version: v.version, answers: normaliseCertAnswers(v.answers) } : null;
   } catch {
     return null;
   }

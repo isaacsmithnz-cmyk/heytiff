@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffDisplayNames as namesOf } from "@/lib/workboard/job-notes-query";
+import { familyNumbersFor, splitJobNumber } from "@/lib/workboard/job-family";
 import { CERT_LIBRARY_VERSION, CERT_TITLE, type CertContent } from "./mechanical";
 
 /* THE CERTIFICATE READS. Every query is scoped by org_id: an id from a
@@ -42,21 +43,28 @@ export async function loadCertJob(orgId: string, jobUuid: string): Promise<CertJ
   } | null;
   if (!job) return null;
   const number = job.generated_job_id?.trim() || null;
+  /* the card's claims BY NAME (279A … 279Z), as job-family reads them: a
+     prefix match would also ask for #2790–#2799, and a deleted claim's date
+     isn't the works' */
+  const parts = splitJobNumber(number);
 
   const [company, claims] = await Promise.all([
     job.company_uuid
       ? supabaseAdmin.from("sm8_companies").select("name").eq("org_id", orgId).eq("uuid", job.company_uuid).maybeSingle()
       : Promise.resolve({ data: null }),
-    number && /^\d+$/.test(number)
-      ? supabaseAdmin.from("sm8_jobs").select("generated_job_id, completion_date").eq("org_id", orgId).like("generated_job_id", `${number}%`)
+    parts && parts.suffix === null
+      ? supabaseAdmin
+          .from("sm8_jobs")
+          .select("completion_date")
+          .eq("org_id", orgId)
+          .eq("active", 1)
+          .in("generated_job_id", familyNumbersFor(parts.base).slice(1))
       : Promise.resolve({ data: [] }),
   ]);
 
   const dates = [
     job.completion_date,
-    ...((claims.data ?? []) as { generated_job_id: string | null; completion_date: string | null }[])
-      .filter((c) => number && new RegExp(`^${number}[A-Z]$`).test(c.generated_job_id ?? ""))
-      .map((c) => c.completion_date),
+    ...((claims.data ?? []) as { completion_date: string | null }[]).map((c) => c.completion_date),
   ]
     .map((d) => (d && /^\d{4}-\d{2}-\d{2}/.test(d) && !d.startsWith("0000") ? d.slice(0, 10) : null))
     .filter((d): d is string => !!d)

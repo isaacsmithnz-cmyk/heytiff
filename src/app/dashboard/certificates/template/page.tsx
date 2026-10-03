@@ -8,7 +8,7 @@ import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { ownerName } from "@/lib/swms/query";
 import { certApproval } from "@/lib/certs/query";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
-import { wordingSamples } from "@/lib/certs/mechanical";
+import { CERT_LEDE, DEFAULT_CERT_ANSWERS, NOT_APPLICABLE, notCoveredLine, wordingSamples } from "@/lib/certs/mechanical";
 import { ApproveWording } from "@/components/certs/approve-wording";
 import "@/components/swms/swms.css";
 
@@ -67,9 +67,12 @@ export default async function CertificateWordingPage() {
               ))}
               <div className="sws-grp">
                 <div className="sw-gh">
-                  <b>On every certificate</b>
+                  <b>Around the statements</b>
+                  <span>The first on every certificate; the other two only when there is something to say</span>
                 </div>
-                <p className="sw-text">Not covered: electrical work, certified separately under AS/NZS 3000.</p>
+                <p className="sw-text">{CERT_LEDE}</p>
+                <p className="sw-text">{`${NOT_APPLICABLE} [what was asked]: [the reason given]`}</p>
+                <p className="sw-text">{notCoveredLine({ ...DEFAULT_CERT_ANSWERS, notCoveredExtra: "[what the person typed]" })}</p>
                 <p className="sw-note">A requirement that no statement answers is written by the person issuing, and prints as they typed it.</p>
               </div>
               {!approval && isOwner && (

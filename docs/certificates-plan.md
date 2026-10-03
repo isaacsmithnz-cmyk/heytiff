@@ -175,7 +175,12 @@ stored on their staff card. Then they Issue.
 
 Every statement is short and names its standard, nothing more. The clauses are
 approved wording in a pure library, `lib/certs/mechanical.ts`, which the owner
-approves before anything issues.
+approves before anything issues. The wording page lists every clause in every
+wording it can take, built from the library itself, and a test holds it to
+that: a statement the owner hasn't read can't print. "I certify that:", the
+"Not applicable:" line and the "Not covered:" line come from the library too.
+Library mech-2026.10.1 (2026-10-03) was approved again because the page had
+left out condensate, commissioning and Section J with ductwork.
 
 **Every air conditioning certificate:**
 
@@ -396,6 +401,10 @@ card's section save.
 The server asks these again at Issue, and never trusts the browser.
 
 - The wording is approved for this library version.
+- Nothing asked for is certified that isn't on the certificate: fans,
+  ductwork and fire-rated penetrations need to be there, and condensate,
+  commissioning, fire mode, Section J and outdoor unit noise need air
+  conditioning on it, because their wording is about air conditioning.
 - The signatory has a signature on file, and their own ARC licence and
   contractor licence are **current on the issue date**. A licence with no
   expiry date counts as not current.
@@ -515,7 +524,8 @@ so the `documents` kind check is unchanged.
 
 - **Issue and reissue:** anyone who can open the job card (`workboard`) and
   holds their own current ARC licence and contractor licence. The server reads
-  the licences itself.
+  the licences itself. A job has one certificate: the route refuses to start
+  a second beside an issued one, so issuing again is always a reissue.
 - **Create certificate** shows for anyone who can open the job card. Without
   both licences the wizard opens read-only, with one line naming the licence
   that's missing.

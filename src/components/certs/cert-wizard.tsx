@@ -24,6 +24,7 @@ import { attachJobDocument } from "@/app/actions/job-documents";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import { thrownWords } from "@/lib/stale-deploy";
+import { MAX_REASON, MAX_REQUIREMENT_TEXT, MAX_REQUIREMENTS } from "@/lib/certs/input";
 import type { IssueCertResult } from "@/app/api/certificates/issue/route";
 import {
   BUILDINGS,
@@ -35,6 +36,7 @@ import {
   EMPTY_TEST,
   EXHAUST_TO,
   MATCHABLE,
+  NOT_OURS_REASON,
   certProblemList,
   clausesFor,
   fmtKw,
@@ -418,13 +420,17 @@ export function CertWizard({
       }
     }
     const found = [fromFile, fromText].flatMap((r) => (r && r.ok ? r.requirements : []));
+    /* a certificate holds so many: past that, say so rather than drop some at issue */
+    if (found.length > MAX_REQUIREMENTS) {
+      setListError(`Tiff found ${found.length} things asked for. A certificate holds ${MAX_REQUIREMENTS}, so the first ${MAX_REQUIREMENTS} are listed.`);
+    }
     set({
-      requirements: found.map((r) => ({
+      requirements: found.slice(0, MAX_REQUIREMENTS).map((r) => ({
         text: r.text,
         answer: r.notOurs ? "na" : "clause",
         clause: r.clause,
         own: "",
-        reason: r.notOurs ? "Not part of these works: a smoke control system is certified by the mechanical engineer." : "",
+        reason: r.notOurs ? NOT_OURS_REASON : "",
       })),
     });
     setLastRead({ doc: listDoc, text, found: found.length });
@@ -805,10 +811,10 @@ export function CertWizard({
                 <option value="na">Doesn&apos;t apply</option>
               </select>
               {r.answer === "own" && (
-                <textarea className="wb2-notes" rows={2} aria-label={`Your statement for requirement ${i + 1}`} placeholder="The statement, as it should print" value={r.own} onChange={(e) => setReq(i, { own: e.target.value })} />
+                <textarea className="wb2-notes" rows={2} maxLength={MAX_REQUIREMENT_TEXT} aria-label={`Your statement for requirement ${i + 1}`} placeholder="The statement, as it should print" value={r.own} onChange={(e) => setReq(i, { own: e.target.value })} />
               )}
               {r.answer === "na" && (
-                <input className="wb2-fi" aria-label={`Why requirement ${i + 1} doesn't apply`} placeholder="Why it doesn't apply" value={r.reason} onChange={(e) => setReq(i, { reason: e.target.value })} />
+                <input className="wb2-fi" maxLength={MAX_REASON} aria-label={`Why requirement ${i + 1} doesn't apply`} placeholder="Why it doesn't apply" value={r.reason} onChange={(e) => setReq(i, { reason: e.target.value })} />
               )}
             </div>
           ))}

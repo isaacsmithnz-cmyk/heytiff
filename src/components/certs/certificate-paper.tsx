@@ -2,7 +2,7 @@ import { brandContact, hasBrand, type OrgBrand } from "@/lib/org/brand";
 import { BrandLogo } from "@/components/org/letterhead";
 import { themeVars } from "@/lib/org/theme";
 import { fmtDay } from "@/lib/format/day";
-import { fmtNum, type AcRow, type CertContent, type FanRow } from "@/lib/certs/mechanical";
+import { CERT_LEDE, NOT_APPLICABLE, addressLines, fmtNum, type AcRow, type CertContent, type FanRow } from "@/lib/certs/mechanical";
 import type { BusinessPapers, HeldLicence } from "@/lib/certs/query";
 import "@/components/studio/summary/sheet-doc.css";
 import "./certificate.css";
@@ -44,15 +44,6 @@ export function longDay(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (!m) return "";
   return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
-}
-
-/** The site as lines: as written when it has lines, else split at its first
-    comma, so the title is the street and not the whole address. */
-export function addressLines(address: string | null): string[] {
-  const lines = (address ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
-  if (lines.length !== 1) return lines;
-  const at = lines[0].indexOf(",");
-  return at > 0 ? [lines[0].slice(0, at).trim(), lines[0].slice(at + 1).trim()].filter(Boolean) : lines;
 }
 
 function modelCell(r: AcRow | FanRow): string {
@@ -250,7 +241,7 @@ export function CertificatePaper({
 
                 <section className="cer-sec">
                   <h2 className="cer-h">Certification</h2>
-                  <p className="cer-lede">I certify that:</p>
+                  <p className="cer-lede">{CERT_LEDE}</p>
                   <ol className="cer-st">
                     {content.statements.map((s, i) => (
                       <li key={i}>{s.text}</li>
@@ -258,7 +249,7 @@ export function CertificatePaper({
                   </ol>
                   {content.notApplicable.map((s, i) => (
                     <p key={i} className="cer-note">
-                      Not applicable: {s.text}
+                      {`${NOT_APPLICABLE} ${s.text}`}
                     </p>
                   ))}
                   {content.notCovered && <p className="cer-note">{content.notCovered}</p>}

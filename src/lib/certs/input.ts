@@ -73,14 +73,21 @@ function fan(raw: unknown): FanRow {
   };
 }
 
+/* WHAT A CERTIFICATE HOLDS OF WHAT WAS ASKED. The wizard fills and caps its
+   fields to the same numbers, so nothing the person answered is cut here
+   without their seeing it. */
+export const MAX_REQUIREMENTS = 30;
+export const MAX_REQUIREMENT_TEXT = 600;
+export const MAX_REASON = 300;
+
 function requirement(raw: unknown): Requirement {
   const r = obj(raw);
   return {
-    text: text(r.text, 600),
+    text: text(r.text, MAX_REQUIREMENT_TEXT),
     answer: oneOf(r.answer, ["clause", "own", "na"] as const) ?? "clause",
     clause: oneOf<ClauseKey>(r.clause, MATCHABLE),
-    own: text(r.own, 600),
-    reason: text(r.reason, 300),
+    own: text(r.own, MAX_REQUIREMENT_TEXT),
+    reason: text(r.reason, MAX_REASON),
   };
 }
 
@@ -101,7 +108,7 @@ export function normaliseCertAnswers(raw: unknown): CertAnswers {
       fireStopProduct: text(installed.fireStopProduct, 160),
     },
     exhaustTo: oneOf<ExhaustTo>(r.exhaustTo, EXHAUST_TO.map((e) => e.key)),
-    requirements: list(r.requirements, 30).map(requirement).filter((q) => q.text !== ""),
+    requirements: list(r.requirements, MAX_REQUIREMENTS).map(requirement).filter((q) => q.text !== ""),
     fireMode: oneOf<FireMode>(r.fireMode, ["individual", "shutdown", "smoke"]),
     fireModeRatingsChecked: bool(r.fireModeRatingsChecked),
     fireModeInterface: text(r.fireModeInterface, 160),

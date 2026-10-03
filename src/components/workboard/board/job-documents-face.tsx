@@ -88,7 +88,7 @@ const editedOn = (iso: string): string => {
     a file the upload would then refuse. */
 const ACCEPT = Object.keys(ALLOWED_TYPES).join(",");
 
-function DocRow({
+export function DocRow({
   item,
   onOpen,
   state = null,

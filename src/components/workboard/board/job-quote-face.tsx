@@ -8,8 +8,6 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { DocRow } from "./job-documents-face";
 import {
-  EXTRA_NOTES,
-  EXTRA_NOTE_KEYS,
   MAX_UNIT_QTY,
   MAX_UNITS,
   PRICING_WORDS,
@@ -23,7 +21,6 @@ import {
   toggleAccepted,
   unitPlace,
   unitWords,
-  type ExtraNoteKey,
   type ProposalDraft,
   type ProposalOption,
   type UnitLine,
@@ -37,13 +34,13 @@ import {
   type ChecklistKey,
 } from "@/lib/quotes/checklist";
 import {
-  PAYMENT_PRESETS,
   PAYMENT_PRESET_KEYS,
   paymentProblems,
   type PaymentPreset,
   type PaymentStage,
 } from "@/lib/quotes/payment";
 import type { StoredProposal } from "@/lib/quotes/proposal-writer";
+import { STANDARD_NOTES, standardTemplates, type PaymentTerms, type QuoteNote } from "@/lib/templates/settings";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* THE QUOTE FACE — a proposal draft on the skeleton, with Tiff as supervisor.
@@ -68,8 +65,18 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    replaces it. */
 
 type Block = "intro" | "why" | "pricing" | "payment" | "notes" | `option-${number}`;
+/** The business's own notes and payment terms (Admin → Templates → Quote). */
+type QuoteTemplates = { notes: QuoteNote[]; terms: PaymentTerms };
+const STANDARD = standardTemplates();
+const STANDARD_QUOTE: QuoteTemplates = { notes: STANDARD.quoteNotes, terms: STANDARD.paymentTerms };
+
+/** A note on a draft, from the business's list; a quote drafted before a
+    note was taken off the list still shows it, from the standard wording. */
+const noteFor = (t: QuoteTemplates, key: string): QuoteNote | null =>
+  t.notes.find((n) => n.key === key) ?? STANDARD_NOTES.find((n) => n.key === key) ?? null;
+
 type Answer =
-  | { ok: true; proposal: StoredProposal | null }
+  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates }
   /** `proposal` comes back when the draft moved on underneath the change */
   | { ok: false; reason: string; proposal?: StoredProposal | null };
 /** A person's edit, applied to the draft as it stands when its turn comes. */
@@ -153,6 +160,7 @@ export function JobQuoteFace({
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Block | null>(null);
   const [reads, setReads] = useState(0);
+  const [tpl, setTpl] = useState<QuoteTemplates>(STANDARD_QUOTE);
   const asked = useRef(-1);
   /* The draft as the server last said it is, and the saves in flight, one
      behind the other: two answers pressed in a second each build on the one
@@ -173,6 +181,7 @@ export function JobQuoteFace({
       .then((a) => {
         if (!a.ok) throw new Error(a.reason);
         setReadFailed(false);
+        if (a.templates) setTpl(a.templates);
         latest.current = a.proposal;
         setLoaded(a.proposal);
         if (a.proposal) setBrief(a.proposal.brief);
@@ -455,6 +464,7 @@ export function JobQuoteFace({
       <QuoteBlock title="Payment" onEdit={() => setEditing("payment")} editing={editing === "payment"}>
         <PaymentBlock
           payment={draft.payment}
+          terms={tpl.terms}
           editing={editing === "payment"}
           onCancel={() => setEditing(null)}
           onPick={(payment) => save((d) => ({ ...d, payment }))}
@@ -466,18 +476,22 @@ export function JobQuoteFace({
         {editing === "notes" ? (
           <NotesEdit
             picked={draft.notes}
+            library={tpl.notes}
             onCancel={() => setEditing(null)}
             onSave={(notes) => saveBlock("notes", (d) => ({ ...d, notes }))}
           />
         ) : draft.notes.length === 0 ? (
-          <p className="wb2-jqmode">Only the standard notes.</p>
+          <p className="wb2-jqmode">No notes on this quote.</p>
         ) : (
-          draft.notes.map((k) => (
-            <div className="wb2-jqnote" key={k}>
-              <b>{EXTRA_NOTES[k].heading}</b>
-              <Bullets lines={EXTRA_NOTES[k].lines} />
-            </div>
-          ))
+          draft.notes.map((k) => {
+            const n = noteFor(tpl, k);
+            return n ? (
+              <div className="wb2-jqnote" key={k}>
+                <b>{n.heading}</b>
+                <Bullets lines={n.lines} />
+              </div>
+            ) : null;
+          })
         )}
       </QuoteBlock>
 
@@ -793,12 +807,14 @@ function PricingBody({ draft }: { draft: ProposalDraft }) {
 
 function PaymentBlock({
   payment,
+  terms,
   editing,
   onCancel,
   onPick,
   onSave,
 }: {
   payment: ProposalDraft["payment"];
+  terms: PaymentTerms;
   editing: boolean;
   onCancel: () => void;
   /** A preset pressed: saved on its own, closing nothing. */
@@ -811,7 +827,7 @@ function PaymentBlock({
   const pick = async (preset: PaymentPreset) => {
     if (preset === payment.preset || switching) return;
     setSwitching(true);
-    await onPick({ preset, stages: PAYMENT_PRESETS[preset].stages.map((s) => ({ ...s })) });
+    await onPick({ preset, stages: terms[preset].stages.map((s) => ({ ...s })) });
     setSwitching(false);
   };
 
@@ -828,7 +844,7 @@ function PaymentBlock({
             disabled={switching || editing}
             onClick={() => void pick(k)}
           >
-            {PAYMENT_PRESETS[k].label}
+            {terms[k].label}
           </button>
         ))}
       </div>
@@ -1201,26 +1217,30 @@ function PricingEdit({
 
 function NotesEdit({
   picked,
+  library,
   onCancel,
   onSave,
 }: {
-  picked: ExtraNoteKey[];
+  picked: string[];
+  library: QuoteNote[];
   onCancel: () => void;
-  onSave: (notes: ExtraNoteKey[]) => Promise<boolean>;
+  onSave: (notes: string[]) => Promise<boolean>;
 }) {
-  const [keys, setKeys] = useState<ExtraNoteKey[]>(picked);
-  const { busy, run } = useSaving(() => onSave(EXTRA_NOTE_KEYS.filter((k) => keys.includes(k))));
+  const [keys, setKeys] = useState<string[]>(picked);
+  /* in the business's order; a note no longer on its list stays if it was picked */
+  const listed = library.map((n) => n.key);
+  const { busy, run } = useSaving(() => onSave([...listed.filter((k) => keys.includes(k)), ...keys.filter((k) => !listed.includes(k))]));
   return (
     <div className="wb2-jqform">
-      {EXTRA_NOTE_KEYS.map((k) => (
-        <label className="wb2-jqcheck" key={k}>
+      {library.map((n) => (
+        <label className="wb2-jqcheck" key={n.key}>
           <input
             type="checkbox"
-            checked={keys.includes(k)}
+            checked={keys.includes(n.key)}
             disabled={busy}
-            onChange={(e) => setKeys((cur) => (e.target.checked ? [...cur, k] : cur.filter((x) => x !== k)))}
+            onChange={(e) => setKeys((cur) => (e.target.checked ? [...cur, n.key] : cur.filter((x) => x !== n.key)))}
           />
-          {EXTRA_NOTES[k].heading}
+          {n.heading}
         </label>
       ))}
       <EditFoot busy={busy} onCancel={onCancel} onSave={() => void run()} saveWord="Save notes" />

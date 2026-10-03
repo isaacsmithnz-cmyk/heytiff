@@ -4,10 +4,18 @@ import { TemplatesList } from "../templates-list";
 import { CertificateTemplate, SwmsTemplate, type ApprovalProps } from "../approved-templates";
 import { DocumentsEmailTemplate, HandoverTemplate, ProjectChecklistTemplate, QuoteTemplate } from "../fixed-templates";
 import { templateFor } from "../templates-catalogue";
+import { standardTemplates } from "@/lib/templates/settings";
 
 jest.mock("@/app/actions/certificates", () => ({ approveCertWording: jest.fn(async () => ({ ok: true })) }));
 jest.mock("@/app/actions/swms", () => ({ approveSwmsLibrary: jest.fn(async () => ({ ok: true })) }));
-jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
+const refresh = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+const saveTemplate = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
+const resetTemplate = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
+jest.mock("@/app/actions/templates", () => ({
+  saveTemplate: (...a: unknown[]) => saveTemplate(...a),
+  resetTemplate: (...a: unknown[]) => resetTemplate(...a),
+}));
 
 const props = (over: Partial<ApprovalProps> = {}): ApprovalProps => ({
   isOwner: true,
@@ -92,7 +100,7 @@ describe("the SWMS", () => {
 
 describe("the templates written into HeyTiff", () => {
   it("draws the quote on the business's paper, with its notes and payment terms beside it", () => {
-    render(<QuoteTemplate brand={BRAND} />);
+    render(<QuoteTemplate brand={BRAND} templates={standardTemplates()} isOwner={false} />);
     expect(screen.getByText("Air Conditioning Scope")).toBeInTheDocument();
     expect(screen.getByText("Coolbreeze Air")).toBeInTheDocument();
     expect(screen.getByText("Roof access")).toBeInTheDocument();
@@ -100,21 +108,81 @@ describe("the templates written into HeyTiff", () => {
   });
 
   it("draws the handover sheet with the checks the project checklist prints", () => {
-    render(<HandoverTemplate brand={BRAND} />);
+    render(<HandoverTemplate brand={BRAND} templates={standardTemplates()} isOwner={false} />);
     expect(screen.getByText("Handover sheet", { selector: ".ho-kicker" })).toBeInTheDocument();
     expect(screen.getAllByText("Customer walkthrough done")).toHaveLength(2);
   });
 
   it("shows the documents email as it arrives, from the letter it is sent as", () => {
-    render(<DocumentsEmailTemplate brand={BRAND} />);
+    render(<DocumentsEmailTemplate brand={BRAND} templates={standardTemplates()} isOwner={false} />);
     expect(screen.getByText("Coolbreeze Air via HeyTiff")).toBeInTheDocument();
     expect(screen.getAllByText("Documents for job [job number], [site address]")).toHaveLength(2);
     expect(screen.getByTitle("The email as it arrives").getAttribute("srcdoc")).toContain("Documents from Coolbreeze Air");
   });
 
   it("shows every new project's checklist by section", () => {
-    render(<ProjectChecklistTemplate />);
+    render(<ProjectChecklistTemplate templates={standardTemplates()} isOwner={false} />);
     expect(screen.getByText("Approval & prep")).toBeInTheDocument();
     expect(screen.getByText("Pressure-tested & vacuumed")).toBeInTheDocument();
+  });
+});
+
+describe("the owner changes the business's own templates beside the document", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("puts a note on every quote, and the paper shows it", async () => {
+    render(<QuoteTemplate brand={BRAND} templates={standardTemplates()} isOwner />);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Roof access on every quote" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    const [key, notes] = saveTemplate.mock.calls[0] as [string, { key: string; always: boolean }[]];
+    expect(key).toBe("quote_notes");
+    expect(notes.find((n) => n.key === "roof_access")?.always).toBe(true);
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("adds a note of the business's own", async () => {
+    render(<QuoteTemplate brand={BRAND} templates={standardTemplates()} isOwner />);
+    await userEvent.click(screen.getByRole("button", { name: "Add a note" }));
+    await userEvent.type(screen.getByLabelText("Heading"), "Warranty");
+    await userEvent.type(screen.getByLabelText("The words, a line each"), "Five years on our workmanship.");
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    const notes = saveTemplate.mock.calls[0][1] as { heading: string; lines: string[] }[];
+    expect(notes.at(-1)).toMatchObject({ heading: "Warranty", lines: ["Five years on our workmanship."] });
+  });
+
+  it("won't save home payment terms that don't add up, and says why", async () => {
+    render(<QuoteTemplate brand={BRAND} templates={standardTemplates()} isOwner />);
+    const pct = screen.getByLabelText("Stage 1 percent");
+    await userEvent.clear(pct);
+    await userEvent.type(pct, "20");
+    await userEvent.click(screen.getAllByRole("button", { name: "Save" })[1]);
+    expect(saveTemplate).not.toHaveBeenCalled();
+    expect(screen.getByText("Home, small job: a deposit on a home job can't be more than 10%.")).toBeInTheDocument();
+  });
+
+  it("adds a handover check", async () => {
+    render(<HandoverTemplate brand={BRAND} templates={standardTemplates()} isOwner />);
+    await userEvent.type(screen.getByLabelText("Add to Handover"), "Remote set to the customer's times{Enter}");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    const items = saveTemplate.mock.calls[0][1] as { section: string; label: string }[];
+    expect(items.filter((i) => i.section === "Handover").at(-1)).toEqual({ section: "Handover", label: "Remote set to the customer's times" });
+  });
+
+  it("rewords the documents email, and goes back to the standard wording once changed", async () => {
+    const t = standardTemplates();
+    render(<DocumentsEmailTemplate brand={BRAND} templates={{ ...t, changed: { documents_email: "2026-10-03" } }} isOwner />);
+    const subject = screen.getByLabelText("Subject");
+    await userEvent.clear(subject);
+    await userEvent.type(subject, "Paperwork for job [[job number]");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(saveTemplate).toHaveBeenCalledWith("documents_email", { subject: "Paperwork for job [job number]", message: t.documentsEmail.message });
+    await userEvent.click(screen.getByRole("button", { name: "Back to the standard wording" }));
+    expect(resetTemplate).toHaveBeenCalledWith("documents_email");
+  });
+
+  it("offers no editors to someone who isn't the owner", () => {
+    render(<QuoteTemplate brand={BRAND} templates={standardTemplates()} isOwner={false} />);
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 });

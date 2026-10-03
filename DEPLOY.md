@@ -874,6 +874,12 @@ docs/certificates-plan.md is the design.
    - whoever signs has a current ARC licence and contractor licence **with
      expiry dates** on their staff card, and draws their signature there
      (Licences, Signature).
+5. A business's own templates (Admin → Templates: the quote's notes and
+   payment terms, the project checklist and its handover checks, the
+   documents email) live in `public.org_templates`, one row per template a
+   business has changed (`docs/migrations/org_templates.sql`). No row means
+   the standard wording, so nothing needs seeding. **Applied to production
+   2026-10-03** (migration `org_templates`).
 
 ---
 

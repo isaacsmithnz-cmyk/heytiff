@@ -10,14 +10,14 @@ import {
 } from "@/lib/workboard/all-jobs-query";
 import { readOurJobNotes } from "@/lib/workboard/job-notes-query";
 import {
-  EXTRA_NOTES,
-  EXTRA_NOTE_KEYS,
   MAX_OPTIONS,
   normaliseDraft,
   type ProposalDraft,
 } from "./proposal";
 import { CHECKLIST, CHECKLIST_KEYS, keepSettled } from "./checklist";
 import { PAYMENT_PRESET_KEYS } from "./payment";
+import { orgTemplates } from "@/lib/templates/query";
+import type { PaymentTerms, QuoteNote } from "@/lib/templates/settings";
 
 /* THE PROPOSAL WRITER — what a person says about a job, into the house
    layout's fields.
@@ -61,6 +61,10 @@ export type ProposalJob = {
   scope: string | null;
   /** Newest first, text only. */
   notes: string[];
+  /** The business's quote notes and payment terms (Admin → Templates →
+      Quote): the notes Tiff may pick from, and the stages each preset sets. */
+  noteLibrary: QuoteNote[];
+  paymentTerms: PaymentTerms;
 };
 
 const MAX_NOTES = 8;
@@ -81,13 +85,14 @@ export async function readProposalJob(orgId: string, remoteId: string): Promise<
   const target = await resolveJobCard(orgId, remoteId);
   const cardId = target.parentRemoteId;
   const timezone = await getSm8Timezone(orgId);
-  const [detail, theirs, ours, business] = await Promise.all([
+  const [detail, theirs, ours, business, templates] = await Promise.all([
     readMirrorJobDetail(orgId, cardId, todayInZone(timezone), { includeMoney: false, timezone }),
     familyMediaSources(orgId, cardId).then((claims) => readJobNotes(orgId, cardId, claims)),
     /* HeyTiff's own diary notes too: a site note typed on the card is often
        the one that says where the drain goes */
     readOurJobNotes(orgId, cardId, MAX_NOTES),
     readBusiness(orgId),
+    orgTemplates(orgId),
   ]);
   if (!detail) return null;
   const notes = [
@@ -97,6 +102,8 @@ export async function readProposalJob(orgId: string, remoteId: string): Promise<
   const contact = detail.contacts.find((c) => c.name.trim());
   return {
     business,
+    noteLibrary: templates.quoteNotes,
+    paymentTerms: templates.paymentTerms,
     cardId,
     jobNumber: detail.jobNumber,
     address: detail.address ?? detail.geoLine,
@@ -121,7 +128,8 @@ const named = {
   additionalProperties: false,
 };
 
-const DRAFT_SCHEMA = {
+/** The schema, with the note keys this business's list offers. */
+const draftSchema = (noteKeys: readonly string[]) => ({
   type: "object",
   properties: {
     intro: { type: "string" },
@@ -170,7 +178,9 @@ const DRAFT_SCHEMA = {
     },
     extras: { type: "array", items: named },
     allowances: { type: "array", items: named },
-    notes: { type: "array", items: { type: "string", enum: EXTRA_NOTE_KEYS } },
+    /* never an empty enum: a business with no notes to pick gets one that
+       is dropped on the way back */
+    notes: { type: "array", items: { type: "string", enum: noteKeys.length > 0 ? [...noteKeys] : ["none"] } },
     payment_preset: { type: "string", enum: PAYMENT_PRESET_KEYS },
     checklist: {
       type: "array",
@@ -199,11 +209,7 @@ const DRAFT_SCHEMA = {
     "checklist",
   ],
   additionalProperties: false,
-};
-
-const NOTE_LIBRARY = EXTRA_NOTE_KEYS.map(
-  (k) => `- ${k}: "${EXTRA_NOTES[k].heading}" — ${EXTRA_NOTES[k].lines.join(" ")}`
-).join("\n");
+});
 
 const CHECKLIST_LIBRARY = CHECKLIST_KEYS.map(
   (k) =>
@@ -251,8 +257,7 @@ extras — Add-ons the client can take or leave, each priced separately later: n
 
 allowances — A choice not made yet that the price covers with a stated allowance, when the words say so (for example "Ceiling grilles", "$100 + GST per grille"). Never invent a figure.
 
-notes — Keys for the extra notes this job needs, beyond the standard notes that always go in (pipe coverings, grilles, general exclusions, compliance and warranty), which you never repeat:
-${NOTE_LIBRARY}
+notes — Keys for the notes this job needs, from the business's notes listed with the job. Pick only the ones this job needs; none is fine. The business's notes that go on every quote are added anyway and are not listed.
 
 payment_preset — "domestic_small" for a home job of a day or two; "domestic_construction" for a home job that runs in stages over weeks or months (a whole house, a renovation, a new build); "commercial" for a business.
 
@@ -260,6 +265,24 @@ checklist — You are the supervisor. For every topic below that applies to this
 ${CHECKLIST_LIBRARY}
 
 Where a fact the scope needs is missing, put the topic on the checklist as "ask" and leave the fact out of the scope line. Never write "TBC", "to be confirmed", "as discussed" or "a suitable point" in the scope. Never invent a model number, a measurement, a price or a fact you were not told. Never mention prices at all, except an allowance you were given. Never mention this software or that anything was generated.`;
+
+/** The notes Tiff picks from: the ones not already on every quote. */
+const pickable = (job: ProposalJob) => job.noteLibrary.filter((n) => !n.always);
+
+/** The business's notes on a draft Tiff just wrote: its every-quote notes
+    first, then the ones Tiff picked from its list. A note already on the
+    draft stays, even one since taken off the list. */
+function withTemplates(d: ProposalDraft, job: ProposalJob, already: readonly string[]): ProposalDraft {
+  const always = job.noteLibrary.filter((n) => n.always).map((n) => n.key);
+  const allowed = new Set([...pickable(job).map((n) => n.key), ...already]);
+  return { ...d, notes: [...always, ...d.notes.filter((k) => allowed.has(k) && !always.includes(k))] };
+}
+
+/** A preset's stages, as the business has set them. */
+const termsFor = (job: ProposalJob, preset: ProposalDraft["payment"]["preset"]): ProposalDraft["payment"] => ({
+  preset,
+  stages: job.paymentTerms[preset].stages.map((s) => ({ ...s })),
+});
 
 export function jobBlock(job: ProposalJob): string {
   const parts = [
@@ -271,6 +294,11 @@ export function jobBlock(job: ProposalJob): string {
     job.category ? `Job type: ${job.category}` : null,
     job.scope ? `The office's description of the job:\n${job.scope}` : null,
     job.notes.length ? `Notes on the job, newest first:\n${job.notes.map((n) => `- ${n}`).join("\n")}` : null,
+    pickable(job).length
+      ? `The business's quote notes to pick from (key: heading, then its words):\n${pickable(job)
+          .map((n) => `- ${n.key}: "${n.heading}" — ${n.lines.join(" ")}`)
+          .join("\n")}`
+      : null,
   ];
   return parts.filter(Boolean).join("\n");
 }
@@ -332,7 +360,8 @@ function reasonFor(err: unknown): string {
 
 export async function runProposalWrite(
   userTurn: string,
-  client: Anthropic = new Anthropic()
+  client: Anthropic = new Anthropic(),
+  noteKeys: readonly string[] = []
 ): Promise<WriteResult> {
   try {
     const response = await client.beta.messages.create({
@@ -344,7 +373,7 @@ export async function runProposalWrite(
          writing from a handed-over brief, not open reasoning. */
       output_config: {
         effort: "medium",
-        format: { type: "json_schema", schema: DRAFT_SCHEMA },
+        format: { type: "json_schema", schema: draftSchema(noteKeys) },
       },
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userTurn }],
@@ -485,17 +514,21 @@ export async function writeProposal(
     if (current && !req.replace) {
       return { ok: false, reason: "This job already has a proposal.", proposal: current };
     }
-    const written = await runProposalWrite(draftPrompt(job, req.brief), client);
+    const written = await runProposalWrite(draftPrompt(job, req.brief), client, pickable(job).map((n) => n.key));
     if (!written.ok) return written;
-    const stored = await storeProposal(orgId, userId, job.cardId, written.draft, req.brief.trim(), []);
+    const draft = withTemplates(written.draft, job, []);
+    const stored = await storeProposal(orgId, userId, job.cardId, { ...draft, payment: termsFor(job, draft.payment.preset) }, req.brief.trim(), []);
     return stored.ok ? stored : { ok: false, reason: SAVE_FAILED };
   }
 
   if (!current) return { ok: false, reason: "There's no proposal on this job to change. Draft one first." };
-  const written = await runProposalWrite(changePrompt(job, current.brief, current.draft, req.change), client);
+  const written = await runProposalWrite(changePrompt(job, current.brief, current.draft, req.change), client, pickable(job).map((n) => n.key));
   if (!written.ok) return written;
-  /* stages a person set by hand survive a change that kept the same preset */
-  if (written.draft.payment.preset === current.draft.payment.preset) written.draft.payment = current.draft.payment;
+  written.draft = withTemplates(written.draft, job, current.draft.notes);
+  /* stages a person set by hand survive a change that kept the same preset;
+     a new preset takes the business's own terms for it */
+  written.draft.payment =
+    written.draft.payment.preset === current.draft.payment.preset ? current.draft.payment : termsFor(job, written.draft.payment.preset);
   /* and so does every answer a person gave, whatever Tiff sent back */
   written.draft.checklist = keepSettled(current.draft.checklist, written.draft.checklist);
   const stored = await storeProposal(

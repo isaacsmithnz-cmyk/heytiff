@@ -156,7 +156,8 @@ export type ProposalDraft = {
   items: ItemLine[];
   extras: Extra[];
   allowances: Allowance[];
-  notes: ExtraNoteKey[];
+  /** Keys of the business's quote notes (lib/templates/settings). */
+  notes: string[];
   payment: { preset: PaymentPreset; stages: PaymentStage[] };
   checklist: CheckItem[];
   /** The options the client accepted, by index. One when they pick one;
@@ -306,10 +307,11 @@ export function normaliseDraft(raw: unknown): ProposalDraft | null {
   /* building works priced line by line can have no option at all */
   if (options.length === 0 && !(mode === "itemised" && items.length > 0)) return null;
 
-  const notes = (Array.isArray(r.notes) ? r.notes : []).filter(
-    (k, i, all): k is ExtraNoteKey =>
-      typeof k === "string" && (EXTRA_NOTE_KEYS as string[]).includes(k) && all.indexOf(k) === i
-  );
+  /* a business's own notes have their own keys, so a key is checked for its
+     shape here and looked up where the note is drawn */
+  const notes = (Array.isArray(r.notes) ? r.notes : [])
+    .filter((k, i, all): k is string => typeof k === "string" && /^[a-z0-9_-]{1,40}$/.test(k) && all.indexOf(k) === i)
+    .slice(0, 20);
   const named = (o: Record<string, unknown>) => {
     const name = short(o.name);
     return name ? { name, detail: short(o.detail) } : null;

@@ -32,6 +32,8 @@ import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import { emailsByUser } from "@/lib/staff/query";
 import { isEmailConfigured, sendEmail, type MailAttachment } from "@/lib/email/send";
 import { documentsLetter } from "@/lib/email/documents-letter";
+import { orgTemplates } from "@/lib/templates/query";
+import { fillEmail } from "@/lib/templates/settings";
 import type { OurJobNote } from "@/lib/workboard/job-notes-query";
 
 /* COMPLIANCE ON A JOB, AND SENDING WHAT'S ON IT.
@@ -250,7 +252,7 @@ export async function readEmailDraft(jobUuid: string): Promise<EmailDraft | null
   } | null;
   if (!jobRow) return null;
 
-  const [onJob, ofClient, org, names] = await Promise.all([
+  const [onJob, ofClient, org, names, templates] = await Promise.all([
     supabaseAdmin
       .from("sm8_job_contacts")
       .select("first, last, email, type")
@@ -267,6 +269,7 @@ export async function readEmailDraft(jobUuid: string): Promise<EmailDraft | null
       : Promise.resolve({ data: [] }),
     supabaseAdmin.from("organizations").select("trading_name").eq("id", ctx.orgId).maybeSingle(),
     staffDisplayNames(ctx.orgId, [ctx.staffId]),
+    orgTemplates(ctx.orgId),
   ]);
 
   /* the job's own people first — they are who asked — then the client's;
@@ -286,10 +289,16 @@ export async function readEmailDraft(jobUuid: string): Promise<EmailDraft | null
   const business = ((org.data as { trading_name?: string | null } | null)?.trading_name ?? "").trim() || null;
   /* the address's first line: the whole of it is two lines and a postcode */
   const address = (jobRow.job_address ?? "").split(/\r?\n/)[0]?.trim() || null;
+  const number = jobRow.generated_job_id?.trim() || null;
+  const sender = ctx.staffId ? names.get(ctx.staffId) ?? null : null;
+  /* the business's own wording when it has written some (Admin → Templates),
+     filled in from the job; the standard wording otherwise */
+  const own = templates.changed.documents_email ? templates.documentsEmail : null;
+  const facts = { jobNumber: number, siteAddress: address, yourName: sender, business };
   return {
     contacts,
-    subject: defaultSubject({ number: jobRow.generated_job_id?.trim() || null, address }),
-    message: defaultMessage(ctx.staffId ? names.get(ctx.staffId) ?? null : null, business),
+    subject: own ? fillEmail(own.subject, facts) : defaultSubject({ number, address }),
+    message: own ? fillEmail(own.message, facts) : defaultMessage(sender, business),
     ready: isEmailConfigured(),
   };
 }

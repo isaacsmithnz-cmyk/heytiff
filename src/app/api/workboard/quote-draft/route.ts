@@ -2,6 +2,7 @@ import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { normaliseDraft } from "@/lib/quotes/proposal";
+import { orgTemplates } from "@/lib/templates/query";
 import {
   CHANGED_MEANWHILE,
   SAVE_FAILED,
@@ -51,8 +52,8 @@ export async function GET(req: Request) {
   const job = jobOf(new URL(req.url).searchParams.get("job"));
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(who.orgId, job);
-  const proposal = await readStoredProposal(who.orgId, target.parentRemoteId);
-  return Response.json({ ok: true, proposal });
+  const [proposal, t] = await Promise.all([readStoredProposal(who.orgId, target.parentRemoteId), orgTemplates(who.orgId)]);
+  return Response.json({ ok: true, proposal, templates: { notes: t.quoteNotes, terms: t.paymentTerms } });
 }
 
 export async function POST(req: Request) {

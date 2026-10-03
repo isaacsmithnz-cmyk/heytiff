@@ -26,10 +26,26 @@ const update = jest.fn((_row: Written) => ({
   eq: () => ({ eq: () => ({ eq: (_c: string, v: string) => (base(v), { select: () => ({ maybeSingle: updated }) }) }) }),
 }));
 /* the workspace writing the quote: deliberately not Diamond Air */
+/* the business's own notes: one on every quote, one Tiff may pick */
+const ORG_TEMPLATES = [
+  {
+    key: "quote_notes",
+    updated_at: "2026-10-03T00:00:00Z",
+    value: [
+      { key: "own-warranty", heading: "Warranty", lines: ["Five years on our workmanship."], always: true },
+      { key: "roof_access", heading: "Roof access", lines: ["Tiles lifted and relaid."], always: false },
+    ],
+  },
+];
 const ORG_ROW = { trading_name: "Coolbreeze Air", legal_name: "Coolbreeze Pty Ltd", state: "VIC" };
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
-    from: (table: string) => table === "organizations" ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: ORG_ROW }) }) }) } : ({
+    from: (table: string) =>
+      table === "organizations"
+        ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: ORG_ROW }) }) }) }
+        : table === "org_templates"
+          ? { select: () => ({ eq: async () => ({ data: ORG_TEMPLATES, error: null }) }) }
+          : ({
       select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }),
       upsert,
       update,
@@ -62,9 +78,12 @@ import {
 import { normaliseDraft, type ProposalDraft } from "../proposal";
 import { CHECKLIST_KEYS } from "../checklist";
 import { PAYMENT_PRESETS } from "../payment";
+import { standardTemplates } from "@/lib/templates/settings";
 
 const job: ProposalJob = {
   business: "Coolbreeze Air, VIC",
+  noteLibrary: standardTemplates().quoteNotes,
+  paymentTerms: standardTemplates().paymentTerms,
   cardId: "j-1",
   jobNumber: "3400",
   address: "12 Smith St\nMosman NSW 2088",
@@ -214,6 +233,17 @@ describe("writeProposal", () => {
     expect(lastRow()?.sm8_job_uuid).toBe("j-1");
     expect(lastRow()?.brief).toBe("the brief");
     expect(lastRow()?.changes).toEqual([]);
+  });
+
+  it("puts the business's every-quote notes on, and keeps only notes from its own list", async () => {
+    const { client, create } = clientSaying(answer);
+    await writeProposal("org", "user", "j-1", { kind: "draft", brief: "the brief" }, client);
+    /* client_supplied isn't on this business's list; its warranty note goes on every quote */
+    expect(lastRow()?.draft.notes).toEqual(["own-warranty", "roof_access"]);
+    const call = (create.mock.calls[0] as unknown as [{ messages: { content: string }[]; output_config: { format: { schema: { properties: { notes: { items: { enum: string[] } } } } } } }])[0];
+    expect(call.messages[0].content).toContain('- roof_access: "Roof access" — Tiles lifted and relaid.');
+    expect(call.messages[0].content).not.toContain("own-warranty");
+    expect(call.output_config.format.schema.properties.notes.items.enum).toEqual(["roof_access"]);
   });
 
   it("a change with no draft to change costs no model call", async () => {

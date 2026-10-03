@@ -169,8 +169,9 @@ function startingAnswers(ctx: CertWizardContext): CertAnswers {
     covers: { ac, vent: r.ventilation },
     /* asked, never assumed: the address's guess is shown as a hint */
     building: null,
-    /* the site's state is on its address; the person can change it */
-    state: stateFromAddress(ctx.job.address),
+    /* the site's state: its address's when it names one (a job over the
+       border), else the business's own; the person can change it */
+    state: stateFromAddress(ctx.job.address) ?? ctx.orgState,
     completedOn: ctx.job.completedOn ?? "",
     systems: r.systems.length > 0 ? r.systems.map((x) => ({ ...x, indoors: x.indoors.length ? x.indoors : [{ ...EMPTY_ROW }] })) : ac ? [blankSystem(r.refrigerant)] : [],
     fans: r.fans,
@@ -521,13 +522,14 @@ export function CertWizard({
       <div className="sw-grp">
         <div className="sw-gh">
           <b>Which state is the job in?</b>
-          {a.state === null && <span>{"The address doesn't say. Pick one."}</span>}
+          {a.state === null && <span>{"Neither the address nor your company settings say. Pick one."}</span>}
         </div>
         <div className="sw-qas">
           <div className="sw-qa">
             <span>
               <label htmlFor="cz-state">State</label>
               {a.state !== null && a.state === stateFromAddress(live.job.address) && <em>From the address</em>}
+              {a.state !== null && !stateFromAddress(live.job.address) && a.state === live.orgState && <em>From your company settings</em>}
             </span>
             <select id="cz-state" className="wb2-fi" value={a.state ?? ""} onChange={(e) => set({ state: (e.target.value || null) as AuState | null })}>
               <option value="">Choose</option>

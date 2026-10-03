@@ -50,6 +50,7 @@ const context = (over: Partial<CertWizardContext> = {}): CertWizardContext => ({
   approved: true,
   canApprove: true,
   ownerName: "Isaac Smith",
+  orgState: "NSW",
   files: [],
   ...over,
 });
@@ -345,8 +346,16 @@ describe("the state the job is in", () => {
     expect(covers.getByText(/VBA plumbing compliance certificate/)).toBeInTheDocument();
   });
 
-  it("asks for it when the address doesn't say", async () => {
-    certWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "12 Smith St" } }));
+  it("takes the business's own state when the address doesn't say", async () => {
+    certWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "12 Smith St" }, orgState: "QLD" }));
+    open();
+    await screen.findByRole("tab", { name: "What it covers" });
+    expect(panel("covers").getByLabelText("State")).toHaveValue("QLD");
+    expect(panel("covers").getByText("From your company settings")).toBeInTheDocument();
+  });
+
+  it("asks for it when neither the address nor the company settings say", async () => {
+    certWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "12 Smith St" }, orgState: null }));
     open();
     await screen.findByRole("tab", { name: "What it covers" });
     expect(panel("covers").getByLabelText("State")).toHaveValue("");

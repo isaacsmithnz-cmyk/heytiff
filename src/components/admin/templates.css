@@ -61,5 +61,7 @@
 .tpl-field .wb2-fi { width: 100%; }
 .tpl-row > .wb2-fi { flex: 1; min-width: 0; }
 .tpl-row > .tpl-pct { flex: none; width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+/* a deposit set to something other than the suggested one says the suggestion beside it */
+.tpl-row > .tpl-suggest { flex: none; white-space: nowrap; }
 .tpl-link { flex: none; background: none; border: 0; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .tpl-fills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

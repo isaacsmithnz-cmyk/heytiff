@@ -199,13 +199,11 @@ export function templateProblems(key: TemplateSetting, value: unknown): string[]
   return normaliseEmail(value) ? [] : ["Give the email a subject and a message."];
 }
 
-/* the Home Building Act's limit, and terms that add up; a business's
-   progress claims are claimed, not set in advance */
+/* terms that add up; a business's progress claims are claimed, not set in
+   advance. The deposit is the business's own (payment.ts suggests one). */
 function paymentTermProblems(preset: PaymentPreset, stages: readonly PaymentStage[]): string[] {
   if (preset === "commercial") return [];
   const out: string[] = [];
-  const first = stages[0];
-  if (first && first.percent !== null && first.percent > 10 && /deposit/i.test(first.when)) out.push("a deposit on a home job can't be more than 10%.");
   if (stages.some((s) => s.percent === null)) out.push("every stage on a home job needs its percentage.");
   else {
     const total = stages.reduce((n, s) => n + (s.percent ?? 0), 0);

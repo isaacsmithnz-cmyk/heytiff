@@ -158,7 +158,21 @@ describe("the owner changes the business's own templates beside the document", (
     await userEvent.type(pct, "20");
     await userEvent.click(screen.getAllByRole("button", { name: "Save" })[1]);
     expect(saveTemplate).not.toHaveBeenCalled();
-    expect(screen.getByText("Home, small job: a deposit on a home job can't be more than 10%.")).toBeInTheDocument();
+    expect(screen.getByText("Home, small job: the stages add up to 110%, not 100%.")).toBeInTheDocument();
+  });
+
+  it("takes any deposit, and shows the suggested one beside it", async () => {
+    render(<QuoteTemplate brand={BRAND} templates={standardTemplates()} isOwner />);
+    expect(screen.queryByText("Suggested 10%")).toBeNull();
+    const deposit = screen.getByLabelText("Stage 1 percent");
+    await userEvent.clear(deposit);
+    await userEvent.type(deposit, "30");
+    const balance = screen.getByLabelText("Stage 2 percent");
+    await userEvent.clear(balance);
+    await userEvent.type(balance, "70");
+    expect(screen.getByText("Suggested 10%")).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole("button", { name: "Save" })[1]);
+    expect(saveTemplate).toHaveBeenCalled();
   });
 
   it("adds a handover check", async () => {

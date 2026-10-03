@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { resetTemplate, saveTemplate, type TemplateResult } from "@/app/actions/templates";
-import { PAYMENT_PRESET_KEYS, type PaymentPreset } from "@/lib/quotes/payment";
+import { PAYMENT_PRESET_KEYS, isDepositStage, suggestedDeposit, type PaymentPreset } from "@/lib/quotes/payment";
 import {
   EMAIL_FILLS,
   MAX_HEADING,
@@ -203,6 +203,7 @@ export function PaymentTermsEditor({ terms, changed }: { terms: PaymentTerms; ch
   const stages = all[k].stages;
   const set = (next: typeof stages) => setAll(withStages(all, k, next));
   const dirty = JSON.stringify(all) !== JSON.stringify(terms);
+  const suggested = suggestedDeposit(k, stages);
 
   return (
     <div className="tpl-card">
@@ -233,6 +234,7 @@ export function PaymentTermsEditor({ terms, changed }: { terms: PaymentTerms; ch
                 onChange={(e) => set(swap(stages, i, { ...s, percent: e.target.value.trim() === "" ? null : Number(e.target.value.replace(/[^0-9]/g, "")) }))}
               />
             )}
+            {suggested != null && isDepositStage(s, i) && <em className="tpl-suggest">{`Suggested ${suggested}%`}</em>}
             <button type="button" className="tpl-link" aria-label={`Remove stage ${i + 1}`} onClick={() => set(stages.filter((_, j) => j !== i))}>
               Remove
             </button>
@@ -244,7 +246,7 @@ export function PaymentTermsEditor({ terms, changed }: { terms: PaymentTerms; ch
           Add a stage
         </button>
       )}
-      <p className="tpl-quiet">A home job&apos;s stages add up to 100%, with a deposit of no more than 10%.</p>
+      <p className="tpl-quiet">A home job&apos;s stages add up to 100%.</p>
       <Foot busy={t.busy} note={t.note} dirty={dirty} changed={changed} onSave={() => t.save(all)} onReset={t.reset} />
     </div>
   );

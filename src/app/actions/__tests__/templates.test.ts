@@ -47,11 +47,11 @@ it("refuses anyone but the owner", async () => {
   expect(upsert).not.toHaveBeenCalled();
 });
 
-it("refuses payment terms a home job couldn't be quoted on, and says why", async () => {
+it("refuses payment terms that don't add up, and says why", async () => {
   const terms = standardTemplates().paymentTerms;
   terms.domestic_construction.stages[0].percent = 15;
   const res = await saveTemplate("payment_terms", terms);
-  expect(res).toEqual({ ok: false, error: "Home, construction: a deposit on a home job can't be more than 10%." });
+  expect(res).toEqual({ ok: false, error: "Home, construction: the stages add up to 105%, not 100%." });
   expect(upsert).not.toHaveBeenCalled();
 });
 

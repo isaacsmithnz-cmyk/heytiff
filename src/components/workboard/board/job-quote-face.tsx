@@ -36,6 +36,7 @@ import {
 import {
   PAYMENT_PRESET_KEYS,
   paymentProblems,
+  suggestedDeposit,
   type PaymentPreset,
   type PaymentStage,
 } from "@/lib/quotes/payment";
@@ -823,6 +824,7 @@ function PaymentBlock({
 }) {
   const [switching, setSwitching] = useState(false);
   const problems = paymentProblems(payment.preset, payment.stages);
+  const suggested = suggestedDeposit(payment.preset, payment.stages);
 
   const pick = async (preset: PaymentPreset) => {
     if (preset === payment.preset || switching) return;
@@ -858,7 +860,10 @@ function PaymentBlock({
             {payment.stages.map((s, i) => (
               <li key={i}>
                 <span>{s.percent === null ? "Claimed" : `${s.percent}%`}</span>
-                <b>{s.when}</b>
+                <b>
+                  {s.when}
+                  {i === 0 && suggested != null && <em>{`Suggested ${suggested}%`}</em>}
+                </b>
               </li>
             ))}
           </ul>
@@ -885,6 +890,7 @@ function StagesEdit({
   const [stages, setStages] = useState<PaymentStage[]>(payment.stages);
   const { busy, run } = useSaving(() => onSave({ preset: payment.preset, stages }));
   const problems = paymentProblems(payment.preset, stages);
+  const suggested = suggestedDeposit(payment.preset, stages);
   return (
     <div className="wb2-jqform">
       {stages.map((s, i) => (
@@ -922,6 +928,7 @@ function StagesEdit({
           </button>
         </div>
       ))}
+      {suggested != null && <p className="wb2-shtext">{`Suggested deposit ${suggested}%`}</p>}
       {problems.map((p) => (
         <p key={p} className="wb2-sherr">
           {p}

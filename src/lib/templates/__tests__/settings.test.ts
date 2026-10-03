@@ -56,16 +56,15 @@ describe("a business's own", () => {
 });
 
 describe("what stops a save", () => {
-  it("holds home payment terms to the Home Building Act and to 100%", () => {
+  it("holds home payment terms to 100%, and leaves the deposit to the business", () => {
     const terms = standardTemplates().paymentTerms;
     terms.domestic_small.stages = [
       { when: "Deposit, on accepting", percent: 20 },
       { when: "Balance", percent: 70 },
     ];
-    expect(templateProblems("payment_terms", terms)).toEqual([
-      "Home, small job: a deposit on a home job can't be more than 10%.",
-      "Home, small job: the stages add up to 90%, not 100%.",
-    ]);
+    expect(templateProblems("payment_terms", terms)).toEqual(["Home, small job: the stages add up to 90%, not 100%."]);
+    terms.domestic_small.stages[1]!.percent = 80;
+    expect(templateProblems("payment_terms", terms)).toEqual([]);
     expect(templateProblems("payment_terms", standardTemplates().paymentTerms)).toEqual([]);
   });
 

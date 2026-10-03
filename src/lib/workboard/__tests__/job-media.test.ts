@@ -217,6 +217,18 @@ describe("documentGroupOf — the Documents face's sections", () => {
     expect(documentGroupOf(item({ origin: "Emailed in" }))).toBe("client");
     expect(documentGroupOf(item({ origin: null }))).toBe("files");
   });
+
+  /* #3256, 10-03: the insurance PDF attached in ServiceM8 sat under Files
+     while Compliance said there was none */
+  it("puts insurance and licence papers under Compliance by their names", () => {
+    expect(documentGroupOf(item({ name: "Diamond Air Insurance Qualifications 2026 2027.pdf" }))).toBe("compliance");
+    expect(documentGroupOf(item({ name: "Certificate of Currency.pdf" }))).toBe("compliance");
+    expect(documentGroupOf(item({ name: "ARC licence - Luke.pdf" }))).toBe("compliance");
+    expect(documentGroupOf(item({ name: "SWMS roof work.pdf" }))).toBe("compliance");
+    expect(documentGroupOf(item({ name: "Floor plan.pdf" }))).toBe("files");
+    /* a quote is money whatever it's called */
+    expect(documentGroupOf(item({ name: "Quote incl. insurance excess", origin: "Quote" }))).toBe("money");
+  });
 });
 
 /* ── handing a file to storage, and reading its refusal ── */

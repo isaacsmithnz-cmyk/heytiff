@@ -179,3 +179,28 @@ describe("attentionCountLabel", () => {
     expect(attentionCountLabel(4)).toBe("4 open");
   });
 });
+
+/* #3256, 10-03 */
+describe("asks the job has already answered", () => {
+  const deposit = note({ remoteId: "n-dep", text: "@lyleirving \nSend a deposit invoice?" });
+
+  it("drops an ask to send the deposit once a claim invoice is beside the job", () => {
+    expect(buildJobAttention(inputs({ notes: [deposit] })).total).toBe(1);
+    expect(buildJobAttention(inputs({ notes: [deposit], claimRaised: true })).total).toBe(0);
+  });
+
+  it("drops the task made from that ask too, and keeps every other task", () => {
+    const tasks = [
+      { id: "t-1", title: "Send a deposit invoice?", assignee: "Lyle Irving", dueDate: null },
+      { id: "t-2", title: "Order the brackets", assignee: "Lyle Irving", dueDate: null },
+    ];
+    const built = buildJobAttention(inputs({ tasks, claimRaised: true }));
+    expect(built.items.map((i) => i.key)).toEqual(["task:t-2"]);
+  });
+
+  it("a note that only tags somebody asks nothing", () => {
+    expect(buildJobAttention(inputs({ notes: [note({ text: "@lyleirving" })] })).total).toBe(0);
+    expect(buildJobAttention(inputs({ notes: [note({ text: " @lyleirving. " })] })).total).toBe(0);
+    expect(buildJobAttention(inputs({ notes: [note({ text: "@lyleirving can you call her" })] })).total).toBe(1);
+  });
+});

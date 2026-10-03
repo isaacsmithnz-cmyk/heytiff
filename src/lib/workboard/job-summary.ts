@@ -243,7 +243,7 @@ export function summaryPrompt(read: JobStoryServerRead): string {
   const parts = [
     `Job status: ${read.status ?? "unknown"}`,
     read.scope ? `The job, in the office's own words:\n${read.scope}` : null,
-    read.workDone ? `What was done, in the office's own words:\n${read.workDone}` : null,
+    read.workDone ? `ServiceM8's invoice description — on a quoted job this is usually the quote's scope, NOT a record of work done:\n${read.workDone}` : null,
     `The job's record, newest first:\n${story}`,
   ];
   return parts.filter(Boolean).join("\n\n");

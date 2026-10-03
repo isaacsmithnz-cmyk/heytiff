@@ -6964,7 +6964,7 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-job { display:flex; flex-direction:column; gap:8px; padding:16px; border-radius:var(--r-button); background:var(--tint); }
 .jcl-kind { margin:0; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--q); }
 .jcl-what { margin:0; font-size:16px; line-height:1.45; white-space:pre-wrap; max-width:96ch; }
-.jcl-what.folded { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:normal; }
+.jcl-what.folded { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:pre-line; }
 .jcl-more { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
 .jcl-more:focus-visible { outline:none; box-shadow:var(--ring); }
 .jcl-two { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:16px; }
@@ -6997,6 +6997,8 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-check.on { background:var(--ok-tint); }
 .jcl-check.on span { font-weight:600; }
 .jcl-check .pbtn { margin-left:auto; }
+/* nothing to say beside the button: no bar around it (#3256, 10-03) */
+.jcl-check.bare { padding:0; background:none; }
 /* BILLING AS AN INVOICE: who it's billed to, the payment terms, and the
    balance due big on the right, on a grey head; the claims as a table
    under it — Claim, Status, Amount — the way every invoice page reads */
@@ -8463,8 +8465,12 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    and the band does not wrap: it would push the buttons past the frame's edge,
    where `overflow:hidden` eats them. So the title shrinks before anything else
    does and ends in an ellipsis. A title that is a word ("Projects", "Admin")
-   never reaches this. */
-.fg .page.full .wb2-h1 { white-space:nowrap; flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+   never reaches this.
+   The ellipsis needs `overflow:hidden`, and that clips to the LINE box — at
+   the base rule's `line-height:1` the line is the em and no taller, so every
+   g, p and y lost its tail. The line gets room for descenders here; the band
+   centres the h1, so the taller box moves nothing. */
+.fg .page.full .wb2-h1 { white-space:nowrap; flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; line-height:1.3; }
 /* the right-hand group rides the band's middle line and takes the squeeze */
 .fg .page.full .wb2-vtcap {
   margin-left:auto; gap:8px; padding-bottom:0; align-items:center;

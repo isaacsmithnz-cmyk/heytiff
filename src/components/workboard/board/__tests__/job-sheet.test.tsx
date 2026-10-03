@@ -294,6 +294,8 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   purchaseOrder: null,
   date: "2026-07-30 11:53:00",
   quoteDate: null,
+  /* an install a quote went out for: the quote line */
+  quoteSentOn: "2026-08-01",
   workOrderDate: "2026-08-04 09:00:00",
   completionDate: null,
   nextBooking: {
@@ -597,7 +599,7 @@ describe("the Summary face", () => {
 
     expect(await screen.findByText("Supply and install Daikin multi system")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "The job" })).toBeInTheDocument();
-    expect(screen.getByText("What was done")).toBeInTheDocument();
+    expect(screen.getByText("Invoice description")).toBeInTheDocument();
     expect(screen.getByText("Installed and commissioned.")).toBeInTheDocument();
   });
 
@@ -830,9 +832,11 @@ describe("the summary refresh", () => {
         detail: {
           date: d.date,
           quoteDate: d.quoteDate,
+          quoteSentOn: d.quoteSentOn ?? null,
           workOrderDate: d.workOrderDate,
           completionDate: d.completionDate,
           visits: d.visits,
+          booked: d.booked,
           checklist: d.checklist,
           designs: d.designs,
         },
@@ -1064,6 +1068,7 @@ describe("the Diary face", () => {
       card(
         detail({
           date: null,
+          quoteSentOn: null,
           workOrderDate: null,
           visits: [],
           checklist: [],
@@ -1188,7 +1193,7 @@ describe("the attention strip", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
-    expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull();
   });
 
   it("says what ServiceM8's flagged note ACTUALLY SAID, and opens the diary at it", async () => {
@@ -1200,7 +1205,7 @@ describe("the attention strip", () => {
     await detailLanded();
 
     /* The chip this replaced could only say "1 flagged note" — a number. */
-    const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+    const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
     expect(strip.getByText("“Send a 20% deposit invoice”")).toBeInTheDocument();
     expect(strip.getByText(/Flagged in ServiceM8/)).toBeInTheDocument();
 
@@ -1232,11 +1237,11 @@ describe("the attention strip", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
 
-    const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+    const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
     await userEvent.click(strip.getByRole("button", { name: "Clear" }));
     expect(clearFlag).toHaveBeenCalledWith("f-1");
     await waitFor(() =>
-      expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull()
+      expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull()
     );
   });
 
@@ -1253,7 +1258,7 @@ describe("the attention strip", () => {
       render(<JobSheet row={row()} {...props} />);
       await detailLanded();
 
-      const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+      const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
       await userEvent.click(strip.getByRole("button", { name: "Make it a task" }));
 
       /* The title is drafted from the note's own words with the handle taken
@@ -1276,7 +1281,7 @@ describe("the attention strip", () => {
       render(<JobSheet row={row()} {...props} />);
       await detailLanded();
 
-      const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+      const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
       await userEvent.click(strip.getByRole("button", { name: "Make it a task" }));
       await userEvent.selectOptions(strip.getByLabelText("Who the task is for"), "staff-1");
       await userEvent.click(strip.getByRole("button", { name: "Save the task" }));
@@ -1296,11 +1301,11 @@ describe("the attention strip", () => {
       render(<JobSheet row={row()} {...props} />);
       await detailLanded();
 
-      const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+      const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
       await userEvent.click(strip.getByRole("button", { name: "Not work" }));
       expect(dismissJobNote).toHaveBeenCalledWith("j-1", "n-2");
       await waitFor(() =>
-        expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull()
+        expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull()
       );
     });
   });
@@ -1317,7 +1322,7 @@ describe("the attention strip", () => {
     await waitFor(() =>
       expect(face("diary").getByText("Action required")).toBeInTheDocument()
     );
-    expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull();
   });
 });
 
@@ -1481,7 +1486,7 @@ describe("notes to ServiceM8 on the card", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
 
-    const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+    const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
     await userEvent.click(strip.getByRole("button", { name: "Reply" }));
     expect(screen.getByRole("tab", { name: "Timeline", selected: true })).toBeInTheDocument();
     const f = face("diary");
@@ -1500,7 +1505,7 @@ describe("notes to ServiceM8 on the card", () => {
     expect(within(thread).getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(document.querySelectorAll("#jcsec-diary .wb2-evcard")).toHaveLength(2);
     // answered: its mention leaves the strip
-    expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Open on this job" })).toBeNull();
   });
 
   it("(F) (verifier r2 12) ticked, the pen sends with the SAVED id — and the same words twice are one entry and one send", async () => {
@@ -1688,7 +1693,7 @@ describe("notes to ServiceM8 on the card", () => {
     );
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+    const strip = within(await screen.findByRole("region", { name: "Open on this job" }));
     expect(strip.queryByRole("button", { name: "Reply" })).toBeNull();
     expect(strip.getByRole("button", { name: "Make it a task" })).toBeInTheDocument();
     await openTab("Diary");

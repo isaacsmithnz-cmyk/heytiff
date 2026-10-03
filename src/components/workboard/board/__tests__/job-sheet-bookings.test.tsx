@@ -150,6 +150,7 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   purchaseOrder: null,
   date: "2026-10-01 09:00:00",
   quoteDate: null,
+  quoteSentOn: "2026-08-01",
   workOrderDate: "2026-10-02 09:00:00",
   completionDate: null,
   nextBooking: { start: "2026-10-07 08:00:00", end: "2026-10-07 10:00:00", staffName: "Sam Tester", staffTitle: null },

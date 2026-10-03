@@ -13,9 +13,32 @@ import type { FamilyMoney } from "./job-family";
    The two money steps need the money grant. Without it they are ABSENT, the
    way the Billing section is: the server never sent what would fill them.
 
+   A WORK ORDER WALKS ITS OWN LINE (Isaac, 2026-10-03: "i suppose its just a
+   work order"). A job that became a Work Order without a quote going out —
+   a service call, a warranty visit, "do and charge" decided on site — has
+   no quote to accept, no deposit and no materials to sort: Enquiry, Booked,
+   On site, Done, Invoiced, Paid. Which line is decided by whether a quote
+   was SENT, so a job booked as a Quote that became do-and-charge moves to
+   the work-order line on its own (lineOf).
+
    Pure, so the card and the tests read the same line. */
 
-export type StepKey = "enquiry" | "quoted" | "accepted" | "deposit" | "materials" | "installation" | "paid";
+export type StepKey =
+  | "enquiry"
+  | "quoted"
+  | "accepted"
+  | "deposit"
+  | "materials"
+  | "installation"
+  | "paid"
+  /* the work-order line's own */
+  | "booked"
+  | "onsite"
+  | "done"
+  | "invoiced";
+
+/** Which line a job walks. */
+export type JobLine = "quote" | "work";
 
 export type StepState = "done" | "now" | "warn" | "skip" | "bad" | "next";
 
@@ -50,11 +73,24 @@ const LABEL: Record<StepKey, string> = {
   materials: "Materials sorted",
   installation: "Installation",
   paid: "Paid",
+  booked: "Booked",
+  onsite: "On site",
+  done: "Done",
+  invoiced: "Invoiced",
 };
+
+/** The work-order line, for a job past Quote that no quote went out for.
+    A Quote still waiting, a declined one, and any job a quote was sent for
+    walk the quote line. */
+export function lineOf(j: Pick<StepInput, "status" | "quoteSentOn">): JobLine {
+  const status = (j.status ?? "").trim().toLowerCase();
+  return (status === "work order" || status === "completed") && !j.quoteSentOn ? "work" : "quote";
+}
 
 const day = (d: string | null | undefined) => (d ? fmtAuDayMonth(d) : "");
 
 export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
+  if (lineOf(j) === "work") return workSteps(j, moneyVisible);
   const status = (j.status ?? "").trim().toLowerCase();
   const declined = status === "unsuccessful";
   const completed = status === "completed";
@@ -110,25 +146,73 @@ export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
   else if (days.length > 0) steps.push({ key: "installation", state: "now", fact: `Day ${days.length}` });
   else steps.push({ key: "installation", state: "next", fact: j.nextBookingDay ? `Booked ${day(j.nextBookingDay)}` : "" });
 
-  if (moneyVisible && !j.family) steps.push({ key: "paid", state: "next", fact: "" });
-  else if (moneyVisible && j.family) {
-    const f = j.family;
-    const settled = f.paidCents > 0 && f.awaitingCents === 0 && f.toComeCents === 0;
-    const lastPaid = f.claims.map((c) => c.paidOn).filter((d): d is string => !!d).sort().at(-1) ?? null;
-    if (settled) steps.push({ key: "paid", state: "done", fact: lastPaid ? `Paid ${day(lastPaid)}` : "Paid in full" });
-    else if (completed && (f.awaitingCents ?? 0) > 0) steps.push({ key: "paid", state: "warn", fact: "Invoiced, not paid" });
-    else steps.push({ key: "paid", state: "next", fact: "" });
-  }
+  if (moneyVisible) steps.push(paidStep(j.family, completed));
 
   /* A job on site is at Installation, whatever is still open behind it.
      Otherwise it is at the first step it hasn't done or skipped; a warning
      or a refusal there is already its own state. */
-  const installing = steps.some((s) => s.state === "now");
-  const at = steps.findIndex((s) => s.state !== "done" && s.state !== "skip");
-  if (!installing && at >= 0 && steps[at]!.state === "next" && !declined) steps[at] = { ...steps[at]!, state: "now" };
+  if (!declined) markNow(steps);
   /* a declined quote stops the line there: nothing after it is to come */
   if (declined) for (let i = 3; i < steps.length; i++) steps[i] = { ...steps[i]!, state: "next", fact: "" };
 
+  /* a deposit ticked as not needed was never paid: the step says Deposit,
+     and its fact says why it's done (Isaac, 2026-10-03: "it says deposit
+     paid when i tick not needed") */
+  return steps.map((s) => ({ ...s, label: s.key === "deposit" && s.fact === "Not needed" ? "Deposit" : LABEL[s.key] }));
+}
+
+/** Paid, on either line: settled across the family, or invoiced and not
+    paid on a finished job, or still to come. Until the claims are read it
+    says nothing, rather than popping in when they land. */
+function paidStep(f: FamilyMoney | null, completed: boolean): Omit<JobStep, "label"> {
+  if (!f) return { key: "paid", state: "next", fact: "" };
+  const settled = f.paidCents > 0 && f.awaitingCents === 0 && f.toComeCents === 0;
+  const lastPaid = f.claims.map((c) => c.paidOn).filter((d): d is string => !!d).sort().at(-1) ?? null;
+  if (settled) return { key: "paid", state: "done", fact: lastPaid ? `Paid ${day(lastPaid)}` : "Paid in full" };
+  if (completed && (f.awaitingCents ?? 0) > 0) return { key: "paid", state: "warn", fact: "Invoiced, not paid" };
+  return { key: "paid", state: "next", fact: "" };
+}
+
+/** A job on site is at its on-site step, whatever is still open behind it;
+    otherwise it is at the first step it hasn't done or skipped. */
+function markNow(steps: Omit<JobStep, "label">[]): void {
+  if (steps.some((s) => s.state === "now")) return;
+  const at = steps.findIndex((s) => s.state !== "done" && s.state !== "skip");
+  if (at >= 0 && steps[at]!.state === "next") steps[at] = { ...steps[at]!, state: "now" };
+}
+
+/** THE WORK-ORDER LINE: Enquiry, Booked, On site, Done, Invoiced, Paid. */
+function workSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
+  const completed = (j.status ?? "").trim().toLowerCase() === "completed";
+  const days = [...new Set(j.visitDays)].sort();
+  const steps: Omit<JobStep, "label">[] = [];
+
+  steps.push({ key: "enquiry", state: "done", fact: day(j.date) });
+
+  /* booked once somebody has been, or is going: the day they're going, or
+     the first day they went */
+  if (j.nextBookingDay) steps.push({ key: "booked", state: "done", fact: day(j.nextBookingDay) });
+  else if (days.length > 0 || completed) steps.push({ key: "booked", state: "done", fact: day(days[0]) });
+  else steps.push({ key: "booked", state: "next", fact: "" });
+
+  if (completed) steps.push({ key: "onsite", state: "done", fact: days.length > 0 ? `${days.length} day${days.length === 1 ? "" : "s"}` : "" });
+  else if (days.length > 0) steps.push({ key: "onsite", state: "now", fact: `Day ${days.length}` });
+  else steps.push({ key: "onsite", state: "next", fact: "" });
+
+  steps.push(completed ? { key: "done", state: "done", fact: day(j.completionDate) } : { key: "done", state: "next", fact: "" });
+
+  if (moneyVisible) {
+    const f = j.family;
+    const raised = f?.claims.map((c) => c.raisedOn).filter((d): d is string => !!d).sort()[0] ?? null;
+    /* ServiceM8 completes a work order by invoicing it, so a Completed job
+       is invoiced; a claim raised earlier says so before that */
+    if (f && (raised || (f.invoicedCents ?? 0) > 0)) steps.push({ key: "invoiced", state: "done", fact: day(raised) });
+    else if (completed) steps.push({ key: "invoiced", state: "done", fact: "" });
+    else steps.push({ key: "invoiced", state: "next", fact: "" });
+    steps.push(paidStep(f, completed));
+  }
+
+  markNow(steps);
   return steps.map((s) => ({ ...s, label: LABEL[s.key] }));
 }
 

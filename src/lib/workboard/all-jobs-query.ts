@@ -522,6 +522,10 @@ export type BookedEntry = {
   ourRow: string | null;
   /** A future booking on a Completed or Unsuccessful job (isLeftover). */
   leftover: boolean;
+  /** The day it was booked, as near as the mirror knows: ServiceM8's last
+      edit of it (a booking moved later reads as booked then). Null for one
+      of ours the mirror doesn't hold yet. */
+  bookedOn?: string | null;
 };
 
 /** One day somebody was on site, as the Visits list renders it. */
@@ -966,19 +970,19 @@ export async function readMirrorJobDetail(
         now
       )
     : null;
-  const standing: { uuid: string; staffUuid: string | null; start: string; end: string | null; ourRow: string | null }[] = [];
+  const standing: { uuid: string; staffUuid: string | null; start: string; end: string | null; ourRow: string | null; bookedOn: string | null }[] = [];
   if (over) {
     const ours = await ourSentBookings(orgId, over.tenantId, remoteId);
     for (const a of acts) {
       if (a.activity_was_scheduled !== 1 || !a.uuid || a.start_date === null || a.start_date < todayFloor) continue;
       if (over.gone.has(lowUuid(a.uuid))) continue;
-      standing.push({ uuid: a.uuid, staffUuid: a.staff_uuid, start: a.start_date, end: a.end_date, ourRow: ours.get(lowUuid(a.uuid)) ?? null });
+      standing.push({ uuid: a.uuid, staffUuid: a.staff_uuid, start: a.start_date, end: a.end_date, ourRow: ours.get(lowUuid(a.uuid)) ?? null, bookedOn: a.edit_date ? a.edit_date.slice(0, 10) : null });
     }
     const listed = new Set(standing.map((b) => lowUuid(b.uuid)));
     for (const s of over.sentNotMirrored) {
       if (lowUuid(s.jobUuid) !== lowUuid(remoteId) || s.start < todayFloor) continue;
       if (over.gone.has(lowUuid(s.uuid)) || listed.has(lowUuid(s.uuid))) continue;
-      standing.push({ uuid: s.uuid, staffUuid: s.staffUuid, start: s.start, end: s.end, ourRow: s.rowId });
+      standing.push({ uuid: s.uuid, staffUuid: s.staffUuid, start: s.start, end: s.end, ourRow: s.rowId, bookedOn: null });
     }
     standing.sort((x, y) => x.start.localeCompare(y.start) || lowUuid(x.uuid).localeCompare(lowUuid(y.uuid)));
   }
@@ -1203,6 +1207,7 @@ export async function readMirrorJobDetail(
             start: b.start,
             end: b.end,
             ourRow: b.ourRow,
+            bookedOn: b.bookedOn,
             leftover: isLeftover(
               { scheduled: 1, active: 1, start: b.start, end: b.end, staffUuid: b.staffUuid },
               job.status,

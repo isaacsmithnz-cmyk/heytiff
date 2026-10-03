@@ -517,13 +517,37 @@ export function JobDocumentsFace({
   /* a certificate is compliance paper, with the SWMS and the licences */
   const certs = showCompliance ? (certificates ?? []) : [];
   const ours = showCompliance ? (papers ?? []) : [];
-  const total = (showFiles ? docs.length + designs.length : 0) + statements.length + certs.length + ours.length;
+  /* ServiceM8's own insurance and licence papers, known by their names */
+  const attachedPapers = showCompliance ? (byGroup.get("compliance") ?? []) : [];
+  const fileCount = docs.length - (byGroup.get("compliance") ?? []).length;
+  const total = (showFiles ? fileCount + designs.length : 0) + statements.length + certs.length + ours.length + attachedPapers.length;
 
   const offerSwms = showCompliance && !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
   /* one per job: a later one is a reissue of the first */
   const offerCertificate = showCompliance && !!onCreateCertificate && certificates !== null && certs.length === 0;
   const offerPapers = showCompliance && !!onLoadChoices && !!onAddPapers && (mayAdd.company || mayAdd.staff);
   const offerUpload = showFiles ? onUpload : undefined;
+
+  /** One document's row: ours with its doors, theirs with a tick when
+      there are bytes here to send. */
+  const docRowOf = (d: JobMediaItem) =>
+    d.documentId ? (
+      <OurRow
+        key={d.remoteId}
+        item={d}
+        pick={pickOf(d.url ? ourDocumentSendKey(d.documentId) : null, d.name)}
+        state={sends ? sendLine(sends, [d.documentId], sendHold) : null}
+        onOpen={onOpen}
+        onRemove={onRemove}
+      />
+    ) : onPick ? (
+      <div key={d.remoteId} className="wb2-docrow">
+        {pickOf(d.url ? theirFileSendKey(d.remoteId) : null, d.name)}
+        <DocRow item={d} onOpen={onOpen} />
+      </div>
+    ) : (
+      <DocRow key={d.remoteId} item={d} onOpen={onOpen} />
+    );
 
   /* THE TICK A ROW CARRIES while the face is sending: a box for a file with
      bytes to send, and for anything else an empty box-sized gap, so a column
@@ -633,9 +657,9 @@ export function JobDocumentsFace({
         <p className="int-hint">Couldn&apos;t read this job&apos;s licences and insurance. Close the card and open it again.</p>
       )}
 
-      {statements.length + certs.length + ours.length > 0 && (
+      {statements.length + certs.length + ours.length + attachedPapers.length > 0 && (
         <div className="wb2-jcsec">
-          {part === "all" && <span className="wb2-sect">{`Compliance — ${statements.length + certs.length + ours.length}`}</span>}
+          {part === "all" && <span className="wb2-sect">{`Compliance — ${statements.length + certs.length + ours.length + attachedPapers.length}`}</span>}
           {statements.map((s) => (
             <div key={s.swmsId} className="wb2-docrow">
               {pickOf(null, "Safe Work Method Statement")}
@@ -716,6 +740,7 @@ export function JobDocumentsFace({
               onRenew={onRenewPaper}
             />
           ))}
+          {attachedPapers.map((d) => docRowOf(d))}
         </div>
       )}
 
@@ -758,26 +783,7 @@ export function JobDocumentsFace({
         return (
           <div key={key} className="wb2-jcsec">
             <span className="wb2-sect">{`${label} — ${items.length}`}</span>
-            {items.map((d) =>
-              d.documentId ? (
-                <OurRow
-                  key={d.remoteId}
-                  item={d}
-                  pick={pickOf(d.url ? ourDocumentSendKey(d.documentId) : null, d.name)}
-                  state={sends ? sendLine(sends, [d.documentId], sendHold) : null}
-                  onOpen={onOpen}
-                  onRemove={onRemove}
-                />
-              ) : onPick ? (
-                /* theirs, with a tick when there are bytes here to send */
-                <div key={d.remoteId} className="wb2-docrow">
-                  {pickOf(d.url ? theirFileSendKey(d.remoteId) : null, d.name)}
-                  <DocRow item={d} onOpen={onOpen} />
-                </div>
-              ) : (
-                <DocRow key={d.remoteId} item={d} onOpen={onOpen} />
-              )
-            )}
+            {items.map((d) => docRowOf(d))}
           </div>
         );
       })}

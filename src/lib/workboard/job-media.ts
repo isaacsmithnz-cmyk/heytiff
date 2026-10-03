@@ -276,11 +276,17 @@ export function groupJobMedia(items: readonly JobMediaItem[]): JobMediaGroups {
 /** Which section of the Documents face a non-photo file belongs to — grouped
     by what a document IS, never by which system made it. Compliance joins
     when HeyTiff generates its first document worth the name. */
-export type JobDocumentGroup = "money" | "client" | "files";
+export type JobDocumentGroup = "money" | "client" | "files" | "compliance";
+
+/* COMPLIANCE PAPER BY ITS NAME (#3256, 10-03): "Diamond Air Insurance
+   Qualifications 2026 2027.pdf", attached in ServiceM8, sat under Files
+   while Compliance said "No SWMS, licences or insurance on this job". */
+const COMPLIANCE_NAME = /insurance|certificate of currency|public liability|\blicen[cs]e|\bswms\b|safe work method/i;
 
 export function documentGroupOf(item: JobMediaItem): JobDocumentGroup {
   if (item.origin === "Invoice" || item.origin === "Quote" || item.origin === "Work order")
     return "money";
+  if (COMPLIANCE_NAME.test(item.name)) return "compliance";
   if (item.origin === "Emailed in") return "client";
   return "files";
 }

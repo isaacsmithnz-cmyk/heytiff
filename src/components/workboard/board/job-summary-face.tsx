@@ -139,10 +139,14 @@ export function JobSummaryFace({
         )}
       </div>
 
+      {/* SERVICEM8'S "INVOICE DESCRIPTION" (work_done_description), named
+          as ServiceM8 names it: on a quoted job it is the quote's scope, so
+          "What was done" said the work was done before anyone had been
+          (#3256, 10-03) */}
       {detail?.workDone && (
-        <section className="wb2-jcsec" aria-label="What was done">
+        <section className="wb2-jcsec" aria-label="Invoice description">
           <div className="wb2-jcdhead">
-            <b>What was done</b>
+            <b>Invoice description</b>
           </div>
           <p className="wb2-shtext wb2-jcread">{detail.workDone.trim()}</p>
         </section>

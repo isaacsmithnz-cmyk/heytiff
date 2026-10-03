@@ -12,7 +12,12 @@
    way under the Security of Payment Act.
 
    The percentages are a starting point. A person can change any stage on
-   the card; `paymentProblems` says what the law won't allow before it goes. */
+   the card; `paymentProblems` says what doesn't add up before it goes.
+
+   THE DEPOSIT IS THE BUSINESS'S CALL (Isaac, 2026-10-04: "Allow an override
+   of the any deposit %. Just show suggested figure"). 10% is suggested — the
+   most NSW allows on a home job — and shown beside a deposit set to
+   anything else; it never stops one being saved. */
 
 export type PaymentPreset = "domestic_small" | "domestic_construction" | "commercial";
 
@@ -52,14 +57,25 @@ export const PAYMENT_PRESETS: Record<PaymentPreset, { label: string; stages: Pay
 
 export const PAYMENT_PRESET_KEYS = Object.keys(PAYMENT_PRESETS) as PaymentPreset[];
 
-/** What the law or the arithmetic won't allow, in words for the card. */
+/** The deposit suggested on a home job: the Home Building Act's limit (NSW, s 8). */
+export const SUGGESTED_DEPOSIT_PCT = 10;
+
+/** The deposit is the first stage, when it says it is one. */
+export const isDepositStage = (s: PaymentStage, i: number) => i === 0 && /deposit/i.test(s.when);
+
+/** The suggested deposit, to show beside a home job's deposit set to
+    something else; null when it is the suggestion, or there's no deposit. */
+export function suggestedDeposit(preset: PaymentPreset, stages: readonly PaymentStage[]): number | null {
+  if (preset === "commercial") return null;
+  const first = stages[0];
+  if (!first || !isDepositStage(first, 0) || first.percent === SUGGESTED_DEPOSIT_PCT) return null;
+  return SUGGESTED_DEPOSIT_PCT;
+}
+
+/** What the arithmetic won't allow, in words for the card. */
 export function paymentProblems(preset: PaymentPreset, stages: readonly PaymentStage[]): string[] {
   const out: string[] = [];
   if (preset === "commercial") return out;
-  const first = stages[0];
-  if (first && first.percent !== null && first.percent > 10 && /deposit/i.test(first.when)) {
-    out.push("A deposit on a home job can't be more than 10%.");
-  }
   if (stages.some((s) => s.percent === null)) {
     out.push("Every stage on a home job needs its percentage.");
   } else {

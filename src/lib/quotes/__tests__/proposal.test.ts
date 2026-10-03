@@ -4,11 +4,11 @@
    without passing normaliseDraft (the numbering it adds is taken off, a key
    it invents is dropped, "known" with nothing known is an ask, a draft with
    no option is no draft); the checklist reads in the catalogue's order; and
-   the payment presets follow the NSW rules (a home deposit no more than
-   10%, stages that add up to 100%). */
+   the payment presets add up to 100% at the suggested 10% deposit, and any
+   other deposit is the business's to set. */
 
 import { CHECKLIST, CHECKLIST_KEYS, orderChecklist } from "../checklist";
-import { PAYMENT_PRESETS, paymentProblems } from "../payment";
+import { PAYMENT_PRESETS, SUGGESTED_DEPOSIT_PCT, paymentProblems, suggestedDeposit } from "../payment";
 import {
   MAX_OPTIONS,
   acceptedAfterRemoving,
@@ -139,21 +139,24 @@ describe("the checklist catalogue", () => {
 });
 
 describe("payment terms", () => {
-  it("each preset adds up, and holds the home deposit cap", () => {
+  it("each preset adds up, at the suggested deposit", () => {
     for (const k of ["domestic_small", "domestic_construction"] as const) {
       expect(paymentProblems(k, PAYMENT_PRESETS[k].stages)).toEqual([]);
+      expect(suggestedDeposit(k, PAYMENT_PRESETS[k].stages)).toBeNull();
     }
     expect(paymentProblems("commercial", PAYMENT_PRESETS.commercial.stages)).toEqual([]);
   });
 
-  it("says when a home deposit is over 10% or the stages don't add up", () => {
-    expect(
-      paymentProblems("domestic_construction", [
-        { when: "Deposit, on accepting", percent: 30 },
-        { when: "Progress", percent: 30 },
-        { when: "Balance", percent: 30 },
-      ])
-    ).toEqual(["A deposit on a home job can't be more than 10%.", "The stages add up to 90%, not 100%."]);
+  it("takes any deposit, says the suggested one beside it, and says when the stages don't add up", () => {
+    const stages = [
+      { when: "Deposit, on accepting", percent: 30 },
+      { when: "Progress", percent: 30 },
+      { when: "Balance", percent: 30 },
+    ];
+    expect(paymentProblems("domestic_construction", stages)).toEqual(["The stages add up to 90%, not 100%."]);
+    expect(suggestedDeposit("domestic_construction", stages)).toBe(SUGGESTED_DEPOSIT_PCT);
+    expect(suggestedDeposit("commercial", stages)).toBeNull();
+    expect(suggestedDeposit("domestic_small", [{ when: "Balance on finishing", percent: 100 }])).toBeNull();
   });
 });
 

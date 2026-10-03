@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { NoteToken } from "@/components/notes/note-token";
 import { Waiting } from "@/components/ui/orb";
 import { Icon } from "@/components/shell/icon";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import type { JobMediaItem } from "@/lib/workboard/job-media";
+import { DocRow } from "./job-documents-face";
 import {
   EXTRA_NOTES,
   EXTRA_NOTE_KEYS,
@@ -97,11 +100,22 @@ const namedOf = (text: string) =>
 const namedText = (xs: readonly { name: string; detail: string }[]) =>
   xs.map((x) => (x.detail ? `${x.name}, ${x.detail}` : x.name)).join("\n");
 
+/** ServiceM8's own quote on the job: the PDF it generated, the day it went,
+    and what it came to for a reader who sees money. */
+export type Sm8Quote = {
+  papers: JobMediaItem[];
+  sentOn: string | null;
+  /** Already worded, "$45,430 inc GST"; null without the money grant. */
+  value: string | null;
+};
+
 export function JobQuoteFace({
   job,
   address,
   visible,
   onToast,
+  sm8 = null,
+  onOpenPaper,
 }: {
   /** The job card's uuid, or the row's until the record read lands. */
   job: string;
@@ -109,7 +123,27 @@ export function JobQuoteFace({
   /** Read the stored draft only once the tab is opened. */
   visible: boolean;
   onToast: (message: string) => void;
+  /** The quote ServiceM8 generated, when there is one (Isaac, 2026-10-03:
+      "if a quote has been generated in sm8 it should show on our quote
+      page"). */
+  sm8?: Sm8Quote | null;
+  onOpenPaper?: (item: JobMediaItem) => void;
 }) {
+  /* A job quoted in ServiceM8 opens on THAT quote: a new version here is
+     asked for, never the first thing on the face */
+  const sm8Quoted = !!sm8 && (sm8.papers.length > 0 || !!sm8.sentOn);
+  const [startNew, setStartNew] = useState(false);
+  const sm8Block = sm8Quoted ? (
+    <div className="wb2-jcsec">
+      <div className="wb2-jcdhead">
+        <b>Quote from ServiceM8</b>
+        <em>{[sm8!.sentOn ? `Sent ${fmtAuWeekdayDayMonth(sm8!.sentOn)}` : "Not sent yet", sm8!.value].filter(Boolean).join(", ")}</em>
+      </div>
+      {sm8!.papers.map((p) => (
+        <DocRow key={p.remoteId} item={p} onOpen={(item) => onOpenPaper?.(item)} />
+      ))}
+    </div>
+  ) : null;
   const [loaded, setLoaded] = useState<StoredProposal | null | undefined>(undefined);
   const [readFailed, setReadFailed] = useState(false);
   const [brief, setBrief] = useState("");
@@ -239,11 +273,26 @@ export function JobQuoteFace({
   if (loaded === undefined) return <Waiting note="Reading the proposal" />;
 
   const proposal = loaded;
+  if (!proposal && sm8Quoted && !startNew) {
+    return (
+      <>
+        {sm8Block}
+        <div className="wb2-jqacts">
+          <button type="button" className="pbtn ghost" onClick={() => setStartNew(true)}>
+            <Icon name="plus" size={15} />
+            Start a new version
+          </button>
+        </div>
+      </>
+    );
+  }
   if (!proposal || redraft) {
     return (
+      <>
+      {sm8Block}
       <div className="wb2-jcsec wb2-jq">
         <div className="wb2-jcdhead">
-          <b>{proposal ? "Start the proposal again" : "Draft the proposal"}</b>
+          <b>{proposal ? "Start the proposal again" : sm8Quoted ? "A new version" : "Draft the proposal"}</b>
         </div>
         <NoteToken
           as="field"
@@ -269,10 +318,16 @@ export function JobQuoteFace({
                   Keep this draft
                 </button>
               )}
+              {!proposal && sm8Quoted && (
+                <button type="button" className="pbtn ghost" onClick={() => setStartNew(false)}>
+                  Cancel
+                </button>
+              )}
             </>
           )}
         </div>
       </div>
+      </>
     );
   }
 
@@ -282,6 +337,7 @@ export function JobQuoteFace({
 
   return (
     <>
+      {sm8Block}
       <SiteChecklist
         items={draft.checklist}
         busy={busy}

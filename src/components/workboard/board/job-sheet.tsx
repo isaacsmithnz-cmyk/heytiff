@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
+import { MONEY_BASIS } from "@/lib/workboard/job-money";
 import {
   createProjectFromJob,
   readJobFiles,
@@ -2681,6 +2682,19 @@ export function JobSheet({
                 address={detail ? detail.address ?? detail.geoLine : null}
                 visible={tab === "quote"}
                 onToast={onToast}
+                sm8={{
+                  papers: (media?.documents ?? []).filter((d) => d.origin === "Quote"),
+                  sentOn: detail?.quoteSentOn ?? null,
+                  /* the FAMILY's value where it bills in claims: the row's own
+                     total is netted by each claim ServiceM8 raises */
+                  value: (() => {
+                    if (!moneyVisible) return null;
+                    const cents = family ? family.valueCents : (money?.valueCents ?? null);
+                    const basis = family ? (family.basis === "ex" ? "ex GST" : "inc GST") : MONEY_BASIS;
+                    return cents != null ? `${fmtAud(cents)} ${basis}` : null;
+                  })(),
+                }}
+                onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
               />
             )}
 

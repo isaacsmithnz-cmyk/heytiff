@@ -207,3 +207,45 @@ it("shows a unit with no model as not given yet, and edits the equipment row by 
   /* stored with the model in its own case, and the indoor on the outdoor */
   expect(await screen.findByText("6 kW, High wall, MSZ-AP60VGD")).toBeInTheDocument();
 });
+
+/* Isaac, 2026-10-03: "if a quote has been generated in sm8 it should show
+   on our quote page" — #3386 opened on an empty "Draft the proposal" */
+describe("a quote ServiceM8 generated", () => {
+  const paper = {
+    remoteId: "att-q",
+    name: "Diamond Air Solutions Pty LTD Quote #3386",
+    fileType: ".pdf",
+    kind: "document" as const,
+    origin: "Quote",
+    takenAt: "2026-10-01 14:25:35",
+    url: "https://files.example/q.pdf",
+    width: null,
+    height: null,
+    fromClaim: null,
+  };
+  const sm8 = { papers: [paper], sentOn: "2026-10-01", value: "$45,430 inc GST" };
+
+  beforeEach(() => {
+    fetchMock.mockImplementation(() => respond({ ok: true, proposal: null }));
+  });
+
+  it("opens on ServiceM8's quote, its PDF opening in the card, and a new version is asked for", async () => {
+    const onOpenPaper = jest.fn();
+    render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={sm8} onOpenPaper={onOpenPaper} />);
+    expect(await screen.findByText("Quote from ServiceM8")).toBeInTheDocument();
+    expect(screen.getByText("Sent Thu 1 Oct, $45,430 inc GST")).toBeInTheDocument();
+    expect(screen.queryByText("Draft the proposal")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Diamond Air Solutions Pty LTD Quote #3386/ }));
+    expect(onOpenPaper).toHaveBeenCalledWith(paper);
+    fireEvent.click(screen.getByRole("button", { name: "Start a new version" }));
+    expect(screen.getByText("A new version")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "Start a new version" })).toBeInTheDocument();
+  });
+
+  it("a job ServiceM8 never quoted still opens on the box that drafts one", async () => {
+    render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
+    expect(await screen.findByText("Draft the proposal")).toBeInTheDocument();
+    expect(screen.queryByText("Quote from ServiceM8")).toBeNull();
+  });
+});

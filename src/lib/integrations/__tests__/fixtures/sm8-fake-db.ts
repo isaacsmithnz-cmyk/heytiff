@@ -80,6 +80,8 @@ const BOOKING_COLUMNS = ["verb_id", "booking_staff_uuid", "booking_start", "book
 
 const LEAVE_COLUMNS = ["leave_staff_uuid", "leave_start", "leave_end"];
 
+const CUSTOMER_COLUMNS = ["cust_object", "cust_fields"];
+
 const JOB_COLUMNS = ["job_company_uuid", "job_company_new", "job_parent_uuid", "job_contact_uuid", "job_category_uuid", "job_draft", "job_done", "job_number"];
 
 /** sm8_writes_kind_check and sm8_writes_shape_check, exactly as
@@ -94,9 +96,22 @@ export function sm8WriteShapeOk(r: Row): boolean {
   const bookingNone = BOOKING_COLUMNS.every(none);
   const leaveNone = LEAVE_COLUMNS.every(none);
   const jobNone = JOB_COLUMNS.every(none);
+  const customerNone = CUSTOMER_COLUMNS.every(none);
   if (r.kind !== "leave" && !leaveNone) return false;
   if (r.kind !== "job" && !jobNone) return false;
+  if (r.kind !== "customer" && !customerNone) return false;
   switch (r.kind) {
+    /* sm8_customer_queue.sql's branch */
+    case "customer": {
+      const f = r.cust_fields;
+      if (!(none("note_id") && none("depends_on") && none("flag_done") && none("note_text") && bookingNone && leaveNone && jobNone)) return false;
+      if (!["jobcontact", "company", "job"].includes(String(r.cust_object))) return false;
+      if (!f || typeof f !== "object" || Array.isArray(f)) return false;
+      if (op === "create") return r.cust_object === "jobcontact" && some("sm8_job_uuid") && none("target_uuid");
+      if (op === "update") return some("target_uuid");
+      if (op === "delete") return r.cust_object === "jobcontact" && some("target_uuid") && none("taken_back_at");
+      return false;
+    }
     /* sm8_new_job_queue.sql's branch */
     case "job": {
       const draft = r.job_draft as Record<string, unknown> | null;
@@ -519,7 +534,7 @@ export function makeFakeDb() {
       return Promise.resolve({ data: !!conn, error: null });
     }
     if (name === "sm8_set_write_kind") {
-      if (!conn || !["attachment", "note", "booking", "leave", "job"].includes(String(args.p_kind))) return Promise.resolve({ data: null, error: null });
+      if (!conn || !["attachment", "note", "booking", "leave", "job", "customer"].includes(String(args.p_kind))) return Promise.resolve({ data: null, error: null });
       const was = Array.isArray(conn.write_kinds) ? (conn.write_kinds as string[]) : ["attachment"];
       const kind = String(args.p_kind);
       conn.write_kinds = args.p_on ? [...new Set([...was, kind])].sort() : was.filter((k) => k !== kind);

@@ -32,7 +32,7 @@ export const BOOKING_WORDS = {
   scope: {
     schedule:
       "Lets HeyTiff add, change and remove bookings, job allocations, booking windows and availability in ServiceM8. HeyTiff only adds the bookings people make here with Book in, and removes one only when whoever made it takes it back, or when someone clears a finished job's leftover booking. It adds staff leave only for leave approved here, and takes it off only when that leave is cancelled. It never moves a booking, and never touches allocations or booking windows.",
-    jobs: "Lets HeyTiff change and remove jobs. HeyTiff changes one thing only: a Quote someone books in here becomes a Work Order, when they say so. It never removes a job.",
+    jobs: "Lets HeyTiff change and remove jobs. HeyTiff changes two things only: a Quote someone books in here becomes a Work Order, when they say so, and a job's billing address, when someone saves it on the job's card. It never removes a job.",
   },
   /* The Book in panel on the job card's Visits face (PR D). */
   panel: {

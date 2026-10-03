@@ -582,6 +582,35 @@ permission asked for.
 5. Revert the code. The migration stays: old code never reads the new columns.
 6. **Tell Isaac:** jobs HeyTiff started stay in ServiceM8.
 
+#### Customer details to ServiceM8
+
+The sixth kind of write is **customer**. The job card's Contacts block gets
+**Edit**, which opens a dialog: the client's name and address, the job's
+contacts each with their role (Job contact, Billing contact, Site contact,
+Property manager, Property owner, Tenant), and the job's billing address with
+**Same as the site**. Saving sends only what changed, one row per record: a
+contact added under our uuid (`jobcontact.json`), a record changed with only
+its changed fields (`company/{uuid}.json` with its live `name`,
+`job/{uuid}.json` with its live `status`, `jobcontact/{uuid}.json`), a
+contact removed (`DELETE jobcontact/{uuid}.json`, sent only after a live
+read finds it active, never a second time). The billing address is read live
+from ServiceM8 when the dialog opens; the mirror still doesn't keep it. The
+owner's card carries **Customer details**, starting **Off**. It needs
+`manage_job_contacts`, `manage_customers` and `manage_jobs` — all asked for
+already by New jobs and Bookings — so where those are approved it needs **no
+further reconnect**. The migration `docs/migrations/sm8_customer_queue.sql`
+adds the kind, two columns and its shape branch.
+
+**The order:**
+
+1. Apply `docs/migrations/sm8_customer_queue.sql` before the deploy. **Never re-run `sm8_new_job_queue.sql` after it.**
+2. Deploy. With `SM8_WRITES` not naming `customer`, nothing new shows.
+3. Add `customer` to `SM8_WRITES` and redeploy (with `job`, if New jobs goes on at the same time: one redeploy, one reconnect).
+4. The owner turns **Customer details On**.
+5. Edit one test job's contact and check it in ServiceM8.
+
+**Rollback:** Customer details Off (cancels waiting rows); `SM8_WRITES` without `customer`, redeploy, wait two minutes; cancel what's left with `update public.sm8_writes set status = 'cancelled', last_error = 'Sending customer changes to ServiceM8 was switched off before it went.', lease_until = null, claim_id = null, updated_at = now() where kind = 'customer' and status in ('queued', 'sending', 'failed', 'trial');`; revert the code. Changes already made stay in ServiceM8.
+
 #### Time off on the Schedule (leave to ServiceM8, part two)
 
 The sync reads ServiceM8's Availability (`availability.json`) into

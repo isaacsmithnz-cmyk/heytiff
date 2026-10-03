@@ -45,6 +45,12 @@ export function sm8LeaveAllowed(): boolean {
   return sm8WriteKindsEnabled().includes("leave");
 }
 
+/** Whether this deployment saves customer details to ServiceM8 (SM8_WRITES
+    names `customer`). */
+export function sm8CustomersAllowed(): boolean {
+  return sm8WriteKindsEnabled().includes("customer");
+}
+
 /** Whether this deployment starts jobs in ServiceM8 (SM8_WRITES names `job`). */
 export function sm8JobsAllowed(): boolean {
   return sm8WriteKindsEnabled().includes("job");

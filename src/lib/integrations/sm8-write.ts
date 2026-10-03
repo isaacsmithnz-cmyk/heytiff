@@ -767,3 +767,46 @@ async function readSm8Record(call: Sm8Call, path: "company.json" | "job.json" | 
 export const readSm8Company = (call: Sm8Call, uuid: string) => readSm8Record(call, "company.json", uuid, "parent_company_uuid");
 export const readSm8NewJob = (call: Sm8Call, uuid: string) => readSm8Record(call, "job.json", uuid, "company_uuid");
 export const readSm8JobContact = (call: Sm8Call, uuid: string) => readSm8Record(call, "jobcontact.json", uuid, "job_uuid");
+
+/* ── customer details: a job's contacts, its client's name and address, its
+   billing address ──
+
+   Read off ServiceM8's reference on 2026-10-03: POST jobcontact.json (a new
+   contact, our uuid), POST {object}/{uuid}.json (an update; only the fields
+   sent change — company needs `name`, job needs `status`), DELETE
+   jobcontact/{uuid}.json (sets active to 0). A DELETE IS NEVER SENT TO A
+   CONTACT ALREADY INACTIVE: ServiceM8's DELETE of a note already removed
+   put it back (the notes walk, 2026-09-27), so the sender reads first. */
+
+export type Sm8CustomerResult = Sm8BookingResult;
+type CustomerPath = "jobcontact" | "company" | "job";
+
+/** A new job contact, under OUR uuid. */
+export async function postSm8NewJobContact(call: Sm8Call, uuid: string, jobUuid: string, fields: Record<string, string>): Promise<Sm8CustomerResult> {
+  if (!UUID.test(uuid) || !UUID.test(jobUuid)) return NOT_SENT;
+  return bookingRequest(call, "POST jobcontact.json", "jobcontact.json", { method: "POST", json: { uuid, job_uuid: jobUuid, ...fields } });
+}
+
+/** Change a record's fields: only those sent change. */
+export async function postSm8RecordUpdate(call: Sm8Call, object: CustomerPath, uuid: string, body: Record<string, string>): Promise<Sm8CustomerResult> {
+  if (!UUID.test(uuid) || Object.keys(body).length === 0) return NOT_SENT;
+  return bookingRequest(call, `POST ${object}`, `${object}/${uuid}.json`, { method: "POST", json: body });
+}
+
+/** Take a contact off a job. Sent only after a live read found it active. */
+export async function deleteSm8JobContact(call: Sm8Call, uuid: string): Promise<Sm8CustomerResult> {
+  if (!UUID.test(uuid)) return NOT_SENT;
+  return bookingRequest(call, "DELETE jobcontact", `jobcontact/${uuid}.json`, { method: "DELETE" });
+}
+
+export type Sm8RawCheck = { ok: true; found: false } | { ok: true; found: true; row: Record<string, unknown>; active: number | null } | Sm8ReadFailure;
+
+/** One record read back by its uuid, whole, through the list endpoint. */
+export async function readSm8Raw(call: Sm8Call, object: CustomerPath, uuid: string): Promise<Sm8RawCheck> {
+  if (!UUID.test(uuid)) return { ok: true, found: false };
+  const page = await fetchSm8Page(call, `${object}.json`, { cursor: "-1", filter: `uuid eq '${uuid}'`, timeoutMs: WRITE_READ_TIMEOUT_MS });
+  if (!page.ok) return readFailure(page);
+  const want = uuid.toLowerCase();
+  const row = page.rows.find((x) => typeof x.uuid === "string" && x.uuid.toLowerCase() === want);
+  return row ? { ok: true, found: true, row, active: intOrNull(row.active) } : { ok: true, found: false };
+}

@@ -73,8 +73,8 @@ export const JOB_WORDS = {
     createJobs:
       "Lets HeyTiff start new jobs in ServiceM8. HeyTiff starts a job, as a quote, only when someone presses Create on its New job form. ServiceM8 may charge for jobs, as it does for jobs started there.",
     customers:
-      "Lets HeyTiff add, change and remove clients and their sites. HeyTiff only adds: a new client, or a new site under a builder, when someone starts a job for one on its New job form. Nothing already there is changed or removed.",
+      "Lets HeyTiff add, change and remove clients and their sites. HeyTiff adds a new client, or a new site under a builder, when someone starts a job for one on its New job form, and changes a client's name or address only when someone saves it on a job's card. It never removes one.",
     jobContacts:
-      "Lets HeyTiff add, change and remove the contacts on a job. HeyTiff only adds the contact someone gives on its New job form, to the job that form starts.",
+      "Lets HeyTiff add, change and remove the contacts on a job. HeyTiff adds the contact someone gives on its New job form, and adds, changes or removes a job's contacts only when someone saves them on that job's card.",
   },
 } as const;

@@ -161,7 +161,7 @@ export default async function Servicem8IntegrationPage({
           /* kind by kind only where the deployment sends more than files —
              files and notes, and bookings where it sends them; otherwise
              today's one count */
-          ...(kinds.includes("note") || kinds.includes("booking") || kinds.includes("leave") || kinds.includes("job")
+          ...(kinds.includes("note") || kinds.includes("booking") || kinds.includes("leave") || kinds.includes("job") || kinds.includes("customer")
             ? {
                 cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "attachment"),
                 notes: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "note"),
@@ -180,6 +180,9 @@ export default async function Servicem8IntegrationPage({
                   : {}),
                 ...(kinds.includes("job")
                   ? { jobs: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "job") }
+                  : {}),
+                ...(kinds.includes("customer")
+                  ? { customers: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "customer") }
                   : {}),
               }
             : { cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at) }),
@@ -222,6 +225,7 @@ export default async function Servicem8IntegrationPage({
          props are exactly today's (sm8-hooks-prod.test) */
       {...(kinds.includes("leave") ? { waitingLeave: queue.waitingKinds.leave } : {})}
       {...(kinds.includes("job") ? { waitingJobs: queue.waitingKinds.job ?? 0 } : {})}
+      {...(kinds.includes("customer") ? { waitingCustomers: queue.waitingKinds.customer ?? 0 } : {})}
       previousAccount={previousAccount ? { name: previousAccount.from, at: previousAccount.at } : null}
       /* only when there is something to say: otherwise the props are today's */
       {...(liveUpdates ? { liveUpdates } : {})}

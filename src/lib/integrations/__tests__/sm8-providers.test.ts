@@ -176,6 +176,7 @@ describe("the write ask", () => {
       booking: ["manage_schedule", "manage_jobs"],
       leave: ["manage_schedule"],
       job: ["create_jobs", "manage_customers", "manage_job_contacts"],
+      customer: ["manage_job_contacts", "manage_customers", "manage_jobs"],
     });
   });
 

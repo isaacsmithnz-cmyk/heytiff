@@ -32,7 +32,8 @@ describe("readQuote on the golden jobs", () => {
     const q = readQuote(JOB_279);
     expect(rows(q)).toEqual([
       {
-        outdoor: ["PUHY-P400YNW", 40, ""],
+        /* "back to the main outdoor unit in the bottom level" */
+        outdoor: ["PUHY-P400YNW", 40, "Bottom level"],
         indoors: [
           [5, "PEFY-P32VMX-E1", 3.6, "Study, Bedrooms 1, 2, and 3, Studio"],
           [1, "PEFY-P50VMX-E1", 5.6, "Master Bedroom"],

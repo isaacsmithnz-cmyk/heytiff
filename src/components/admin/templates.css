@@ -1,12 +1,53 @@
-/* THE TEMPLATES' OWN PARTS — the rest is the SWMS sheet's (swms.css) inside
-   the Organisation card's frame. A statement is its line or two, with a quiet
-   note above when it prints only sometimes, and "Changed" or "New" in the
-   warning colour when it differs from the last approval. What depends on the
-   job is the quiet colour; what is typed is named in brackets. */
+/* THE TEMPLATES' OWN PARTS — a template's page is the document itself, in a
+   well, with what can be approved or changed beside it (2026-10-03). The
+   document wears its own paper (components/documents/doc-paper); what is
+   here is the frame around it and the side cards. Cards are the card of
+   docs/design.md: surface, line, 16px. What the job fills in is the quiet
+   colour on a tint, named in brackets. */
 
-.pw-st { display:flex; flex-direction:column; gap:4px; }
-.pw-when { display:flex; flex-wrap:wrap; gap:8px; font-size:13px; font-weight:500; color:var(--q); }
-.pw-typed,
-.pw-choice { color:var(--q); }
-.pw-only { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; }
+.tpl-who { margin: 0 0 16px; font-size: 13px; font-weight: 500; color: var(--gray500); }
+.tpl-work { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
+.tpl-well { flex: 999 1 640px; min-width: 0; background: var(--bg); border-radius: var(--r-card); padding: 24px; }
+.tpl-side { flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 760px) {
+  .tpl-side { max-width: none; }
+  .tpl-well { padding: 8px; }
+}
 
+.tpl-card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-card); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.tpl-card h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.tpl-card p { margin: 0; }
+.tpl-quiet { font-size: 13px; font-weight: 500; color: var(--gray500); }
+.tpl-rows { display: flex; flex-direction: column; }
+.tpl-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.tpl-row:first-child { border-top: 0; }
+.tpl-row > span { flex: 1; min-width: 0; }
+.tpl-row b { display: block; font-size: 14px; font-weight: 600; }
+.tpl-row em { display: block; font-style: normal; font-size: 13px; font-weight: 500; color: var(--gray500); }
+.tpl-num { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* on the paper: what the job fills in, when a statement prints, what changed */
+.tpl-ph { color: var(--q); background: var(--tint); border-radius: 6px; padding: 0 4px; }
+.tpl-when { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--q); }
+.tpl-st { display: block; }
+.tpl-changed { background: var(--warn-tint); border-radius: 6px; padding: 4px; }
+
+/* a page that isn't a paper — the SWMS steps, the project checklist — sits
+   on a sheet in the same well */
+.tpl-sheet { max-width: 760px; margin: 0 auto; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-card); padding: 24px; }
+.tpl-sheet h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.tpl-sheet ul { margin: 0 0 24px; padding-left: 24px; }
+.tpl-sheet ul:last-child { margin-bottom: 0; }
+
+/* the email, as it arrives: the envelope, then the letter itself */
+.tpl-mail { max-width: 680px; margin: 0 auto; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden; }
+.tpl-env { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; font-size: 13px; }
+.tpl-env dt { color: var(--gray500); font-weight: 500; }
+.tpl-env dd { margin: 0; }
+.tpl-letter { display: block; width: 100%; height: 640px; border: 0; }
+
+/* the handover sheet keeps its own paper; on this page it is a document in
+   a well, not a page of its own */
+.tpl-well .ho-sheet { min-height: 0; border-radius: 6px; }
+
+.tpl-only { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }

@@ -78,8 +78,7 @@ describe("AdminIndex", () => {
     expect(linkHrefs()).toEqual([
       "/dashboard/admin/organization",
       "/dashboard/admin/integrations",
-      /* the documents the business issues, as templates: the SWMS and the
-         Mechanical Compliance Certificate, a tab each */
+      /* every document and message the business sends from fixed wording */
       "/dashboard/admin/templates",
       "/dashboard/admin/knowledge",
       "/dashboard/admin/rate-calculator",

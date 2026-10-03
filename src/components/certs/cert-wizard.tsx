@@ -957,7 +957,7 @@ export function CertWizard({
       {!live.approved &&
         (live.canApprove ? (
           <p className="sw-text">
-            The wording needs your approval before the first certificate goes out. <Link href="/dashboard/admin/templates?sec=certificate">Read and approve the wording</Link>
+            The wording needs your approval before the first certificate goes out. <Link href="/dashboard/admin/templates/certificate">Read and approve the wording</Link>
           </p>
         ) : (
           <p className="sw-state warn">{`${live.ownerName ?? "The owner"} approves the certificate wording before the first one can be issued.`}</p>

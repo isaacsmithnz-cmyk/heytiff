@@ -186,10 +186,15 @@ import type { ScheduleJobState } from "./schedule-tab";
 const MAX_CACHE_ROUNDS = 60;
 const MAX_READ_ROUNDS = 70;
 
-/** How many visits the face shows before it offers the rest. Live, the
-    median job has 2 sessions, one in ten runs past 12 and the worst runs to
-    103 — so the list has to hold its shape without a scrollbar of its own. */
-const VISITS_SHOWN = 6;
+/** A visit's length in the words the crew use (Isaac, 2026-10-02: a visit
+    can be a full day or "a 20-minute pop-in"), by the hours each person who
+    recorded time spent there. A day nobody's time can be believed has none. */
+export function visitLength(v: { minutes: number; crew: { leftOpen?: true }[] }): string {
+  const counted = v.crew.filter((c) => !c.leftOpen).length;
+  if (v.minutes <= 0 || counted === 0) return "";
+  const each = v.minutes / counted;
+  return each >= 300 ? "Full day" : each >= 120 ? "Half day" : "Pop-in";
+}
 
 /** The card's faces. A door that knows which face it wants opens on it
     with `initialTab`. */
@@ -396,7 +401,8 @@ export function JobSheet({
      null when the rail did. A door that came to book opens on Installation. */
   const [step, setStep] = useState<StepKey | null>(() => (openBookIn || openClear ? "installation" : null));
   const [naming, setNaming] = useState(false);
-  const [allVisits, setAllVisits] = useState(false);
+  /* the visit strip, opened at its newest end */
+  const visitStrip = useRef<HTMLOListElement>(null);
   /* The claim this card was opened FOR, when a clone's row was clicked. It
      names the row in the ledger — the card is always the job. */
   const [focus, setFocus] = useState<string | null>(null);
@@ -538,6 +544,12 @@ export function JobSheet({
   useEffect(() => {
     if (focus && moneyVisible && !touchedTab.current) setTab("money");
   }, [focus, moneyVisible]);
+
+  /* The visit strip opens on its newest end — the day the reader came for. */
+  useEffect(() => {
+    const el = visitStrip.current;
+    if (tab === "visits" && el) el.scrollLeft = el.scrollWidth;
+  }, [tab, detail]);
 
   /* THE COMPANION READS FOLLOW THE CARD, not the row that was clicked. A
      clone's row opens its parent, so asking for the clone's files, ledger or
@@ -2360,51 +2372,48 @@ export function JobSheet({
                         : ""}
                     </em>
                   </div>
-                  {(allVisits ? detail.visits : detail.visits.slice(0, VISITS_SHOWN)).map((v) => (
-                    <div className="wb2-mline visit" key={v.day}>
-                      <b>{fmtAuWeekdayDayMonth(v.day)}</b>
-                      {/* A NAME PLUS WHAT THEY ARE — the only place on the
-                          card a title appears, because this is the only
-                          place the card is introducing people rather than
-                          naming them: an apprentice day and a senior tech
-                          day are different days. */}
-                      <em>
-                        {v.crew.length === 0
-                          ? "Nobody named"
-                          : v.crew.map((c, i) => (
-                              <span key={c.name}>
-                                {/* A comma separates two bare names; once a
-                                    title (or a check-in left open) is in the
-                                    line a comma cannot say where one person
-                                    ends, so the pair takes a dash instead.
-                                    The dot before a title is REAL TEXT, not
-                                    a CSS ::before — jest never loads the
-                                    stylesheet, so a separator that lives
-                                    only in CSS is one nothing here can see
-                                    fail. */}
-                                {i > 0 ? (v.crew.some((m) => m.title || m.leftOpen) ? " — " : ", ") : ""}
-                                {c.name}
-                                {c.title && (
-                                  <i className="wb2-jcrole">{`, ${c.title}`}</i>
-                                )}
-                                {/* On site, time unknown: the hours at the
-                                    right leave this person out, so the
-                                    line says why. */}
-                                {c.leftOpen && (
-                                  <i className="wb2-jcrole">, check-in left open</i>
-                                )}
-                              </span>
-                            ))}
-                      </em>
-                      <span>{v.minutes > 0 ? fmtMinutesAsHours(v.minutes) : "—"}</span>
-                    </div>
-                  ))}
-                  {!allVisits && detail.visits.length > VISITS_SHOWN && (
-                    <button className="wb2-shmore" onClick={() => setAllVisits(true)}>
-                      {`All ${detail.visits.length} visits`}
-                      <Icon name="chevR" size={14} />
-                    </button>
-                  )}
+                  {/* A CARD PER VISIT, oldest on the left, scrolling sideways
+                      (Isaac, 2026-10-02: "day one card, day two card… day
+                      three might just be a 20-minute pop-in"). The strip
+                      opens on its newest end. */}
+                  <ol className="jcl-visits" ref={visitStrip} aria-label="Visits, oldest first">
+                    {[...detail.visits].reverse().map((v, i) => (
+                      <li className="jcl-visit" key={v.day}>
+                        <span className="jcl-vn">{`Day ${i + 1}`}</span>
+                        <b>{fmtAuWeekdayDayMonth(v.day)}</b>
+                        <em>
+                          {v.crew.length === 0
+                            ? "Nobody named"
+                            : v.crew.map((c, i) => (
+                                <span key={c.name}>
+                                  {/* A comma separates two bare names; once a
+                                      title (or a check-in left open) is in the
+                                      line a comma cannot say where one person
+                                      ends, so the pair takes a dash instead.
+                                      The dot before a title is REAL TEXT, not
+                                      a CSS ::before — jest never loads the
+                                      stylesheet, so a separator that lives
+                                      only in CSS is one nothing here can see
+                                      fail. */}
+                                  {i > 0 ? (v.crew.some((m) => m.title || m.leftOpen) ? " — " : ", ") : ""}
+                                  {c.name}
+                                  {c.title && (
+                                    <i className="wb2-jcrole">{`, ${c.title}`}</i>
+                                  )}
+                                  {/* On site, time unknown: the hours at the
+                                      right leave this person out, so the
+                                      line says why. */}
+                                  {c.leftOpen && (
+                                    <i className="wb2-jcrole">, check-in left open</i>
+                                  )}
+                                </span>
+                              ))}
+                        </em>
+                        {visitLength(v) && <span className="jcl-vlen">{visitLength(v)}</span>}
+                        <span className="jcl-vhrs">{v.minutes > 0 ? fmtMinutesAsHours(v.minutes) : "—"}</span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               ) : (
                 !(standing ? standing.length > 0 || above.length > 0 : detail?.nextBooking) &&

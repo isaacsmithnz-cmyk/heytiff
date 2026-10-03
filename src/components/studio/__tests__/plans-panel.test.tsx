@@ -210,6 +210,111 @@ describe("Plans stage", () => {
     });
   });
 
+  /* Split to new floor: drag the area to keep; the rest of the page becomes a
+     floor above or below, showing the SAME image through a different crop. */
+  async function openSplit() {
+    const user = await openSeeded(new FakePlanImages());
+    await clickFloorDesign(user);
+    const canvas = await screen.findByTestId("studio-canvas");
+    await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
+    await user.click(await screen.findByRole("button", { name: "Skip for now" }));
+    const svg = canvas.querySelector("svg")!;
+    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /Split to new floor/ }));
+    return { user, canvas, svg };
+  }
+  // the left ~half of the 1200×900 sheet (screen ≈ 90,70 → 400,530)
+  const dragLeftHalf = (svg: Element) => {
+    fireEvent.pointerDown(svg, ptc(90, 70));
+    fireEvent.pointerMove(svg, ptc(400, 530));
+    fireEvent.pointerUp(svg, ptc(400, 530));
+  };
+
+  it("Split to new floor keeps the dragged area and adds the rest as a floor above", async () => {
+    const { user, canvas, svg } = await openSplit();
+    dragLeftHalf(svg);
+
+    // nothing has changed yet — the panel asks where the rest goes
+    const panel = await screen.findByRole("dialog", { name: "Split the plan" });
+    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
+    await user.click(within(panel).getByRole("button", { name: "Add floor above" }));
+
+    // this floor keeps its part, and the other part shows faded for context
+    await waitFor(() =>
+      expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toMatch(/url\(#clip-/)
+    );
+    expect(canvas.querySelector("image.ds-plan-ghost")).not.toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
+
+    // the new floor sits above Ground floor and the sketch level moved up
+    await user.click(screen.getByRole("button", { name: /^(GF|L1)$/ }));
+    expect(screen.getByRole("button", { name: "Delete Ground floor" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Level 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Sketch level" })).toBeInTheDocument();
+  });
+
+  it("one undo takes the whole split back", async () => {
+    const { user, canvas, svg } = await openSplit();
+    dragLeftHalf(svg);
+    await user.click(await screen.findByRole("button", { name: "Add floor above" }));
+    await waitFor(() => expect(canvas.querySelector("image.ds-plan-ghost")).not.toBeNull());
+
+    fireEvent.keyDown(window, { key: "z", metaKey: true });
+    await waitFor(() => expect(canvas.querySelector("image.ds-plan-ghost")).toBeNull());
+    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
+    await user.click(screen.getByRole("button", { name: /^(GF|L1)$/ }));
+    expect(screen.queryByRole("button", { name: "Delete Level 1" })).toBeNull();
+  });
+
+  it("Add floor below puts the new floor on this level and moves this floor up", async () => {
+    const { user, svg } = await openSplit();
+    dragLeftHalf(svg);
+    await user.click(await screen.findByRole("button", { name: "Add floor below" }));
+    // the switcher now reads this floor as level 1 (it moved up, and its
+    // default name followed), with the new Ground floor beneath
+    await user.click(await screen.findByRole("button", { name: "L1" }));
+    expect(screen.getByRole("button", { name: "Delete Ground floor" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Level 1" })).toBeInTheDocument();
+  });
+
+  it("the page outside the area fades while you drag, and Esc drops the drag untouched", async () => {
+    const { canvas, svg } = await openSplit();
+    fireEvent.pointerDown(svg, ptc(90, 70));
+    fireEvent.pointerMove(svg, ptc(400, 530));
+    expect(canvas.querySelector(".ds-crop-dim")).not.toBeNull();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.pointerUp(svg, ptc(400, 530));
+    expect(canvas.querySelector(".ds-crop-dim")).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
+    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
+  });
+
+  it("Cancel leaves the plan as it was", async () => {
+    const { user, canvas, svg } = await openSplit();
+    dragLeftHalf(svg);
+    await user.click(await screen.findByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog", { name: "Split the plan" })).toBeNull();
+    expect(canvas.querySelector(".ds-crop-dim")).toBeNull();
+    expect(canvas.querySelector("image.ds-plan")!.getAttribute("clip-path")).toBeNull();
+  });
+
+  it("a plain crop trims the page fully — no faded ghost of what was cut", async () => {
+    const user = await openSeeded(new FakePlanImages());
+    await clickFloorDesign(user);
+    const canvas = await screen.findByTestId("studio-canvas");
+    await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
+    await user.click(await screen.findByRole("button", { name: "Skip for now" }));
+    const svg = canvas.querySelector("svg")!;
+    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /Crop/ }));
+    fireEvent.pointerDown(svg, ptc(200, 150));
+    fireEvent.pointerMove(svg, ptc(400, 300));
+    fireEvent.pointerUp(svg, ptc(400, 300));
+    await waitFor(() => expect(canvas.querySelector("clipPath")).not.toBeNull());
+    expect(canvas.querySelector("image.ds-plan-ghost")).toBeNull();
+  });
+
   it("Fit frames the cropped region, so it no longer over-zooms out", async () => {
     const user = await openSeeded(new FakePlanImages());
     await clickFloorDesign(user);

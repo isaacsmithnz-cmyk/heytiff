@@ -84,6 +84,8 @@ import {
   formatLevel,
   orphanedRefs,
   RemotePlanImages,
+  sharedPlanRefs,
+  splitFloorOffSheet,
   type PlanImages,
 } from "@/lib/studio/plans";
 import { SummaryView } from "./summary/summary";
@@ -2945,6 +2947,7 @@ function CanvasControls({
             tool === "measure" ||
             tool === "set-north" ||
             tool === "crop" ||
+            tool === "split" ||
             tool === "arrange"
               ? " on"
               : ""
@@ -3050,6 +3053,23 @@ function CanvasControls({
               ) : (
                 <span className="v kbd">X</span>
               )}
+            </button>
+            <button
+              className={`ds-calib-item${tool === "split" ? " on" : ""}`}
+              disabled={floor.plans.length === 0}
+              onClick={() => {
+                onTool("split");
+                setCalibOpen(false);
+              }}
+              title={
+                floor.plans.length === 0
+                  ? "Split to new floor — this floor is a blank grid, there's no plan to split"
+                  : "Keep an area on this floor and give the rest of the page to a new floor"
+              }
+            >
+              <Icon name="layers" size={13} />
+              <span className="k">Split to new floor</span>
+              {floor.plans.length === 0 && <span className="v unset">No plan</span>}
             </button>
             <button
               className={`ds-calib-item${tool === "arrange" ? " on" : ""}`}
@@ -3476,6 +3496,23 @@ function DesignPanel({
             onZoomApi={setZoomApi}
             onZoomChange={setZoomPct}
             planImages={planImages}
+            sharedRefs={sharedPlanRefs(doc.floors, floor.id)}
+            onSplitFloor={(sheetId, keep, place, visible) => {
+              // ids are minted here, not in the updater, which may run twice
+              const newFloorId = newId("flr");
+              const newSheetId = newId("sht");
+              onMutate((d) =>
+                splitFloorOffSheet(d, {
+                  floorId: floor.id,
+                  sheetId,
+                  keep,
+                  place,
+                  visible,
+                  newFloorId,
+                  newSheetId,
+                })
+              );
+            }}
             activeSystemId={activeSystemId}
             placing={placing}
             placingKw={placingKw}

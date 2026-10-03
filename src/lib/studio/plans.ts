@@ -6,7 +6,7 @@
    step (an AI screening pass will pre-fill them later). Raster path is
    browser-only; the floor-mapping helpers are pure + unit-tested. */
 
-import { newId, type Floor, type PlanSheet } from "./document";
+import { newId, type DesignDocument, type Floor, type PlanSheet } from "./document";
 
 /** A rasterised candidate floor plan (one PDF page or one uploaded image).
     `blob`/`ext` are present for freshly rendered pages (they feed the upload);
@@ -179,6 +179,144 @@ export function orphanedRefs(floors: Floor[], floorId: string): string[] {
   );
   const gone = floors.find((f) => f.id === floorId)?.plans ?? [];
   return [...new Set(gone.map((s) => s.imageRef))].filter((ref) => !held.has(ref));
+}
+
+/* ── Splitting one page into two floors ──
+   A plan page that holds two levels becomes two floors that show the SAME
+   image (same ref, position and size) through different crops, so world
+   coordinates and the scale stay valid on both and nothing is re-uploaded. */
+
+export interface SheetRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Smaller than this (world units) is a stray click, not an area. */
+const MIN_SPLIT_SIDE = 4;
+
+/** What a sheet currently shows, relative to the sheet's own origin. `size` is
+    for a legacy sheet that stores no natural size (the canvas measures it). */
+export function sheetVisible(
+  sheet: PlanSheet,
+  size?: { w: number; h: number } | null
+): SheetRect {
+  return sheet.crop ?? { x: 0, y: 0, w: size?.w ?? sheet.width, h: size?.h ?? sheet.height };
+}
+
+export function intersectRect(a: SheetRect, b: SheetRect): SheetRect | null {
+  const x0 = Math.max(a.x, b.x);
+  const y0 = Math.max(a.y, b.y);
+  const x1 = Math.min(a.x + a.w, b.x + b.w);
+  const y1 = Math.min(a.y + a.h, b.y + b.h);
+  return x1 - x0 > MIN_SPLIT_SIDE && y1 - y0 > MIN_SPLIT_SIDE
+    ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
+    : null;
+}
+
+/** The part of `visible` outside `keep`, as ONE rectangle: the largest of the
+    four full-width / full-height strips around it. Two floors side by side or
+    stacked on a page resolve exactly; an L-shaped remainder keeps its biggest
+    arm and the new floor's margins are trimmed with Crop afterwards. */
+export function restOfSheet(visible: SheetRect, keepIn: SheetRect): SheetRect | null {
+  const keep = intersectRect(visible, keepIn);
+  if (!keep) return null;
+  const strips: SheetRect[] = [
+    { x: visible.x, y: visible.y, w: keep.x - visible.x, h: visible.h }, // left
+    { x: keep.x + keep.w, y: visible.y, w: visible.x + visible.w - (keep.x + keep.w), h: visible.h }, // right
+    { x: visible.x, y: visible.y, w: visible.w, h: keep.y - visible.y }, // above
+    { x: visible.x, y: keep.y + keep.h, w: visible.w, h: visible.y + visible.h - (keep.y + keep.h) }, // below
+  ];
+  let best: SheetRect | null = null;
+  for (const s of strips) {
+    if (s.w <= MIN_SPLIT_SIDE || s.h <= MIN_SPLIT_SIDE) continue;
+    if (!best || s.w * s.h > best.w * best.h) best = s;
+  }
+  return best;
+}
+
+/** Refs on `floor` that another floor also shows — the page was split. The
+    canvas fades the part of such a page that belongs to the other floor. */
+export function sharedPlanRefs(floors: Floor[], floorId: string): Set<string> {
+  const others = new Set(
+    floors.filter((f) => f.id !== floorId).flatMap((f) => f.plans.map((s) => s.imageRef))
+  );
+  const mine = floors.find((f) => f.id === floorId)?.plans ?? [];
+  return new Set(mine.map((s) => s.imageRef).filter((r) => others.has(r)));
+}
+
+export interface SplitSheetOpts {
+  floorId: string;
+  sheetId: string;
+  /** the area to keep on this floor, relative to the sheet's origin */
+  keep: SheetRect;
+  /** the rest becomes a floor stacked above or below this one */
+  place: "above" | "below";
+  newFloorId: string;
+  newSheetId: string;
+  /** what the sheet shows now, when the caller measured a legacy sheet */
+  visible?: SheetRect;
+}
+
+/** Keep `keep` on this floor and move the rest of the sheet to a new floor.
+    One document change, so it is one undo step. Rooms, units and pipework
+    already drawn stay where they are. Returns `doc` itself when nothing would
+    be left over (the caller shows that). */
+export function splitFloorOffSheet(doc: DesignDocument, o: SplitSheetOpts): DesignDocument {
+  const floor = doc.floors.find((f) => f.id === o.floorId);
+  const sheet = floor?.plans.find((s) => s.id === o.sheetId);
+  if (!floor || !sheet) return doc;
+  const visible = o.visible ?? sheetVisible(sheet);
+  const keep = intersectRect(visible, o.keep);
+  const rest = restOfSheet(visible, o.keep);
+  if (!keep || !rest) return doc;
+
+  const newLevel = o.place === "above" ? floor.level + 1 : floor.level;
+  // open the slot: this floor (when going below) and everything above it moves
+  // up one. A floor still wearing its position's default name follows it, so
+  // "Ground floor" never ends up sitting at level 1.
+  const floors = doc.floors.map((f) => {
+    if (f.level < newLevel) return f;
+    const level = f.level + 1;
+    return {
+      ...f,
+      level,
+      name: f.name === defaultFloorName(f.level) ? defaultFloorName(level) : f.name,
+    };
+  });
+
+  // the north arrow belongs to whichever floor's part of the page it sits on
+  const np = floor.northPos;
+  const northInRest =
+    np !== null &&
+    np.x >= sheet.x + rest.x &&
+    np.x <= sheet.x + rest.x + rest.w &&
+    np.y >= sheet.y + rest.y &&
+    np.y <= sheet.y + rest.y + rest.h;
+
+  const newFloor: Floor = {
+    id: o.newFloorId,
+    name: defaultFloorName(newLevel),
+    level: newLevel,
+    ...(floor.heightM !== undefined ? { heightM: floor.heightM } : {}),
+    scaleMmPerUnit: floor.scaleMmPerUnit,
+    northDeg: floor.northDeg,
+    northPos: northInRest ? np : null,
+    plans: [{ ...sheet, id: o.newSheetId, crop: rest }],
+  };
+
+  return {
+    ...doc,
+    floors: [
+      ...floors.map((f) =>
+        f.id === floor.id
+          ? { ...f, plans: f.plans.map((s) => (s.id === sheet.id ? { ...s, crop: keep } : s)) }
+          : f
+      ),
+      newFloor,
+    ],
+  };
 }
 
 /** Selected page indices not yet placed on any floor — i.e. the tray. */

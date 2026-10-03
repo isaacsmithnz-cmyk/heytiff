@@ -21,6 +21,9 @@ import {
   setAnchorLevel,
   trayPageIdxs,
   placeSheets,
+  restOfSheet,
+  sharedPlanRefs,
+  splitFloorOffSheet,
   type PageImage,
   type UploadedSheet,
 } from "../plans";
@@ -383,5 +386,214 @@ describe("orphanedRefs", () => {
   it("lists a ref once, and nothing for an unknown floor", () => {
     expect(orphanedRefs([floor("a", ["r0", "r0"])], "a")).toEqual(["r0"]);
     expect(orphanedRefs([floor("a", ["r0"])], "zzz")).toEqual([]);
+  });
+});
+
+describe("restOfSheet", () => {
+  const page = { x: 0, y: 0, w: 2000, h: 1000 };
+
+  it("two floors side by side: the right half is what's left of the left", () => {
+    expect(restOfSheet(page, { x: 0, y: 0, w: 900, h: 1000 })).toEqual({
+      x: 900,
+      y: 0,
+      w: 1100,
+      h: 1000,
+    });
+  });
+
+  it("stacked: the bottom is what's left of the top", () => {
+    expect(restOfSheet(page, { x: 0, y: 0, w: 2000, h: 450 })).toEqual({
+      x: 0,
+      y: 450,
+      w: 2000,
+      h: 550,
+    });
+  });
+
+  it("a hand-drawn rect with margins still takes the big side", () => {
+    // kept area sits inside the left half with a margin top and bottom
+    const rest = restOfSheet(page, { x: 40, y: 60, w: 860, h: 880 });
+    expect(rest).toEqual({ x: 900, y: 0, w: 1100, h: 1000 });
+  });
+
+  it("keeps the largest arm of an L-shaped remainder", () => {
+    const rest = restOfSheet(page, { x: 0, y: 0, w: 500, h: 400 });
+    // right strip 1500x1000 beats the bottom strip 2000x600? 1.5M vs 1.2M
+    expect(rest).toEqual({ x: 500, y: 0, w: 1500, h: 1000 });
+  });
+
+  it("works inside an already-cropped region", () => {
+    const visible = { x: 100, y: 100, w: 1000, h: 500 };
+    expect(restOfSheet(visible, { x: 100, y: 100, w: 400, h: 500 })).toEqual({
+      x: 500,
+      y: 100,
+      w: 600,
+      h: 500,
+    });
+  });
+
+  it("is null when nothing is left, or the drag misses the page", () => {
+    expect(restOfSheet(page, page)).toBeNull();
+    expect(restOfSheet(page, { x: 0, y: 0, w: 1998, h: 1000 })).toBeNull();
+    expect(restOfSheet(page, { x: 3000, y: 0, w: 100, h: 100 })).toBeNull();
+  });
+});
+
+describe("splitFloorOffSheet", () => {
+  const sheet = {
+    id: "sht_a",
+    imageRef: "org/o1/p1.png",
+    pageNumber: 1,
+    name: "Both levels",
+    width: 2000,
+    height: 1000,
+    x: 30,
+    y: 40,
+  };
+  const mk = () => {
+    const d = createDesign({ name: "Split", mode: "plan" });
+    d.floors.push(
+      {
+        id: "flr_g",
+        name: "Ground floor",
+        level: 0,
+        heightM: 3.2,
+        scaleMmPerUnit: 12,
+        northDeg: 45,
+        northPos: { x: 1500, y: 100 },
+        plans: [sheet],
+      },
+      {
+        id: "flr_1",
+        name: "Level 1",
+        level: 1,
+        scaleMmPerUnit: 10,
+        northDeg: null,
+        northPos: null,
+        plans: [],
+      }
+    );
+    return d;
+  };
+  const ids = { newFloorId: "flr_new", newSheetId: "sht_new" };
+  const left = { x: 0, y: 0, w: 900, h: 1000 };
+
+  it("keeps the area on this floor and gives the rest to a new floor above", () => {
+    const out = splitFloorOffSheet(mk(), { floorId: "flr_g", sheetId: "sht_a", keep: left, place: "above", ...ids });
+    const g = out.floors.find((f) => f.id === "flr_g")!;
+    const nf = out.floors.find((f) => f.id === "flr_new")!;
+    expect(g.plans[0].crop).toEqual(left);
+    expect(nf.plans).toHaveLength(1);
+    expect(nf.plans[0]).toMatchObject({
+      id: "sht_new",
+      imageRef: "org/o1/p1.png", // same image — nothing re-uploaded
+      x: 30,
+      y: 40,
+      width: 2000,
+      height: 1000,
+      crop: { x: 900, y: 0, w: 1100, h: 1000 },
+    });
+    // above the ground floor: level 1 → the old Level 1 moves up to 2
+    expect([g.level, nf.level]).toEqual([0, 1]);
+    expect(out.floors.find((f) => f.id === "flr_1")).toMatchObject({ level: 2, name: "Level 2" });
+    expect(nf.name).toBe("Level 1");
+  });
+
+  it("below: the new floor takes this level and this floor moves up with its name", () => {
+    const out = splitFloorOffSheet(mk(), { floorId: "flr_g", sheetId: "sht_a", keep: left, place: "below", ...ids });
+    const g = out.floors.find((f) => f.id === "flr_g")!;
+    const nf = out.floors.find((f) => f.id === "flr_new")!;
+    expect([nf.level, nf.name]).toEqual([0, "Ground floor"]);
+    // a floor on its position's default name follows it up — never "Ground floor" at L1
+    expect([g.level, g.name]).toEqual([1, "Level 1"]);
+    expect(out.floors.find((f) => f.id === "flr_1")).toMatchObject({ level: 2, name: "Level 2" });
+  });
+
+  it("leaves a typed floor name alone when its level moves", () => {
+    const d = mk();
+    d.floors[0].name = "Plant deck";
+    const out = splitFloorOffSheet(d, { floorId: "flr_g", sheetId: "sht_a", keep: left, place: "below", ...ids });
+    expect(out.floors.find((f) => f.id === "flr_g")!.name).toBe("Plant deck");
+  });
+
+  it("carries scale, height and north across; the arrow goes with its part of the page", () => {
+    // arrow at world x 1500 = sheet x 1470, in the right part
+    const out = splitFloorOffSheet(mk(), { floorId: "flr_g", sheetId: "sht_a", keep: left, place: "above", ...ids });
+    const nf = out.floors.find((f) => f.id === "flr_new")!;
+    expect(nf).toMatchObject({ scaleMmPerUnit: 12, heightM: 3.2, northDeg: 45, northPos: { x: 1500, y: 100 } });
+    // keep the right half instead → the arrow stays, the new floor has none
+    const out2 = splitFloorOffSheet(mk(), {
+      floorId: "flr_g",
+      sheetId: "sht_a",
+      keep: { x: 900, y: 0, w: 1100, h: 1000 },
+      place: "above",
+      ...ids,
+    });
+    expect(out2.floors.find((f) => f.id === "flr_new")!.northPos).toBeNull();
+  });
+
+  it("changes nothing else: other sheets, rooms and the import session stay put", () => {
+    const d = mk();
+    d.floors[0].plans.push({ ...sheet, id: "sht_b", imageRef: "org/o1/p2.png", x: 3000 });
+    const out = splitFloorOffSheet(d, { floorId: "flr_g", sheetId: "sht_a", keep: left, place: "above", ...ids });
+    const g = out.floors.find((f) => f.id === "flr_g")!;
+    expect(g.plans.map((s) => s.id)).toEqual(["sht_a", "sht_b"]);
+    expect(g.plans[1].crop).toBeUndefined();
+    expect(out.objects).toBe(d.objects);
+    expect(out.planImport).toBe(d.planImport);
+  });
+
+  it("returns the document untouched when nothing is left over or ids don't match", () => {
+    const d = mk();
+    const all = { x: 0, y: 0, w: 2000, h: 1000 };
+    expect(splitFloorOffSheet(d, { floorId: "flr_g", sheetId: "sht_a", keep: all, place: "above", ...ids })).toBe(d);
+    expect(splitFloorOffSheet(d, { floorId: "nope", sheetId: "sht_a", keep: left, place: "above", ...ids })).toBe(d);
+    expect(splitFloorOffSheet(d, { floorId: "flr_g", sheetId: "nope", keep: left, place: "above", ...ids })).toBe(d);
+  });
+
+  it("splits an already-cropped sheet within what it shows", () => {
+    const d = mk();
+    d.floors[0].plans[0].crop = { x: 100, y: 0, w: 1800, h: 1000 };
+    const out = splitFloorOffSheet(d, {
+      floorId: "flr_g",
+      sheetId: "sht_a",
+      keep: { x: 100, y: 0, w: 800, h: 1000 },
+      place: "above",
+      ...ids,
+    });
+    expect(out.floors.find((f) => f.id === "flr_new")!.plans[0].crop).toEqual({
+      x: 900,
+      y: 0,
+      w: 1000,
+      h: 1000,
+    });
+  });
+});
+
+describe("sharedPlanRefs", () => {
+  const f = (id: string, refs: string[]): Floor => ({
+    id,
+    name: id,
+    level: 0,
+    scaleMmPerUnit: 10,
+    northDeg: null,
+    northPos: null,
+    plans: refs.map((r, i) => ({
+      id: `${id}_${i}`,
+      imageRef: r,
+      pageNumber: 1,
+      name: r,
+      width: 100,
+      height: 100,
+      x: 0,
+      y: 0,
+    })),
+  });
+
+  it("names the images this floor shares with another floor", () => {
+    const floors = [f("a", ["r0", "r1"]), f("b", ["r0"]), f("c", ["r9"])];
+    expect([...sharedPlanRefs(floors, "a")]).toEqual(["r0"]);
+    expect([...sharedPlanRefs(floors, "c")]).toEqual([]);
+    expect([...sharedPlanRefs(floors, "zzz")]).toEqual([]);
   });
 });

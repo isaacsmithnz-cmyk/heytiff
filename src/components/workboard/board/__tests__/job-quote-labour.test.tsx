@@ -12,16 +12,17 @@ const brief: QuoteLabour["advice"] = {
   from: "brief",
   labour: {
     visits: [
-      { stage: "Install", people: 3, days: 1 },
-      { stage: "Return", people: 1, days: 0.5 },
+      { stage: "Install", people: 3, days: 1, hours: 8 },
+      { stage: "Return", people: 1, days: 0.5, hours: 4 },
     ],
     personHours: 28,
+    personDays: 3.5,
     said: ["3 x pax for 1 day", "Dave for 4 hrs for patching following day"],
   },
 };
 
 it("from the brief: the visits, the hours, what it was read from, and the cost at the business's own rate", async () => {
-  answer({ kind: "multi", advice: brief, rate: { perHourCents: 14000, from: "charged" } });
+  answer({ kind: "multi", advice: brief, rate: { perHourCents: 14000, from: "charged" }, dayHours: 8, unset: [] });
   render(<JobQuoteLabour job="j-1" visible />);
   expect(await screen.findByText("28 hrs, from the brief")).toBeInTheDocument();
   expect(screen.getByText("3 people, 1 day")).toBeInTheDocument();
@@ -32,7 +33,7 @@ it("from the brief: the visits, the hours, what it was read from, and the cost a
 });
 
 it("no rate (a new business, or no money access): hours only, no cost", async () => {
-  answer({ kind: "multi", advice: brief, rate: null });
+  answer({ kind: "multi", advice: brief, rate: null, dayHours: 8, unset: [] });
   render(<JobQuoteLabour job="j-1" visible />);
   expect(await screen.findByText("28 hrs, from the brief")).toBeInTheDocument();
   expect(screen.queryByText(/\/hr/)).toBeNull();
@@ -43,6 +44,8 @@ it("not in the brief: what the business typically takes, from its own jobs", asy
     kind: "maintenance",
     advice: { from: "history", typical: { kind: "maintenance", hours: 6, jobs: 37, words: "You typically use 6 hrs labour for maintenance (37 of your jobs)." } },
     rate: { perHourCents: 14200, from: "recommended" },
+    dayHours: 8,
+    unset: [],
   });
   render(<JobQuoteLabour job="j-1" visible />);
   expect(await screen.findByText("Not in the brief")).toBeInTheDocument();
@@ -51,10 +54,29 @@ it("not in the brief: what the business typically takes, from its own jobs", asy
 });
 
 it("neither: says so, and makes nothing up", async () => {
-  answer({ kind: "vrf", advice: { from: "none" }, rate: { perHourCents: 14000, from: "charged" } });
+  answer({ kind: "vrf", advice: { from: "none" }, rate: { perHourCents: 14000, from: "charged" }, dayHours: 8, unset: [] });
   render(<JobQuoteLabour job="j-1" visible />);
   expect(await screen.findByText("Not in the brief")).toBeInTheDocument();
   expect(screen.queryByText(/hrs/)).toBeNull();
+});
+
+it("warns when the business hasn't set its rate or its working day, with the way to set them", async () => {
+  answer({
+    kind: "multi",
+    advice: {
+      from: "brief",
+      labour: { visits: [{ stage: "Install", people: 3, days: 1, hours: null }], personHours: null, personDays: 3, said: ["3 x pax for 1 day"] },
+    },
+    rate: null,
+    dayHours: null,
+    unset: ["rate", "hours"],
+  });
+  render(<JobQuoteLabour job="j-1" visible />);
+  expect(await screen.findByText("3 person-days, from the brief")).toBeInTheDocument();
+  expect(screen.getByText("3 people, 1 day")).toBeInTheDocument();
+  expect(screen.getByText("No charge-out rate or working day set, so labour has no hours or cost.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Set in Quoting" })).toHaveAttribute("href", "/dashboard/admin/quoting");
+  expect(screen.queryByText(/\/hr/)).toBeNull();
 });
 
 it("reads nothing until the Quote section is open", () => {

@@ -15,19 +15,17 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { readInstallRate } from "../quote-labour-server";
+import { readCalcDay } from "../org-day-server";
 
-/* The labour's rate is the business's own, or nothing — never ours. */
-describe("the install rate", () => {
-  it("is what the business charges, when its Rate Calculator says", async () => {
-    stored = { currentRates: { install: 140, service: 160 } };
-    expect(await readInstallRate("org-x")).toEqual({ perHourCents: 14000, from: "charged" });
+/* What the business's own Rate Calculator says, or nothing — never ours. */
+describe("the Rate Calculator's day", () => {
+  it("is the rate the business charges and its working hours", async () => {
+    stored = { currentRates: { install: 140, service: 160 }, settings: { working_hours: 7.5 } };
+    expect(await readCalcDay("org-x")).toMatchObject({ chargedCents: 14000, workingHours: 7.5 });
   });
 
-  it("is nothing for a business that has set nothing — no fallback number", async () => {
+  it("is nothing for a business with no Rate Calculator", async () => {
     stored = null;
-    expect(await readInstallRate("org-new")).toBeNull();
-    stored = {};
-    expect(await readInstallRate("org-new")).toBeNull();
+    expect(await readCalcDay("org-new")).toBeNull();
   });
 });

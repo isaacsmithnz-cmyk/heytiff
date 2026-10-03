@@ -1,12 +1,14 @@
 import { labourFromBrief } from "../brief-labour";
 
 /* Every phrasing below is one the office wrote into a real job (Isaac,
-   2026-10-04: "number one source is the brief"). */
+   2026-10-04: "number one source is the brief"), read for a business whose
+   working day is 8 hours. */
+const DAY = 8;
 const pd = (text: string) => {
-  const l = labourFromBrief(text);
+  const l = labourFromBrief(text, DAY);
   return l ? l.visits.map((v) => `${v.stage} ${v.people}x${v.days}`) : null;
 };
-const hours = (text: string) => labourFromBrief(text)?.personHours ?? null;
+const hours = (text: string) => labourFromBrief(text, DAY)?.personHours ?? null;
 
 describe("labour read from the brief", () => {
   it("reads a crew and its days, and a named person's patch-up as a Return", () => {
@@ -48,10 +50,25 @@ describe("labour read from the brief", () => {
   });
 
   it("guesses nothing: a crew with no time, a time with nobody, or no labour at all", () => {
-    expect(labourFromBrief("2 x trades + TA")).toBeNull();
-    expect(labourFromBrief("Install within 2 days of the strata meeting")).toBeNull();
-    expect(labourFromBrief("5.2kW multi, 2 x 600 x 100mm linear bar grilles, 3 x 2.5kw heads")).toBeNull();
-    expect(labourFromBrief("")).toBeNull();
-    expect(labourFromBrief(null)).toBeNull();
+    expect(labourFromBrief("2 x trades + TA", DAY)).toBeNull();
+    expect(labourFromBrief("Install within 2 days of the strata meeting", DAY)).toBeNull();
+    expect(labourFromBrief("5.2kW multi, 2 x 600 x 100mm linear bar grilles, 3 x 2.5kw heads", DAY)).toBeNull();
+    expect(labourFromBrief("", DAY)).toBeNull();
+    expect(labourFromBrief(null, DAY)).toBeNull();
+  });
+
+  it("turns days into hours only by the business's own working day", () => {
+    const brief = "3 x pax for 1 day\nDave for 4 hrs for patching following day";
+    expect(labourFromBrief(brief, 7.5)).toMatchObject({ personHours: 26.5 });
+    /* no working day set: days stay days, hours stay hours, no total in either */
+    const unset = labourFromBrief(brief, null)!;
+    expect(unset.visits).toEqual([
+      { stage: "Install", people: 3, days: 1, hours: null },
+      { stage: "Return", people: 1, days: null, hours: 4 },
+    ]);
+    expect(unset.personHours).toBeNull();
+    expect(unset.personDays).toBeNull();
+    expect(labourFromBrief("3 x pax for 1 day", null)).toMatchObject({ personDays: 3, personHours: null });
+    expect(labourFromBrief("Allowance 3 HRS x 1 PAX", null)).toMatchObject({ personDays: null, personHours: 3 });
   });
 });

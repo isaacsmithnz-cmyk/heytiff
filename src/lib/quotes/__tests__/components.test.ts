@@ -91,9 +91,9 @@ describe("the sums", () => {
 });
 
 describe("the settings", () => {
-  it("starts with no markup set — never another business's — and an 8-hour day", () => {
+  it("starts with nothing set — no markup, rate or day, never another business's", () => {
     expect(normaliseQuoteSettings({})).toEqual(DEFAULT_QUOTE_SETTINGS);
-    expect(DEFAULT_QUOTE_SETTINGS).toEqual({ unitMarkupPct: null, materialMarkupPct: null, dayHours: 8, preferred: {} });
+    expect(DEFAULT_QUOTE_SETTINGS).toEqual({ unitMarkupPct: null, materialMarkupPct: null, chargeOutCents: null, dayHours: null, preferred: {} });
     expect(normaliseQuoteSettings({ unit_markup_pct: null, material_markup_pct: "" })).toMatchObject({ unitMarkupPct: null, materialMarkupPct: null });
   });
 
@@ -111,9 +111,12 @@ describe("the settings", () => {
     expect(s).toEqual({
       unitMarkupPct: 25,
       materialMarkupPct: 300,
+      chargeOutCents: null,
       dayHours: 7.5,
       preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: 20 } },
     });
+    expect(normaliseQuoteSettings({ charge_out_cents: "16500" }).chargeOutCents).toBe(16500);
+    expect(normaliseQuoteSettings({ charge_out_cents: 0 }).chargeOutCents).toBeNull();
     expect(quoteSettingsRow(s).preferred).toEqual({ pair_coil_14_12: { supplier_key: "aad", code: "PC1412", roll_m: 20 } });
   });
 });

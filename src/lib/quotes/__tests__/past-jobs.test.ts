@@ -40,7 +40,7 @@ function bench(j: PastJob, s: BuildSettings = ONE_BUSINESS): Row {
     (q.unitsCents != null && q.materialsCents != null && q.labourCents != null ? q.unitsCents + q.materialsCents + q.labourCents : null);
   /* the contingency is a margin Isaac asked for on top of what he used to
      quote, so the like-for-like comparison leaves it out */
-  const contingency = (b.contingency?.sellCents ?? 0) + Math.round((b.contingency?.hours ?? 0) * s.labourRateCents);
+  const contingency = (b.contingency?.sellCents ?? 0) + Math.round((b.contingency?.hours ?? 0) * s.chargeOutCents);
   return {
     job: j.job,
     kind: j.kind,

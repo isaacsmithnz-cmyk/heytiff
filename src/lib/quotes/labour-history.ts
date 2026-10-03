@@ -40,12 +40,13 @@ export function workKindOf(text: string | null | undefined, category: string | n
 
 export type LabourSample = { job: string; kind: WorkKind; personHours: number };
 
-/** A past job as a sample, when its brief states its labour and its kind
-    can be told. */
-export function sampleOf(job: string, text: string | null, category: string | null): LabourSample | null {
+/** A past job as a sample, when its brief states its labour in hours —
+    or in days and the business has set its working day — and its kind can
+    be told. */
+export function sampleOf(job: string, text: string | null, category: string | null, dayHours: number | null): LabourSample | null {
   const kind = workKindOf(text, category);
-  const labour = labourFromBrief(text);
-  if (!kind || !labour || labour.personHours <= 0) return null;
+  const labour = labourFromBrief(text, dayHours);
+  if (!kind || !labour || labour.personHours == null || labour.personHours <= 0) return null;
   return { job, kind, personHours: labour.personHours };
 }
 
@@ -73,8 +74,13 @@ export type LabourAdvice =
 
 /** Where a quote's labour comes from: the brief, then the business's own
     history, else nowhere — and then the quote says labour isn't set. */
-export function labourAdvice(brief: string | null, kind: WorkKind | null, samples: readonly LabourSample[]): LabourAdvice {
-  const labour = labourFromBrief(brief);
+export function labourAdvice(
+  brief: string | null,
+  kind: WorkKind | null,
+  samples: readonly LabourSample[],
+  dayHours: number | null
+): LabourAdvice {
+  const labour = labourFromBrief(brief, dayHours);
   if (labour) return { from: "brief", labour };
   const typical = kind ? typicalLabour(samples, kind) : null;
   if (typical) return { from: "history", typical };

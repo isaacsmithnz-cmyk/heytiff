@@ -1,66 +1,48 @@
--- Leave in the ServiceM8 queue (leave to ServiceM8).
+-- Customer changes in the ServiceM8 queue (customer details to ServiceM8).
 --
--- Approved leave, and a casual's day off, go onto the person's day on
--- ServiceM8's dispatch board as ServiceM8's own staff leave
--- (availability.json), and come off again when the leave is cancelled or
--- the day off taken down. A fourth kind, `leave`, beside files, notes and
--- bookings: the same queue, the same claim, the same account check.
+-- The job card's customer dialog saves as one row per record changed, a
+-- sixth kind, `customer`: a job contact added (under our uuid), changed or
+-- removed; the client's name and address changed; the job's billing address
+-- changed. The same queue, the same claim, the same account check.
 --
--- WHEN TO APPLY: BEFORE THE DEPLOY, and after sm8_bookings_queue.sql, which
+-- WHEN TO APPLY: BEFORE THE DEPLOY, and after sm8_new_job_queue.sql, which
 -- is applied. Additive and idempotent. Old code runs on it unchanged: the
--- three new columns are nullable, the kind checks only widen, and the shape
--- check is exactly the bookings file's rule for file, note and booking rows
--- with the new columns null (every existing row's are).
+-- two new columns are nullable, the kind checks only widen, and the shape
+-- check is exactly the new-job file's rule for every existing kind with the
+-- new columns null (every existing row's are).
 --
--- AFTER THIS FILE, NEVER RE-RUN sm8_bookings_queue.sql (or
--- sm8_notes_queue.sql): it would narrow the kind check back and replace the
--- shape check and sm8_set_write_kind with forms that refuse every leave row.
+-- AFTER THIS FILE, NEVER RE-RUN sm8_new_job_queue.sql (or an earlier queue
+-- file): it would narrow the kind check back and refuse every customer row.
 --
--- AFTER sm8_new_job_queue.sql, NEVER RE-RUN THIS ONE: it would narrow the
--- kind check back and refuse every job row.
+-- NOTHING ABOUT CUSTOMERS CHANGES IN PRODUCTION until SM8_WRITES names
+-- `customer` and the owner switches Customer details on.
 --
--- NOTHING ABOUT LEAVE CHANGES IN PRODUCTION until SM8_WRITES names `leave`
--- and the owner switches Leave on. Until then no leave row is ever inserted.
---
--- READ-ONLY, BEFORE:
---   select conname, pg_get_constraintdef(oid) from pg_constraint
---    where conname in ('sm8_writes_kind_check', 'sm8_writes_shape_check',
---                      'integration_connections_write_kinds_check');
---     -- kind in ('attachment','note','booking'); write_kinds <@ {attachment,note,booking}
---   select kind, op, status, count(*) from public.sm8_writes group by 1, 2, 3;   -- note this
---   select position('''leave''' in pg_get_functiondef(
---     'public.sm8_set_write_kind(uuid,text,boolean,timestamptz)'::regprocedure)) > 0;  -- false
--- AFTER:
---   the same constraint query: kind lists 'leave'; write_kinds allows 'leave'
---   select kind, op, status, count(*) from public.sm8_writes group by 1, 2, 3;   -- as BEFORE
+-- READ-ONLY, AFTER:
 --   select count(*) from information_schema.columns where table_schema = 'public'
---    and table_name = 'sm8_writes' and column_name in ('leave_staff_uuid', 'leave_start', 'leave_end');  -- 3
---   select position('''leave''' in pg_get_functiondef(
---     'public.sm8_set_write_kind(uuid,text,boolean,timestamptz)'::regprocedure)) > 0;  -- true
+--    and table_name = 'sm8_writes' and column_name in ('cust_object', 'cust_fields');  -- 2
+--   select kind, op, status, count(*) from public.sm8_writes group by 1, 2, 3;   -- as before
 --
--- ROLLING BACK THE CODE: DEPLOY.md's "Leave to ServiceM8" rollback. Old code
--- never sends a leave row: its kind list has no 'leave'.
+-- ROLLING BACK THE CODE: DEPLOY.md's "Customer details to ServiceM8".
 
 begin;
 
--- ── the queue: a fourth kind ──
+-- ── the queue: a sixth kind ──
 alter table public.sm8_writes drop constraint if exists sm8_writes_kind_check;
 alter table public.sm8_writes
-  add constraint sm8_writes_kind_check check (kind in ('attachment', 'note', 'booking', 'leave'));
+  add constraint sm8_writes_kind_check check (kind in ('attachment', 'note', 'booking', 'leave', 'job', 'customer'));
 
 alter table public.sm8_writes
-  -- the person's ServiceM8 staff uuid (a create)
-  add column if not exists leave_staff_uuid text,
-  -- the first day's start and the last day's end, the account's wall
-  -- clock, 'YYYY-MM-DD 00:00:00' and 'YYYY-MM-DD 23:59:59', never converted
-  add column if not exists leave_start      text,
-  add column if not exists leave_end        text;
+  -- which record a customer change is to: 'jobcontact', 'company' or 'job'
+  add column if not exists cust_object text,
+  -- only the fields that changed, by ServiceM8's own names
+  add column if not exists cust_fields jsonb;
 
 -- ── one shape rule for every kind ──
--- The bookings file's rule, word for word, with the new columns null in
--- every branch it had, and a branch for leave: a create carries the person
--- and the whole-day span; a delete names only its create (depends_on). No
--- leave row names a job, a note, a flag, a press's verb or a booking.
+-- The new-job file's rule, word for word, with the new columns null in
+-- every branch it had, and a branch for a customer change: which record and
+-- the fields that changed; a contact added names its job; a change or a
+-- removal names its record (target_uuid). No customer row names a note, a
+-- flag, a press's verb, a booking, leave or a new job.
 alter table public.sm8_writes drop constraint if exists sm8_writes_shape_check;
 alter table public.sm8_writes add constraint sm8_writes_shape_check check (coalesce(
   case
@@ -71,11 +53,19 @@ alter table public.sm8_writes add constraint sm8_writes_shape_check check (coale
       and booking_end is null and booking_zone is null
       and job_status_from is null and job_status_to is null
       and leave_staff_uuid is null and leave_start is null and leave_end is null
+      and job_company_uuid is null and job_company_new is null and job_parent_uuid is null
+      and job_contact_uuid is null and job_category_uuid is null and job_draft is null
+      and job_done is null and job_number is null
+      and cust_object is null and cust_fields is null
     when kind = 'note' then
       verb_id is null and booking_staff_uuid is null and booking_start is null
       and booking_end is null and booking_zone is null
       and job_status_from is null and job_status_to is null
       and leave_staff_uuid is null and leave_start is null and leave_end is null
+      and job_company_uuid is null and job_company_new is null and job_parent_uuid is null
+      and job_contact_uuid is null and job_category_uuid is null and job_draft is null
+      and job_done is null and job_number is null
+      and cust_object is null and cust_fields is null
       and case
         when op = 'create' then
           note_id is not null and depends_on is null and target_uuid is null and flag_done is null
@@ -92,6 +82,10 @@ alter table public.sm8_writes add constraint sm8_writes_shape_check check (coale
       note_id is null and flag_done is null and note_text is null
       and sm8_job_uuid is not null and verb_id is not null
       and leave_staff_uuid is null and leave_start is null and leave_end is null
+      and job_company_uuid is null and job_company_new is null and job_parent_uuid is null
+      and job_contact_uuid is null and job_category_uuid is null and job_draft is null
+      and job_done is null and job_number is null
+      and cust_object is null and cust_fields is null
       and case
         when op = 'create' then
           target_uuid is null and job_status_from is null and job_status_to is null
@@ -123,6 +117,10 @@ alter table public.sm8_writes add constraint sm8_writes_shape_check check (coale
       and target_uuid is null and verb_id is null
       and booking_staff_uuid is null and booking_start is null and booking_end is null
       and booking_zone is null and job_status_from is null and job_status_to is null
+      and job_company_uuid is null and job_company_new is null and job_parent_uuid is null
+      and job_contact_uuid is null and job_category_uuid is null and job_draft is null
+      and job_done is null and job_number is null
+      and cust_object is null and cust_fields is null
       and case
         when op = 'create' then
           depends_on is null
@@ -135,15 +133,44 @@ alter table public.sm8_writes add constraint sm8_writes_shape_check check (coale
           and leave_staff_uuid is null and leave_start is null and leave_end is null
         else false
       end
+    when kind = 'job' then
+      op = 'create' and sm8_job_uuid is null and note_id is null and depends_on is null
+      and target_uuid is null and flag_done is null and note_text is null and verb_id is null
+      and booking_staff_uuid is null and booking_start is null and booking_end is null
+      and booking_zone is null and job_status_from is null and job_status_to is null
+      and leave_staff_uuid is null and leave_start is null and leave_end is null
+      and job_company_uuid is not null
+      and (job_company_new is null or job_company_new in ('client', 'site'))
+      and ((job_company_new = 'site') = (job_parent_uuid is not null))
+      and jsonb_typeof(job_draft) = 'object' and job_draft ? 'address' and job_draft ? 'description'
+      and (job_done is null or job_done <@ array['company', 'job', 'contact']::text[])
+      and cust_object is null and cust_fields is null
+    when kind = 'customer' then
+      note_id is null and depends_on is null and flag_done is null and note_text is null
+      and verb_id is null and booking_staff_uuid is null and booking_start is null
+      and booking_end is null and booking_zone is null
+      and job_status_from is null and job_status_to is null
+      and leave_staff_uuid is null and leave_start is null and leave_end is null
+      and job_company_uuid is null and job_company_new is null and job_parent_uuid is null
+      and job_contact_uuid is null and job_category_uuid is null and job_draft is null
+      and job_done is null and job_number is null
+      and cust_object in ('jobcontact', 'company', 'job')
+      and jsonb_typeof(cust_fields) = 'object'
+      and case
+        when op = 'create' then cust_object = 'jobcontact' and sm8_job_uuid is not null and target_uuid is null
+        when op = 'update' then target_uuid is not null
+        when op = 'delete' then cust_object = 'jobcontact' and target_uuid is not null and taken_back_at is null
+        else false
+      end
     else false
   end, false));
 
--- ── the owner's switch per kind: a fourth kind ──
+-- ── the owner's switch per kind: a sixth kind ──
 alter table public.integration_connections
   drop constraint if exists integration_connections_write_kinds_check;
 alter table public.integration_connections
   add constraint integration_connections_write_kinds_check
-  check (write_kinds <@ array['attachment', 'note', 'booking', 'leave']::text[]);
+  check (write_kinds <@ array['attachment', 'note', 'booking', 'leave', 'job', 'customer']::text[]);
 
 create or replace function public.sm8_set_write_kind(p_org uuid, p_kind text, p_on boolean, p_at timestamptz)
 returns text[] language sql volatile set search_path = public
@@ -153,7 +180,7 @@ as $$
            when p_on then (select array_agg(distinct k order by k) from unnest(write_kinds || array[p_kind]) as k)
            else array_remove(write_kinds, p_kind) end,
          updated_at = p_at
-   where org_id = p_org and provider = 'servicem8' and p_kind in ('attachment', 'note', 'booking', 'leave')
+   where org_id = p_org and provider = 'servicem8' and p_kind in ('attachment', 'note', 'booking', 'leave', 'job', 'customer')
   returning write_kinds;
 $$;
 revoke execute on function public.sm8_set_write_kind(uuid, text, boolean, timestamptz) from public, anon, authenticated;

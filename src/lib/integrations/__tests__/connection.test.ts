@@ -74,6 +74,9 @@ describe("toView", () => {
       "publish_job_notes",
       "manage_schedule",
       "manage_jobs",
+      "create_jobs",
+      "manage_customers",
+      "manage_job_contacts",
     ]);
   });
 

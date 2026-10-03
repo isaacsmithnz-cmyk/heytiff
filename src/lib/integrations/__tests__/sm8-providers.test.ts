@@ -160,14 +160,40 @@ describe("missing scopes are judged per provider", () => {
    exactly which writes exist, and that none is asked for unless the owner
    has switched sending on. */
 describe("the write ask", () => {
-  it("is four scopes, each with its feature: files on a job, notes (two-way phase 2), bookings, which need two (phase 3), and leave, which needs one of theirs", () => {
-    expect(SM8_WRITE_SCOPE_LIST).toEqual(["manage_attachments", "publish_job_notes", "manage_schedule", "manage_jobs"]);
+  it("is seven scopes, each with its feature: files on a job, notes, bookings (two), leave (one of theirs), and new jobs (three of their own)", () => {
+    expect(SM8_WRITE_SCOPE_LIST).toEqual([
+      "manage_attachments",
+      "publish_job_notes",
+      "manage_schedule",
+      "manage_jobs",
+      "create_jobs",
+      "manage_customers",
+      "manage_job_contacts",
+    ]);
     expect(SM8_WRITE_KIND_SCOPES).toEqual({
       attachment: ["manage_attachments"],
       note: ["publish_job_notes"],
       booking: ["manage_schedule", "manage_jobs"],
       leave: ["manage_schedule"],
+      job: ["create_jobs", "manage_customers", "manage_job_contacts"],
+      customer: ["manage_job_contacts", "manage_customers", "manage_jobs"],
     });
+  });
+
+  it("says ServiceM8 may charge for a job, where its permission is asked", () => {
+    const why = SM8_WRITE_SCOPES.find((s) => s.scope === "create_jobs")!.why;
+    expect(why).toMatch(/may charge/);
+    expect(why).toMatch(/only when someone presses Create/);
+  });
+
+  it("a deployment that doesn't send new jobs never asks for their permissions", () => {
+    for (const kinds of [["attachment"], ["attachment", "note"], ["attachment", "note", "booking", "leave"]]) {
+      const asked = sm8ScopesWanted("live", kinds);
+      expect(asked).not.toContain("create_jobs");
+      expect(asked).not.toContain("manage_customers");
+      expect(asked).not.toContain("manage_job_contacts");
+    }
+    expect(sm8ScopesWanted("live", ["attachment", "job"])).toEqual(expect.arrayContaining(["create_jobs", "manage_customers", "manage_job_contacts"]));
   });
 
   it("says what the notes permission allows, and what HeyTiff does with it", () => {

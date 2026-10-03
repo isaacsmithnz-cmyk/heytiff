@@ -15,7 +15,11 @@
 
    AND THE SAME FOR LEAVE. With SM8_WRITES not naming `leave`, approving,
    cancelling or marking a day off changes nothing about ServiceM8: every
-   leave read and write asks sm8LeaveAllowed() first (sm8-leave-prod.test). */
+   leave read and write asks sm8LeaveAllowed() first (sm8-leave-prod.test).
+
+   AND THE SAME FOR NEW JOBS. With SM8_WRITES not naming `job`, nothing
+   about the New job form, the queue or the board changes: every job read
+   and write asks sm8JobsAllowed() first (sm8-job-prod.test). */
 
 import { sm8WriteKindsFrom, type Sm8WriteKind } from "./sm8-write-plan";
 
@@ -39,4 +43,15 @@ export function sm8BookingsAllowed(): boolean {
 /** Whether this deployment writes leave (SM8_WRITES names `leave`). */
 export function sm8LeaveAllowed(): boolean {
   return sm8WriteKindsEnabled().includes("leave");
+}
+
+/** Whether this deployment saves customer details to ServiceM8 (SM8_WRITES
+    names `customer`). */
+export function sm8CustomersAllowed(): boolean {
+  return sm8WriteKindsEnabled().includes("customer");
+}
+
+/** Whether this deployment starts jobs in ServiceM8 (SM8_WRITES names `job`). */
+export function sm8JobsAllowed(): boolean {
+  return sm8WriteKindsEnabled().includes("job");
 }

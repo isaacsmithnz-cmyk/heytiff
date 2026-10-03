@@ -12,6 +12,7 @@
 /* the two booking permissions' sentences, from the words module that
    imports nothing (sm8-booking-words), so this file stays pure data */
 import { BOOKING_WORDS } from "./sm8-booking-words";
+import { JOB_WORDS } from "./sm8-job-words";
 
 export type ProviderId = "xero" | "servicem8";
 
@@ -399,6 +400,14 @@ export const SM8_WRITE_SCOPES: ScopeEntry[] = [
   },
   { scope: "manage_schedule", area: "Workboard", why: BOOKING_WORDS.scope.schedule },
   { scope: "manage_jobs", area: "Workboard", why: BOOKING_WORDS.scope.jobs },
+  /* NEW JOBS (2026-10-03): read off ServiceM8's reference that day —
+     create_jobs ("creating jobs may incur account charges"), manage_customers
+     (the Company endpoint: a new client, or a site under a builder) and
+     manage_job_contacts (the JobContact endpoint). manage_jobs, already
+     asked for bookings, can remove jobs but not create them. */
+  { scope: "create_jobs", area: "Workboard", why: JOB_WORDS.scope.createJobs },
+  { scope: "manage_customers", area: "Workboard", why: JOB_WORDS.scope.customers },
+  { scope: "manage_job_contacts", area: "Workboard", why: JOB_WORDS.scope.jobContacts },
 ];
 
 export const SM8_WRITE_SCOPE_LIST: string[] = SM8_WRITE_SCOPES.map((s) => s.scope);
@@ -415,6 +424,13 @@ export const SM8_WRITE_KIND_SCOPES = {
   /* leave approved here goes onto the person's day as ServiceM8's own staff
      leave (availability.json), which manage_schedule covers */
   leave: ["manage_schedule"],
+  /* a new job from the New job form: its client or site, the job, and its
+     contact */
+  job: ["create_jobs", "manage_customers", "manage_job_contacts"],
+  /* customer details saved from the job card: the job's contacts, the
+     client's name and address, the job's billing address — every one a
+     permission already asked for new jobs or bookings */
+  customer: ["manage_job_contacts", "manage_customers", "manage_jobs"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Sm8WriteKindName = keyof typeof SM8_WRITE_KIND_SCOPES;

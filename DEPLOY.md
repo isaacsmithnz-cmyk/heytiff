@@ -528,6 +528,89 @@ screen, no read and no write.
 4. Revert the code. The migration stays: old code never reads the new columns.
 5. **Tell Isaac:** leave HeyTiff put on the board stays there; leave cancelled after the rollback has to come off the board by hand.
 
+#### New jobs to ServiceM8
+
+The fifth kind of write is **job**. The Workboard's New job form starts a job
+in ServiceM8 as a **Quote**: one queued row, sent as up to three requests in
+order, each under a uuid HeyTiff chose when the row was queued — a new client
+or a new site under a builder (`company.json`), the job (`job.json`), and the
+person to ring (`jobcontact.json`, type `JOB`). A step whose answer was lost
+is read back, never made twice; a Create pressed twice is one job. **A trial
+run sends nothing at all.** ServiceM8's reference warns that creating jobs
+may incur account charges, as it does for jobs started there; the switch says
+so. The owner's card carries **New jobs** beside the other kinds, and it
+**starts Off**. It needs three permissions no other kind asks for —
+`create_jobs`, `manage_customers` and `manage_job_contacts` — so switching it
+on **needs a reconnect**. The migration `docs/migrations/sm8_new_job_queue.sql`
+adds the kind, eight columns on `sm8_writes`, the job's branch of the shape
+check, and the owner's fifth switch. With `SM8_WRITES` not naming `job`
+nothing about new jobs changes: no screen, no read, no write, and no new
+permission asked for.
+
+**The order:**
+
+1. Apply `docs/migrations/sm8_new_job_queue.sql` before the deploy. Run its read-only checks before and after. **Never re-run `sm8_leave_queue.sql` after it.**
+2. Deploy. With `SM8_WRITES` not naming `job`, nothing new shows.
+3. Set `SM8_WRITES=attachment,note,booking,leave,job` (or the current list plus `job`) and redeploy, while Isaac isn't designing (a redeploy reloads open tabs).
+4. The owner turns **New jobs On** on the ServiceM8 screen, then **Reconnect** and approves the three new permissions on ServiceM8's screen.
+5. Start one test job from the form and check it in ServiceM8: the client, the job as a Quote at the right address, and its contact.
+
+**Rollback:**
+
+1. The owner turns **New jobs Off**. This cancels every waiting job row.
+2. Set `SM8_WRITES` without `job` and redeploy. Wait two minutes, the longest lease.
+3. First, in the Supabase SQL editor, list the clients that were made without their job, so the office can tidy them in ServiceM8:
+
+   ```sql
+   select id, job_company_uuid, job_draft->>'companyName' as client
+     from public.sm8_writes
+    where kind = 'job' and job_done @> array['company'] and not (job_done @> array['job']);
+   ```
+
+4. Then cancel what's left:
+
+   ```sql
+   begin;
+   update public.sm8_writes
+      set status = 'cancelled',
+          last_error = 'Sending new jobs to ServiceM8 was switched off before it went.',
+          lease_until = null, claim_id = null, updated_at = now()
+    where kind = 'job' and status in ('queued', 'sending', 'failed', 'trial');
+   commit;
+   ```
+
+5. Revert the code. The migration stays: old code never reads the new columns.
+6. **Tell Isaac:** jobs HeyTiff started stay in ServiceM8.
+
+#### Customer details to ServiceM8
+
+The sixth kind of write is **customer**. The job card's Contacts block gets
+**Edit**, which opens a dialog: the client's name and address, the job's
+contacts each with their role (Job contact, Billing contact, Site contact,
+Property manager, Property owner, Tenant), and the job's billing address with
+**Same as the site**. Saving sends only what changed, one row per record: a
+contact added under our uuid (`jobcontact.json`), a record changed with only
+its changed fields (`company/{uuid}.json` with its live `name`,
+`job/{uuid}.json` with its live `status`, `jobcontact/{uuid}.json`), a
+contact removed (`DELETE jobcontact/{uuid}.json`, sent only after a live
+read finds it active, never a second time). The billing address is read live
+from ServiceM8 when the dialog opens; the mirror still doesn't keep it. The
+owner's card carries **Customer details**, starting **Off**. It needs
+`manage_job_contacts`, `manage_customers` and `manage_jobs` — all asked for
+already by New jobs and Bookings — so where those are approved it needs **no
+further reconnect**. The migration `docs/migrations/sm8_customer_queue.sql`
+adds the kind, two columns and its shape branch.
+
+**The order:**
+
+1. Apply `docs/migrations/sm8_customer_queue.sql` before the deploy. **Never re-run `sm8_new_job_queue.sql` after it.**
+2. Deploy. With `SM8_WRITES` not naming `customer`, nothing new shows.
+3. Add `customer` to `SM8_WRITES` and redeploy (with `job`, if New jobs goes on at the same time: one redeploy, one reconnect).
+4. The owner turns **Customer details On**.
+5. Edit one test job's contact and check it in ServiceM8.
+
+**Rollback:** Customer details Off (cancels waiting rows); `SM8_WRITES` without `customer`, redeploy, wait two minutes; cancel what's left with `update public.sm8_writes set status = 'cancelled', last_error = 'Sending customer changes to ServiceM8 was switched off before it went.', lease_until = null, claim_id = null, updated_at = now() where kind = 'customer' and status in ('queued', 'sending', 'failed', 'trial');`; revert the code. Changes already made stay in ServiceM8.
+
 #### Time off on the Schedule (leave to ServiceM8, part two)
 
 The sync reads ServiceM8's Availability (`availability.json`) into

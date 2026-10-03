@@ -7,7 +7,6 @@ import {
   wallBracketCode,
   type BuildLine,
   type ReturnSize,
-  type Visit,
 } from "./buildup";
 import { brandOfCode, wrongBrand, type Brand } from "./brand";
 import { rollMetresOf } from "./components";
@@ -22,8 +21,11 @@ import { CONSUMABLES_CENTS, PAIR_COIL_ROLL, VOLTEX_35A_CENTS, type SplitFacts } 
    on 14 and 12 inch flex, a 10 inch bag per outlet, cone diffusers,
    the return box and its filter, a 20 m roll of pair coil, the unit hung
    on timber and threaded rod, a 20 mm PVC drain, one rubber mount, a Voltex
-   isolator, two lengths of trunking and the consumables. Labour 4
-   person-days.
+   isolator, two lengths of trunking and the consumables.
+
+   NO LABOUR HERE (Isaac, 2026-10-04: "any job should not recommend labour
+   without data"): it is read from the brief, or suggested from the
+   business's own jobs (brief-labour, labour-history).
 
    Each rule besides came from Isaac on a real job (2026-09-30):
    - trunks off the nose cone instead, BTOs and Ys by AAD code (job 2330);
@@ -88,13 +90,6 @@ export type DuctedFacts = {
   /** a swap that still needs new ductwork parts: a new supply plenum
       (2749's double-14), an access panel set and plastered in */
   swapNew?: { plenum?: boolean; accessPanel?: boolean };
-  /** who the brief says it takes on the install day; unsaid, the builder
-      suggests (see suggestedCrew) and a person confirms */
-  crew?: number;
-  /** a visit back to finish, in person-days: patching, plaster and paint,
-      commissioning. Ducted jobs average about one person-day of it (past
-      jobs); 2749 took half a day to set and plaster an access panel. */
-  returnDays?: number;
   /** an old system comes out: its refrigerant recovered, the units gone */
   replacing?: boolean;
   /** a new build: the ductwork and pipe roughed in before the ceilings go up */
@@ -295,24 +290,4 @@ export function ductedLines(f: DuctedFacts, priceOf: PriceOf, materialMarkupPct 
   return { lines, missing, returnSize: ret, returnMs: ret && f.airflowLs ? Math.round(faceVelocity(f.airflowLs, ret) * 10) / 10 : null };
 }
 
-/** What the builder suggests for the install day: four for a new install
-    (Isaac's own figure on 3283 and 3372), three for a swap into the old
-    ductwork ("2 x trades + TA", 3210). The brief overrides it — 2749, an
-    apartment changeover, took five — and a person confirms. */
-export const suggestedCrew = (f: Partial<Pick<DuctedFacts, "reuse">> = {}) => (f.reuse?.ductwork ? 3 : 4);
 
-/** The visits: the install day with the brief's crew (else the suggestion),
-    a day more to fit new zone motors into a swap, a rough-in first on a new
-    build, and a second pair a day to run the upper floor of a house on two
-    levels (2716, 3272: both within 1% with the day, 14% under without it).
-    A return visit is added when the job needs one. */
-export function ductedVisits(f: Partial<Pick<DuctedFacts, "reuse" | "zoning" | "newBuild" | "storeys" | "crew" | "returnDays">> = {}): Visit[] {
-  const swap = !!f.reuse?.ductwork;
-  const visits: Visit[] = [];
-  if (f.newBuild) visits.push({ stage: "Rough-in", people: 2, days: 1 });
-  visits.push({ stage: "Install", people: f.crew && f.crew > 0 ? Math.round(f.crew) : suggestedCrew(f), days: 1 });
-  if (swap && f.zoning && f.zoning !== "none" && !f.reuse?.zoneMotors) visits.push({ stage: "Install", people: 1, days: 1 });
-  if (!f.newBuild && (f.storeys ?? 1) > 1) visits.push({ stage: "Install", people: 2, days: 1 });
-  if (f.returnDays && f.returnDays > 0) visits.push({ stage: "Return", people: 1, days: f.returnDays });
-  return visits;
-}

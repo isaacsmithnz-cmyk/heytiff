@@ -4,7 +4,6 @@ import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "r
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { ViewTabs, type ViewTab } from "@/components/shell/view-tabs";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import {
@@ -41,6 +40,8 @@ import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteFace } from "./job-quote-face";
+import { JobProgressLine } from "./job-progress-line";
+import { jobSteps, type StepKey } from "@/lib/workboard/job-steps";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { listSwmsForJob } from "@/app/actions/swms";
 import { uploadFile } from "@/lib/documents/upload-client";
@@ -201,6 +202,18 @@ export type JobSheetTab =
   | "photos"
   | "documents";
 type TabKey = JobSheetTab;
+
+/** A face's name, for the faces a step opens rather than the rail. */
+const FACE_NAME: Record<TabKey, string> = {
+  summary: "Summary",
+  diary: "Timeline",
+  quote: "Quote",
+  money: "Billing",
+  visits: "Visits",
+  checklist: "Checklist",
+  photos: "Photos",
+  documents: "Files",
+};
 
 /** A SWMS version as a page the card's viewer can hold — the printable
     document, which carries its own Print button and its own version. */
@@ -378,6 +391,9 @@ export function JobSheet({
         ? initialTab
         : "summary"
   );
+  /* THE STEP whose part is open below, when the progress line opened it;
+     null when the rail did. A door that came to book opens on Installation. */
+  const [step, setStep] = useState<StepKey | null>(() => (openBookIn || openClear ? "installation" : null));
   const [naming, setNaming] = useState(false);
   const [allVisits, setAllVisits] = useState(false);
   /* The claim this card was opened FOR, when a clone's row was clicked. It
@@ -914,6 +930,29 @@ export function JobSheet({
   const money = moneyVisible ? (detail?.money ?? null) : null;
   const materials = (record?.ledger?.materials ?? []).filter((m) => !isPartialInvoiceLine(m));
   const family = record?.family ?? null;
+  const steps = useMemo(
+    () =>
+      jobSteps(
+        {
+          status: detail?.status ?? null,
+          date: detail?.date ?? null,
+          quoteDate: detail?.quoteDate ?? null,
+          workOrderDate: detail?.workOrderDate ?? null,
+          completionDate: detail?.completionDate ?? null,
+          visitDays: (detail?.visits ?? []).map((v) => v.day),
+          nextBookingDay: detail?.nextBooking?.start.slice(0, 10) ?? null,
+          materials: picklist
+            ? (() => {
+                const m = picklist.filter((p) => p.kind === "material");
+                return { total: m.length, in: m.filter((p) => p.picked).length };
+              })()
+            : null,
+          family,
+        },
+        moneyVisible
+      ),
+    [detail, picklist, family, moneyVisible]
+  );
   /* The card's own number — the PARENT's, even when a claim's row opened it. */
   const cardNumber = detail?.jobNumber ?? row.number ?? null;
   const focusClaim = claimFor(family, focus);
@@ -1676,22 +1715,33 @@ export function JobSheet({
       });
   };
 
-  /* THE TAB SET IS FIXED FROM FIRST PAINT — the money grant is known at
-     open, so no face pops in as a read lands and the thumb never jumps.
-     Once-per-job acts live behind the band's ⋯, not on a face: two buttons
-     never earned one. */
-  const tabs: ViewTab[] = [
+  /* THE RAIL — the parts of the job that aren't a step: its summary, the
+     timeline, billing, photos and files (Isaac, 2026-10-01: "the left-hand
+     side is like the selection point"). Fixed from first paint, the money
+     grant known at open, so nothing pops in as reads land. The quote, the
+     visits and the checklist open from their steps on the line above. */
+  const rail: { key: TabKey; label: string }[] = [
     { key: "summary", label: "Summary" },
-    { key: "diary", label: "Diary" },
-    /* the proposal draft is office work, and every draft spends API credit:
-       it is there for whoever runs the board, and absent otherwise */
-    ...(manage ? [{ key: "quote", label: "Quote" }] : []),
-    ...(moneyVisible ? [{ key: "money", label: "Money" }] : []),
-    { key: "visits", label: "Visits" },
-    { key: "checklist", label: "Checklist" },
+    { key: "diary", label: "Timeline" },
+    ...(moneyVisible ? [{ key: "money" as const, label: "Billing" }] : []),
     { key: "photos", label: "Photos" },
-    { key: "documents", label: "Documents" },
+    { key: "documents", label: "Files" },
   ];
+
+  /* What each step opens. The quote is office work and only there for whoever
+     runs the board; without it the quote steps open the summary. */
+  const faceOf = (k: StepKey): TabKey =>
+    k === "quoted" || k === "accepted"
+      ? manage
+        ? "quote"
+        : "summary"
+      : k === "deposit" || k === "paid"
+        ? "money"
+        : k === "materials"
+          ? "checklist"
+          : k === "installation"
+            ? "visits"
+            : "summary";
 
   const go = (key: string) => {
     touchedTab.current = true;
@@ -1699,15 +1749,32 @@ export function JobSheet({
       setFlagFocus(false);
       setReplyFor(null);
     }
+    setStep(null);
     setTab(key as TabKey);
+  };
+
+  const openStep = (k: StepKey) => {
+    go(faceOf(k));
+    setStep(k);
+  };
+
+  /* Up and down walk the rail, as a vertical tab list does. */
+  const railKey = (e: React.KeyboardEvent, i: number) => {
+    const d = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const next = rail[(i + d + rail.length) % rail.length]!;
+    go(next.key);
+    document.getElementById(`jctab-${next.key}`)?.focus();
   };
 
   const panel = (key: TabKey, body: React.ReactNode) => (
     <section
       className="wb2-jcface"
       id={`jcsec-${key}`}
-      role="tabpanel"
-      aria-labelledby={`jctab-${key}`}
+      role={rail.some((r) => r.key === key) ? "tabpanel" : "region"}
+      aria-labelledby={rail.some((r) => r.key === key) ? `jctab-${key}` : undefined}
+      aria-label={rail.some((r) => r.key === key) ? undefined : FACE_NAME[key]}
       hidden={tab !== key}
     >
       {body}
@@ -1723,7 +1790,7 @@ export function JobSheet({
     <>
       <div className="wb2-scrim" onClick={onClose} />
       <aside
-        className="wb2-sheet jc"
+        className="wb2-sheet jc jcl"
         role="dialog"
         aria-modal="true"
         aria-label={`${row.clientName ?? "Job"}${row.number ? ` — job ${row.number}` : ""}`}
@@ -1956,14 +2023,29 @@ export function JobSheet({
             />
           )}
 
-          <ViewTabs
-            items={tabs}
-            active={tab}
-            onGo={go}
-            ariaLabel="Job card"
-            idPrefix="jctab"
-            panelPrefix="jcsec"
-          />
+          <JobProgressLine steps={steps} open={step} onOpen={openStep} />
+        </div>
+
+        <div className="jcl-body">
+        <div className="jcl-rail">
+          <div className="jcl-nav" role="tablist" aria-orientation="vertical" aria-label="Job card">
+            {rail.map((r, i) => (
+              <button
+                key={r.key}
+                type="button"
+                role="tab"
+                id={`jctab-${r.key}`}
+                aria-controls={`jcsec-${r.key}`}
+                aria-selected={step === null && tab === r.key}
+                tabIndex={step === null && tab === r.key ? 0 : -1}
+                className={"jcl-ni" + (step === null && tab === r.key ? " on" : "")}
+                onClick={() => go(r.key)}
+                onKeyDown={(e) => railKey(e, i)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="wb2-jcbody">
@@ -2415,6 +2497,7 @@ export function JobSheet({
               ⋯; the naming row below is the only floor furniture, and only
               while a project is being named — and the send row, only while
               the Documents face has something ticked. */}
+        </div>
         </div>
 
         {/* SENDING WHAT'S TICKED — the card's footer, under the scrolling body,

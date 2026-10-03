@@ -86,7 +86,7 @@ export const PAST_JOBS: PastJob[] = [
   split("2225", "2025-11", 4.2, 2, { cost: 1108, units: 1495.8, materials: KIT_10M_38, labour: 2640 }),
   split("2126", "2025-10", 3.5, 1, { cost: 923, units: 1246.05, materials: 299.87, labour: 1320 }),
   split("2070", "2025-10", 6, 2, { cost: 1480, units: 1702, materials: KIT, labour: 2200 }),
-  split("1880", "2025-08", 4.8, 1.5, { cost: 1265, units: 1496.5, materials: KIT, labour: 1980 }, "back to back, as its brief says", { backToBack: true }),
+  split("1880", "2025-08", 4.8, 1.5, { cost: 1265, units: 1496.5, materials: KIT, labour: 1980 }, "back to back, as its brief says"),
   split("1763", "2025-07", 7.1, 2, { cost: 1572, units: 2122.2, materials: KIT, labour: 2640 }),
   split("1616", "2025-06", 4.2, 2),
   split("1609", "2025-06", 7.1, 2),

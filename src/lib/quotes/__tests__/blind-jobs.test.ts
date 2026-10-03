@@ -3,9 +3,9 @@
    past-jobs.test.ts on purpose — a scope leaves things out — but ratcheted
    the same way. BLIND_JOBS_REPORT=1 prints the table. */
 import { priceBuildUp, type BuildLine, type Visit } from "../buildup";
-import { ductedLines, ductedVisits, type PriceOf } from "../ducted-template";
-import { multiLines, multiVisits } from "../multi-template";
-import { splitLines, splitVisits } from "../split-template";
+import { ductedLines, type PriceOf } from "../ducted-template";
+import { multiLines } from "../multi-template";
+import { splitLines } from "../split-template";
 import { BLIND_JOBS, type BlindJob } from "./fixtures/blind-jobs";
 import { BLIND_JOBS_BOOK } from "./fixtures/blind-jobs-book";
 
@@ -22,8 +22,10 @@ function build(j: BlindJob) {
     const r = s.kind === "split" ? splitLines(s.facts, priceOf) : s.kind === "multi" ? multiLines(s.facts, priceOf) : ductedLines(s.facts, priceOf);
     lines.push(...r.lines.map((l) => ({ ...l, key: `${s.kind}-${l.key}-${lines.length}` })));
     missing.push(...r.missing);
-    visits.push(...(s.kind === "split" ? splitVisits(s.facts) : s.kind === "multi" ? multiVisits(s.facts) : ductedVisits(s.facts)));
   }
+  /* labour only where Isaac's own notes give it — never the builder's guess
+     (2026-10-04) */
+  if (j.notedPersonDays != null) visits.push({ stage: "Install", people: 1, days: j.notedPersonDays });
   const b = priceBuildUp(lines, visits);
   return { b, missing, gap: ((b.exGstCents - j.quotedCents) / j.quotedCents) * 100 };
 }
@@ -59,19 +61,13 @@ describe("the quote builder on quotes it never saw the lines of", () => {
     expect(rows.length).toBe(15);
   });
 
-  it("matches the person-days Isaac's own notes give", () => {
-    const noted = rows.filter((r) => r.j.notedPersonDays != null);
-    /* 3256 was noted at 3 with its circuit to run; the rule says 2 */
-    expect(noted.map((r) => [r.j.job, r.b.labour.personDays - r.j.notedPersonDays!])).toEqual([
-      ["3256", -1],
-      ["3249", 0],
-      ["3210", 0],
-    ]);
+  it("prices labour only where Isaac's own notes give it, and invents none", () => {
+    expect(rows.map((r) => [r.j.job, r.b.labour.personDays])).toEqual(rows.map((r) => [r.j.job, r.j.notedPersonDays ?? 0]));
   });
 
-  it("lands near the sum that was quoted", () => {
-    const gaps = rows.map((r) => Math.abs(r.gap));
-    expect(median(gaps)).toBeLessThanOrEqual(13);
-    expect(gaps.filter((g) => g <= 5).length).toBeGreaterThanOrEqual(5);
+  it("lands near the sum that was quoted, where the notes give the labour", () => {
+    const gaps = rows.filter((r) => r.j.notedPersonDays != null).map((r) => Math.abs(r.gap));
+    expect(gaps.length).toBe(3);
+    expect(median(gaps)).toBeLessThanOrEqual(10.5);
   });
 });

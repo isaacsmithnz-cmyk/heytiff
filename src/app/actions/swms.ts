@@ -166,6 +166,7 @@ export async function approveSwmsLibrary(): Promise<ApproveResult> {
   if (error) return { ok: false, error: "Couldn't record the approval. Try again." };
   revalidatePath(WB);
   revalidatePath("/dashboard/admin/templates");
+  revalidatePath("/dashboard/admin/templates/swms");
   return { ok: true };
 }
 

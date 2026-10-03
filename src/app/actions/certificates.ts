@@ -44,7 +44,6 @@ import {
    throws: the wizard says what went wrong in words. */
 
 const trim = (v: unknown, max = 80) => String(v ?? "").trim().slice(0, max);
-const TEMPLATES = "/dashboard/admin/templates";
 
 export type CertWizardContext = {
   job: CertJob;
@@ -203,7 +202,8 @@ export async function approveCertWording(): Promise<CertResult> {
   });
   /* approved twice at once: the unique index kept one, and it is approved */
   if (error && (error as { code?: string }).code !== "23505") return { ok: false, error: "Couldn't save the approval." };
-  revalidatePath(TEMPLATES);
+  revalidatePath("/dashboard/admin/templates");
+  revalidatePath("/dashboard/admin/templates/certificate");
   return { ok: true };
 }
 

@@ -1,18 +1,27 @@
-import { brandContact, hasBrand, type OrgBrand } from "@/lib/org/brand";
-import { BrandLogo } from "@/components/org/letterhead";
-import { themeVars } from "@/lib/org/theme";
+import type { ReactNode } from "react";
+import type { OrgBrand } from "@/lib/org/brand";
+import { DocPaper } from "@/components/documents/doc-paper";
 import { fmtDay } from "@/lib/format/day";
-import { CERT_LEDE, CERT_TITLE, NOT_APPLICABLE, addressLines, fmtNum, longDay, type AcRow, type CertContent, type FanRow } from "@/lib/certs/mechanical";
+import {
+  CERT_LEDE,
+  CERT_TITLE,
+  NOT_APPLICABLE,
+  addressLines,
+  fmtNum,
+  longDay,
+  type AcRow,
+  type CertContent,
+  type FanRow,
+  type Statement,
+} from "@/lib/certs/mechanical";
 import type { BusinessPapers, HeldLicence } from "@/lib/certs/query";
-import "@/components/studio/summary/sheet-doc.css";
-import "./certificate.css";
 
 /* THE CERTIFICATE AS PAPER — one version, as it was issued.
 
    DRESSED AS THE DESIGN SHEET, by wearing its own classes: the frame in the
-   business's colour, the two-party masthead and the row of facts are
-   `dsd-` rules from sheet-doc.css, which Isaac has already
-   approved, so a certificate and a design summary read as one business's
+   business's colour, the two-party masthead and the row of facts are the
+   business's paper (components/documents/doc-paper), the design sheet's
+   `dsd-` rules, so a certificate and a design summary read as one business's
    paperwork. The tables are the certificate's own (certificate.css): the
    design sheet's rooms table is built for nine columns and turns into a list
    below 1024px, which these few columns never need.
@@ -137,6 +146,11 @@ function FanTable({ content }: { content: CertContent }) {
   );
 }
 
+/** Drawn as its template rather than one job's certificate: the job's facts
+    and the signature are named in brackets, and each statement is drawn by
+    the caller, with when it prints and whether it changed. */
+export type CertificateBlank = { statement: (s: Statement, i: number) => ReactNode };
+
 export function CertificatePaper({
   content,
   brand,
@@ -144,6 +158,7 @@ export function CertificatePaper({
   job,
   signOff,
   version,
+  blank,
 }: {
   content: CertContent;
   brand: OrgBrand;
@@ -151,138 +166,74 @@ export function CertificatePaper({
   job: PaperJob;
   signOff: PaperSignOff;
   version: number;
+  blank?: CertificateBlank;
 }) {
   const address = addressLines(job.address);
   const site = address[0] ?? "";
-  const named = hasBrand(brand);
-  const contact = [...papers.licences, ...brandContact(brand)];
 
   const figures: { label: string; value: string }[] = [
     ...(content.building
       ? [{ label: "Building", value: content.building.cls ? `${content.building.label} (${content.building.cls})` : content.building.label }]
       : []),
-    { label: "Completed", value: fmtDay(content.completedOn) },
+    { label: "Completed", value: blank ? "[Date]" : fmtDay(content.completedOn) },
   ];
 
-  /* the facts row's column count, as a custom property: built here, as a
-     plain object, because React Compiler 1.0 can't lower a computed key */
-  const figsStyle = { "--cer-n": figures.length } as React.CSSProperties;
-
   return (
-    <article className="dsd cer" style={themeVars(brand.color)}>
-      <div className="dsd-bband" aria-hidden="true" />
-      <div className="dsd-bwell" aria-hidden="true" />
-      {/* the design sheet's frame table: on paper it holds the frame's space
-          open on every page; on screen it is blocks (sheet-doc.tsx says why) */}
-      <table className="dsd-frame" role="presentation">
-        <thead>
-          <tr>
-            <td className="dsd-fr-t" />
-          </tr>
-        </thead>
-        <tfoot>
-          <tr>
-            <td className="dsd-fr-b" />
-          </tr>
-        </tfoot>
-        <tbody>
-          <tr>
-            <td className="dsd-fr-c">
-              <div className="dsd-fr-w">
-                <div className="dsd-mast">
-                  <div className="dsd-mast-job">
-                    <p className="dsd-eyebrow">{content.title}</p>
-                    <h1>{site || CERT_TITLE}</h1>
-                    <div className="dsd-prep">
-                      <span className="dsd-lab">Prepared by</span>
-                      <span className="dsd-org">{named && brand.name ? brand.name : "HeyTiff"}</span>
-                    </div>
-                    <address className="dsd-to">
-                      {job.builder && <span className="dsd-to-n">{job.builder}</span>}
-                      {address.map((line) => (
-                        <span key={line} className="dsd-to-l">
-                          {line}
-                        </span>
-                      ))}
-                      {job.number && (
-                        <span className="dsd-job">
-                          <em>Job</em>
-                          <b>{job.number}</b>
-                        </span>
-                      )}
-                    </address>
-                  </div>
-                  {named && (
-                    <div className="dsd-ident">
-                      <BrandLogo brand={brand} className="dsd-idlogo" />
-                      {contact.length > 0 && (
-                        <ul className="dsd-idc">
-                          {contact.map((line) => (
-                            <li key={line}>{line}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                </div>
+    <DocPaper
+      eyebrow={content.title}
+      heading={site || CERT_TITLE}
+      brand={brand}
+      toName={job.builder}
+      toLines={address}
+      jobNumber={job.number}
+      licences={papers.licences}
+      figures={figures}
+    >
+      {content.covers.ac && content.systems.length > 0 && <AcTable content={content} />}
+      {content.covers.vent && content.fans.length > 0 && <FanTable content={content} />}
 
-                <dl className="dsd-figs cer-figs" style={figsStyle}>
-                  {figures.map((f) => (
-                    <div key={f.label}>
-                      <dt>{f.label}</dt>
-                      <dd>{f.value}</dd>
-                    </div>
-                  ))}
-                </dl>
+      <section className="cer-sec">
+        <h2 className="cer-h">Certification</h2>
+        <p className="cer-lede">{CERT_LEDE}</p>
+        <ol className="cer-st">
+          {content.statements.map((s, i) => (
+            <li key={i}>{blank ? blank.statement(s, i) : s.text}</li>
+          ))}
+        </ol>
+        {content.notApplicable.map((s, i) => (
+          <p key={i} className="cer-note">
+            {`${NOT_APPLICABLE} ${s.text}`}
+          </p>
+        ))}
+        {content.notCovered && <p className="cer-note">{content.notCovered}</p>}
+      </section>
 
-                {content.covers.ac && content.systems.length > 0 && <AcTable content={content} />}
-                {content.covers.vent && content.fans.length > 0 && <FanTable content={content} />}
+      <dl className="cer-sign">
+        <div>
+          <dt>Signed</dt>
+          <dd className="cer-sig">
+            {!blank && (
+              /* built server-side from a validated path (lib/swms/input signatureSvg) */
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={`data:image/svg+xml;utf8,${encodeURIComponent(signOff.signatureSvg)}`} alt={`Signature of ${signOff.name}`} />
+            )}
+          </dd>
+          <dd className="cer-who">
+            {signOff.name}
+            <span>{blank ? "[Date]" : longDay(signOff.signedOn)}</span>
+          </dd>
+        </div>
+        <div>
+          <dt>ARC licence</dt>
+          <dd className="cer-who">{signOff.arc?.number ?? ""}</dd>
+        </div>
+        <div>
+          <dt>Contractor licence</dt>
+          <dd className="cer-who">{signOff.contractor?.number ?? ""}</dd>
+        </div>
+      </dl>
 
-                <section className="cer-sec">
-                  <h2 className="cer-h">Certification</h2>
-                  <p className="cer-lede">{CERT_LEDE}</p>
-                  <ol className="cer-st">
-                    {content.statements.map((s, i) => (
-                      <li key={i}>{s.text}</li>
-                    ))}
-                  </ol>
-                  {content.notApplicable.map((s, i) => (
-                    <p key={i} className="cer-note">
-                      {`${NOT_APPLICABLE} ${s.text}`}
-                    </p>
-                  ))}
-                  {content.notCovered && <p className="cer-note">{content.notCovered}</p>}
-                </section>
-
-                <dl className="cer-sign">
-                  <div>
-                    <dt>Signed</dt>
-                    <dd className="cer-sig">
-                      {/* built server-side from a validated path (lib/swms/input signatureSvg) */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={`data:image/svg+xml;utf8,${encodeURIComponent(signOff.signatureSvg)}`} alt={`Signature of ${signOff.name}`} />
-                    </dd>
-                    <dd className="cer-who">
-                      {signOff.name}
-                      <span>{longDay(signOff.signedOn)}</span>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>ARC licence</dt>
-                    <dd className="cer-who">{signOff.arc?.number ?? ""}</dd>
-                  </div>
-                  <div>
-                    <dt>Contractor licence</dt>
-                    <dd className="cer-who">{signOff.contractor?.number ?? ""}</dd>
-                  </div>
-                </dl>
-
-                {version > 1 && <p className="cer-foot">Version {version}</p>}
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </article>
+      {version > 1 && <p className="cer-foot">Version {version}</p>}
+    </DocPaper>
   );
 }

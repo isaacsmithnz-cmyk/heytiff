@@ -22,6 +22,7 @@ import { ensureMirrorClaims } from "./claim-mirror";
 import { EMPTY_ALL_JOBS, loadAllJobs, readMirrorJobRow, type AllJobsData } from "./all-jobs-query";
 import type { AllJobsMirrorJob } from "./all-jobs";
 import { getSm8Timezone } from "./query";
+import { newJobOffered } from "./new-job-offer";
 
 export type WorkboardConnection = "none" | "connected" | "attention";
 
@@ -60,6 +61,10 @@ export type WorkboardData = {
      never been fully read. Both false when standalone: nothing is syncing
      because nothing is connected, and the empty boards say THAT instead. */
   backfilling: { jobs: boolean; schedule: boolean };
+  /** The New job form is offered (new jobs to ServiceM8): the deployment
+      sends them, this reader runs the board, and the owner has New jobs on.
+      Absent otherwise, so the payload is exactly what it was. */
+  newJob?: true;
 };
 
 export async function loadWorkboardPage(): Promise<WorkboardData | null> {
@@ -129,12 +134,13 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       .catch(() => {})
   );
 
-  const [flags, board, projectsBoard, allJobs, sync] = await Promise.all([
+  const [flags, board, projectsBoard, allJobs, sync, newJob] = await Promise.all([
     listFlags(orgId),
     loadMaintenanceBoard(orgId, today),
     loadProjectsBoard(orgId, today, { includeMoney: moneyVisible }),
     loadAllJobs(orgId, today, { includeMoney: moneyVisible }),
     listSm8SyncStatus(orgId),
+    newJobOffered(orgId, manage),
   ]);
 
   /* Looking at the board counts as looking: what is waiting to go to
@@ -161,6 +167,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       jobs: !backfillDone(sync, "jobs"),
       schedule: !backfillDone(sync, "job_activities"),
     },
+    ...(newJob ? { newJob: true as const } : {}),
   };
 }
 

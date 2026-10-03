@@ -50,10 +50,6 @@ function row(raw: unknown): AcRow {
 function test(raw: unknown): CircuitTest {
   const t = obj(raw);
   return {
-    pressureKpa: num(t.pressureKpa, 20000),
-    holdMinutes: num(t.holdMinutes, 100000),
-    vacuumMicrons: num(t.vacuumMicrons, 100000),
-    manufacturerMicrons: num(t.manufacturerMicrons, 100000),
     refrigerant: text(t.refrigerant, 20).toUpperCase(),
     addedKg: num(t.addedKg, 500),
   };

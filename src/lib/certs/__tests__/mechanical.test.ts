@@ -4,7 +4,6 @@ import {
   certFileName,
   certProblemList,
   certProblems,
-  certTitle,
   clausesFor,
   fmtKw,
   indoorTotalKw,
@@ -18,7 +17,8 @@ import {
   type Requirement,
 } from "../mechanical";
 import { normaliseCertAnswers } from "../input";
-import { matchRequirement, readQuote } from "../quote";
+import { matchRequirement } from "../match";
+import { readQuote } from "../quote";
 import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2699, JOB_279, JOB_3326 } from "./fixtures/jobs";
 
 /* THE GOLDEN JOBS (docs/certificates-plan.md, Build order, step 1): six real
@@ -26,7 +26,7 @@ import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2699, JOB_279, JOB_33
 
 const AC_CORE = ["refrigerant", "manufacturer", "arc"];
 
-const TESTED = { pressureKpa: 4150, holdMinutes: 30, vacuumMicrons: 350, manufacturerMicrons: null, refrigerant: "R32", addedKg: 0 };
+const TESTED = { refrigerant: "R32", addedKg: 0 };
 
 const FACTS: CertFacts = { today: "2026-10-01", approved: true, hasSignature: true, arcCurrent: true, contractorCurrent: true };
 
@@ -124,13 +124,6 @@ describe("the statements", () => {
     expect(two).toContain("OUT-2: R32, 0.4 kg added.");
   });
 
-  it("never prints a gauge figure, even one saved on an older version", () => {
-    const a = answersFor(JOB_3326, AC, "office");
-    a.systems[0].test = { ...TESTED, vacuumMicrons: 700, manufacturerMicrons: 1000 };
-    expect(statementsFor(a).statements[0].text).not.toMatch(/700|1000|4150/);
-    expect(certProblems(a, FACTS)).toEqual([]);
-  });
-
   it("claim the NCC minimum only when a wet area has a fan, and say when a figure was measured", () => {
     const a = answersFor(JOB_279, BOTH, "house");
     const plain = statementsFor(a).statements.find((s) => s.clause === "ventAirflow")!.text;
@@ -194,10 +187,8 @@ describe("the statements", () => {
 
 describe("the paper's facts", () => {
   it("call every certificate a mechanical compliance certificate, whatever it covers", () => {
-    expect(certTitle(AC)).toBe("Mechanical compliance certificate");
-    expect(certTitle({ ac: false, vent: true })).toBe("Mechanical compliance certificate");
-    expect(certTitle(BOTH)).toBe("Mechanical compliance certificate");
-    expect(certFileName(BOTH, "74/10 Etham Avenue", "1383")).toBe("Mechanical compliance certificate – 74-10 Etham Avenue – job 1383.pdf");
+    for (const covers of [AC, { ac: false, vent: true }, BOTH]) expect(buildCertificate(answersFor(JOB_279, covers, "house")).title).toBe("Mechanical compliance certificate");
+    expect(certFileName("74/10 Etham Avenue", "1383")).toBe("Mechanical compliance certificate – 74-10 Etham Avenue – job 1383.pdf");
   });
 
   it("print a class only when one was picked, and a serial column only when there is a serial", () => {
@@ -225,7 +216,7 @@ describe("certProblemList", () => {
 
   it("asks only for the refrigerant and the charge: the pressure test and vacuum print as passed", () => {
     const a = answersFor(JOB_3326, AC, "office");
-    a.systems[0].test = { pressureKpa: null, holdMinutes: null, vacuumMicrons: null, manufacturerMicrons: null, refrigerant: "", addedKg: null };
+    a.systems[0].test = { refrigerant: "", addedKg: null };
     expect(certProblems(a, FACTS)).toEqual(["Enter MUZ-AP42VGD2-A2's refrigerant.", "Enter the refrigerant added to MUZ-AP42VGD2-A2, or 0."]);
   });
 

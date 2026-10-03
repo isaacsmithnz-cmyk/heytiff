@@ -5,7 +5,7 @@ import { signatureSvg } from "@/lib/swms/input";
 
 /* The paper prints what the version froze, in the design sheet's dress. */
 
-const TEST = { pressureKpa: 4150, holdMinutes: 30, vacuumMicrons: 350, manufacturerMicrons: null, refrigerant: "R32", addedKg: 0 };
+const TEST = { refrigerant: "R32", addedKg: 0 };
 const ANSWERS: CertAnswers = {
   ...DEFAULT_CERT_ANSWERS,
   covers: { ac: true, vent: true },
@@ -27,7 +27,7 @@ function render(a: CertAnswers = ANSWERS) {
     <CertificatePaper
       content={buildCertificate(a)}
       brand={brand}
-      papers={{ licences: ["ARC authorisation AU12345"], insurance: ["Public liability: QBE 08U693177BPK"] }}
+      papers={{ licences: ["ARC authorisation AU12345"] }}
       job={{ number: "3326", builder: "Helix Venture Studio Pty Ltd", address: "Lv 3 Suite 4/44-54 Botany Road, Alexandria, NSW, 2015" }}
       signOff={{
         name: "Isaac Smith",

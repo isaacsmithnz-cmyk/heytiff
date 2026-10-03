@@ -1,4 +1,5 @@
-import { isOutdoorModel, matchRequirement, modelsIn, readQuote, statedConnectedKw, suggestBuilding } from "../quote";
+import { matchRequirement } from "../match";
+import { isOutdoorModel, modelsIn, readQuote, statedConnectedKw, suggestBuilding } from "../quote";
 import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_1930, JOB_2043, JOB_2147, JOB_2207, JOB_248, JOB_2699, JOB_2885, JOB_279, JOB_2933, JOB_3140, JOB_3326 } from "./fixtures/jobs";
 
 /* The wizard's first draft, read off six real jobs. Each is only a

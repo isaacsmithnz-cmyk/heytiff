@@ -1,6 +1,6 @@
 import type { ProposalOption, UnitLine } from "@/lib/quotes/proposal";
-import { EMPTY_ROW, EMPTY_TEST, type AcRow, type AcSystem, type FanRow } from "./mechanical";
-import { readQuote, type QuoteReading } from "./quote";
+import { EMPTY_FAN, EMPTY_ROW, EMPTY_TEST, type AcRow, type AcSystem, type FanRow } from "./mechanical";
+import { installedFrom, type QuoteReading } from "./quote";
 
 /* THE EQUIPMENT, FROM THE ACCEPTED QUOTE. A job quoted in HeyTiff holds its
    equipment as rows (lib/quotes/proposal, UnitLine): each outdoor unit, the
@@ -34,22 +34,15 @@ function systemsOf(units: readonly UnitLine[], refrigerant: string): AcSystem[] 
   return systems;
 }
 
-const fanOf = (u: UnitLine): FanRow => ({
-  location: u.room,
-  model: u.model,
-  qty: u.qty,
-  airflowLps: u.lps,
-  airflowKind: "rated",
-  serial: "",
-});
+const fanOf = (u: UnitLine): FanRow => ({ ...EMPTY_FAN, location: u.room, model: u.model, qty: u.qty, airflowLps: u.lps });
 
 /** The certificate's starting equipment from the options the client
     accepted. What was installed besides the units (ductwork, fire-rated
-    penetrations, a condensate pump, the refrigerant) is read from the
-    option's own scope lines and unit types. */
+    penetrations, the refrigerant) is read from the option's own scope lines
+    and unit types. */
 export function readingFromQuote(options: readonly ProposalOption[]): QuoteReading {
   const words = options.flatMap((o) => [...o.lines, ...o.units.map((u) => `${u.type} ${u.model}`)]).join("\n");
-  const said = readQuote(words);
+  const said = installedFrom(words);
   const systems = options.flatMap((o) => systemsOf(o.units, said.refrigerant));
   const fans = options.flatMap((o) => o.units.filter((u) => u.role === "fan").map(fanOf));
   return {

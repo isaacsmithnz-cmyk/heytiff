@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { approveCertWording } from "@/app/actions/certificates";
-import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /** The owner's one press, as for the SWMS template. */
 export function ApproveWording() {
@@ -14,18 +13,10 @@ export function ApproveWording() {
   const approve = async () => {
     setBusy(true);
     setError(null);
-    await withCleanup(
-      async () => {
-        try {
-          const res = await approveCertWording();
-          if (res.ok) router.refresh();
-          else setError(res.error);
-        } catch {
-          setError("Couldn't record the approval. Try again.");
-        }
-      },
-      () => setBusy(false)
-    );
+    const res = await approveCertWording().catch(() => ({ ok: false as const, error: "Couldn't record the approval. Try again." }));
+    setBusy(false);
+    if (res.ok) router.refresh();
+    else setError(res.error);
   };
 
   return (

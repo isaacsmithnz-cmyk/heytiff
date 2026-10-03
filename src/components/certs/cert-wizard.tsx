@@ -18,21 +18,24 @@ import {
   type CertListFile,
   type CertWizardContext,
 } from "@/app/actions/certificates";
+import type { FanModel } from "@/lib/certs/query";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { attachJobDocument } from "@/app/actions/job-documents";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { thrownWords } from "@/lib/stale-deploy";
 import type { IssueCertResult } from "@/app/api/certificates/issue/route";
 import {
   BUILDINGS,
+  CERT_TITLE,
   CLAUSE_NAME,
   DEFAULT_CERT_ANSWERS,
+  EMPTY_FAN,
   EMPTY_ROW,
   EMPTY_TEST,
   EXHAUST_TO,
   MATCHABLE,
   certProblemList,
-  certTitle,
   clausesFor,
   fmtKw,
   indoorTotalKw,
@@ -55,8 +58,8 @@ import "./cert-wizard.css";
    MOST OF IT IS ALREADY FILLED IN. The equipment is read off the job's quote
    and the completion date comes from ServiceM8; each says where it came
    from, and the person corrects it. What only they know is asked, never
-   assumed: the building (the address only marks a hint), the test figures,
-   and what this job was asked to cover, pasted, typed or on a file, from
+   assumed: the building (the address only marks a hint), the refrigerant
+   and its charge, and what this job was asked to cover, pasted, typed or on a file, from
    whoever asked (a certifier, the builder, an architect).
 
    IT WEARS THE SWMS WIZARD'S DRESS (swms.css): the same panel over the card,
@@ -93,7 +96,7 @@ const blankSystem = (refrigerant = ""): AcSystem => ({
   indoors: [{ ...EMPTY_ROW }],
   test: { ...EMPTY_TEST, refrigerant },
 });
-const blankFan = (): FanRow => ({ location: "", model: "", qty: 1, airflowLps: null, airflowKind: "rated", serial: "" });
+const blankFan = (): FanRow => ({ ...EMPTY_FAN });
 
 /** A number field's text, and back: blank is null, never zero. */
 const numText = (n: number | null) => (n === null ? "" : String(n));
@@ -104,15 +107,10 @@ const readNum = (s: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-/** What the units are, without their test figures: the confirmation holds
-    while this stays the same. */
+/** What the units are, without their refrigerant and charge: the
+    confirmation holds while this stays the same. */
 const unitsKey = (a: CertAnswers) =>
   JSON.stringify([a.covers, a.systems.map((s) => [s.outdoor, s.indoors]), a.fans]);
-
-/* A FILE ONTO THE JOB'S DOCUMENTS, as the Documents face's own upload files
-   it. Out here, as a plain function, because React Compiler 1.0 can't lower
-   a throw, an `&&` or a ternary inside a component's try. */
-const uploadRefusal = (e: unknown): string => (e instanceof Error && e.message ? e.message : "That upload didn't finish.");
 
 /** The issue, posted; null when the server couldn't be reached or answered
     with nothing readable. */
@@ -144,6 +142,9 @@ async function sharePdf(url: string, fileName: string): Promise<boolean> {
   }
 }
 
+/* A FILE ONTO THE JOB'S DOCUMENTS, as the Documents face's own upload files
+   it. Out here, as a plain function, because React Compiler 1.0 can't lower
+   a throw, an `&&` or a ternary inside a component's try. */
 async function fileOnJob(file: File, jobUuid: string): Promise<{ ok: true; documentId: string } | { ok: false; error: string }> {
   try {
     const up = await uploadFile(file, "job_document");
@@ -153,14 +154,17 @@ async function fileOnJob(file: File, jobUuid: string): Promise<{ ok: true; docum
     if (!put.ok) return { ok: false, error: put.error };
     return { ok: true, documentId: up.file.documentId };
   } catch (e) {
-    return { ok: false, error: uploadRefusal(e) };
+    return { ok: false, error: thrownWords(e, "That upload didn't finish.") };
   }
 }
+
+/** A fan on the business's fan list, by its model as typed. */
+const onFanList = (fans: readonly FanModel[] | undefined, model: string): FanModel | undefined =>
+  fans?.find((f) => f.model.toLowerCase() === model.trim().toLowerCase());
 
 /** The first draft, from the job. */
 function startingAnswers(ctx: CertWizardContext): CertAnswers {
   const r = ctx.reading;
-  const fanRated = (model: string) => ctx.fanModels.find((f) => f.model.toLowerCase() === model.trim().toLowerCase())?.ratedLps ?? null;
   const ac = r.systems.length > 0 || !r.ventilation;
   return {
     ...DEFAULT_CERT_ANSWERS,
@@ -169,7 +173,7 @@ function startingAnswers(ctx: CertWizardContext): CertAnswers {
     building: null,
     completedOn: ctx.job.completedOn ?? "",
     systems: r.systems.length > 0 ? r.systems.map((x) => ({ ...x, indoors: x.indoors.length ? x.indoors : [{ ...EMPTY_ROW }] })) : ac ? [blankSystem(r.refrigerant)] : [],
-    fans: r.fans.map((f) => ({ ...f, airflowLps: f.airflowLps ?? fanRated(f.model) })),
+    fans: r.fans.map((f) => ({ ...f, airflowLps: f.airflowLps ?? onFanList(ctx.fanModels, f.model)?.ratedLps ?? null })),
     installed: { ductwork: r.ductwork, fireRated: r.fireRated, fireStopProduct: "" },
   };
 }
@@ -180,7 +184,6 @@ function Field({
   onChange,
   width,
   list,
-  id,
   inputMode,
 }: {
   label: string;
@@ -188,13 +191,12 @@ function Field({
   onChange: (v: string) => void;
   width?: "s" | "m";
   list?: string;
-  id?: string;
   inputMode?: "decimal" | "numeric";
 }) {
   return (
     <label className={`cz-f${width ? ` ${width}` : ""}`}>
       <span>{label}</span>
-      <input id={id} className="wb2-fi" type="text" value={value} list={list} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
+      <input className="wb2-fi" type="text" value={value} list={list} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
@@ -267,13 +269,11 @@ export function CertWizard({
   const [listDoc, setListDoc] = useState("");
   const [listBusy, setListBusy] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const [listRead, setListRead] = useState<string | null>(null);
-  /* the file this version's requirements were read from; null after an email */
-  const [readFrom, setReadFrom] = useState<string | null>(null);
-  /* what was asked, as pasted or typed; and what was last read, so an edit
-     since says it hasn't been read */
+  /* what was asked, as pasted or typed; and what was last read (the file,
+     the text, how much Tiff found), so an edit since says it hasn't been read
+     and the issue knows which file the requirements came from */
   const [asked, setAsked] = useState("");
-  const [lastRead, setLastRead] = useState("");
+  const [lastRead, setLastRead] = useState<{ doc: string; text: string; found: number } | null>(null);
   const [looking, setLooking] = useState(false);
   const [uploading, setUploading] = useState(false);
   const listPicker = useRef<HTMLInputElement | null>(null);
@@ -321,7 +321,8 @@ export function CertWizard({
        and charge, which ride on the same rows, don't */
     setA((cur) => {
       const next = { ...cur, ...patch };
-      return unitsKey(next) !== unitsKey(cur) && !("equipmentConfirmed" in patch) ? { ...next, equipmentConfirmed: false } : next;
+      const units = "covers" in patch || "systems" in patch || "fans" in patch;
+      return units && !("equipmentConfirmed" in patch) && unitsKey(next) !== unitsKey(cur) ? { ...next, equipmentConfirmed: false } : next;
     });
     setTouched(true);
     setError(null);
@@ -377,7 +378,7 @@ export function CertWizard({
     const next = { ...a.fans[i], ...patch };
     /* a model on the fan list brings its rated figure with it */
     if (patch.model !== undefined && next.airflowKind === "rated") {
-      const known = live?.fanModels.find((f) => f.model.toLowerCase() === patch.model!.trim().toLowerCase());
+      const known = onFanList(live?.fanModels, next.model);
       if (known) next.airflowLps = known.ratedLps;
     }
     set({ fans: a.fans.map((f, j) => (j === i ? next : f)) });
@@ -395,8 +396,7 @@ export function CertWizard({
 
   /* ── the requirements: whatever says what the certificate must cover ──── */
 
-  const askedKey = `${listDoc}\n${asked.trim()}`;
-  const unread = (!!listDoc || !!asked.trim()) && askedKey !== lastRead;
+  const unread = (!!listDoc || !!asked.trim()) && (lastRead?.doc !== listDoc || lastRead?.text !== asked.trim());
 
   /* ONE BUTTON READS WHAT'S THERE: the text, the file, or both. Tiff takes
      out each thing asked for; the person checks every line below. */
@@ -424,12 +424,10 @@ export function CertWizard({
         answer: r.notOurs ? "na" : "clause",
         clause: r.clause,
         own: "",
-        reason: r.notOurs ? "Not part of these works: a smoke control system is certified by the mechanical engineer." : r.clause ? "" : suggestedReason(null, a.building),
+        reason: r.notOurs ? "Not part of these works: a smoke control system is certified by the mechanical engineer." : "",
       })),
     });
-    setReadFrom(fromFile ? listDoc : null);
-    setLastRead(askedKey);
-    setListRead(found.length === 0 ? "Tiff found nothing in it for this certificate to cover." : null);
+    setLastRead({ doc: listDoc, text, found: found.length });
   };
 
   const setFiles = (files: CertListFile[]) => setCtx((c) => (c && c !== "failed" ? { ...c, files } : c));
@@ -496,7 +494,7 @@ export function CertWizard({
       answers: a,
       certificateId: prev?.certificateId,
       reason: prev ? "Reissued" : undefined,
-      requirementsDocumentId: a.requirements.length > 0 ? readFrom ?? undefined : undefined,
+      requirementsDocumentId: a.requirements.length > 0 ? lastRead?.doc || undefined : undefined,
     });
     setBusy(false);
     if (!out) {
@@ -635,7 +633,7 @@ export function CertWizard({
         ))}
       </datalist>
       {a.fans.map((f, i) => {
-        const known = live?.fanModels.some((m) => m.model.toLowerCase() === f.model.trim().toLowerCase());
+        const known = !!onFanList(live?.fanModels, f.model);
         return (
           <div key={i} className="cz-sys">
             <div className="cz-row fan">
@@ -774,7 +772,7 @@ export function CertWizard({
         </button>
         {listError && <p className="sw-state bad">{listError}</p>}
         {!listError && unread && !listBusy && <p className="sw-note">Not read yet. Read it, and Tiff takes out each thing asked for.</p>}
-        {listRead && !unread && <p className="sw-note">{listRead}</p>}
+        {lastRead?.found === 0 && !unread && <p className="sw-note">Tiff found nothing in it for this certificate to cover.</p>}
         {a.requirements.length === 0 && !asked.trim() && !listDoc && <p className="sw-note">Nothing asked for? Continue, and the certificate makes the standard statements.</p>}
       </div>
 
@@ -819,8 +817,7 @@ export function CertWizard({
             className="sw-more"
             onClick={() => {
               set({ requirements: [] });
-              setReadFrom(null);
-              setLastRead("");
+              setLastRead(null);
             }}
           >
             Clear these requirements
@@ -942,7 +939,7 @@ export function CertWizard({
       <dl className="sw-rev">
         <div>
           <dt>Certificate</dt>
-          <dd>{certTitle(a.covers)}</dd>
+          <dd>{CERT_TITLE}</dd>
         </div>
         <div>
           <dt>Signed by</dt>
@@ -1064,7 +1061,8 @@ export function CertWizard({
     tabs = true;
     const at = TABS.findIndex((t) => t.key === tab);
     const last = at === TABS.length - 1;
-    const canIssue = licensed && live?.approved && problems.length === 0 && !busy;
+    /* the licences and the approval are on the problem list already */
+    const canIssue = !!live && problems.length === 0 && !busy;
     foot = confirmClose ? (
       <>
         <span>Discard this certificate?</span>
@@ -1115,7 +1113,7 @@ export function CertWizard({
           <div className="wb2-shtop">
             {job?.number && <span className="wb2-shno">{`#${job.number}`}</span>}
             <span className="wb2-jcid">
-              <h2 className="wb2-shname">{tabs ? certTitle(a.covers) : title}</h2>
+              <h2 className="wb2-shname">{tabs ? CERT_TITLE : title}</h2>
               <p className="wb2-jcaddr">{job?.address ?? (ctx === null ? "Reading the job…" : "No address on the job")}</p>
             </span>
           </div>

@@ -17,13 +17,16 @@ export type CertPaperProps = {
   job: PaperJob;
   signOff: PaperSignOff;
   version: number;
-  jobUuid: string;
 };
 
-export async function certPaperProps(orgId: string, versionId: string, logoSeconds = 600): Promise<CertPaperProps | null> {
-  const v = await loadCertVersion(orgId, versionId.slice(0, 80));
+export async function certPaperProps(orgId: string, versionId: string): Promise<CertPaperProps | null> {
+  /* the letterhead needs only the org, so it is read alongside the version */
+  const [v, brand, papers] = await Promise.all([
+    loadCertVersion(orgId, versionId.slice(0, 80)),
+    orgBrand(orgId, { seconds: 600 }),
+    loadBusinessPapers(orgId),
+  ]);
   if (!v) return null;
-  const [brand, papers] = await Promise.all([orgBrand(orgId, { seconds: logoSeconds }), loadBusinessPapers(orgId)]);
   return {
     content: v.content,
     brand,
@@ -41,6 +44,5 @@ export async function certPaperProps(orgId: string, versionId: string, logoSecon
       contractor: v.signatoryLicences.contractor,
     },
     version: v.version,
-    jobUuid: v.jobUuid,
   };
 }

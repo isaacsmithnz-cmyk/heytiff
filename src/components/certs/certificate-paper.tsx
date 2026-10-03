@@ -1,6 +1,7 @@
 import { brandContact, hasBrand, type OrgBrand } from "@/lib/org/brand";
 import { BrandLogo } from "@/components/org/letterhead";
 import { themeVars } from "@/lib/org/theme";
+import { fmtDay } from "@/lib/format/day";
 import { fmtNum, type AcRow, type CertContent, type FanRow } from "@/lib/certs/mechanical";
 import type { BusinessPapers, HeldLicence } from "@/lib/certs/query";
 import "@/components/studio/summary/sheet-doc.css";
@@ -9,12 +10,12 @@ import "./certificate.css";
 /* THE CERTIFICATE AS PAPER — one version, as it was issued.
 
    DRESSED AS THE DESIGN SHEET, by wearing its own classes: the frame in the
-   business's colour, the two-party masthead, the row of figures and the
-   figures are `dsd-` rules from sheet-doc.css, which Isaac has already
+   business's colour, the two-party masthead and the row of facts are
+   `dsd-` rules from sheet-doc.css, which Isaac has already
    approved, so a certificate and a design summary read as one business's
    paperwork. The tables are the certificate's own (certificate.css): the
    design sheet's rooms table is built for nine columns and turns into a list
-   below 1024px, which three columns never need.
+   below 1024px, which these few columns never need.
 
    No "use client" and no hooks: the session's page and the headless
    browser's print page both render it on the server, from the frozen version.
@@ -43,12 +44,6 @@ export function longDay(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (!m) return "";
   return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
-}
-
-/** "4 Aug 2026", for the figures row. */
-function shortDay(iso: string): string {
-  const d = longDay(iso);
-  return d ? d.replace(/ (\w{3})\w* /, " $1 ") : "";
 }
 
 /** The site as lines: as written when it has lines, else split at its first
@@ -176,10 +171,10 @@ export function CertificatePaper({
     ...(content.building
       ? [{ label: "Building", value: content.building.cls ? `${content.building.label} (${content.building.cls})` : content.building.label }]
       : []),
-    { label: "Completed", value: shortDay(content.completedOn) },
+    { label: "Completed", value: fmtDay(content.completedOn) },
   ];
 
-  /* the figures row's column count, as a custom property: built here, as a
+  /* the facts row's column count, as a custom property: built here, as a
      plain object, because React Compiler 1.0 can't lower a computed key */
   const figsStyle = { "--cer-n": figures.length } as React.CSSProperties;
 
@@ -292,13 +287,7 @@ export function CertificatePaper({
                   </div>
                 </dl>
 
-                {/* no insurance: the certifier doesn't need it to issue the
-                    Occupation Certificate, so it isn't on the page */}
-                {version > 1 && (
-                  <p className="cer-foot">
-                    <span>Version {version}</span>
-                  </p>
-                )}
+                {version > 1 && <p className="cer-foot">Version {version}</p>}
               </div>
             </td>
           </tr>

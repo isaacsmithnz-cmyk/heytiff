@@ -1,7 +1,7 @@
 /* THE CERTIFICATE'S OWN PARTS — what a certificate has and a design sheet
-   hasn't: a heading over each table, the statements, the sign-off and the
-   foot. Everything else it wears is the design sheet's (sheet-doc.css): the
-   frame, the masthead, the figures and the tables.
+   hasn't: its tables and the heading over each, the statements, the
+   sign-off and the version line. Everything else it wears is the design
+   sheet's (sheet-doc.css): the frame, the masthead and the row of facts.
 
    UNDER THE DESIGN LAWS, not beside them. Unlike sheet-doc.css this sheet is
    not one of the paper sheets the ratchets leave out, so it keeps the screen
@@ -10,9 +10,9 @@
    what a certificate is read at anyway. */
 
 .cer-sec { margin-top: 32px; }
-/* as many columns as the certificate has facts, which is four to six: the
-   design sheet's row is built for exactly six */
-.dsd-figs.cer-figs { grid-template-columns: repeat(var(--cer-n, 4), minmax(0, 1fr)); }
+/* as many columns as the certificate has facts (the building, when picked,
+   and the completion date): the design sheet's row is built for six */
+.dsd-figs.cer-figs { grid-template-columns: repeat(var(--cer-n), minmax(0, 1fr)); }
 .cer-h {
   margin: 0 0 12px;
   font-size: 20px;
@@ -20,9 +20,8 @@
   line-height: 1.2;
   color: var(--dsd-ink);
 }
-/* One hairline between rows, a heavier one under the head and over the
-   total: the design sheet's table, at the certificate's three or four
-   columns. */
+/* One hairline between rows and a heavier one under the head: the design
+   sheet's table, at the certificate's two to four columns. */
 .cer-rt { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .cer-c-loc { width: 34%; }
 .cer-c-ser { width: 18%; }
@@ -49,13 +48,6 @@
 .cer-rt td.num { font-weight: 700; color: var(--dsd-ink); white-space: nowrap; }
 .cer-rt td.cer-loc { font-weight: 600; color: var(--dsd-ink); }
 .cer-rt tbody tr:last-child td { border-bottom: 0; }
-.cer-rt tfoot td {
-  padding-top: 8px;
-  border-top: 1px solid var(--dsd-rule-2);
-  border-bottom: 0;
-  font-weight: 700;
-  color: var(--dsd-ink);
-}
 /* "rated" or "measured" under the figure: a fact about the number, so it sits
    with it, quieter */
 .cer-kind {
@@ -96,20 +88,12 @@
 .cer-who { margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--dsd-ink); }
 .cer-who span { display: block; font-size: 12px; font-weight: 500; color: var(--dsd-ink-3); }
 
-.cer-foot {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 4px 16px;
-  margin: 24px 0 0;
-  font-size: 12px;
-  color: var(--dsd-ink-3);
-}
+.cer-foot { margin: 24px 0 0; font-size: 12px; color: var(--dsd-ink-3); }
 
 /* ONE PAGE, for a job like 1383: seven rooms, three of a certifier's items
    and the standard set. The design sheet's masthead stacks the byline over
    the addressee, which a two-page summary can afford and a certificate
-   can't; on paper they sit side by side under the title, and the figures
+   can't; on paper they sit side by side under the title, and the facts
    row and the rows tighten to the scale's small steps. */
 @media print {
   @page { size: A4; margin: 0; }
@@ -129,14 +113,12 @@
   .cer-h { margin-bottom: 4px; font-size: 14px; }
   .cer-rt td { padding: 2px 12px 2px 0; font-size: 12px; }
   .cer-rt th { padding-bottom: 4px; }
-  .cer-rt tfoot td { padding-top: 4px; }
   .cer-rt tr { break-inside: avoid; }
   .cer-lede,
   .cer-st li { font-size: 12px; }
   .cer-lede { margin-bottom: 4px; }
   .cer-st li { margin-bottom: 2px; line-height: 1.3; }
   .cer-note { margin-top: 4px; font-size: 12px; }
-  .dsd-figs.cer-figs { grid-template-columns: repeat(var(--cer-n, 4), minmax(0, 1fr)); }
   .cer-sign { margin-top: 8px; padding-top: 8px; gap: 16px; }
   .cer-sig { height: 32px; }
   .cer-who { font-size: 13px; }

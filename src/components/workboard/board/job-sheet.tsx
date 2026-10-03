@@ -229,36 +229,25 @@ const FACE_NAME: Record<TabKey, string> = {
   compliance: "Compliance",
 };
 
-/** A SWMS version as a page the card's viewer can hold — the printable
-    document, which carries its own Print button and its own version. */
-const swmsPaper = (versionId: string): JobMediaItem => ({
-  remoteId: `swms:${versionId}`,
-  name: "Safe Work Method Statement",
+/** Paper HeyTiff writes, as a page the card's viewer can hold: a SWMS or a
+    certificate version, the printable document with its own Print button
+    and its own version (a certificate's PDF printed at issue is on the job
+    too). */
+const paperPage = (remoteId: string, name: string, url: string): JobMediaItem => ({
+  remoteId,
+  name,
   /* the viewer frames paper by its type; the document is a page, framed the same way */
   fileType: "pdf",
   kind: "document",
   origin: null,
   takenAt: null,
-  url: `/swms/${versionId}`,
+  url,
   width: null,
   height: null,
   fromClaim: null,
 });
-
-/** A certificate version as a page the card's viewer can hold — the paper,
-    with its own Print button; the PDF printed at issue is on the job too. */
-const certPaper = (versionId: string): JobMediaItem => ({
-  remoteId: `cert:${versionId}`,
-  name: "Compliance certificate",
-  fileType: "pdf",
-  kind: "document",
-  origin: null,
-  takenAt: null,
-  url: `/certificates/${versionId}`,
-  width: null,
-  height: null,
-  fromClaim: null,
-});
+const swmsPaper = (versionId: string) => paperPage(`swms:${versionId}`, "Safe Work Method Statement", `/swms/${versionId}`);
+const certPaper = (versionId: string) => paperPage(`cert:${versionId}`, "Compliance certificate", `/certificates/${versionId}`);
 
 /** A paper's files as pages the card's viewer can hold — a licence's two
     sides are two stops on its arrow keys. Only what this viewer may open. */
@@ -474,10 +463,10 @@ export function JobSheet({
   const [viewer, setViewer] = useState<
     | { kind: "photos"; id: string }
     | { kind: "paper"; id: string }
-    /* a SWMS is paper HeyTiff writes, so it opens in the same viewer as the
-       job's other paper instead of a new tab that loses the card */
-    | { kind: "swms"; id: string }
-    | { kind: "cert"; id: string }
+    /* a SWMS or a certificate is paper HeyTiff writes, so it opens in the
+       same viewer as the job's other paper instead of a new tab that loses
+       the card */
+    | { kind: "page"; item: JobMediaItem }
     /* a licence or certificate on the job — its pages, by where the arrows are */
     | { kind: "papers"; id: string; index: number }
     | null
@@ -878,14 +867,13 @@ export function JobSheet({
      and said in a toast, and what didn't keeps its tick and says why in the
      footer — pressing again tries it again. Every row's words come from the
      sends the answer carries, so the face is true the moment it returns. */
-  const sendToServiceM8 = async (): Promise<void> => {
+  const sendKeysToServiceM8 = async (keys: string[], nameOf: (key: string) => string): Promise<void> => {
     if (!cardId) return;
     setSm8Note(null);
-    const names = new Map(pickedList.map((p) => [p.key, p.name]));
-    const res = await sendJobDocumentsToServiceM8({
-      jobUuid: cardId,
-      keys: pickedList.map((p) => p.key),
-    }).catch((e: unknown) => ({ ok: false as const, error: thrownWords(e, "Couldn't reach HeyTiff. Try again.") }));
+    const res = await sendJobDocumentsToServiceM8({ jobUuid: cardId, keys }).catch((e: unknown) => ({
+      ok: false as const,
+      error: thrownWords(e, "Couldn't reach HeyTiff. Try again."),
+    }));
     if (!alive.current) return;
     if (!res.ok) {
       setSm8Note(res.error);
@@ -893,11 +881,17 @@ export function JobSheet({
     }
     setSm8Read((cur) => (cur ? { ...cur, sends: res.sends } : cur));
     const stay = new Set(res.failed.map((f) => f.key));
-    setPicked((cur) => new Set([...cur].filter((k) => stay.has(k))));
-    const nameOf = (key: string) => names.get(key) ?? "A document";
+    setPicked((cur) => new Set([...cur].filter((k) => !keys.includes(k) || stay.has(k))));
     const toast = sendToast(res, nameOf);
     if (toast) onToast(toast);
     setSm8Note(sendFailure(res.failed, nameOf));
+  };
+  const sendToServiceM8 = (): Promise<void> => {
+    const names = new Map(pickedList.map((p) => [p.key, p.name]));
+    return sendKeysToServiceM8(
+      pickedList.map((p) => p.key),
+      (key) => names.get(key) ?? "A document"
+    );
   };
 
   /* A CERTIFICATE ISSUED: its PDF is a file on the job now, so the files and
@@ -932,26 +926,11 @@ export function JobSheet({
 
   /* After Issue, Send to ServiceM8: this one file, through the card's own door. */
   const sendCertificateToSm8 = async (documentId: string, fileName: string) => {
-    if (!cardId) return;
     await certRead.current;
     if (!alive.current) return;
     setCertWizard(null);
     setTab("documents");
-    setSm8Note(null);
-    const key = ourDocumentSendKey(documentId);
-    const res = await sendJobDocumentsToServiceM8({ jobUuid: cardId, keys: [key] }).catch((e: unknown) => ({
-      ok: false as const,
-      error: thrownWords(e, "Couldn't reach HeyTiff. Try again."),
-    }));
-    if (!alive.current) return;
-    if (!res.ok) {
-      setSm8Note(res.error);
-      return;
-    }
-    setSm8Read((cur) => (cur ? { ...cur, sends: res.sends } : cur));
-    const toast = sendToast(res, () => fileName);
-    if (toast) onToast(toast);
-    setSm8Note(sendFailure(res.failed, () => fileName));
+    await sendKeysToServiceM8([ourDocumentSendKey(documentId)], () => fileName);
   };
 
   /* Our OWN material picklist — pushed here from a Studio design. On its own
@@ -2674,12 +2653,12 @@ export function JobSheet({
                   onUpload={cardId ? uploadDocument : undefined}
                   onRemove={removeDocument}
                   onCreateSwms={() => setSwmsWizard({ revise: null })}
-                  onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId })}
+                  onOpenSwms={(s) => setViewer({ kind: "page", item: swmsPaper(s.versionId) })}
                   onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
                   certificates={certs}
                   certificatesFailed={certsFailed}
                   onCreateCertificate={cardId ? () => setCertWizard({ reissue: null }) : undefined}
-                  onOpenCertificate={(c) => setViewer({ kind: "cert", id: c.versionId })}
+                  onOpenCertificate={(c) => setViewer({ kind: "page", item: certPaper(c.versionId) })}
                   onReissueCertificate={(versionId) => setCertWizard({ reissue: versionId })}
                   papers={papers ? papers.papers : null}
                   papersFailed={papersFailed}
@@ -2777,7 +2756,7 @@ export function JobSheet({
           onIssued={reloadSwms}
           onOpen={(versionId) => {
             setSwmsWizard(null);
-            setViewer({ kind: "swms", id: versionId });
+            setViewer({ kind: "page", item: swmsPaper(versionId) });
           }}
           onSignOn={(versionId) => router.push(`/dashboard/swms/${versionId}`)}
         />
@@ -2796,7 +2775,7 @@ export function JobSheet({
           onSendToSm8={(documentId, fileName) => void sendCertificateToSm8(documentId, fileName)}
           onOpen={(versionId) => {
             setCertWizard(null);
-            setViewer({ kind: "cert", id: versionId });
+            setViewer({ kind: "page", item: certPaper(versionId) });
           }}
           canSend={!!papers?.may.send}
           onFilesChanged={() =>
@@ -2809,24 +2788,8 @@ export function JobSheet({
         />
       )}
 
-      {viewer?.kind === "cert" && (
-        <JobMediaViewer
-          items={[certPaper(viewer.id)]}
-          index={0}
-          favourites={null}
-          onNav={() => {}}
-          onClose={() => setViewer(null)}
-        />
-      )}
-
-      {viewer?.kind === "swms" && (
-        <JobMediaViewer
-          items={[swmsPaper(viewer.id)]}
-          index={0}
-          favourites={null}
-          onNav={() => {}}
-          onClose={() => setViewer(null)}
-        />
+      {viewer?.kind === "page" && (
+        <JobMediaViewer items={[viewer.item]} index={0} favourites={null} onNav={() => {}} onClose={() => setViewer(null)} />
       )}
 
       {/* A licence or certificate on the job — its own pages, in the same
@@ -2849,8 +2812,7 @@ export function JobSheet({
 
       {/* The shared viewer — same portal, same law as the claim modal. */}
       {viewer &&
-        viewer.kind !== "swms" &&
-        viewer.kind !== "cert" &&
+        viewer.kind !== "page" &&
         viewer.kind !== "papers" &&
         media &&
         (() => {

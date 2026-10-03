@@ -47,13 +47,11 @@ const context = (over: Partial<CertWizardContext> = {}): CertWizardContext => ({
   quoteToMark: 0,
   building: suggestBuilding("Lv 3 Suite 4/44-54 Example Road"),
   today: "2026-10-01",
-  viewerStaffId: "isaac",
   signatory: { staffId: "isaac", name: "Isaac Smith", arc: licence("L118650"), contractor: licence("315890C"), signatureSvg: "<svg/>" },
   approved: true,
   canApprove: true,
   ownerName: "Isaac Smith",
   fanModels: [],
-  existing: [],
   files: [],
   ...over,
 });
@@ -194,7 +192,7 @@ describe("issuing", () => {
     })) as unknown as typeof fetch;
     certWizardContext.mockImplementation(async () =>
       context({
-        reading: { ...readQuote(JOB_3326), systems: readQuote(JOB_3326).systems.map((x) => ({ ...x, indoors: x.indoors.map((r) => ({ ...r, location: "Office" })), test: { pressureKpa: 4150, holdMinutes: 30, vacuumMicrons: 350, manufacturerMicrons: null, refrigerant: "R32", addedKg: 0 } })) },
+        reading: { ...readQuote(JOB_3326), systems: readQuote(JOB_3326).systems.map((x) => ({ ...x, indoors: x.indoors.map((r) => ({ ...r, location: "Office" })), test: { refrigerant: "R32", addedKg: 0 } })) },
       })
     );
     open(false);

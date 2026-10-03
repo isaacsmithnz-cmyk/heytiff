@@ -10,6 +10,7 @@ import {
   MAX_UNIT_QTY,
   MAX_UNITS,
   PRICING_WORDS,
+  UNIT_ROLES,
   acceptedAfterRemoving,
   blankUnit,
   optionHeading,
@@ -654,7 +655,7 @@ function OptionBody({ option }: { option: ProposalOption }) {
     <>
       <Bullets lines={option.lines} />
       {option.units.length > 0 && (
-        <ul className="wb2-jqlines wb2-jqunits">
+        <ul className="wb2-jqlines">
           {option.units.map((u, i) => (
             <li key={i}>
               <span>{unitPlace(u)}</span>
@@ -965,7 +966,7 @@ function UnitsEdit({ units, onChange, disabled }: { units: UnitLine[]; onChange:
             <label className="m">
               <span>Unit</span>
               <select className="wb2-sel" value={u.role} disabled={disabled} onChange={(e) => set(i, { role: e.target.value as UnitRole, lps: null })}>
-                {(Object.keys(ROLE_WORDS) as UnitRole[]).map((r) => (
+                {UNIT_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {ROLE_WORDS[r]}
                   </option>

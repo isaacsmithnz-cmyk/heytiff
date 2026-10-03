@@ -1,5 +1,5 @@
 import type { FamilyClaim, FamilyMoney } from "../job-family";
-import { currentStep, jobSteps, type StepInput } from "../job-steps";
+import { currentStep, jobSteps, lineOf, type StepInput } from "../job-steps";
 
 const base: StepInput = {
   status: "Quote",
@@ -95,31 +95,31 @@ describe("where a job is up to", () => {
   /* Isaac, 2026-10-03: "if no deposit required make that as an option so it
      can get ticked off" — none invoiced is asked, not guessed */
   it("an accepted job with no deposit invoiced waits at Deposit until it's ticked", () => {
-    const one = { status: "Work Order", workOrderDate: "2026-08-28", family: family([claim({ stage: "Final", state: "not_invoiced" })]) };
+    const one = { status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", family: family([claim({ stage: "Final", state: "not_invoiced" })]) };
     expect(line(one)).toContain("deposit:now");
     expect(line({ ...one, noDeposit: true })).toContain("deposit:done:Not needed");
     expect(currentStep(jobSteps({ ...base, ...one, noDeposit: true }, true))?.key).toBe("installation");
   });
 
   it("a deposit ticked as not needed is called Deposit, never Deposit paid", () => {
-    const s = jobSteps({ ...base, status: "Work Order", workOrderDate: "2026-08-28", noDeposit: true }, true);
+    const s = jobSteps({ ...base, status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", noDeposit: true }, true);
     expect(s.find((x) => x.key === "deposit")).toMatchObject({ label: "Deposit", state: "done", fact: "Not needed" });
-    const paid = jobSteps({ ...base, status: "Work Order", workOrderDate: "2026-08-28", family: family([claim({ state: "paid", paidOn: "2026-08-30" })]) }, true);
+    const paid = jobSteps({ ...base, status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", family: family([claim({ state: "paid", paidOn: "2026-08-30" })]) }, true);
     expect(paid.find((x) => x.key === "deposit")?.label).toBe("Deposit paid");
   });
 
   it("the tick shows before the claims are read", () => {
-    expect(line({ status: "Work Order", workOrderDate: "2026-08-28", noDeposit: true })).toContain("deposit:done:Not needed");
+    expect(line({ status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", noDeposit: true })).toContain("deposit:done:Not needed");
   });
 
   it("once the work has started, no deposit invoiced means there wasn't one", () => {
     expect(
-      line({ status: "Work Order", workOrderDate: "2026-08-28", visitDays: ["2026-09-01"], family: family([claim({ stage: "Final", state: "not_invoiced" })]) })
+      line({ status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", visitDays: ["2026-09-01"], family: family([claim({ stage: "Final", state: "not_invoiced" })]) })
     ).toContain("deposit:skip:No deposit");
   });
 
   it("a deposit that was invoiced beats the tick", () => {
-    expect(line({ status: "Work Order", workOrderDate: "2026-08-28", noDeposit: true, family: family([claim({})]) })).toContain("deposit:warn:Invoiced 28 Aug");
+    expect(line({ status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", noDeposit: true, family: family([claim({})]) })).toContain("deposit:warn:Invoiced 28 Aug");
   });
 
   it("a completed job paid in full is done all the way along", () => {
@@ -142,7 +142,7 @@ describe("where a job is up to", () => {
   });
 
   it("a completed job still owed money is at Paid, as a warning", () => {
-    const s = jobSteps({ ...base, status: "Completed", workOrderDate: "2026-08-28", completionDate: "2026-09-12", family: family([claim({ stage: "Final", state: "awaiting" })], { awaitingCents: 300000, toComeCents: 0 }) }, true);
+    const s = jobSteps({ ...base, status: "Completed", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", completionDate: "2026-09-12", family: family([claim({ stage: "Final", state: "awaiting" })], { awaitingCents: 300000, toComeCents: 0 }) }, true);
     expect(currentStep(s)).toMatchObject({ key: "paid", state: "warn", fact: "Invoiced, not paid" });
   });
 
@@ -167,6 +167,44 @@ describe("where a job is up to", () => {
   });
 
   it("a booked first day shows on Installation before anyone has been", () => {
-    expect(line({ status: "Work Order", workOrderDate: "2026-08-28", nextBookingDay: "2026-09-04" }, false)).toContain("installation:now:Booked 4 Sept");
+    expect(line({ status: "Work Order", quoteSentOn: "2026-08-27", workOrderDate: "2026-08-28", nextBookingDay: "2026-09-04" }, false)).toContain("installation:now:Booked 4 Sept");
+  });
+});
+
+/* Isaac, 2026-10-03: "i suppose its just a work order" */
+describe("the work-order line", () => {
+  const wo = { status: "Work Order", workOrderDate: "2026-08-28" };
+
+  it("a work order no quote went out for walks Enquiry, Booked, On site, Done, Invoiced, Paid", () => {
+    expect(line({ ...wo, nextBookingDay: "2026-10-07" })).toEqual([
+      "enquiry:done:20 Aug",
+      "booked:done:7 Oct",
+      "onsite:now",
+      "done:next",
+      "invoiced:next",
+      "paid:next",
+    ]);
+  });
+
+  it("on site, it counts the days; without the money grant there's no Invoiced or Paid", () => {
+    expect(line({ ...wo, visitDays: ["2026-09-01", "2026-09-02"] }, false)).toEqual([
+      "enquiry:done:20 Aug",
+      "booked:done:1 Sept",
+      "onsite:now:Day 2",
+      "done:next",
+    ]);
+  });
+
+  it("completed is done, invoiced and waiting on the money", () => {
+    expect(
+      line({ status: "Completed", completionDate: "2026-09-12", visitDays: ["2026-09-12"], family: family([claim({ stage: "Final", state: "awaiting", raisedOn: "2026-09-12" })], { awaitingCents: 300000, toComeCents: 0 }) })
+    ).toEqual(["enquiry:done:20 Aug", "booked:done:12 Sept", "onsite:done:1 day", "done:done:12 Sept", "invoiced:done:12 Sept", "paid:warn:Invoiced, not paid"]);
+  });
+
+  it("a job booked as a Quote that became do-and-charge moves to it on its own; a sent quote keeps the quote line", () => {
+    expect(lineOf({ status: "Quote", quoteSentOn: null })).toBe("quote");
+    expect(lineOf({ status: "Work Order", quoteSentOn: null })).toBe("work");
+    expect(lineOf({ status: "Work Order", quoteSentOn: "2026-09-02" })).toBe("quote");
+    expect(lineOf({ status: "Unsuccessful", quoteSentOn: null })).toBe("quote");
   });
 });

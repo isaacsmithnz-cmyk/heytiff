@@ -294,6 +294,8 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   purchaseOrder: null,
   date: "2026-07-30 11:53:00",
   quoteDate: null,
+  /* an install a quote went out for: the quote line */
+  quoteSentOn: "2026-08-01",
   workOrderDate: "2026-08-04 09:00:00",
   completionDate: null,
   nextBooking: {
@@ -830,9 +832,11 @@ describe("the summary refresh", () => {
         detail: {
           date: d.date,
           quoteDate: d.quoteDate,
+          quoteSentOn: d.quoteSentOn ?? null,
           workOrderDate: d.workOrderDate,
           completionDate: d.completionDate,
           visits: d.visits,
+          booked: d.booked,
           checklist: d.checklist,
           designs: d.designs,
         },
@@ -1064,6 +1068,7 @@ describe("the Diary face", () => {
       card(
         detail({
           date: null,
+          quoteSentOn: null,
           workOrderDate: null,
           visits: [],
           checklist: [],

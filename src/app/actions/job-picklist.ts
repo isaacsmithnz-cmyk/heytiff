@@ -110,7 +110,7 @@ export async function listJobPicklist(
     crew's act, not an administrative one. */
 export async function addJobPicklistItem(
   jobUuid: string,
-  input: { kind: "material" | "todo"; name: string; qty?: string }
+  input: { kind: "material" | "todo"; name: string; qty?: string; sub?: string }
 ): Promise<JobPicklistItem> {
   const { orgId, userId } = await requireOrg("workboard");
   const job = jobUuid.trim();
@@ -118,6 +118,8 @@ export async function addJobPicklistItem(
   const name = input.name.trim();
   if (!name) throw new Error("Nothing to add");
   const qty = input.kind === "material" ? (input.qty ?? "").trim() : "";
+  /* a material picked from the price book keeps its code and supplier */
+  const sub = input.kind === "material" ? (input.sub ?? "").trim().slice(0, 120) : "";
 
   /* append after whatever is there — same law as the push */
   const { data: tail } = await supabaseAdmin
@@ -137,7 +139,7 @@ export async function addJobPicklistItem(
       design_id: null,
       kind: input.kind,
       name,
-      sub: "",
+      sub,
       qty,
       position: base + 1,
       added_by: userId,

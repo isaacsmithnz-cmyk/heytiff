@@ -1896,12 +1896,12 @@ export function JobSheet({
     void removePicklistItem(id).catch((e: unknown) => onToast(thrownWords(e, "Could not remove that line")));
   };
 
-  const addChecklistItem = (input: { kind: "material" | "todo"; name: string; qty: string }) => {
+  const addChecklistItem = (input: { kind: "material" | "todo"; name: string; qty: string; sub?: string }) => {
     if (!cardId) return;
     const temp: JobPicklistItem = {
-      id: `tmp-${Date.now()}`,
+      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: input.name,
-      sub: "",
+      sub: input.sub ?? "",
       qty: input.qty,
       kind: input.kind,
       picked: false,

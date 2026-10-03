@@ -72,11 +72,15 @@ function offersFor(codes: string[], items: BookItem[], suppliers: Awaited<Return
 }
 
 /** Every pack model with its links and prices. */
-export async function pricedLinks(orgId: string): Promise<PricedLink[]> {
+export async function pricedLinks(
+  orgId: string,
+  /** the book and suppliers, when the caller has read them */
+  pre?: { items: BookItem[]; suppliers: Awaited<ReturnType<typeof readSuppliers>> }
+): Promise<PricedLink[]> {
   const [models, items, suppliers, decisions] = await Promise.all([
     packModels(),
-    currentItems(orgId),
-    readSuppliers(orgId),
+    pre ? Promise.resolve(pre.items) : currentItems(orgId),
+    pre ? Promise.resolve(pre.suppliers) : readSuppliers(orgId),
     readDecisions(orgId),
   ]);
   const links = linkModels(

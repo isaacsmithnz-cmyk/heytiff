@@ -39,13 +39,33 @@ import {
 
 export type PricingMode = "multiple_choice" | "optional" | "itemised";
 
+/* THE EQUIPMENT, AS DATA. Every unit an option puts in is one row: each
+   outdoor unit, each indoor unit (with the outdoor it runs from), and each
+   fan. The rooms the client reads are drawn from these rows, and so is the
+   compliance certificate's equipment, so the two can't disagree and nothing
+   reads a model number back out of a sentence. A model is as given; until it
+   is, it is empty and the checklist asks for it. */
+export type UnitRole = "outdoor" | "indoor" | "fan";
+export const UNIT_ROLES: readonly UnitRole[] = ["outdoor", "indoor", "fan"];
+
 export type UnitLine = {
-  /** "Master bedroom", "Downstairs". */
+  role: UnitRole;
+  /** Indoor and fan: the room, "Master bedroom". Outdoor: where it goes,
+      "Side of the house". */
   room: string;
-  /** "3.5 kW", as said. */
+  /** "3.5 kW", as said. Empty for a fan. */
   capacity: string;
-  /** "High wall", "Ducted, PEA-M140HAA". */
+  /** "High wall", "Ducted", "In-line fan". */
   type: string;
+  /** As on the plate, "PEA-M140HAA". Empty until it is known: never guessed. */
+  model: string;
+  /** Identical units in the same place. */
+  qty: number;
+  /** An indoor unit: the outdoor it runs from, counted from 1 in the order
+      the outdoor units are listed. An outdoor unit: its own number. A fan: 0. */
+  system: number;
+  /** A fan's rated airflow in L/s, when known. Null otherwise. */
+  lps: number | null;
 };
 
 export type ProposalOption = {
@@ -53,7 +73,8 @@ export type ProposalOption = {
   name: string;
   /** The scope, one fact per line, in the house voice. */
   lines: string[];
-  /** Each unit this option puts in, room by room. Empty for a single split. */
+  /** Every unit this option puts in: outdoor units, the indoor units they
+      run, and fans. A single split is one outdoor and one indoor. */
   units: UnitLine[];
   pros: string[];
   cons: string[];
@@ -139,13 +160,17 @@ export type ProposalDraft = {
   notes: ExtraNoteKey[];
   payment: { preset: PaymentPreset; stages: PaymentStage[] };
   checklist: CheckItem[];
+  /** The options the client accepted, by index. One when they pick one;
+      any number when they tick the ones they want. Empty until marked. */
+  accepted: number[];
 };
 
 /* ── the clamps ── */
 
 export const MAX_OPTIONS = 4;
 export const MAX_LINES = 14;
-export const MAX_UNITS = 12;
+export const MAX_UNITS = 24;
+export const MAX_UNIT_QTY = 20;
 export const MAX_PROS = 4;
 export const MAX_EXTRAS = 8;
 export const MAX_ITEMS = 20;
@@ -192,12 +217,34 @@ function pairs<T>(raw: unknown, max: number, make: (o: Record<string, unknown>) 
 
 const short = (s: unknown) => cleanLine(s, MAX_SHORT_CHARS);
 
+const wholeIn = (v: unknown, lo: number, hi: number, fallback: number): number => {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : fallback;
+};
+
+/** A model as typed: one line, its own case, no brackets around it. */
+const cleanModel = (v: unknown): string => short(v).replace(/^\(|\)$/g, "").trim().toUpperCase();
+
 function units(raw: unknown): UnitLine[] {
-  return pairs(raw, MAX_UNITS, (o) => {
+  const rows = pairs(raw, MAX_UNITS, (o): UnitLine | null => {
+    /* a row saved before roles were kept is an indoor unit, as it was drawn */
+    const role: UnitRole = UNIT_ROLES.includes(o.role as UnitRole) ? (o.role as UnitRole) : "indoor";
     const room = short(o.room);
-    const capacity = short(o.capacity);
+    const capacity = role === "fan" ? "" : short(o.capacity);
     const type = short(o.type);
-    return room || capacity || type ? { room, capacity, type } : null;
+    const model = cleanModel(o.model);
+    if (!room && !capacity && !type && !model) return null;
+    const lps = role === "fan" && o.lps !== null && o.lps !== "" && o.lps !== undefined ? wholeIn(o.lps, 1, 5000, 0) || null : null;
+    return { role, room, capacity, type, model, qty: wholeIn(o.qty, 1, MAX_UNIT_QTY, 1), system: wholeIn(o.system, 0, MAX_UNITS, 0), lps };
+  });
+  /* outdoors numbered in order; an indoor points at one that exists, or the
+     first when it names none; a fan belongs to no outdoor */
+  const outdoors = rows.filter((r) => r.role === "outdoor").length;
+  let n = 0;
+  return rows.map((r) => {
+    if (r.role === "outdoor") return { ...r, system: ++n };
+    if (r.role === "fan") return { ...r, system: 0 };
+    return { ...r, system: outdoors === 0 ? 0 : r.system >= 1 && r.system <= outdoors ? r.system : 1 };
   });
 }
 
@@ -280,7 +327,73 @@ export function normaliseDraft(raw: unknown): ProposalDraft | null {
     notes,
     payment: payment(r.payment),
     checklist: checklist(r.checklist),
+    accepted: acceptedOf(r.accepted, options.length, mode === "optional"),
   };
+}
+
+function acceptedOf(raw: unknown, count: number, many: boolean): number[] {
+  const picked = (Array.isArray(raw) ? raw : [])
+    .map((v) => (typeof v === "number" ? v : Number(v)))
+    .filter((v, i, all) => Number.isInteger(v) && v >= 0 && v < count && all.indexOf(v) === i)
+    .sort((a, b) => a - b);
+  /* a client who picks one option has accepted one */
+  return many ? picked : picked.slice(0, 1);
+}
+
+/** The options the client took: the ones marked accepted, or the only
+    option when there is just one. Empty when it can't be told. */
+export function acceptedOptions(draft: ProposalDraft): ProposalOption[] {
+  if (draft.accepted.length > 0) return draft.accepted.map((i) => draft.options[i]).filter(Boolean);
+  return draft.options.length === 1 ? [draft.options[0]] : [];
+}
+
+/** Marking option `i` accepted, or taking the mark off. A client who
+    picks one option has accepted only that one. */
+export function toggleAccepted(draft: ProposalDraft, i: number): number[] {
+  if (draft.accepted.includes(i)) return draft.accepted.filter((x) => x !== i);
+  return draft.pricingMode === "multiple_choice" ? [i] : [...draft.accepted, i].sort((a, b) => a - b);
+}
+
+/** A new, empty row of the given kind, under the last outdoor unit. */
+export function blankUnit(role: UnitRole, outdoors: number): UnitLine {
+  return {
+    role,
+    room: "",
+    capacity: "",
+    type: role === "outdoor" ? "Outdoor unit" : "",
+    model: "",
+    qty: 1,
+    system: role === "outdoor" ? outdoors + 1 : role === "indoor" ? Math.max(1, outdoors) : 0,
+    lps: null,
+  };
+}
+
+/** The rows after the row at `i` is taken out: an indoor unit that ran from
+    a later outdoor unit keeps pointing at the same one. */
+export function removeUnit(units: readonly UnitLine[], i: number): UnitLine[] {
+  const gone = units[i];
+  const rest = units.filter((_, j) => j !== i);
+  if (!gone || gone.role !== "outdoor") return rest;
+  return rest.map((u) => (u.role === "indoor" && u.system > gone.system ? { ...u, system: u.system - 1 } : u));
+}
+
+/** An accepted index list after option `removed` is taken out. */
+export function acceptedAfterRemoving(accepted: readonly number[], removed: number): number[] {
+  return accepted.filter((i) => i !== removed).map((i) => (i > removed ? i - 1 : i));
+}
+
+/** One unit, as the card and the proposal say it: what it is after where. */
+export function unitWords(u: UnitLine): string {
+  const what = [u.capacity, u.type, u.model].filter(Boolean).join(", ");
+  const airflow = u.role === "fan" && u.lps !== null ? `${u.lps} L/s` : "";
+  const count = u.qty > 1 ? `${u.qty} x ` : "";
+  return count + [what, airflow].filter(Boolean).join(", ");
+}
+
+/** Where a unit is, as a heading for its row. */
+export function unitPlace(u: UnitLine): string {
+  if (u.role === "outdoor") return u.room ? `Outdoor unit ${u.system}, ${u.room.charAt(0).toLowerCase()}${u.room.slice(1)}` : `Outdoor unit ${u.system}`;
+  return u.room || (u.role === "fan" ? "Fan" : "Indoor unit");
 }
 
 /* ── the words drawn around the fields ── */

@@ -79,6 +79,7 @@ function setup(
     profile?: StaffProfile;
     header?: typeof header;
     adminExtras?: AdminExtras;
+    hasSignature?: boolean;
   } = {}
 ) {
   const actions = okActions();
@@ -95,6 +96,7 @@ function setup(
       // `in`, not `??` — passing null explicitly means "the org has no state"
       orgState={"orgState" in over ? over.orgState! : "NSW"}
       adminExtras={over.adminExtras}
+      hasSignature={over.hasSignature}
       actions={actions}
     />
   );
@@ -239,6 +241,25 @@ describe("Still to add — every blank, once", () => {
   it("asks for a wage only of the person who can see pay", () => {
     setup({ adminExtras: { payroll: { hourly_wage: null } } });
     expect(todo("Required")).toContain("Pay");
+  });
+
+  it("asks for your signature until you've drawn one, on your own card only", async () => {
+    setup({ mode: "self", hasSignature: false });
+    expect(todo("Optional")).toContain("Signature");
+    await userEvent.click(screen.getByRole("button", { name: "Add signature" }));
+    expect(openSection()).toBe("licences");
+    /* opens on the Signature card, not on a new licence */
+    expect(document.getElementById("profile-signature")).toHaveTextContent("Printed on the certificates you sign");
+    /* the add-a-licence dialog stays shut */
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("doesn't ask for a signature once it's drawn, or on someone else's card", () => {
+    const { unmount } = setup({ mode: "self", hasSignature: true });
+    expect(todo("Optional")).not.toContain("Signature");
+    unmount();
+    setup({ mode: "admin", hasSignature: false });
+    expect(todo("Optional")).not.toContain("Signature");
   });
 
   it("is not there when nothing is missing", () => {

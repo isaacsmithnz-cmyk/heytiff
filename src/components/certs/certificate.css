@@ -1,0 +1,144 @@
+/* THE CERTIFICATE'S OWN PARTS — what a certificate has and a design sheet
+   hasn't: a heading over each table, the statements, the sign-off and the
+   foot. Everything else it wears is the design sheet's (sheet-doc.css): the
+   frame, the masthead, the figures and the tables.
+
+   UNDER THE DESIGN LAWS, not beside them. Unlike sheet-doc.css this sheet is
+   not one of the paper sheets the ratchets leave out, so it keeps the screen
+   scales even on paper: type at 12px and up, weights to 700, spacing on the
+   scale, colour from the sheet's own variables. 12px is 9pt on A4, which is
+   what a certificate is read at anyway. */
+
+.cer-sec { margin-top: 32px; }
+/* as many columns as the certificate has facts, which is four to six: the
+   design sheet's row is built for exactly six */
+.dsd-figs.cer-figs { grid-template-columns: repeat(var(--cer-n, 4), minmax(0, 1fr)); }
+.cer-h {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--dsd-ink);
+}
+/* One hairline between rows, a heavier one under the head and over the
+   total: the design sheet's table, at the certificate's three or four
+   columns. */
+.cer-rt { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.cer-c-loc { width: 34%; }
+.cer-c-ser { width: 18%; }
+.cer-c-num { width: 16%; }
+.cer-rt th {
+  padding: 0 12px 8px 0;
+  border-bottom: 1px solid var(--dsd-rule-2);
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dsd-ink-3);
+}
+.cer-rt td {
+  padding: 8px 12px 8px 0;
+  border-bottom: 1px solid var(--dsd-rule);
+  vertical-align: top;
+  font-size: 14px;
+  color: var(--dsd-ink-2);
+  overflow-wrap: anywhere;
+}
+.cer-rt th:last-child,
+.cer-rt td:last-child { padding-right: 0; }
+.cer-rt .num { text-align: right; }
+.cer-rt td.num { font-weight: 700; color: var(--dsd-ink); white-space: nowrap; }
+.cer-rt td.cer-loc { font-weight: 600; color: var(--dsd-ink); }
+.cer-rt tbody tr:last-child td { border-bottom: 0; }
+.cer-rt tfoot td {
+  padding-top: 8px;
+  border-top: 1px solid var(--dsd-rule-2);
+  border-bottom: 0;
+  font-weight: 700;
+  color: var(--dsd-ink);
+}
+/* "rated" or "measured" under the figure: a fact about the number, so it sits
+   with it, quieter */
+.cer-kind {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dsd-ink-3);
+}
+
+.cer-lede { margin: 0 0 8px; font-size: 14px; color: var(--dsd-ink-2); }
+.cer-st { margin: 0; padding-left: 24px; }
+.cer-st li {
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--dsd-ink-2);
+}
+.cer-note { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--dsd-ink-3); }
+
+.cer-sign {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: end;
+  margin: 32px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--dsd-rule-2);
+  break-inside: avoid;
+}
+.cer-sign dt { font-size: 12px; font-weight: 600; color: var(--dsd-ink-3); }
+.cer-sign dd { margin: 0; }
+.cer-sig {
+  height: 48px;
+  margin-top: 4px;
+  border-bottom: 1px solid var(--dsd-ink);
+}
+.cer-sig img { display: block; height: 100%; width: auto; max-width: 100%; }
+.cer-who { margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--dsd-ink); }
+.cer-who span { display: block; font-size: 12px; font-weight: 500; color: var(--dsd-ink-3); }
+
+.cer-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin: 24px 0 0;
+  font-size: 12px;
+  color: var(--dsd-ink-3);
+}
+
+/* ONE PAGE, for a job like 1383: seven rooms, three of a certifier's items
+   and the standard set. The design sheet's masthead stacks the byline over
+   the addressee, which a two-page summary can afford and a certificate
+   can't; on paper they sit side by side under the title, and the figures
+   row and the rows tighten to the scale's small steps. */
+@media print {
+  @page { size: A4; margin: 0; }
+  .cer .dsd-mast { grid-template-columns: minmax(0, 1fr) max-content; column-gap: 24px; }
+  .cer .dsd-mast-job {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 24px;
+    align-items: start;
+  }
+  .cer .dsd-mast-job > .dsd-eyebrow,
+  .cer .dsd-mast-job > h1 { grid-column: 1 / -1; }
+  .cer .dsd-prep,
+  .cer .dsd-to { margin-top: 16px; }
+  .cer .dsd-figs.cer-figs { margin-top: 16px; padding: 8px 0; }
+  .cer-sec { margin-top: 8px; }
+  .cer-h { margin-bottom: 4px; font-size: 14px; }
+  .cer-rt td { padding: 2px 12px 2px 0; font-size: 12px; }
+  .cer-rt th { padding-bottom: 4px; }
+  .cer-rt tfoot td { padding-top: 4px; }
+  .cer-rt tr { break-inside: avoid; }
+  .cer-lede,
+  .cer-st li { font-size: 12px; }
+  .cer-lede { margin-bottom: 4px; }
+  .cer-st li { margin-bottom: 2px; line-height: 1.3; }
+  .cer-note { margin-top: 4px; font-size: 12px; }
+  .dsd-figs.cer-figs { grid-template-columns: repeat(var(--cer-n, 4), minmax(0, 1fr)); }
+  .cer-sign { margin-top: 8px; padding-top: 8px; gap: 16px; }
+  .cer-sig { height: 32px; }
+  .cer-who { font-size: 13px; }
+  .cer-foot { margin-top: 4px; }
+}

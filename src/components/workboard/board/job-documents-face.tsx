@@ -9,6 +9,7 @@ import { documentGroupOf, opensInCard, type JobMediaItem } from "@/lib/workboard
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { andList } from "@/lib/swms/library";
 import type { SwmsSummary } from "@/lib/swms/query";
+import type { CertSummary } from "@/lib/certs/query";
 import {
   ourDocumentSendKey,
   paperMeta,
@@ -48,6 +49,13 @@ import "@/components/swms/swms.css";
    rows were loaded and thrown away for a bare count — but their bytes stay
    in ServiceM8 by charter (a job's worth of mp4 against a bucket sized in
    gigabytes), so the row says so instead of pretending to play.
+
+   THE CERTIFICATES JOIN IT TOO. A compliance certificate is the other paper
+   HeyTiff writes, at the other end of the job: Create certificate is offered
+   on any job, finished or not (a card can sit at Work Order while its last
+   claim is complete), and a reissue is the next version, not a second
+   certificate. Its PDF is an ordinary file of ours on the job, so its row's
+   tick is that file's, and sending it is the footer's.
 
    THE BUSINESS'S PAPERS JOIN THE SWMS UNDER COMPLIANCE. Add compliance is
    the third way in: the certificates on the Organisation screen and the
@@ -350,6 +358,11 @@ export function JobDocumentsFace({
   onCreateSwms,
   onOpenSwms,
   onReviseSwms,
+  certificates = null,
+  certificatesFailed = false,
+  onCreateCertificate,
+  onOpenCertificate,
+  onReissueCertificate,
   papers = null,
   papersFailed = false,
   mayAdd = { company: false, staff: false },
@@ -395,6 +408,14 @@ export function JobDocumentsFace({
   onCreateSwms?: () => void;
   onOpenSwms?: (swms: SwmsSummary) => void;
   onReviseSwms?: (versionId: string) => void;
+  /** The job's certificates at their latest versions; null until the read lands. */
+  certificates?: readonly CertSummary[] | null;
+  /** The read failed — said, rather than a Create that may make a second one. */
+  certificatesFailed?: boolean;
+  /** Absent until the card knows which job it is. */
+  onCreateCertificate?: () => void;
+  onOpenCertificate?: (cert: CertSummary) => void;
+  onReissueCertificate?: (versionId: string) => void;
   /** The business's papers on this job; null until the read lands. */
   papers?: readonly JobPaper[] | null;
   /** The read failed — said, rather than an empty group that looks true. */
@@ -493,10 +514,14 @@ export function JobDocumentsFace({
   const showFiles = part !== "compliance";
   const showCompliance = part !== "files";
   const statements = showCompliance ? (swms ?? []) : [];
+  /* a certificate is compliance paper, with the SWMS and the licences */
+  const certs = showCompliance ? (certificates ?? []) : [];
   const ours = showCompliance ? (papers ?? []) : [];
-  const total = (showFiles ? docs.length + designs.length : 0) + statements.length + ours.length;
+  const total = (showFiles ? docs.length + designs.length : 0) + statements.length + certs.length + ours.length;
 
   const offerSwms = showCompliance && !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
+  /* one per job: a later one is a reissue of the first */
+  const offerCertificate = showCompliance && !!onCreateCertificate && certificates !== null && certs.length === 0;
   const offerPapers = showCompliance && !!onLoadChoices && !!onAddPapers && (mayAdd.company || mayAdd.staff);
   const offerUpload = showFiles ? onUpload : undefined;
 
@@ -525,7 +550,7 @@ export function JobDocumentsFace({
         {total > 0 && <em>{total === 1 ? "1 file" : `${total} files`}</em>}
       </div>
 
-      {(offerUpload || offerSwms || offerPapers) && (
+      {(offerUpload || offerSwms || offerPapers || offerCertificate) && (
         <div className="wb2-jcdadd">
           {offerUpload && (
             <>
@@ -577,6 +602,12 @@ export function JobDocumentsFace({
               Create SWMS
             </button>
           )}
+          {offerCertificate && (
+            <button type="button" className="pbtn ghost" onClick={onCreateCertificate}>
+              <Icon name="file" size={15} />
+              Create certificate
+            </button>
+          )}
         </div>
       )}
       {refused.map((why) => (
@@ -595,13 +626,16 @@ export function JobDocumentsFace({
       )}
 
       {showCompliance && swmsFailed && <p className="int-hint">Couldn&apos;t read this job&apos;s SWMS. Close the card and open it again.</p>}
+      {showCompliance && certificatesFailed && (
+        <p className="int-hint">Couldn&apos;t read this job&apos;s certificates. Close the card and open it again.</p>
+      )}
       {showCompliance && papersFailed && (
         <p className="int-hint">Couldn&apos;t read this job&apos;s licences and insurance. Close the card and open it again.</p>
       )}
 
-      {statements.length + ours.length > 0 && (
+      {statements.length + certs.length + ours.length > 0 && (
         <div className="wb2-jcsec">
-          {part === "all" && <span className="wb2-sect">{`Compliance — ${statements.length + ours.length}`}</span>}
+          {part === "all" && <span className="wb2-sect">{`Compliance — ${statements.length + certs.length + ours.length}`}</span>}
           {statements.map((s) => (
             <div key={s.swmsId} className="wb2-docrow">
               {pickOf(null, "Safe Work Method Statement")}
@@ -641,6 +675,28 @@ export function JobDocumentsFace({
               {onReviseSwms && (
                 <button type="button" className="pbtn ghost sm" onClick={() => onReviseSwms(s.versionId)}>
                   Revise
+                </button>
+              )}
+            </div>
+          ))}
+          {certs.map((c) => (
+            <div key={c.certificateId} className="wb2-docrow">
+              {pickOf(c.documentId ? ourDocumentSendKey(c.documentId) : null, c.title)}
+              <button type="button" className="wb2-doc" onClick={() => onOpenCertificate?.(c)}>
+                <span className="wb2-doc-ic">
+                  <Icon name="file" size={15} />
+                </span>
+                <span className="wb2-doc-b">
+                  <b>{c.title}</b>
+                  <em>{`${c.version > 1 ? "Reissued" : "Issued"} ${editedOn(c.issuedAt)}, signed by ${c.issuedBy}`}</em>
+                </span>
+                <span className="wb2-doc-go">
+                  <Icon name="chevR" size={15} />
+                </span>
+              </button>
+              {onReissueCertificate && (
+                <button type="button" className="pbtn ghost sm" onClick={() => onReissueCertificate(c.versionId)}>
+                  Reissue
                 </button>
               )}
             </div>

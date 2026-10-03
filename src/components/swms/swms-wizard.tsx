@@ -36,6 +36,7 @@ import {
 } from "@/lib/swms/library";
 import type { SwmsTeamMember } from "@/lib/swms/query";
 import { ApproveTemplate } from "./approve-template";
+import { Choice, Seg } from "./controls";
 import { TemplateSteps } from "./template-steps";
 import "./swms.css";
 
@@ -118,67 +119,6 @@ const ISSUE_FAILED = "Couldn't issue the SWMS. Try again.";
 /* the first thing the server refused it for — out here, not in issue's
    try, where React Compiler 1.0 cannot lower the `??` */
 const issueRefusal = (problems: string[]) => problems[0] ?? ISSUE_FAILED;
-
-function Seg<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-  id,
-}: {
-  label: string;
-  value: T;
-  options: readonly (readonly [T, string])[];
-  onChange: (v: T) => void;
-  id?: string;
-}) {
-  return (
-    <div className="seg" role="group" aria-label={label}>
-      {options.map(([v, text], i) => (
-        <button
-          key={v}
-          id={i === 0 ? id : undefined}
-          type="button"
-          className={value === v ? "on" : undefined}
-          aria-pressed={value === v}
-          onClick={() => onChange(v)}
-        >
-          {text}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Choice({
-  name,
-  checked,
-  onChange,
-  title,
-  sub,
-  kind = "radio",
-  id,
-  disabled = false,
-}: {
-  name: string;
-  checked: boolean;
-  onChange: (on: boolean) => void;
-  title: string;
-  sub?: string | null;
-  kind?: "radio" | "checkbox";
-  id?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <label className={`sw-opt${checked ? " on" : ""}${disabled ? " off" : ""}`}>
-      <input id={id} type={kind} name={name} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      <span>
-        <b>{title}</b>
-        {sub && <em>{sub}</em>}
-      </span>
-    </label>
-  );
-}
 
 export function SwmsWizard({
   jobUuid,

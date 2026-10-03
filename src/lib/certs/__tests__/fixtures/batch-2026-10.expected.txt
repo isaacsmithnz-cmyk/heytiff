@@ -1,0 +1,64 @@
+3293
+   OUT[6kW MUZ-AP60VGD2-A2 @-] -> 6 MSZ-AP60VGKD2-A2 @-
+3182
+   OUT[7kW - @-] -> 3x 2.5 - @-
+   OUT[7kW - @-] -> 2x 4.2 - @-
+   OUT[8kW - @-] -> 8 - @-
+2028
+   OUT[14kW - @-] -> 14 - @-
+3197
+   OUT[5.2kW - @Wall brackets] -> 2x 3.5 - @Lower ground bedroom and living
+2513
+   OUT[14kW - @-] -> 14 - @-
+3348
+2971
+3321
+   OUT[3.5kW MUZ-AP35VGD2-A2 @-] -> 3.5 MSZ-AP35VGKD2-A2 @-
+2921
+   OUT[14kW RZA140C2V1 @-] -> 14 FDYAN140AV1 @-
+3305
+   OUT[6kW - @Roof] -> 6 ASTH22KMTD @-
+3299
+   OUT[10kW - @-] -> 2x 3.5 - @Large beds | 2 - @Small bed | 5 - @Kitchen
+3285
+   OUT[5.4kW - @-] -> 3.5 - @Cottage bedroom | 2 - @Ground floor office
+1944
+   OUT[14kW - @-] -> 14 - @-
+2730
+   OUT[7kW - @-] -> 2x 3.5 - @Bedroooms
+1558
+   OUT[9kW - @-] -> 5 - @Gym | 3.6 - @Mud room | 3.6 - @Guest bed
+   OUT[33kW - @-] -> 7 - @Kitchen | 7 - @Fireplace | 5 - @Living room | 7 - @Master bed | 3.6 - @Bed 2 | 3.6 - @Bed 3 | 3.6 - @Bed 4
+   FAN 7x - @Wet rooms including laundry
+   FAN 2x - @Plant room and associated ductwork
+3154
+   OUT[14kW - @-] -> 14 - @Ground floor area
+1306
+   OUT[22kW - @-] -> 7 - @Kitchen | 3.6 - @Second living area/upstairs | 3.6 - @Master bedroom | 2.8 - @Second bedroom | 3.6 - @Third bedroom
+3205
+   OUT[?kW - @-] -> ? MSZ-AP35VGKD2 @-
+3155
+   OUT[10kW - @Rear ground floor verandah] -> 7 - @Garage area | 4.2 - @Laundry
+2895
+   OUT[16kW - @-] -> 16 - @-
+3139
+   OUT[7.1kW - @-] -> 7.1 - @-
+2917
+   OUT[4.2kW - @-] -> 4.2 - @-
+3148
+   OUT[5kW - @-] -> 5 - @-
+2380
+   OUT[14kW - @-] -> 5.6 - @Kitchen | 2.2 - @Ground floor study | 4.5 - @Stairwell | 3.6 - @Master bedroom | 2.8 - @First floor bedroom
+2641
+   OUT[7.1kW - @-] -> 7.1 - @-
+1689
+   OUT[7kW - @-] -> 7 - @Living area
+   OUT[3.5kW - @-] -> 3.5 - @Master Bed
+   OUT[3.5kW - @-] -> 3.5 - @Master bed 2
+   OUT[7kW - @-] -> 5 - @- | 3.5 - @Upstairs office
+3185
+   OUT[4.2kW - @-] -> 4.2 - @-
+3196
+3145
+   OUT[10kW MXZ-5F100VGD-A2 @-] -> 7 - @-
+   OUT[4.2kW - @-] -> 4.2 MSZ-AP42VGKD2-A2 @-

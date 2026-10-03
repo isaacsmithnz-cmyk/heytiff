@@ -89,6 +89,16 @@ export const SECTIONS: AdminGroup[] = [
         show: anyone,
       },
       {
+        /* The other paper the business writes itself: every statement an
+           installer's certificate can make, read and approved by the owner. */
+        title: "Certificate wording",
+        sub: "The statements every compliance certificate is written from",
+        icon: "file",
+        accent: "#FF8A00",
+        href: "/dashboard/certificates/template",
+        show: anyone,
+      },
+      {
         title: "Compliance",
         sub: "Incidents, corrective actions & QA",
         icon: "shield",

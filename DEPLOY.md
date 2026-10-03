@@ -846,6 +846,30 @@ nobody.
 
 ---
 
+## 3e. Compliance certificates (the job card's Documents face)
+
+The installer's certificate a builder asks for at the end of a job:
+docs/certificates-plan.md is the design.
+
+1. Apply `docs/migrations/certificates.sql` **before the deploy that reads it**.
+   It is additive (six new tables nothing reads yet), so applying it early is
+   safe. Without it, the Create certificate button opens a wizard that can't
+   read the job and says so. **Applied to production 2026-10-03** (migration
+   `certificates`).
+2. Nothing new in Vercel. Issuing prints the PDF through the same headless
+   Chromium as the Studio's Send to job (`@sparticuz/chromium`, `APP_BASE_URL`,
+   `AUTH0_SECRET` for the print ticket), and reading a certifier's list uses
+   `ANTHROPIC_API_KEY`. Without that key everything works except the read,
+   which says Tiff isn't set up.
+3. Before the first certificate can be issued, in the app:
+   - the owner reads and approves the wording at
+     `/dashboard/certificates/template` (Admin, Certificate wording);
+   - whoever signs has a current ARC licence and contractor licence **with
+     expiry dates** on their staff card, and draws their signature there
+     (Licences, Signature).
+
+---
+
 ## 4. Deploy & verify
 
 1. **Deploy**. Wait for the build to finish.

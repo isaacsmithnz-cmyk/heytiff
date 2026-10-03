@@ -12,6 +12,7 @@ import { SectionDone } from "./section-card";
 import { PersonalCard } from "./personal-card";
 import { EmergencyCard } from "./emergency-card";
 import { ComplianceCard } from "./compliance-card";
+import { SignatureCard } from "./signature-card";
 import { QualificationsCard } from "./qualifications-card";
 import { WorkRightsCard } from "./workrights-card";
 import { PayrollCard } from "./payroll-card";
@@ -92,6 +93,7 @@ export function ProfileScreen({
   orgState = null,
   adminExtras,
   myPay,
+  hasSignature,
   initialSec,
   addressLookup = false,
   aliases = [],
@@ -125,6 +127,9 @@ export function ProfileScreen({
   adminExtras?: AdminExtras;
   /** self mode only — never read through a financials-gated path */
   myPay?: MyPay | null;
+  /** Self only: whether you have drawn your signature, so the Overview can
+      ask for it until you have. */
+  hasSignature?: boolean;
   /** from the page's own searchParams, so deep links open the right card */
   initialSec?: string;
   /** Boolean(GOOGLE_MAPS_API_KEY), computed on the server. Threaded rather
@@ -274,6 +279,7 @@ export function ProfileScreen({
                       showNotes,
                     }}
                     myPay={showMyPay ? myPay : null}
+                    hasSignature={mode === "self" ? hasSignature : undefined}
                     onGo={go}
                   />
                 )}
@@ -325,9 +331,13 @@ export function ProfileScreen({
                       onRecordTerm={actions.onRecordLicenceTerm}
                       onAttachDoc={actions.onAttachLicenceDoc}
                       onRemoveTerm={actions.onRemoveLicenceTerm}
-                      startAdding={startEditing > 0}
+                      /* an Add for the signature opens this section on the
+                         Signature card, not on a new licence */
+                      startAdding={startEditing > 0 && focusField !== "signature"}
                     />
                     <QualificationsCard profile={profile} mode={mode} onSave={actions.onSave} />
+                    {/* yours only: a signature is the person's own mark */}
+                    {mode === "self" && <SignatureCard focus={startEditing > 0 && focusField === "signature"} />}
                   </>
                 )}
                 {active === "workrights" && (

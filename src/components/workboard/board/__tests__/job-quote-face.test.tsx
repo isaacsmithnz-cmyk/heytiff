@@ -172,3 +172,38 @@ it("the payment editor opens on the stages the draft holds now", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Edit Payment" }));
   expect(screen.getAllByRole("textbox", { name: /^Stage \d+$/ })).toHaveLength(PAYMENT_PRESETS.domestic_construction.stages.length);
 });
+
+it("marks an option accepted, the job's equipment for its certificate", async () => {
+  face();
+  const mark = await screen.findByRole("button", { name: "Mark accepted" });
+  expect(mark).toHaveAttribute("aria-pressed", "false");
+  await act(async () => {
+    fireEvent.click(mark);
+  });
+  const put = (fetchMock.mock.calls as Call[]).find(([, init]) => init?.method === "PUT");
+  expect(JSON.parse(put![1]!.body!).draft.accepted).toEqual([0]);
+  expect(await screen.findByRole("button", { name: "Accepted" })).toHaveAttribute("aria-pressed", "true");
+});
+
+it("shows a unit with no model as not given yet, and edits the equipment row by row", async () => {
+  face();
+  await screen.findByText("Living room");
+  expect(screen.getByText("Model not given yet")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit Option 1: Install client-supplied 6 kW split" }));
+  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "msz-ap60vgd" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add an outdoor unit" }));
+  expect(screen.getAllByLabelText("Unit").map((el) => (el as HTMLSelectElement).value)).toEqual(["indoor", "outdoor"]);
+  fireEvent.change(screen.getByLabelText("Where outdoor unit 1 goes"), { target: { value: "Parapet wall" } });
+  fireEvent.change(screen.getAllByLabelText("Model")[1], { target: { value: "MUZ-AP60VG" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save option" }));
+  });
+  const put = (fetchMock.mock.calls as Call[]).find(([, init]) => init?.method === "PUT");
+  const units = JSON.parse(put![1]!.body!).draft.options[0].units;
+  expect(units.map((u: { role: string; model: string; room: string }) => [u.role, u.model, u.room])).toEqual([
+    ["indoor", "msz-ap60vgd", "Living room"],
+    ["outdoor", "MUZ-AP60VG", "Parapet wall"],
+  ]);
+  /* stored with the model in its own case, and the indoor on the outdoor */
+  expect(await screen.findByText("6 kW, High wall, MSZ-AP60VGD")).toBeInTheDocument();
+});

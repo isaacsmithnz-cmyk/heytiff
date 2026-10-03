@@ -1,0 +1,47 @@
+/* The certificate's page around the paper: the app's ground, the way back to
+   the job, and Print. The paper itself is CertificatePaper's. */
+
+.cerp {
+  min-height: 100vh;
+  padding: 24px 16px 48px;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+}
+.cerp-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  max-width: 960px;
+  margin: 0 auto 16px;
+}
+.cerp-print {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+.cerp-print:hover { background: var(--tint); }
+.cerp-print:focus-visible { outline: none; box-shadow: var(--ring); }
+.cerp-sheet {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+}
+
+@media print {
+  .cerp { min-height: 0; padding: 0; background: none; }
+  .cerp-bar { display: none; }
+  .cerp-sheet { max-width: none; padding: 0; border: 0; border-radius: 0; }
+}

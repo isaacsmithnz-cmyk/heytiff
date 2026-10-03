@@ -47,6 +47,10 @@ const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 /** "for the kitchen", "to the living room", "for Master Bed" → the place. */
 function placeIn(line: string): string {
+  /* "to suit kitchen bulkhead application": the room is the word before
+     the kind of install */
+  const suit = /\bto suit (?:the\s+)?([a-z][a-z0-9' -]*?)\s+(?:bulkhead|ceiling|wall|floor|joinery)\b/i.exec(line);
+  if (suit && !/^(a|an|the|all|any|existing)$/i.test(suit[1].trim())) return cap(suit[1].trim());
   const m = /\b(?:for|serving|to(?:\s+serve|\s+service)?)\s+(?:the\s+)?([a-z][a-z0-9'’ /,&-]*?)\s*(?:[.;(]|$)/i.exec(line);
   if (!m) return "";
   const place = m[1].replace(/\s+/g, " ").trim();
@@ -207,6 +211,26 @@ export function readQuote(description: string | null): QuoteReading {
       own.indoors.push({ ...EMPTY_ROW, model: indoorModel, capacityKw: kw, location: place });
       systems.push(own);
     }
+  }
+
+  /* ONE SYSTEM SAID TWICE: a summary sentence ("Daikin 7.0kW bulkhead air
+     conditioning system to suit kitchen bulkhead application") and then the
+     model lines under it ("RZAC71G2V1 … 7.1KW", "FDYBA71AV1 … 7.1KW"). The
+     sentence's system has no model anywhere; when a modelled system of
+     about the same size follows, the sentence was describing it, so it is
+     dropped and only lends its rooms. */
+  const modelled = (x: AcSystem) => !!x.outdoor.model || x.indoors.some((r) => !!r.model);
+  for (let i = systems.length - 1; i >= 0; i--) {
+    const plain = systems[i];
+    if (modelled(plain) || plain.outdoor.capacityKw === null) continue;
+    const twin = systems.find((x) => x !== plain && modelled(x) && x.outdoor.capacityKw !== null && Math.abs(x.outdoor.capacityKw - (plain.outdoor.capacityKw ?? 0)) <= 0.5);
+    if (!twin) continue;
+    if (twin.indoors.length === plain.indoors.length) {
+      twin.indoors.forEach((r, j) => {
+        if (!r.location && plain.indoors[j]?.location) r.location = plain.indoors[j].location;
+      });
+    }
+    systems.splice(i, 1);
   }
 
   const place = outdoorPlaceIn(text);

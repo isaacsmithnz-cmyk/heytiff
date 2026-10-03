@@ -220,6 +220,19 @@ Outcome:
 
 Additional cost: $5900 + GST`;
 
+/** 32 England Avenue, Marrickville, for Lush Constructions: a summary
+    sentence and then the model lines, for one Daikin bulkhead system. */
+export const JOB_2885 = `Supply and installation of Daikin 7.0kW bulkhead air conditioning system to suit kitchen bulkhead application.
+
+DAIKIN BULKHEAD 7.1KW R32
+Included
+RZAC71G2V1 - DAIKIN BULKHEAD OUT 7.1KW R32 
+FDYBA71AV1 - DAIKIN BULKHEAD IND 7.1KW R32
+ 
+Includes custom linear bar grille up to 4.0m total length (powder coated to Colourbond colours) with all required plenums/boots, duct transitions, fixings and commissioning.
+
+Service existing air conditioning system and carry out minor repairs up to an allowance of $1,000.00 ex GST, including full clean and service, supply and installation of new 600 x 100 linear bar grille and matching boot to suit, and supply and installation of new wall controller. Any additional repairs or parts outside the allowance to be quoted prior to proceeding.`;
+
 export const FUTURECERT_9_1 = [
   "Mechanical Ventilation and Air Conditioning System has been installed in accordance with AS 1668.1 and AS 1668.2.",
   "Any Air Handling System which does not form part of the smoke control system (other than individual room units with a capacity not more than 1000 L/s, system serving critical treatment areas and miscellaneous exhaust air systems installed in accordance with Sections 5 and 6 of AS/NZS 1668.1) shuts down in fire mode as required by Specification 21",

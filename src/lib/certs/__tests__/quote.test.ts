@@ -1,5 +1,5 @@
 import { isOutdoorModel, matchRequirement, modelsIn, readQuote, statedConnectedKw, suggestBuilding } from "../quote";
-import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2043, JOB_2699, JOB_279, JOB_3326 } from "./fixtures/jobs";
+import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2043, JOB_2699, JOB_2885, JOB_279, JOB_3326 } from "./fixtures/jobs";
 
 /* The wizard's first draft, read off six real jobs. Each is only a
    suggestion the person corrects, but a good one saves the typing. */
@@ -197,5 +197,16 @@ describe("Section J, under either edition", () => {
   it("matches a list that says J5 (BCA 2019) or J6 (NCC 2022)", () => {
     expect(matchRequirement("Installation in accordance with Part J5 of the BCA").clause).toBe("j5");
     expect(matchRequirement("Air-conditioning complies with Part J6 of NCC 2022").clause).toBe("j5");
+  });
+});
+
+describe("2885: one system said twice", () => {
+  it("reads the summary sentence and the model lines as one system, in the kitchen, and leaves the service of the old one out", () => {
+    const q = readQuote(JOB_2885);
+    expect(q.systems).toHaveLength(1);
+    expect(q.systems[0].outdoor).toMatchObject({ model: "RZAC71G2V1", capacityKw: 7.1 });
+    expect(q.systems[0].indoors).toEqual([expect.objectContaining({ model: "FDYBA71AV1", location: "Kitchen" })]);
+    expect(q.systems[0].test.refrigerant).toBe("R32");
+    expect(q.ductwork).toBe(true);
   });
 });

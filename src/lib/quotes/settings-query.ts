@@ -119,12 +119,14 @@ export function rankGroups(groups: ComponentGroup[]): ComponentGroup[] {
 export async function componentShortlists(
   orgId: string,
   settings: QuoteSettings,
-  suppliers?: SupplierView[]
+  suppliers?: SupplierView[],
+  /** the book and its same-item decisions, when the caller has read them */
+  pre?: { book: BookItem[]; same: Awaited<ReturnType<typeof readSameDecisions>> }
 ): Promise<ComponentShortlist[]> {
   const [book, sups, same] = await Promise.all([
-    currentItems(orgId),
+    pre ? Promise.resolve(pre.book) : currentItems(orgId),
     suppliers ? Promise.resolve(suppliers) : readSuppliers(orgId),
-    readSameDecisions(orgId),
+    pre ? Promise.resolve(pre.same) : readSameDecisions(orgId),
   ]);
   /* a part a person confirmed is one item at two suppliers under their own
      codes (AAD's PC1412 and Reece's 9800006-1) */

@@ -30,6 +30,11 @@ jest.mock("@/app/actions/workboard", () => ({
 jest.mock("@/app/actions/workboard-media", () => ({
   cacheJobFiles: jest.fn(async () => ({ ok: true, cached: 0, remaining: 0, media: null, note: null })),
 }));
+jest.mock("@/app/actions/job-check-ins", () => ({
+  readMyCheckIn: jest.fn(async () => null),
+  checkIn: jest.fn(async () => null),
+  checkOut: jest.fn(async () => null),
+}));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: jest.fn(async () => []),
   setPicklistItemPicked: jest.fn(async () => null),

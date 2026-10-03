@@ -15,6 +15,7 @@ import { fillWords, NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
 import { LEAVE_WORDS } from "@/lib/integrations/sm8-leave-words";
 import { JOB_WORDS } from "@/lib/integrations/sm8-job-words";
+import { CUSTOMER_WORDS } from "@/lib/integrations/sm8-customer-words";
 import type { RecentSm8Write } from "@/lib/integrations/sm8-writes";
 import {
   retryFailedServiceM8WritesAction,
@@ -91,6 +92,7 @@ const KIND_ROWS: { kind: Sm8WriteKind; label: string; group: string }[] = [
   { kind: "booking", label: BOOKING_WORDS.card.bookings, group: BOOKING_WORDS.card.bookingsGroup },
   { kind: "leave", label: LEAVE_WORDS.card.leave, group: LEAVE_WORDS.card.leaveGroup },
   { kind: "job", label: JOB_WORDS.card.jobs, group: JOB_WORDS.card.jobsGroup },
+  { kind: "customer", label: CUSTOMER_WORDS.card.customers, group: CUSTOMER_WORDS.card.customersGroup },
 ];
 
 /** The setting as a sentence, with the one figure worth having. With more
@@ -269,6 +271,8 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
                 LEAVE_WORDS.card.leaveConsent
               ) : k === "job" ? (
                 JOB_WORDS.card.jobsConsent
+              ) : k === "customer" ? (
+                CUSTOMER_WORDS.card.customersConsent
               ) : (
                 <>
                   ServiceM8 hasn&apos;t given HeyTiff permission to add files yet, so nothing can go. Reconnect

@@ -42,6 +42,8 @@ import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteFace } from "./job-quote-face";
 import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
+import { JobCustomerDialog } from "./job-customer-dialog";
+import { customerEditOffered } from "@/app/actions/job-customer";
 import { checkIn, checkOut, readMyCheckIn, type MyCheckIn } from "@/app/actions/job-check-ins";
 import { jobSteps, type StepKey } from "@/lib/workboard/job-steps";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
@@ -406,6 +408,11 @@ export function JobSheet({
   const [naming, setNaming] = useState(false);
   /* the visit strip, opened at its newest end */
   const visitStrip = useRef<HTMLOListElement>(null);
+  /* EDIT CUSTOMER (customer details to ServiceM8): offered only where the
+     deployment saves them, the reader runs the board and the owner has them
+     on — asked once, for a manager, and never anywhere else */
+  const [customerEdit, setCustomerEdit] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(false);
   /* WHERE THE READER IS CHECKED IN, if anywhere — undefined until read */
   const [mine, setMine] = useState<MyCheckIn | undefined>(undefined);
   const [checking, setChecking] = useState(false);
@@ -550,6 +557,17 @@ export function JobSheet({
   useEffect(() => {
     if (focus && moneyVisible && !touchedTab.current) setTab("money");
   }, [focus, moneyVisible]);
+
+  useEffect(() => {
+    if (!manage) return;
+    let live = true;
+    void customerEditOffered()
+      .then((on) => live && setCustomerEdit(on))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [manage]);
 
   useEffect(() => {
     let live = true;
@@ -2091,7 +2109,7 @@ export function JobSheet({
               </button>
             ))}
           </div>
-          <JobCustomer detail={detail} />
+          <JobCustomer detail={detail} onEdit={customerEdit && cardId ? () => setEditingCustomer(true) : undefined} />
         </div>
 
         <div className="wb2-jcbody">
@@ -2633,6 +2651,9 @@ export function JobSheet({
 
       {/* Over the card, inside the SAME portal — a modal on a modal that
           portals separately is how a scrim ends up above the thing it dims. */}
+      {editingCustomer && cardId && (
+        <JobCustomerDialog jobUuid={cardId} onClose={() => setEditingCustomer(false)} onSaved={onToast} />
+      )}
       {openClaimRow && (
         <JobClaimModal
           key={openClaimRow.remoteId}

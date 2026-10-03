@@ -427,6 +427,10 @@ export const SM8_WRITE_KIND_SCOPES = {
   /* a new job from the New job form: its client or site, the job, and its
      contact */
   job: ["create_jobs", "manage_customers", "manage_job_contacts"],
+  /* customer details saved from the job card: the job's contacts, the
+     client's name and address, the job's billing address — every one a
+     permission already asked for new jobs or bookings */
+  customer: ["manage_job_contacts", "manage_customers", "manage_jobs"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Sm8WriteKindName = keyof typeof SM8_WRITE_KIND_SCOPES;

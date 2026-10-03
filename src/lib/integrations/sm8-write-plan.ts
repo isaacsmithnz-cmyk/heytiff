@@ -26,6 +26,7 @@ import { fillWords, NOTE_WORDS } from "./sm8-note-words";
 import { BOOKING_WORDS } from "./sm8-booking-words";
 import { LEAVE_WORDS } from "./sm8-leave-words";
 import { JOB_WORDS } from "./sm8-job-words";
+import { CUSTOMER_WORDS } from "./sm8-customer-words";
 
 /* ── the owner's switch ── */
 
@@ -187,6 +188,7 @@ export function sendRefusal(s: Sm8WriteState, kind: Sm8WriteKind = "attachment")
     if (kind === "booking") return BOOKING_WORDS.press.kindOff;
     if (kind === "leave") return LEAVE_WORDS.press.kindOff;
     if (kind === "job") return JOB_WORDS.press.kindOff;
+    if (kind === "customer") return CUSTOMER_WORDS.press.kindOff;
     return `Sending files to ServiceM8 is switched off. ${WHERE}`;
   }
   if (s.mode === "paused") return WRITE_WORDS.paused;
@@ -196,6 +198,7 @@ export function sendRefusal(s: Sm8WriteState, kind: Sm8WriteKind = "attachment")
     if (kind === "booking") return BOOKING_WORDS.press.scope;
     if (kind === "leave") return LEAVE_WORDS.press.scope;
     if (kind === "job") return JOB_WORDS.press.scope;
+    if (kind === "customer") return CUSTOMER_WORDS.press.scope;
     return `ServiceM8 hasn't given HeyTiff permission to add files yet. ${WHERE}`;
   }
   return null;
@@ -230,13 +233,14 @@ export function sendHold(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): S
     booking", "1 booking and 2 leave entries". With no notes it is exactly
     the files' words the screens have always said, with no bookings exactly
     the files' and notes', and with no leave exactly those three's. */
-export function kindCount(n: { attachment: number; note: number; booking?: number; leave?: number; job?: number }): string {
+export function kindCount(n: { attachment: number; note: number; booking?: number; leave?: number; job?: number; customer?: number }): string {
   const files =
     n.attachment === 1 ? NOTE_WORDS.kindWords.fileOne : fillWords(NOTE_WORDS.kindWords.fileMany, { n: n.attachment });
   const booking = n.booking ?? 0;
   const leave = n.leave ?? 0;
   const job = n.job ?? 0;
-  if (leave > 0 || job > 0) return withLeave(n.attachment > 0 ? files : null, n.note, booking, leave, job);
+  const customer = n.customer ?? 0;
+  if (leave > 0 || job > 0 || customer > 0) return withLeave(n.attachment > 0 ? files : null, n.note, booking, leave, job, customer);
   if (booking > 0) return withBookings(n.attachment > 0 ? files : null, n.note, booking);
   if (n.note <= 0) return files;
   const notes = n.note === 1 ? NOTE_WORDS.kindWords.noteOne : fillWords(NOTE_WORDS.kindWords.noteMany, { n: n.note });
@@ -261,7 +265,7 @@ function withBookings(files: string | null, note: number, booking: number): stri
 /** kindCount once there is leave: each kind there is, in the order files,
     notes, bookings, leave — one alone, two joined with "and", more as a
     list ending in "and". */
-function withLeave(files: string | null, note: number, booking: number, leave: number, job = 0): string {
+function withLeave(files: string | null, note: number, booking: number, leave: number, job = 0, customer = 0): string {
   const notes =
     note <= 0 ? null : note === 1 ? NOTE_WORDS.kindWords.noteOne : fillWords(NOTE_WORDS.kindWords.noteMany, { n: note });
   const bookings =
@@ -272,7 +276,9 @@ function withLeave(files: string | null, note: number, booking: number, leave: n
         : fillWords(BOOKING_WORDS.kindWords.bookingMany, { n: booking });
   const leaves = leave <= 0 ? null : leave === 1 ? LEAVE_WORDS.kindWords.leaveOne : fillWords(LEAVE_WORDS.kindWords.leaveMany, { n: leave });
   const jobs = job <= 0 ? null : job === 1 ? JOB_WORDS.kindWords.jobOne : fillWords(JOB_WORDS.kindWords.jobMany, { n: job });
-  const parts = [files, notes, bookings, leaves, jobs].filter((p): p is string => p !== null);
+  const customers =
+    customer <= 0 ? null : customer === 1 ? CUSTOMER_WORDS.kindWords.customerOne : fillWords(CUSTOMER_WORDS.kindWords.customerMany, { n: customer });
+  const parts = [files, notes, bookings, leaves, jobs, customers].filter((p): p is string => p !== null);
   if (parts.length === 1) return parts[0];
   if (parts.length === 2) return fillWords(NOTE_WORDS.kindWords.both, { files: parts[0], notes: parts[1] });
   return fillWords(NOTE_WORDS.kindWords.both, { files: parts.slice(0, -1).join(", "), notes: parts[parts.length - 1] });
@@ -688,7 +694,9 @@ export function verdictForUnreadable(attempts: number, kind: Sm8WriteKind = "att
           ? [LEAVE_WORDS.row.threw, LEAVE_WORDS.row.threwGaveUp]
           : kind === "job"
             ? [JOB_WORDS.row.threw, JOB_WORDS.row.threwGaveUp]
-            : [WRITE_WORDS.unreadable, WRITE_WORDS.unreadableGaveUp];
+            : kind === "customer"
+              ? [CUSTOMER_WORDS.row.threw, CUSTOMER_WORDS.row.threwGaveUp]
+              : [WRITE_WORDS.unreadable, WRITE_WORDS.unreadableGaveUp];
   if (attempts >= WRITE_MAX_ATTEMPTS) return verdict({ status: "failed", error: gaveUp });
   return verdict({ status: "queued", error: again, retryAfterMs: retryAfter(attempts) });
 }
@@ -736,7 +744,9 @@ export function verdictForCheckFailed(kind?: Sm8WriteKind): WriteVerdict {
           ? LEAVE_WORDS.row.threw
           : kind === "job"
             ? JOB_WORDS.row.threw
-            : NOTE_WORDS.row.noteThrew,
+            : kind === "customer"
+              ? CUSTOMER_WORDS.row.threw
+              : NOTE_WORDS.row.noteThrew,
     retryAfterMs: 60_000,
     refund: true,
   });
@@ -800,7 +810,9 @@ export function verdictForLetGo(freeRetries: number, kind: Sm8WriteKind = "attac
             ? LEAVE_WORDS.row.tooSlow
             : kind === "job"
               ? JOB_WORDS.row.tooSlow
-              : WRITE_WORDS.tooSlowGaveUp;
+              : kind === "customer"
+                ? CUSTOMER_WORDS.row.tooSlow
+                : WRITE_WORDS.tooSlowGaveUp;
     return verdict({ status: "failed", error });
   }
   return verdict({ status: "queued", retryAfterMs: 0, refund: true, freeRetry: true });
@@ -860,6 +872,7 @@ export function verdictFor(
       if (ctx.kind === "leave") return verdict({ status: "failed", error: leaveRefused(ctx.op) });
       /* NOR A NEW JOB'S: its sender reads the step back first */
       if (ctx.kind === "job") return verdict({ status: "failed", error: jobRefused(ctx.step) });
+      if (ctx.kind === "customer") return verdict({ status: "failed", error: CUSTOMER_WORDS.row.refused });
       return verdict({ status: "sent" });
     case "unauthorized":
       /* waits for a reconnect, then goes: nothing about the file was wrong */
@@ -962,6 +975,12 @@ export function verdictFor(
         }
         return verdict({ status: "failed", error: JOB_WORDS.row.forbidden });
       }
+      if (ctx.kind === "customer") {
+        if (outcome.scope) {
+          return verdict({ status: "queued", error: CUSTOMER_WORDS.row.scopeHeld, refund: true, blockKind: true });
+        }
+        return verdict({ status: "failed", error: CUSTOMER_WORDS.row.forbidden });
+      }
       if (outcome.scope) {
         return verdict({ status: "queued", error: WRITE_WORDS.scopeHeld, refund: true, stop: true, blockKind: true });
       }
@@ -1011,6 +1030,12 @@ export function verdictFor(
         return verdict({ status: "failed", error: leaveRefused(ctx.op) });
       }
       if (ctx.kind === "job") return verdict({ status: "failed", error: jobRefused(ctx.step) });
+      if (ctx.kind === "customer") {
+        /* a contact already gone is what a removal wanted (the sender read
+           it first, so only a DELETE's own 404 gets here) */
+        if (outcome.status === 404 && ctx.op === "delete") return verdict({ status: "sent" });
+        return verdict({ status: "failed", error: outcome.status === 404 ? CUSTOMER_WORDS.row.gone : CUSTOMER_WORDS.row.refused });
+      }
       return verdict({
         status: "failed",
         error:

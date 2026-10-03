@@ -13,6 +13,7 @@ import { fillWords, NOTE_WORDS } from "./sm8-note-words";
 import { BOOKING_WORDS } from "./sm8-booking-words";
 import { LEAVE_WORDS } from "./sm8-leave-words";
 import { JOB_WORDS } from "./sm8-job-words";
+import { CUSTOMER_WORDS } from "./sm8-customer-words";
 
 /* FILES, NOTES AND BOOKINGS, COUNTED APART. Where the deployment sends more
    than files, what a switch, a disconnect or the owner's Off cancelled is
@@ -124,6 +125,8 @@ export function sm8SwitchedNotice(input: {
   leave?: number;
   /** New jobs among them, where the deployment sends them. */
   jobs?: number;
+  /** Customer changes among them, where the deployment sends them. */
+  customers?: number;
 }): string {
   const old = input.from ?? "that account";
   const parts = [
@@ -135,9 +138,10 @@ export function sm8SwitchedNotice(input: {
   const bookings = input.bookings ?? 0;
   const leave = input.leave ?? 0;
   const job = input.jobs ?? 0;
-  if (notes > 0 || bookings > 0 || leave > 0 || job > 0) {
-    const n = input.cancelled + notes + bookings + leave + job;
-    const what = kindCount({ attachment: input.cancelled, note: notes, booking: bookings, leave, job });
+  const customer = input.customers ?? 0;
+  if (notes > 0 || bookings > 0 || leave > 0 || job > 0 || customer > 0) {
+    const n = input.cancelled + notes + bookings + leave + job + customer;
+    const what = kindCount({ attachment: input.cancelled, note: notes, booking: bookings, leave, job, customer });
     parts.push(`${what} waiting to go to ${old} ${wasWere(n)} cancelled.`);
   } else if (input.cancelled === 1) parts.push(`1 file waiting to go to ${old} was cancelled.`);
   else if (input.cancelled > 1) parts.push(`${input.cancelled} files waiting to go to ${old} were cancelled.`);
@@ -156,6 +160,7 @@ export function sm8DisconnectNote(input: {
   bookings?: number;
   leave?: number;
   jobs?: number;
+  customers?: number;
 }): string {
   const parts = ["Disconnected here."];
   const n = input.cancelled.length + input.unnamed;
@@ -163,10 +168,11 @@ export function sm8DisconnectNote(input: {
   const bookings = input.bookings ?? 0;
   const leave = input.leave ?? 0;
   const job = input.jobs ?? 0;
-  if (notes > 0 || bookings > 0 || leave > 0 || job > 0) {
+  const customer = input.customers ?? 0;
+  if (notes > 0 || bookings > 0 || leave > 0 || job > 0 || customer > 0) {
     const names = nameList(input.cancelled, input.unnamed);
-    const counted = kindCount({ attachment: n, note: notes, booking: bookings, leave, job });
-    const what = `${counted} waiting to go to ServiceM8 ${wasWere(n + notes + bookings + leave + job)} cancelled`;
+    const counted = kindCount({ attachment: n, note: notes, booking: bookings, leave, job, customer });
+    const what = `${counted} waiting to go to ServiceM8 ${wasWere(n + notes + bookings + leave + job + customer)} cancelled`;
     parts.push(names ? `${what}: ${names}.` : `${what}.`);
   } else if (n > 0) {
     const names = nameList(input.cancelled, input.unnamed);
@@ -184,10 +190,10 @@ export function sm8DisconnectNote(input: {
 /** The disconnect confirm's line for what is still waiting to go. `waiting`
     counts files; `notes` and `bookings` the notes and the bookings, where
     the deployment sends them. */
-export function sm8WaitingConsequence(waiting: number, notes: number = 0, bookings: number = 0, leave: number = 0, job: number = 0): string | null {
-  if (notes > 0 || bookings > 0 || leave > 0 || job > 0) {
-    const n = Math.max(0, waiting) + notes + bookings + leave + job;
-    const what = kindCount({ attachment: Math.max(0, waiting), note: notes, booking: bookings, leave, job });
+export function sm8WaitingConsequence(waiting: number, notes: number = 0, bookings: number = 0, leave: number = 0, job: number = 0, customer: number = 0): string | null {
+  if (notes > 0 || bookings > 0 || leave > 0 || job > 0 || customer > 0) {
+    const n = Math.max(0, waiting) + notes + bookings + leave + job + customer;
+    const what = kindCount({ attachment: Math.max(0, waiting), note: notes, booking: bookings, leave, job, customer });
     return `${what} still waiting to go to ServiceM8 ${isAre(n)} cancelled.`;
   }
   if (waiting <= 0) return null;
@@ -199,10 +205,10 @@ export function sm8WaitingConsequence(waiting: number, notes: number = 0, bookin
 /** The note after the owner switches sending Off: how many files (and
     notes, and bookings) that were waiting won't go now. Null when nothing
     was waiting. */
-export function sm8OffNote(cancelled: number, notes: number = 0, bookings: number = 0, leave: number = 0, job: number = 0): string | null {
-  if (notes > 0 || bookings > 0 || leave > 0 || job > 0) {
-    const n = Math.max(0, cancelled) + notes + bookings + leave + job;
-    const what = kindCount({ attachment: Math.max(0, cancelled), note: notes, booking: bookings, leave, job });
+export function sm8OffNote(cancelled: number, notes: number = 0, bookings: number = 0, leave: number = 0, job: number = 0, customer: number = 0): string | null {
+  if (notes > 0 || bookings > 0 || leave > 0 || job > 0 || customer > 0) {
+    const n = Math.max(0, cancelled) + notes + bookings + leave + job + customer;
+    const what = kindCount({ attachment: Math.max(0, cancelled), note: notes, booking: bookings, leave, job, customer });
     return `Sending is off. ${what} that ${wasWere(n)} waiting won't go.`;
   }
   if (cancelled <= 0) return null;
@@ -226,6 +232,9 @@ export function sm8KindOffNote(kind: string, cancelled: number): string | null {
   }
   if (kind === "job") {
     return cancelled === 1 ? JOB_WORDS.card.jobsOffOne : fillWords(JOB_WORDS.card.jobsOffMany, { n: cancelled });
+  }
+  if (kind === "customer") {
+    return cancelled === 1 ? CUSTOMER_WORDS.card.customersOffOne : fillWords(CUSTOMER_WORDS.card.customersOffMany, { n: cancelled });
   }
   return cancelled === 1 ? NOTE_WORDS.card.filesOffOne : fillWords(NOTE_WORDS.card.filesOffMany, { n: cancelled });
 }

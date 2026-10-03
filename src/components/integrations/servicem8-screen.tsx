@@ -64,6 +64,8 @@ export type Servicem8ScreenProps = {
   waitingLeave?: number;
   /** New jobs still waiting, where the deployment sends them. */
   waitingJobs?: number;
+  /** Customer changes still waiting, where the deployment sends them. */
+  waitingCustomers?: number;
   /** The write permissions the consent asks for beside the reads: the kinds
       the deployment allows that the owner has on (the page works them out,
       as the connect route does). Absent: the files permission alone. */
@@ -150,6 +152,7 @@ export function Servicem8Screen({
   waitingBookings = 0,
   waitingLeave = 0,
   waitingJobs = 0,
+  waitingCustomers = 0,
   writeScopes = FILES_SCOPES,
   previousAccount = null,
   liveUpdates = null,
@@ -442,7 +445,7 @@ export function Servicem8Screen({
               consequences={[
                 "HeyTiff's stored credentials for this account are deleted.",
                 "Every mirrored row goes with them — clients, jobs, schedule, checklists and staff.",
-                ...[sm8WaitingConsequence(waitingWrites, waitingNotes, waitingBookings, waitingLeave, waitingJobs)].filter(
+                ...[sm8WaitingConsequence(waitingWrites, waitingNotes, waitingBookings, waitingLeave, waitingJobs, waitingCustomers)].filter(
                   (c): c is string => c !== null
                 ),
                 "Workboard rows you created here stay, on the names they already captured.",

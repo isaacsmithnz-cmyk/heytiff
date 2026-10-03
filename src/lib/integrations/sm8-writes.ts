@@ -69,6 +69,8 @@ import { sendBookingRow } from "./sm8-booking-send";
 import { sendLeaveRow } from "./sm8-leave-send";
 import { sendJobRow, type JobProgress } from "./sm8-job-send";
 import { JOB_WORDS } from "./sm8-job-words";
+import { sendCustomerRow } from "./sm8-customer-send";
+import { CUSTOMER_WORDS } from "./sm8-customer-words";
 import { LEAVE_WORDS } from "./sm8-leave-words";
 import {
   capAllows,
@@ -318,6 +320,7 @@ function kindSwitchedOffWords(kind: Sm8WriteKind): string {
   if (kind === "booking") return BOOKING_WORDS.row.switchedOff;
   if (kind === "leave") return LEAVE_WORDS.row.switchedOff;
   if (kind === "job") return JOB_WORDS.row.switchedOff;
+  if (kind === "customer") return CUSTOMER_WORDS.row.switchedOff;
   return NOTE_WORDS.row.filesSwitchedOff;
 }
 
@@ -428,6 +431,11 @@ export type Sm8WriteToQueue = {
     categoryUuid: string | null;
     draft: Record<string, unknown>;
   };
+  /* A CUSTOMER CHANGE'S (docs/migrations/sm8_customer_queue.sql), written
+     only for kind "customer": which record, and only the fields that
+     changed. The record is `targetUuid` (a change or a removal) or the
+     row's own uuid (a contact added), on `jobUuid`'s job. */
+  customer?: { object: "jobcontact" | "company" | "job"; fields: Record<string, string> };
 };
 
 export type Enqueued = {
@@ -610,6 +618,15 @@ function jobColumns(w: Sm8WriteToQueue): Record<string, unknown> {
     job_contact_uuid: j.contactUuid,
     job_category_uuid: j.categoryUuid,
     job_draft: j.draft,
+  };
+}
+
+/** A customer change's own. */
+function customerColumns(w: Sm8WriteToQueue): Record<string, unknown> {
+  return {
+    ...opColumns(w),
+    cust_object: w.customer!.object,
+    cust_fields: w.customer!.fields,
   };
 }
 
@@ -843,6 +860,7 @@ export async function enqueueSm8Writes(
     const booking = w.kind === "booking";
     const leave = w.kind === "leave";
     const job = w.kind === "job";
+    const customer = w.kind === "customer";
     if (!row) {
       fresh.push({
         key,
@@ -872,7 +890,9 @@ export async function enqueueSm8Writes(
                 ? { ...opColumns(w), ...leaveColumns(w) }
                 : job
                   ? jobColumns(w)
-                  : {}),
+                  : customer
+                    ? customerColumns(w)
+                    : {}),
         },
       });
       continue;
@@ -906,8 +926,8 @@ export async function enqueueSm8Writes(
         ? bookingRepressPatch(row, w, press, tenantId, iso, status === "queued")
         : leave
           ? leaveRepressPatch(row, w, press, tenantId, iso, status === "queued")
-          : job
-            ? jobRepressPatch(press, tenantId, iso, status === "queued")
+          : job || customer
+            ? { ...jobRepressPatch(press, tenantId, iso, status === "queued"), ...(customer ? { cust_fields: w.customer!.fields } : {}) }
             : status === "queued"
           ? {
               tenant_id: tenantId,
@@ -1269,6 +1289,9 @@ export type WriteRow = {
   job_draft?: unknown;
   job_done?: string[] | null;
   job_number?: string | null;
+  /* a customer change's (read only where the run's kinds include customer) */
+  cust_object?: string | null;
+  cust_fields?: unknown;
 };
 
 const PHASE0_COLUMNS =
@@ -1287,6 +1310,9 @@ const LEAVE_COLUMNS = "leave_staff_uuid, leave_start, leave_end";
 
 /** a new job's own, read only when the run's kinds include job */
 const JOB_COLUMNS = "job_company_uuid, job_company_new, job_parent_uuid, job_contact_uuid, job_category_uuid, job_draft, job_done, job_number";
+
+/** a customer change's own, read only when the run's kinds include customer */
+const CUSTOMER_COLUMNS = "cust_object, cust_fields";
 
 const isNoteCreate = (r: WriteRow) => r.kind === "note" && (r.op ?? "create") === "create";
 
@@ -1345,10 +1371,16 @@ async function dueRows(
   const withBookings = kinds.includes("booking");
   const withLeave = kinds.includes("leave");
   const withJob = kinds.includes("job");
+  const withCustomer = kinds.includes("customer");
   const base = withBookings ? BOOKING_ROW_COLUMNS : ROW_COLUMNS;
-  const own = (withLeave: boolean, withJob: boolean) =>
-    `${base}${withLeave ? `, ${LEAVE_COLUMNS}` : ""}${withJob ? `, ${JOB_COLUMNS}` : ""}`;
-  let { data, error } = await read(own(withLeave, withJob), kinds);
+  const own = (withLeave: boolean, withJob: boolean, withCustomer = false) =>
+    `${base}${withLeave ? `, ${LEAVE_COLUMNS}` : ""}${withJob ? `, ${JOB_COLUMNS}` : ""}${withCustomer ? `, ${CUSTOMER_COLUMNS}` : ""}`;
+  let { data, error } = await read(own(withLeave, withJob, withCustomer), kinds);
+  /* a database without the customer migration: the other kinds, as today */
+  if (withCustomer && missingColumn(error as DbError)) {
+    kinds = kinds.filter((k) => k !== "customer");
+    ({ data, error } = await read(own(withLeave, withJob), kinds));
+  }
   /* a database without the new-job migration: the other kinds, as today */
   if (withJob && missingColumn(error as DbError)) {
     kinds = kinds.filter((k) => k !== "job");
@@ -1746,6 +1778,7 @@ async function sendOne(
   if (row.kind === "booking") return sendBookingRow(orgId, state, row, attempts, access, t);
   if (row.kind === "leave") return sendLeaveRow(orgId, state, row, attempts, access, t);
   if (row.kind === "job") return sendJobRow(orgId, state, row, attempts, access, { ...t, progress: t.progress ?? (async () => false) });
+  if (row.kind === "customer") return sendCustomerRow(orgId, state, row, attempts, access, t);
   const payload = row.kind === "attachment" ? readPayload(row) : null;
   if (!payload || !row.sm8_job_uuid) {
     return { finish: { status: "cancelled", error: WRITE_WORDS.fileGone, httpStatus: null }, access };
@@ -1941,6 +1974,7 @@ export async function runSm8Writes(
     const booking = row.kind === "booking";
     const leave = row.kind === "leave";
     const job = row.kind === "job";
+    const customer = row.kind === "customer";
     /* A NOTE TAKEN BACK IS CANCELLED, NEVER CLAIMED: its create closed by an
        Undo, or its note's tombstone set by a take-back that raced a Send
        (whose create is closed here first). No request goes. So is a
@@ -1957,7 +1991,7 @@ export async function runSm8Writes(
        only after a send: Notes Off or Bookings Off, or a kind's permission
        refused, stops a run already going from claiming another of it, while
        files behind it still go. */
-    if (sentSinceRead || note || booking || leave || job) {
+    if (sentSinceRead || note || booking || leave || job || customer) {
       const moved = await switchMoved(orgId, state);
       if (typeof moved === "string") {
         run.stopped = moved;
@@ -2005,8 +2039,10 @@ export async function runSm8Writes(
          own words. */
       console.error(`[sm8] write ${row.id} (${trigger}) threw: ${err instanceof Error ? err.message : String(err)}`);
       f = {
-        ...fromVerdict(verdictForUnreadable(row.attempts + 1, note ? "note" : booking ? "booking" : leave ? "leave" : job ? "job" : "attachment")),
-        uploadLost: booking || leave || job ? track.wrote : live,
+        ...fromVerdict(
+          verdictForUnreadable(row.attempts + 1, note ? "note" : booking ? "booking" : leave ? "leave" : job ? "job" : customer ? "customer" : "attachment")
+        ),
+        uploadLost: booking || leave || job || customer ? track.wrote : live,
       };
     }
     const landed = await finish(orgId, row, claimId, f, clock());
@@ -2291,7 +2327,17 @@ export async function listRecentSm8Writes(orgId: string, now: number = Date.now(
   return rows.map((r) => {
     const p = (r.payload && typeof r.payload === "object" ? r.payload : {}) as Record<string, unknown>;
     const kind: Sm8WriteKind =
-      r.kind === "note" ? "note" : r.kind === "booking" ? "booking" : r.kind === "leave" ? "leave" : r.kind === "job" ? "job" : "attachment";
+      r.kind === "note"
+        ? "note"
+        : r.kind === "booking"
+          ? "booking"
+          : r.kind === "leave"
+            ? "leave"
+            : r.kind === "job"
+              ? "job"
+              : r.kind === "customer"
+                ? "customer"
+                : "attachment";
     const fallback =
       kind === "note"
         ? NOTE_WORDS.label.fallback
@@ -2301,7 +2347,9 @@ export async function listRecentSm8Writes(orgId: string, now: number = Date.now(
             ? LEAVE_WORDS.label.fallback
             : kind === "job"
               ? JOB_WORDS.label.fallback
-              : "A file";
+              : kind === "customer"
+                ? CUSTOMER_WORDS.label.fallback
+                : "A file";
     return {
       id: r.id,
       kind,
@@ -2327,7 +2375,11 @@ export async function countSm8Queue(
   orgId: string,
   tenantId: string | null,
   now: number = Date.now()
-): Promise<{ waiting: number; failed: number; waitingKinds: { attachment: number; note: number; booking: number; leave: number; job?: number } }> {
+): Promise<{
+  waiting: number;
+  failed: number;
+  waitingKinds: { attachment: number; note: number; booking: number; leave: number; job?: number; customer?: number };
+}> {
   const [waitingKinds, failed] = await Promise.all([
     /* per kind only where the deployment sends more than files; otherwise
        today's one count, every row of it a file */
@@ -2344,7 +2396,7 @@ export async function countSm8Queue(
       : Promise.resolve({ count: 0, error: null }),
   ]);
   return {
-    waiting: waitingKinds.attachment + waitingKinds.note + waitingKinds.booking + waitingKinds.leave + (waitingKinds.job ?? 0),
+    waiting: waitingKinds.attachment + waitingKinds.note + waitingKinds.booking + waitingKinds.leave + (waitingKinds.job ?? 0) + (waitingKinds.customer ?? 0),
     failed: failed.error ? 0 : failed.count ?? 0,
     waitingKinds,
   };
@@ -2363,7 +2415,7 @@ export type Sm8QueueStuck = {
   reason: "cap" | "billing" | "reconnect";
   waiting: number;
   /** The same, kind by kind (all files where only files are sent). */
-  kinds: { attachment: number; note: number; booking: number; leave: number; job?: number };
+  kinds: { attachment: number; note: number; booking: number; leave: number; job?: number; customer?: number };
 };
 
 export async function sm8QueueStuck(orgId: string, now: number = Date.now()): Promise<Sm8QueueStuck | null> {
@@ -2372,7 +2424,7 @@ export async function sm8QueueStuck(orgId: string, now: number = Date.now()): Pr
   if (!state.readable || !state.linked) return null;
   const counted = async () => {
     const kinds = await countWaitingSm8WritesByKind(orgId, now);
-    return { waiting: kinds.attachment + kinds.note + kinds.booking + kinds.leave + (kinds.job ?? 0), kinds };
+    return { waiting: kinds.attachment + kinds.note + kinds.booking + kinds.leave + (kinds.job ?? 0) + (kinds.customer ?? 0), kinds };
   };
   if (state.mode === "paused" && state.pausedReason === "cap") return { reason: "cap", ...(await counted()) };
   if (state.mode !== "live") return null;

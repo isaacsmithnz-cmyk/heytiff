@@ -13,11 +13,18 @@ import { telHref } from "./job-sheet";
    as text, the email as a mailto, the role in the account's own word, and
    the client's PO under them. */
 
-export function JobCustomer({ detail }: { detail: MirrorJobDetail | null }) {
-  if (!detail || (detail.contacts.length === 0 && !detail.purchaseOrder)) return null;
+export function JobCustomer({ detail, onEdit }: { detail: MirrorJobDetail | null; onEdit?: () => void }) {
+  if (!detail || (detail.contacts.length === 0 && !detail.purchaseOrder && !onEdit)) return null;
   return (
     <section className="jcl-cust" aria-label="Customer">
-      <h3>Contacts</h3>
+      <div className="jcl-custhead">
+        <h3>Contacts</h3>
+        {onEdit && (
+          <button type="button" className="jcl-edit" onClick={onEdit}>
+            Edit
+          </button>
+        )}
+      </div>
       {detail.contacts.length > 0 && (
         <ul className="jcl-contacts">
           {detail.contacts.map((c, i) => (

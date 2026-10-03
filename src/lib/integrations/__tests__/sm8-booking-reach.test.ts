@@ -46,7 +46,7 @@ function body(name: string): string {
 }
 
 describe("a booking's permissions reach further than HeyTiff goes (B-14)", () => {
-  it("no source file sends a DELETE to a job: the only DELETEs are a booking's, a note's and leave's", () => {
+  it("no source file sends a DELETE to a job: the only DELETEs are a booking's, a note's, leave's and a job contact's", () => {
     const deletes: string[] = [];
     for (const f of files) {
       for (const m of f.text.matchAll(/`([a-z_]+)\/\$\{[^}]+\}\.json`\s*,\s*\{\s*method:\s*"DELETE"/g)) deletes.push(`${f.rel}: ${m[1]}`);
@@ -59,6 +59,8 @@ describe("a booking's permissions reach further than HeyTiff goes (B-14)", () =>
       `${join("lib", "integrations", "sm8-write.ts")}: availability`,
       `${join("lib", "integrations", "sm8-write.ts")}: dbonote`,
       `${join("lib", "integrations", "sm8-write.ts")}: jobactivity`,
+      /* a contact taken off a job in the customer dialog, read live first */
+      `${join("lib", "integrations", "sm8-write.ts")}: jobcontact`,
     ]);
   });
 

@@ -4,7 +4,9 @@ import { join } from "path";
 import { SM8_WRITE_KIND_SCOPES } from "../providers";
 
 const SQL = readFileSync(join(process.cwd(), "docs/migrations/sm8_new_job_queue.sql"), "utf8");
-const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES);
+/* the kinds of its day: the code's own, less customer changes, which
+   sm8_customer_queue.sql added after it */
+const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "customer");
 const listed = (re: RegExp) =>
   (SQL.match(re)?.[1] ?? "")
     .split(",")
@@ -23,7 +25,8 @@ describe("the new-job migration", () => {
     for (const c of ["job_company_uuid", "job_company_new", "job_parent_uuid", "job_contact_uuid", "job_category_uuid", "job_draft", "job_done", "job_number"]) {
       expect(SQL).toMatch(new RegExp(`add column if not exists ${c}\\s+(text|jsonb|text\\[\\])`));
     }
-    /* attachment, note, booking and leave each name the job columns null */
+    /* attachment, note, booking and leave each name the job columns null (the
+       customer file adds its own after them) */
     expect(SQL.match(/and job_company_uuid is null and job_company_new is null/g)).toHaveLength(4);
   });
 
@@ -37,6 +40,7 @@ describe("the new-job migration", () => {
   });
 
   it("is one transaction, applied before the deploy, and says never to run the leave file after it", () => {
+    expect(SQL).toMatch(/AFTER sm8_customer_queue\.sql, NEVER RE-RUN THIS ONE/);
     expect(SQL).toMatch(/^begin;$/m);
     expect(SQL).toMatch(/^commit;$/m);
     expect(SQL).toMatch(/WHEN TO APPLY: BEFORE THE DEPLOY/);

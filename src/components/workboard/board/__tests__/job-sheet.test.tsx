@@ -79,6 +79,15 @@ const addJobPicklistItem = jest.fn(async (): Promise<unknown> => ({}));
 const readMyCheckIn = jest.fn(async (): Promise<unknown> => null);
 const checkIn = jest.fn(async (_job: string): Promise<unknown> => null);
 const checkOut = jest.fn(async (_job: string): Promise<unknown> => null);
+/* The customer dialog — controllable for its tests below. */
+const customerEditOffered = jest.fn(async () => false);
+const readCustomerForEdit = jest.fn();
+const saveCustomer = jest.fn();
+jest.mock("@/app/actions/job-customer", () => ({
+  customerEditOffered: () => customerEditOffered(),
+  readCustomerForEdit: (...a: unknown[]) => readCustomerForEdit(...a),
+  saveCustomer: (...a: unknown[]) => saveCustomer(...a),
+}));
 jest.mock("@/app/actions/job-check-ins", () => ({
   readMyCheckIn: () => readMyCheckIn(),
   checkIn: (j: string) => checkIn(j),
@@ -680,6 +689,38 @@ describe("the Summary face", () => {
     expect(onSite.getByText("17h 30m")).toBeInTheDocument();
     expect(onSite.getByText("2 days")).toBeInTheDocument();
     expect(onSite.getByText("Luke, Jake")).toBeInTheDocument();
+  });
+
+  it("offers Edit on the contacts only where saving customers is on, and edits in a dialog that sends only what changed", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    const { unmount } = render(<JobSheet row={row()} {...props} manage />);
+    await detailLanded();
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    unmount();
+
+    customerEditOffered.mockResolvedValueOnce(true);
+    const form = {
+      jobUuid: "j-1",
+      company: { uuid: "c-1", name: "Laing + Simmons Double Bay", address: "1 Bay St" },
+      billingAddress: "1 Bay St",
+      contacts: [{ uuid: "p-1", first: "Josh", last: "", mobile: "0426 719 412", phone: "", email: "josh@lsdb.com.au", type: "Property Manager" }],
+    };
+    readCustomerForEdit.mockResolvedValueOnce({ ok: true, form, siteAddress: "Rose Bay NSW 2029", billingRead: true });
+    saveCustomer.mockResolvedValueOnce({ ok: true, saved: 2, waiting: 0, failed: [] });
+    const onToast = jest.fn();
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} manage onToast={onToast} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Edit customer" }));
+    expect(await dialog.findByDisplayValue("Josh")).toBeInTheDocument();
+    await userEvent.click(dialog.getByRole("radio", { name: "Site contact" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Same as the site" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Save to ServiceM8" }));
+    await waitFor(() => expect(saveCustomer).toHaveBeenCalled());
+    const sent = saveCustomer.mock.calls[0]![1] as typeof form;
+    expect(sent.contacts[0]!.type).toBe("Site Contact");
+    expect(sent.billingAddress).toBe("Rose Bay NSW 2029");
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Saved to ServiceM8. The card catches up within a minute."));
   });
 
   it("puts the customer in the rail: a contact's email as a mailto link, and their role", async () => {

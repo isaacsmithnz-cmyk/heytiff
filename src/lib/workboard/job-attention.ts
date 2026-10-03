@@ -172,7 +172,25 @@ export type AttentionInputs = {
   people: ReadonlyMap<string, { name: string; staffId: string | null }>;
   /** The account's today, for the overdue reading. */
   today: string;
+  /** The job already has a claim invoice (#3256A beside #3256): its first
+      payment, the deposit, has been raised. An ask to send it is answered. */
+  claimRaised?: boolean;
 };
+
+/* AN ASK THE JOB HAS ALREADY ANSWERED (#3256, 10-03): "Send a deposit
+   invoice?" stood on the card a day after #3256A went out. Read from the
+   words, so only the common phrasings: a deposit, and invoicing it. */
+const DEPOSIT_ASK = /\bdeposit\b/i;
+const INVOICE_WORD = /\b(invoic\w*|send|sent|raise\w*|bill\w*)\b/i;
+export function asksForDepositInvoice(text: string | null | undefined): boolean {
+  return !!text && DEPOSIT_ASK.test(text) && INVOICE_WORD.test(text);
+}
+
+/** A note that only tags somebody ("@LukeIngold") asks nothing: ServiceM8
+    shows it as the name alone. Not a mention to answer (#3256, 10-03). */
+export function onlyTags(text: string): boolean {
+  return text.replace(/(?<![\w.+-])@[a-z0-9_.'-]+/gi, "").replace(/[\s.,;:!?-]+/g, "") === "";
+}
 
 export type JobAttention = {
   /** What the strip draws, worst first, capped. */
@@ -218,7 +236,10 @@ export function buildJobAttention(inputs: AttentionInputs): JobAttention {
     });
   }
 
+  const answeredByClaim = (...texts: (string | null | undefined)[]) => !!inputs.claimRaised && texts.some(asksForDepositInvoice);
+
   for (const t of inputs.tasks) {
+    if (answeredByClaim(t.title, t.noteText)) continue;
     items.push({
       kind: "task",
       key: `task:${t.id}`,
@@ -257,7 +278,7 @@ export function buildJobAttention(inputs: AttentionInputs): JobAttention {
       }
 
       const named = namedIn(n.handles);
-      if (named.length === 0) continue;
+      if (named.length === 0 || onlyTags(n.text) || answeredByClaim(n.text)) continue;
 
       items.push({
         kind: "mention",
@@ -279,7 +300,7 @@ export function buildJobAttention(inputs: AttentionInputs): JobAttention {
     for (const o of inputs.ours ?? []) {
       if (inputs.answered.has(o.rowId) || (o.noteUuid && inputs.answered.has(o.noteUuid))) continue;
       const named = namedIn(o.handles);
-      if (named.length === 0) continue;
+      if (named.length === 0 || onlyTags(o.text) || answeredByClaim(o.text)) continue;
       items.push({
         kind: "mention",
         key: `mention:${o.rowId}`,

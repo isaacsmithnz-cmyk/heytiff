@@ -599,7 +599,7 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
      once), so it rides ungated beside the notes. */
   /* BOOKINGS ride the same round, only where the deployment books: without
      them not one read more is made, and the record has no `bookings` key */
-  const [notes, ourNotes, summary, moneyVisible, timezone, status, bookingsRead] = await Promise.all([
+  const [notes, ourNotes, summary, moneyVisible, timezone, { status, number: jobNumber }, bookingsRead] = await Promise.all([
     readJobNotes(ctx.orgId, id, claims),
     viewerRead ? readOurJobNotes(ctx.orgId, id, 60, viewerRead) : readOurJobNotes(ctx.orgId, id),
     readStoredJobSummary(ctx.orgId, id),
@@ -645,6 +645,7 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
   const { attention, assignable } = await readJobAttention(ctx.orgId, id, {
     notes,
     jobOpen: sm8JobIsOpen(status),
+    jobNumber,
     today,
     /* readJobNotes already left our own echoes out where the deployment
        sends notes: one echo read per card open, either way */
@@ -733,14 +734,15 @@ async function readJobBookings(orgId: string, userId: string, jobUuid: string): 
     the record read didn't already hold. A job whose row has gone answers
     null, which `sm8JobIsOpen` reads as open: the same shrug `tabOfSm8` makes
     at a status it doesn't recognise. */
-async function jobStatusOf(orgId: string, remoteId: string): Promise<string | null> {
+async function jobStatusOf(orgId: string, remoteId: string): Promise<{ status: string | null; number: string | null }> {
   const { data } = await supabaseAdmin
     .from("sm8_jobs")
-    .select("status")
+    .select("status, generated_job_id")
     .eq("org_id", orgId)
     .eq("uuid", remoteId)
     .maybeSingle();
-  return (data as { status: string | null } | null)?.status ?? null;
+  const row = data as { status: string | null; generated_job_id: string | null } | null;
+  return { status: row?.status ?? null, number: row?.generated_job_id ?? null };
 }
 
 /** All jobs' own search — reaches the WHOLE mirror, which is how a job that

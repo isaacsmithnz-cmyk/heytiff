@@ -129,7 +129,10 @@ export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
   /* a declined quote stops the line there: nothing after it is to come */
   if (declined) for (let i = 3; i < steps.length; i++) steps[i] = { ...steps[i]!, state: "next", fact: "" };
 
-  return steps.map((s) => ({ ...s, label: LABEL[s.key] }));
+  /* a deposit ticked as not needed was never paid: the step says Deposit,
+     and its fact says why it's done (Isaac, 2026-10-03: "it says deposit
+     paid when i tick not needed") */
+  return steps.map((s) => ({ ...s, label: s.key === "deposit" && s.fact === "Not needed" ? "Deposit" : LABEL[s.key] }));
 }
 
 /** The step the job is at, for the card to open beside. */

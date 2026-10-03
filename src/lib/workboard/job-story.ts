@@ -136,6 +136,11 @@ export type StoryEntry =
     }
   | { kind: "design"; key: string; day: string; at: string | null; id: string; name: string }
   | { kind: "push"; key: string; day: string; at: string | null; count: number }
+  /* A VISIT BOOKED, on the day it was booked (#3256, 10-03: ServiceM8's
+     diary said "Scheduled for Louis Jones, Oleksii Khalameida, and David
+     Hann on 7/10" and the card said nothing). One entry a visit: everyone
+     booked at the same start is its crew. */
+  | { kind: "booking"; key: string; day: string; at: null; start: string; crew: string[] }
   | { kind: "milestone"; key: string; day: string; at: null; label: MilestoneLabel };
 
 export type MilestoneLabel =
@@ -175,6 +180,8 @@ export type StoryInputs = {
     workOrderDate: string | null;
     completionDate: string | null;
     visits: readonly JobVisit[];
+    /** Standing bookings, where the deployment books; absent elsewhere. */
+    booked?: readonly { start: string; staffName: string | null; bookedOn?: string | null }[];
     checklist: readonly JobChecklistItem[];
     designs: readonly { id: string; name: string; updatedAt: string }[];
   } | null;
@@ -242,7 +249,8 @@ const DATE_ONLY_RANK: Record<StoryEntry["kind"], number> = {
   design: 5,
   push: 6,
   note: 7,
-  milestone: 8,
+  booking: 8,
+  milestone: 9,
 };
 
 function compareWithinDay(a: StoryEntry, b: StoryEntry): number {
@@ -337,6 +345,21 @@ export function buildJobStory(inputs: StoryInputs): StoryEntry[] {
       crew: v.crew.map((c) => c.name),
       leftOpen: v.crew.filter((c) => c.leftOpen).map((c) => c.name),
     });
+  }
+
+  /* Bookings — one entry a visit, on the day it was booked. A booking the
+     mirror hasn't dated yet (one of ours on its way) waits for it. */
+  const visitsBooked = new Map<string, { day: string; crew: string[] }>();
+  for (const b of detail?.booked ?? []) {
+    const day = b.bookedOn?.slice(0, 10);
+    if (!day) continue;
+    const v = visitsBooked.get(b.start) ?? { day, crew: [] };
+    if (day > v.day) v.day = day;
+    if (b.staffName && !v.crew.includes(b.staffName)) v.crew.push(b.staffName);
+    visitsBooked.set(b.start, v);
+  }
+  for (const [start, v] of visitsBooked) {
+    entries.push({ kind: "booking", key: `booking:${start}`, day: v.day, at: null, start, crew: v.crew });
   }
 
   /* Photos — clustered per day, four tiles then "+N" into the Photos tab.
@@ -586,7 +609,7 @@ export function filterStory(
       case "photos":
         return e.kind === "photos";
       case "visits":
-        return e.kind === "visit";
+        return e.kind === "visit" || e.kind === "booking";
       case "money":
         return isMoneyStoryEntry(e);
     }
@@ -637,6 +660,8 @@ export function storyEventLabel(entry: StoryEntry): string {
       return "a Studio design";
     case "push":
       return "the materials list";
+    case "booking":
+      return "a booking";
     case "milestone":
       switch (entry.label) {
         case "Job raised":
@@ -700,6 +725,10 @@ export function storyLineOf(entry: StoryEntry): string {
       return `${when} — Studio design "${entry.name}" edited`;
     case "push":
       return `${when} — ${entry.count} material line${entry.count === 1 ? "" : "s"} pushed to the picklist from the Studio`;
+    case "booking": {
+      const crew = entry.crew.length > 0 ? ` (${andList(entry.crew)})` : "";
+      return `${when} — visit booked for ${entry.start.slice(0, 16)}${crew}`;
+    }
     case "milestone":
       return `${when} — ${entry.label}`;
   }

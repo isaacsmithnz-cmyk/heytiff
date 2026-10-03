@@ -542,6 +542,13 @@ function DiaryEntry({
           thread={thread}
         />
       );
+    case "booking":
+      return (
+        <Ev icon="calendar">
+          <div className="wb2-evhd">{`Booked for ${fmtAuWeekdayDayMonth(entry.start.slice(0, 10))}, ${wallClock(entry.start)}`}</div>
+          <div className="wb2-evmeta">{entry.crew.join(", ") || "Nobody named"}</div>
+        </Ev>
+      );
     case "visit": {
       /* Somebody who left a check-in open is named with it, because the
          hours above leave them out — the Visits face's words, and its rule
@@ -811,6 +818,16 @@ function NoteEv({
       {thread && thread.length > 0 && <div className="wb2-evthread">{thread}</div>}
     </Ev>
   );
+}
+
+/** "7am", "7:30am" — a booking's start, off ServiceM8's naive wall clock.
+    Never a Date: the stamp is already the account's own time. */
+function wallClock(stamp: string): string {
+  const h = Number(stamp.slice(11, 13));
+  const m = stamp.slice(14, 16);
+  if (!Number.isFinite(h)) return "";
+  const twelve = h % 12 === 0 ? 12 : h % 12;
+  return `${twelve}${m && m !== "00" ? `:${m}` : ""}${h < 12 ? "am" : "pm"}`;
 }
 
 const MILESTONE_ICON: Record<string, string> = {

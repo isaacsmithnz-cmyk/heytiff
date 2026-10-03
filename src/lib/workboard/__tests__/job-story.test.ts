@@ -128,6 +128,30 @@ describe("buildJobStory — the quote", () => {
   });
 });
 
+describe("buildJobStory — bookings", () => {
+  /* #3256, 10-03: three people booked for 7am on the 7th is one visit */
+  it("one entry a visit, on the day it was booked, with its crew", () => {
+    const story = buildJobStory(
+      inputs({
+        detail: detail({
+          booked: [
+            { start: "2026-10-07 07:00:00", staffName: "Louis Jones", bookedOn: "2026-09-29 09:56:00" },
+            { start: "2026-10-07 07:00:00", staffName: "Oleksii Khalameida", bookedOn: "2026-09-29 09:56:00" },
+            { start: "2026-10-07 07:00:00", staffName: "David Hann", bookedOn: "2026-09-29 09:56:00" },
+            { start: "2026-10-08 07:00:00", staffName: "David Hann", bookedOn: null },
+          ],
+        }),
+      })
+    );
+    const booked = story.filter((e) => e.kind === "booking");
+    expect(booked).toEqual([
+      { kind: "booking", key: "booking:2026-10-07 07:00:00", day: "2026-09-29", at: null, start: "2026-10-07 07:00:00", crew: ["Louis Jones", "Oleksii Khalameida", "David Hann"] },
+    ]);
+    expect(storyLineOf(booked[0]!)).toBe("2026-09-29 — visit booked for 2026-10-07 07:00 (Louis Jones, Oleksii Khalameida and David Hann)");
+    expect(filterStory(story, "visits")).toContainEqual(booked[0]);
+  });
+});
+
 describe("buildJobStory — order", () => {
   it("reads newest first, day-grouped, with timed entries by clock inside a day", () => {
     const story = buildJobStory(

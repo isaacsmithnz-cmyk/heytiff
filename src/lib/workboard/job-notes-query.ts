@@ -34,6 +34,7 @@ import {
   type QueueRowIn,
 } from "@/lib/integrations/sm8-note-plan";
 import { mentionedHandles, sm8Handle } from "./sm8-mentions";
+import { familyNumbersFor, splitJobNumber } from "./job-family";
 import {
   buildJobAttention,
   type AttentionFlag,
@@ -550,6 +551,10 @@ export async function readJobAttention(
     /** False on a Completed or Unsuccessful job — its flagged and mentioning
         notes are history, and the diary keeps them. */
     jobOpen: boolean;
+    /** The job's own number, from the caller's read of its row: a claim
+        invoice beside it (#3256A) answers an ask to send the deposit.
+        Absent, nothing is asked about claims. */
+    jobNumber?: string | null;
     /** The account's today, for the overdue reading. */
     today: string;
     /** The notes were already read without our own echoes (readJobNotes
@@ -581,7 +586,7 @@ export async function readJobAttention(
   /* ONE read of the asks Tiff made tasks of on this job serves both: their
      tasks are this job's tasks, and their notes are answered. */
   const asks = askedOnJob(orgId, jobUuid);
-  const [flags, taskIds, answered, people, assignable, ours, repliedTo] = await Promise.all([
+  const [flags, taskIds, answered, people, assignable, ours, repliedTo, claimRaised] = await Promise.all([
     readJobFlags(orgId, jobUuid),
     noteBornTaskIds(orgId, jobUuid, asks),
     answeredNotes(orgId, jobUuid, asks),
@@ -603,6 +608,7 @@ export async function readJobAttention(
           ...ourMentions.map((n) => n.sm8Uuid).filter((u): u is string => !!u),
         ])
       : Promise.resolve(new Set<string>()),
+    input.jobNumber !== undefined ? hasClaimInvoice(orgId, input.jobNumber) : Promise.resolve(false),
   ]);
   /* the note each task was made from, by the ask that made it */
   const noteOf = new Map<string, string>();
@@ -646,9 +652,27 @@ export async function readJobAttention(
     answered: repliedTo.size > 0 ? new Set([...answered, ...repliedTo]) : answered,
     people,
     today: input.today,
+    claimRaised,
   });
 
   return { attention, assignable };
+}
+
+/** Whether the job has a claim invoice beside it (#3256A beside #3256) —
+    its first payment raised. Not money: that an invoice EXISTS is on every
+    reader's board already. A read that fails answers false, and the ask
+    stays up, which is the safe way round. */
+async function hasClaimInvoice(orgId: string, jobNumber: string | null): Promise<boolean> {
+  const parts = splitJobNumber(jobNumber);
+  if (!parts) return false;
+  const { data, error } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("uuid")
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .in("generated_job_id", familyNumbersFor(parts.base).slice(1))
+    .limit(1);
+  return !error && (data ?? []).length > 0;
 }
 
 /** Which of these notes somebody has replied to from HeyTiff, with a reply

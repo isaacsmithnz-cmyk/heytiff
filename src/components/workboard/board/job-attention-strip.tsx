@@ -90,9 +90,9 @@ export function JobAttentionStrip({
   if (attention.items.length === 0) return null;
 
   return (
-    <section className="wb2-jcatt" aria-label="Needs attention">
+    <section className="wb2-jcatt" aria-label="Open on this job">
       <div className="wb2-jcatthd">
-        <span className="wb2-sect">Needs attention</span>
+        <span className="wb2-sect">On this job</span>
         <span className="wb2-chip warn">{attentionCountLabel(attention.total)}</span>
       </div>
       {attention.items.map((item) => (

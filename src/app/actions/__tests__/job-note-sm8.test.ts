@@ -309,6 +309,9 @@ describe("on a deployment that sends files only (production today)", () => {
         "job_summaries",
         "sm8_vendor",
         "sm8_jobs",
+        /* the strip's one question of the job's family: is a claim invoice
+           beside it (#3256A), which answers an ask to send the deposit */
+        "sm8_jobs",
         "sm8_job_notes",
         "sm8_staff",
         "workboard_notes",

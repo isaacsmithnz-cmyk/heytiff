@@ -1166,6 +1166,7 @@ export function JobSheet({
               workOrderDate: detail.workOrderDate,
               completionDate: detail.completionDate,
               visits: detail.visits,
+              booked: detail.booked,
               checklist: detail.checklist,
               designs: detail.designs,
             }
@@ -1606,6 +1607,25 @@ export function JobSheet({
   const standing: BookedEntry[] | null = detail?.booked
     ? detail.booked.filter((b) => !bkGone.has(b.uuid.trim().toLowerCase()))
     : null;
+  /* ONE VISIT, ITS CREW (#3256, 10-03): ServiceM8 books each person as
+     their own booking, and three people at 7am on the 7th read as "Louis
+     Jones" next on site with the other two as separate rows. Everyone at
+     the same start and end is one visit; each keeps its own line state. */
+  const visitsAhead: { key: string; start: string; end: string | null; crew: BookedEntry[] }[] = [];
+  for (const b of standing ?? []) {
+    const key = `${b.start}|${b.end ?? ""}`;
+    const v = visitsAhead.find((x) => x.key === key);
+    if (v) v.crew.push(b);
+    else visitsAhead.push({ key, start: b.start, end: b.end, crew: [b] });
+  }
+  const crewOf = (crew: readonly BookedEntry[]) =>
+    crew.map((b, i) => (
+      <Fragment key={b.uuid}>
+        {i > 0 && <br />}
+        {b.staffName ?? BOOKING_WORDS.fill.person}
+        {b.staffName && b.staffTitle && <i className="wb2-jcrole">{`, ${b.staffTitle}`}</i>}
+      </Fragment>
+    ));
   const listed = new Set((standing ?? []).map((b) => b.uuid.trim().toLowerCase()));
   const above = bkVerbs
     .map((v) => ({ ...v, bookings: v.bookings.filter((b) => !(listed.has(b.uuid) && bkLines[b.uuid])) }))
@@ -2417,7 +2437,7 @@ export function JobSheet({
                   days. One press; checking in here checks out of anywhere
                   else. */}
               {cardId && mine !== undefined && (
-                <div className={"jcl-check" + (mine?.jobUuid === cardId ? " on" : "")}>
+                <div className={"jcl-check" + (mine?.jobUuid === cardId ? " on" : mine ? "" : " bare")}>
                   {mine?.jobUuid === cardId ? (
                     <>
                       <span>{`On site since ${fmtAuTime(new Date(mine.since))}`}</span>
@@ -2488,26 +2508,30 @@ export function JobSheet({
                 </div>
               )}
               {standing ? (
-                standing[0] && (
+                visitsAhead[0] && (
                   <div className="wb2-nextv">
                     <span className="wb2-sect">Next on site</span>
-                    <b>{bookingLabel(standing[0].start, standing[0].end)}</b>
-                    <em>
-                      {standing[0].staffName ?? BOOKING_WORDS.fill.person}
-                      {standing[0].staffName && standing[0].staffTitle && (
-                        <i className="wb2-jcrole">{`, ${standing[0].staffTitle}`}</i>
-                      )}
-                    </em>
-                    {entryState(standing[0])}
+                    <b>{bookingLabel(visitsAhead[0].start, visitsAhead[0].end)}</b>
+                    <em>{crewOf(visitsAhead[0].crew)}</em>
+                    {visitsAhead[0].crew.map((b) => (
+                      <Fragment key={b.uuid}>{entryState(b)}</Fragment>
+                    ))}
                   </div>
                 )
               ) : null}
-              {standing && standing.length > 1 && (
+              {visitsAhead.length > 1 && (
                 <div className="wb2-jcsec">
-                  {standing.slice(1).map((b) => (
-                    <Fragment key={b.uuid}>
-                      <BookingEntryLine start={b.start} end={b.end} name={b.staffName} title={b.staffTitle} />
-                      {entryState(b)}
+                  {visitsAhead.slice(1).map((v) => (
+                    <Fragment key={v.key}>
+                      <BookingEntryLine
+                        start={v.start}
+                        end={v.end}
+                        name={v.crew.map((b) => b.staffName ?? BOOKING_WORDS.fill.person).join(", ")}
+                        title={v.crew.length === 1 ? v.crew[0]!.staffTitle : null}
+                      />
+                      {v.crew.map((b) => (
+                        <Fragment key={b.uuid}>{entryState(b)}</Fragment>
+                      ))}
                     </Fragment>
                   ))}
                 </div>

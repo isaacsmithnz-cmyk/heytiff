@@ -101,6 +101,13 @@ describe("where a job is up to", () => {
     expect(currentStep(jobSteps({ ...base, ...one, noDeposit: true }, true))?.key).toBe("installation");
   });
 
+  it("a deposit ticked as not needed is called Deposit, never Deposit paid", () => {
+    const s = jobSteps({ ...base, status: "Work Order", workOrderDate: "2026-08-28", noDeposit: true }, true);
+    expect(s.find((x) => x.key === "deposit")).toMatchObject({ label: "Deposit", state: "done", fact: "Not needed" });
+    const paid = jobSteps({ ...base, status: "Work Order", workOrderDate: "2026-08-28", family: family([claim({ state: "paid", paidOn: "2026-08-30" })]) }, true);
+    expect(paid.find((x) => x.key === "deposit")?.label).toBe("Deposit paid");
+  });
+
   it("the tick shows before the claims are read", () => {
     expect(line({ status: "Work Order", workOrderDate: "2026-08-28", noDeposit: true })).toContain("deposit:done:Not needed");
   });

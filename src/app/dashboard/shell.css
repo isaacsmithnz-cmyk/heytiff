@@ -6964,7 +6964,7 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-job { display:flex; flex-direction:column; gap:8px; padding:16px; border-radius:var(--r-button); background:var(--tint); }
 .jcl-kind { margin:0; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--q); }
 .jcl-what { margin:0; font-size:16px; line-height:1.45; white-space:pre-wrap; max-width:96ch; }
-.jcl-what.folded { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:normal; }
+.jcl-what.folded { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:pre-line; }
 .jcl-more { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
 .jcl-more:focus-visible { outline:none; box-shadow:var(--ring); }
 .jcl-two { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:16px; }
@@ -6997,6 +6997,8 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-check.on { background:var(--ok-tint); }
 .jcl-check.on span { font-weight:600; }
 .jcl-check .pbtn { margin-left:auto; }
+/* nothing to say beside the button: no bar around it (#3256, 10-03) */
+.jcl-check.bare { padding:0; background:none; }
 /* BILLING AS AN INVOICE: who it's billed to, the payment terms, and the
    balance due big on the right, on a grey head; the claims as a table
    under it — Claim, Status, Amount — the way every invoice page reads */

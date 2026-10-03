@@ -231,7 +231,7 @@ jest.mock("@/app/actions/job-note-sm8", () => ({
 }));
 
 
-import { JobSheet } from "../job-sheet";
+import { JobSheet, visitLength } from "../job-sheet";
 
 /* The summary refresh posts to a route handler; jsdom has no fetch, and a
    real one would be a network call from a unit test anyway. */
@@ -1657,6 +1657,16 @@ const crewLine = (f: ReturnType<typeof face>, day: string): string =>
 
 
 describe("the Visits face", () => {
+  it("names a visit's length by the hours each person spent there", () => {
+    const two = [{}, {}];
+    expect(visitLength({ minutes: 960, crew: two })).toBe("Full day");
+    expect(visitLength({ minutes: 300, crew: two })).toBe("Half day");
+    expect(visitLength({ minutes: 20, crew: [{}] })).toBe("Pop-in");
+    /* a person who left a check-in open adds no hours, so they don't divide them */
+    expect(visitLength({ minutes: 406, crew: [{}, { leftOpen: true }] })).toBe("Full day");
+    expect(visitLength({ minutes: 0, crew: [{ leftOpen: true }] })).toBe("");
+  });
+
   it("lists every visit with who went, tallies the heading, and puts the booking first", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
@@ -1718,7 +1728,7 @@ describe("the Visits face", () => {
     expect(f.queryByText("0m")).toBeNull();
   });
 
-  it("shows the recent visits and opens the rest in place", async () => {
+  it("lays every visit out as a card, oldest first, numbered by day", async () => {
     const many = Array.from({ length: 12 }, (_, i) => ({
       day: `2026-08-${String(20 - i).padStart(2, "0")}`,
       minutes: 60,
@@ -1729,13 +1739,15 @@ describe("the Visits face", () => {
     await detailLanded();
     await openTab("Visits");
 
-    const f = face("visits");
-    expect(f.getByText("Thu 20 Aug")).toBeInTheDocument();
-    expect(f.queryByText("Wed 12 Aug")).toBeNull();
-
-    await userEvent.click(f.getByText("All 12 visits"));
-    expect(f.getByText("Wed 12 Aug")).toBeInTheDocument();
-    expect(f.queryByText("All 12 visits")).toBeNull();
+    const strip = within(screen.getByRole("list", { name: "Visits, oldest first" }));
+    const cards = strip.getAllByRole("listitem");
+    expect(cards).toHaveLength(12);
+    expect(within(cards[0]!).getByText("Day 1")).toBeInTheDocument();
+    expect(within(cards[0]!).getByText("Sun 9 Aug")).toBeInTheDocument();
+    expect(within(cards[11]!).getByText("Day 12")).toBeInTheDocument();
+    expect(within(cards[11]!).getByText("Thu 20 Aug")).toBeInTheDocument();
+    /* an hour for one person is a pop-in */
+    expect(within(cards[0]!).getByText("Pop-in")).toBeInTheDocument();
   });
 
   it("says so when nobody has been on site and nothing is booked", async () => {

@@ -6971,6 +6971,16 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-days b { font-weight:600; }
 .jcl-days span { color:var(--q); }
 .jcl-days em { font-style:normal; font-variant-numeric:tabular-nums; }
+/* INSTALLATION: a card per visit, oldest on the left, scrolling sideways */
+.jcl-visits { margin:0; padding:0 0 8px; list-style:none; display:grid; grid-auto-flow:column; grid-auto-columns:240px; gap:12px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; }
+.jcl-visit { display:flex; flex-direction:column; gap:4px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); scroll-snap-align:end; }
+.jcl-vn { font-size:12px; font-weight:500; color:var(--q); }
+.jcl-visit > b { font-size:16px; font-weight:600; }
+.jcl-visit > em { font-style:normal; font-size:13px; line-height:1.45; color:var(--ink); }
+.jcl-vlen { margin-top:auto; padding-top:8px; font-size:12px; font-weight:500; color:var(--q); }
+.jcl-vhrs { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
+.jcl-vlen + .jcl-vhrs { margin-top:0; padding-top:0; }
+.jcl-visit > em + .jcl-vhrs { margin-top:auto; padding-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:8px; }

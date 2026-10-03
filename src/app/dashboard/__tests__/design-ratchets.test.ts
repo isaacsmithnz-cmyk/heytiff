@@ -608,7 +608,10 @@ describe("the design ratchets only go down", () => {
         n < r.baseline
           ? `${r.law}: ${n} now, the baseline says ${r.baseline}. You removed some — lower the baseline in design-ratchets.test.ts to ${n}.`
           : `${r.law}: ${n} now, the baseline says ${r.baseline}. Something added ${n - r.baseline} — take it out.`;
-      expect({ count: n, verdict }).toEqual({ count: r.baseline, verdict: expect.any(String) });
+      // thrown, not matched: a matcher's diff shows the two counts and hides
+      // the verdict — `expect.any(String)` prints as Any<String>, never the text
+      if (n !== r.baseline) throw new Error(verdict);
+      expect(n).toBe(r.baseline);
     });
   }
 });

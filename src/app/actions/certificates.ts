@@ -12,6 +12,7 @@ import { refIsOrgs } from "@/lib/documents/files";
 import { signatureSvg } from "@/lib/swms/input";
 import { ownerName } from "@/lib/swms/query";
 import { CERT_LIBRARY_VERSION, SHOWN, type CertAnswers } from "@/lib/certs/mechanical";
+import { stateFromGeo, type AuState } from "@/lib/swms/library";
 import { normaliseCertAnswers } from "@/lib/certs/input";
 import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } from "@/lib/certs/quote";
 import { quoteHasEquipment, readingFromQuote } from "@/lib/certs/from-quote";
@@ -47,6 +48,9 @@ const trim = (v: unknown, max = 80) => String(v ?? "").trim().slice(0, max);
 
 export type CertWizardContext = {
   job: CertJob;
+  /** The business's own state (Admin → Organisation): the certificate's
+      state when the job's address doesn't name one. */
+  orgState: AuState | null;
   reading: QuoteReading;
   /** Where the equipment came from: the accepted quote's equipment rows, or
       (for a job quoted before HeyTiff's quote builder) its description. */
@@ -117,7 +121,7 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
   const uuid = trim(jobUuid);
   if (!uuid) return null;
   const today = todayInAu();
-  const [job, signatory, approval, role, owner, files, quote] = await Promise.all([
+  const [job, signatory, approval, role, owner, files, quote, org] = await Promise.all([
     loadCertJob(orgId, uuid),
     staffIdFor(orgId, userId).then((id) => (id ? loadSignatory(orgId, id, today) : null)),
     certApproval(orgId),
@@ -125,6 +129,7 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
     ownerName(orgId),
     readableFiles(orgId, uuid),
     readStoredProposal(orgId, uuid).catch(() => null),
+    supabaseAdmin.from("organizations").select("state").eq("id", orgId).maybeSingle(),
   ]);
   if (!job) return null;
   /* THE ACCEPTED QUOTE FIRST: its equipment rows are the job's equipment,
@@ -143,6 +148,7 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
     approved: approval !== null,
     canApprove: hasMinRole(role, "owner"),
     ownerName: owner,
+    orgState: stateFromGeo((org.data as { state?: string | null } | null)?.state ?? null),
     files,
   };
 }

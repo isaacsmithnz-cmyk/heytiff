@@ -174,8 +174,10 @@ stored on their staff card. Then they Issue.
 ## Other states (2026-10-03)
 
 The wording is national except for how a state approves building work. The
-form asks which state the job is in, read off the job's address (a version
-saved before this is a NSW job: there was no other).
+form knows which state the job is in: the job's address when it names one
+(a job over the border), else the business's own state from Admin →
+Organisation, and asks only when neither says. A version saved before this
+is a NSW job: there was no other.
 
 - **NSW** keeps its own words: the Construction Certificate or Complying
   Development Certificate and the conditions of consent, and BASIX as the

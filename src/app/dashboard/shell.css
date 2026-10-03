@@ -6986,6 +6986,26 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-check.on { background:var(--ok-tint); }
 .jcl-check.on span { font-weight:600; }
 .jcl-check .pbtn { margin-left:auto; }
+/* BILLING AS AN INVOICE: who it's billed to, the payment terms, and the
+   balance due big on the right, on a grey head; the claims as a table
+   under it — Claim, Status, Amount — the way every invoice page reads */
+.jcl-billhead { display:grid; grid-template-columns:minmax(160px,1fr) minmax(0,2fr) auto; gap:24px; align-items:start; padding:16px; border-radius:var(--r-button); background:var(--tint); }
+.jcl-billto { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.jcl-billto b { font-size:14px; font-weight:600; overflow-wrap:anywhere; }
+.jcl-billto em { font-style:normal; font-size:13px; color:var(--q); overflow-wrap:anywhere; }
+.jcl-terms { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.jcl-terms .wb2-jmbar { margin-top:4px; height:8px; }
+.jcl-termkey { display:flex; gap:2px; }
+.jcl-termkey > span { min-width:0; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.jcl-bill .wb2-jmhead { min-width:180px; }
+.wb2-jmbig.hero { font-size:32px; }
+.jcl-billval { display:flex; gap:8px; align-items:baseline; margin-top:4px; font-size:13px; font-variant-numeric:tabular-nums; }
+.jcl-claimhead { display:grid; grid-template-columns:minmax(0,1fr) 160px 120px; gap:8px; margin-top:16px; padding:0 2px 8px; border-bottom:1px solid var(--line); font-size:13px; font-weight:500; color:var(--q); }
+.jcl-claimhead > span:last-child { text-align:right; }
+.jcl-bill .wb2-jmclaim { grid-template-columns:minmax(0,1fr) 160px 120px; }
+.jcl-bill .wb2-jmclaim > i { grid-column:2; justify-self:start; }
+.jcl-bill .wb2-jmclaim > span { grid-column:3; text-align:right; }
+.jcl-bill button.wb2-jmclaim:first-of-type { border-top:0; }
 .wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:8px; }

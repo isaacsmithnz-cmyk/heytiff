@@ -2155,6 +2155,12 @@ export function JobSheet({
                       statusLabel={row.statusLabel}
                       focusRemoteId={focus}
                       onOpenClaim={setOpenClaim}
+                      billTo={(() => {
+                        const name = detail?.clientName ?? row.clientName;
+                        if (!name) return null;
+                        const c = detail?.contacts.find((x) => (x.type ?? "").trim().toLowerCase() === "billing");
+                        return { name, contact: c ? { name: c.name, email: c.email } : null };
+                      })()}
                     />
                   ) : (
                     <p className="int-hint">Reading the figures…</p>

@@ -193,9 +193,14 @@ approves before anything issues.
 **Every ventilation certificate:**
 
 1. **Each fan's airflow**, marked as rated or measured (see The fan list).
-2. **Discharge to outdoor air.** NCC 2022 sets 25 L/s for
-   a bathroom or toilet and 40 L/s for a kitchen or laundry: Housing
-   Provisions 10.8.2 for houses, Part F8 of Volume One for apartments.
+   NCC 2022 sets 25 L/s for a bathroom or toilet and 40 L/s for a kitchen or
+   laundry: Housing Provisions 10.8.2 for houses, Part F8 of Volume One for
+   apartments.
+2. **Discharge to outdoor air**, only when the person answers that every
+   exhaust fan discharges outdoors. The form always asks (yes, not every one,
+   or no exhaust fans) and never assumes it: job 2933's bathroom fan was
+   ducted into a warehouse. A request for it on a job where the answer is no
+   blocks the issue until it is marked not applicable.
 
 **Added by what was installed:**
 

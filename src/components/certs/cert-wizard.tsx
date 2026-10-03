@@ -29,6 +29,7 @@ import {
   DEFAULT_CERT_ANSWERS,
   EMPTY_ROW,
   EMPTY_TEST,
+  EXHAUST_TO,
   MATCHABLE,
   certProblemList,
   certTitle,
@@ -660,6 +661,19 @@ export function CertWizard({
       <button type="button" className="pbtn ghost sm cz-add" onClick={() => set({ fans: [...a.fans, blankFan()] })}>
         Add a fan
       </button>
+      {a.fans.length > 0 && (
+        <>
+          <div className="sw-gh">
+            <b>Does every exhaust fan discharge outdoors?</b>
+            {a.exhaustTo === "not" && <span>{"The certificate won't say where the exhaust goes."}</span>}
+          </div>
+          <div className="sw-opts">
+            {EXHAUST_TO.map((e) => (
+              <Choice key={e.key} name="exhaust-to" checked={a.exhaustTo === e.key} onChange={() => set({ exhaustTo: e.key })} title={e.label} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 

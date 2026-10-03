@@ -9,7 +9,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CertListFile, CertWizardContext, ReadListResult } from "@/app/actions/certificates";
 import { readQuote, suggestBuilding } from "@/lib/certs/quote";
-import { JOB_1383, JOB_3326 } from "@/lib/certs/__tests__/fixtures/jobs";
+import { JOB_1383, JOB_2933, JOB_3326 } from "@/lib/certs/__tests__/fixtures/jobs";
 
 const certWizardContext = jest.fn(async (): Promise<CertWizardContext | null> => null);
 const readCertifierList = jest.fn(async (..._a: unknown[]): Promise<ReadListResult> => ({ ok: false, error: "not in this test" }));
@@ -93,7 +93,7 @@ describe("what the job already says", () => {
     expect(covers.getByText("From ServiceM8")).toBeInTheDocument();
   });
 
-  it("fills the equipment in from the quote, and asks about a condensate pump only when condensate was asked for", async () => {
+  it("fills the equipment in from the quote, with no condensate pump question", async () => {
     open();
     await screen.findByRole("tab", { name: "Equipment" });
     await tab("Equipment");
@@ -299,6 +299,30 @@ describe("what you've been asked to cover", () => {
     await userEvent.click(list.getByRole("button", { name: "Look again" }));
     expect(cacheJobFiles).toHaveBeenCalledWith("job-1");
     expect(await list.findByRole("option", { name: "Requirements.pdf" })).toBeInTheDocument();
+  });
+});
+
+describe("where the exhaust goes", () => {
+  it("asks whether every exhaust fan discharges outdoors, and won't issue until it's answered", async () => {
+    certWizardContext.mockImplementation(async () =>
+      context({
+        job: { uuid: "job-1", number: "2933", address: "8/119 McEvoy St\nAlexandria NSW 2015", description: JOB_2933, companyUuid: "co-1", clientName: "RCC", completedOn: "2026-07-16" },
+        reading: readQuote(JOB_2933),
+        building: suggestBuilding("8/119 McEvoy St"),
+      })
+    );
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    const eq = panel("equipment");
+    expect(eq.getByText("Does every exhaust fan discharge outdoors?")).toBeInTheDocument();
+    for (const name of [/every one discharges outdoors/, /not every one/, /no exhaust fans/]) expect(eq.getByRole("radio", { name })).not.toBeChecked();
+    await tab("Sign");
+    expect(panel("sign").getByRole("button", { name: "Say whether every exhaust fan discharges outdoors." })).toBeInTheDocument();
+    await tab("Equipment");
+    await userEvent.click(eq.getByRole("radio", { name: /not every one/ }));
+    expect(eq.getByText("The certificate won't say where the exhaust goes.")).toBeInTheDocument();
+    expect(panel("sign").queryByRole("button", { name: "Say whether every exhaust fan discharges outdoors." })).toBeNull();
   });
 });
 

@@ -169,6 +169,17 @@ export const CLAUSE_NAME: Record<ClauseKey, string> = {
 export const AC_CORE: readonly ClauseKey[] = ["refrigerant", "manufacturer", "arc"];
 export const AC_CORE_ASKED: readonly ClauseKey[] = ["refrigerant", "arc"];
 export const VENT_CORE: readonly ClauseKey[] = ["ventAirflow", "ventDischarge"];
+
+/* WHERE THE EXHAUST GOES IS ASKED, NEVER ASSUMED (job 2933, 2026-10-03: a
+   bathroom fan ducted into a warehouse). "Every exhaust fan discharges to
+   outdoor air" prints only when the person says so; "none" is a job whose
+   fans are all supply, which discharge nothing. */
+export type ExhaustTo = "outdoors" | "not" | "none";
+export const EXHAUST_TO: readonly { key: ExhaustTo; label: string }[] = [
+  { key: "outdoors", label: "Yes, every one discharges outdoors" },
+  { key: "not", label: "No, not every one" },
+  { key: "none", label: "There are no exhaust fans" },
+];
 /** The clauses a certifier's requirement can be answered with. */
 export const MATCHABLE: readonly ClauseKey[] = [
   "approved",
@@ -214,6 +225,8 @@ export type CertAnswers = {
   systems: AcSystem[];
   fans: FanRow[];
   installed: { ductwork: boolean; fireRated: boolean; fireStopProduct: string };
+  /** Where the exhaust fans discharge, as the person said; null until asked. */
+  exhaustTo: ExhaustTo | null;
   requirements: Requirement[];
   fireMode: FireMode | null;
   /** The person checked each unit's rated airflow against 1000 L/s. */
@@ -247,6 +260,7 @@ export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   systems: [],
   fans: [],
   installed: { ductwork: false, fireRated: false, fireStopProduct: "" },
+  exhaustTo: null,
   requirements: [],
   fireMode: null,
   fireModeRatingsChecked: false,
@@ -272,7 +286,10 @@ export function clausesFor(a: CertAnswers): ClauseKey[] {
   const asked = a.requirements.length > 0;
   if (asked) add("approved");
   if (a.covers.ac) (asked ? AC_CORE_ASKED : AC_CORE).forEach(add);
-  if (a.covers.vent) VENT_CORE.forEach(add);
+  if (a.covers.vent) {
+    add("ventAirflow");
+    if (a.exhaustTo === "outdoors") add("ventDischarge");
+  }
   if (a.installed.ductwork) add("ductwork");
   if (a.installed.fireRated) add("fireRated");
   return out;
@@ -525,8 +542,10 @@ function notInstalled(k: ClauseKey, a: CertAnswers): string | null {
   const vent = a.covers.vent && a.fans.length > 0;
   const ac = a.covers.ac && a.systems.length > 0;
   switch (k) {
-    case "ventAirflow":
     case "ventDischarge":
+      if (!vent) return "discharge to outdoor air, but no ventilation is on this certificate";
+      return a.exhaustTo === "outdoors" ? null : "discharge to outdoor air, but not every exhaust fan is marked as discharging outdoors";
+    case "ventAirflow":
     case "as16682":
     case "kitchenExhaust":
     case "carPark":
@@ -586,6 +605,7 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
         add("fans", `The ${row} fan is ${fmtNum(fan.airflowLps)} L/s, under the NCC minimum of ${min} L/s.`);
       }
     });
+    if (a.fans.length > 0 && a.exhaustTo === null) add("fans", "Say whether every exhaust fan discharges outdoors.");
   }
 
   /* A UNIT LEFT OFF IS THE ONE MISTAKE NOTHING ELSE CATCHES: every row on
@@ -653,7 +673,7 @@ const WHEN: Record<ClauseKey, string> = {
   commissioned: "Only when asked for",
   arc: "Every air conditioning certificate",
   ventAirflow: "Every ventilation certificate",
-  ventDischarge: "Every ventilation certificate",
+  ventDischarge: "Ventilation, when you say every exhaust fan discharges outdoors",
   ductwork: "When ductwork, plenums or flexible duct were installed",
   fireRated: "When penetrations went through fire-rated walls or floors",
   as16682: "Only when asked for",

@@ -104,6 +104,11 @@ const readNum = (s: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+/** What the units are, without their test figures: the confirmation holds
+    while this stays the same. */
+const unitsKey = (a: CertAnswers) =>
+  JSON.stringify([a.covers, a.systems.map((s) => [s.outdoor, s.indoors]), a.fans]);
+
 /** The first draft, from the job. */
 function startingAnswers(ctx: CertWizardContext): CertAnswers {
   const r = ctx.reading;
@@ -250,7 +255,8 @@ export function CertWizard({
         setSignature(c.signatory?.signatureSvg ?? null);
         if (p) {
           setPrev({ certificateId: p.certificateId, version: p.version });
-          setA(p.answers);
+          /* a reissue is a change: the equipment is confirmed again */
+          setA({ ...p.answers, equipmentConfirmed: false });
         } else {
           setA(startingAnswers(c));
         }
@@ -264,7 +270,12 @@ export function CertWizard({
   }, [jobUuid, reviseVersionId]);
 
   const set = (patch: Partial<CertAnswers>) => {
-    setA((cur) => ({ ...cur, ...patch }));
+    /* a change to a unit takes back "every unit is listed"; the refrigerant
+       and charge, which ride on the same rows, don't */
+    setA((cur) => {
+      const next = { ...cur, ...patch };
+      return unitsKey(next) !== unitsKey(cur) && !("equipmentConfirmed" in patch) ? { ...next, equipmentConfirmed: false } : next;
+    });
     setTouched(true);
     setError(null);
   };
@@ -632,6 +643,18 @@ export function CertWizard({
     <>
       {a.covers.ac && acEditor}
       {a.covers.vent && fanEditor}
+      {(a.covers.ac || a.covers.vent) && (
+        <div className="sw-grp">
+          <Choice
+            kind="checkbox"
+            name="confirmed"
+            checked={a.equipmentConfirmed}
+            onChange={(on) => set({ equipmentConfirmed: on })}
+            title="Every unit installed is listed, with its model off the plate"
+            sub="Changing a unit takes this off again"
+          />
+        </div>
+      )}
       <div className="sw-grp">
         <div className="sw-gh">
           <b>What else was installed</b>

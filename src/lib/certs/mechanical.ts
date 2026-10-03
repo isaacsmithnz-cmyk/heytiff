@@ -230,6 +230,9 @@ export type CertAnswers = {
   airBalance: "attached" | "others" | null;
   /** One more item for the Not covered line. */
   notCoveredExtra: string;
+  /** The person confirmed every unit installed is on the certificate, with
+      its model off the plate. Cleared whenever a unit changes. */
+  equipmentConfirmed: boolean;
 };
 
 export const EMPTY_TEST: CircuitTest = {
@@ -259,6 +262,7 @@ export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   fireModeTestedOn: "",
   airBalance: null,
   notCoveredExtra: "",
+  equipmentConfirmed: false,
 };
 
 /* ── the rules for which statements a job gets ─────────────────────────── */
@@ -605,6 +609,13 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
         add("fans", `The ${row} fan is ${fmtNum(fan.airflowLps)} L/s, under the NCC minimum of ${min} L/s.`);
       }
     });
+  }
+
+  /* A UNIT LEFT OFF IS THE ONE MISTAKE NOTHING ELSE CATCHES: every row on
+     the certificate is checked, but a unit that isn't a row can't be. So the
+     person says, once the rows are right, that nothing is missing. */
+  if ((a.covers.ac || a.covers.vent) && !a.equipmentConfirmed) {
+    add("equipment", "Confirm every unit installed is listed, with its model off the plate.");
   }
 
   if (a.installed.fireRated && missing(a.installed.fireStopProduct)) {

@@ -48,6 +48,7 @@ function answersFor(description: string, covers: Covers, building: Building, mor
     fans: q.fans.map((f) => ({ ...f, location: f.location || "Whole house", airflowLps: 60 })),
     installed: { ductwork: q.ductwork, fireRated: q.fireRated || s.fireRated, fireStopProduct: "Promat collars", condensatePump: q.condensatePump },
     ventAs16682: covers.vent && s.ventAs16682,
+    equipmentConfirmed: true,
     ...more,
   };
 }
@@ -351,5 +352,13 @@ describe("what was asked against what was installed", () => {
   it("raises nothing when what was asked is on the certificate", () => {
     const a = answersFor(JOB_1383, AC, "apartment", { requirements: futureCert(), fireMode: "individual", fireModeRatingsChecked: true });
     expect(certProblems(a, FACTS)).toEqual([]);
+  });
+});
+
+describe("every unit listed", () => {
+  it("won't issue until the person confirms nothing installed is missing", () => {
+    const a = answersFor(JOB_3326, AC, "office", { equipmentConfirmed: false });
+    expect(certProblems(a, FACTS)).toEqual(["Confirm every unit installed is listed, with its model off the plate."]);
+    expect(certProblems({ ...a, equipmentConfirmed: true }, FACTS)).toEqual([]);
   });
 });

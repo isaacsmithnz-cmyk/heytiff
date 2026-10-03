@@ -119,5 +119,6 @@ export function normaliseCertAnswers(raw: unknown): CertAnswers {
     fireModeTestedOn: day(r.fireModeTestedOn),
     airBalance: oneOf(r.airBalance, ["attached", "others"] as const),
     notCoveredExtra: text(r.notCoveredExtra, 200),
+    equipmentConfirmed: bool(r.equipmentConfirmed),
   };
 }

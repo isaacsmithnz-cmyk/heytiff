@@ -158,6 +158,7 @@ describe("issuing", () => {
     await tab("Sign");
     expect(screen.getByRole("button", { name: "Issue the certificate" })).toBeDisabled();
     expect(panel("sign").getByRole("button", { name: /Enter the refrigerant added/ })).toBeInTheDocument();
+    expect(panel("sign").getByRole("button", { name: /Confirm every unit installed is listed/ })).toBeInTheDocument();
     expect(panel("sign").queryByRole("button", { name: /test pressure|vacuum/i })).toBeNull();
 
     /* the quote names the unit but not the room it went in */
@@ -166,6 +167,7 @@ describe("issuing", () => {
     await userEvent.click(panel("covers").getByRole("radio", { name: /Office/ }));
     await tab("Equipment");
     await userEvent.type(panel("equipment").getByLabelText("Room"), "Office");
+    await userEvent.click(panel("equipment").getByRole("checkbox", { name: /Every unit installed is listed/ }));
 
     await tab("Checks");
     const checks = panel("checks");
@@ -199,6 +201,8 @@ describe("issuing", () => {
     open(false);
     await screen.findByRole("tab", { name: "Sign" });
     await userEvent.click(panel("covers").getByRole("radio", { name: /Office/ }));
+    await tab("Equipment");
+    await userEvent.click(panel("equipment").getByRole("checkbox", { name: /Every unit installed is listed/ }));
     await tab("Sign");
     const issue = screen.getByRole("button", { name: "Issue the certificate" });
     await waitFor(() => expect(issue).toBeEnabled());
@@ -301,5 +305,30 @@ describe("what you've been asked to cover", () => {
     await userEvent.click(list.getByRole("button", { name: "Look again" }));
     expect(cacheJobFiles).toHaveBeenCalledWith("job-1");
     expect(await list.findByRole("option", { name: "Requirements.pdf" })).toBeInTheDocument();
+  });
+});
+
+describe("every unit listed", () => {
+  it("takes the tick back off when a unit changes", async () => {
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    const eq = panel("equipment");
+    const tick = eq.getByRole("checkbox", { name: /Every unit installed is listed/ });
+    await userEvent.click(tick);
+    expect(tick).toBeChecked();
+    await userEvent.type(eq.getByLabelText("Room"), "Office");
+    expect(tick).not.toBeChecked();
+  });
+
+  it("keeps the tick when only the refrigerant charge is typed", async () => {
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    await userEvent.click(panel("equipment").getByRole("checkbox", { name: /Every unit installed is listed/ }));
+    await tab("Checks");
+    await userEvent.type(panel("checks").getByLabelText("Added, kg"), "0.4");
+    await tab("Equipment");
+    expect(panel("equipment").getByRole("checkbox", { name: /Every unit installed is listed/ })).toBeChecked();
   });
 });

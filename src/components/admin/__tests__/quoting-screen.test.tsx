@@ -31,3 +31,12 @@ it("with no Rate Calculator, a rate and a day typed here make the day", () => {
   expect(screen.getByText("A day on site is $1,125.00 a person: 7.5 hours at $150.00.")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 });
+
+it("takes the business's own duct contingency, and has none until it's set", () => {
+  screenWith(null);
+  expect(screen.getByText("None")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Duct contingency, percent of ductwork and grilles"), { target: { value: "15" } });
+  fireEvent.change(screen.getByLabelText("Duct contingency, hours"), { target: { value: "2" } });
+  expect(screen.getByText("On a quote with ductwork")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+});

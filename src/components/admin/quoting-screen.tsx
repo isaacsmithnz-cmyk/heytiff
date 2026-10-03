@@ -12,7 +12,14 @@ import type { SupplierView } from "@/lib/quotes/price-book-server";
 import { PriceBook } from "./price-book-panel";
 import { LinksPanel } from "./links-panel";
 import { SameItemsPanel } from "./same-items-panel";
-import { MAX_CHARGE_OUT_CENTS, MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/settings";
+import {
+  MAX_CHARGE_OUT_CENTS,
+  MAX_CONTINGENCY_HOURS,
+  MAX_CONTINGENCY_PCT,
+  MAX_DAY_HOURS,
+  MAX_MARKUP_PCT,
+  type QuoteSettings,
+} from "@/lib/quotes/settings";
 import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
 
 /* QUOTING — what a quote is priced by.
@@ -22,6 +29,9 @@ import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
    (Isaac, 2026-10-04). Left blank, each is the Rate Calculator's, and the
    field says so; a day on site is the one times the other, never a figure
    of ours (org-day.ts).
+
+   THE DUCT CONTINGENCY: a share of a quote's ductwork and grilles, and
+   hours on top at the rate — the business's own, and none when blank.
 
    THE MARKUP says its profit share beside it, because 20% markup is 16.7% of
    the sell price and the two get confused on every quote otherwise.
@@ -65,6 +75,8 @@ export function QuotingScreen({
   const [material, setMaterial] = useState(field(initial.materialMarkupPct));
   const [rate, setRate] = useState(dollarsField(initial.chargeOutCents));
   const [hours, setHours] = useState(field(initial.dayHours));
+  const [contPct, setContPct] = useState(field(initial.contingencyPct));
+  const [contHours, setContHours] = useState(field(initial.contingencyHours));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [open, setOpen] = useState<ComponentKey | null>(null);
@@ -83,6 +95,8 @@ export function QuotingScreen({
     setMaterial(field(res.settings.materialMarkupPct));
     setRate(dollarsField(res.settings.chargeOutCents));
     setHours(field(res.settings.dayHours));
+    setContPct(field(res.settings.contingencyPct));
+    setContHours(field(res.settings.contingencyHours));
     setNote({ tone: "ok", text: done });
     router.refresh();
     return true;
@@ -93,16 +107,22 @@ export function QuotingScreen({
     materialMarkupPct: numOrNone(material),
     chargeOutCents: centsOrNone(rate),
     dayHours: numOrNone(hours),
+    contingencyPct: numOrNone(contPct),
+    contingencyHours: numOrNone(contHours),
   };
   const changed =
     typed.unitMarkupPct !== saved.unitMarkupPct ||
     typed.materialMarkupPct !== saved.materialMarkupPct ||
     typed.chargeOutCents !== saved.chargeOutCents ||
-    typed.dayHours !== saved.dayHours;
+    typed.dayHours !== saved.dayHours ||
+    typed.contingencyPct !== saved.contingencyPct ||
+    typed.contingencyHours !== saved.contingencyHours;
   const valid =
     [unit, material].every((s) => inRange(s, 0, MAX_MARKUP_PCT)) &&
     inRange(rate.replace(/[$,\s]/g, ""), 0.01, MAX_CHARGE_OUT_CENTS / 100) &&
-    inRange(hours, 1, MAX_DAY_HOURS);
+    inRange(hours, 1, MAX_DAY_HOURS) &&
+    inRange(contPct, 0, MAX_CONTINGENCY_PCT) &&
+    inRange(contHours, 0, MAX_CONTINGENCY_HOURS);
   /* what a quote will use, as typed: this page's figure, else the Rate Calculator's */
   const day = orgDayOf(valid ? typed : saved, calc);
 
@@ -176,6 +196,32 @@ export function QuotingScreen({
                 </label>
                 <MarkupField label="Units" value={unit} onChange={setUnit} disabled={busy} />
                 <MarkupField label="Materials" value={material} onChange={setMaterial} disabled={busy} />
+                <label className="qs-field">
+                  <span>Duct contingency</span>
+                  <span className="qs-in">
+                    <input
+                      className="wb2-fi"
+                      inputMode="decimal"
+                      value={contPct}
+                      disabled={busy}
+                      onChange={(e) => setContPct(e.target.value)}
+                      aria-label="Duct contingency, percent of ductwork and grilles"
+                    />
+                    <em>% of ductwork</em>
+                  </span>
+                  <span className="qs-in">
+                    <input
+                      className="wb2-fi"
+                      inputMode="decimal"
+                      value={contHours}
+                      disabled={busy}
+                      onChange={(e) => setContHours(e.target.value)}
+                      aria-label="Duct contingency, hours"
+                    />
+                    <em>hours</em>
+                  </span>
+                  <em className="qs-share">{contPct.trim() === "" && contHours.trim() === "" ? "None" : "On a quote with ductwork"}</em>
+                </label>
               </div>
               <p className="qs-sub">
                 {day.dayCents != null && day.rate && day.hours

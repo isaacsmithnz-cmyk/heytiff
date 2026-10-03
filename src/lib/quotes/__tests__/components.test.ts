@@ -93,7 +93,15 @@ describe("the sums", () => {
 describe("the settings", () => {
   it("starts with nothing set — no markup, rate or day, never another business's", () => {
     expect(normaliseQuoteSettings({})).toEqual(DEFAULT_QUOTE_SETTINGS);
-    expect(DEFAULT_QUOTE_SETTINGS).toEqual({ unitMarkupPct: null, materialMarkupPct: null, chargeOutCents: null, dayHours: null, preferred: {} });
+    expect(DEFAULT_QUOTE_SETTINGS).toEqual({
+      unitMarkupPct: null,
+      materialMarkupPct: null,
+      chargeOutCents: null,
+      dayHours: null,
+      contingencyPct: null,
+      contingencyHours: null,
+      preferred: {},
+    });
     expect(normaliseQuoteSettings({ unit_markup_pct: null, material_markup_pct: "" })).toMatchObject({ unitMarkupPct: null, materialMarkupPct: null });
   });
 
@@ -113,6 +121,8 @@ describe("the settings", () => {
       materialMarkupPct: 300,
       chargeOutCents: null,
       dayHours: 7.5,
+      contingencyPct: null,
+      contingencyHours: null,
       preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: 20 } },
     });
     expect(normaliseQuoteSettings({ charge_out_cents: "16500" }).chargeOutCents).toBe(16500);

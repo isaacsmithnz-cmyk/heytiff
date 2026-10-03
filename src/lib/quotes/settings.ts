@@ -2,7 +2,8 @@ import { COMPONENT_KEYS, type ComponentKey } from "./components";
 
 /* QUOTING SETTINGS — one row per business (quote_settings): the markup on
    units and on materials, the charge-out rate and the working day, and the
-   price-book item each component is priced from. The Quoting page in Admin
+   price-book item each component is priced from, and the duct contingency.
+   The Quoting page in Admin
    writes it; the quote reads it. A rate or a day left blank here is the
    business's Rate Calculator's (org-day.ts); nothing here has a default
    but the empty one. */
@@ -19,6 +20,10 @@ export type QuoteSettings = {
   chargeOutCents: number | null;
   /** the working day; null: the Rate Calculator's working hours */
   dayHours: number | null;
+  /** the duct contingency: a share of a quote's ductwork and grilles, and
+      hours on top at the charge-out rate; both null, none (Isaac, 2026-10-04) */
+  contingencyPct: number | null;
+  contingencyHours: number | null;
   preferred: Partial<Record<ComponentKey, Preferred>>;
 };
 
@@ -30,11 +35,15 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   materialMarkupPct: null,
   chargeOutCents: null,
   dayHours: null,
+  contingencyPct: null,
+  contingencyHours: null,
   preferred: {},
 };
 
 export const MAX_MARKUP_PCT = 300;
 export const MAX_DAY_HOURS = 16;
+export const MAX_CONTINGENCY_PCT = 100;
+export const MAX_CONTINGENCY_HOURS = 80;
 /** $2,000 an hour: a typo's ceiling, not a guide */
 export const MAX_CHARGE_OUT_CENTS = 200_000;
 
@@ -78,6 +87,8 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
     materialMarkupPct: clampTo(r.material_markup_pct ?? r.materialMarkupPct, 0, MAX_MARKUP_PCT) ?? d.materialMarkupPct,
     chargeOutCents: chargeOutOf(r.charge_out_cents ?? r.chargeOutCents) ?? d.chargeOutCents,
     dayHours: clampTo(r.day_hours ?? r.dayHours, 1, MAX_DAY_HOURS) ?? d.dayHours,
+    contingencyPct: clampTo(r.contingency_pct ?? r.contingencyPct, 0, MAX_CONTINGENCY_PCT) ?? d.contingencyPct,
+    contingencyHours: clampTo(r.contingency_hours ?? r.contingencyHours, 0, MAX_CONTINGENCY_HOURS) ?? d.contingencyHours,
     preferred: preferredOf(r.preferred),
   };
 }
@@ -93,6 +104,8 @@ export function quoteSettingsRow(s: QuoteSettings) {
     material_markup_pct: s.materialMarkupPct,
     charge_out_cents: s.chargeOutCents,
     day_hours: s.dayHours,
+    contingency_pct: s.contingencyPct,
+    contingency_hours: s.contingencyHours,
     preferred,
   };
 }

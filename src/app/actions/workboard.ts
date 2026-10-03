@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can, getDbRole } from "@/lib/permissions-server";
-import { DEFAULT_CHECKLIST, isProjectStage, isProjectStatus } from "@/lib/workboard/stages";
+import { isProjectStage, isProjectStatus } from "@/lib/workboard/stages";
+import { orgTemplates } from "@/lib/templates/query";
 import { searchMirrorJobs, staffIdFor, type JobSearchHit } from "@/lib/workboard/projects-query";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
@@ -226,10 +227,12 @@ export async function createProject(input: NewProject): Promise<WorkboardResult>
   if (error || !data) return { ok: false, error: "Couldn't create the project." };
   const projectId = (data as { id: string }).id;
 
-  /* Seed the default checklist — a copy, not a reference: this project now
-     owns its rows and edits them freely. */
+  /* Seed the business's checklist (Admin → Templates → Project checklist) —
+     a copy, not a reference: this project now owns its rows and edits them
+     freely. */
+  const { projectChecklist } = await orgTemplates(ctx.orgId);
   await supabaseAdmin.from("project_checklist_items").insert(
-    DEFAULT_CHECKLIST.map((item, i) => ({
+    projectChecklist.map((item, i) => ({
       org_id: ctx.orgId,
       project_id: projectId,
       section: item.section,

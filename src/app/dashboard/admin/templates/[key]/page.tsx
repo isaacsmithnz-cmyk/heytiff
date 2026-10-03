@@ -2,6 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { orgBrand } from "@/lib/org/query";
 import { loadBusinessPapers } from "@/lib/certs/query";
+import { orgTemplates } from "@/lib/templates/query";
+import { getDbRole } from "@/lib/permissions-server";
+import { hasMinRole } from "@/lib/roles-shared";
 import { templateFor } from "@/components/admin/templates-catalogue";
 import { CertificateTemplate, SwmsTemplate } from "@/components/admin/approved-templates";
 import { DocumentsEmailTemplate, HandoverTemplate, ProjectChecklistTemplate, QuoteTemplate } from "@/components/admin/fixed-templates";
@@ -36,10 +39,10 @@ export default async function TemplatePage({ params }: { params: Promise<{ key: 
     const a = await templateApprovals(orgId);
     return <SwmsTemplate approved={a.swms} isOwner={a.isOwner} ownerName={a.ownerName} status={approvalStatus(a.swms, a.isOwner)} />;
   }
-  if (t.key === "project-checklist") return <ProjectChecklistTemplate />;
-
-  const brand = await orgBrand(orgId);
-  if (t.key === "quote") return <QuoteTemplate brand={brand} />;
-  if (t.key === "handover") return <HandoverTemplate brand={brand} />;
-  return <DocumentsEmailTemplate brand={brand} />;
+  const [brand, templates, role] = await Promise.all([orgBrand(orgId), orgTemplates(orgId), getDbRole()]);
+  const props = { brand, templates, isOwner: hasMinRole(role, "owner") };
+  if (t.key === "project-checklist") return <ProjectChecklistTemplate {...props} />;
+  if (t.key === "quote") return <QuoteTemplate {...props} />;
+  if (t.key === "handover") return <HandoverTemplate {...props} />;
+  return <DocumentsEmailTemplate {...props} />;
 }

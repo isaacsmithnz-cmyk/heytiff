@@ -51,3 +51,15 @@
 .tpl-well .ho-sheet { min-height: 0; border-radius: 6px; }
 
 .tpl-only { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
+
+/* the editors beside a document */
+.tpl-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.tpl-start { align-self: flex-start; }
+.tpl-edit { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+.tpl-edit:first-child { border-top: 0; }
+.tpl-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 500; color: var(--gray500); }
+.tpl-field .wb2-fi { width: 100%; }
+.tpl-row > .wb2-fi { flex: 1; min-width: 0; }
+.tpl-row > .tpl-pct { flex: none; width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+.tpl-link { flex: none; background: none; border: 0; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.tpl-fills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

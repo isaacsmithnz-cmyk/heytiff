@@ -63,7 +63,9 @@ describe("normaliseDraft", () => {
     expect(d.pricingMode).toBe("optional");
     expect(d.extras).toEqual([{ name: "Wi-Fi adaptor", detail: "Control it from your phone" }]);
     expect(d.allowances).toEqual([{ name: "Ceiling grilles", detail: "$100 + GST per grille" }]);
-    expect(d.notes).toEqual(["custom_grilles"]);
+    /* a note key is checked for its shape; whether the business has such a
+       note is the writer's and the quote face's to say (lib/templates) */
+    expect(d.notes).toEqual(["custom_grilles", "invented"]);
     expect(d.payment).toEqual({ preset: "domestic_small", stages: PAYMENT_PRESETS.domestic_small.stages });
     expect(d.checklist).toEqual([]);
   });

@@ -1,38 +1,42 @@
-/* THE TEMPLATES WRITTEN INTO HEYTIFF — each drawn as the document it is, on
-   the business's own letterhead, from the same data and the same components
-   the real one is drawn from, so this page can't say one thing while a quote
-   or a handover sheet says another. Words in brackets are filled in from the
-   job.
+/* THE BUSINESS'S OWN TEMPLATES — each drawn as the document it is, on the
+   business's own letterhead, from the same data and the same components the
+   real one is drawn from (lib/templates), so this page can't say one thing
+   while a quote or a handover sheet says another. Words in brackets are
+   filled in from the job.
 
-   No "use client": nothing here moves yet. */
+   The owner changes them in the editors beside the document
+   (template-editors); everyone else reads the same panel as words. */
 
 import { DocPaper } from "@/components/documents/doc-paper";
 import { HandoverChrome } from "@/app/handover/[id]/sheet-chrome";
 import { Letterhead } from "@/components/org/letterhead";
 import { hasBrand, type OrgBrand } from "@/lib/org/brand";
-import { EXTRA_NOTES, EXTRA_NOTE_KEYS } from "@/lib/quotes/proposal";
-import { PAYMENT_PRESETS, PAYMENT_PRESET_KEYS } from "@/lib/quotes/payment";
+import { PAYMENT_PRESET_KEYS } from "@/lib/quotes/payment";
 import { CHECKLIST_KEYS, GROUP_ORDER } from "@/lib/quotes/checklist";
-import { DEFAULT_CHECKLIST } from "@/lib/workboard/stages";
-import { defaultMessage, defaultSubject } from "@/lib/compliance/papers";
+import type { ChecklistSeed } from "@/lib/workboard/stages";
 import { documentsLetter } from "@/lib/email/documents-letter";
+import { fillEmail, type OrgTemplates } from "@/lib/templates/settings";
+import { ChecklistEditor, EmailEditor, PaymentTermsEditor, QuoteNotesEditor } from "./template-editors";
 import { TemplateFrame } from "./templates-list";
 import { templateFor } from "./templates-catalogue";
 import "./templates.css";
 
 const pct = (p: number | null) => (p === null ? "" : `${p}%`);
 
+export type TemplateProps = { brand: OrgBrand; templates: OrgTemplates; isOwner: boolean };
+
 /** The checklist's sections, in the order they're first named. */
-function sections(): { section: string; labels: string[] }[] {
+function sections(items: readonly ChecklistSeed[]): { section: string; labels: string[] }[] {
   const out: { section: string; labels: string[] }[] = [];
-  for (const item of DEFAULT_CHECKLIST) {
+  for (const item of items) {
     const at = out.find((s) => s.section === item.section);
     if (at) at.labels.push(item.label);
     else out.push({ section: item.section, labels: [item.label] });
   }
   return out;
 }
-const HANDOVER = DEFAULT_CHECKLIST.filter((i) => i.section === "Handover").map((i) => i.label);
+const handoverOf = (items: readonly ChecklistSeed[]) => items.filter((i) => i.section === "Handover").map((i) => i.label);
+const NOT_OWNER = "Only the owner can change these.";
 
 function Ph({ children }: { children: string }) {
   return <span className="tpl-ph">{`[${children}]`}</span>;
@@ -40,9 +44,10 @@ function Ph({ children }: { children: string }) {
 
 /* ── the quote ─────────────────────────────────────────────────────────── */
 
-export function QuoteTemplate({ brand }: { brand: OrgBrand }) {
+export function QuoteTemplate({ brand, templates, isOwner }: TemplateProps) {
   const t = templateFor("quote")!;
-  const home = PAYMENT_PRESETS.domestic_small;
+  const home = templates.paymentTerms.domestic_small;
+  const always = templates.quoteNotes.filter((n) => n.always);
   return (
     <TemplateFrame
       title={t.title}
@@ -75,6 +80,16 @@ export function QuoteTemplate({ brand }: { brand: OrgBrand }) {
           </section>
           <section className="cer-sec">
             <h2 className="cer-h">Notes</h2>
+            {always.map((n) => (
+              <div key={n.key} className="cer-note">
+                <b>{n.heading}</b>
+                {n.lines.map((l) => (
+                  <span key={l} style={{ display: "block" }}>
+                    {l}
+                  </span>
+                ))}
+              </div>
+            ))}
             <p className="cer-note">
               <Ph>The notes this job needs, from the list beside</Ph>
             </p>
@@ -99,40 +114,49 @@ export function QuoteTemplate({ brand }: { brand: OrgBrand }) {
       }
       side={
         <>
-          <div className="tpl-card">
-            <h2>Notes</h2>
-            <p className="tpl-quiet">Tiff adds the ones a job needs.</p>
-            <div className="tpl-rows">
-              {EXTRA_NOTE_KEYS.map((k) => (
-                <div key={k} className="tpl-row">
-                  <span>
-                    <b>{EXTRA_NOTES[k].heading}</b>
-                    <em>{EXTRA_NOTES[k].lines.join(" ")}</em>
-                  </span>
+          {isOwner ? (
+            <>
+              <QuoteNotesEditor notes={templates.quoteNotes} changed={!!templates.changed.quote_notes} />
+              <PaymentTermsEditor terms={templates.paymentTerms} changed={!!templates.changed.payment_terms} />
+            </>
+          ) : (
+            <>
+              <div className="tpl-card">
+                <h2>Notes</h2>
+                <p className="tpl-quiet">{`Tiff adds the ones a job needs. ${NOT_OWNER}`}</p>
+                <div className="tpl-rows">
+                  {templates.quoteNotes.map((n) => (
+                    <div key={n.key} className="tpl-row">
+                      <span>
+                        <b>{n.always ? `${n.heading} (on every quote)` : n.heading}</b>
+                        <em>{n.lines.join(" ")}</em>
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-          <div className="tpl-card">
-            <h2>Payment terms</h2>
-            {PAYMENT_PRESET_KEYS.map((k) => (
-              <div key={k} className="tpl-rows">
-                <div className="tpl-row">
-                  <span>
-                    <b>{PAYMENT_PRESETS[k].label}</b>
-                  </span>
-                </div>
-                {PAYMENT_PRESETS[k].stages.map((s) => (
-                  <div key={s.when} className="tpl-row">
-                    <span>
-                      <em>{s.when}</em>
-                    </span>
-                    <span className="tpl-num">{pct(s.percent)}</span>
+              </div>
+              <div className="tpl-card">
+                <h2>Payment terms</h2>
+                {PAYMENT_PRESET_KEYS.map((k) => (
+                  <div key={k} className="tpl-rows">
+                    <div className="tpl-row">
+                      <span>
+                        <b>{templates.paymentTerms[k].label}</b>
+                      </span>
+                    </div>
+                    {templates.paymentTerms[k].stages.map((s) => (
+                      <div key={s.when} className="tpl-row">
+                        <span>
+                          <em>{s.when}</em>
+                        </span>
+                        <span className="tpl-num">{pct(s.percent)}</span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
           <div className="tpl-card">
             <h2>Before it goes out</h2>
             <p className="tpl-quiet">{`Tiff checks ${CHECKLIST_KEYS.length} things before a quote is ready: ${GROUP_ORDER.join(", ").toLowerCase()}.`}</p>
@@ -145,8 +169,9 @@ export function QuoteTemplate({ brand }: { brand: OrgBrand }) {
 
 /* ── the handover sheet ────────────────────────────────────────────────── */
 
-export function HandoverTemplate({ brand }: { brand: OrgBrand }) {
+export function HandoverTemplate({ brand, templates, isOwner }: TemplateProps) {
   const t = templateFor("handover")!;
+  const checks = handoverOf(templates.projectChecklist);
   return (
     <TemplateFrame
       title={t.title}
@@ -194,9 +219,10 @@ export function HandoverTemplate({ brand }: { brand: OrgBrand }) {
           <p className="ho-note">[The readings taken at commissioning]</p>
           <h2>Handover checks</h2>
           <ul>
-            {HANDOVER.map((label) => (
+            {checks.map((label) => (
               <li key={label}>{label}</li>
             ))}
+            {checks.length === 0 && <li className="ho-note">No handover checklist on this project.</li>}
           </ul>
           <div className="ho-sign">
             <div>Handed over by — name, signature, date</div>
@@ -207,17 +233,21 @@ export function HandoverTemplate({ brand }: { brand: OrgBrand }) {
       }
       side={
         <>
-          <div className="tpl-card">
-            <h2>Handover checks</h2>
-            <p className="tpl-quiet">The Handover section of the project checklist. Each is ticked on the project and printed here.</p>
-            <div className="tpl-rows">
-              {HANDOVER.map((label) => (
-                <div key={label} className="tpl-row">
-                  <span>{label}</span>
-                </div>
-              ))}
+          {isOwner ? (
+            <ChecklistEditor items={templates.projectChecklist} changed={!!templates.changed.project_checklist} only="Handover" />
+          ) : (
+            <div className="tpl-card">
+              <h2>Handover checks</h2>
+              <p className="tpl-quiet">{`The Handover section of the project checklist. ${NOT_OWNER}`}</p>
+              <div className="tpl-rows">
+                {checks.map((label) => (
+                  <div key={label} className="tpl-row">
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <div className="tpl-card">
             <h2>The rest of the sheet</h2>
             <p className="tpl-quiet">The equipment, scope and commissioning record come from the project. The headings and signature lines are the same on every sheet.</p>
@@ -230,11 +260,13 @@ export function HandoverTemplate({ brand }: { brand: OrgBrand }) {
 
 /* ── the documents email ───────────────────────────────────────────────── */
 
-export function DocumentsEmailTemplate({ brand }: { brand: OrgBrand }) {
+export function DocumentsEmailTemplate({ brand, templates, isOwner }: TemplateProps) {
   const t = templateFor("documents-email")!;
   const business = brand.name.trim() || null;
-  const subject = defaultSubject({ number: "[job number]", address: "[site address]" });
-  const message = defaultMessage("[your name]", business ?? "[your business]");
+  /* the template's own brackets stay as they are; only the business is known */
+  const facts = { jobNumber: "[job number]", siteAddress: "[site address]", yourName: "[your name]", business: business ?? "[your business]" };
+  const subject = fillEmail(templates.documentsEmail.subject, facts);
+  const message = fillEmail(templates.documentsEmail.message, facts);
   /* the letter as it is sent, drawn from the same function; its images are
      the app's own, so a relative origin finds them */
   const html = documentsLetter({ baseUrl: "", business, sender: "[your name]", message, files: ["[Each file picked]"] });
@@ -258,24 +290,28 @@ export function DocumentsEmailTemplate({ brand }: { brand: OrgBrand }) {
         </div>
       }
       side={
-        <div className="tpl-card">
-          <h2>What it starts as</h2>
-          <p className="tpl-quiet">Whoever sends it can change the subject and message on the job card before it goes.</p>
-          <div className="tpl-rows">
-            <div className="tpl-row">
-              <span>
-                <em>Subject</em>
-                {subject}
-              </span>
-            </div>
-            <div className="tpl-row">
-              <span>
-                <em>Message</em>
-                <span style={{ whiteSpace: "pre-line" }}>{message}</span>
-              </span>
+        isOwner ? (
+          <EmailEditor email={templates.documentsEmail} changed={!!templates.changed.documents_email} />
+        ) : (
+          <div className="tpl-card">
+            <h2>What it starts as</h2>
+            <p className="tpl-quiet">{`Whoever sends it can change the subject and message on the job card before it goes. ${NOT_OWNER}`}</p>
+            <div className="tpl-rows">
+              <div className="tpl-row">
+                <span>
+                  <em>Subject</em>
+                  {templates.documentsEmail.subject}
+                </span>
+              </div>
+              <div className="tpl-row">
+                <span>
+                  <em>Message</em>
+                  <span style={{ whiteSpace: "pre-line" }}>{templates.documentsEmail.message}</span>
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )
       }
     />
   );
@@ -283,7 +319,7 @@ export function DocumentsEmailTemplate({ brand }: { brand: OrgBrand }) {
 
 /* ── every new project's checklist ─────────────────────────────────────── */
 
-export function ProjectChecklistTemplate() {
+export function ProjectChecklistTemplate({ templates, isOwner }: Omit<TemplateProps, "brand">) {
   const t = templateFor("project-checklist")!;
   return (
     <TemplateFrame
@@ -291,7 +327,7 @@ export function ProjectChecklistTemplate() {
       who={t.who}
       doc={
         <div className="tpl-sheet">
-          {sections().map((s) => (
+          {sections(templates.projectChecklist).map((s) => (
             <div key={s.section}>
               <h3>{s.section}</h3>
               <ul>
@@ -304,10 +340,14 @@ export function ProjectChecklistTemplate() {
         </div>
       }
       side={
-        <div className="tpl-card">
-          <h2>On the project</h2>
-          <p className="tpl-quiet">Each section unlocks with its stage. The Handover items print on the handover sheet.</p>
-        </div>
+        isOwner ? (
+          <ChecklistEditor items={templates.projectChecklist} changed={!!templates.changed.project_checklist} />
+        ) : (
+          <div className="tpl-card">
+            <h2>On the project</h2>
+            <p className="tpl-quiet">{`Each section unlocks with its stage. The Handover items print on the handover sheet. ${NOT_OWNER}`}</p>
+          </div>
+        )
       }
     />
   );

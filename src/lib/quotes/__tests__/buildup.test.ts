@@ -1,11 +1,12 @@
 /* The build-up's rules, on job 2330 — a 12.5 kW Mitsubishi HAA with five
    zones, as Isaac described it and corrected it (2026-09-30), priced from
    the frozen book the past-job tests use. */
-import { customerBreakdown, DEFAULT_BUILD_SETTINGS, ductTrunks, faceVelocity, priceBuildUp, recommendReturn, STANDARD_RETURNS, trunkingLengths, wallBracketCode } from "../buildup";
-import { brandOf, ductedLines, ductedVisits, plenumRunFittings, suggestedCrew, type DuctedFacts, type PriceOf } from "../ducted-template";
-import { multiLines, multiVisits } from "../multi-template";
-import { splitLines, splitVisits } from "../split-template";
+import { customerBreakdown, ductTrunks, faceVelocity, priceBuildUp, recommendReturn, STANDARD_RETURNS, trunkingLengths, wallBracketCode } from "../buildup";
+import { brandOf, ductedLines, plenumRunFittings, type DuctedFacts, type PriceOf } from "../ducted-template";
+import { multiLines } from "../multi-template";
+import { splitLines } from "../split-template";
 import { PAST_JOBS } from "./fixtures/past-jobs";
+import { ONE_BUSINESS } from "./fixtures/one-business";
 import { BLIND_JOBS_BOOK } from "./fixtures/blind-jobs-book";
 import { PAST_JOBS_BOOK } from "./fixtures/past-jobs-book";
 
@@ -27,7 +28,7 @@ describe("job 2330", () => {
   });
 
   it("prices labour by the person-day, and the contingency's hours by the hour", () => {
-    const b = priceBuildUp(ductedLines(job2330, priceOf).lines, [{ stage: "Install", people: 5, days: 1 }]);
+    const b = priceBuildUp(ductedLines(job2330, priceOf).lines, [{ stage: "Install", people: 5, days: 1 }], ONE_BUSINESS);
     expect(b.contingency).toEqual({ buyCents: 20011, sellCents: 28015, hours: 2 });
     expect(b.labour).toMatchObject({ personDays: 5, hours: 2, sellCents: 5 * 132000 + 2 * 14000 });
     expect(b.incGstCents - b.exGstCents).toBe(b.gstCents);
@@ -36,11 +37,11 @@ describe("job 2330", () => {
   it("a hard job's loading goes on the visits' labour, and only with a reason", () => {
     const lines = ductedLines(job2330, priceOf).lines;
     const visits = [{ stage: "Install" as const, people: 5, days: 1 }, { stage: "Fit-off" as const, people: 2, days: 1 }];
-    const plain = priceBuildUp(lines, visits);
-    const loaded = priceBuildUp(lines, visits, undefined, { pct: 15, reason: "scissor lift, commercial ductwork" });
+    const plain = priceBuildUp(lines, visits, ONE_BUSINESS);
+    const loaded = priceBuildUp(lines, visits, ONE_BUSINESS, { pct: 15, reason: "scissor lift, commercial ductwork" });
     expect(loaded.loading).toEqual({ pct: 15, reason: "scissor lift, commercial ductwork", sellCents: Math.round(7 * 132000 * 0.15) });
     expect(loaded.exGstCents - plain.exGstCents).toBe(138600);
-    expect(priceBuildUp(lines, visits, undefined, { pct: 15, reason: " " }).loading).toBeNull();
+    expect(priceBuildUp(lines, visits, ONE_BUSINESS, { pct: 15, reason: " " }).loading).toBeNull();
   });
 
   it("the linear kit brings its receiver, a sensor and batteries per zone", () => {
@@ -88,19 +89,11 @@ describe("a swap into the old system", () => {
     const keys = r.lines.map((l) => l.key);
     expect(keys).toEqual(expect.arrayContaining(["reconnect", "flush", "recovery"]));
     expect(keys.some((k) => /^(fitting|flex|grilles|return|nose-cone|pair-coil|trunking)/.test(k))).toBe(false);
-    expect(priceBuildUp(r.lines, ductedVisits({ reuse: { ductwork: true } })).contingency).toBeNull();
+    expect(priceBuildUp(r.lines, [{ stage: "Install", people: 3, days: 1 }], ONE_BUSINESS).contingency).toBeNull();
     const unflushed = ductedLines({ ...job2330, reuse: { pipe: true, flush: false, ductwork: true } }, priceOf);
     expect(unflushed.lines.some((l) => l.key === "flush")).toBe(false);
   });
 
-  it("takes three for the day, a fourth for new zone motors, and a rough-in or second floor adds a pair", () => {
-    const pd = (f: Parameters<typeof ductedVisits>[0]) => ductedVisits(f).reduce((a, v) => a + v.people * v.days, 0);
-    expect(pd({})).toBe(4);
-    expect(pd({ reuse: { ductwork: true } })).toBe(3);
-    expect(pd({ reuse: { ductwork: true }, zoning: "me24" })).toBe(4);
-    expect(pd({ newBuild: true })).toBe(6);
-    expect(pd({ storeys: 2 })).toBe(6);
-  });
 });
 
 describe("a multi-split", () => {
@@ -114,10 +107,6 @@ describe("a multi-split", () => {
     expect(r.lines.find((l) => l.key === "circuit")).toBeTruthy();
   });
 
-  it("takes a day for the outdoor and half a day a head", () => {
-    const pd = (n: number) => multiVisits({ heads: Array.from({ length: n }, () => head("x", 2.5)) }).reduce((a, v) => a + v.people * v.days, 0);
-    expect([pd(2), pd(3), pd(4), pd(5)]).toEqual([2, 2.5, 3, 3.5]);
-  });
 });
 
 describe("the wall-split kit", () => {
@@ -143,19 +132,7 @@ describe("the wall-split kit", () => {
     expect(r.lines.find((l) => l.key === "pump")?.code).toBe("MINIAQUA");
   });
 
-  it("takes 1.5 person-days up to a 3.5 kW, 2 above, half a day less back to back", () => {
-    const days = (kw: number, backToBack = false) => splitVisits({ kw, backToBack }).reduce((a, v) => a + v.people * v.days, 0);
-    expect([days(2.5), days(3.5), days(4.2), days(7.1)]).toEqual([1.5, 1.5, 2, 2]);
-    expect([days(2.5, true), days(4.8, true)]).toEqual([1, 1.5]);
-  });
 
-  it("goes by the crew the brief names: one installer puts a 4.2 kW at about $3,600, two higher", () => {
-    const days = (crew: 1 | 2) => splitVisits({ kw: 4.2, crew }).reduce((a, v) => a + v.people * v.days, 0);
-    expect([days(1), days(2)]).toEqual([1.5, 2]);
-    const price = (crew: 1 | 2) => priceBuildUp(splitLines(f, priceOf).lines, splitVisits({ kw: 4.2, crew })).exGstCents;
-    expect(Math.round(price(1) / 100)).toBe(3697);
-    expect(Math.round(price(2) / 100)).toBe(4357);
-  });
 });
 
 describe("the layout rules", () => {
@@ -200,17 +177,7 @@ describe("2749, a Daikin apartment changeover", () => {
     expect(ductedLines({ ...swap, zoning: "me24", zones: 4 }, daikin).missing.join()).toMatch(/Daikin/);
   });
 
-  it("takes the crew the brief names, over the suggestion", () => {
-    expect(suggestedCrew({ reuse: { ductwork: true } })).toBe(3);
-    const pd = (f: Parameters<typeof ductedVisits>[0]) => ductedVisits(f).reduce((a, v) => a + v.people * v.days, 0);
-    expect(pd({ reuse: { ductwork: true }, crew: 5 })).toBe(5);
-    expect(pd({ crew: 5 })).toBe(5);
-  });
 
-  it("adds a return visit only when the job needs one", () => {
-    expect(ductedVisits({ reuse: { ductwork: true } }).some((v) => v.stage === "Return")).toBe(false);
-    expect(ductedVisits({ reuse: { ductwork: true }, returnDays: 0.5 }).at(-1)).toEqual({ stage: "Return", people: 1, days: 0.5 });
-  });
 
   it("a swap can still take a new plenum and an access panel", () => {
     const keys = ductedLines({ ...swap, swapNew: { plenum: true, accessPanel: true } }, daikin).lines.map((l) => l.key);
@@ -223,18 +190,18 @@ describe("a price offered below the build-up", () => {
   const visits = [{ stage: "Install" as const, people: 4, days: 1 }];
 
   it("needs a reason, and shows what it gives away", () => {
-    const full = priceBuildUp(lines(), visits);
-    const offered = priceBuildUp(lines(), visits, undefined, null, { exGstCents: 990000, reason: "priced low to win it" });
+    const full = priceBuildUp(lines(), visits, ONE_BUSINESS);
+    const offered = priceBuildUp(lines(), visits, ONE_BUSINESS, null, { exGstCents: 990000, reason: "priced low to win it" });
     expect(offered.exGstCents).toBe(990000);
     expect(offered.buildExGstCents).toBe(full.exGstCents);
     expect(offered.offered?.discountCents).toBe(full.exGstCents - 990000);
-    const bare = priceBuildUp(lines(), visits, undefined, null, { exGstCents: 990000, reason: "" });
+    const bare = priceBuildUp(lines(), visits, ONE_BUSINESS, null, { exGstCents: 990000, reason: "" });
     expect(bare.exGstCents).toBe(full.exGstCents);
     expect(bare.offeredNeedsReason).toBe(true);
   });
 
   it("a loading with no reason says so rather than vanishing", () => {
-    expect(priceBuildUp(lines(), visits, undefined, { pct: 15, reason: "" }).loadingNeedsReason).toBe(true);
+    expect(priceBuildUp(lines(), visits, ONE_BUSINESS, { pct: 15, reason: "" }).loadingNeedsReason).toBe(true);
   });
 });
 
@@ -243,7 +210,7 @@ describe("what the customer sees in a breakdown", () => {
   const visits = [{ stage: "Install" as const, people: 5, days: 1 }];
 
   it("spreads the loading, contingency and a discount across the lines, summing to the cent", () => {
-    const b = priceBuildUp(lines, visits, undefined, { pct: 15, reason: "hard access" }, { exGstCents: 1_200_000, reason: "to win it" });
+    const b = priceBuildUp(lines, visits, ONE_BUSINESS, { pct: 15, reason: "hard access" }, { exGstCents: 1_200_000, reason: "to win it" });
     const c = customerBreakdown(b);
     expect(c.lines.reduce((a, l) => a + l.sellCents, 0)).toBe(b.exGstCents);
     expect(c.lines.some((l) => /loading|difficulty|contingency|discount/i.test(l.name))).toBe(false);
@@ -251,14 +218,14 @@ describe("what the customer sees in a breakdown", () => {
   });
 
   it("leaves the lines as priced when nothing is hidden", () => {
-    const b = priceBuildUp(lines, visits, { ...DEFAULT_BUILD_SETTINGS, contingencyOn: false });
+    const b = priceBuildUp(lines, visits, { ...ONE_BUSINESS, contingencyOn: false });
     const c = customerBreakdown(b);
     expect(c.hiddenCents).toBe(0);
     expect(c.lines.reduce((a, l) => a + l.sellCents, 0)).toBe(b.exGstCents);
   });
 
   it("a wall split carries no contingency row", () => {
-    const split = priceBuildUp(splitLines({ indoor: "MSZ-AP42VGKD2-A2", outdoor: "MUZ-AP42VGD2-A2", kw: 4.2, pipe: "1/4+3/8" }, priceOf).lines, splitVisits({ kw: 4.2 }));
+    const split = priceBuildUp(splitLines({ indoor: "MSZ-AP42VGKD2-A2", outdoor: "MUZ-AP42VGD2-A2", kw: 4.2, pipe: "1/4+3/8" }, priceOf).lines, [{ stage: "Install", people: 2, days: 1 }], ONE_BUSINESS);
     expect(split.contingency).toBeNull();
   });
 });

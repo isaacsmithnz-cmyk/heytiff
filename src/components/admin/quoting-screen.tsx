@@ -31,6 +31,10 @@ import { MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
 const $ = (cents: number | null) => (cents == null ? "–" : money.format(cents / 100));
 
+/** A markup as its field shows it: blank when the business hasn't set one. */
+const field = (pct: number | null) => (pct == null ? "" : String(pct));
+const pctOrNone = (s: string) => (s.trim() === "" ? null : Number(s));
+
 export function QuotingScreen({
   initial,
   components,
@@ -42,8 +46,8 @@ export function QuotingScreen({
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(initial);
-  const [unit, setUnit] = useState(String(initial.unitMarkupPct));
-  const [material, setMaterial] = useState(String(initial.materialMarkupPct));
+  const [unit, setUnit] = useState(field(initial.unitMarkupPct));
+  const [material, setMaterial] = useState(field(initial.materialMarkupPct));
   const [hours, setHours] = useState(String(initial.dayHours));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
@@ -59,8 +63,8 @@ export function QuotingScreen({
       return false;
     }
     setSaved(res.settings);
-    setUnit(String(res.settings.unitMarkupPct));
-    setMaterial(String(res.settings.materialMarkupPct));
+    setUnit(field(res.settings.unitMarkupPct));
+    setMaterial(field(res.settings.materialMarkupPct));
     setHours(String(res.settings.dayHours));
     setNote({ tone: "ok", text: done });
     router.refresh();
@@ -69,7 +73,7 @@ export function QuotingScreen({
 
   const pct = (s: string) => Number(s);
   const changed =
-    pct(unit) !== saved.unitMarkupPct || pct(material) !== saved.materialMarkupPct || pct(hours) !== saved.dayHours;
+    pctOrNone(unit) !== saved.unitMarkupPct || pctOrNone(material) !== saved.materialMarkupPct || pct(hours) !== saved.dayHours;
   const valid =
     [unit, material].every((s) => s.trim() !== "" && pct(s) >= 0 && pct(s) <= MAX_MARKUP_PCT) &&
     hours.trim() !== "" &&
@@ -153,7 +157,11 @@ export function QuotingScreen({
 
             <section className="qs-group">
               <h2 className="qs-h">Preferred items</h2>
-              <p className="qs-sub">{`Materials sell at buy price plus ${saved.materialMarkupPct}%.`}</p>
+              <p className="qs-sub">
+                {saved.materialMarkupPct == null
+                  ? "No materials markup set."
+                  : `Materials sell at buy price plus ${saved.materialMarkupPct}%.`}
+              </p>
               <div className="qs-table" role="table" aria-label="Preferred items">
                 <div className="qs-row qs-headrow" role="row">
                   <span role="columnheader">Component</span>
@@ -229,7 +237,7 @@ function ComponentRow({
   onLowest,
 }: {
   c: ComponentShortlist;
-  markupPct: number;
+  markupPct: number | null;
   open: boolean;
   busy: boolean;
   onToggle: () => void;
@@ -260,7 +268,7 @@ function ComponentRow({
           {pick ? (pick.offer.perUnitCents == null ? "Needs roll length" : `${$(pick.offer.perUnitCents)} ${perUnitWord(c.unit)}`) : ""}
         </span>
         <span role="cell" className="num">
-          {pick && pick.offer.perUnitCents != null ? `${$(sellCents(pick.offer.perUnitCents, markupPct))} ${perUnitWord(c.unit)}` : ""}
+          {pick && pick.offer.perUnitCents != null && markupPct != null ? `${$(sellCents(pick.offer.perUnitCents, markupPct))} ${perUnitWord(c.unit)}` : ""}
         </span>
         <span role="cell" className="qs-act qs-acts2">
           {pick?.overridden && (

@@ -259,6 +259,42 @@ describe("installer scenarios: upload → floors", () => {
     expect(fake.sourceUploads).toBe(1);
   });
 
+  it("a page split into two floors comes back on one floor's row, not both", async () => {
+    pdfToPages.mockResolvedValue([page("Floor plan", 1)]);
+    const fake = new CountingPlanImages();
+    const user = await openPlanJob(fake);
+
+    uploadPdf();
+    await nameFloors(user, ["Ground floor"]);
+    dropPage(yardFirst(), 0);
+    await user.click(screen.getByRole("button", { name: /Start design/ }));
+    const canvas = await screen.findByTestId("studio-canvas");
+
+    // split the page: draw what this floor keeps, then the floor above's area
+    await user.click(await screen.findByRole("button", { name: "Skip for now" }));
+    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /Split to new floor/ }));
+    const svg = canvas.querySelector("svg")!;
+    const at = (x: number, y: number) => ({ clientX: x, clientY: y, button: 0, pointerId: 1 });
+    // the area this floor keeps, then the area for the new floor
+    fireEvent.pointerDown(svg, at(70, 70));
+    fireEvent.pointerMove(svg, at(400, 530));
+    fireEvent.pointerUp(svg, at(400, 530));
+    fireEvent.pointerDown(svg, at(410, 70));
+    fireEvent.pointerMove(svg, at(720, 530));
+    fireEvent.pointerUp(svg, at(720, 530));
+    await user.click(await screen.findByRole("button", { name: "Add floor above" }));
+
+    await gotoPlans(user);
+    await screen.findByText("Stack your floors");
+    // the one page sits on the first floor; the sibling's row is empty — a
+    // card in two rows would let one drag pull it off both
+    expect(floorCard("Ground floor").querySelectorAll(".ds-plancard")).toHaveLength(1);
+    expect(floorCard("Level 1")).toBeInTheDocument();
+    expect(floorCard("Level 1").querySelectorAll(".ds-plancard")).toHaveLength(0);
+    expect(fake.removed).toEqual([]);
+  });
+
   it("restores under StrictMode — a double-invoked effect doesn't leave it stuck loading", async () => {
     // StrictMode mounts, cancels, remounts effects in dev; the once-per-open
     // guard must not be poisoned by the cancelled run, or rehydration hangs on

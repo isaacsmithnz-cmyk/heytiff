@@ -54,6 +54,7 @@ import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
 import { readSm8WriteState, runSm8Writes } from "@/lib/integrations/sm8-writes";
 import { offersSend, sendHold, sendRefusal, type SendHold, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { settlePressedWrites } from "@/lib/integrations/sm8-drain";
+import { syncSm8AfterSend } from "@/lib/integrations/sm8-freshness";
 import { fillWords } from "@/lib/integrations/sm8-note-words";
 import { listSm8StaffLinks, sm8DeniedLinks } from "@/lib/integrations/links";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
@@ -83,6 +84,7 @@ import {
 } from "@/lib/integrations/sm8-booking-read";
 import {
   queueBookIn,
+  queueMakeWorkOrder,
   queueBookingRetry,
   queueBookingTakeBack,
   queueClear,
@@ -555,6 +557,54 @@ export async function bookJobIn(input: {
 
   /* 8. the press's lines, read after the settle */
   return { ok: true, verb: await verbOf(orgId, job.uuid, pressId, press.userId, startedAt), rowIds: queued.rowIds };
+}
+
+/* ── Make it a work order ── */
+
+export type MakeWorkOrderAnswer =
+  | { ok: true; state: "sent" | "waiting" | "trial"; rowId: string }
+  | { ok: false; error: string };
+
+/** Make a Quote a Work Order, with nobody booked (Isaac, 2026-10-03: "do and
+    charge" decided on site). Book in's door and checks: offered, the job a
+    Quote in the mirror, its edit time as the mirror holds it — the sender
+    reads the job live again and goes only if nothing changed since. */
+export async function makeWorkOrder(input: { jobUuid: string; pressId: string }): Promise<MakeWorkOrderAnswer> {
+  const startedAt = Date.now();
+  const g = await gate();
+  if (!g.ok) return g;
+  const { orgId, press } = g;
+  const state = await readSm8WriteState(orgId);
+  if (!offersSend(state, "booking")) return { ok: false, error: notOffered(state) };
+  const jobUuid = text(input?.jobUuid);
+  const pressId = text(input?.pressId);
+  if (!UUID.test(pressId)) return { ok: false, error: BOOKING_WORDS.press.unqueued };
+  if (!UUID.test(jobUuid)) return { ok: false, error: BOOKING_WORDS.press.jobGone };
+
+  const job = await readMirrorJob(orgId, jobUuid);
+  if (job === "failed") return { ok: false, error: BOOKING_WORDS.press.unqueued };
+  if (!job || job.active !== 1 || !job.status) return { ok: false, error: BOOKING_WORDS.press.jobGone };
+  if (job.status === "Work Order") return { ok: true, state: "sent", rowId: "" };
+  if (job.status !== "Quote") return { ok: false, error: fillWords(BOOKING_WORDS.press.notBookable, { status: job.status }) };
+  if (!job.editDate || !EDIT_STAMP.test(job.editDate)) return { ok: false, error: BOOKING_WORDS.press.changed };
+
+  const queued = await queueMakeWorkOrder(press, state, { jobUuid: job.uuid, verbId: pressId, seenEditDate: job.editDate });
+  if (!queued.ok) return { ok: false, error: await refusedWords(orgId, state, queued, "book") };
+  revalidateBookings();
+  await settle(orgId, [queued.rowId], startedAt);
+
+  const { data } = await supabaseAdmin.from("sm8_writes").select("status, last_error").eq("org_id", orgId).eq("id", queued.rowId).maybeSingle();
+  const row = data as { status: string; last_error: string | null } | null;
+  if (!row) return { ok: false, error: BOOKING_WORDS.press.unqueued };
+  if (row.status === "sent") {
+    /* the mirror says Quote until it reads the job again */
+    syncSm8AfterSend(orgId);
+    return { ok: true, state: "sent", rowId: queued.rowId };
+  }
+  if (row.status === "trial") return { ok: true, state: "trial", rowId: queued.rowId };
+  if (row.status === "queued" || row.status === "sending") return { ok: true, state: "waiting", rowId: queued.rowId };
+  /* a row keeps its reason as the sentence itself */
+  return { ok: false, error: row.last_error ?? BOOKING_WORDS.press.unqueued };
 }
 
 /** A press's verb on the job as it reads now. Empty when nothing of it has

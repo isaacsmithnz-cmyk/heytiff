@@ -119,7 +119,14 @@ import {
   type OutdoorUnit,
 } from "@/lib/studio/packs/schema";
 import { formFactorLabel } from "@/lib/studio/unit-specs";
-import type { PlanImages } from "@/lib/studio/plans";
+import {
+  regionFromPoints,
+  regionFromRect,
+  regionOutline,
+  withRegion,
+  type PlanImages,
+  type SheetRegion,
+} from "@/lib/studio/plans";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { SimOverlay } from "./sim-overlay";
 import {
@@ -213,6 +220,7 @@ export type CanvasTool =
   | "measure" // throwaway tape measure — drag to read a distance, nothing is saved
   | "set-north" // place/rotate the true-north arrow
   | "crop" // trim a plan sheet's visible region
+  | "split" // keep an area on this floor, give the rest of the page to a new floor
   | "erase"
   | "arrange"
   | "place" // place a unit (armed from the system panel with a model)
@@ -804,6 +812,7 @@ type Drag =
      it for the rest of the drag (joints.ts slideOnRun) */
   | { kind: "point"; id: string; startWorld: Point; orig: Point; free?: boolean }
   | { kind: "crop"; sheetId: string; start: Point }
+  | { kind: "split"; sheetId: string; start: Point }
   | { kind: "north-move"; startWorld: Point; orig: { x: number; y: number } }
   | { kind: "north-rotate"; center: { x: number; y: number } }
   /* `offset` is where on the ring the grab landed, as degrees ahead of the
@@ -871,6 +880,8 @@ export function StudioCanvas({
   onToolDone,
   onCalibrated,
   planImages,
+  sharedRefs,
+  onSplitFloor,
   activeSystemId = null,
   placing = null,
   placingKw = null,
@@ -910,6 +921,17 @@ export function StudioCanvas({
   /** fired when a scale calibration is confirmed (parent shows the north step) */
   onCalibrated?: () => void;
   planImages?: PlanImages;
+  /** images this floor shares with another floor (a split plan): the part of
+      the page that belongs to the other floor shows faded, not hidden */
+  sharedRefs?: ReadonlySet<string>;
+  /** the Split tool's confirm: `keep` stays on this floor, `other` becomes a
+      new floor above or below */
+  onSplitFloor?: (
+    sheetId: string,
+    keep: SheetRegion,
+    other: SheetRegion,
+    place: "above" | "below"
+  ) => void;
   /** which render layers are visible (transient view state) */
   layers?: LayerFlags;
   /** desaturate + brighten the plan raster for overlay readability */
@@ -1041,6 +1063,23 @@ export function StudioCanvas({
      else: it never reaches onMutate, so it makes no object, no undo entry and
      no mark on the drawing — let go and it's gone. */
   const [tape, setTape] = useState<{ a: Point; b: Point } | null>(null);
+  /* live crop rectangle while dragging a crop (or a split) over a sheet */
+  const [liveCrop, setLiveCrop] = useState<{ sheetId: string; a: Point; b: Point } | null>(null);
+  /* a freeform area being drawn: clicked corners (world units), and the tool
+     that began it — a draft left behind when the tool changed stays dormant */
+  const [draftShape, setDraftShape] = useState<{
+    sheetId: string;
+    tool: "crop" | "split";
+    pts: Point[];
+  } | null>(null);
+  /* Split asks for two areas on one page: the one this floor keeps, then the
+     one that becomes the new floor. Both in the sheet's own coordinates.
+     Nothing changes in the design until Above / Below. */
+  const [splitPending, setSplitPending] = useState<{
+    sheetId: string;
+    keep: SheetRegion;
+    other: SheetRegion | null;
+  } | null>(null);
   /* the wall-marking / room-sizing panel's measured size, for the same reason
      — it picks the top or bottom slot depending on where the room sits */
   /* ── markup (the note tool) ──
@@ -1298,7 +1337,10 @@ export function StudioCanvas({
     noteDraft !== null ||
     notePin !== null ||
     calib.a !== undefined ||
-    tape !== null;
+    tape !== null ||
+    liveCrop !== null ||
+    draftShape !== null ||
+    splitPending !== null;
   /* Esc's listener binds once, so the two things it needs at press time reach
      it through refs rather than by re-subscribing the window on every stroke.
      `onToolDone` is an inline arrow at the use site — a new function each
@@ -1347,8 +1389,6 @@ export function StudioCanvas({
   const [liveSheet, setLiveSheet] = useState<{ id: string; x: number; y: number } | null>(null);
   /* live north arrow while dragging (move/rotate), committed on pointer-up */
   const [liveNorth, setLiveNorth] = useState<{ pos: { x: number; y: number }; deg: number } | null>(null);
-  /* live crop rectangle while dragging a crop over a sheet */
-  const [liveCrop, setLiveCrop] = useState<{ sheetId: string; a: Point; b: Point } | null>(null);
   /* live unit rotation while dragging its knob, committed on pointer-up */
   const [liveRotate, setLiveRotate] = useState<{ id: string; deg: number } | null>(null);
   const northArrow = liveNorth ?? (floor.northPos ? { pos: floor.northPos, deg: floor.northDeg ?? 0 } : null);
@@ -1443,6 +1483,20 @@ export function StudioCanvas({
       liveSheet && liveSheet.id === s.id ? liveSheet : { x: s.x, y: s.y },
     [liveSheet]
   );
+
+  /* the topmost sheet under a world point — what Crop and Split start on */
+  const sheetAt = (w: Point) => {
+    for (let i = floor.plans.length - 1; i >= 0; i--) {
+      const s = floor.plans[i];
+      const dims = sheetSize(s);
+      if (!dims) continue;
+      const pos = sheetPos(s);
+      if (w.x >= pos.x && w.x <= pos.x + dims.w && w.y >= pos.y && w.y <= pos.y + dims.h) {
+        return s;
+      }
+    }
+    return null;
+  };
 
   /* viewport starts from an assumed size and re-fits once on first real
      measure (mount-time content captured in a ref — no setState in effects).
@@ -2087,6 +2141,11 @@ export function StudioCanvas({
         // a cloud with nowhere to point is dropped, not stranded
         setNoteDraft(null);
         setNotePin(null);
+        // a crop or split drag underway is dropped, never committed on release
+        setLiveCrop(null);
+        setDraftShape(null);
+        setSplitPending(null);
+        setDrag((d) => (d && (d.kind === "crop" || d.kind === "split") ? null : d));
         /* AND THEN IT LETS GO OF THE TOOL. Esc used to clear the draft and
            stop — so pressing it with nothing half-drawn did nothing at all,
            while the hint promising "Esc to cancel" sat on screen and the tool
@@ -2791,6 +2850,73 @@ export function StudioCanvas({
     return () => window.removeEventListener("keydown", onKey);
   }, [tool, draftPipe, commitPipe]);
 
+  /* ── areas drawn on a plan sheet (Crop and Split) ──
+     One gesture draws either shape: drag a rectangle, or click each corner of
+     a freeform outline and close it on the first point, a double-click or
+     Enter. Crop trims the sheet to the area. Split needs two: the one this
+     floor keeps, then the one that becomes the new floor. */
+  const finishRegion = (kind: "crop" | "split", sheetId: string, region: SheetRegion) => {
+    if (kind === "crop") {
+      onMutate((d) => ({
+        ...d,
+        floors: d.floors.map((f) =>
+          f.id === floor.id
+            ? { ...f, plans: f.plans.map((s) => (s.id === sheetId ? withRegion(s, region) : s)) }
+            : f
+        ),
+      }));
+      onToolDone();
+    } else if (splitPending && splitPending.sheetId === sheetId && !splitPending.other) {
+      // the second area: the panel asks where the new floor goes
+      setSplitPending({ ...splitPending, other: region });
+      onToolDone();
+    } else {
+      // the first area: the tool stays armed for the second
+      setSplitPending({ sheetId, keep: region, other: null });
+    }
+  };
+  const finishShape = (pts: Point[] | null = null) => {
+    if (!draftShape || draftShape.tool !== tool) return;
+    const sheet = floor.plans.find((s) => s.id === draftShape.sheetId);
+    const dims = sheet ? sheetSize(sheet) : null;
+    const corners = pts ?? draftShape.pts;
+    setDraftShape(null);
+    if (!sheet || !dims) return;
+    const pos = sheetPos(sheet);
+    const region = regionFromPoints(
+      corners.map((c) => ({ x: c.x - pos.x, y: c.y - pos.y })),
+      dims
+    );
+    if (region) finishRegion(draftShape.tool, sheet.id, region);
+  };
+  const addShapePoint = (w: Point) => {
+    if (!draftShape) return;
+    const first = draftShape.pts[0];
+    if (
+      draftShape.pts.length >= 3 &&
+      dist(worldToScreen(first, vp), worldToScreen(w, vp)) <= CLOSE_SNAP_PX
+    ) {
+      finishShape();
+      return;
+    }
+    setDraftShape({ ...draftShape, pts: [...draftShape.pts, w] });
+  };
+  /* Enter closes a freeform area — the ending that can't misfire. Same ref
+     pattern as Esc: the listener binds once and reads the latest closure. */
+  const finishShapeRef = useRef(finishShape);
+  useEffect(() => {
+    finishShapeRef.current = finishShape;
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      if (e.key === "Enter") finishShapeRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   /* ── pointer handlers ── */
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     const w = toWorld(e);
@@ -3191,18 +3317,22 @@ export function StudioCanvas({
         });
         break;
       }
-      case "crop": {
-        // start a crop rect over the topmost sheet under the cursor
-        for (let i = floor.plans.length - 1; i >= 0; i--) {
-          const s = floor.plans[i];
-          const dims = sheetSize(s);
-          if (!dims) continue;
-          const pos = sheetPos(s);
-          if (w.x >= pos.x && w.x <= pos.x + dims.w && w.y >= pos.y && w.y <= pos.y + dims.h) {
-            setDrag({ kind: "crop", sheetId: s.id, start: w });
-            setLiveCrop({ sheetId: s.id, a: w, b: w });
-            return;
-          }
+      case "crop":
+      case "split": {
+        if (draftShape && draftShape.tool === tool) {
+          // corners of a freeform area: a click adds one, a drag still pans
+          tap(() => addShapePoint(w));
+          break;
+        }
+        // otherwise a drag starts a rectangle over the topmost sheet under the
+        // cursor — and a click without a drag starts a freeform outline
+        const hit = sheetAt(w);
+        const secondArea = tool === "split" && splitPending !== null && splitPending.other === null;
+        if (hit && (!secondArea || hit.id === splitPending?.sheetId)) {
+          if (!secondArea) setSplitPending(null);
+          setDrag({ kind: tool, sheetId: hit.id, start: w });
+          setLiveCrop({ sheetId: hit.id, a: w, b: w });
+          return;
         }
         break;
       }
@@ -3399,6 +3529,7 @@ export function StudioCanvas({
         break;
       }
       case "crop":
+      case "split":
         setLiveCrop({ sheetId: drag.sheetId, a: drag.start, b: w });
         break;
       case "north-move":
@@ -3702,32 +3833,33 @@ export function StudioCanvas({
       }));
       setLiveRotate(null);
     }
-    if (drag.kind === "crop" && liveCrop) {
+    if ((drag.kind === "crop" || drag.kind === "split") && liveCrop) {
       const { sheetId, a, b } = liveCrop;
       const sheet = floor.plans.find((s) => s.id === sheetId);
+      setLiveCrop(null);
       if (sheet) {
         const dims = sheetSize(sheet);
         const pos = sheetPos(sheet);
-        // clamp the drag to the sheet, store crop RELATIVE to the sheet origin
-        const x0 = Math.max(pos.x, Math.min(a.x, b.x));
-        const y0 = Math.max(pos.y, Math.min(a.y, b.y));
-        const x1 = Math.min(pos.x + (dims?.w ?? 0), Math.max(a.x, b.x));
-        const y1 = Math.min(pos.y + (dims?.h ?? 0), Math.max(a.y, b.y));
-        const cw = x1 - x0, ch = y1 - y0;
-        if (cw > 4 && ch > 4) {
-          const crop = { x: x0 - pos.x, y: y0 - pos.y, w: cw, h: ch };
-          onMutate((d) => ({
-            ...d,
-            floors: d.floors.map((f) =>
-              f.id === floor.id
-                ? { ...f, plans: f.plans.map((s) => (s.id === sheetId ? { ...s, crop } : s)) }
-                : f
-            ),
-          }));
+        const dragged =
+          Math.abs(b.x - a.x) * vp.zoom > TAP_SLOP_PX ||
+          Math.abs(b.y - a.y) * vp.zoom > TAP_SLOP_PX;
+        if (!dragged) {
+          // a click, not a drag: the first corner of a freeform outline
+          setDraftShape({ sheetId, tool: drag.kind, pts: [a] });
+        } else if (dims) {
+          // the dragged rectangle, clamped to the sheet, RELATIVE to its origin
+          const region = regionFromRect(
+            {
+              x: Math.min(a.x, b.x) - pos.x,
+              y: Math.min(a.y, b.y) - pos.y,
+              w: Math.abs(b.x - a.x),
+              h: Math.abs(b.y - a.y),
+            },
+            dims
+          );
+          if (region) finishRegion(drag.kind, sheetId, region);
         }
       }
-      setLiveCrop(null);
-      onToolDone();
     }
     setDrag(null);
   };
@@ -3748,6 +3880,10 @@ export function StudioCanvas({
     setWallSelect(null);
     setNoteDraft(null);
     setNotePin(null);
+    setLiveCrop(null);
+    setDraftShape(null);
+    setSplitPending(null);
+    setDrag((d) => (d && (d.kind === "crop" || d.kind === "split") ? null : d));
     onToolDone();
   };
 
@@ -3807,6 +3943,15 @@ export function StudioCanvas({
     if (tool === "room-poly" && draftPoly.length >= 3) {
       beginRoomAdjust(draftPoly, "poly");
       setDraftPoly([]);
+    }
+    // double-click closes a freeform area; its own clicks landed as corners
+    // first, so the tail carries a duplicate within a click's travel — drop it
+    if (draftShape && draftShape.tool === tool) {
+      const tol = (TAP_SLOP_PX * 1.5) / vp.zoom;
+      const corners = [...draftShape.pts];
+      while (corners.length >= 2 && dist(corners[corners.length - 1], corners[corners.length - 2]) <= tol)
+        corners.pop();
+      if (corners.length >= 3) finishShape(corners);
     }
     // double-click ends a drawn run without an end anchor (open run). Its own
     // clicks landed as dots first, so the tail carries one or two duplicates
@@ -4215,6 +4360,50 @@ export function StudioCanvas({
     }
   }
 
+  /* the areas already chosen on the page being split — plus the rectangle
+     being dragged right now — as outlines in world units. The rest of the page
+     fades behind them, live while you draw and held while the panel asks. */
+  const splitHoles = (() => {
+    const out: { sheetId: string; outlines: Point[][] } = { sheetId: "", outlines: [] };
+    const sheetFor = (id: string) => floor.plans.find((s) => s.id === id) ?? null;
+    const add = (id: string, region: SheetRegion) => {
+      const sheet = sheetFor(id);
+      if (!sheet) return;
+      const pos = sheetPos(sheet);
+      out.sheetId = id;
+      out.outlines.push(regionOutline(region).map((p) => ({ x: pos.x + p.x, y: pos.y + p.y })));
+    };
+    if (splitPending) {
+      add(splitPending.sheetId, splitPending.keep);
+      if (splitPending.other) add(splitPending.sheetId, splitPending.other);
+    }
+    if (drag?.kind === "split" && liveCrop) {
+      const sheet = sheetFor(liveCrop.sheetId);
+      const dims = sheet ? sheetSize(sheet) : null;
+      if (sheet && dims) {
+        const pos = sheetPos(sheet);
+        const live = regionFromRect(
+          {
+            x: Math.min(liveCrop.a.x, liveCrop.b.x) - pos.x,
+            y: Math.min(liveCrop.a.y, liveCrop.b.y) - pos.y,
+            w: Math.abs(liveCrop.b.x - liveCrop.a.x),
+            h: Math.abs(liveCrop.b.y - liveCrop.a.y),
+          },
+          dims
+        );
+        if (live) add(sheet.id, live);
+      }
+    }
+    return out.outlines.length > 0 ? out : null;
+  })();
+
+  const cancelSplit = () => setSplitPending(null);
+  const confirmSplit = (place: "above" | "below") => {
+    if (!splitPending || !splitPending.other) return;
+    onSplitFloor?.(splitPending.sheetId, splitPending.keep, splitPending.other, place);
+    setSplitPending(null);
+  };
+
   const cursorClass =
     drag?.kind === "pan"
       ? "ds-cur-grabbing"
@@ -4295,8 +4484,18 @@ export function StudioCanvas({
         ? floor.northPos
           ? { icon: "rotate", text: "Drag the N to rotate. Drag the centre to move" }
           : { icon: "rotate", text: "Click to place the north marker. Scroll or drag to pan" }
-        : tool === "crop"
-          ? { icon: "maximize", text: "Drag a rectangle over the area to keep" }
+        : tool === "crop" || tool === "split"
+          ? {
+              icon: "maximize",
+              text:
+                draftShape && draftShape.tool === tool && draftShape.pts.length >= 3
+                  ? "Click the first point, or press Enter, to close the shape"
+                  : tool === "crop"
+                    ? "Drag a rectangle, or click each corner, over the area to keep"
+                    : splitPending && splitPending.other === null
+                      ? "Now the area for the new floor — drag a rectangle, or click each corner"
+                      : "Drag a rectangle, or click each corner, around the area this floor keeps",
+            }
           : tool === "component" && component?.kind === "plenum"
             ? {
                 icon: "wind",
@@ -4431,8 +4630,25 @@ export function StudioCanvas({
               <g key={s.id} className="ds-sheet">
                 {crop && (
                   <clipPath id={clipId}>
-                    <rect x={pos.x + crop.x} y={pos.y + crop.y} width={crop.w} height={crop.h} />
+                    {s.shape ? (
+                      <polygon points={s.shape.map((c) => `${pos.x + c.x},${pos.y + c.y}`).join(" ")} />
+                    ) : (
+                      <rect x={pos.x + crop.x} y={pos.y + crop.y} width={crop.w} height={crop.h} />
+                    )}
                   </clipPath>
+                )}
+                {crop && sharedRefs?.has(s.imageRef) && (
+                  /* a split page: the other floor's part, faded not hidden */
+                  <image
+                    className="ds-plan-ghost"
+                    href={url}
+                    x={pos.x}
+                    y={pos.y}
+                    width={dims.w}
+                    height={dims.h}
+                    preserveAspectRatio="none"
+                    style={grayscale ? { filter: "grayscale(1) brightness(1.05) contrast(0.92)" } : undefined}
+                  />
                 )}
                 <image
                   className="ds-plan"
@@ -4445,6 +4661,25 @@ export function StudioCanvas({
                   clipPath={crop ? `url(#${clipId})` : undefined}
                   style={grayscale ? { filter: "grayscale(1) brightness(1.05) contrast(0.92)" } : undefined}
                 />
+                {splitHoles && splitHoles.sheetId === s.id && (
+                  /* Split: the page fades everywhere outside the chosen areas */
+                  <>
+                    <mask id={`split-mask-${s.id}`}>
+                      <rect x={pos.x} y={pos.y} width={dims.w} height={dims.h} fill="white" />
+                      {splitHoles.outlines.map((o, i) => (
+                        <polygon key={i} points={o.map((c) => `${c.x},${c.y}`).join(" ")} fill="black" />
+                      ))}
+                    </mask>
+                    <rect
+                      className="ds-crop-dim"
+                      x={pos.x}
+                      y={pos.y}
+                      width={dims.w}
+                      height={dims.h}
+                      mask={`url(#split-mask-${s.id})`}
+                    />
+                  </>
+                )}
                 {tool === "arrange" && (
                   <>
                     <rect
@@ -5407,13 +5642,60 @@ export function StudioCanvas({
           {/* crop preview while dragging (show-the-result-before-the-drop) */}
           {liveCrop && (
             <rect
-              className="ds-crop-preview"
+              className={drag?.kind === "split" ? "ds-crop-keep" : "ds-crop-preview"}
               x={Math.min(liveCrop.a.x, liveCrop.b.x)}
               y={Math.min(liveCrop.a.y, liveCrop.b.y)}
               width={Math.abs(liveCrop.b.x - liveCrop.a.x)}
               height={Math.abs(liveCrop.b.y - liveCrop.a.y)}
             />
           )}
+          {/* the areas chosen for a split, held while the second is drawn and
+              while the panel asks: the first stays, the second is the new floor */}
+          {splitPending &&
+            (() => {
+              const sheet = floor.plans.find((s) => s.id === splitPending.sheetId);
+              if (!sheet) return null;
+              const pos = sheetPos(sheet);
+              const pts = (r: SheetRegion) =>
+                regionOutline(r)
+                  .map((c) => `${pos.x + c.x},${pos.y + c.y}`)
+                  .join(" ");
+              return (
+                <>
+                  <polygon className="ds-crop-keep" points={pts(splitPending.keep)} />
+                  {splitPending.other && (
+                    <polygon className="ds-crop-keep other" points={pts(splitPending.other)} />
+                  )}
+                </>
+              );
+            })()}
+          {/* a freeform area being drawn: the corners so far, closing on the
+              first (the same markup as the zone polygon) */}
+          {draftShape &&
+            draftShape.tool === tool &&
+            (() => {
+              const closing =
+                cursor != null &&
+                draftShape.pts.length >= 3 &&
+                dist(worldToScreen(draftShape.pts[0], vp), worldToScreen(cursor, vp)) <=
+                  CLOSE_SNAP_PX;
+              const tail = closing ? draftShape.pts[0] : cursor;
+              return (
+                <g className="ds-draft">
+                  <polyline
+                    points={[...draftShape.pts, ...(tail ? [tail] : [])]
+                      .map((c) => `${c.x},${c.y}`)
+                      .join(" ")}
+                  />
+                  <circle
+                    className={closing ? "close-ready" : undefined}
+                    cx={draftShape.pts[0].x}
+                    cy={draftShape.pts[0].y}
+                    r={(CLOSE_SNAP_PX / zoom) * (closing ? 1.1 : 0.6)}
+                  />
+                </g>
+              );
+            })()}
 
           {/* north arrow — placeable, fixed to the plan. Once placed it shows a
               plain compass; the rotate knob + hint appear only while the
@@ -5702,6 +5984,40 @@ export function StudioCanvas({
                 </button>
                 <button className="ds-calib-ok" onClick={confirmWallSelect}>
                   {n > 0 ? "Done" : "No external walls"}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* split panel — the first area stays, the second becomes a floor above
+          or below. Nothing changes until one of the buttons. */}
+      {splitPending &&
+        splitPending.other &&
+        (() => {
+          const sheet = floor.plans.find((s) => s.id === splitPending.sheetId);
+          const pos = sheet ? sheetPos(sheet) : { x: 0, y: 0 };
+          const pts = regionOutline(splitPending.other).map((c) => ({
+            x: pos.x + c.x,
+            y: pos.y + c.y,
+          }));
+          return (
+            <div
+              className={`ds-wallsel-panel${panelSlot(pts) === "top" ? " top" : ""}`}
+              ref={measureRoomPanel}
+              role="dialog"
+              aria-label="Split the plan"
+            >
+              <div className="ds-wallsel-title">New floor from the second area</div>
+              <div className="ds-wallsel-actions">
+                <button className="ds-calib-cancel" onClick={cancelSplit}>
+                  Cancel
+                </button>
+                <button className="ds-calib-cancel" onClick={() => confirmSplit("below")}>
+                  Add floor below
+                </button>
+                <button className="ds-calib-ok" onClick={() => confirmSplit("above")}>
+                  Add floor above
                 </button>
               </div>
             </div>

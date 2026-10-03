@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
+import { MONEY_BASIS } from "@/lib/workboard/job-money";
 import {
   createProjectFromJob,
   readJobFiles,
@@ -39,6 +40,7 @@ import {
 import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
+import { JobQuoteLabour } from "./job-quote-labour";
 import { JobQuoteFace } from "./job-quote-face";
 import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
@@ -109,6 +111,7 @@ import { thrownWords } from "@/lib/stale-deploy";
 import { somethingWaiting, useNoteStatePoll } from "./use-note-poll";
 import {
   clearLeftoverBooking,
+  makeWorkOrder,
   readBookingStates,
   retryBooking,
   takeBackBooking,
@@ -1755,6 +1758,34 @@ export function JobSheet({
     return res?.detail ?? null;
   };
 
+  /* MAKE IT A WORK ORDER (Isaac, 2026-10-03): "do and charge" decided on
+     site, before anyone is booked. Asked once, then pressed; one press id
+     for the card's life, so a second press is the same change. */
+  const [woPressId] = useState(() => mintPressId());
+  const [wo, setWo] = useState<"ask" | "busy" | "done" | null>(null);
+  const offerWorkOrder =
+    !!cardId && !!bookings?.canBook && (detail?.status ?? "").trim().toLowerCase() === "quote" && wo !== "done";
+  const pressWorkOrder = async () => {
+    if (!cardId) return;
+    setWo("busy");
+    const a = await makeWorkOrder({ jobUuid: cardId, pressId: woPressId }).catch(() => ({ ok: false as const, error: BOOKING_WORDS.press.unqueued }));
+    if (!alive.current) return;
+    if (!a.ok) {
+      setWo(null);
+      onToast(a.error);
+      return;
+    }
+    setWo("done");
+    onToast(
+      a.state === "sent"
+        ? "Made a Work Order in ServiceM8."
+        : a.state === "trial"
+          ? "Trial run: nothing went to ServiceM8."
+          : "Making it a Work Order in ServiceM8."
+    );
+    void reloadVisits();
+  };
+
   const seedOf = (b: { staffUuid: string | null; start: string | null; end: string | null }): BookInSeed => ({
     staffUuid: b.staffUuid,
     start: b.start,
@@ -1866,12 +1897,12 @@ export function JobSheet({
     void removePicklistItem(id).catch((e: unknown) => onToast(thrownWords(e, "Could not remove that line")));
   };
 
-  const addChecklistItem = (input: { kind: "material" | "todo"; name: string; qty: string }) => {
+  const addChecklistItem = (input: { kind: "material" | "todo"; name: string; qty: string; sub?: string }) => {
     if (!cardId) return;
     const temp: JobPicklistItem = {
-      id: `tmp-${Date.now()}`,
+      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: input.name,
-      sub: "",
+      sub: input.sub ?? "",
       qty: input.qty,
       kind: input.kind,
       picked: false,
@@ -2077,6 +2108,24 @@ export function JobSheet({
                   {!dateStandsAlone && cardDate ? `, ${fmtAuWeekdayDayMonth(cardDate)}` : ""}
                 </span>
               )}
+              {offerWorkOrder &&
+                (wo === "ask" || wo === "busy" ? (
+                  <>
+                    <span className="wb2-chip">Make it a Work Order in ServiceM8?</span>
+                    <button type="button" className="wb2-chip" disabled={wo === "busy"} onClick={() => void pressWorkOrder()}>
+                      {wo === "busy" ? "Making it…" : "Yes"}
+                    </button>
+                    {wo === "ask" && (
+                      <button type="button" className="wb2-chip" onClick={() => setWo(null)}>
+                        No
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <button type="button" className="wb2-chip" onClick={() => setWo("ask")}>
+                    Make it a work order
+                  </button>
+                ))}
               {dateStandsAlone && cardDate && (
                 <span className="wb2-chip">
                   {`${cardDateLabel === "booked" ? "Booked" : "Raised"} ${fmtAuWeekdayDayMonth(cardDate)}`}
@@ -2677,12 +2726,28 @@ export function JobSheet({
           {manage &&
             panel(
               "quote",
-              <JobQuoteFace
+              <>
+                <JobQuoteFace
                 job={cardId ?? row.id}
                 address={detail ? detail.address ?? detail.geoLine : null}
                 visible={tab === "quote"}
                 onToast={onToast}
+                sm8={{
+                  papers: (media?.documents ?? []).filter((d) => d.origin === "Quote"),
+                  sentOn: detail?.quoteSentOn ?? null,
+                  /* the FAMILY's value where it bills in claims: the row's own
+                     total is netted by each claim ServiceM8 raises */
+                  value: (() => {
+                    if (!moneyVisible) return null;
+                    const cents = family ? family.valueCents : (money?.valueCents ?? null);
+                    const basis = family ? (family.basis === "ex" ? "ex GST" : "inc GST") : MONEY_BASIS;
+                    return cents != null ? `${fmtAud(cents)} ${basis}` : null;
+                  })(),
+                }}
+                onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
               />
+                <JobQuoteLabour key={cardId ?? row.id} job={cardId ?? row.id} visible={tab === "quote"} />
+              </>
             )}
 
           {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,

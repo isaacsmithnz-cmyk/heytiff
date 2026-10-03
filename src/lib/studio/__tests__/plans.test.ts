@@ -14,12 +14,19 @@ import {
   formatLevel,
   insertPageRow,
   labelPagesSequentially,
+  orphanedRefs,
   previewInsertLevel,
   removePageFromRows,
   restackLevels,
   setAnchorLevel,
   trayPageIdxs,
   placeSheets,
+  regionFromPoints,
+  regionFromRect,
+  regionOutline,
+  sharedPlanRefs,
+  splitFloorOffSheet,
+  withRegion,
   type PageImage,
   type UploadedSheet,
 } from "../plans";
@@ -319,5 +326,335 @@ describe("rehydrating a saved import", () => {
     rows = dropPageOnRow(rows, 1, rows[0].key); // add r1 to floor a
     const committed = applyBuilderRows(rows, uploadsFor([upl("r0"), upl("r1")], [0, 1]), floors);
     expect(committed[0].plans.map((s) => s.imageRef)).toEqual(["r0", "r1"]);
+  });
+
+  it("a page two floors share shows on the first floor only, so no card is in two rows", () => {
+    // a split plan: floors a and b both show r0 (different crops)
+    const floors = [floorWith("a", 0, ["r0"]), floorWith("b", 1, ["r0"])];
+    const rows = builderRowsFromFloors(floors, [pageWithRef("r0")]);
+    expect(rows.map((r) => [r.floorId, r.pageIdxs])).toEqual([
+      ["a", [0]],
+      ["b", []],
+    ]);
+    // …and the page is not also waiting in the tray
+    expect(trayPageIdxs(rows, [0])).toEqual([]);
+  });
+
+  it("one floor holding the same image twice lists the page once", () => {
+    const rows = builderRowsFromFloors([floorWith("a", 0, ["r0", "r0"])], [pageWithRef("r0")]);
+    expect(rows[0].pageIdxs).toEqual([0]);
+  });
+
+  it("re-committing a rehydrated split keeps both floors' sheets", () => {
+    const floors = [floorWith("a", 0, ["r0"]), floorWith("b", 1, ["r0"])];
+    const rows = builderRowsFromFloors(floors, [pageWithRef("r0")]);
+    const committed = applyBuilderRows(rows, uploadsFor([upl("r0")], [0]), floors);
+    expect(committed.map((f) => [f.id, f.plans.length])).toEqual([
+      ["a", 1],
+      ["b", 1],
+    ]);
+  });
+});
+
+describe("orphanedRefs", () => {
+  const floor = (id: string, refs: string[]): Floor => ({
+    id,
+    name: id,
+    level: 0,
+    scaleMmPerUnit: 10,
+    northDeg: null,
+    northPos: null,
+    plans: refs.map((r, i) => ({
+      id: `${id}_${i}`,
+      imageRef: r,
+      pageNumber: 1,
+      name: r,
+      width: 100,
+      height: 100,
+      x: 0,
+      y: 0,
+    })),
+  });
+
+  it("returns every ref of the floor when nothing else uses them", () => {
+    expect(orphanedRefs([floor("a", ["r0", "r1"]), floor("b", ["r2"])], "a")).toEqual(["r0", "r1"]);
+  });
+
+  it("keeps a ref another floor still shows (a split plan)", () => {
+    expect(orphanedRefs([floor("a", ["r0"]), floor("b", ["r0"])], "a")).toEqual([]);
+    // once the last floor holding it goes, the image is orphaned
+    expect(orphanedRefs([floor("b", ["r0"])], "b")).toEqual(["r0"]);
+  });
+
+  it("lists a ref once, and nothing for an unknown floor", () => {
+    expect(orphanedRefs([floor("a", ["r0", "r0"])], "a")).toEqual(["r0"]);
+    expect(orphanedRefs([floor("a", ["r0"])], "zzz")).toEqual([]);
+  });
+});
+
+describe("areas drawn on a sheet", () => {
+  const page = { w: 2000, h: 1000 };
+
+  it("a dragged rectangle is clamped to the page", () => {
+    expect(regionFromRect({ x: -50, y: 10, w: 900, h: 2000 }, page)).toEqual({
+      rect: { x: 0, y: 10, w: 850, h: 990 },
+    });
+  });
+
+  it("a stray click or a sliver is not an area", () => {
+    expect(regionFromRect({ x: 100, y: 100, w: 3, h: 300 }, page)).toBeNull();
+    expect(regionFromRect({ x: 5000, y: 0, w: 100, h: 100 }, page)).toBeNull();
+  });
+
+  it("clicked corners are an outline, with their bounding box as the rect", () => {
+    const pts = [
+      { x: 100, y: 100 },
+      { x: 900, y: 150 },
+      { x: 700, y: 800 },
+      { x: 120, y: 600 },
+    ];
+    expect(regionFromPoints(pts, page)).toEqual({
+      rect: { x: 100, y: 100, w: 800, h: 700 },
+      shape: pts,
+    });
+  });
+
+  it("clamps outline corners to the page", () => {
+    const r = regionFromPoints(
+      [
+        { x: -100, y: 100 },
+        { x: 500, y: 100 },
+        { x: 500, y: 1500 },
+      ],
+      page
+    )!;
+    expect(r.shape).toEqual([
+      { x: 0, y: 100 },
+      { x: 500, y: 100 },
+      { x: 500, y: 1000 },
+    ]);
+    expect(r.rect).toEqual({ x: 0, y: 100, w: 500, h: 900 });
+  });
+
+  it("two corners, a line of corners, or a speck is not an area", () => {
+    expect(regionFromPoints([{ x: 0, y: 0 }, { x: 500, y: 500 }], page)).toBeNull();
+    expect(
+      regionFromPoints([{ x: 0, y: 0 }, { x: 250, y: 250 }, { x: 500, y: 500 }], page)
+    ).toBeNull();
+    expect(
+      regionFromPoints([{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }], page)
+    ).toBeNull();
+  });
+
+  it("an area's outline is its corners, or the rectangle's four", () => {
+    expect(regionOutline({ rect: { x: 10, y: 20, w: 30, h: 40 } })).toEqual([
+      { x: 10, y: 20 },
+      { x: 40, y: 20 },
+      { x: 40, y: 60 },
+      { x: 10, y: 60 },
+    ]);
+    const shape = [{ x: 0, y: 0 }, { x: 9, y: 0 }, { x: 0, y: 9 }];
+    expect(regionOutline({ rect: { x: 0, y: 0, w: 9, h: 9 }, shape })).toBe(shape);
+  });
+
+  it("withRegion sets the crop and outline, and a rectangle clears an old outline", () => {
+    const sheet = {
+      id: "s",
+      imageRef: "r",
+      pageNumber: 1,
+      name: "s",
+      width: 2000,
+      height: 1000,
+      x: 0,
+      y: 0,
+    };
+    const shape = [{ x: 0, y: 0 }, { x: 900, y: 0 }, { x: 0, y: 900 }];
+    const free = withRegion(sheet, { rect: { x: 0, y: 0, w: 900, h: 900 }, shape });
+    expect(free.crop).toEqual({ x: 0, y: 0, w: 900, h: 900 });
+    expect(free.shape).toBe(shape);
+    const rect = withRegion(free, { rect: { x: 5, y: 5, w: 50, h: 50 } });
+    expect(rect.crop).toEqual({ x: 5, y: 5, w: 50, h: 50 });
+    expect("shape" in rect).toBe(false);
+  });
+});
+
+describe("splitFloorOffSheet", () => {
+  const sheet = {
+    id: "sht_a",
+    imageRef: "org/o1/p1.png",
+    pageNumber: 1,
+    name: "Both levels",
+    width: 2000,
+    height: 1000,
+    x: 30,
+    y: 40,
+  };
+  const mk = () => {
+    const d = createDesign({ name: "Split", mode: "plan" });
+    d.floors.push(
+      {
+        id: "flr_g",
+        name: "Ground floor",
+        level: 0,
+        heightM: 3.2,
+        scaleMmPerUnit: 12,
+        northDeg: 45,
+        northPos: { x: 1500, y: 100 },
+        plans: [sheet],
+      },
+      {
+        id: "flr_1",
+        name: "Level 1",
+        level: 1,
+        scaleMmPerUnit: 10,
+        northDeg: null,
+        northPos: null,
+        plans: [],
+      }
+    );
+    return d;
+  };
+  const ids = { newFloorId: "flr_new", newSheetId: "sht_new" };
+  const left = { rect: { x: 0, y: 0, w: 900, h: 1000 } };
+  const right = { rect: { x: 1000, y: 0, w: 1000, h: 1000 } };
+  const run = (over: Partial<Parameters<typeof splitFloorOffSheet>[1]> = {}, doc = mk()) =>
+    splitFloorOffSheet(doc, {
+      floorId: "flr_g",
+      sheetId: "sht_a",
+      keep: left,
+      other: right,
+      place: "above",
+      ...ids,
+      ...over,
+    });
+
+  it("keeps the first area on this floor and gives the second to a new floor above", () => {
+    const out = run();
+    const g = out.floors.find((f) => f.id === "flr_g")!;
+    const nf = out.floors.find((f) => f.id === "flr_new")!;
+    expect(g.plans[0].crop).toEqual(left.rect);
+    expect(nf.plans).toHaveLength(1);
+    expect(nf.plans[0]).toMatchObject({
+      id: "sht_new",
+      imageRef: "org/o1/p1.png", // same image — nothing re-uploaded
+      x: 30,
+      y: 40,
+      width: 2000,
+      height: 1000,
+      crop: right.rect,
+    });
+    // above the ground floor: level 1 → the old Level 1 moves up to 2
+    expect([g.level, nf.level]).toEqual([0, 1]);
+    expect(out.floors.find((f) => f.id === "flr_1")).toMatchObject({ level: 2, name: "Level 2" });
+    expect(nf.name).toBe("Level 1");
+  });
+
+  it("the areas needn't be strips: a diagonal pair lands on the floors they were drawn for", () => {
+    // top-left for this floor, bottom-right for the new one — the old "rest of
+    // the page" guess gave the new floor the wrong arm of the L
+    const tl = { rect: { x: 0, y: 0, w: 800, h: 450 } };
+    const br = { rect: { x: 1200, y: 550, w: 800, h: 450 } };
+    const out = run({ keep: tl, other: br });
+    expect(out.floors.find((f) => f.id === "flr_g")!.plans[0].crop).toEqual(tl.rect);
+    expect(out.floors.find((f) => f.id === "flr_new")!.plans[0].crop).toEqual(br.rect);
+  });
+
+  it("a freeform area is stored as its outline, with the bounding box as the crop", () => {
+    const shape = [
+      { x: 1000, y: 0 },
+      { x: 2000, y: 0 },
+      { x: 2000, y: 600 },
+      { x: 1400, y: 1000 },
+    ];
+    const other = { rect: { x: 1000, y: 0, w: 1000, h: 1000 }, shape };
+    const out = run({ other });
+    const nf = out.floors.find((f) => f.id === "flr_new")!;
+    expect(nf.plans[0].crop).toEqual(other.rect);
+    expect(nf.plans[0].shape).toBe(shape);
+    // this floor's rectangle carries no outline
+    expect(out.floors.find((f) => f.id === "flr_g")!.plans[0].shape).toBeUndefined();
+  });
+
+  it("splitting an already-freeform sheet replaces its outline", () => {
+    const d = mk();
+    d.floors[0].plans[0] = {
+      ...sheet,
+      crop: { x: 0, y: 0, w: 500, h: 500 },
+      shape: [{ x: 0, y: 0 }, { x: 500, y: 0 }, { x: 0, y: 500 }],
+    };
+    const out = run({}, d);
+    expect("shape" in out.floors.find((f) => f.id === "flr_g")!.plans[0]).toBe(false);
+    expect("shape" in out.floors.find((f) => f.id === "flr_new")!.plans[0]).toBe(false);
+  });
+
+  it("below: the new floor takes this level and this floor moves up with its name", () => {
+    const out = run({ place: "below" });
+    const g = out.floors.find((f) => f.id === "flr_g")!;
+    const nf = out.floors.find((f) => f.id === "flr_new")!;
+    expect([nf.level, nf.name]).toEqual([0, "Ground floor"]);
+    // a floor on its position's default name follows it up — never "Ground floor" at L1
+    expect([g.level, g.name]).toEqual([1, "Level 1"]);
+    expect(out.floors.find((f) => f.id === "flr_1")).toMatchObject({ level: 2, name: "Level 2" });
+  });
+
+  it("leaves a typed floor name alone when its level moves", () => {
+    const d = mk();
+    d.floors[0].name = "Plant deck";
+    const out = run({ place: "below" }, d);
+    expect(out.floors.find((f) => f.id === "flr_g")!.name).toBe("Plant deck");
+  });
+
+  it("carries scale, height and north across; the arrow goes with its area", () => {
+    // arrow at world x 1500 = sheet x 1470, inside the right area
+    const nf = run().floors.find((f) => f.id === "flr_new")!;
+    expect(nf).toMatchObject({ scaleMmPerUnit: 12, heightM: 3.2, northDeg: 45, northPos: { x: 1500, y: 100 } });
+    // new floor takes the left area instead → no arrow there
+    const out2 = run({ keep: right, other: left });
+    expect(out2.floors.find((f) => f.id === "flr_new")!.northPos).toBeNull();
+  });
+
+  it("changes nothing else: other sheets, rooms and the import session stay put", () => {
+    const d = mk();
+    d.floors[0].plans.push({ ...sheet, id: "sht_b", imageRef: "org/o1/p2.png", x: 3000 });
+    const out = run({}, d);
+    const g = out.floors.find((f) => f.id === "flr_g")!;
+    expect(g.plans.map((s) => s.id)).toEqual(["sht_a", "sht_b"]);
+    expect(g.plans[1].crop).toBeUndefined();
+    expect(out.objects).toBe(d.objects);
+    expect(out.planImport).toBe(d.planImport);
+  });
+
+  it("returns the document untouched when the ids don't match", () => {
+    const d = mk();
+    expect(run({ floorId: "nope" }, d)).toBe(d);
+    expect(run({ sheetId: "nope" }, d)).toBe(d);
+  });
+});
+
+describe("sharedPlanRefs", () => {
+  const f = (id: string, refs: string[]): Floor => ({
+    id,
+    name: id,
+    level: 0,
+    scaleMmPerUnit: 10,
+    northDeg: null,
+    northPos: null,
+    plans: refs.map((r, i) => ({
+      id: `${id}_${i}`,
+      imageRef: r,
+      pageNumber: 1,
+      name: r,
+      width: 100,
+      height: 100,
+      x: 0,
+      y: 0,
+    })),
+  });
+
+  it("names the images this floor shares with another floor", () => {
+    const floors = [f("a", ["r0", "r1"]), f("b", ["r0"]), f("c", ["r9"])];
+    expect([...sharedPlanRefs(floors, "a")]).toEqual(["r0"]);
+    expect([...sharedPlanRefs(floors, "c")]).toEqual([]);
+    expect([...sharedPlanRefs(floors, "zzz")]).toEqual([]);
   });
 });

@@ -11,18 +11,20 @@ import { COMPONENT_KEYS, type ComponentKey } from "./components";
 export type Preferred = { supplierKey: string; code: string; rollM: number | null };
 
 export type QuoteSettings = {
-  unitMarkupPct: number;
-  materialMarkupPct: number;
+  /** null: the business hasn't set it, and nothing quotes on a guess */
+  unitMarkupPct: number | null;
+  materialMarkupPct: number | null;
   dayHours: number;
   preferred: Partial<Record<ComponentKey, Preferred>>;
 };
 
-/** 25 on units, 40 on materials: what ServiceM8's catalogue carries on
-    units today, and the pair that lands 23 real quotes closest with no lean
-    either way (mean +0.1%, see past-jobs.test.ts). */
+/** A business that hasn't set its markups has none (Isaac, 2026-10-04:
+    "it cant share our personal work information… with another org"): one
+    business's markup is never another's starting point. Eight hours is the
+    working day, not anyone's figure. */
 export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
-  unitMarkupPct: 25,
-  materialMarkupPct: 40,
+  unitMarkupPct: null,
+  materialMarkupPct: null,
   dayHours: 8,
   preferred: {},
 };
@@ -35,9 +37,9 @@ const num = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-const clampTo = (v: unknown, lo: number, hi: number, fallback: number): number => {
+const clampTo = (v: unknown, lo: number, hi: number): number | null => {
   const n = num(v);
-  return n == null ? fallback : Math.min(hi, Math.max(lo, Math.round(n * 10) / 10));
+  return n == null ? null : Math.min(hi, Math.max(lo, Math.round(n * 10) / 10));
 };
 
 function preferredOf(raw: unknown): QuoteSettings["preferred"] {
@@ -61,9 +63,9 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const d = DEFAULT_QUOTE_SETTINGS;
   return {
-    unitMarkupPct: clampTo(r.unit_markup_pct ?? r.unitMarkupPct, 0, MAX_MARKUP_PCT, d.unitMarkupPct),
-    materialMarkupPct: clampTo(r.material_markup_pct ?? r.materialMarkupPct, 0, MAX_MARKUP_PCT, d.materialMarkupPct),
-    dayHours: clampTo(r.day_hours ?? r.dayHours, 1, MAX_DAY_HOURS, d.dayHours),
+    unitMarkupPct: clampTo(r.unit_markup_pct ?? r.unitMarkupPct, 0, MAX_MARKUP_PCT) ?? d.unitMarkupPct,
+    materialMarkupPct: clampTo(r.material_markup_pct ?? r.materialMarkupPct, 0, MAX_MARKUP_PCT) ?? d.materialMarkupPct,
+    dayHours: clampTo(r.day_hours ?? r.dayHours, 1, MAX_DAY_HOURS) ?? d.dayHours,
     preferred: preferredOf(r.preferred),
   };
 }

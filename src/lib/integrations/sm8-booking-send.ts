@@ -442,8 +442,10 @@ async function sendBooking(
   const zone = z.zone;
   if (op === "create" && row.booking_zone !== zone) return end(done("cancelled", BOOKING_WORDS.row.zoneChanged));
 
-  /* ── 3. a status row never goes alone ── */
-  if (op === "update") {
+  /* ── 3. a status row never goes alone — except Make it a work order's,
+     which is pressed with nobody to book (`payload.alone`) ── */
+  const pressedAlone = statusPressedAlone(row);
+  if (op === "update" && !pressedAlone) {
     const behind = await couldGoBehind(orgId, row, zone, t.clock(), true);
     if (behind === "failed") return end(checkFailed());
     if (behind === "none") {
@@ -549,7 +551,7 @@ async function sendBooking(
     const posted = await writeApp(
       (a) => postSm8JobStatus(sm8CallOf(a, "write"), jobUuid, "Work Order"),
       async () => {
-        const c = await statusStillWanted(orgId, row, zone, t.clock());
+        const c = pressedAlone ? await statusStillWantedAlone(orgId, row) : await statusStillWanted(orgId, row, zone, t.clock());
         if (c === "go") return null;
         if (c === "taken_back") return done("cancelled", NOTE_WORDS.row.takenBackBeforeSent);
         if (c === "alone") return done("cancelled", BOOKING_WORDS.row.statusAlone);
@@ -1266,6 +1268,20 @@ async function statusStillWanted(
   const behind = await couldGoBehind(orgId, row, zone, now, false);
   if (behind === "failed") return "check_failed";
   return behind === "yes" ? "go" : "alone";
+}
+
+/** A status row pressed as Make it a work order: nobody to book behind it. */
+export function statusPressedAlone(row: Pick<WriteRow, "payload">): boolean {
+  const p = row.payload;
+  return !!p && typeof p === "object" && (p as Record<string, unknown>).alone === true;
+}
+
+/** Inside every POST attempt of Make it a work order's status row: only
+    whether it was taken back — there are no bookings to wait on. */
+async function statusStillWantedAlone(orgId: string, row: WriteRow): Promise<"go" | "taken_back" | "check_failed"> {
+  const { data, error } = await supabaseAdmin.from(TABLE).select("taken_back_at").eq("org_id", orgId).eq("id", row.id).maybeSingle();
+  if (error || !data) return "check_failed";
+  return (data as { taken_back_at: string | null }).taken_back_at ? "taken_back" : "go";
 }
 
 /** Inside every create POST attempt: whether it was taken back. */

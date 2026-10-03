@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import {
-  DEFAULT_SUPPLIERS,
+  BUILT_IN_SUPPLIERS,
+  MAX_DISCOUNT_PCT,
   compareOffers,
   netCents,
   COLUMN_FIELDS,
@@ -14,9 +15,10 @@ import {
 import { CATEGORIES, categoryOf, type CategoryKey } from "./categories";
 import { decidedKey, productsOf } from "./same-items";
 
-/* The price book's database side: the suppliers as stored (over the two
-   defaults), a supplier's new file taken in, and a model looked up at every
-   supplier. Service role; callers gate on `financials`. */
+/* The price book's database side: the suppliers as stored (over the ones
+   whose files HeyTiff reads out of the box), a supplier's new file taken
+   in, and a model looked up at every supplier. Every read and write is the
+   one business's. Service role; callers gate on `financials`. */
 
 type SupplierRow = {
   key: string;
@@ -72,13 +74,13 @@ export async function readSuppliers(orgId: string): Promise<SupplierView[]> {
     importedAt: r.imported_at,
     itemCount: r.item_count,
   });
-  const builtIn = DEFAULT_SUPPLIERS.map((d) => {
+  const builtIn = BUILT_IN_SUPPLIERS.map((d) => {
     const r = stored.get(d.key);
     return r ? view(r, d) : { ...d, fileName: null, importedAt: null, itemCount: null };
   });
   /* the suppliers the business added: any CSV or workbook, by heading */
   const added = rows
-    .filter((r) => r.format === "headed" && !DEFAULT_SUPPLIERS.some((d) => d.key === r.key))
+    .filter((r) => !BUILT_IN_SUPPLIERS.some((d) => d.key === r.key))
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((r) => view(r, { key: r.key, name: r.name, pricing: "net", file: "xlsx", format: "headed", discountPct: 0, rules: [] }));
   return [...builtIn, ...added];
@@ -103,6 +105,29 @@ export async function addSupplier(orgId: string, name: string): Promise<Supplier
     .insert({ org_id: orgId, key, name, pricing: "net", discount_pct: 0, rules: [], format: "headed" });
   if (error) return null;
   return { key, name, pricing: "net", file: "xlsx", format: "headed", discountPct: 0, rules: [], columns: null, fileName: null, importedAt: null, itemCount: null };
+}
+
+/** What the business takes off a list-price supplier: one discount for
+    everything, and any range by the start of its codes. The prices stay as
+    the list; the discount comes off as they're read, so it applies at once. */
+export async function saveSupplierDiscount(orgId: string, supplier: Supplier, discountPct: number, rules: DiscountRule[]) {
+  const pct = (n: number) => Math.min(MAX_DISCOUNT_PCT, Math.max(0, Math.round((Number(n) || 0) * 10) / 10));
+  const { error } = await supabaseAdmin.from("quote_suppliers").upsert(
+    {
+      org_id: orgId,
+      key: supplier.key,
+      name: supplier.name,
+      pricing: "list_less",
+      discount_pct: pct(discountPct),
+      rules: rules
+        .map((r) => ({ prefix: r.prefix.trim().toUpperCase().slice(0, 20), discount_pct: pct(r.discountPct) }))
+        .filter((r) => r.prefix)
+        .slice(0, 20),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "org_id,key" }
+  );
+  return !error;
 }
 
 /** Keep the columns a person matched, and how the file's prices read. */

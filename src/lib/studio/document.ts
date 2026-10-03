@@ -58,6 +58,11 @@ export interface PlanSheet {
       x/y). The raster is clipped to this rect; the underlying image is never
       re-rastered, so rooms/units (world-space) are unaffected. */
   crop?: { x: number; y: number; w: number; h: number };
+  /** a freeform crop: the outline the raster is clipped to, in the sheet's own
+      coordinates. `crop` is then the outline's bounding box, so fit, the summary
+      figure's frame and every other rectangle reader keep working; only the clip
+      follows the outline. Absent for a rectangle. */
+  shape?: Point[];
 }
 
 export interface Floor {

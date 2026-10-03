@@ -110,6 +110,9 @@ export function designFingerprint(doc: DesignDocument): string {
           w: p.width,
           h: p.height,
           crop: p.crop ?? null,
+          // a freeform outline changes what the sheet shows; a rectangle has
+          // none, so every design that predates it keeps the same fingerprint
+          ...(p.shape ? { shape: p.shape } : {}),
         })),
       })),
       systems: doc.systems.map((s) => ({

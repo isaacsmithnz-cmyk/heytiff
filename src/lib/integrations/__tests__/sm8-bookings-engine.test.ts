@@ -84,7 +84,7 @@ import { BOOKING_STATUS_WAIT_MS, BOOKING_WORDS, bookingLine, localNow, statusLin
 import { checkedIn } from "../sm8-booking-send";
 import { NOTE_WORDS } from "../sm8-note-words";
 import { WRITE_WORDS, offersSend, sendHold } from "../sm8-write-plan";
-import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear } from "@/app/actions/sm8-booking-queue";
+import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder } from "@/app/actions/sm8-booking-queue";
 import { readBookingOverlay } from "../sm8-booking-overlay";
 
 const ORG = "org-1";
@@ -1240,6 +1240,40 @@ const noRequest = () => {
   expect(postSm8JobStatus).not.toHaveBeenCalled();
   expect(postSm8Booking).not.toHaveBeenCalled();
 };
+
+/* Isaac, 2026-10-03: "do and charge" decided on site — a Quote made a Work
+   Order with nobody to book yet */
+describe("Make it a work order: the one status change that goes alone", () => {
+  it("(F) queues one status row marked alone, and it goes with no booking behind it", async () => {
+    const q = await queueMakeWorkOrder(await pressAs(), await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    expect(q).toMatchObject({ ok: true });
+    const s = byId(q.ok && q.rowId);
+    expect(s).toMatchObject({ op: "update", job_status_from: "Quote", job_status_to: "Work Order", payload: { alone: true } });
+    expect(creates()).toEqual([]);
+    await run();
+    expect(postSm8JobStatus).toHaveBeenCalledTimes(1);
+    expect(postSm8JobStatus.mock.calls[0].slice(1)).toEqual([JOB, "Work Order"]);
+    expect(s.status).toBe("sent");
+    expect(sm8.jobs.get(JOB)!.status).toBe("Work Order");
+  });
+
+  it("(F) a second press is the same row, and Book in's status change for the same edit is that row too", async () => {
+    const press = await pressAs();
+    const a = await queueMakeWorkOrder(press, await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    const b = await queueMakeWorkOrder(press, await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    expect(b).toMatchObject({ ok: true, rowId: a.ok ? a.rowId : "" });
+    const c = await bookIn([slot()], { seen: SEEN });
+    expect(c.ok && c.statusRowId).toBe(a.ok && a.rowId);
+  });
+
+  it("(F) Book in's own status row still never goes alone", async () => {
+    const { s, cs } = await verb();
+    Object.assign(cs[0], { status: "failed", last_error: BOOKING_WORDS.row.refused });
+    await run();
+    expect(s).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.statusAlone });
+    noRequest();
+  });
+});
 
 describe("a status change never goes alone (B-4b)", () => {
   it("(F) one pressed two days ago fails stale with no read, and its booking can't go behind it (Look again)", async () => {

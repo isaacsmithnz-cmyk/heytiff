@@ -2097,12 +2097,34 @@ html[data-ds-display] .dstudio.editing {
   text-anchor: middle;
   dominant-baseline: central;
 }
-.dstudio .ds-crop-preview {
+.dstudio .ds-crop-preview,
+.dstudio .ds-crop-keep {
   fill: var(--ink);
   stroke: var(--teal-d);
   stroke-width: 1.5;
   stroke-dasharray: 6 3;
   vector-effect: non-scaling-stroke;
+}
+/* Split to new floor: each area is the same dashed outline with no fill — the
+   second (the new floor's) in a finer dash so the two read apart — and the
+   rest of the page fades toward the ground while you draw and while the panel
+   asks */
+.dstudio .ds-crop-keep {
+  fill: none;
+  pointer-events: none;
+}
+.dstudio .ds-crop-keep.other {
+  stroke-dasharray: 2 4;
+}
+.dstudio .ds-crop-dim {
+  fill: var(--paper);
+  opacity: 0.72;
+  pointer-events: none;
+}
+/* a split page: the part that belongs to the other floor, faded not hidden */
+.dstudio .ds-plan-ghost {
+  opacity: 0.2;
+  pointer-events: none;
 }
 
 /* value pills in the top toolbar (calibrate scale + set north) — show the

@@ -367,12 +367,16 @@ export function PlanFigure({
               <g key={s.id}>
                 {s.crop && (
                   <clipPath id={clipId}>
-                    <rect
-                      x={s.x + s.crop.x}
-                      y={s.y + s.crop.y}
-                      width={s.crop.w}
-                      height={s.crop.h}
-                    />
+                    {s.shape ? (
+                      <polygon points={s.shape.map((c) => `${s.x + c.x},${s.y + c.y}`).join(" ")} />
+                    ) : (
+                      <rect
+                        x={s.x + s.crop.x}
+                        y={s.y + s.crop.y}
+                        width={s.crop.w}
+                        height={s.crop.h}
+                      />
+                    )}
                   </clipPath>
                 )}
                 <image

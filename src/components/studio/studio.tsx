@@ -82,7 +82,10 @@ import { StepPrompt } from "./step-prompt";
 import {
   floorDisplayName,
   formatLevel,
+  orphanedRefs,
   RemotePlanImages,
+  sharedPlanRefs,
+  splitFloorOffSheet,
   type PlanImages,
 } from "@/lib/studio/plans";
 import { SummaryView } from "./summary/summary";
@@ -1689,8 +1692,10 @@ function Editor({
      later Plans return sends those pages back to the tray, not a dead ref). */
   const deleteFloor = useCallback(
     (id: string) => {
-      const sheets = doc.floors.find((f) => f.id === id)?.plans ?? [];
-      const removedRefs = new Set(sheets.map((s) => s.imageRef));
+      // a split plan shares one image across floors: only refs no other floor
+      // still shows are really going away
+      const goneRefs = orphanedRefs(doc.floors, id);
+      const removedRefs = new Set(goneRefs);
       const keep = (o: DesignObject) => o.floorId !== id;
       mutate((doc0) => {
         // the floor's zones leave every system that claims them first
@@ -1710,7 +1715,7 @@ function Editor({
             : d.planImport,
         };
       });
-      for (const s of sheets) void planImages.remove(s.imageRef).catch(() => {});
+      for (const ref of goneRefs) void planImages.remove(ref).catch(() => {});
     },
     [doc.floors, mutate, pack, planImages]
   );
@@ -2942,6 +2947,7 @@ function CanvasControls({
             tool === "measure" ||
             tool === "set-north" ||
             tool === "crop" ||
+            tool === "split" ||
             tool === "arrange"
               ? " on"
               : ""
@@ -3047,6 +3053,23 @@ function CanvasControls({
               ) : (
                 <span className="v kbd">X</span>
               )}
+            </button>
+            <button
+              className={`ds-calib-item${tool === "split" ? " on" : ""}`}
+              disabled={floor.plans.length === 0}
+              onClick={() => {
+                onTool("split");
+                setCalibOpen(false);
+              }}
+              title={
+                floor.plans.length === 0
+                  ? "Split to new floor — this floor is a blank grid, there's no plan to split"
+                  : "Keep an area on this floor and give the rest of the page to a new floor"
+              }
+            >
+              <Icon name="layers" size={13} />
+              <span className="k">Split to new floor</span>
+              {floor.plans.length === 0 && <span className="v unset">No plan</span>}
             </button>
             <button
               className={`ds-calib-item${tool === "arrange" ? " on" : ""}`}
@@ -3473,6 +3496,23 @@ function DesignPanel({
             onZoomApi={setZoomApi}
             onZoomChange={setZoomPct}
             planImages={planImages}
+            sharedRefs={sharedPlanRefs(doc.floors, floor.id)}
+            onSplitFloor={(sheetId, keep, other, place) => {
+              // ids are minted here, not in the updater, which may run twice
+              const newFloorId = newId("flr");
+              const newSheetId = newId("sht");
+              onMutate((d) =>
+                splitFloorOffSheet(d, {
+                  floorId: floor.id,
+                  sheetId,
+                  keep,
+                  other,
+                  place,
+                  newFloorId,
+                  newSheetId,
+                })
+              );
+            }}
             activeSystemId={activeSystemId}
             placing={placing}
             placingKw={placingKw}

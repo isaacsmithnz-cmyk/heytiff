@@ -4148,6 +4148,7 @@ describe("the job's own checklist", () => {
         kind: "todo",
         name: "Order PAR-40 controller",
         qty: "",
+        sub: "",
       })
     );
   });
@@ -4169,6 +4170,7 @@ describe("the job's own checklist", () => {
         kind: "material",
         name: "Linear bar grille",
         qty: "2",
+        sub: "",
       })
     );
   });

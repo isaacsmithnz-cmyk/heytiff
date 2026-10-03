@@ -6,7 +6,7 @@
    step (an AI screening pass will pre-fill them later). Raster path is
    browser-only; the floor-mapping helpers are pure + unit-tested. */
 
-import { newId, type Floor, type PlanSheet } from "./document";
+import { newId, type DesignDocument, type Floor, type PlanSheet, type Point } from "./document";
 
 /** A rasterised candidate floor plan (one PDF page or one uploaded image).
     `blob`/`ext` are present for freshly rendered pages (they feed the upload);
@@ -146,23 +146,205 @@ export function builderStackFromFloors(floors: Floor[]): BuilderRow[] {
     Same as builderStackFromFloors, but each floor row is re-populated with the
     page indices of the sheets it holds — matched by storage ref — so the yard
     shows every floor with its plan card(s) exactly where they were left. Pages
-    not on any floor fall through to the tray (via trayPageIdxs). */
+    not on any floor fall through to the tray (via trayPageIdxs).
+    A page sits in ONE row (every row operation and card key assumes it), so a
+    page that two floors share — a split plan — shows on the first floor that
+    holds it; the sibling's row is empty, which re-committing leaves alone. */
 export function builderRowsFromFloors(floors: Floor[], pages: PageImage[]): BuilderRow[] {
   const idxByRef = new Map<string, number>();
   pages.forEach((p, i) => {
     if (p.ref) idxByRef.set(p.ref, i);
   });
+  const claimed = new Set<number>();
   return [...floors]
     .sort((a, b) => a.level - b.level)
-    .map((f) => ({
-      key: `ex_${f.id}`,
-      floorId: f.id,
-      level: f.level,
-      name: f.name,
-      pageIdxs: f.plans
-        .map((s) => idxByRef.get(s.imageRef))
-        .filter((i): i is number => i !== undefined),
-    }));
+    .map((f) => {
+      const pageIdxs: number[] = [];
+      for (const s of f.plans) {
+        const i = idxByRef.get(s.imageRef);
+        if (i === undefined || claimed.has(i)) continue;
+        claimed.add(i);
+        pageIdxs.push(i);
+      }
+      return { key: `ex_${f.id}`, floorId: f.id, level: f.level, name: f.name, pageIdxs };
+    });
+}
+
+/** Storage refs that deleting `floorId` leaves with no sheet anywhere. A split
+    plan puts one image on two floors, so a floor's refs are only safe to delete
+    when no OTHER floor still shows them. */
+export function orphanedRefs(floors: Floor[], floorId: string): string[] {
+  const held = new Set(
+    floors.filter((f) => f.id !== floorId).flatMap((f) => f.plans.map((s) => s.imageRef))
+  );
+  const gone = floors.find((f) => f.id === floorId)?.plans ?? [];
+  return [...new Set(gone.map((s) => s.imageRef))].filter((ref) => !held.has(ref));
+}
+
+/* ── Splitting one page into two floors ──
+   A plan page that holds two levels becomes two floors that show the SAME
+   image (same ref, position and size) through different areas, so world
+   coordinates and the scale stay valid on both and nothing is re-uploaded. The
+   installer draws BOTH areas — guessing "the rest of the page" is wrong the
+   moment the other floor isn't a clean strip. An area is a rectangle or a
+   freeform outline; the sheet's `crop` is its bounding box and `shape` (when
+   freeform) is the outline the image is clipped to. */
+
+export interface SheetRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** An area drawn on a sheet, in the sheet's own coordinates. */
+export interface SheetRegion {
+  rect: SheetRect;
+  /** the outline, when the area is freeform; `rect` is then its bounding box */
+  shape?: Point[];
+}
+
+/** Smaller than this (world units) is a stray click, not an area. */
+const MIN_AREA_SIDE = 4;
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/** A dragged rectangle as an area, clamped to the page. */
+export function regionFromRect(
+  rect: SheetRect,
+  page: { w: number; h: number }
+): SheetRegion | null {
+  const x0 = clamp(rect.x, 0, page.w);
+  const y0 = clamp(rect.y, 0, page.h);
+  const x1 = clamp(rect.x + rect.w, 0, page.w);
+  const y1 = clamp(rect.y + rect.h, 0, page.h);
+  return x1 - x0 > MIN_AREA_SIDE && y1 - y0 > MIN_AREA_SIDE
+    ? { rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } }
+    : null;
+}
+
+/** Clicked corners as an area, clamped to the page. Needs three corners that
+    enclose something — a line of points is not an area. */
+export function regionFromPoints(
+  points: Point[],
+  page: { w: number; h: number }
+): SheetRegion | null {
+  if (points.length < 3) return null;
+  const shape = points.map((p) => ({ x: clamp(p.x, 0, page.w), y: clamp(p.y, 0, page.h) }));
+  const xs = shape.map((p) => p.x);
+  const ys = shape.map((p) => p.y);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const w = Math.max(...xs) - x0;
+  const h = Math.max(...ys) - y0;
+  if (w <= MIN_AREA_SIDE || h <= MIN_AREA_SIDE) return null;
+  let twice = 0; // shoelace: twice the enclosed area
+  for (let i = 0; i < shape.length; i++) {
+    const a = shape[i];
+    const b = shape[(i + 1) % shape.length];
+    twice += a.x * b.y - b.x * a.y;
+  }
+  if (Math.abs(twice) / 2 <= MIN_AREA_SIDE * MIN_AREA_SIDE) return null;
+  return { rect: { x: x0, y: y0, w, h }, shape };
+}
+
+/** The corners of an area: its outline, or its rectangle's four corners. */
+export function regionOutline(region: SheetRegion): Point[] {
+  const { x, y, w, h } = region.rect;
+  return (
+    region.shape ?? [
+      { x, y },
+      { x: x + w, y },
+      { x: x + w, y: y + h },
+      { x, y: y + h },
+    ]
+  );
+}
+
+/** The sheet showing only this area. A rectangle clears any earlier outline. */
+export function withRegion(sheet: PlanSheet, region: SheetRegion): PlanSheet {
+  const next: PlanSheet = { ...sheet, crop: region.rect };
+  if (region.shape) next.shape = region.shape;
+  else delete next.shape;
+  return next;
+}
+
+/** Refs on `floor` that another floor also shows — the page was split. The
+    canvas fades the part of such a page that belongs to the other floor. */
+export function sharedPlanRefs(floors: Floor[], floorId: string): Set<string> {
+  const others = new Set(
+    floors.filter((f) => f.id !== floorId).flatMap((f) => f.plans.map((s) => s.imageRef))
+  );
+  const mine = floors.find((f) => f.id === floorId)?.plans ?? [];
+  return new Set(mine.map((s) => s.imageRef).filter((r) => others.has(r)));
+}
+
+export interface SplitSheetOpts {
+  floorId: string;
+  sheetId: string;
+  /** the area this floor keeps */
+  keep: SheetRegion;
+  /** the area that becomes the new floor, stacked above or below this one */
+  other: SheetRegion;
+  place: "above" | "below";
+  newFloorId: string;
+  newSheetId: string;
+}
+
+/** Keep `keep` on this floor and give `other` to a new floor. One document
+    change, so it is one undo step. Rooms, units and pipework already drawn stay
+    where they are. */
+export function splitFloorOffSheet(doc: DesignDocument, o: SplitSheetOpts): DesignDocument {
+  const floor = doc.floors.find((f) => f.id === o.floorId);
+  const sheet = floor?.plans.find((s) => s.id === o.sheetId);
+  if (!floor || !sheet) return doc;
+
+  const newLevel = o.place === "above" ? floor.level + 1 : floor.level;
+  // open the slot: this floor (when going below) and everything above it moves
+  // up one. A floor still wearing its position's default name follows it, so
+  // "Ground floor" never ends up sitting at level 1.
+  const floors = doc.floors.map((f) => {
+    if (f.level < newLevel) return f;
+    const level = f.level + 1;
+    return {
+      ...f,
+      level,
+      name: f.name === defaultFloorName(f.level) ? defaultFloorName(level) : f.name,
+    };
+  });
+
+  // the north arrow goes with the floor whose area it sits in
+  const np = floor.northPos;
+  const r = o.other.rect;
+  const northInOther =
+    np !== null &&
+    np.x >= sheet.x + r.x &&
+    np.x <= sheet.x + r.x + r.w &&
+    np.y >= sheet.y + r.y &&
+    np.y <= sheet.y + r.y + r.h;
+
+  const newFloor: Floor = {
+    id: o.newFloorId,
+    name: defaultFloorName(newLevel),
+    level: newLevel,
+    ...(floor.heightM !== undefined ? { heightM: floor.heightM } : {}),
+    scaleMmPerUnit: floor.scaleMmPerUnit,
+    northDeg: floor.northDeg,
+    northPos: northInOther ? np : null,
+    plans: [withRegion({ ...sheet, id: o.newSheetId }, o.other)],
+  };
+
+  return {
+    ...doc,
+    floors: [
+      ...floors.map((f) =>
+        f.id === floor.id
+          ? { ...f, plans: f.plans.map((s) => (s.id === sheet.id ? withRegion(s, o.keep) : s)) }
+          : f
+      ),
+      newFloor,
+    ],
+  };
 }
 
 /** Selected page indices not yet placed on any floor — i.e. the tray. */

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CategoryKey } from "@/lib/quotes/categories";
-import { COLUMN_FIELDS, pricingWords, type ColumnField, type Columns } from "@/lib/quotes/price-book";
+import { COLUMN_FIELDS, MAX_DISCOUNT_PCT, pricingWords, type ColumnField, type Columns, type DiscountRule } from "@/lib/quotes/price-book";
 import type { CategoryCount, ModelOffers, SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
@@ -11,8 +11,9 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    model at every supplier with the cheaper one marked and the difference.
 
    A new file is uploaded here, not to ServiceM8: AAD's CSV of net prices,
-   Mitsubishi Electric's PDF trade book of list prices (the discount comes
-   off as it's read). What the file changed is said once it's in.
+   Mitsubishi Electric's PDF trade book of list prices (the business's own
+   discount comes off as it's read, set here: one for everything and any
+   range by its codes). What the file changed is said once it's in.
 
    And the book can be browsed by shelf — Units, Pipe and coil, Fittings…
    — each product once with every supplier's price, the search narrowing
@@ -70,6 +71,7 @@ const importedNote = (name: string, a: Extract<ImportAnswer, { ok: true }>) => {
 };
 
 const addRefusal = (reason: string | undefined) => reason ?? "That supplier couldn't be added.";
+const discountRefusal = (reason: string | undefined) => reason ?? "The discount couldn't be saved.";
 
 const foundModels = (a: SearchAnswer) => (a.ok ? (a.models ?? []) : []);
 /** A shelf counts what it holds; a search of the whole book doesn't. */
@@ -98,6 +100,7 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
   }, []);
 
   const [matching, setMatching] = useState<Matching | null>(null);
+  const [discounting, setDiscounting] = useState<SupplierView | null>(null);
   const [newName, setNewName] = useState("");
 
   const upload = async (s: SupplierView, file: File, layout?: { columns: Columns; pricing: "net" | "list_less"; discountPct: number }) => {
@@ -152,6 +155,31 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
         onImported();
       } catch {
         setNote({ tone: "bad", text: "That supplier couldn't be added. Try again." });
+      }
+    }, () => setBusy(null));
+  };
+
+  const saveDiscount = async (s: SupplierView, discountPct: number, rules: DiscountRule[]) => {
+    setBusy(s.key);
+    setNote(null);
+    await withCleanup(async () => {
+      try {
+        const a = (await (
+          await fetch("/api/quoting/suppliers", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ key: s.key, discountPct, rules }),
+          })
+        ).json()) as { ok: boolean; reason?: string };
+        if (!a.ok) {
+          setNote({ tone: "bad", text: discountRefusal(a.reason) });
+          return;
+        }
+        setDiscounting(null);
+        setNote({ tone: "ok", text: `${s.name} discount saved.` });
+        onImported();
+      } catch {
+        setNote({ tone: "bad", text: "The discount couldn't be saved. Try again." });
       }
     }, () => setBusy(null));
   };
@@ -217,7 +245,18 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
                   : "No price list yet"}
               </em>
             </span>
-            <span role="cell" className="qs-act">
+            <span role="cell" className="qs-act qs-acts2">
+              {s.pricing === "list_less" && (
+                <button
+                  type="button"
+                  className="pbtn ghost sm"
+                  disabled={busy !== null}
+                  aria-expanded={discounting?.key === s.key}
+                  onClick={() => setDiscounting((d) => (d?.key === s.key ? null : s))}
+                >
+                  Discount
+                </button>
+              )}
               <label className="pbtn ghost sm qs-upload" aria-disabled={busy !== null}>
                 {busy === s.key ? "Reading the file" : "Upload price list"}
                 <input
@@ -272,6 +311,16 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
           busy={busy !== null}
           onCancel={() => setMatching(null)}
           onRead={(layout) => void upload(matching.supplier, matching.file, layout)}
+        />
+      )}
+
+      {discounting && (
+        <SupplierDiscount
+          key={discounting.key}
+          supplier={discounting}
+          busy={busy !== null}
+          onCancel={() => setDiscounting(null)}
+          onSave={(discountPct, rules) => void saveDiscount(discounting, discountPct, rules)}
         />
       )}
 
@@ -446,6 +495,91 @@ function MatchColumns({
           onClick={() => onRead({ columns: cols, pricing, discountPct: pricing === "list_less" ? Number(pct) : 0 })}
         >
           Read the file
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* A list-price supplier's discount: what the business takes off every list
+   price, and any range by the start of its codes that gets a different one
+   (a business's PUMY range, say). The business's own; HeyTiff has none. */
+function SupplierDiscount({
+  supplier,
+  busy,
+  onCancel,
+  onSave,
+}: {
+  supplier: SupplierView;
+  busy: boolean;
+  onCancel: () => void;
+  onSave: (discountPct: number, rules: DiscountRule[]) => void;
+}) {
+  const [pct, setPct] = useState(supplier.discountPct ? String(supplier.discountPct) : "");
+  const [rules, setRules] = useState(supplier.rules.map((r) => ({ prefix: r.prefix, pct: String(r.discountPct) })));
+  const okPct = (v: string) => v.trim() === "" || (Number(v) >= 0 && Number(v) <= MAX_DISCOUNT_PCT);
+  const ready = okPct(pct) && rules.every((r) => r.prefix.trim() !== "" && r.pct.trim() !== "" && okPct(r.pct));
+  const setRule = (i: number, part: Partial<{ prefix: string; pct: string }>) =>
+    setRules((rs) => rs.map((r, j) => (j === i ? { ...r, ...part } : r)));
+  return (
+    <div className="qs-match">
+      <h3 className="qs-h">{`${supplier.name} discount`}</h3>
+      <div className="qs-fields">
+        <label className="qs-field">
+          <span>Off every list price</span>
+          <span className="qs-in">
+            <input className="wb2-fi" inputMode="decimal" value={pct} disabled={busy} onChange={(e) => setPct(e.target.value)} aria-label="Discount percent" />
+            <em>%</em>
+          </span>
+        </label>
+      </div>
+      {rules.map((r, i) => (
+        <div className="qs-fields qs-rule" key={i}>
+          <label className="qs-field">
+            <span>Codes starting</span>
+            <span className="qs-in">
+              <input
+                className="wb2-fi"
+                value={r.prefix}
+                disabled={busy}
+                onChange={(e) => setRule(i, { prefix: e.target.value })}
+                aria-label="Codes starting with"
+              />
+            </span>
+          </label>
+          <label className="qs-field">
+            <span>Their discount</span>
+            <span className="qs-in">
+              <input
+                className="wb2-fi"
+                inputMode="decimal"
+                value={r.pct}
+                disabled={busy}
+                onChange={(e) => setRule(i, { pct: e.target.value })}
+                aria-label="Their discount percent"
+              />
+              <em>%</em>
+            </span>
+          </label>
+          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}>
+            Remove
+          </button>
+        </div>
+      ))}
+      <div className="wb2-jqacts">
+        <button type="button" className="pbtn ghost" disabled={busy} onClick={() => setRules((rs) => [...rs, { prefix: "", pct: "" }])}>
+          Add a range
+        </button>
+        <button type="button" className="pbtn ghost" disabled={busy} onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="pbtn primary"
+          disabled={busy || !ready}
+          onClick={() => onSave(Number(pct) || 0, rules.map((r) => ({ prefix: r.prefix.trim(), discountPct: Number(r.pct) })))}
+        >
+          Save discount
         </button>
       </div>
     </div>

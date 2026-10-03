@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Waiting } from "@/components/ui/orb";
+import { useDictation } from "@/components/notes/dictation";
+import { fmtAud } from "@/lib/workboard/project-money";
+import { splitSpokenList } from "@/lib/workboard/spoken-materials";
+import type { MaterialHit } from "@/app/api/workboard/material-search/route";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { groupChecklist, type JobChecklistItem } from "@/lib/workboard/all-jobs";
 import { naiveInZone } from "@/lib/workboard/job-story";
@@ -115,11 +120,61 @@ export function JobChecklistFace({
   ready: boolean;
   onTick: (id: string, picked: boolean) => void;
   onRemove: (id: string) => void;
-  onAdd: (input: { kind: "material" | "todo"; name: string; qty: string }) => void;
+  onAdd: (input: { kind: "material" | "todo"; name: string; qty: string; sub?: string }) => void;
 }) {
   const [kind, setKind] = useState<"todo" | "material">("todo");
   const [text, setText] = useState("");
   const [qty, setQty] = useState("");
+  /* MATERIALS FROM THE PRICE BOOK (Isaac, 2026-10-03): the business's own
+     items under the box as a material is typed; picking one keeps its code */
+  const [sub, setSub] = useState("");
+  const [hits, setHits] = useState<MaterialHit[]>([]);
+  const query = kind === "material" && !sub ? text.trim() : "";
+  useEffect(() => {
+    if (query.length < 3) return;
+    let live = true;
+    const t = setTimeout(() => {
+      void searchMaterials(query).then((h) => live && setHits(h));
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [query]);
+  const shownHits = query.length < 3 ? [] : hits;
+  const pick = (h: MaterialHit) => {
+    setText(h.name);
+    setSub([h.code, h.supplier].filter(Boolean).join(", "));
+    setHits([]);
+  };
+
+  /* AND BY VOICE: a list said out loud becomes rows, each matched to the
+     price book, and nothing is added until a person ticks them */
+  const [spoken, setSpoken] = useState<{ name: string; qty: string; hit: MaterialHit | null; on: boolean }[] | null>(null);
+  const [voiceErr, setVoiceErr] = useState<string | null>(null);
+  const dict = useDictation({
+    onTranscript: (said) => {
+      setVoiceErr(null);
+      const rows = splitSpokenList(said);
+      if (rows.length === 0) return;
+      void Promise.all(rows.map((r) => searchMaterials(r.name).then((h) => h[0] ?? null))).then((found) =>
+        setSpoken(rows.map((r, i) => ({ ...r, hit: found[i] ?? null, on: true })))
+      );
+    },
+    onError: setVoiceErr,
+  });
+  const addSpoken = () => {
+    if (!spoken || !ready) return;
+    for (const r of spoken.filter((x) => x.on)) {
+      onAdd({
+        kind: "material",
+        name: r.hit?.name ?? r.name,
+        qty: r.qty,
+        sub: r.hit ? [r.hit.code, r.hit.supplier].filter(Boolean).join(", ") : "",
+      });
+    }
+    setSpoken(null);
+  };
 
   const ours = items ?? [];
   const materials = ours.filter((i) => i.kind === "material");
@@ -131,9 +186,11 @@ export function JobChecklistFace({
   const add = () => {
     const name = text.trim();
     if (!name || !ready) return;
-    onAdd({ kind, name, qty: qty.trim() });
+    onAdd({ kind, name, qty: qty.trim(), sub: kind === "material" ? sub : "" });
     setText("");
     setQty("");
+    setSub("");
+    setHits([]);
   };
 
   return (
@@ -171,7 +228,10 @@ export function JobChecklistFace({
         <input
           className="wb2-fi"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            setSub("");
+          }}
           placeholder="Add to the list…"
           aria-label="Add to the list"
         />
@@ -184,10 +244,66 @@ export function JobChecklistFace({
             aria-label="Quantity"
           />
         )}
+        {kind === "material" &&
+          (dict.recording ? (
+            <button type="button" className="wb2-dictmic" onClick={dict.stop} aria-label="Stop and read the list">
+              <Icon name="mic" size={13} />
+              Done
+            </button>
+          ) : dict.transcribing ? (
+            <Waiting note="Reading back what you said" className="wb2-dicthint" />
+          ) : (
+            <button type="button" className="wb2-dictmic" onClick={dict.start} disabled={!ready} aria-label="Say the materials">
+              <Icon name="mic" size={13} />
+              Say it
+            </button>
+          ))}
         <button className="pbtn" type="submit" disabled={!text.trim() || !ready}>
           Add
         </button>
       </form>
+      {voiceErr && <p className="wb2-dicterr">{voiceErr}</p>}
+
+      {shownHits.length > 0 && (
+        <div className="wb2-jcsec" role="listbox" aria-label="From your price book">
+          {shownHits.map((h) => (
+            <button type="button" role="option" aria-selected={false} className="wb2-mline" key={`${h.code}|${h.supplier}`} onClick={() => pick(h)}>
+              <b>{h.name}</b>
+              <em>{[h.code, h.supplier].filter(Boolean).join(", ")}</em>
+              <span>{h.priceCents != null ? fmtAud(h.priceCents) : ""}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {spoken && (
+        <div className="wb2-jcsec" aria-label="From what you said">
+          <span className="wb2-sect">From what you said</span>
+          {spoken.map((r, i) => (
+            <label className="wb2-pkrow" key={i}>
+              <span className="wb2-pkbox">
+                <input
+                  type="checkbox"
+                  checked={r.on}
+                  aria-label={`Add ${r.hit?.name ?? r.name}`}
+                  onChange={(e) => setSpoken((cur) => (cur ?? []).map((x, k) => (k === i ? { ...x, on: e.target.checked } : x)))}
+                />
+              </span>
+              <span className="wb2-pkname">{r.hit?.name ?? r.name}</span>
+              <em className="wb2-pksub">{r.hit ? [r.hit.code, r.hit.supplier].filter(Boolean).join(", ") : `"${r.name}", not in your price book`}</em>
+              <span className="wb2-pkend">{r.qty && <span className="wb2-pkqty">{r.qty}</span>}</span>
+            </label>
+          ))}
+          <div className="wb2-jqacts">
+            <button type="button" className="pbtn" disabled={!ready || !spoken.some((r) => r.on)} onClick={addSpoken}>
+              {`Add ${spoken.filter((r) => r.on).length} to the list`}
+            </button>
+            <button type="button" className="pbtn ghost" onClick={() => setSpoken(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {materials.length > 0 && (
         <div className="wb2-jcsec">
@@ -268,4 +384,15 @@ export function JobChecklistFace({
       )}
     </div>
   );
+}
+
+/** The business's own price-book items that match, or none. */
+async function searchMaterials(q: string): Promise<MaterialHit[]> {
+  try {
+    const r = await fetch(`/api/workboard/material-search?q=${encodeURIComponent(q)}`);
+    const a = (await r.json()) as { ok: boolean; hits?: MaterialHit[] };
+    return a.ok ? (a.hits ?? []) : [];
+  } catch {
+    return [];
+  }
 }

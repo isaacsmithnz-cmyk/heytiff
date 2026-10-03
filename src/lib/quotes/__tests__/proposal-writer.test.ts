@@ -25,9 +25,11 @@ const updated = jest.fn(async () =>
 const update = jest.fn((_row: Written) => ({
   eq: () => ({ eq: () => ({ eq: (_c: string, v: string) => (base(v), { select: () => ({ maybeSingle: updated }) }) }) }),
 }));
+/* the workspace writing the quote: deliberately not Diamond Air */
+const ORG_ROW = { trading_name: "Coolbreeze Air", legal_name: "Coolbreeze Pty Ltd", state: "VIC" };
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
-    from: () => ({
+    from: (table: string) => table === "organizations" ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: ORG_ROW }) }) }) } : ({
       select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }),
       upsert,
       update,
@@ -51,6 +53,7 @@ import {
   SYSTEM_PROMPT,
   changePrompt,
   draftPrompt,
+  jobBlock,
   readProposalJob,
   runProposalWrite,
   writeProposal,
@@ -61,6 +64,7 @@ import { CHECKLIST_KEYS } from "../checklist";
 import { PAYMENT_PRESETS } from "../payment";
 
 const job: ProposalJob = {
+  business: "Coolbreeze Air, VIC",
   cardId: "j-1",
   jobNumber: "3400",
   address: "12 Smith St\nMosman NSW 2088",
@@ -244,6 +248,13 @@ describe("writeProposal", () => {
 describe("the review's fixes", () => {
   const stored = (over: Partial<ProposalDraft> = {}) => ({
     data: { sm8_job_uuid: "j-1", draft: { ...draft, ...over }, brief: "the brief", changes: [], updated_at: "2026-09-29T07:00:00Z" },
+  });
+
+  it("names the business from its own Organisation row, and the shared instructions name none", async () => {
+    const read = await readProposalJob("org", "j-1");
+    expect(read?.business).toBe("Coolbreeze Air, VIC");
+    expect(jobBlock(read!)).toContain("The business writing this quote: Coolbreeze Air, VIC");
+    expect(SYSTEM_PROMPT).not.toMatch(/Diamond|Sydney/);
   });
 
   it("reads HeyTiff's own diary notes with ServiceM8's, newest first", async () => {

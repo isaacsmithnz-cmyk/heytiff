@@ -13,8 +13,7 @@ import {
   type PaymentStage,
 } from "./payment";
 
-/* A PROPOSAL DRAFT — the skeleton every Diamond Air proposal is built on, as
-   data.
+/* A PROPOSAL DRAFT — the skeleton every proposal is built on, as data.
 
    WHY DATA AND NOT PROSE. Read side by side (2749, 3266, 2872, 2587, 3343),
    the ServiceM8 Proposals shared one structure, and what drifted was what a

@@ -47,6 +47,9 @@ const MAX_TOKENS = 16000;
 
 /** What a draft is written from, read where the writer runs. */
 export type ProposalJob = {
+  /** The business writing the quote, from Admin → Organisation: its trading
+      name (or legal name) and home state. Null when neither is filled in. */
+  business: string | null;
   /** The card's own uuid — the PARENT's, when a claim's id was handed in. */
   cardId: string;
   jobNumber: string | null;
@@ -63,16 +66,28 @@ export type ProposalJob = {
 const MAX_NOTES = 8;
 const MAX_NOTE_CHARS = 600;
 
+/* WHO IS WRITING, from the workspace's own row, never from the prompt: every
+   business on HeyTiff shares the instructions below, so a name written into
+   them would put one business's name on another's quotes. */
+async function readBusiness(orgId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin.from("organizations").select("trading_name, legal_name, state").eq("id", orgId).maybeSingle();
+  const row = (data ?? {}) as { trading_name?: string | null; legal_name?: string | null; state?: string | null };
+  const name = row.trading_name?.trim() || row.legal_name?.trim() || "";
+  if (!name) return null;
+  return row.state?.trim() ? `${name}, ${row.state.trim()}` : name;
+}
+
 export async function readProposalJob(orgId: string, remoteId: string): Promise<ProposalJob | null> {
   const target = await resolveJobCard(orgId, remoteId);
   const cardId = target.parentRemoteId;
   const timezone = await getSm8Timezone(orgId);
-  const [detail, theirs, ours] = await Promise.all([
+  const [detail, theirs, ours, business] = await Promise.all([
     readMirrorJobDetail(orgId, cardId, todayInZone(timezone), { includeMoney: false, timezone }),
     familyMediaSources(orgId, cardId).then((claims) => readJobNotes(orgId, cardId, claims)),
     /* HeyTiff's own diary notes too: a site note typed on the card is often
        the one that says where the drain goes */
     readOurJobNotes(orgId, cardId, MAX_NOTES),
+    readBusiness(orgId),
   ]);
   if (!detail) return null;
   const notes = [
@@ -81,6 +96,7 @@ export async function readProposalJob(orgId: string, remoteId: string): Promise<
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   const contact = detail.contacts.find((c) => c.name.trim());
   return {
+    business,
     cardId,
     jobNumber: detail.jobNumber,
     address: detail.address ?? detail.geoLine,
@@ -195,7 +211,10 @@ const CHECKLIST_LIBRARY = CHECKLIST_KEYS.map(
     (CHECKLIST[k].choices.length ? ` Usual answers: ${CHECKLIST[k].choices.join("; ")}.` : "")
 ).join("\n");
 
-export const SYSTEM_PROMPT = `You fill in a quote proposal for Diamond Air Solutions, an air-conditioning installer in Sydney, and you check it the way a supervisor would before it goes to the client. The layout is fixed and drawn by the software; you only fill its fields. Write plain Australian trade English, the way the owner writes to a client: short, direct, specific. No sales talk, no filler, no exclamation marks.
+/* THE SAME FOR EVERY BUSINESS. The business itself is named in the user
+   turn (jobBlock), read from its own Organisation row: nothing here may name
+   one (design-ratchets: no business's name in shared code). */
+export const SYSTEM_PROMPT = `You fill in a quote proposal for an Australian air-conditioning installer, the business named with the job, and you check it the way a supervisor would before it goes to the client. The layout is fixed and drawn by the software; you only fill its fields. Write plain Australian trade English, the way the owner writes to a client: short, direct, specific. No sales talk, no filler, no exclamation marks.
 
 The fields:
 
@@ -244,6 +263,7 @@ Where a fact the scope needs is missing, put the topic on the checklist as "ask"
 
 export function jobBlock(job: ProposalJob): string {
   const parts = [
+    job.business ? `The business writing this quote: ${job.business}` : null,
     `Job ${job.jobNumber ?? "(no number)"}`,
     job.clientName ? `Client: ${job.clientName}` : null,
     job.contactFirstName ? `Contact's first name: ${job.contactFirstName}` : null,

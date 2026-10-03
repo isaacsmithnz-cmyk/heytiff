@@ -10,6 +10,7 @@ import {
   indoorTotalKw,
   statementsFor,
   suggestedReason,
+  stateFormNote,
   changedSince,
   readsAs,
   shownParts,
@@ -45,6 +46,8 @@ function answersFor(description: string, covers: Covers, building: Building, mor
   return {
     ...DEFAULT_CERT_ANSWERS,
     covers,
+    /* the golden jobs are all in NSW */
+    state: "NSW",
     building,
     completedOn: "2026-09-30",
     systems: q.systems.map((sys, i) => ({
@@ -460,5 +463,46 @@ describe("every unit listed", () => {
     const a = answersFor(JOB_3326, AC, "office", { equipmentConfirmed: false });
     expect(certProblems(a, FACTS)).toEqual(["Confirm every unit installed is listed, with its model off the plate."]);
     expect(certProblems({ ...a, equipmentConfirmed: true }, FACTS)).toEqual([]);
+  });
+});
+
+describe("the state the job is in", () => {
+  const asked = (state: CertAnswers["state"]) =>
+    answersFor(JOB_1383, AC, "apartment", {
+      state,
+      fireMode: "individual",
+      fireModeRatingsChecked: true,
+      requirements: [{ text: "Installed to the approved plans", answer: "clause", clause: "approved", own: "", reason: "" }],
+    });
+  const approved = (state: CertAnswers["state"]) => statementsFor(asked(state)).statements.find((x) => x.clause === "approved")!.text;
+
+  it("names NSW's own approvals only in NSW, and plain words in every other state", () => {
+    expect(approved("NSW")).toContain("Construction Certificate or Complying Development Certificate");
+    for (const st of ["VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"] as const) {
+      expect(approved(st)).toBe("The works are installed in accordance with the approved building documents and the conditions of the building approval.");
+    }
+  });
+
+  it("offers BASIX as the reason only in NSW", () => {
+    expect(suggestedReason("j5", "house", "NSW")).toContain("BASIX");
+    expect(suggestedReason("j5", "house", "VIC")).toBe("For a house, energy efficiency is assessed under the NCC Housing Provisions, not Section J.");
+  });
+
+  it("asks for the state when the address didn't say", () => {
+    expect(certProblemList({ ...asked("NSW"), state: null }, FACTS).map((p) => p.text)).toContain("Say which state the job is in.");
+  });
+
+  it("names the form a state's certifier may also want, which the certificate goes alongside", () => {
+    expect(stateFormNote("NSW")).toBeNull();
+    expect(stateFormNote("VIC")).toContain("VBA plumbing compliance certificate");
+    expect(stateFormNote("QLD")).toContain("Form 16");
+    expect(stateFormNote("TAS")).toContain("Form 55");
+    expect(stateFormNote("WA")).toBe("Check with the certifier whether Western Australia needs a form of its own as well.");
+  });
+
+  it("reads a certificate saved before the state was asked as a NSW job, there being no other", () => {
+    const { state: _gone, ...old } = asked("NSW");
+    expect(normaliseCertAnswers(old).state).toBe("NSW");
+    expect(normaliseCertAnswers({ ...old, state: "XX" }).state).toBeNull();
   });
 });

@@ -39,6 +39,7 @@ import {
   clausesFor,
   fmtKw,
   indoorTotalKw,
+  stateFormNote,
   suggestedReason,
   type AcRow,
   type AcSystem,
@@ -49,6 +50,7 @@ import {
   type FanRow,
   type Requirement,
 } from "@/lib/certs/mechanical";
+import { AU_STATES, STATE_NAME, stateFromAddress, type AuState } from "@/lib/swms/library";
 import "@/components/swms/swms.css";
 import "./cert-wizard.css";
 
@@ -167,6 +169,8 @@ function startingAnswers(ctx: CertWizardContext): CertAnswers {
     covers: { ac, vent: r.ventilation },
     /* asked, never assumed: the address's guess is shown as a hint */
     building: null,
+    /* the site's state is on its address; the person can change it */
+    state: stateFromAddress(ctx.job.address),
     completedOn: ctx.job.completedOn ?? "",
     systems: r.systems.length > 0 ? r.systems.map((x) => ({ ...x, indoors: x.indoors.length ? x.indoors : [{ ...EMPTY_ROW }] })) : ac ? [blankSystem(r.refrigerant)] : [],
     fans: r.fans,
@@ -516,6 +520,29 @@ export function CertWizard({
       </div>
       <div className="sw-grp">
         <div className="sw-gh">
+          <b>Which state is the job in?</b>
+          {a.state === null && <span>{"The address doesn't say. Pick one."}</span>}
+        </div>
+        <div className="sw-qas">
+          <div className="sw-qa">
+            <span>
+              <label htmlFor="cz-state">State</label>
+              {a.state !== null && a.state === stateFromAddress(live.job.address) && <em>From the address</em>}
+            </span>
+            <select id="cz-state" className="wb2-fi" value={a.state ?? ""} onChange={(e) => set({ state: (e.target.value || null) as AuState | null })}>
+              <option value="">Choose</option>
+              {AU_STATES.map((st) => (
+                <option key={st} value={st}>
+                  {STATE_NAME[st]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {stateFormNote(a.state) && <p className="sw-note">{stateFormNote(a.state)}</p>}
+      </div>
+      <div className="sw-grp">
+        <div className="sw-gh">
           <b>What kind of building?</b>
           {a.building === null && <span>{`${live.building.because} Pick one to confirm.`}</span>}
         </div>
@@ -767,7 +794,7 @@ export function CertWizard({
                 value={r.answer === "clause" ? r.clause ?? "" : r.answer}
                 onChange={(e) => {
                   const v = e.target.value;
-                  if (v === "own" || v === "na") setReq(i, { answer: v, reason: v === "na" && !r.reason ? suggestedReason(r.clause, a.building) : r.reason });
+                  if (v === "own" || v === "na") setReq(i, { answer: v, reason: v === "na" && !r.reason ? suggestedReason(r.clause, a.building, a.state) : r.reason });
                   else setReq(i, { answer: "clause", clause: (v || null) as ClauseKey | null });
                 }}
               >

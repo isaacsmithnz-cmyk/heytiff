@@ -171,6 +171,29 @@ does: their own current **ARC licence** and **contractor licence**, read from
 their staff card and printed on the certificate. Their signature is the one
 stored on their staff card. Then they Issue.
 
+## Other states (2026-10-03)
+
+The wording is national except for how a state approves building work. The
+form asks which state the job is in, read off the job's address (a version
+saved before this is a NSW job: there was no other).
+
+- **NSW** keeps its own words: the Construction Certificate or Complying
+  Development Certificate and the conditions of consent, and BASIX as the
+  reason Section J doesn't apply to a house.
+- **Every other state** gets plain words naming no state's instruments: "the
+  approved building documents and the conditions of the building approval",
+  and the NCC Housing Provisions for a house's energy efficiency.
+- **What a state's certifier asks for** is read from their list or email in
+  Requirements, as anywhere else.
+- **The form also names the state's own certificate where there is one**,
+  which this goes alongside and never replaces: Victoria's VBA plumbing
+  compliance certificate (air conditioning is plumbing work there),
+  Queensland's Form 16, Tasmania's Form 55; elsewhere, check with the
+  certifier.
+
+The licence line still reads "Contractor licence"; what that is differs by
+state (VBA registration, QBCC licence, SA building work contractor licence).
+
 ## What the certificate says
 
 Every statement is short and names its standard, nothing more. The clauses are

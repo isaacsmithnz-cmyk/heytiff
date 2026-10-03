@@ -9,6 +9,7 @@ import { signatureSvg } from "@/lib/swms/input";
 const TEST = { refrigerant: "R32", addedKg: 0 };
 const ANSWERS: CertAnswers = {
   ...DEFAULT_CERT_ANSWERS,
+  state: "NSW",
   covers: { ac: true, vent: true },
   building: "office",
   completedOn: "2026-09-25",

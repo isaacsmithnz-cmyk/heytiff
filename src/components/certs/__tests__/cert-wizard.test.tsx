@@ -332,6 +332,29 @@ describe("where the exhaust goes", () => {
   });
 });
 
+describe("the state the job is in", () => {
+  it("is read off the address, and names the form a Victorian certifier also wants", async () => {
+    certWizardContext.mockImplementation(async () =>
+      context({ job: { ...context().job, address: "12 Smith St\nRichmond VIC 3121" } })
+    );
+    open();
+    await screen.findByRole("tab", { name: "What it covers" });
+    const covers = panel("covers");
+    expect(covers.getByLabelText("State")).toHaveValue("VIC");
+    expect(covers.getByText("From the address")).toBeInTheDocument();
+    expect(covers.getByText(/VBA plumbing compliance certificate/)).toBeInTheDocument();
+  });
+
+  it("asks for it when the address doesn't say", async () => {
+    certWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "12 Smith St" } }));
+    open();
+    await screen.findByRole("tab", { name: "What it covers" });
+    expect(panel("covers").getByLabelText("State")).toHaveValue("");
+    await tab("Sign");
+    expect(panel("sign").getByRole("button", { name: "Say which state the job is in." })).toBeInTheDocument();
+  });
+});
+
 describe("a fan's airflow", () => {
   it("is asked for only when somebody ticks it, and then needs a figure", async () => {
     certWizardContext.mockImplementation(async () =>

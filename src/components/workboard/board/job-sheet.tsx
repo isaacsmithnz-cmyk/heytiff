@@ -1907,16 +1907,21 @@ export function JobSheet({
 
   /* What each step opens. The quote is office work and only there for whoever
      runs the board; without it the quote steps open the summary. */
+  /* ACCEPTED opens the quote only while the job is still a Quote: on an
+     accepted job it opened "Draft the proposal" over work already under way
+     (Isaac, 2026-10-03). The work-order line's steps open what they're
+     about — the visits, or the bill. */
+  const stillAQuote = (detail?.status ?? row.statusLabel ?? "").trim().toLowerCase() === "quote";
   const faceOf = (k: StepKey): TabKey =>
-    k === "quoted" || k === "accepted"
+    k === "quoted" || (k === "accepted" && stillAQuote)
       ? manage
         ? "quote"
         : "summary"
-      : k === "deposit" || k === "paid"
+      : k === "deposit" || k === "paid" || k === "invoiced"
         ? "money"
         : k === "materials"
           ? "checklist"
-          : k === "installation"
+          : k === "installation" || k === "booked" || k === "onsite"
             ? "visits"
             : "summary";
 

@@ -87,6 +87,31 @@ describe("PlanFigure", () => {
     expect(container.querySelectorAll(".ds-pf-bar")).toHaveLength(1);
   });
 
+  /* A crop clips the raster; a freeform crop clips it to its outline, so the
+     printed sheet shows the same area as the screen. */
+  it("clips a cropped sheet to its rectangle, or to its freeform outline", () => {
+    const d = fixtureDoc();
+    d.floors[0].plans[0].crop = { x: 100, y: 50, w: 400, h: 300 };
+    const rectFig = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{ "ref-a": "blob:a" }} />
+    );
+    expect(rectFig.container.querySelector("clipPath rect")).not.toBeNull();
+    expect(rectFig.container.querySelector("clipPath polygon")).toBeNull();
+    rectFig.unmount();
+
+    d.floors[0].plans[0].shape = [
+      { x: 100, y: 50 },
+      { x: 500, y: 50 },
+      { x: 100, y: 350 },
+    ];
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{ "ref-a": "blob:a" }} />
+    );
+    expect(container.querySelector("clipPath polygon")!.getAttribute("points")).toBe("100,50 500,50 100,350");
+    expect(container.querySelector("clipPath rect")).toBeNull();
+    expect(container.querySelector("image")!.getAttribute("clip-path")).toMatch(/url\(#pf-f1-clip-s1\)/);
+  });
+
   /* Units can be turned on the canvas, so the printed sheet has to agree —
      an export that squares everything up is a different drawing. */
   it("prints a turned unit turned", () => {

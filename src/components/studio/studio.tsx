@@ -3497,7 +3497,7 @@ function DesignPanel({
             onZoomChange={setZoomPct}
             planImages={planImages}
             sharedRefs={sharedPlanRefs(doc.floors, floor.id)}
-            onSplitFloor={(sheetId, keep, place, visible) => {
+            onSplitFloor={(sheetId, keep, other, place) => {
               // ids are minted here, not in the updater, which may run twice
               const newFloorId = newId("flr");
               const newSheetId = newId("sht");
@@ -3506,8 +3506,8 @@ function DesignPanel({
                   floorId: floor.id,
                   sheetId,
                   keep,
+                  other,
                   place,
-                  visible,
                   newFloorId,
                   newSheetId,
                 })

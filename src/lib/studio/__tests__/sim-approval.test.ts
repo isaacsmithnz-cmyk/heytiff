@@ -97,6 +97,8 @@ function simDoc(floorIds: string[] = ["flr"]): DesignDocument {
   return d;
 }
 
+const PLAIN_CROP_FINGERPRINT = "ibdyrprf9z3r";
+
 describe("designFingerprint", () => {
   it("is stable across a JSON round-trip", () => {
     const d = simDoc();
@@ -208,6 +210,35 @@ describe("designFingerprint", () => {
       model: "MSZ-AP80VGKD",
     });
     expect(designFingerprint(remodelled)).not.toBe(designFingerprint(base));
+  });
+
+  /* A freeform crop changes what the sheet shows, so it counts. But the field
+     is new: a design with no outline must hash exactly as it did before it
+     existed, or every approval on every existing design lapses on deploy. */
+  it("counts a freeform crop, and leaves designs without one untouched", () => {
+    const sheet = {
+      id: "sht",
+      imageRef: "org/o1/p1.png",
+      pageNumber: 1,
+      name: "GF",
+      width: 2000,
+      height: 1000,
+      x: 0,
+      y: 0,
+      crop: { x: 0, y: 0, w: 900, h: 900 },
+    };
+    const withSheet = (extra: object = {}): DesignDocument => {
+      const d = simDoc();
+      d.floors[0].plans = [{ ...sheet, ...extra }];
+      return d;
+    };
+    const plain = designFingerprint(withSheet());
+    // pinned from before the field existed: it must not move
+    expect(plain).toBe(PLAIN_CROP_FINGERPRINT);
+    const outlined = designFingerprint(
+      withSheet({ shape: [{ x: 0, y: 0 }, { x: 900, y: 0 }, { x: 0, y: 900 }] })
+    );
+    expect(outlined).not.toBe(plain);
   });
 
   it("changes when a unit moves, a room is renamed, or the basis changes", () => {

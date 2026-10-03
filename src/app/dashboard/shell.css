@@ -6935,6 +6935,42 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .jcl-ni:hover { background:var(--tint); }
 .jcl-ni.on { background:var(--tint-2); font-weight:600; }
 .jcl-ni:focus-visible { outline:none; box-shadow:var(--ring); }
+/* the customer, under the rail's sections, on every part of the card */
+.jcl-cust { display:flex; flex-direction:column; gap:12px; margin-top:16px; padding:16px 4px 0; border-top:1px solid var(--line); }
+.jcl-cust h3 { margin:0; font-size:13px; font-weight:500; color:var(--q); }
+.jcl-contacts { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:12px; }
+.jcl-contacts li { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.jcl-contacts b { font-size:13px; font-weight:600; }
+.jcl-contacts em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+.jcl-tel { font-size:13px; color:var(--ink); overflow-wrap:anywhere; }
+/* an address is one token: it ends in an ellipsis, never breaks mid-word */
+.jcl-mail { display:block; font-size:13px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
+.jcl-po { margin:0; display:flex; flex-direction:column; gap:2px; font-size:13px; }
+.jcl-po em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+/* THE SUMMARY: the job on a tinted panel, then where it's up to beside
+   who's been on site */
+.jcl-job { display:flex; flex-direction:column; gap:8px; padding:16px; border-radius:var(--r-button); background:var(--tint); }
+.jcl-kind { margin:0; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--q); }
+.jcl-what { margin:0; font-size:16px; line-height:1.45; white-space:pre-wrap; max-width:96ch; }
+.jcl-what.folded { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:normal; }
+.jcl-more { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.jcl-more:focus-visible { outline:none; box-shadow:var(--ring); }
+.jcl-two { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:16px; }
+.jcl-card { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
+.jcl-cardhead { display:flex; align-items:baseline; gap:12px; }
+.jcl-cardhead h3 { margin:0; font-size:16px; font-weight:600; }
+.jcl-cardhead em { margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+.jcl-card .wb2-jcups-pts { margin:0; }
+.jcl-hrs { margin:0; display:flex; align-items:baseline; gap:8px; }
+.jcl-hrs b { font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+.jcl-hrs span { font-size:13px; font-weight:500; color:var(--q); }
+.jcl-days { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
+.jcl-days li { display:grid; grid-template-columns:96px minmax(0,1fr) auto; gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
+.jcl-days li:first-child { border-top:0; }
+.jcl-days b { font-weight:600; }
+.jcl-days span { color:var(--q); }
+.jcl-days em { font-style:normal; font-variant-numeric:tabular-nums; }
 .wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:8px; }
 .wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:8px; }

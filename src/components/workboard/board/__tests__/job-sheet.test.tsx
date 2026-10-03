@@ -570,19 +570,19 @@ describe("the band", () => {
 /* ── the Summary face ── */
 
 describe("the Summary face", () => {
-  it("leads with the scope, verbatim, and keeps what-was-done beside it", async () => {
+  it("leads with the job, verbatim, and keeps what-was-done under it", async () => {
     readMirrorJob.mockResolvedValueOnce(
       card(detail({ workDone: "Installed and commissioned." }))
     );
     render(<JobSheet row={row()} {...props} />);
 
     expect(await screen.findByText("Supply and install Daikin multi system")).toBeInTheDocument();
-    expect(screen.getByText("Scope")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "The job" })).toBeInTheDocument();
     expect(screen.getByText("What was done")).toBeInTheDocument();
     expect(screen.getByText("Installed and commissioned.")).toBeInTheDocument();
   });
 
-  it("renders the stored lead and its points with the stamp — when it changed and why", async () => {
+  it("renders the stored points as bullets with the stamp — when it changed and why", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(
       record({
@@ -597,7 +597,9 @@ describe("the Summary face", () => {
     );
     render(<JobSheet row={row()} {...props} />);
 
-    expect(await screen.findByText("First fix done across two visits.")).toBeInTheDocument();
+    expect(await screen.findByText("The crew returns Thursday")).toBeInTheDocument();
+    /* the lead was the header Isaac called messy: with points it goes */
+    expect(screen.queryByText("First fix done across two visits.")).toBeNull();
     expect(screen.getByText("Where it’s up to")).toBeInTheDocument();
     expect(screen.getByText("Updated Thu 13 Aug, Nathan's note")).toBeInTheDocument();
     /* each point is its own list line, not a clause of the lead */
@@ -631,14 +633,55 @@ describe("the Summary face", () => {
     expect(screen.queryByText("Where it’s up to")).toBeNull();
   });
 
-  it("renders a contact's email as a mailto link, in Contacts", async () => {
+  it("a summary written as one sentence is its one bullet", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(
+      record({ summary: { lead: "Quoted, waiting on an answer.", points: [], stamp: "s-1", eventOn: null, eventLabel: null } })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    expect(await screen.findByText("Quoted, waiting on an answer.")).toBeInTheDocument();
+    expect([...document.querySelectorAll(".wb2-jcups-pts li")].map((p) => p.textContent)).toEqual(["Quoted, waiting on an answer."]);
+  });
+
+  it("folds long words to two lines and opens the rest in place", async () => {
+    const long = "Supply and install a 14 kW ducted system. ".repeat(8).trim();
+    readMirrorJob.mockResolvedValueOnce(card(detail({ description: long })));
+    render(<JobSheet row={row()} {...props} />);
+    const words = await screen.findByText(long);
+    expect(words).toHaveClass("folded");
+    await userEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(words).not.toHaveClass("folded");
+    expect(screen.getByRole("button", { name: "Show less" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("counts the hours on site beside the days, newest first", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      card(
+        detail({
+          timeOnSite: { minutes: 1050, sessions: 3 },
+          visits: [
+            { day: "2026-09-01", minutes: 510, crew: [{ name: "Luke", title: null }, { name: "Jake", title: null }] },
+            { day: "2026-08-31", minutes: 540, crew: [{ name: "Luke", title: null }] },
+          ],
+        })
+      )
+    );
+    render(<JobSheet row={row()} {...props} />);
+    const onSite = within(await screen.findByRole("region", { name: "On site" }));
+    expect(onSite.getByText("17h 30m")).toBeInTheDocument();
+    expect(onSite.getByText("2 days")).toBeInTheDocument();
+    expect(onSite.getByText("Luke, Jake")).toBeInTheDocument();
+  });
+
+  it("puts the customer in the rail: a contact's email as a mailto link, and their role", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
 
-    const link = (await screen.findByText("Email")) as HTMLAnchorElement;
+    const cust = within(await screen.findByRole("region", { name: "Customer" }));
+    const link = (await cust.findByText("josh@lsdb.com.au")) as HTMLAnchorElement;
     expect(link.getAttribute("href")).toBe("mailto:josh@lsdb.com.au");
-    expect(screen.getByText("Josh")).toBeInTheDocument();
-    expect(screen.getByText("property manager")).toBeInTheDocument();
+    expect(cust.getByText("Josh")).toBeInTheDocument();
+    expect(cust.getByText("Property manager")).toBeInTheDocument();
   });
 
   it("dials a phone number, and refuses a field holding more than one", async () => {
@@ -722,7 +765,8 @@ describe("the summary refresh", () => {
     expect(url).toBe("/api/workboard/job-summary");
     expect(JSON.parse(String(init.body))).toEqual({ job: "j-1" });
 
-    expect(await screen.findByText("Fresh words about the job.")).toBeInTheDocument();
+    expect(await screen.findByText("A fresh point")).toBeInTheDocument();
+    expect(screen.queryByText("Old words.")).toBeNull();
     expect(screen.getByText("Updated Fri 14 Aug, a site visit")).toBeInTheDocument();
   });
 
@@ -4041,7 +4085,7 @@ describe("the job's own checklist", () => {
   it("a checklist that will not load never takes the sheet down", async () => {
     listJobPicklist.mockRejectedValue(new Error("offline"));
     render(<JobSheet row={row()} {...props} />);
-    expect(await screen.findByText("Scope")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "The job" })).toBeInTheDocument();
     await openTab("Checklist");
     expect(screen.queryByText("Materials")).not.toBeInTheDocument();
   });

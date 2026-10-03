@@ -41,6 +41,7 @@ import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteFace } from "./job-quote-face";
 import { JobProgressLine } from "./job-progress-line";
+import { JobCustomer } from "./job-customer";
 import { jobSteps, type StepKey } from "@/lib/workboard/job-steps";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { listSwmsForJob } from "@/app/actions/swms";
@@ -2046,6 +2047,7 @@ export function JobSheet({
               </button>
             ))}
           </div>
+          <JobCustomer detail={detail} />
         </div>
 
         <div className="wb2-jcbody">
@@ -2059,6 +2061,7 @@ export function JobSheet({
               row={row}
               summary={summary}
               pending={summaryPending}
+              category={categoryName ? { name: categoryName, colour: categoryColour } : null}
             />
           )}
 

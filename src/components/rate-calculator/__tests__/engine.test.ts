@@ -423,3 +423,26 @@ describe("fleetAnnualFrom", () => {
     expect(fleetAnnualFrom({ months: [750, 750, 750], annual: Number.NaN })).toBe(9000);
   });
 });
+
+/* Isaac, 2026-10-04: "no made up figures… Fix the 8 hour default". A full
+   day's hours are the business's own: with none set there's no day rate,
+   and the hourly rates don't move. */
+describe("hours in a full day", () => {
+  const { working_hours: _unset, ...noHours } = BASELINE_SETTINGS;
+  it("gives no day rate until the business sets them, in either mode", () => {
+    for (const data of [detailedData, simpleData]) {
+      const set = calculate(data);
+      const unset = calculate({ ...data, settings: noHours });
+      expect(set.daily).not.toBeNull();
+      expect(unset.daily).toBeNull();
+      expect(unset.recInst).toBe(set.recInst);
+    }
+  });
+
+  it("are never filled in for a new business", async () => {
+    const { DEFAULT_SETTINGS, hydrateState } = await import("../state");
+    expect(DEFAULT_SETTINGS.working_hours).toBeUndefined();
+    expect(hydrateState({}).settings.working_hours).toBeUndefined();
+    expect(hydrateState({ settings: { working_hours: 7.5 } }).settings.working_hours).toBe(7.5);
+  });
+});

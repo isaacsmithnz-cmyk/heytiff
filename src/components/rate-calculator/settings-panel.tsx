@@ -53,6 +53,33 @@ function Stepper({ value, onChange, suffix = "", step = 1, min = 0, max }: {
   );
 }
 
+/* Hours in a full day: typed, never started from a figure of ours — blank
+   until the business says (Isaac, 2026-10-04). Blank again clears it. */
+function HoursField({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+  const [text, setText] = React.useState(value == null ? "" : String(value));
+  const commit = (raw: string) => {
+    const n = Number(raw);
+    if (raw.trim() === "") return onChange(null);
+    if (Number.isFinite(n) && n >= 1 && n <= 24) onChange(Math.round(n * 4) / 4);
+    else setText(value == null ? "" : String(value));
+  };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: RC.card2, borderRadius: 10, padding: "4px 10px", border: `1px solid ${RC.line}`, flexShrink: 0 }}>
+      <input
+        aria-label="Hours in a full day on-site"
+        inputMode="decimal"
+        value={text}
+        placeholder="Not set"
+        onChange={e => setText(e.target.value)}
+        onBlur={e => commit(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") commit((e.target as HTMLInputElement).value); }}
+        style={{ width: 64, border: "none", background: "transparent", textAlign: "center", fontFamily: RC.head, fontWeight: 700, fontSize: 14.5, color: RC.ink }}
+      />
+      <span style={{ fontSize: 13, color: RC.ink2 }}>hrs</span>
+    </div>
+  );
+}
+
 function MiniToggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button onClick={() => onChange(!on)} style={{ width: 46, height: 26, borderRadius: 100, border: "none", cursor: "pointer", background: on ? RC.service : RC.lineStrong, position: "relative", transition: "background .2s" }}>
@@ -259,7 +286,7 @@ export function SettingsPanel({ st: committed, patch: commit, onClose, onReset, 
             <Stepper value={g.working_weeks ?? DEFAULT_WORKING_WEEKS} min={1} max={52} onChange={v => set("working_weeks", v)} />
           </Field>
           <Field label="Hours in a full day on-site" hint="Only sets the Day rate figure" tip="Hours billed when a tech spends the whole day on one job. Day rate = hourly rate × these hours. This isn't utilisation — travel, quoting and slow days are already priced into the hourly rate, so a full day on the tools bills all its hours.">
-            <Stepper value={g.working_hours ?? 8} min={1} max={24} onChange={v => set("working_hours", v)} />
+            <HoursField value={g.working_hours ?? null} onChange={v => set("working_hours", v)} />
           </Field>
           <div style={{ background: RC.installSoft, borderRadius: 12, padding: "12px 15px", marginTop: 12, fontSize: 12, color: "#1D4FD7", lineHeight: 1.55 }}>
             <b>Where billable time comes from:</b> your rates divide costs by the hours you can invoice — set in the Staff step (Simple mode&apos;s billable-time %, or measured from timesheets in Detailed). These settings never scale it twice.

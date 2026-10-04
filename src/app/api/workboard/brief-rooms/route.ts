@@ -1,6 +1,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { isZone, type ReadRoom } from "@/lib/quotes/brief-rooms";
+import type { DuctedRead } from "@/lib/quotes/brief-ducted";
 import { readBriefRooms, sizeRooms } from "@/lib/quotes/brief-rooms-server";
 import type { BuildingType } from "@/lib/studio/loads";
 
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
   if (!orgId || !(await can("workboard_manage"))) {
     return Response.json({ ok: false, reason: "Sizing rooms needs Workboard manage access." }, { status: 403 });
   }
-  const body = (await req.json().catch(() => ({}))) as { job?: unknown; read?: unknown; zone?: unknown; buildingType?: unknown; buildingSaid?: unknown; dropped?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { job?: unknown; read?: unknown; zone?: unknown; buildingType?: unknown; buildingSaid?: unknown; dropped?: unknown; ducted?: unknown };
   const job = typeof body.job === "string" ? body.job.trim().slice(0, 80) : "";
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
 
@@ -31,7 +32,10 @@ export async function POST(req: Request) {
     const read = (body.read as ReadRoom[]).slice(0, 20).filter((r) => r && typeof r.areaM2 === "number" && r.areaM2 > 0 && r.areaM2 <= 500);
     const building = BUILDINGS.includes(body.buildingType as BuildingType) ? (body.buildingType as BuildingType) : "residential";
     const dropped = Array.isArray(body.dropped) ? body.dropped.filter((d): d is string => typeof d === "string").slice(0, 20) : [];
-    return Response.json({ ok: true, rooms: await sizeRooms(read, building, body.buildingSaid === true, { zone: body.zone, from: "chosen", town: null }, dropped) });
+    /* a ducted system already read and checked, handed back as it was given */
+    const d = body.ducted as { read?: DuctedRead; dropped?: unknown } | null | undefined;
+    const ducted = d?.read && d.read.ducted === true ? { read: d.read, dropped: Array.isArray(d.dropped) ? d.dropped.filter((x): x is string => typeof x === "string").slice(0, 30) : [] } : null;
+    return Response.json({ ok: true, rooms: await sizeRooms(read, building, body.buildingSaid === true, { zone: body.zone, from: "chosen", town: null }, dropped, ducted) });
   }
   return Response.json(await readBriefRooms(orgId, job));
 }

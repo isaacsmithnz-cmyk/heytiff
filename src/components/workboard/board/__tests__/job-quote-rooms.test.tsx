@@ -32,6 +32,7 @@ const rooms: BriefRooms = {
   buildingSaid: true,
   zone: { zone: 5, from: "address", town: "Riverview" },
   multi: null,
+  ducted: null,
 };
 
 it("reads the rooms on a press, sizes them, and puts a pair on the job only when a person adds it", async () => {
@@ -71,4 +72,46 @@ it("takes a pipe run typed for the room over the brief's", async () => {
   expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "ø6.35 / ø12.7 pair coil", qty: "8 m", sub: "liquid / gas mm, Living" });
   expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "Wall bracket", qty: "1", sub: "for the outdoor's 840 mm, 53 kg, Living" });
   expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "Pipe cover", qty: "8 m", sub: "along the run, Living" });
+});
+
+it("shows one ducted system for the rooms — its pair, the brief's outlets and ductwork, what to ask — and adds it whole", async () => {
+  addJobPicklistItem.mockClear();
+  const ducted: BriefRooms = {
+    ...rooms,
+    rooms: [rooms.rooms[0]!, { ...rooms.rooms[0]!, name: "Dining", said: "dining 15m2", areaM2: 15, loadKw: 2.2 }],
+    ducted: {
+      read: {
+        ducted: true,
+        unitAt: "roof",
+        unitSaid: "Unit in the roof",
+        outlets: [{ room: "", count: 2, type: "mdo", neckMm: 250, lengthMm: null, heightMm: null, flangeless: false, said: "2 mdo" }],
+        outletsUnsure: null,
+        returns: [],
+        layout: [{ piece: "fitting", inMm: 350, outsMm: [250, 250], count: 1, said: "split to 14/10/10" }],
+        zoning: null,
+        run: { m: 15, said: "run 15m" },
+        outdoor: { at: "wall", said: "on the side wall" },
+        drain: { how: null, said: null },
+        circuit: { needed: null, said: null },
+      },
+      dropped: [],
+      loadKw: 6.6,
+      options: [{ indoor: "PEAD-M71JAA(D)", outdoor: "SUZ-M71VAD-A", coolKw: 7.1, heatKw: 8, airflowLs: 417, liquidMm: 9.52, gasMm: 15.88, outdoorWidthMm: 800, outdoorWeightKg: 50, outdoorAmps: 16 }],
+      air: [],
+    },
+  };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ok: true, rooms: ducted }) }));
+  const onAdded = jest.fn();
+  render(<JobQuoteRooms job="j-1" onAdded={onAdded} />);
+  await userEvent.click(screen.getByRole("button", { name: "Size the rooms from the brief" }));
+  expect(await screen.findByText("One ducted system for the 2 rooms")).toBeInTheDocument();
+  expect(screen.getByText("6.6 kW together")).toBeInTheDocument();
+  /* a ducted brief's rooms aren't offered a split each */
+  expect(screen.queryByLabelText("Pipe run for Living, metres")).toBeNull();
+  expect(screen.getByText("Ductwork, as the brief has it: “split to 14/10/10”")).toBeInTheDocument();
+  expect(screen.getByText(/^To ask: .*the return: where and what size/)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Add to materials" }));
+  const names = addJobPicklistItem.mock.calls.map((c) => (c as unknown as [string, { name: string; qty: string }])[1].name);
+  expect(names).toEqual(expect.arrayContaining(["PEAD-M71JAA(D)", "SUZ-M71VAD-A", "MDO, Ø250 neck", "Fitting Ø350 → Ø250 / Ø250", "Return grille", "Hanging kit"]));
+  expect(onAdded).toHaveBeenCalled();
 });

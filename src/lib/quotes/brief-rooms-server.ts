@@ -19,15 +19,24 @@ For each room the brief gives an area or two side lengths for, return:
 - name: the room as the brief names it ("Living", "Bed 2"); "Room" if it doesn't name one.
 - said: the brief's own words you read it from, copied exactly, character for character, as short as still holds the size (one clause).
 - area_m2: the area when the brief states one; null when it gives sides instead.
-- sides_m: the two side lengths in metres when the brief gives sides ("6 x 5", "6m by 5m"); null otherwise.
-- run_m and run_said: the pipe run from indoor to outdoor in metres, and the brief's own words it's in, copied exactly; only when the brief states the run; null otherwise.
-- ceiling_m, glazing (low/moderate/high), insulation (well_insulated/standard/poor), facing (N, NE, E, SE, S, SW, W, NW: the main outside wall), room_above (true when another floor is above, false when it's under the roof), style (wall, ducted, cassette, floor, bulkhead, under-ceiling): only when the brief says it; null otherwise.
+- sides_m: the two side lengths in metres when the brief gives sides ("6 x 5", "6m by 5m"); an empty list otherwise.
+- outdoor_at and outdoor_said: where this room's outdoor unit sits — ground (a slab, a pad, a balcony floor, the ground), wall (on brackets), or roof — and the brief's own words, copied exactly. "unknown" and "" when it doesn't say.
+- drain and drain_said: "gravity" when the brief says it drains by gravity or to a point it can fall to, "pump" when it says it needs a pump or can't fall; with the words. "unknown" and "" when it doesn't say.
+- new_circuit and circuit_said: "yes" when the brief says a new circuit or power from the switchboard is needed, "no" when it says existing power is used; with the words. "unknown" and "" when it doesn't say.
+- run_m and run_said: the pipe run from indoor to outdoor in metres, and the brief's own words it's in, copied exactly; only when the brief states the run. null and "" otherwise.
+- ceiling_m: only when the brief says it; null otherwise.
+- glazing (low/moderate/high), insulation (well_insulated/standard/poor), facing (N, NE, E, SE, S, SW, W, NW: the main outside wall), room_above ("yes" when another floor is above, "no" when it's under the roof), style (wall, ducted, cassette, floor, bulkhead, under-ceiling): only when the brief says it; "unknown" otherwise.
 
 A room the brief gives no size for is left out. Never estimate a size, never convert a room count or a unit's capacity into an area, never fill a field the brief doesn't state.
 
-building_type: residential for a home, light_commercial for an office or shop, commercial for anything bigger; null if you can't tell.
+building_type: residential for a home, light_commercial for an office or shop, commercial for anything bigger; "unknown" if you can't tell.
 
-zone: the Australian NCC climate zone (1 to 8) of the site address, with the town you placed it by; null when there's no address or you can't place it.`;
+zone: the Australian NCC climate zone (1 to 8) of the site address, and the town you placed it by; zone 0 and town "" when there's no address or you can't place it.`;
+
+/* Every "not said" is a value, not a null: the API takes at most 16 fields
+   that may be one of two types, and three numbers are the only nullable
+   ones left. */
+const known = (values: readonly string[]) => ({ type: "string", enum: [...values, "unknown"] });
 
 const schema = {
   type: "object",
@@ -39,51 +48,63 @@ const schema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "said", "area_m2", "sides_m", "run_m", "run_said", "ceiling_m", "glazing", "insulation", "facing", "room_above", "style"],
+        required: ["name", "said", "area_m2", "sides_m", "run_m", "run_said", "outdoor_at", "outdoor_said", "drain", "drain_said", "new_circuit", "circuit_said", "ceiling_m", "glazing", "insulation", "facing", "room_above", "style"],
         properties: {
           name: { type: "string" },
           said: { type: "string" },
           area_m2: { type: ["number", "null"] },
-          sides_m: { anyOf: [{ type: "array", items: { type: "number" } }, { type: "null" }] },
+          sides_m: { type: "array", items: { type: "number" } },
           run_m: { type: ["number", "null"] },
-          run_said: { type: ["string", "null"] },
+          run_said: { type: "string" },
+          outdoor_at: known(["ground", "wall", "roof"]),
+          outdoor_said: { type: "string" },
+          drain: known(["gravity", "pump"]),
+          drain_said: { type: "string" },
+          new_circuit: known(["yes", "no"]),
+          circuit_said: { type: "string" },
           ceiling_m: { type: ["number", "null"] },
-          glazing: { anyOf: [{ type: "string", enum: ["low", "moderate", "high"] }, { type: "null" }] },
-          insulation: { anyOf: [{ type: "string", enum: ["well_insulated", "standard", "poor"] }, { type: "null" }] },
-          facing: { anyOf: [{ type: "string", enum: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] }, { type: "null" }] },
-          room_above: { type: ["boolean", "null"] },
-          style: { anyOf: [{ type: "string", enum: ["wall", "ducted", "cassette", "floor", "bulkhead", "under-ceiling"] }, { type: "null" }] },
+          glazing: known(["low", "moderate", "high"]),
+          insulation: known(["well_insulated", "standard", "poor"]),
+          facing: known(["N", "NE", "E", "SE", "S", "SW", "W", "NW"]),
+          room_above: known(["yes", "no"]),
+          style: known(["wall", "ducted", "cassette", "floor", "bulkhead", "under-ceiling"]),
         },
       },
     },
-    building_type: { anyOf: [{ type: "string", enum: ["residential", "light_commercial", "commercial"] }, { type: "null" }] },
-    zone: {
-      anyOf: [
-        { type: "object", additionalProperties: false, required: ["zone", "town"], properties: { zone: { type: "integer" }, town: { type: "string" } } },
-        { type: "null" },
-      ],
-    },
+    building_type: known(["residential", "light_commercial", "commercial"]),
+    zone: { type: "object", additionalProperties: false, required: ["zone", "town"], properties: { zone: { type: "integer" }, town: { type: "string" } } },
   },
-} as const;
+};
 
 type Raw = {
   rooms: {
     name: string;
     said: string;
     area_m2: number | null;
-    sides_m: number[] | null;
+    sides_m: number[];
     run_m: number | null;
-    run_said: string | null;
+    run_said: string;
+    outdoor_at: string;
+    outdoor_said: string;
+    drain: string;
+    drain_said: string;
+    new_circuit: string;
+    circuit_said: string;
     ceiling_m: number | null;
-    glazing: ReadRoom["glazing"];
-    insulation: ReadRoom["insulation"];
-    facing: ReadRoom["facing"];
-    room_above: boolean | null;
-    style: ReadRoom["style"];
+    glazing: string;
+    insulation: string;
+    facing: string;
+    room_above: string;
+    style: string;
   }[];
-  building_type: BuildingType | null;
-  zone: { zone: number; town: string } | null;
+  building_type: string;
+  zone: { zone: number; town: string };
 };
+
+/** a value Tiff gave, when it's one of these; "unknown" and anything else are null */
+const oneOf = <T extends string>(v: unknown, values: readonly T[]): T | null => (values.includes(v as T) ? (v as T) : null);
+const words = (v: unknown) => (typeof v === "string" && v.trim() ? v.slice(0, 300) : null);
+const yesNo = (v: unknown) => (v === "yes" ? true : v === "no" ? false : null);
 
 const readOf = (raw: Raw): ReadBrief => ({
   rooms: (raw.rooms ?? []).slice(0, 20).map((r) => ({
@@ -92,15 +113,21 @@ const readOf = (raw: Raw): ReadBrief => ({
     areaM2: typeof r.area_m2 === "number" ? r.area_m2 : null,
     sidesM: Array.isArray(r.sides_m) && r.sides_m.length === 2 ? [r.sides_m[0]!, r.sides_m[1]!] : null,
     ceilingM: typeof r.ceiling_m === "number" && r.ceiling_m >= 2 && r.ceiling_m <= 8 ? r.ceiling_m : null,
-    glazing: r.glazing ?? null,
-    insulation: r.insulation ?? null,
-    facing: r.facing ?? null,
-    roomAbove: typeof r.room_above === "boolean" ? r.room_above : null,
-    style: r.style ?? null,
+    glazing: oneOf(r.glazing, ["low", "moderate", "high"] as const),
+    insulation: oneOf(r.insulation, ["well_insulated", "standard", "poor"] as const),
+    facing: oneOf(r.facing, ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const),
+    roomAbove: yesNo(r.room_above),
+    style: oneOf(r.style, ["wall", "ducted", "cassette", "floor", "bulkhead", "under-ceiling"] as const),
     runM: typeof r.run_m === "number" ? r.run_m : null,
-    runSaid: typeof r.run_said === "string" ? r.run_said.slice(0, 300) : null,
+    runSaid: words(r.run_said),
+    outdoorAt: oneOf(r.outdoor_at, ["ground", "wall", "roof"] as const),
+    outdoorSaid: words(r.outdoor_said),
+    drain: oneOf(r.drain, ["gravity", "pump"] as const),
+    drainSaid: words(r.drain_said),
+    newCircuit: yesNo(r.new_circuit),
+    circuitSaid: words(r.circuit_said),
   })),
-  buildingType: raw.building_type ?? null,
+  buildingType: oneOf(raw.building_type, ["residential", "light_commercial", "commercial"] as const),
   zone: raw.zone && isZone(raw.zone.zone) ? { zone: raw.zone.zone, town: String(raw.zone.town ?? "").slice(0, 60) } : null,
 });
 

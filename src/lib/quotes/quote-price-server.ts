@@ -9,6 +9,7 @@ import { currentItems, readSameDecisions, readSuppliers } from "./price-book-ser
 import { makePriceOf } from "./price-resolver";
 import { readQuoteLabour } from "./quote-labour-server";
 import { componentShortlists, readQuoteSettings } from "./settings-query";
+import { rollMetresOf } from "./components";
 
 /* A JOB'S QUOTE, PRICED — the job's own Materials list and labour at this
    business's own prices, markups and day (job-price.ts says how a row finds
@@ -61,10 +62,16 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   const component = (key: Parameters<typeof chosen.get>[0]): ComponentPrice | null => {
     const c = chosen.get(key);
     if (!c || c.offer.perUnitCents == null) return null;
-    return { perUnitCents: c.offer.perUnitCents, supplierKey: c.offer.supplierKey, code: c.offer.code, name: c.group.name };
+    return {
+      perUnitCents: c.offer.perUnitCents,
+      supplierKey: c.offer.supplierKey,
+      code: c.offer.code,
+      name: c.group.name,
+      lengthM: c.group.rollM ?? rollMetresOf(c.group.name),
+    };
   };
 
-  const { lines, unpriced } = priceJobList(rows, { priceOf, unitOffer, unitProposed, component });
+  const { lines, unpriced } = priceJobList(rows, { priceOf, unitOffer, unitProposed, component, allowance: (k) => settings.allowances[k] });
   const { visits, from } = labour ? labourVisits(labour.advice, built.settings.dayHours) : { visits: [], from: "none" as const };
   return { ok: true, build: priceBuildUp(lines, visits, built.settings), unpriced, labourFrom: from, rows: rows.length };
 }

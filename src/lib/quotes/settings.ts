@@ -24,8 +24,22 @@ export type QuoteSettings = {
       hours on top at the charge-out rate; both null, none (Isaac, 2026-10-04) */
   contingencyPct: number | null;
   contingencyHours: number | null;
+  /** what a kit carries that isn't one price-book item, at cost; null: not set */
+  allowances: Record<AllowanceKey, number | null>;
   preferred: Partial<Record<ComponentKey, Preferred>>;
 };
+
+export type AllowanceKey = "consumables" | "newCircuit" | "flush" | "recovery";
+/** Each allowance: its words, and the column it's kept in. */
+export const ALLOWANCES: Record<AllowanceKey, { label: string; per: string; column: string }> = {
+  consumables: { label: "Consumables", per: "a head", column: "consumables_cents" },
+  newCircuit: { label: "New circuit", per: "a circuit", column: "new_circuit_cents" },
+  flush: { label: "Pipe flush", per: "a system", column: "flush_cents" },
+  recovery: { label: "Recovery and removal", per: "a system", column: "recovery_cents" },
+};
+export const ALLOWANCE_KEYS = Object.keys(ALLOWANCES) as AllowanceKey[];
+/** $5,000: a typo's ceiling */
+export const MAX_ALLOWANCE_CENTS = 500_000;
 
 /** A business that hasn't set a thing has nothing set (Isaac, 2026-10-04:
     "there are to be no made up figures. Everything has to come from the
@@ -37,6 +51,7 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   dayHours: null,
   contingencyPct: null,
   contingencyHours: null,
+  allowances: { consumables: null, newCircuit: null, flush: null, recovery: null },
   preferred: {},
 };
 
@@ -61,6 +76,17 @@ const chargeOutOf = (v: unknown): number | null => {
   const n = num(v);
   return n == null || n <= 0 ? null : Math.min(MAX_CHARGE_OUT_CENTS, Math.round(n));
 };
+
+/** Each allowance from a stored row (its column) or an edit (allowances.key). */
+function allowancesOf(r: Record<string, unknown>): QuoteSettings["allowances"] {
+  const edit = r.allowances && typeof r.allowances === "object" ? (r.allowances as Record<string, unknown>) : {};
+  const out = { ...DEFAULT_QUOTE_SETTINGS.allowances };
+  for (const k of ALLOWANCE_KEYS) {
+    const n = num(r[ALLOWANCES[k].column] ?? edit[k]);
+    out[k] = n == null || n < 0 ? null : Math.min(MAX_ALLOWANCE_CENTS, Math.round(n));
+  }
+  return out;
+}
 
 function preferredOf(raw: unknown): QuoteSettings["preferred"] {
   const out: QuoteSettings["preferred"] = {};
@@ -89,6 +115,7 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
     dayHours: clampTo(r.day_hours ?? r.dayHours, 1, MAX_DAY_HOURS) ?? d.dayHours,
     contingencyPct: clampTo(r.contingency_pct ?? r.contingencyPct, 0, MAX_CONTINGENCY_PCT) ?? d.contingencyPct,
     contingencyHours: clampTo(r.contingency_hours ?? r.contingencyHours, 0, MAX_CONTINGENCY_HOURS) ?? d.contingencyHours,
+    allowances: allowancesOf(r),
     preferred: preferredOf(r.preferred),
   };
 }
@@ -106,6 +133,7 @@ export function quoteSettingsRow(s: QuoteSettings) {
     day_hours: s.dayHours,
     contingency_pct: s.contingencyPct,
     contingency_hours: s.contingencyHours,
+    ...Object.fromEntries(ALLOWANCE_KEYS.map((k) => [ALLOWANCES[k].column, s.allowances[k]])),
     preferred,
   };
 }

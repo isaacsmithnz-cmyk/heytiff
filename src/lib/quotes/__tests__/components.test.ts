@@ -100,6 +100,7 @@ describe("the settings", () => {
       dayHours: null,
       contingencyPct: null,
       contingencyHours: null,
+      allowances: { consumables: null, newCircuit: null, flush: null, recovery: null },
       preferred: {},
     });
     expect(normaliseQuoteSettings({ unit_markup_pct: null, material_markup_pct: "" })).toMatchObject({ unitMarkupPct: null, materialMarkupPct: null });
@@ -123,6 +124,7 @@ describe("the settings", () => {
       dayHours: 7.5,
       contingencyPct: null,
       contingencyHours: null,
+      allowances: { consumables: null, newCircuit: null, flush: null, recovery: null },
       preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: 20 } },
     });
     expect(normaliseQuoteSettings({ charge_out_cents: "16500" }).chargeOutCents).toBe(16500);
@@ -141,3 +143,12 @@ describe("a part's colours", () => {
   });
 });
 
+
+describe("an outdoor's ground mount", () => {
+  it("is a condenser mount, pad, stand or block — never an electrician's block, a fan's feet or a floor-standing indoor", () => {
+    for (const n of ["NEOPRENE COND MOUNT ADJUSTABLE NSW", "QUIKFIT RUBBER COND MOUNT 210KG - 4 PK (EA)", "PLASTIC FORESTS MOUNTING BLOCK 450MM EA (EA)", "COMPOSITE GROUND PAD 900X450", "OUTDOOR UNIT STAND 600", "ANTI-VIBRATION PADS (4)"])
+      expect(matchesComponent("ground_mount", n)).toBe(true);
+    for (const n of ["Iconic Mounting Block Standard Rectangular 1G Vivid White", "Mounting Block 34Mm", "Mounting Block 40A 500V 112x 80x3 4mm", "Mounting Feet Inline Axial Fans 560mm", "Floor Standing - Wireless R/C", "CON WALL BRACKET 180KG"])
+      expect(matchesComponent("ground_mount", n)).toBe(false);
+  });
+});

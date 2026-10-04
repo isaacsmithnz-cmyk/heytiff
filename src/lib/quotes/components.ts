@@ -54,6 +54,19 @@ export const QUOTE_COMPONENTS = {
   /* the switch, not an anti-vibration "isolation" mount */
   isolator: { label: "Isolator", unit: "each", match: [/isolator/i], not: [/bracket|lock\s*off|mount|vib|pad|box|plate/i] },
   wall_bracket: { label: "Outdoor unit wall bracket", unit: "each", match: [/wall\s*bracket/i] },
+  /* what an outdoor sits on when it isn't on the wall: a pad, a stand, a
+     pair of rubber mounts — never the wall bracket */
+  ground_mount: {
+    label: "Outdoor unit ground mount",
+    unit: "each",
+    match: [
+      /\b(ground|floor)\s*(mount|pad|stand)\b|\bcond(enser)?\.?\s*mount|\bmount(ing)?\s*blocks?\b|\b(unit|outdoor)\s*stand\b|\bstand\s*for\s*(outdoor|condenser)|\banti[-\s]?vib(ration)?\s*(pad|mount|feet)|\brubber\s*(cond(enser)?\s*)?mounts?\b/i,
+    ],
+    /* an electrician's mounting block (1G, surface, 40 A 500 V, 34 mm), a
+       fan's feet and a floor-standing indoor are not what an outdoor sits on */
+    not: [/wall\s*bracket|\b1G\b|surface|switch|\bgpo\b|\d+\s*A\s+\d+\s*V|axial|\bfans?\b|wireless|r\/c|standing|mounting\s*block\s*\d{1,2}\s*mm\b/i],
+  },
+
   condensate_pump: {
     label: "Condensate pump",
     unit: "each",

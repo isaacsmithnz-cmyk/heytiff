@@ -44,7 +44,17 @@ export type ReadRoom = {
       words it's in */
   runM: number | null;
   runSaid: string | null;
+  /** where the outdoor sits, how the head drains, and a new circuit — each
+      only when the brief says, with the words it's in */
+  outdoorAt: OutdoorAt | null;
+  outdoorSaid: string | null;
+  drain: "gravity" | "pump" | null;
+  drainSaid: string | null;
+  newCircuit: boolean | null;
+  circuitSaid: string | null;
 };
+
+export type OutdoorAt = "ground" | "wall" | "roof";
 
 export type ReadBrief = {
   rooms: ReadRoom[];
@@ -63,6 +73,11 @@ export type PairOption = {
   /** the pair's pipe, liquid and gas, from the pack */
   liquidMm: number;
   gasMm: number;
+  /** the outdoor's size, weight and current, from the pack: what its mount
+      and its isolator must take */
+  outdoorWidthMm: number | null;
+  outdoorWeightKg: number | null;
+  outdoorAmps: number | null;
 };
 
 export type SizedRoom = {
@@ -75,6 +90,9 @@ export type SizedRoom = {
   style: IndoorStyle;
   /** the pipe run the brief states, checked; null to ask */
   runM: number | null;
+  outdoorAt: OutdoorAt | null;
+  drain: "gravity" | "pump" | null;
+  newCircuit: boolean | null;
   options: PairOption[];
 };
 
@@ -105,7 +123,17 @@ export function checkRooms(read: ReadBrief, brief: string): { rooms: (ReadRoom &
     }
     /* a run is kept only when its words are the brief's and hold it */
     const runOk = r.runM != null && r.runM > 0 && r.runM <= 100 && !!r.runSaid && text.includes(norm(r.runSaid)) && numberIn(norm(r.runSaid), r.runM);
-    rooms.push({ ...r, areaM2: area, runM: runOk ? r.runM : null, runSaid: runOk ? r.runSaid : null });
+    /* a fact is kept only when its words are the brief's */
+    const inWords = (w: string | null) => !!w && norm(w).length >= 3 && text.includes(norm(w));
+    rooms.push({
+      ...r,
+      areaM2: area,
+      runM: runOk ? r.runM : null,
+      runSaid: runOk ? r.runSaid : null,
+      outdoorAt: inWords(r.outdoorSaid) ? r.outdoorAt : null,
+      drain: inWords(r.drainSaid) ? r.drain : null,
+      newCircuit: inWords(r.circuitSaid) ? r.newCircuit : null,
+    });
   }
   return { rooms, dropped };
 }
@@ -137,7 +165,7 @@ export function sizeRoom(
   room: ReadRoom & { areaM2: number },
   zone: number,
   buildingType: BuildingType,
-  pack: Pick<DataPack, "indoor_units" | "pair_tables">,
+  pack: Pick<DataPack, "indoor_units" | "pair_tables"> & Partial<Pick<DataPack, "outdoor_units">>,
   limit = 4
 ): SizedRoom {
   const loadKw = roomHeatLoadKw({
@@ -153,6 +181,7 @@ export function sizeRoom(
   const assumed: string[] = (Object.keys(ASK) as (keyof typeof ASK)[]).filter((k) => room[k] == null).map((k) => ASK[k]);
   const style = room.style ?? "wall";
   const ff = new Map(pack.indoor_units.map((u) => [u.model, u.form_factor]));
+  const odu = new Map((pack.outdoor_units ?? []).map((u) => [u.model, u]));
   const covering = pack.pair_tables
     .filter((p) => p.rated_cool_kw != null && p.rated_heat_kw != null)
     .filter((p) => STYLE_OF[ff.get(p.idu_model) ?? ""] === style)
@@ -170,24 +199,75 @@ export function sizeRoom(
       heatKw: p.rated_heat_kw!,
       liquidMm: p.pipe_liquid_mm,
       gasMm: p.pipe_gas_mm,
+      outdoorWidthMm: odu.get(p.odu_model)?.width_mm ?? null,
+      outdoorWeightKg: odu.get(p.odu_model)?.weight_kg ?? null,
+      outdoorAmps: odu.get(p.odu_model)?.max_amps_a ?? null,
     }));
   if (room.runM == null) assumed.push("the pipe run");
-  return { name: room.name, said: room.said, areaM2: room.areaM2, loadKw: Math.round(loadKw * 10) / 10, assumed, style, runM: room.runM, options };
+  if (room.outdoorAt == null) assumed.push("where the outdoor sits");
+  return {
+    name: room.name,
+    said: room.said,
+    areaM2: room.areaM2,
+    loadKw: Math.round(loadKw * 10) / 10,
+    assumed,
+    style,
+    runM: room.runM,
+    outdoorAt: room.outdoorAt,
+    drain: room.drain,
+    newCircuit: room.newCircuit,
+    options,
+  };
 }
 
 export const ZONE_LABEL = (z: number) => CLIMATE_ZONES[z]?.label ?? `Zone ${z}`;
 export const isZone = (z: unknown): z is number => typeof z === "number" && Number.isInteger(z) && !!CLIMATE_ZONES[z];
 
-/** The rows a pair goes on the job with: the two units, its pair coil at
-    the pack's sizes (the run the brief states, else to ask), and an
-    isolator. Each is priced from the business's own items — the units by
-    their order codes, the coil and isolator by its preferred ones. */
+/** What a person settled for the room before adding it: the run and where
+    the outdoor sits, over what the brief said. */
+export type KitChoices = { runM: number | null; outdoorAt: OutdoorAt | null };
+
+/* The rows a kit adds, by name. A row is priced by the business's own item
+   for its part (job-price.ts), or by its own allowance. */
+export const KIT = {
+  groundMount: "Ground mount",
+  wallBracket: "Wall bracket",
+  roofStand: "Roof stand",
+  mount: "Outdoor mount",
+  isolator: "Isolator",
+  pipeCover: "Pipe cover",
+  drainHose: "Drain hose",
+  pump: "Condensate pump",
+  consumables: "Consumables",
+  newCircuit: "New circuit",
+} as const;
+
 export const RUN_TO_ASK = "Run to ask";
-export function kitRows(room: Pick<SizedRoom, "name" | "runM">, o: PairOption): { name: string; sub: string; qty: string }[] {
-  return [
+export const WHERE_TO_ASK = "Where it sits: ask";
+
+const MOUNT_NAME = { ground: KIT.groundMount, wall: KIT.wallBracket, roof: KIT.roofStand } as const;
+
+/** A single split's kit: the two units, the pair coil at the pack's sizes,
+    the outdoor's mount and isolator for its size and current, pipe cover
+    and drain along the run, a condensate pump only when the brief says it
+    can't drain, consumables for the head, and a new circuit only when the
+    brief says. What isn't known goes on asked, and the Price says so. */
+export function kitRows(room: Pick<SizedRoom, "name" | "drain" | "newCircuit">, o: PairOption, c: KitChoices): { name: string; sub: string; qty: string }[] {
+  const run = c.runM != null ? `${c.runM} m` : RUN_TO_ASK;
+  const size = [o.outdoorWidthMm != null ? `${o.outdoorWidthMm} mm` : null, o.outdoorWeightKg != null ? `${o.outdoorWeightKg} kg` : null].filter(Boolean).join(", ");
+  const rows = [
     { name: o.indoor, sub: `${o.style} indoor unit, ${room.name}`, qty: "1" },
     { name: o.outdoor, sub: `Outdoor unit, ${room.name}`, qty: "1" },
-    { name: `ø${o.liquidMm} / ø${o.gasMm} pair coil`, sub: `liquid / gas mm, ${room.name}`, qty: room.runM != null ? `${room.runM} m` : RUN_TO_ASK },
-    { name: "Isolator", sub: room.name, qty: "1" },
+    { name: `ø${o.liquidMm} / ø${o.gasMm} pair coil`, sub: `liquid / gas mm, ${room.name}`, qty: run },
+    c.outdoorAt
+      ? { name: MOUNT_NAME[c.outdoorAt], sub: `${size ? `for the outdoor's ${size}, ` : ""}${room.name}`, qty: "1" }
+      : { name: KIT.mount, sub: room.name, qty: WHERE_TO_ASK },
+    { name: KIT.isolator, sub: `${o.outdoorAmps != null ? `for the outdoor's ${o.outdoorAmps} A, ` : ""}${room.name}`, qty: "1" },
+    { name: KIT.pipeCover, sub: `along the run, ${room.name}`, qty: run },
+    { name: KIT.drainHose, sub: `along the run, ${room.name}`, qty: run },
   ];
+  if (room.drain === "pump") rows.push({ name: KIT.pump, sub: `it can't drain by gravity, ${room.name}`, qty: "1" });
+  rows.push({ name: KIT.consumables, sub: `a head, ${room.name}`, qty: "1" });
+  if (room.newCircuit) rows.push({ name: KIT.newCircuit, sub: room.name, qty: "1" });
+  return rows;
 }

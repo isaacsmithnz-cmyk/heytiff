@@ -2,7 +2,7 @@ import { checkRooms, kitRows, sizeRoom, type ReadBrief, type ReadRoom } from "..
 
 /* Isaac, 2026-10-04: "What if I said the room is 30m2?" */
 
-const room = (r: Partial<ReadRoom>): ReadRoom => ({
+const room0 = (r: Partial<ReadRoom>): ReadRoom => ({
   name: "Room",
   said: "",
   areaM2: null,
@@ -15,6 +15,12 @@ const room = (r: Partial<ReadRoom>): ReadRoom => ({
   style: null,
   runM: null,
   runSaid: null,
+  outdoorAt: null,
+  outdoorSaid: null,
+  drain: null,
+  drainSaid: null,
+  newCircuit: null,
+  circuitSaid: null,
   ...r,
 });
 const read = (rooms: ReadRoom[]): ReadBrief => ({ rooms, buildingType: "residential", zone: { zone: 5, town: "Riverview" } });
@@ -25,10 +31,10 @@ describe("a room read from the brief", () => {
   it("is kept only when its words are the brief's and its size is in them", () => {
     const { rooms, dropped } = checkRooms(
       read([
-        room({ name: "Living", said: "Living room is 30m2", areaM2: 30, facing: "W", glazing: "high", runM: 7, runSaid: "Pipe run about 7m" }),
-        room({ name: "Bed 2", said: "Bed 2 is about 4 x 3.5", sidesM: [4, 3.5], runM: 12, runSaid: "run of 12m" }),
-        room({ name: "Bed 3", said: "Bed 3 to match", areaM2: 14 }),
-        room({ name: "Study", said: "Study is 9m2", areaM2: 9 }),
+        room0({ name: "Living", said: "Living room is 30m2", areaM2: 30, facing: "W", glazing: "high", runM: 7, runSaid: "Pipe run about 7m" }),
+        room0({ name: "Bed 2", said: "Bed 2 is about 4 x 3.5", sidesM: [4, 3.5], runM: 12, runSaid: "run of 12m" }),
+        room0({ name: "Bed 3", said: "Bed 3 to match", areaM2: 14 }),
+        room0({ name: "Study", said: "Study is 9m2", areaM2: 9 }),
       ]),
       brief
     );
@@ -61,7 +67,7 @@ const pack = {
 
 describe("a room sized", () => {
   it("takes the zone's watts a square metre, and offers the smallest pairs that cover it, one per series", () => {
-    const s = sizeRoom({ ...room({ name: "Living", said: "Living room is 30m2" }), areaM2: 30 }, 5, "residential", pack);
+    const s = sizeRoom({ ...room0({ name: "Living", said: "Living room is 30m2" }), areaM2: 30 }, 5, "residential", pack);
     /* 30 m² × 145 W/m², all standard */
     expect(s.loadKw).toBe(4.4);
     expect(s.options.map((o) => o.indoor)).toEqual(["MSZ-AP50VGD2", "MSZ-EF50VGW"]);
@@ -73,31 +79,68 @@ describe("a room sized", () => {
       "whether there's a floor above",
       "the style of unit (counted as a wall split)",
       "the pipe run",
+      "where the outdoor sits",
     ]);
   });
 
   it("counts what the brief said: west and a lot of glass load it up", () => {
-    const s = sizeRoom({ ...room({ name: "Living", said: "x", facing: "W", glazing: "high", style: "wall" }), areaM2: 30 }, 5, "residential", pack);
+    const s = sizeRoom({ ...room0({ name: "Living", said: "x", facing: "W", glazing: "high", style: "wall" }), areaM2: 30 }, 5, "residential", pack);
     expect(s.loadKw).toBe(7);
     expect(s.options).toEqual([]);
     expect(s.assumed).not.toContain("which way it faces");
   });
 
   it("keeps to the style the brief names", () => {
-    const s = sizeRoom({ ...room({ name: "Living", said: "x", style: "ducted" }), areaM2: 30 }, 5, "residential", pack);
+    const s = sizeRoom({ ...room0({ name: "Living", said: "x", style: "ducted" }), areaM2: 30 }, 5, "residential", pack);
     expect(s.options.map((o) => o.indoor)).toEqual(["PEAD-M50JAA"]);
   });
 });
 
 describe("a pair on the job", () => {
-  it("goes on with its pair coil at the pack's sizes and an isolator; the run is the brief's, else to ask", () => {
-    const o = { indoor: "MSZ-AP50VGD2", outdoor: "MUZ-AP50VG2", style: "Wall", coolKw: 5, heatKw: 6, liquidMm: 6.35, gasMm: 12.7 };
-    expect(kitRows({ name: "Living", runM: 7 }, o)).toEqual([
+  const o = {
+    indoor: "MSZ-AP50VGD2",
+    outdoor: "MUZ-AP50VG2",
+    style: "Wall",
+    coolKw: 5,
+    heatKw: 6,
+    liquidMm: 6.35,
+    gasMm: 12.7,
+    outdoorWidthMm: 840,
+    outdoorWeightKg: 53,
+    outdoorAmps: 16,
+  };
+  const room = { name: "Living", drain: null, newCircuit: null } as const;
+
+  it("goes on with its whole kit: coil at the pack's sizes, mount and isolator for the outdoor, cover and drain along the run, consumables", () => {
+    expect(kitRows(room, o, { runM: 7, outdoorAt: "ground" })).toEqual([
       { name: "MSZ-AP50VGD2", sub: "Wall indoor unit, Living", qty: "1" },
       { name: "MUZ-AP50VG2", sub: "Outdoor unit, Living", qty: "1" },
       { name: "ø6.35 / ø12.7 pair coil", sub: "liquid / gas mm, Living", qty: "7 m" },
-      { name: "Isolator", sub: "Living", qty: "1" },
+      { name: "Ground mount", sub: "for the outdoor's 840 mm, 53 kg, Living", qty: "1" },
+      { name: "Isolator", sub: "for the outdoor's 16 A, Living", qty: "1" },
+      { name: "Pipe cover", sub: "along the run, Living", qty: "7 m" },
+      { name: "Drain hose", sub: "along the run, Living", qty: "7 m" },
+      { name: "Consumables", sub: "a head, Living", qty: "1" },
     ]);
-    expect(kitRows({ name: "Bed 2", runM: null }, o)[2]!.qty).toBe("Run to ask");
+  });
+
+  it("asks what isn't known, and adds a pump or a circuit only when the brief says", () => {
+    const rows = kitRows({ name: "Bed 2", drain: "pump", newCircuit: true }, o, { runM: null, outdoorAt: null });
+    expect(rows.find((r) => r.name === "ø6.35 / ø12.7 pair coil")!.qty).toBe("Run to ask");
+    expect(rows.find((r) => r.name === "Outdoor mount")!.qty).toBe("Where it sits: ask");
+    expect(rows.map((r) => r.name)).toEqual(expect.arrayContaining(["Condensate pump", "New circuit"]));
+    expect(kitRows(room, o, { runM: 7, outdoorAt: "wall" }).map((r) => r.name)).toContain("Wall bracket");
+    expect(kitRows(room, o, { runM: 7, outdoorAt: "ground" }).map((r) => r.name)).not.toEqual(expect.arrayContaining(["Condensate pump", "New circuit"]));
+  });
+
+  it("keeps where the outdoor sits, the drain and a circuit only when their words are the brief's", () => {
+    const brief = "Living room is 30m2, outdoor on the balcony, new circuit needed.";
+    const { rooms } = checkRooms(
+      read([
+        room0({ name: "Living", said: "Living room is 30m2", areaM2: 30, outdoorAt: "ground", outdoorSaid: "outdoor on the balcony", newCircuit: true, circuitSaid: "new circuit needed", drain: "pump", drainSaid: "needs a pump" }),
+      ]),
+      brief
+    );
+    expect(rooms[0]).toMatchObject({ outdoorAt: "ground", newCircuit: true, drain: null });
   });
 });

@@ -23,7 +23,7 @@ const room0 = (r: Partial<ReadRoom>): ReadRoom => ({
   circuitSaid: null,
   ...r,
 });
-const read = (rooms: ReadRoom[]): ReadBrief => ({ rooms, buildingType: "residential", zone: { zone: 5, town: "Riverview" } });
+const read = (rooms: ReadRoom[]): ReadBrief => ({ rooms, buildingType: "residential", zone: { zone: 5, town: "Riverview" }, ducted: null });
 
 const brief = "Living room is 30m2, west facing with lots of glass. Pipe run about 7m. Bed 2 is about 4 x 3.5. Bed 3 to match.";
 

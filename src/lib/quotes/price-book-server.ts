@@ -74,10 +74,9 @@ export async function readSuppliers(orgId: string): Promise<SupplierView[]> {
     importedAt: r.imported_at,
     itemCount: r.item_count,
   });
-  const builtIn = BUILT_IN_SUPPLIERS.map((d) => {
-    const r = stored.get(d.key);
-    return r ? view(r, d) : { ...d, fileName: null, importedAt: null, itemCount: null };
-  });
+  /* a supplier whose files HeyTiff reads is the business's only once it
+     adds it: a new business starts with none, never with another's */
+  const builtIn = BUILT_IN_SUPPLIERS.filter((d) => stored.has(d.key)).map((d) => view(stored.get(d.key)!, d));
   /* the suppliers the business added: any CSV or workbook, by heading */
   const added = rows
     .filter((r) => !BUILT_IN_SUPPLIERS.some((d) => d.key === r.key))
@@ -93,6 +92,20 @@ export function supplierKeyFor(name: string, taken: string[]): string {
   let key = base;
   for (let n = 2; taken.includes(key); n++) key = `${base}_${n}`;
   return key;
+}
+
+/** A supplier whose own file HeyTiff reads (AAD's CSV, Reece's, the
+    Mitsubishi trade book), added by the business. */
+export async function addBuiltInSupplier(orgId: string, key: string): Promise<SupplierView | null> {
+  const d = BUILT_IN_SUPPLIERS.find((s) => s.key === key);
+  if (!d) return null;
+  const existing = await readSuppliers(orgId);
+  if (existing.some((s) => s.key === d.key)) return null;
+  const { error } = await supabaseAdmin
+    .from("quote_suppliers")
+    .insert({ org_id: orgId, key: d.key, name: d.name, pricing: d.pricing, discount_pct: 0, rules: [] });
+  if (error) return null;
+  return { ...d, columns: null, fileName: null, importedAt: null, itemCount: null };
 }
 
 /** A supplier the business buys from that HeyTiff didn't know. */

@@ -66,3 +66,34 @@ it("asks which column is which, then reads the file with the columns chosen", as
   expect(screen.queryByText("Which column is which in acme.xlsx?")).not.toBeInTheDocument();
   expect(onImported).toHaveBeenCalled();
 });
+
+/* Isaac, 2026-10-04: "test the engine on a new org… ensure no hard coded
+   parts from us come in". A new business has no suppliers; the ones whose
+   own files HeyTiff reads are offered, a press each. */
+it("starts a new business with no suppliers, offering the files HeyTiff reads", async () => {
+  const posted: unknown[] = [];
+  global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    if (init?.method === "POST" && url === "/api/quoting/suppliers") {
+      posted.push(JSON.parse(String(init.body)));
+      return { json: async () => ({ ok: true }) } as Response;
+    }
+    return { json: async () => ({ ok: true, categories: [] }) } as Response;
+  }) as unknown as typeof fetch;
+  const onImported = jest.fn();
+  render(<PriceBook suppliers={[]} onImported={onImported} />);
+  expect(screen.queryByText("No price list yet")).toBeNull();
+  for (const name of ["Add AAD", "Add Reece", "Add Mitsubishi Electric"]) expect(screen.getByRole("button", { name })).toBeEnabled();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add Reece" }));
+  });
+  expect(posted).toEqual([{ builtIn: "reece" }]);
+  expect(onImported).toHaveBeenCalled();
+  expect(await screen.findByText("Reece added. Upload its price list.")).toBeInTheDocument();
+});
+
+it("doesn't offer a supplier the business already has", () => {
+  global.fetch = jest.fn(async () => ({ json: async () => ({ ok: true, categories: [] }) })) as unknown as typeof fetch;
+  render(<PriceBook suppliers={[{ ...acme, key: "aad", name: "AAD", format: "aad_csv", file: "csv" }]} onImported={jest.fn()} />);
+  expect(screen.queryByRole("button", { name: "Add AAD" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Add Reece" })).toBeInTheDocument();
+});

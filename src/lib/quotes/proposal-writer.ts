@@ -231,11 +231,11 @@ why — Empty unless the choice of system needs explaining to the client: a VRF 
 options — One per real choice the client has. When there is only one way of doing the job, there is one option. Each has:
 - name: a few words, e.g. "Install client-supplied 6 kW split", "Repair", "Downstairs". Never "Option 1".
 - lines: the scope, one fact per line, in the order the work happens. No leading dash. The office's own phrasing:
-  "Installation of a 7 kW Mitsubishi Electric split system. (MSZ-AP71VGD)"
+  "Installation of a 7 kW wall split system. (its model number, when given)"
   "Removal of the existing AC unit."
   "Outdoor unit mounted on the wall on brackets."
   "Pipes run through the ceiling space and down the wall cavity."
-  "Pipes run along the outside wall in Colorbond trunking, Paperbark."
+  "Pipes run along the outside wall in pipe covering, in the colour asked for."
   "Power supplied from a new circuit at the switchboard."
   "Drain run to the downpipe beside the laundry."
   Write capacities as "3.5 kW". Put a model number in brackets only when it was given. Access work (roof tiles, ceiling space, EWP, wall cavity) is its own line.

@@ -67,7 +67,7 @@ const KIT_PART: Record<string, ComponentKey> = {
 /* a ducted part that comes in sizes: priced from the business's range for it
    once the price book holds its ranges (Isaac, 2026-10-04: the smart price
    book, its own track) */
-const SIZED_RANGE = /^(MDO|Round diffuser|Square diffuser|Bar grille|Slot diffuser|Supply outlet|Return grille|Zone damper|Plenum|Fitting|Trunk|Flex|Takeoff)\b/;
+const SIZED_RANGE = /^(MDO|Round diffuser|Square diffuser|Bar grille|Slot diffuser|Supply outlet|Return grille|Zone damper|Plenum|Fitting|Trunk|Flex|Takeoff)\b|^ø[\d.]+ \/ ø[\d.]+ copper$/;
 const KIT_ALLOWANCE: Record<string, AllowanceKey> = Object.fromEntries(
   (Object.keys(ALLOWANCES) as AllowanceKey[]).map((k) => [ALLOWANCES[k].label, k])
 );

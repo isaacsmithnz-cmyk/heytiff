@@ -33,6 +33,10 @@ const rooms: BriefRooms = {
   zone: { zone: 5, from: "address", town: "Riverview" },
   multi: null,
   ducted: null,
+  swap: { replacing: false, keepPipe: false },
+  vrf: null,
+  vrfSaid: false,
+  vrfHeads: null,
 };
 
 it("reads the rooms on a press, sizes them, and puts a pair on the job only when a person adds it", async () => {
@@ -98,6 +102,8 @@ it("shows one ducted system for the rooms — its pair, the brief's outlets and 
       loadKw: 6.6,
       options: [{ indoor: "PEAD-M71JAA(D)", outdoor: "SUZ-M71VAD-A", coolKw: 7.1, heatKw: 8, airflowLs: 417, liquidMm: 9.52, gasMm: 15.88, outdoorWidthMm: 800, outdoorWeightKg: 50, outdoorAmps: 16 }],
       air: [],
+      controller: null,
+      usual: null,
     },
   };
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ok: true, rooms: ducted }) }));
@@ -114,4 +120,17 @@ it("shows one ducted system for the rooms — its pair, the brief's outlets and 
   const names = addJobPicklistItem.mock.calls.map((c) => (c as unknown as [string, { name: string; qty: string }])[1].name);
   expect(names).toEqual(expect.arrayContaining(["PEAD-M71JAA(D)", "SUZ-M71VAD-A", "MDO, Ø250 neck", "Fitting Ø350 → Ø250 / Ø250", "Return grille", "Hanging kit"]));
   expect(onAdded).toHaveBeenCalled();
+});
+
+it("applies a swap ticked here: the old system recovered, the kept pipe flushed", async () => {
+  addJobPicklistItem.mockClear();
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ok: true, rooms }) }));
+  render(<JobQuoteRooms job="j-1" onAdded={jest.fn()} />);
+  await userEvent.click(screen.getByRole("button", { name: "Size the rooms from the brief" }));
+  await userEvent.click(await screen.findByLabelText("Old system out"));
+  await userEvent.click(screen.getByLabelText("Keeping the pipe"));
+  await userEvent.click(screen.getByRole("button", { name: "Add to materials" }));
+  const names = addJobPicklistItem.mock.calls.map((c) => (c as unknown as [string, { name: string }])[1].name);
+  expect(names).toEqual(expect.arrayContaining(["Pipe flush", "Recovery and removal"]));
+  expect(names.some((n) => /pair coil/.test(n))).toBe(false);
 });

@@ -1,0 +1,96 @@
+[
+  {
+    "vendor": "Mitsubishi Electric",
+    "model": "Zone Controller with Intelligent Comfort",
+    "max_zones": 10,
+    "damper_part_refs": {},
+    "sensor_options": [
+      "PAR-ZR01S-A",
+      "PAC-SE42TS-E",
+      "PAR-ZR01AW-A",
+      "PAR-ZR01AB-A"
+    ],
+    "compatible_brands": [
+      "mitsubishi-electric"
+    ],
+    "interfaces": [
+      {
+        "model": "PAC-ZC04S240C-A",
+        "max_zones": 4,
+        "control": "on_off"
+      },
+      {
+        "model": "PAC-ZC10S240C-A",
+        "max_zones": 10,
+        "control": "on_off"
+      },
+      {
+        "model": "PAC-ZC04L240C-A",
+        "max_zones": 4,
+        "control": "temperature"
+      },
+      {
+        "model": "PAC-ZC10L240C-A",
+        "max_zones": 10,
+        "control": "temperature"
+      }
+    ],
+    "main_controller": {
+      "model": "PAR-ZM01A-A",
+      "per_system": 1,
+      "max": 2
+    },
+    "wireless_receiver": {
+      "model": "PAR-ZR01R-A",
+      "max_devices": 10
+    },
+    "sensors": [
+      {
+        "model": "PAR-ZR01S-A",
+        "kind": "wireless",
+        "batteries": {
+          "type": "AAA",
+          "per": 2
+        }
+      },
+      {
+        "model": "PAC-SE42TS-E",
+        "kind": "wired",
+        "max": 4
+      }
+    ],
+    "zone_remotes": [
+      {
+        "model": "PAR-ZR01AW-A",
+        "batteries": {
+          "type": "AA",
+          "per": 2
+        }
+      },
+      {
+        "model": "PAR-ZR01AB-A",
+        "batteries": {
+          "type": "AA",
+          "per": 2
+        }
+      }
+    ],
+    "wifi": "MAC-588IF-E",
+    "temperature_sensor_per_zone": true,
+    "damper": {
+      "volts": "AC24V",
+      "drive": "drive open, drive closed",
+      "max_ma": 250
+    },
+    "damper_cable": {
+      "kind": "RJ12 6P/6C, 0.48 mm²",
+      "max_m": 30
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "Mitsubishi Electric Zone Controller with Intelligent Comfort Brochure",
+      "edition": "2026",
+      "page": "4, 12"
+    }
+  }
+]

@@ -21,6 +21,7 @@ import {
   MAX_CONTINGENCY_PCT,
   MAX_DAY_HOURS,
   MAX_MARKUP_PCT,
+  USUAL_LAYOUT_WORDS,
   type AllowanceKey,
   type QuoteSettings,
 } from "@/lib/quotes/settings";
@@ -250,6 +251,30 @@ export function QuotingScreen({
               busy={busy}
               onSave={(allowances) => void save({ ...saved, allowances }, "Allowances saved")}
             />
+
+            <section className="qs-group">
+              <h2 className="qs-h">Ductwork, when the brief doesn&apos;t say</h2>
+              <div className="qs-fields">
+                <label className="qs-field">
+                  <span>Your usual layout</span>
+                  <select
+                    className="wb2-sel"
+                    value={saved.usualLayout ?? ""}
+                    disabled={busy}
+                    onChange={(e) =>
+                      void save({ ...saved, usualLayout: e.target.value === "trunks" || e.target.value === "plenum" ? e.target.value : null }, "Usual layout saved")
+                    }
+                  >
+                    <option value="">Ask on each job</option>
+                    {(["trunks", "plenum"] as const).map((k) => (
+                      <option key={k} value={k}>
+                        {USUAL_LAYOUT_WORDS[k]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </section>
 
             <PriceBook suppliers={suppliers} onImported={() => router.refresh()} />
 

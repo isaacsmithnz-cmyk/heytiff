@@ -4,8 +4,9 @@ import { useState } from "react";
 import { addJobPicklistItem } from "@/app/actions/job-picklist";
 import { CLIMATE_ZONES } from "@/lib/studio/loads";
 import type { BriefRooms, BriefRoomsResult } from "@/lib/quotes/brief-rooms-server";
-import { ductedAsks, ductedKitRows, outletName, type DuctedPair } from "@/lib/quotes/brief-ducted";
-import { kitRows, multiKitRows, multiPipeWords, type MultiOption, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
+import { VRF_METHOD_WORDS, vrfKitRows, type VrfMethod, type VrfOption } from "@/lib/quotes/brief-vrf";
+import { ductedAsks, ductedKitRows, makerZoningWords, outletName, type DuctedPair } from "@/lib/quotes/brief-ducted";
+import { kitRows, multiKitRows, withSwap, type Swap, multiPipeWords, type MultiOption, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
 
 /* ROOMS FROM THE BRIEF, on the job card's Quote section (Isaac, 2026-10-04:
    "What if I said the room is 30m2?"). Pressed, Tiff reads the rooms the
@@ -52,7 +53,10 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
     const set = wheres[r.name];
     return set === undefined ? r.outdoorAt : set || null;
   };
-  const kitOf = (r: SizedRoom, o: PairOption) => kitRows(r, o, { runM: runOf(r), outdoorAt: whereOf(r) });
+  /* a swap, as the brief says it or as a person ticks it */
+  const [swapSet, setSwapSet] = useState<Swap | null>(null);
+  const swapOf = (): Swap => swapSet ?? rooms?.swap ?? { replacing: false, keepPipe: false };
+  const kitOf = (r: SizedRoom, o: PairOption) => withSwap(kitRows(r, o, { runM: runOf(r), outdoorAt: whereOf(r) }), swapOf(), r.name);
 
   const post = async (body: object, word: string) => {
     setBusy(word);
@@ -68,7 +72,21 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
   };
 
   const rezone = (zone: number) =>
-    rooms && void post({ read: rooms.read, zone, buildingType: rooms.buildingType, buildingSaid: rooms.buildingSaid, dropped: rooms.dropped }, "zone");
+    rooms &&
+    void post(
+      {
+        read: rooms.read,
+        zone,
+        buildingType: rooms.buildingType,
+        buildingSaid: rooms.buildingSaid,
+        dropped: rooms.dropped,
+        ducted: rooms.ducted,
+        swap: swapOf(),
+        vrfSaid: rooms.vrfSaid,
+        vrfHeads: rooms.vrfHeads,
+      },
+      "zone"
+    );
 
   const add = async (room: SizedRoom, o: PairOption) => {
     const key = `${room.name}|${o.indoor}`;
@@ -93,10 +111,29 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
   const multiWhereOf = (): OutdoorAt | null =>
     multiWhere === undefined ? (rooms?.rooms.find((r) => r.outdoorAt != null)?.outdoorAt ?? null) : multiWhere || null;
   const multiRows = (m: MultiOption) =>
-    multiKitRows(m, rooms?.rooms ?? [], {
-      runs: Object.fromEntries((rooms?.rooms ?? []).map((r) => [r.name, runOf(r)])),
-      outdoorAt: multiWhereOf(),
-    });
+    withSwap(
+      multiKitRows(m, rooms?.rooms ?? [], {
+        runs: Object.fromEntries((rooms?.rooms ?? []).map((r) => [r.name, runOf(r)])),
+        outdoorAt: multiWhereOf(),
+      }),
+      swapOf(),
+      "the multi"
+    );
+
+  /* how the VRF's heads connect: the brief's way, else branch boxes when
+     they serve every room, else City Multi — or as a person switches it */
+  const [vrfWay, setVrfWay] = useState<VrfMethod | null>(null);
+  const vrfWayOf = (): VrfMethod => vrfWay ?? rooms?.vrfHeads ?? (rooms?.vrf?.box?.ok ? "box" : "joint");
+  const vrfP = rooms?.vrf ? rooms.vrf[vrfWayOf()] : null;
+  const vrfRows = (v: VrfOption) =>
+    withSwap(
+      vrfKitRows(v, rooms?.rooms ?? [], {
+        runs: Object.fromEntries((rooms?.rooms ?? []).map((r) => [r.name, runOf(r)])),
+        outdoorAt: multiWhereOf(),
+      }),
+      swapOf(),
+      "the VRF"
+    );
 
   /* a whole system's rows, as the ducted block built them */
   const addSystem = async (key: string, rows: ReturnType<typeof kitRows>) => {
@@ -143,6 +180,30 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
       {note && <p className="wb2-sherr">{note}</p>}
       {rooms && (
         <>
+          <div className="wb2-mline">
+            <b>A swap</b>
+            <em>{swapSet === null && (rooms.swap.replacing || rooms.swap.keepPipe) ? "From the brief" : "Ticked here, or a new install"}</em>
+            <span className="qs-acts2 qs-act">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={swapOf().replacing}
+                  disabled={busy !== null}
+                  onChange={(e) => setSwapSet({ ...swapOf(), replacing: e.target.checked })}
+                />{" "}
+                Old system out
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={swapOf().keepPipe}
+                  disabled={busy !== null}
+                  onChange={(e) => setSwapSet({ ...swapOf(), keepPipe: e.target.checked })}
+                />{" "}
+                Keeping the pipe
+              </label>
+            </span>
+          </div>
           <div className="wb2-mline">
             <b>Climate zone</b>
             <em>
@@ -244,6 +305,7 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
           {rooms.ducted && (
             <Ducted
               system={rooms.ducted}
+              swap={swapOf()}
               roomNames={rooms.rooms.map((r) => r.name)}
               busy={busy}
               added={added}
@@ -307,6 +369,79 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
               </p>
             </div>
           )}
+          {vrfP && !vrfP.ok && <p className="wb2-shtext">{`A VRF for these rooms: ${vrfP.why}.`}</p>}
+          {vrfP?.ok && (
+            <div>
+              <div className="wb2-mline">
+                <b>{`${rooms.vrfSaid ? "A" : "Or a"} VRF for the ${vrfP.vrf.heads.length} rooms`}</b>
+                <em>{`${vrfP.vrf.outdoor}, ${vrfP.vrf.coolKw} kW cooling, ${vrfP.vrf.heatKw} kW heating`}</em>
+                <span>
+                  <button
+                    type="button"
+                    className="pbtn ghost sm"
+                    disabled={busy !== null || added.has(`vrf|${vrfP.vrf.outdoor}`)}
+                    onClick={() => vrfP?.ok && void addSystem(`vrf|${vrfP.vrf.outdoor}`, vrfRows(vrfP.vrf))}
+                  >
+                    {added.has(`vrf|${vrfP.vrf.outdoor}`) ? "Added" : busy === `vrf|${vrfP.vrf.outdoor}` ? "Adding" : "Add to materials"}
+                  </button>
+                </span>
+              </div>
+              <div className="wb2-mline">
+                <b>Heads</b>
+                <em>{vrfWay === null && rooms.vrfHeads ? "From the brief" : "Every head the same way, never a mix"}</em>
+                <span>
+                  <select
+                    className="wb2-sel"
+                    aria-label="How the VRF's heads connect"
+                    value={vrfWayOf()}
+                    disabled={busy !== null}
+                    onChange={(e) => setVrfWay(e.target.value as VrfMethod)}
+                  >
+                    {(["box", "joint"] as const).map((m) => (
+                      <option key={m} value={m}>
+                        {VRF_METHOD_WORDS[m]}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              </div>
+              {vrfP.vrf.heads.map((h) => (
+                <div className="wb2-mline" key={`vrf-${h.room}`}>
+                  <b>{h.indoor}</b>
+                  <em>{`${h.style} for ${h.room}, ${h.coolKw} kW cooling, ${h.heatKw} kW heating`}</em>
+                  <span />
+                </div>
+              ))}
+              <div className="wb2-mline">
+                <b>Outdoor</b>
+                <em>{multiWhere === undefined && multiWhereOf() != null ? "From the brief" : multiWhereOf() == null ? "To ask: goes on as an outdoor mount to ask" : "Set here"}</em>
+                <span>
+                  <select
+                    className="wb2-sel"
+                    aria-label="Where the VRF's outdoor sits"
+                    value={multiWhereOf() ?? ""}
+                    disabled={busy !== null}
+                    onChange={(e) => setMultiWhere(e.target.value as OutdoorAt | "")}
+                  >
+                    {WHERE.map((w) => (
+                      <option key={w.value} value={w.value}>
+                        {w.label}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              </div>
+              <p className="wb2-shtext">
+                {`From the data pack: ${vrfP.vrf.fittings.map((f) => (f.part ? `${f.part} (${f.kind === "box" ? "branch box" : f.kind})` : `a ${f.kind} to size`)).join(", ") || "no fittings"}.`}
+              </p>
+              <p className="wb2-shtext">
+                {`With it: ${vrfRows(vrfP.vrf)
+                  .filter((k) => !/indoor unit|outdoor unit/i.test(k.sub))
+                  .map((k) => `${k.name.toLowerCase()} (${k.qty})`)
+                  .join(", ")}.`}
+              </p>
+            </div>
+          )}
           {rooms.dropped.length > 0 && (
             <p className="wb2-shtext">{`Not used, their size isn't in the brief's words: ${rooms.dropped.join(", ")}.`}</p>
           )}
@@ -321,12 +456,14 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
    by piece, and zoning; what the brief left out is asked. */
 function Ducted({
   system,
+  swap,
   roomNames,
   busy,
   added,
   onAdd,
 }: {
   system: NonNullable<BriefRooms["ducted"]>;
+  swap: Swap;
   /** the rooms the brief sized: the system's zones' rooms */
   roomNames: string[];
   busy: string | null;
@@ -343,7 +480,7 @@ function Ducted({
   })();
   const outdoorAt = where === undefined ? read.outdoor.at : where || null;
   const choices = { runM, outdoorAt, newCircuit: read.circuit.needed, drainPump: read.drain.how === "pump" };
-  const rowsOf = (o: DuctedPair) => ductedKitRows(o, read, choices);
+  const rowsOf = (o: DuctedPair) => withSwap(ductedKitRows(o, read, choices, system.controller, system.usual), swap, "the ducted system");
   const first = system.options[0];
   return (
     <div>
@@ -406,7 +543,11 @@ function Ducted({
       )}
       {read.returns.length > 0 && <p className="wb2-shtext">{`Returns: ${read.returns.map((r) => (r.common ? "a common return" : r.room)).join(", ")}.`}</p>}
       {read.layout.length > 0 && <p className="wb2-shtext">{`Ductwork, as the brief has it: ${read.layout.map((p) => `“${p.said}”`).join(" ")}`}</p>}
-      {read.zoning && <p className="wb2-shtext">{`Zoning: “${read.zoning.said}”`}</p>}
+      {read.layout.length === 0 && system.usual && <p className="wb2-shtext">Ductwork: your usual layout from Quoting, as the brief doesn&apos;t describe one.</p>}
+      {read.zoning && <p className="wb2-shtext">{`Zoning: “${read.zoning.said}”${system.controller ? `, by ${system.controller.vendor}'s book in the data pack` : ""}`}</p>}
+      {makerZoningWords(system.controller, read.zoning).map((w) => (
+        <p className="wb2-shtext" key={w}>{`${w}.`}</p>
+      ))}
       {system.air.map((w) => (
         <p className="wb2-shtext" key={w}>{`${w}.`}</p>
       ))}
@@ -418,7 +559,7 @@ function Ducted({
             .join(", ")}.`}
         </p>
       )}
-      <p className="wb2-shtext">{`To ask: ${ductedAsks(read, choices, roomNames).join("; ")}.`}</p>
+      <p className="wb2-shtext">{`To ask: ${ductedAsks(read, choices, roomNames, system.usual).join("; ")}.`}</p>
       {system.dropped.length > 0 && <p className="wb2-shtext">{`Not used, their words aren't the brief's: ${system.dropped.join(", ")}.`}</p>}
     </div>
   );

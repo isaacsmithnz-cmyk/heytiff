@@ -147,3 +147,95 @@ describe("a ducted system read from the brief", () => {
     ]);
   });
 });
+
+/* ── the maker's zoning, from its book in the pack ── */
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { ZoningController } from "@/lib/studio/packs/schema";
+import { makerZoningWords, namesController } from "../brief-ducted";
+
+const ME: ZoningController = JSON.parse(
+  readFileSync(join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1/zoning_controllers.json"), "utf8")
+)[0];
+
+describe("the maker's zoning", () => {
+  it("is used when the brief names its controller", () => {
+    expect(namesController("ME zone controller", ME)).toBe(true);
+    expect(namesController("Mitsubishi zoning", ME)).toBe(true);
+    expect(namesController("AirTouch 5", ME)).toBe(false);
+    expect(namesController(null, ME)).toBe(false);
+  });
+
+  it("puts on its interface for the zones and control, its main controller, a receiver, the sensors and their batteries, Wi-Fi", () => {
+    const { read } = checkDucted({ ...tiff, zoning: { ...tiff.zoning!, zones: 5, said: "5 zones. ME zone controller with temperature control, wireless sensors in the bedrooms, living is the common zone, wants the app." } }, `${brief}\n5 zones. ME zone controller with temperature control, wireless sensors in the bedrooms, living is the common zone, wants the app.`);
+    const pair = sizeDucted([{ loadKw: 12.2 }], pack).options[0]!;
+    const rows = ductedKitRows(pair, read, { runM: 15, outdoorAt: "wall", newCircuit: null, drainPump: false }, ME).map((r) => `${r.name} | ${r.qty}`);
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        "Zone damper Ø250 | 4",
+        "Zone cable | 4",
+        "PAC-ZC10L240C-A | 1",
+        "PAR-ZM01A-A | 1",
+        "PAR-ZR01R-A | 1",
+        "PAR-ZR01S-A | 3",
+        "AAA battery | 6",
+        "MAC-588IF-E | 1",
+      ])
+    );
+    expect(rows.some((r) => r.startsWith("Zone controller"))).toBe(false);
+  });
+
+  it("asks the interface when the zones aren't known, and says what its book won't take", () => {
+    const pair = sizeDucted([{ loadKw: 12.2 }], pack).options[0]!;
+    const { read } = checkDucted(tiff, brief);
+    expect(ductedKitRows(pair, read, { runM: 15, outdoorAt: "wall", newCircuit: null, drainPump: false }, ME).find((r) => r.name === "Zone interface")).toEqual({
+      name: "Zone interface",
+      sub: "PAC-ZC04L240C-A or PAC-ZC10L240C-A: by the zones, Mitsubishi Electric's book",
+      qty: "Count to ask",
+    });
+    const words = makerZoningWords(ME, { ...read.zoning!, sensors: Array.from({ length: 5 }, (_, i) => ({ room: `R${i}`, wireless: false })), zones: 12 });
+    expect(words).toEqual([
+      "5 wired sensors: Mitsubishi Electric's book takes 4",
+      "12 zones: Mitsubishi Electric's controller takes 10",
+      "Damper cable: RJ12 6P/6C, 0.48 mm², up to 30 m a run (Mitsubishi Electric's book)",
+    ]);
+  });
+});
+
+/* ── the business's usual layout, for a brief that describes none ── */
+import { usualLayoutPieces } from "../brief-ducted";
+
+describe("the business's usual ductwork", () => {
+  const five = [{ room: "", count: 5, type: "mdo" as const, neckMm: 250, lengthMm: null, heightMm: null, flangeless: false, said: "5 mdo" }];
+
+  it("is trunks of Ø350, up to three outlets each — three a BTO then a Y, two a Y — named by size, never a supplier's code", () => {
+    expect(usualLayoutPieces("trunks", five)!.map((p) => [p.piece, p.inMm, p.outsMm])).toEqual([
+      ["trunk", 350, []],
+      ["fitting", 350, [300, 250]],
+      ["fitting", 300, [250, 250]],
+      ["trunk", 350, []],
+      ["fitting", 350, [250, 250]],
+    ]);
+  });
+
+  it("or a plenum with a spigot for each outlet; nothing when the sizes aren't known or it isn't set", () => {
+    expect(usualLayoutPieces("plenum", five)![0]!.outsMm).toEqual([250, 250, 250, 250, 250]);
+    expect(usualLayoutPieces("trunks", [{ ...five[0]!, neckMm: null }])).toBeNull();
+    expect(usualLayoutPieces(null, five)).toBeNull();
+  });
+
+  it("stands in for a layout the brief doesn't give, and isn't asked then", () => {
+    const pair = sizeDucted([{ loadKw: 12.2 }], pack).options[0]!;
+    const { read } = checkDucted({ ...tiff, layout: [] }, brief);
+    const usual = usualLayoutPieces("trunks", read.outlets.filter((o) => o.type === "mdo" || o.type === "round"));
+    const rows = ductedKitRows(pair, read, { runM: 15, outdoorAt: "wall", newCircuit: null, drainPump: false }, null, usual);
+    /* four outlets are two and two — never one left behind a three */
+    expect(rows.filter((r) => /usual layout/.test(r.sub)).map((r) => r.name)).toEqual([
+      "Trunk Ø350",
+      "Fitting Ø350 → Ø250 / Ø250",
+      "Trunk Ø350",
+      "Fitting Ø350 → Ø250 / Ø250",
+    ]);
+    expect(ductedAsks(read, { runM: 15, outdoorAt: "wall", newCircuit: null, drainPump: false }, [], usual)).not.toContain("how the ductwork runs");
+  });
+});

@@ -26,7 +26,16 @@ export type QuoteSettings = {
   contingencyHours: number | null;
   /** what a kit carries that isn't one price-book item, at cost; null: not set */
   allowances: Record<AllowanceKey, number | null>;
+  /** how the business usually runs ductwork, for a brief that doesn't say;
+      null: asked */
+  usualLayout: UsualLayout | null;
   preferred: Partial<Record<ComponentKey, Preferred>>;
+};
+
+export type UsualLayout = "trunks" | "plenum";
+export const USUAL_LAYOUT_WORDS: Record<UsualLayout, string> = {
+  trunks: "Trunks of Ø350 off the unit, up to three outlets each, stepped down through BTOs and Ys",
+  plenum: "A plenum on the unit with a spigot for each outlet",
 };
 
 export type AllowanceKey = "consumables" | "newCircuit" | "flush" | "recovery";
@@ -52,6 +61,7 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   contingencyPct: null,
   contingencyHours: null,
   allowances: { consumables: null, newCircuit: null, flush: null, recovery: null },
+  usualLayout: null,
   preferred: {},
 };
 
@@ -116,6 +126,7 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
     contingencyPct: clampTo(r.contingency_pct ?? r.contingencyPct, 0, MAX_CONTINGENCY_PCT) ?? d.contingencyPct,
     contingencyHours: clampTo(r.contingency_hours ?? r.contingencyHours, 0, MAX_CONTINGENCY_HOURS) ?? d.contingencyHours,
     allowances: allowancesOf(r),
+    usualLayout: ((v: unknown) => (v === "trunks" || v === "plenum" ? v : null))(r.usual_layout ?? r.usualLayout),
     preferred: preferredOf(r.preferred),
   };
 }
@@ -134,6 +145,7 @@ export function quoteSettingsRow(s: QuoteSettings) {
     contingency_pct: s.contingencyPct,
     contingency_hours: s.contingencyHours,
     ...Object.fromEntries(ALLOWANCE_KEYS.map((k) => [ALLOWANCES[k].column, s.allowances[k]])),
+    usual_layout: s.usualLayout,
     preferred,
   };
 }

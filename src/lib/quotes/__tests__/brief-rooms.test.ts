@@ -1,4 +1,4 @@
-import { checkRooms, kitRows, sizeRoom, type ReadBrief, type ReadRoom } from "../brief-rooms";
+import { checkRooms, kitRows, sizeRoom, withSwap, type ReadBrief, type ReadRoom } from "../brief-rooms";
 
 /* Isaac, 2026-10-04: "What if I said the room is 30m2?" */
 
@@ -23,7 +23,15 @@ const room0 = (r: Partial<ReadRoom>): ReadRoom => ({
   circuitSaid: null,
   ...r,
 });
-const read = (rooms: ReadRoom[]): ReadBrief => ({ rooms, buildingType: "residential", zone: { zone: 5, town: "Riverview" }, ducted: null });
+const read = (rooms: ReadRoom[]): ReadBrief => ({
+  rooms,
+  buildingType: "residential",
+  zone: { zone: 5, town: "Riverview" },
+  ducted: null,
+  vrf: false,
+  vrfHeads: null,
+  swap: { replacing: null, replacingSaid: null, keepPipe: null, keepPipeSaid: null },
+});
 
 const brief = "Living room is 30m2, west facing with lots of glass. Pipe run about 7m. Bed 2 is about 4 x 3.5. Bed 3 to match.";
 
@@ -210,5 +218,57 @@ describe("one multi for the rooms", () => {
   it("says when no multi takes the rooms, and none for a single room", () => {
     expect(sizeMulti([sized("Hall", 30), sized("Bed", 2)], pack)).toEqual({ ok: false, why: "No multi head of that style in the data pack covers Hall's 30 kW" });
     expect(sizeMulti([sized("Only", 2)], pack)).toBeNull();
+  });
+});
+
+describe("a swap, on any kit", () => {
+  const rows = [
+    { name: "MSZ-AP50VGD2", sub: "Wall indoor unit, Living", qty: "1" },
+    { name: "MUZ-AP50VG2", sub: "Outdoor unit, Living", qty: "1" },
+    { name: "ø6.35 / ø12.7 pair coil", sub: "liquid / gas mm, Living", qty: "7 m" },
+    { name: "Isolator", sub: "Living", qty: "1" },
+    { name: "Pipe cover", sub: "along the run, Living", qty: "7 m" },
+  ];
+  it("flushes the kept pipe in place of new coil and cover, and recovers and removes the old system", () => {
+    expect(withSwap(rows, { replacing: true, keepPipe: true }, "Living").map((r) => r.name)).toEqual([
+      "MSZ-AP50VGD2",
+      "MUZ-AP50VG2",
+      "Pipe flush",
+      "Recovery and removal",
+      "Isolator",
+    ]);
+    expect(withSwap(rows, { replacing: true, keepPipe: false }, "Living").map((r) => r.name)).toContain("ø6.35 / ø12.7 pair coil");
+    expect(withSwap(rows, { replacing: false, keepPipe: false }, "Living")).toEqual(rows);
+  });
+});
+
+/* ── the rooms on a VRF or PUMY, on the shipped pack ── */
+import { sizeVrf, vrfKitRows } from "../brief-vrf";
+
+describe("the rooms on a VRF", () => {
+  const pack = shipped();
+  const five = ["Bed 1", "Bed 2", "Bed 3", "Bed 4", "Study"].map((n) => sized(n, 2.0, 8));
+
+  it("puts every head on branch boxes, or every head a City Multi head on joints — never a mix", () => {
+    const box = sizeVrf(five, pack, "box");
+    const joint = sizeVrf(five, pack, "joint");
+    expect(box?.ok && joint?.ok).toBe(true);
+    if (!box?.ok || !joint?.ok) return;
+    expect(box.vrf.outdoor).toMatch(/^PUMY/);
+    expect(box.vrf.fittings.map((f) => f.kind)).toEqual(expect.arrayContaining(["box"]));
+    expect(box.vrf.heads.every((h) => /^M[SLF]Z|^S[LE]Z|^PEAD/.test(h.indoor))).toBe(true);
+    expect(joint.vrf.fittings.every((f) => f.kind !== "box")).toBe(true);
+    expect(joint.vrf.sections.filter((s) => s.room).map((s) => s.room).sort()).toEqual(["Bed 1", "Bed 2", "Bed 3", "Bed 4", "Study"]);
+  });
+
+  it("puts on the outdoor once, each head, each fitting by its part, each section at its size — a head's own run, the main asked", () => {
+    const p = sizeVrf(five, pack, "box");
+    if (!p?.ok) throw new Error("no vrf");
+    const rows = vrfKitRows(p.vrf, five, { runs: Object.fromEntries(five.map((r) => [r.name, 8])), outdoorAt: "ground" });
+    expect(rows.filter((r) => /indoor unit/.test(r.sub))).toHaveLength(5);
+    expect(rows.filter((r) => r.name === "Ground mount")).toHaveLength(1);
+    expect(rows.filter((r) => /main line/.test(r.sub)).every((r) => r.qty === "Run to ask")).toBe(true);
+    expect(rows.filter((r) => /pair coil|copper/.test(r.name) && / Bed 1$/.test(r.sub)).map((r) => r.qty)).toEqual(["8 m"]);
+    for (const f of p.vrf.fittings) if (f.part) expect(rows.map((r) => r.name)).toContain(f.part);
   });
 });

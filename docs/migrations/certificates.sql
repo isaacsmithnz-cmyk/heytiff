@@ -52,8 +52,8 @@ alter table public.certificates enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- UNUSED since 2026-10-03: no certifier is asked for or printed, and
--- nothing writes this table or certifier_profile_id. Kept because it is
--- already in production; dropping it needs its own migration.
+-- nothing writes this table or certifier_profile_id. Dropped 2026-10-05
+-- (drop_unused_cert_tables.sql).
 -- clause_keys is a record of what each last asked for, not a prefill.
 -- ---------------------------------------------------------------------------
 create table if not exists public.certifier_profiles (
@@ -108,6 +108,7 @@ alter table public.certificate_versions enable row level security;
 -- ---------------------------------------------------------------------------
 -- The fans the business fits, each with its rated airflow from the spec
 -- sheet, so a bathroom fan's figure is entered once and never typed again.
+-- Removed from the app 2026-10-03; dropped 2026-10-05 (drop_unused_cert_tables.sql).
 -- ---------------------------------------------------------------------------
 create table if not exists public.fan_models (
   id uuid primary key default gen_random_uuid(),

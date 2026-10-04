@@ -880,6 +880,10 @@ docs/certificates-plan.md is the design.
    business has changed (`docs/migrations/org_templates.sql`). No row means
    the standard wording, so nothing needs seeding. **Applied to production
    2026-10-03** (migration `org_templates`).
+6. `docs/migrations/drop_unused_cert_tables.sql` drops `certifier_profiles`,
+   `fan_models` and `certificate_versions.certifier_profile_id`, which nothing
+   reads or writes. **Applied to production 2026-10-05** (migration
+   `drop_unused_cert_tables`).
 
 ---
 

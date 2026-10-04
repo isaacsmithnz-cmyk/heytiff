@@ -102,6 +102,7 @@ it("shows one ducted system for the rooms — its pair, the brief's outlets and 
       loadKw: 6.6,
       options: [{ indoor: "PEAD-M71JAA(D)", outdoor: "SUZ-M71VAD-A", coolKw: 7.1, heatKw: 8, airflowLs: 417, liquidMm: 9.52, gasMm: 15.88, outdoorWidthMm: 800, outdoorWeightKg: 50, outdoorAmps: 16 }],
       air: [],
+      controller: null,
     },
   };
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ok: true, rooms: ducted }) }));

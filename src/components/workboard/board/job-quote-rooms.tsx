@@ -5,7 +5,7 @@ import { addJobPicklistItem } from "@/app/actions/job-picklist";
 import { CLIMATE_ZONES } from "@/lib/studio/loads";
 import type { BriefRooms, BriefRoomsResult } from "@/lib/quotes/brief-rooms-server";
 import { VRF_METHOD_WORDS, vrfKitRows, type VrfMethod, type VrfOption } from "@/lib/quotes/brief-vrf";
-import { ductedAsks, ductedKitRows, outletName, type DuctedPair } from "@/lib/quotes/brief-ducted";
+import { ductedAsks, ductedKitRows, makerZoningWords, outletName, type DuctedPair } from "@/lib/quotes/brief-ducted";
 import { kitRows, multiKitRows, withSwap, type Swap, multiPipeWords, type MultiOption, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
 
 /* ROOMS FROM THE BRIEF, on the job card's Quote section (Isaac, 2026-10-04:
@@ -480,7 +480,7 @@ function Ducted({
   })();
   const outdoorAt = where === undefined ? read.outdoor.at : where || null;
   const choices = { runM, outdoorAt, newCircuit: read.circuit.needed, drainPump: read.drain.how === "pump" };
-  const rowsOf = (o: DuctedPair) => withSwap(ductedKitRows(o, read, choices), swap, "the ducted system");
+  const rowsOf = (o: DuctedPair) => withSwap(ductedKitRows(o, read, choices, system.controller), swap, "the ducted system");
   const first = system.options[0];
   return (
     <div>
@@ -543,7 +543,10 @@ function Ducted({
       )}
       {read.returns.length > 0 && <p className="wb2-shtext">{`Returns: ${read.returns.map((r) => (r.common ? "a common return" : r.room)).join(", ")}.`}</p>}
       {read.layout.length > 0 && <p className="wb2-shtext">{`Ductwork, as the brief has it: ${read.layout.map((p) => `“${p.said}”`).join(" ")}`}</p>}
-      {read.zoning && <p className="wb2-shtext">{`Zoning: “${read.zoning.said}”`}</p>}
+      {read.zoning && <p className="wb2-shtext">{`Zoning: “${read.zoning.said}”${system.controller ? `, by ${system.controller.vendor}'s book in the data pack` : ""}`}</p>}
+      {makerZoningWords(system.controller, read.zoning).map((w) => (
+        <p className="wb2-shtext" key={w}>{`${w}.`}</p>
+      ))}
       {system.air.map((w) => (
         <p className="wb2-shtext" key={w}>{`${w}.`}</p>
       ))}

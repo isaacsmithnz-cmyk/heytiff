@@ -1,4 +1,4 @@
-import type { DataPack } from "@/lib/studio/packs/schema";
+import type { DataPack, ZoningController } from "@/lib/studio/packs/schema";
 import type { SizedRoom } from "./brief-rooms";
 import { KIT, RUN_TO_ASK, WHERE_TO_ASK, type OutdoorAt } from "./brief-rooms";
 
@@ -209,7 +209,13 @@ export type DuctedChoices = { runM: number | null; outdoorAt: OutdoorAt | null; 
     of ductwork — and the zoning: a damper and its cable a zone, the
     controller and sensors as said. What the brief doesn't give goes on
     asked. */
-export function ductedKitRows(pair: DuctedPair, read: DuctedRead, c: DuctedChoices): { name: string; sub: string; qty: string }[] {
+export function ductedKitRows(
+  pair: DuctedPair,
+  read: DuctedRead,
+  c: DuctedChoices,
+  /** the maker's zoning rules from the pack, when the brief names its controller */
+  controller: ZoningController | null = null
+): { name: string; sub: string; qty: string }[] {
   const sys = "the ducted system";
   const run = c.runM != null ? `${c.runM} m` : RUN_TO_ASK;
   const size = [pair.outdoorWidthMm != null ? `${pair.outdoorWidthMm} mm` : null, pair.outdoorWeightKg != null ? `${pair.outdoorWeightKg} kg` : null].filter(Boolean).join(", ");
@@ -259,14 +265,17 @@ export function ductedKitRows(pair: DuctedPair, read: DuctedRead, c: DuctedChoic
     const damper = necks.length === 1 ? `Zone damper Ø${necks[0]}` : "Zone damper";
     rows.push(
       { name: damper, sub: z.commonZone ? `a zone, not the common zone (${z.commonZone})` : "a zone", qty: zoned != null ? (necks.length === 1 ? String(zoned) : DUCT_ASK.zoneSize) : DUCT_ASK.outletCount },
-      { name: "Zone cable", sub: "a damper", qty: zoned != null ? String(zoned) : DUCT_ASK.outletCount },
-      { name: z.controller ? `Zone controller: ${z.controller}` : "Zone controller", sub: z.control === "temperature" ? "temperature control" : z.control === "on_off" ? "on/off" : sys, qty: "1" }
+      { name: "Zone cable", sub: "a damper", qty: zoned != null ? String(zoned) : DUCT_ASK.outletCount }
     );
-    const wireless = z.sensors.filter((s) => s.wireless).length;
-    const wired = z.sensors.length - wireless;
-    if (wireless) rows.push({ name: "Zone sensor, wireless", sub: z.sensors.filter((s) => s.wireless).map((s) => s.room).join(", "), qty: String(wireless) });
-    if (wired) rows.push({ name: "Zone sensor, wired", sub: z.sensors.filter((s) => !s.wireless).map((s) => s.room).join(", "), qty: String(wired) });
-    if (z.wifi) rows.push({ name: "Wi-Fi interface", sub: sys, qty: "1" });
+    if (controller) rows.push(...makerZoning(controller, z));
+    else {
+      rows.push({ name: z.controller ? `Zone controller: ${z.controller}` : "Zone controller", sub: z.control === "temperature" ? "temperature control" : z.control === "on_off" ? "on/off" : sys, qty: "1" });
+      const wireless = z.sensors.filter((s) => s.wireless).length;
+      const wired = z.sensors.length - wireless;
+      if (wireless) rows.push({ name: "Zone sensor, wireless", sub: z.sensors.filter((s) => s.wireless).map((s) => s.room).join(", "), qty: String(wireless) });
+      if (wired) rows.push({ name: "Zone sensor, wired", sub: z.sensors.filter((s) => !s.wireless).map((s) => s.room).join(", "), qty: String(wired) });
+      if (z.wifi) rows.push({ name: "Wi-Fi interface", sub: sys, qty: "1" });
+    }
   }
   rows.push({ name: KIT.consumables, sub: sys, qty: "1" });
   return rows;
@@ -293,5 +302,60 @@ export function ductedAsks(read: DuctedRead, c: DuctedChoices, rooms: readonly s
     if (unsensed.length) out.push(`a sensor for ${unsensed.join(", ")} (temperature control wants one in every zone), or on/off there`);
   }
   out.push("where the condensate drains");
+  return out;
+}
+
+/** Does the brief's controller name this maker's (a word of its vendor, or
+    its initials: "ME zone controller" is Mitsubishi Electric's)? */
+export function namesController(named: string | null, c: Pick<ZoningController, "vendor">): boolean {
+  if (!named) return false;
+  const words = c.vendor.toLowerCase().split(/\s+/);
+  const initials = words.map((w) => w[0]).join("");
+  const said = named.toLowerCase();
+  return words.some((w) => w.length > 3 && said.includes(w)) || new RegExp(`\\b${initials}\\b`).test(said);
+}
+
+/** The maker's zoning, from its book in the pack: the interface for the
+    zones and control, the main controller, a receiver for any wireless
+    device, the sensors and the batteries they don't come with, Wi-Fi. */
+function makerZoning(c: ZoningController, z: DuctedZoning): { name: string; sub: string; qty: string }[] {
+  const rows: { name: string; sub: string; qty: string }[] = [];
+  const by = `${c.vendor}'s book`;
+  const fits = (c.interfaces ?? []).filter((i) => (z.control ? i.control === z.control : true)).sort((a, b) => a.max_zones - b.max_zones);
+  const iface = z.zones != null ? fits.find((i) => i.max_zones >= z.zones!) : null;
+  if (iface) rows.push({ name: iface.model, sub: `zone interface, ${iface.max_zones} zones, ${iface.control === "on_off" ? "on/off" : "temperature"}, ${by}`, qty: "1" });
+  else if (fits.length)
+    rows.push({
+      name: "Zone interface",
+      sub: `${fits.map((i) => i.model).join(" or ")}: by the zones${z.control ? "" : " and the control"}, ${by}`,
+      qty: z.zones == null ? DUCT_ASK.outletCount : DUCT_ASK.zoneSize,
+    });
+  if (c.main_controller) rows.push({ name: c.main_controller.model, sub: `main controller, ${by}`, qty: String(c.main_controller.per_system) });
+  const wirelessSensor = (c.sensors ?? []).find((s) => s.kind === "wireless");
+  const wiredSensor = (c.sensors ?? []).find((s) => s.kind === "wired");
+  const wireless = z.sensors.filter((s) => s.wireless);
+  const wired = z.sensors.filter((s) => !s.wireless);
+  if (wireless.length && c.wireless_receiver)
+    rows.push({ name: c.wireless_receiver.model, sub: `wireless receiver, up to ${c.wireless_receiver.max_devices} devices, ${by}`, qty: String(Math.ceil(wireless.length / c.wireless_receiver.max_devices)) });
+  if (wireless.length && wirelessSensor) {
+    rows.push({ name: wirelessSensor.model, sub: `wireless sensor: ${wireless.map((s) => s.room).join(", ")}`, qty: String(wireless.length) });
+    if (wirelessSensor.batteries)
+      rows.push({ name: `${wirelessSensor.batteries.type} battery`, sub: `not included with ${wirelessSensor.model}, ${wirelessSensor.batteries.per} each`, qty: String(wireless.length * wirelessSensor.batteries.per) });
+  }
+  if (wired.length && wiredSensor) rows.push({ name: wiredSensor.model, sub: `wired sensor: ${wired.map((s) => s.room).join(", ")}`, qty: String(wired.length) });
+  if (z.wifi && c.wifi) rows.push({ name: c.wifi, sub: `Wi-Fi, ${by}`, qty: "1" });
+  return rows;
+}
+
+/** What the maker's book won't take, said: more wired sensors or wireless
+    devices than it allows. */
+export function makerZoningWords(c: ZoningController | null, z: DuctedZoning | null): string[] {
+  if (!c || !z) return [];
+  const out: string[] = [];
+  const wiredMax = (c.sensors ?? []).find((s) => s.kind === "wired")?.max;
+  const wired = z.sensors.filter((s) => !s.wireless).length;
+  if (wiredMax != null && wired > wiredMax) out.push(`${wired} wired sensors: ${c.vendor}'s book takes ${wiredMax}`);
+  if (z.zones != null && z.zones > c.max_zones) out.push(`${z.zones} zones: ${c.vendor}'s controller takes ${c.max_zones}`);
+  if (c.damper_cable) out.push(`Damper cable: ${c.damper_cable.kind}, up to ${c.damper_cable.max_m} m a run (${c.vendor}'s book)`);
   return out;
 }

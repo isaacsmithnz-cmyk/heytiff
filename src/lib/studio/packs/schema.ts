@@ -620,6 +620,25 @@ export interface ZoningController {
   sensor_options: string[];
   expansion_rules?: string;
   compatible_brands?: string[];
+  /* the maker's own rules, as its book prints them (optional: a vendor's
+     row can carry only the fields above) */
+  /** the interface by zones and control: on/off, or temperature (linear) */
+  interfaces?: { model: string; max_zones: number; control: "on_off" | "temperature" }[];
+  /** the main controller: `per_system` required, up to `max` with subs */
+  main_controller?: { model: string; per_system: number; max: number };
+  /** needed with any wireless sensor or zone remote; `max_devices` a receiver */
+  wireless_receiver?: { model: string; max_devices: number };
+  /** temperature sensors: wireless or wired, the batteries they don't come
+      with, and how many of a kind a system takes */
+  sensors?: { model: string; kind: "wireless" | "wired"; batteries?: { type: string; per: number }; max?: number }[];
+  /** wireless zone remotes, one at most a zone */
+  zone_remotes?: { model: string; batteries?: { type: string; per: number } }[];
+  wifi?: string;
+  /** temperature control needs a sensor or zone remote in every zone */
+  temperature_sensor_per_zone?: boolean;
+  /** field-supplied dampers and their cable, as the maker specifies them */
+  damper?: { volts: string; drive: string; max_ma: number };
+  damper_cable?: { kind: string; max_m: number };
   provenance: Provenance;
 }
 

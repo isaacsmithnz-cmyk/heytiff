@@ -3,7 +3,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
 import type { BuildingType } from "@/lib/studio/loads";
 import { sizeVrf, type VrfMethod, type VrfProposal } from "./brief-vrf";
-import { checkDucted, ductedAirWords, sizeDucted, type DuctedPair, type DuctedRead } from "./brief-ducted";
+import type { ZoningController } from "@/lib/studio/packs/schema";
+import { checkDucted, ductedAirWords, namesController, sizeDucted, type DuctedPair, type DuctedRead } from "./brief-ducted";
 import { checkRooms, isZone, sizeMulti, sizeRoom, type MultiProposal, type ReadBrief, type ReadRoom, type SizedRoom } from "./brief-rooms";
 import { MODEL, readProposalJob, readStoredProposal } from "./proposal-writer";
 
@@ -375,6 +376,8 @@ export type BriefRooms = {
     options: DuctedPair[];
     /** the pack's air check for the first option */
     air: string[];
+    /** the maker's zoning rules, when the brief names its controller */
+    controller: ZoningController | null;
   } | null;
 };
 
@@ -412,7 +415,14 @@ export async function sizeRooms(
     vrfHeads,
     ducted:
       ducted && system
-        ? { read: ducted.read, dropped: ducted.dropped, loadKw: system.loadKw, options: system.options, air: system.options[0] ? ductedAirWords(system.options[0], ducted.read) : [] }
+        ? {
+            read: ducted.read,
+            dropped: ducted.dropped,
+            loadKw: system.loadKw,
+            options: system.options,
+            air: system.options[0] ? ductedAirWords(system.options[0], ducted.read) : [],
+            controller: pack?.zoning_controllers.find((z) => namesController(ducted.read.zoning?.controller ?? null, z)) ?? null,
+          }
         : null,
   };
 }

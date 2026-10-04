@@ -1,4 +1,4 @@
-import { checkRooms, kitRows, sizeRoom, type ReadBrief, type ReadRoom } from "../brief-rooms";
+import { checkRooms, kitRows, sizeRoom, withSwap, type ReadBrief, type ReadRoom } from "../brief-rooms";
 
 /* Isaac, 2026-10-04: "What if I said the room is 30m2?" */
 
@@ -23,7 +23,13 @@ const room0 = (r: Partial<ReadRoom>): ReadRoom => ({
   circuitSaid: null,
   ...r,
 });
-const read = (rooms: ReadRoom[]): ReadBrief => ({ rooms, buildingType: "residential", zone: { zone: 5, town: "Riverview" }, ducted: null });
+const read = (rooms: ReadRoom[]): ReadBrief => ({
+  rooms,
+  buildingType: "residential",
+  zone: { zone: 5, town: "Riverview" },
+  ducted: null,
+  swap: { replacing: null, replacingSaid: null, keepPipe: null, keepPipeSaid: null },
+});
 
 const brief = "Living room is 30m2, west facing with lots of glass. Pipe run about 7m. Bed 2 is about 4 x 3.5. Bed 3 to match.";
 
@@ -210,5 +216,26 @@ describe("one multi for the rooms", () => {
   it("says when no multi takes the rooms, and none for a single room", () => {
     expect(sizeMulti([sized("Hall", 30), sized("Bed", 2)], pack)).toEqual({ ok: false, why: "No multi head of that style in the data pack covers Hall's 30 kW" });
     expect(sizeMulti([sized("Only", 2)], pack)).toBeNull();
+  });
+});
+
+describe("a swap, on any kit", () => {
+  const rows = [
+    { name: "MSZ-AP50VGD2", sub: "Wall indoor unit, Living", qty: "1" },
+    { name: "MUZ-AP50VG2", sub: "Outdoor unit, Living", qty: "1" },
+    { name: "ø6.35 / ø12.7 pair coil", sub: "liquid / gas mm, Living", qty: "7 m" },
+    { name: "Isolator", sub: "Living", qty: "1" },
+    { name: "Pipe cover", sub: "along the run, Living", qty: "7 m" },
+  ];
+  it("flushes the kept pipe in place of new coil and cover, and recovers and removes the old system", () => {
+    expect(withSwap(rows, { replacing: true, keepPipe: true }, "Living").map((r) => r.name)).toEqual([
+      "MSZ-AP50VGD2",
+      "MUZ-AP50VG2",
+      "Pipe flush",
+      "Recovery and removal",
+      "Isolator",
+    ]);
+    expect(withSwap(rows, { replacing: true, keepPipe: false }, "Living").map((r) => r.name)).toContain("ø6.35 / ø12.7 pair coil");
+    expect(withSwap(rows, { replacing: false, keepPipe: false }, "Living")).toEqual(rows);
   });
 });

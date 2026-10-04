@@ -5,7 +5,7 @@ import { addJobPicklistItem } from "@/app/actions/job-picklist";
 import { CLIMATE_ZONES } from "@/lib/studio/loads";
 import type { BriefRooms, BriefRoomsResult } from "@/lib/quotes/brief-rooms-server";
 import { ductedAsks, ductedKitRows, outletName, type DuctedPair } from "@/lib/quotes/brief-ducted";
-import { kitRows, multiKitRows, multiPipeWords, type MultiOption, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
+import { kitRows, multiKitRows, withSwap, type Swap, multiPipeWords, type MultiOption, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
 
 /* ROOMS FROM THE BRIEF, on the job card's Quote section (Isaac, 2026-10-04:
    "What if I said the room is 30m2?"). Pressed, Tiff reads the rooms the
@@ -52,7 +52,10 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
     const set = wheres[r.name];
     return set === undefined ? r.outdoorAt : set || null;
   };
-  const kitOf = (r: SizedRoom, o: PairOption) => kitRows(r, o, { runM: runOf(r), outdoorAt: whereOf(r) });
+  /* a swap, as the brief says it or as a person ticks it */
+  const [swapSet, setSwapSet] = useState<Swap | null>(null);
+  const swapOf = (): Swap => swapSet ?? rooms?.swap ?? { replacing: false, keepPipe: false };
+  const kitOf = (r: SizedRoom, o: PairOption) => withSwap(kitRows(r, o, { runM: runOf(r), outdoorAt: whereOf(r) }), swapOf(), r.name);
 
   const post = async (body: object, word: string) => {
     setBusy(word);
@@ -68,7 +71,11 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
   };
 
   const rezone = (zone: number) =>
-    rooms && void post({ read: rooms.read, zone, buildingType: rooms.buildingType, buildingSaid: rooms.buildingSaid, dropped: rooms.dropped }, "zone");
+    rooms &&
+    void post(
+      { read: rooms.read, zone, buildingType: rooms.buildingType, buildingSaid: rooms.buildingSaid, dropped: rooms.dropped, ducted: rooms.ducted, swap: swapOf() },
+      "zone"
+    );
 
   const add = async (room: SizedRoom, o: PairOption) => {
     const key = `${room.name}|${o.indoor}`;
@@ -93,10 +100,14 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
   const multiWhereOf = (): OutdoorAt | null =>
     multiWhere === undefined ? (rooms?.rooms.find((r) => r.outdoorAt != null)?.outdoorAt ?? null) : multiWhere || null;
   const multiRows = (m: MultiOption) =>
-    multiKitRows(m, rooms?.rooms ?? [], {
-      runs: Object.fromEntries((rooms?.rooms ?? []).map((r) => [r.name, runOf(r)])),
-      outdoorAt: multiWhereOf(),
-    });
+    withSwap(
+      multiKitRows(m, rooms?.rooms ?? [], {
+        runs: Object.fromEntries((rooms?.rooms ?? []).map((r) => [r.name, runOf(r)])),
+        outdoorAt: multiWhereOf(),
+      }),
+      swapOf(),
+      "the multi"
+    );
 
   /* a whole system's rows, as the ducted block built them */
   const addSystem = async (key: string, rows: ReturnType<typeof kitRows>) => {
@@ -143,6 +154,30 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
       {note && <p className="wb2-sherr">{note}</p>}
       {rooms && (
         <>
+          <div className="wb2-mline">
+            <b>A swap</b>
+            <em>{swapSet === null && (rooms.swap.replacing || rooms.swap.keepPipe) ? "From the brief" : "Ticked here, or a new install"}</em>
+            <span className="qs-acts2 qs-act">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={swapOf().replacing}
+                  disabled={busy !== null}
+                  onChange={(e) => setSwapSet({ ...swapOf(), replacing: e.target.checked })}
+                />{" "}
+                Old system out
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={swapOf().keepPipe}
+                  disabled={busy !== null}
+                  onChange={(e) => setSwapSet({ ...swapOf(), keepPipe: e.target.checked })}
+                />{" "}
+                Keeping the pipe
+              </label>
+            </span>
+          </div>
           <div className="wb2-mline">
             <b>Climate zone</b>
             <em>
@@ -244,6 +279,7 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
           {rooms.ducted && (
             <Ducted
               system={rooms.ducted}
+              swap={swapOf()}
               roomNames={rooms.rooms.map((r) => r.name)}
               busy={busy}
               added={added}
@@ -321,12 +357,14 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
    by piece, and zoning; what the brief left out is asked. */
 function Ducted({
   system,
+  swap,
   roomNames,
   busy,
   added,
   onAdd,
 }: {
   system: NonNullable<BriefRooms["ducted"]>;
+  swap: Swap;
   /** the rooms the brief sized: the system's zones' rooms */
   roomNames: string[];
   busy: string | null;
@@ -343,7 +381,7 @@ function Ducted({
   })();
   const outdoorAt = where === undefined ? read.outdoor.at : where || null;
   const choices = { runM, outdoorAt, newCircuit: read.circuit.needed, drainPump: read.drain.how === "pump" };
-  const rowsOf = (o: DuctedPair) => ductedKitRows(o, read, choices);
+  const rowsOf = (o: DuctedPair) => withSwap(ductedKitRows(o, read, choices), swap, "the ducted system");
   const first = system.options[0];
   return (
     <div>

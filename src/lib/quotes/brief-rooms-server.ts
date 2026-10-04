@@ -34,6 +34,9 @@ building_type: residential for a home, light_commercial for an office or shop, c
 
 zone: the Australian NCC climate zone (1 to 8) of the site address, and the town you placed it by; zone 0 and town "" when there's no address or you can't place it.
 
+replacing and replacing_said: "yes" when the brief says an old system comes out (a swap, a replacement), "no" when it says it's a new install; with its words. "unknown" and "" when it doesn't say.
+keep_pipe and keep_pipe_said: "yes" when the brief says the existing pipework is kept or reused, "no" when it says new pipe; with its words. "unknown" and "" when it doesn't say.
+
 ducted_system: "yes" when the brief describes one ducted system serving the rooms, "no" when it doesn't, "unknown" if you can't tell.`;
 
 /* Every "not said" is a value, not a null: the API takes at most 16 fields
@@ -44,7 +47,7 @@ const known = (values: readonly string[]) => ({ type: "string", enum: [...values
 const schema = {
   type: "object",
   additionalProperties: false,
-  required: ["rooms", "building_type", "zone", "ducted_system"],
+  required: ["rooms", "building_type", "zone", "ducted_system", "replacing", "replacing_said", "keep_pipe", "keep_pipe_said"],
   properties: {
     rooms: {
       type: "array",
@@ -77,6 +80,10 @@ const schema = {
     building_type: known(["residential", "light_commercial", "commercial"]),
     zone: { type: "object", additionalProperties: false, required: ["zone", "town"], properties: { zone: { type: "integer" }, town: { type: "string" } } },
     ducted_system: known(["yes", "no"]),
+    replacing: known(["yes", "no"]),
+    replacing_said: { type: "string" },
+    keep_pipe: known(["yes", "no"]),
+    keep_pipe_said: { type: "string" },
   },
 };
 
@@ -213,6 +220,10 @@ type Raw = {
   building_type: string;
   zone: { zone: number; town: string };
   ducted_system?: string;
+  replacing?: string;
+  replacing_said?: string;
+  keep_pipe?: string;
+  keep_pipe_said?: string;
 };
 
 type RawDucted = {
@@ -321,6 +332,7 @@ const readOf = (raw: Raw): ReadBrief => ({
   buildingType: oneOf(raw.building_type, ["residential", "light_commercial", "commercial"] as const),
   /* filled by the second read, when the first says it's ducted */
   ducted: null,
+  swap: { replacing: yesNo(raw.replacing), replacingSaid: words(raw.replacing_said), keepPipe: yesNo(raw.keep_pipe), keepPipeSaid: words(raw.keep_pipe_said) },
   zone: raw.zone && isZone(raw.zone.zone) ? { zone: raw.zone.zone, town: String(raw.zone.town ?? "").slice(0, 60) } : null,
 });
 
@@ -335,6 +347,8 @@ export type BriefRooms = {
   zone: { zone: number; from: "address" | "chosen"; town: string | null } | null;
   /** the same rooms on one multi, when there are two or more */
   multi: MultiProposal | null;
+  /** a swap as the brief says it (each true only on its words) */
+  swap: { replacing: boolean; keepPipe: boolean };
   /** one ducted system for the rooms, when the brief describes one */
   ducted: {
     read: DuctedRead;
@@ -356,7 +370,8 @@ export async function sizeRooms(
   buildingSaid: boolean,
   zone: BriefRooms["zone"],
   dropped: string[] = [],
-  ducted: { read: DuctedRead; dropped: string[] } | null = null
+  ducted: { read: DuctedRead; dropped: string[] } | null = null,
+  swap: BriefRooms["swap"] = { replacing: false, keepPipe: false }
 ): Promise<BriefRooms> {
   const ref = await latestInstalledPack(PACK_BRAND);
   const pack = ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
@@ -370,6 +385,7 @@ export async function sizeRooms(
     buildingType,
     buildingSaid,
     zone,
+    swap,
     multi: pack && !ducted ? sizeMulti(sized, pack) : null,
     ducted:
       ducted && system
@@ -439,5 +455,8 @@ export async function readBriefRooms(orgId: string, job: string, client: Anthrop
   const { rooms, dropped } = checkRooms(read, brief);
   const zone = read.zone ? { zone: read.zone.zone, from: "address" as const, town: read.zone.town || null } : null;
   const ducted = read.ducted ? checkDucted(read.ducted, brief) : null;
-  return { ok: true, rooms: await sizeRooms(rooms, read.buildingType ?? "residential", read.buildingType != null, zone, dropped, ducted) };
+  /* a swap counts only on the brief's own words */
+  const said = (w: string | null) => !!w && w.trim().length >= 3 && brief.toLowerCase().replace(/\s+/g, " ").includes(w.toLowerCase().replace(/\s+/g, " ").trim());
+  const swap = { replacing: read.swap.replacing === true && said(read.swap.replacingSaid), keepPipe: read.swap.keepPipe === true && said(read.swap.keepPipeSaid) };
+  return { ok: true, rooms: await sizeRooms(rooms, read.buildingType ?? "residential", read.buildingType != null, zone, dropped, ducted, swap) };
 }

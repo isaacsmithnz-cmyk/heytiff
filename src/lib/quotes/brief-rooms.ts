@@ -62,6 +62,9 @@ export type ReadBrief = {
   rooms: ReadRoom[];
   /** one ducted system for the rooms, when the brief describes one */
   ducted: DuctedRead | null;
+  /** a swap: an old system comes out, the existing pipe is kept — each only
+      when the brief says, with its words */
+  swap: { replacing: boolean | null; replacingSaid: string | null; keepPipe: boolean | null; keepPipeSaid: string | null };
   buildingType: BuildingType | null;
   /** the NCC climate zone Tiff reads off the site address, and the town */
   zone: { zone: number; town: string } | null;
@@ -385,4 +388,25 @@ export function multiKitRows(
     rows.push({ name: KIT.consumables, sub: `a head, ${h.room}`, qty: "1" });
   }
   return rows;
+}
+
+/* ── A SWAP, ON ANY KIT ──────────────────────────────────────────────────
+   When the old system comes out, its refrigerant is recovered and it's taken
+   away; when the existing pipe is kept, it's flushed instead of new coil
+   and cover going in. Each is the business's own allowance (Quoting), and
+   only when the brief says it, or a person ticks it. */
+
+export type Swap = { replacing: boolean; keepPipe: boolean };
+
+/** A kit's rows with the swap applied: the existing pipe flushed in place
+    of new coil and cover, and the old system recovered and removed. */
+export function withSwap(rows: readonly { name: string; sub: string; qty: string }[], swap: Swap, system: string): { name: string; sub: string; qty: string }[] {
+  const out = swap.keepPipe ? rows.filter((r) => !/pair coil$/.test(r.name) && r.name !== KIT.pipeCover) : [...rows];
+  const units = out.findIndex((r) => !/indoor unit|outdoor unit/i.test(r.sub));
+  const at = units === -1 ? out.length : units;
+  const added = [
+    ...(swap.keepPipe ? [{ name: "Pipe flush", sub: `the existing pipe, ${system}`, qty: "1" }] : []),
+    ...(swap.replacing ? [{ name: "Recovery and removal", sub: `the old system, ${system}`, qty: "1" }] : []),
+  ];
+  return [...out.slice(0, at), ...added, ...out.slice(at)];
 }

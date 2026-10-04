@@ -4,7 +4,9 @@ import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/serve
 import type { BuildingType } from "@/lib/studio/loads";
 import { sizeVrf, type VrfMethod, type VrfProposal } from "./brief-vrf";
 import type { ZoningController } from "@/lib/studio/packs/schema";
-import { checkDucted, ductedAirWords, namesController, sizeDucted, type DuctedPair, type DuctedRead } from "./brief-ducted";
+import { readQuoteSettings } from "./settings-query";
+import type { UsualLayout } from "./settings";
+import { checkDucted, ductedAirWords, namesController, sizeDucted, usualLayoutPieces, type DuctPiece, type DuctedPair, type DuctedRead } from "./brief-ducted";
 import { checkRooms, isZone, sizeMulti, sizeRoom, type MultiProposal, type ReadBrief, type ReadRoom, type SizedRoom } from "./brief-rooms";
 import { MODEL, readProposalJob, readStoredProposal } from "./proposal-writer";
 
@@ -378,6 +380,8 @@ export type BriefRooms = {
     air: string[];
     /** the maker's zoning rules, when the brief names its controller */
     controller: ZoningController | null;
+    /** the business's usual ductwork, when the brief describes none */
+    usual: DuctPiece[] | null;
   } | null;
 };
 
@@ -393,7 +397,8 @@ export async function sizeRooms(
   ducted: { read: DuctedRead; dropped: string[] } | null = null,
   swap: BriefRooms["swap"] = { replacing: false, keepPipe: false },
   vrfSaid = false,
-  vrfHeads: VrfMethod | null = null
+  vrfHeads: VrfMethod | null = null,
+  usualLayout: UsualLayout | null = null
 ): Promise<BriefRooms> {
   const ref = await latestInstalledPack(PACK_BRAND);
   const pack = ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
@@ -422,6 +427,7 @@ export async function sizeRooms(
             options: system.options,
             air: system.options[0] ? ductedAirWords(system.options[0], ducted.read) : [],
             controller: pack?.zoning_controllers.find((z) => namesController(ducted.read.zoning?.controller ?? null, z)) ?? null,
+            usual: ducted.read.layout.length ? null : usualLayoutPieces(usualLayout, ducted.read.outlets),
           }
         : null,
   };
@@ -491,5 +497,5 @@ export async function readBriefRooms(orgId: string, job: string, client: Anthrop
   /* a swap counts only on the brief's own words */
   const said = (w: string | null) => !!w && w.trim().length >= 3 && brief.toLowerCase().replace(/\s+/g, " ").includes(w.toLowerCase().replace(/\s+/g, " ").trim());
   const swap = { replacing: read.swap.replacing === true && said(read.swap.replacingSaid), keepPipe: read.swap.keepPipe === true && said(read.swap.keepPipeSaid) };
-  return { ok: true, rooms: await sizeRooms(rooms, read.buildingType ?? "residential", read.buildingType != null, zone, dropped, ducted, swap, read.vrf, read.vrfHeads) };
+  return { ok: true, rooms: await sizeRooms(rooms, read.buildingType ?? "residential", read.buildingType != null, zone, dropped, ducted, swap, read.vrf, read.vrfHeads, (await readQuoteSettings(orgId)).usualLayout) };
 }

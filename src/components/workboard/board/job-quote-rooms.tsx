@@ -480,7 +480,7 @@ function Ducted({
   })();
   const outdoorAt = where === undefined ? read.outdoor.at : where || null;
   const choices = { runM, outdoorAt, newCircuit: read.circuit.needed, drainPump: read.drain.how === "pump" };
-  const rowsOf = (o: DuctedPair) => withSwap(ductedKitRows(o, read, choices, system.controller), swap, "the ducted system");
+  const rowsOf = (o: DuctedPair) => withSwap(ductedKitRows(o, read, choices, system.controller, system.usual), swap, "the ducted system");
   const first = system.options[0];
   return (
     <div>
@@ -543,6 +543,7 @@ function Ducted({
       )}
       {read.returns.length > 0 && <p className="wb2-shtext">{`Returns: ${read.returns.map((r) => (r.common ? "a common return" : r.room)).join(", ")}.`}</p>}
       {read.layout.length > 0 && <p className="wb2-shtext">{`Ductwork, as the brief has it: ${read.layout.map((p) => `“${p.said}”`).join(" ")}`}</p>}
+      {read.layout.length === 0 && system.usual && <p className="wb2-shtext">Ductwork: your usual layout from Quoting, as the brief doesn&apos;t describe one.</p>}
       {read.zoning && <p className="wb2-shtext">{`Zoning: “${read.zoning.said}”${system.controller ? `, by ${system.controller.vendor}'s book in the data pack` : ""}`}</p>}
       {makerZoningWords(system.controller, read.zoning).map((w) => (
         <p className="wb2-shtext" key={w}>{`${w}.`}</p>
@@ -558,7 +559,7 @@ function Ducted({
             .join(", ")}.`}
         </p>
       )}
-      <p className="wb2-shtext">{`To ask: ${ductedAsks(read, choices, roomNames).join("; ")}.`}</p>
+      <p className="wb2-shtext">{`To ask: ${ductedAsks(read, choices, roomNames, system.usual).join("; ")}.`}</p>
       {system.dropped.length > 0 && <p className="wb2-shtext">{`Not used, their words aren't the brief's: ${system.dropped.join(", ")}.`}</p>}
     </div>
   );

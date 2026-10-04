@@ -201,3 +201,41 @@ describe("the maker's zoning", () => {
     ]);
   });
 });
+
+/* ── the business's usual layout, for a brief that describes none ── */
+import { usualLayoutPieces } from "../brief-ducted";
+
+describe("the business's usual ductwork", () => {
+  const five = [{ room: "", count: 5, type: "mdo" as const, neckMm: 250, lengthMm: null, heightMm: null, flangeless: false, said: "5 mdo" }];
+
+  it("is trunks of Ø350, up to three outlets each — three a BTO then a Y, two a Y — named by size, never a supplier's code", () => {
+    expect(usualLayoutPieces("trunks", five)!.map((p) => [p.piece, p.inMm, p.outsMm])).toEqual([
+      ["trunk", 350, []],
+      ["fitting", 350, [300, 250]],
+      ["fitting", 300, [250, 250]],
+      ["trunk", 350, []],
+      ["fitting", 350, [250, 250]],
+    ]);
+  });
+
+  it("or a plenum with a spigot for each outlet; nothing when the sizes aren't known or it isn't set", () => {
+    expect(usualLayoutPieces("plenum", five)![0]!.outsMm).toEqual([250, 250, 250, 250, 250]);
+    expect(usualLayoutPieces("trunks", [{ ...five[0]!, neckMm: null }])).toBeNull();
+    expect(usualLayoutPieces(null, five)).toBeNull();
+  });
+
+  it("stands in for a layout the brief doesn't give, and isn't asked then", () => {
+    const pair = sizeDucted([{ loadKw: 12.2 }], pack).options[0]!;
+    const { read } = checkDucted({ ...tiff, layout: [] }, brief);
+    const usual = usualLayoutPieces("trunks", read.outlets.filter((o) => o.type === "mdo" || o.type === "round"));
+    const rows = ductedKitRows(pair, read, { runM: 15, outdoorAt: "wall", newCircuit: null, drainPump: false }, null, usual);
+    /* four outlets are two and two — never one left behind a three */
+    expect(rows.filter((r) => /usual layout/.test(r.sub)).map((r) => r.name)).toEqual([
+      "Trunk Ø350",
+      "Fitting Ø350 → Ø250 / Ø250",
+      "Trunk Ø350",
+      "Fitting Ø350 → Ø250 / Ø250",
+    ]);
+    expect(ductedAsks(read, { runM: 15, outdoorAt: "wall", newCircuit: null, drainPump: false }, [], usual)).not.toContain("how the ductwork runs");
+  });
+});

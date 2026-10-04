@@ -214,7 +214,9 @@ export function ductedKitRows(
   read: DuctedRead,
   c: DuctedChoices,
   /** the maker's zoning rules from the pack, when the brief names its controller */
-  controller: ZoningController | null = null
+  controller: ZoningController | null = null,
+  /** the business's usual layout, for a brief that describes none */
+  usual: DuctPiece[] | null = null
 ): { name: string; sub: string; qty: string }[] {
   const sys = "the ducted system";
   const run = c.runM != null ? `${c.runM} m` : RUN_TO_ASK;
@@ -245,8 +247,9 @@ export function ductedKitRows(
     rows.push({ name: `Return grille${dims}`, sub: r.common ? `common return${r.room ? `, ${r.room}` : ""}` : r.room, qty: dims ? "1" : DUCT_ASK.outletSize });
   }
   /* the ductwork, piece by piece as written — or asked */
-  if (read.layout.length === 0) rows.push({ name: "Ductwork layout", sub: sys, qty: DUCT_ASK.layout });
-  for (const p of read.layout) {
+  const layout = read.layout.length ? read.layout : (usual ?? []);
+  if (layout.length === 0) rows.push({ name: "Ductwork layout", sub: sys, qty: DUCT_ASK.layout });
+  for (const p of layout) {
     const ins = p.inMm ? `Ø${p.inMm}` : "";
     const outs = p.outsMm.length ? p.outsMm.map((m) => `Ø${m}`).join(" / ") : "";
     const name =
@@ -255,7 +258,7 @@ export function ductedKitRows(
         : p.piece === "trunk"
           ? `Trunk ${ins}`.trim()
           : `Fitting ${ins}${outs ? ` → ${outs}` : ""}`.trim();
-    rows.push({ name, sub: sys, qty: p.inMm || p.outsMm.length ? String(Math.max(1, p.count)) : DUCT_ASK.outletSize });
+    rows.push({ name, sub: p.said === "your usual layout" ? `your usual layout, ${sys}` : sys, qty: p.inMm || p.outsMm.length ? String(Math.max(1, p.count)) : DUCT_ASK.outletSize });
   }
   /* the zoning */
   const z = read.zoning;
@@ -283,7 +286,7 @@ export function ductedKitRows(
 
 /** What the quote asks about the system, from what the brief left out.
     `rooms`: the rooms the brief sized, which are its zones' rooms. */
-export function ductedAsks(read: DuctedRead, c: DuctedChoices, rooms: readonly string[] = []): string[] {
+export function ductedAsks(read: DuctedRead, c: DuctedChoices, rooms: readonly string[] = [], usual: DuctPiece[] | null = null): string[] {
   const out: string[] = [];
   if (c.runM == null) out.push("the pipe run");
   if (c.outdoorAt == null) out.push("where the outdoor sits");
@@ -291,7 +294,7 @@ export function ductedAsks(read: DuctedRead, c: DuctedChoices, rooms: readonly s
   if (read.outletsUnsure) out.push(`the outlet count ("${read.outletsUnsure.said}")`);
   if (read.outlets.length === 0) out.push("the outlets: type, size and count");
   if (read.returns.length === 0) out.push("the return: where and what size");
-  if (read.layout.length === 0) out.push("how the ductwork runs");
+  if (read.layout.length === 0 && !usual?.length) out.push("how the ductwork runs");
   if (read.zoning && read.zoning.zones == null) out.push("how many zones");
   if (read.zoning?.control === "temperature") {
     const low = (r: string) => r.trim().toLowerCase();
@@ -357,5 +360,32 @@ export function makerZoningWords(c: ZoningController | null, z: DuctedZoning | n
   if (wiredMax != null && wired > wiredMax) out.push(`${wired} wired sensors: ${c.vendor}'s book takes ${wiredMax}`);
   if (z.zones != null && z.zones > c.max_zones) out.push(`${z.zones} zones: ${c.vendor}'s controller takes ${c.max_zones}`);
   if (c.damper_cable) out.push(`Damper cable: ${c.damper_cable.kind}, up to ${c.damper_cable.max_m} m a run (${c.vendor}'s book)`);
+  return out;
+}
+
+/** The business's usual ductwork as pieces, for a brief that describes none:
+    a plenum with a spigot for each outlet at its size; or trunks of Ø350 off
+    the unit, up to three outlets each — three take a BTO then a Y, two a Y
+    (the way the business set it in Quoting). Null when the outlets' sizes
+    aren't known, and then the layout is asked. */
+export function usualLayoutPieces(usual: "trunks" | "plenum" | null, outlets: readonly DuctedOutlet[]): DuctPiece[] | null {
+  if (!usual || outlets.length === 0) return null;
+  const necks = outlets.flatMap((o) => Array.from({ length: Math.max(0, o.count) }, () => (o.type === "bar" || o.type === "slot" ? null : o.neckMm)));
+  if (necks.length === 0 || necks.some((n) => n == null)) return null;
+  const said = "your usual layout";
+  if (usual === "plenum") return [{ piece: "plenum", inMm: null, outsMm: necks as number[], count: 1, said }];
+  const sizes = [...new Set(necks)];
+  if (sizes.length !== 1) return null;
+  const z = sizes[0]!;
+  const mid = Math.min(300, z + 50);
+  const out: DuctPiece[] = [];
+  let left = necks.length;
+  while (left > 0) {
+    const take = left === 4 ? 2 : Math.min(3, left);
+    out.push({ piece: "trunk", inMm: 350, outsMm: [], count: 1, said });
+    if (take === 3) out.push({ piece: "fitting", inMm: 350, outsMm: [mid, z], count: 1, said }, { piece: "fitting", inMm: mid, outsMm: [z, z], count: 1, said });
+    if (take === 2) out.push({ piece: "fitting", inMm: 350, outsMm: [z, z], count: 1, said });
+    left -= take;
+  }
   return out;
 }

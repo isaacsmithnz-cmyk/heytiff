@@ -3,6 +3,7 @@ import { can } from "@/lib/permissions-server";
 import { isZone, type ReadRoom } from "@/lib/quotes/brief-rooms";
 import type { DuctedRead } from "@/lib/quotes/brief-ducted";
 import { readBriefRooms, sizeRooms } from "@/lib/quotes/brief-rooms-server";
+import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import type { BuildingType } from "@/lib/studio/loads";
 
 /* The job card's Quote section: the rooms the brief gives a size for, read
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: true, rooms: await sizeRooms(read, building, body.buildingSaid === true, { zone: body.zone, from: "chosen", town: null }, dropped, ducted, {
       replacing: (body.swap as { replacing?: unknown } | null)?.replacing === true,
       keepPipe: (body.swap as { keepPipe?: unknown } | null)?.keepPipe === true,
-    }, body.vrfSaid === true, body.vrfHeads === "box" || body.vrfHeads === "joint" ? body.vrfHeads : null) });
+    }, body.vrfSaid === true, body.vrfHeads === "box" || body.vrfHeads === "joint" ? body.vrfHeads : null, (await readQuoteSettings(orgId)).usualLayout) });
   }
   return Response.json(await readBriefRooms(orgId, job));
 }

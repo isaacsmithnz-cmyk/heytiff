@@ -101,6 +101,7 @@ describe("the settings", () => {
       contingencyPct: null,
       contingencyHours: null,
       allowances: { consumables: null, newCircuit: null, flush: null, recovery: null },
+      usualLayout: null,
       preferred: {},
     });
     expect(normaliseQuoteSettings({ unit_markup_pct: null, material_markup_pct: "" })).toMatchObject({ unitMarkupPct: null, materialMarkupPct: null });
@@ -125,6 +126,7 @@ describe("the settings", () => {
       contingencyPct: null,
       contingencyHours: null,
       allowances: { consumables: null, newCircuit: null, flush: null, recovery: null },
+      usualLayout: null,
       preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: 20 } },
     });
     expect(normaliseQuoteSettings({ charge_out_cents: "16500" }).chargeOutCents).toBe(16500);

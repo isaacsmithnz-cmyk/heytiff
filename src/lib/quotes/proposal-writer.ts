@@ -531,6 +531,14 @@ export async function writeProposal(
     written.draft.payment.preset === current.draft.payment.preset ? current.draft.payment : termsFor(job, written.draft.payment.preset);
   /* and so does every answer a person gave, whatever Tiff sent back */
   written.draft.checklist = keepSettled(current.draft.checklist, written.draft.checklist);
+  /* and every price a person set: Tiff never sets one, so an option keeps
+     its price by its name, or by its place when the options stayed as many */
+  written.draft.options = written.draft.options.map((o, i) => ({
+    ...o,
+    priceCents:
+      current.draft.options.find((c) => c.name === o.name)?.priceCents ??
+      (current.draft.options.length === written.draft.options.length ? (current.draft.options[i]?.priceCents ?? null) : null),
+  }));
   const stored = await storeProposal(
     orgId,
     userId,

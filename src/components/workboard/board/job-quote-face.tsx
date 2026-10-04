@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtAud } from "@/lib/workboard/project-money";
 import { useEffect, useRef, useState } from "react";
 import { NoteToken } from "@/components/notes/note-token";
 import { Waiting } from "@/components/ui/orb";
@@ -453,6 +454,7 @@ export function JobQuoteFace({
       <QuoteBlock title="Pricing" onEdit={() => setEditing("pricing")} editing={editing === "pricing"}>
         {editing === "pricing" ? (
           <PricingEdit
+            job={job}
             draft={draft}
             onCancel={() => setEditing(null)}
             onSave={(pricing) => saveBlock("pricing", (d) => ({ ...d, ...pricing }))}
@@ -783,10 +785,13 @@ function PricingBody({ draft }: { draft: ProposalDraft }) {
                 <b>{it.name}</b>
               </li>
             ))
-          : draft.options.map((_, i) => (
+          : draft.options.map((o, i) => (
               <li key={i}>
-                <span>As Per Quote</span>
-                <b>{optionHeading(draft, i)}</b>
+                <span>{o.priceCents != null ? `${fmtAud(o.priceCents)} + GST` : "Not priced yet"}</span>
+                <b>
+                  {optionHeading(draft, i)}
+                  {o.priceCents != null && <em>{`${fmtAud(Math.round(o.priceCents * 1.1))} inc GST`}</em>}
+                </b>
               </li>
             ))}
       </ul>
@@ -1128,6 +1133,8 @@ function OptionEdit({
       units,
       pros: linesOf(pros),
       cons: linesOf(cons),
+      /* the scope's edit keeps the option's price; Pricing sets it */
+      priceCents: option.priceCents,
     })
   );
   const removing = useSaving(() => (onRemove ? onRemove() : Promise.resolve(false)));
@@ -1171,16 +1178,45 @@ function OptionEdit({
   );
 }
 
+/** The Price block's total for the job, ex GST: what its own materials and
+    labour come to at the business's own prices. Null when it can't be read
+    or nothing is set to price it. */
+async function pricedTotal(job: string): Promise<number | null> {
+  const a = (await (await fetch(`/api/workboard/quote-price?job=${encodeURIComponent(job)}`)).json()) as {
+    ok: boolean;
+    price?: { ok: boolean; build?: { exGstCents: number } };
+  };
+  return a.ok && a.price?.ok && a.price.build ? a.price.build.exGstCents : null;
+}
+
 function PricingEdit({
+  job,
   draft,
   onCancel,
   onSave,
 }: {
+  job: string;
   draft: ProposalDraft;
   onCancel: () => void;
-  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances">) => Promise<boolean>;
+  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances" | "options">) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState(draft.pricingMode);
+  /* each option's price as typed, in dollars ex GST */
+  const [prices, setPrices] = useState<string[]>(draft.options.map((o) => (o.priceCents != null ? String(o.priceCents / 100) : "")));
+  const [taking, setTaking] = useState<number | null>(null);
+  const [priceNote, setPriceNote] = useState<string | null>(null);
+  const centsOf = (t: string) => {
+    const n = Number(t.replace(/[$,\s]/g, ""));
+    return t.trim() !== "" && Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
+  };
+  const take = async (i: number) => {
+    setTaking(i);
+    setPriceNote(null);
+    const total = await pricedTotal(job).catch(() => null);
+    if (total == null) setPriceNote("The Price block has no total yet: set what it asks for, then try again.");
+    else setPrices((cur) => cur.map((p, j) => (j === i ? String(total / 100) : p)));
+    setTaking(null);
+  };
   const [items, setItems] = useState(draft.items.map((it) => `${it.qty} × ${it.name}`).join("\n"));
   const [extras, setExtras] = useState(namedText(draft.extras));
   const [allowances, setAllowances] = useState(namedText(draft.allowances));
@@ -1193,10 +1229,30 @@ function PricingEdit({
       }),
       extras: namedOf(extras),
       allowances: namedOf(allowances),
+      options: draft.options.map((o, i) => ({ ...o, priceCents: centsOf(prices[i] ?? "") })),
     })
   );
   return (
     <div className="wb2-jqform">
+      {mode !== "itemised" &&
+        draft.options.map((o, i) => (
+          <div className="wb2-jqstage" key={`price-${i}`}>
+            <span className="wb2-jqpcts">{optionHeading(draft, i)}</span>
+            <input
+              className="wb2-fi wb2-jqpct"
+              inputMode="decimal"
+              aria-label={`${optionHeading(draft, i)} price, dollars ex GST`}
+              value={prices[i] ?? ""}
+              disabled={busy || taking !== null}
+              onChange={(e) => setPrices((cur) => cur.map((p, j) => (j === i ? e.target.value : p)))}
+            />
+            <span className="wb2-jqpcts">+ GST</span>
+            <button type="button" className="pbtn ghost sm" disabled={busy || taking !== null} onClick={() => void take(i)}>
+              {taking === i ? "Taking" : "Take the priced total"}
+            </button>
+          </div>
+        ))}
+      {priceNote && <p className="wb2-sherr">{priceNote}</p>}
       {(["multiple_choice", "optional", "itemised"] as const).map((m) => (
         <label className="wb2-jqcheck" key={m}>
           <input type="radio" name="jq-mode" checked={mode === m} onChange={() => setMode(m)} disabled={busy} />

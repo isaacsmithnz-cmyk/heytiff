@@ -77,7 +77,14 @@ export type ProposalOption = {
   units: UnitLine[];
   pros: string[];
   cons: string[];
+  /** What the option costs the client, ex GST, in cents — the business's
+      own price, set on the card (taken from the Price block, or typed);
+      never Tiff's. Null until it's set. */
+  priceCents: number | null;
 };
+
+/** The most an option's price can be: a typo's ceiling, not a guide. */
+export const MAX_OPTION_PRICE_CENTS = 1_000_000_000;
 
 /** An add-on the client can take or leave, priced on its own. */
 export type Extra = { name: string; detail: string };
@@ -283,6 +290,9 @@ function checklist(raw: unknown): CheckItem[] {
 
 /** The one gate between a model (or a person's edit) and the table. Null
     when nothing usable is left: no option, and no itemised lines either. */
+const priceOf = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.min(MAX_OPTION_PRICE_CENTS, Math.round(v)) : null;
+
 export function normaliseDraft(raw: unknown): ProposalDraft | null {
   const r = obj(raw);
   if (!r) return null;
@@ -297,6 +307,7 @@ export function normaliseDraft(raw: unknown): ProposalDraft | null {
       units: u,
       pros: lineList(x.pros, MAX_PROS),
       cons: lineList(x.cons, MAX_PROS),
+      priceCents: priceOf(x.priceCents ?? x.price_cents),
     };
   });
   const mode = r.pricingMode ?? r.pricing_mode;

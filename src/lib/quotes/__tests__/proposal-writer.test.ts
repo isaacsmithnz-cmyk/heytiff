@@ -206,6 +206,8 @@ describe("runProposalWrite", () => {
       units: [],
       pros: [],
       cons: [],
+      /* Tiff never prices an option */
+      priceCents: null,
     });
     expect(res.draft.payment).toEqual({ preset: "domestic_small", stages: PAYMENT_PRESETS.domestic_small.stages });
     expect(res.draft.checklist.map((i) => i.key)).toEqual(["pipe_covering", "drain_to"]);
@@ -263,6 +265,16 @@ describe("writeProposal", () => {
     expect(lastRow()?.brief).toBe("the brief");
     expect(lastRow()?.changes).toEqual(["earlier", "Put the checklist answers in"]);
     expect(lastRow()?.draft.payment.stages[0]).toEqual({ when: "Deposit, on accepting", percent: 5 });
+  });
+
+  it("a change keeps every price a person set — Tiff never sets one", async () => {
+    const priced = { ...draft, options: draft.options.map((o) => ({ ...o, priceCents: 812_500 })) };
+    maybeSingle.mockResolvedValue({
+      data: { sm8_job_uuid: "j-1", draft: priced, brief: "the brief", changes: [], updated_at: "2026-09-29T07:00:00Z" },
+    });
+    const { client } = clientSaying(answer);
+    await writeProposal("org", "user", "j-1", { kind: "change", change: "Mention the parapet" }, client);
+    expect(lastRow()?.draft.options.map((o: { priceCents: number | null }) => o.priceCents)).toEqual([812_500]);
   });
 
   it("a change to another preset takes that preset's stages", async () => {

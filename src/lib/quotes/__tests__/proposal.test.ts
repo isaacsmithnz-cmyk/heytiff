@@ -59,6 +59,8 @@ describe("normaliseDraft", () => {
       units: [{ role: "indoor", room: "Master bedroom", capacity: "7 kW", type: "High wall", model: "", qty: 1, system: 0, lps: null }],
       pros: [],
       cons: [],
+      /* no price until the business sets one */
+      priceCents: null,
     });
     expect(d.pricingMode).toBe("optional");
     expect(d.extras).toEqual([{ name: "Wi-Fi adaptor", detail: "Control it from your phone" }]);
@@ -277,5 +279,16 @@ describe("the accepted option", () => {
   it("follows its option when an earlier one is removed", () => {
     expect(acceptedAfterRemoving([0, 2], 1)).toEqual([0, 1]);
     expect(acceptedAfterRemoving([1], 1)).toEqual([]);
+  });
+});
+
+describe("an option's price", () => {
+  it("is the business's own, kept in cents ex GST — never zero, never past a typo's ceiling", () => {
+    const opt = (priceCents: unknown) => normaliseDraft({ options: [{ name: "Split", lines: ["x"], priceCents }] })!.options[0]!.priceCents;
+    expect(opt(512_345)).toBe(512_345);
+    expect(opt(0)).toBeNull();
+    expect(opt(-5)).toBeNull();
+    expect(opt("500")).toBeNull();
+    expect(opt(5e12)).toBe(1_000_000_000);
   });
 });

@@ -249,3 +249,41 @@ describe("a quote ServiceM8 generated", () => {
     expect(screen.queryByText("Quote from ServiceM8")).toBeNull();
   });
 });
+
+/* Isaac, 2026-10-04: "Price onto the proposal" — each option the business's
+   own price, ex GST with inc GST beside it, taken from the Price block. */
+it("prices an option from the Price block's total, and shows it ex and inc GST", async () => {
+  const route = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
+    url.startsWith("/api/workboard/quote-price") ? respond({ ok: true, price: { ok: true, build: { exGstCents: 812_500 } } }) : route(url, init)
+  );
+  face();
+  await screen.findByText("Site checklist");
+  expect(screen.getByText("Not priced yet")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Take the priced total" }));
+  });
+  expect(screen.getByDisplayValue("8125")).toBeInTheDocument();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save pricing" }));
+  });
+  const put = (fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === "PUT").at(-1)!;
+  expect(JSON.parse(put[1]!.body!).draft.options[0].priceCents).toBe(812_500);
+  expect(await screen.findByText("$8,125 + GST")).toBeInTheDocument();
+  expect(screen.getByText("$8,937.50 inc GST")).toBeInTheDocument();
+});
+
+it("says when the Price block has nothing to take yet", async () => {
+  const route = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
+    url.startsWith("/api/workboard/quote-price") ? respond({ ok: true, price: { ok: false, unset: ["rate"] } }) : route(url, init)
+  );
+  face();
+  await screen.findByText("Site checklist");
+  fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Take the priced total" }));
+  });
+  expect(screen.getByText("The Price block has no total yet: set what it asks for, then try again.")).toBeInTheDocument();
+});

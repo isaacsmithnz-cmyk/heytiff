@@ -257,6 +257,9 @@ export type CertAnswers = {
   /** The person confirmed every unit installed is on the certificate, with
       its model off the plate. Cleared whenever a unit changes. */
   equipmentConfirmed: boolean;
+  /** The person ticked "Add serial numbers": each row then takes its serial,
+      and the paper prints the column. Off, no serial is printed. */
+  serialsGiven: boolean;
 };
 
 export const EMPTY_TEST: CircuitTest = { refrigerant: "", addedKg: null };
@@ -281,6 +284,7 @@ export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   airBalance: null,
   notCoveredExtra: "",
   equipmentConfirmed: false,
+  serialsGiven: false,
 };
 
 /* ── the rules for which statements a job gets ─────────────────────────── */
@@ -551,7 +555,7 @@ export function buildCertificate(a: CertAnswers): CertContent {
     completedOn: a.completedOn,
     systems,
     fans,
-    showSerials: rows.some((r) => r.serial.trim() !== ""),
+    showSerials: a.serialsGiven && rows.some((r) => r.serial.trim() !== ""),
     statements,
     notApplicable,
     notCovered: notCoveredLine(a),

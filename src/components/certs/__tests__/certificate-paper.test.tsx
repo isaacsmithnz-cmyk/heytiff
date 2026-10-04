@@ -68,10 +68,13 @@ describe("CertificatePaper", () => {
     expect(html).toContain("Office (Class 5)");
   });
 
-  it("leaves out a serial column until there is a serial, and the class when none was picked", () => {
+  it("leaves out a serial column until serials are added, and the class when none was picked", () => {
     expect(render()).not.toContain("<th>Serial</th>");
     const a: CertAnswers = JSON.parse(JSON.stringify(ANSWERS));
     a.systems[0].outdoor.serial = "SN123";
+    /* typed, but the option is off: nothing prints */
+    expect(render(a)).not.toContain("<th>Serial</th>");
+    a.serialsGiven = true;
     a.building = "other";
     const html = render(a);
     expect(html).toContain("<th>Serial</th>");

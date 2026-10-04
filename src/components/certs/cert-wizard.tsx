@@ -600,7 +600,7 @@ export function CertWizard({
             <Field label="Outdoor unit, where" value={s.outdoor.location} onChange={(v) => setOutdoor(i, { location: v })} />
             <Field label="Model" value={s.outdoor.model} onChange={(v) => setOutdoor(i, { model: v })} />
             <NumField label="kW" width="s" value={s.outdoor.capacityKw} onChange={(n) => setOutdoor(i, { capacityKw: n })} />
-            <Field label="Serial" width="m" value={s.outdoor.serial} onChange={(v) => setOutdoor(i, { serial: v })} />
+            {a.serialsGiven && <Field label="Serial" width="m" value={s.outdoor.serial} onChange={(v) => setOutdoor(i, { serial: v })} />}
             <button type="button" className="wb2-ico cz-x" aria-label={`Clear outdoor unit ${i + 1}`} onClick={() => set({ systems: a.systems.filter((_, j) => j !== i) })}>
               <Icon name="x" size={14} />
             </button>
@@ -611,6 +611,7 @@ export function CertWizard({
               <Field label="Model" value={r.model} onChange={(v) => setIndoor(i, j, { model: v })} />
               <NumField label="kW each" width="s" value={r.capacityKw} onChange={(n) => setIndoor(i, j, { capacityKw: n })} />
               <Field label="How many" width="s" inputMode="numeric" value={String(r.qty)} onChange={(v) => setIndoor(i, j, { qty: Math.max(1, Math.floor(readNum(v) ?? 1)) })} />
+              {a.serialsGiven && <Field label={r.qty > 1 ? "Serials, comma between" : "Serial"} width="m" value={r.serial} onChange={(v) => setIndoor(i, j, { serial: v })} />}
               <button
                 type="button"
                 className="wb2-ico cz-x"
@@ -642,6 +643,7 @@ export function CertWizard({
           <div className="cz-row fan">
             <Field label="Room" value={f.location} onChange={(v) => setFan(i, { location: v })} />
             <Field label="Model" value={f.model} onChange={(v) => setFan(i, { model: v })} />
+            {a.serialsGiven && <Field label="Serial" width="m" value={f.serial} onChange={(v) => setFan(i, { serial: v })} />}
             <button type="button" className="wb2-ico cz-x" aria-label={`Clear the ${f.location || `fan ${i + 1}`} fan`} onClick={() => set({ fans: a.fans.filter((_, j) => j !== i) })}>
               <Icon name="x" size={14} />
             </button>
@@ -682,6 +684,13 @@ export function CertWizard({
 
   const equipmentScreen = (
     <>
+      {(a.covers.ac || a.covers.vent) && (
+        /* serials are optional: off, the certificate prints no serial column */
+        <label className="cz-tick">
+          <input type="checkbox" checked={a.serialsGiven} onChange={(e) => set({ serialsGiven: e.target.checked })} />
+          Add serial numbers
+        </label>
+      )}
       {a.covers.ac && acEditor}
       {a.covers.vent && fanEditor}
       {(a.covers.ac || a.covers.vent) && (

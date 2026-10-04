@@ -9,6 +9,7 @@ import {
 } from "@/lib/studio/loads";
 import { formFactorLabel } from "@/lib/studio/form-factors";
 import { proposeMultiIdus, proposeMultiOdus } from "@/lib/studio/multi";
+import type { DuctedRead } from "./brief-ducted";
 
 /* ROOMS READ FROM THE BRIEF, SIZED (Isaac, 2026-10-04: "What if I said the
    room is 30m2?… API call should be able to gauge based on the size of the
@@ -59,6 +60,8 @@ export type OutdoorAt = "ground" | "wall" | "roof";
 
 export type ReadBrief = {
   rooms: ReadRoom[];
+  /** one ducted system for the rooms, when the brief describes one */
+  ducted: DuctedRead | null;
   buildingType: BuildingType | null;
   /** the NCC climate zone Tiff reads off the site address, and the town */
   zone: { zone: number; town: string } | null;

@@ -59,13 +59,27 @@ const KIT_PART: Record<string, ComponentKey> = {
   [KIT.pipeCover]: "pipe_cover",
   [KIT.drainHose]: "drain_hose",
   [KIT.pump]: "condensate_pump",
+  "Hanging kit": "hanging_kit",
+  "Condensate drain": "condensate_drain",
+  "Zone cable": "zone_cable",
 };
+
+/* a ducted part that comes in sizes: priced from the business's range for it
+   once the price book holds its ranges (Isaac, 2026-10-04: the smart price
+   book, its own track) */
+const SIZED_RANGE = /^(MDO|Round diffuser|Square diffuser|Bar grille|Slot diffuser|Supply outlet|Return grille|Zone damper|Plenum|Fitting|Trunk|Flex|Takeoff)\b/;
 const KIT_ALLOWANCE: Record<string, AllowanceKey> = Object.fromEntries(
   (Object.keys(ALLOWANCES) as AllowanceKey[]).map((k) => [ALLOWANCES[k].label, k])
 );
 
 const askWhy = (qty: string) =>
-  qty === WHERE_TO_ASK ? "Where the outdoor sits isn't known yet: ask" : qty === RUN_TO_ASK ? "Its length isn't known yet: ask" : "Not known yet: ask";
+  qty === WHERE_TO_ASK
+    ? "Where the outdoor sits isn't known yet: ask"
+    : qty === RUN_TO_ASK
+      ? "Its length isn't known yet: ask"
+      : /^(Size|Count|Layout|Return|Drain run) to ask$/.test(qty)
+        ? `${qty.replace(/ to ask$/, "")} isn't in the brief: ask`
+        : "Not known yet: ask";
 
 export type Unpriced = { name: string; qty: string; why: string };
 
@@ -171,6 +185,7 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
     }
     const byName = deps.priceOf(r.name.trim());
     if (byName) return void lines.push(material(byName, r.name.trim()));
+    if (SIZED_RANGE.test(r.name.trim())) return void unpriced.push({ name: r.name, qty: r.qty, why: "Priced from your range for it, once the price book has it" });
     unpriced.push({ name: r.name, qty: r.qty, why: pair ? "No preferred coil for that size in Quoting" : "Not in your price book" });
   });
   return { lines, unpriced };

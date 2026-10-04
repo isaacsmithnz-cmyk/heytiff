@@ -67,6 +67,28 @@ export const QUOTE_COMPONENTS = {
     not: [/wall\s*bracket|\b1G\b|surface|switch|\bgpo\b|\d+\s*A\s+\d+\s*V|axial|\bfans?\b|wireless|r\/c|standing|mounting\s*block\s*\d{1,2}\s*mm\b/i],
   },
 
+  /* a ducted indoor hung in the roof: the hanging kit or bracket — never a
+     flex duct's strap or a lone purlin hanger */
+  hanging_kit: {
+    label: "Indoor unit hanging kit",
+    unit: "each",
+    match: [/\bhanging\s*(kit|bracket)\b|\bindoor\s*hanging\b|\bgripple\b.*\bkit\b/i],
+    not: [/strap|flex[-\s]*duct/i],
+  },
+  /* a ducted indoor's condensate: rigid PVC by the length, never a fitting */
+  condensate_drain: {
+    label: "Condensate drain pipe, one length",
+    unit: "each",
+    match: [/\bpvc\b/i, /\b(19|20|25)\s*mm\b/i, /\d(\.\d+)?\s*m\b/i],
+    not: [/clamp|elbow|saddle|clip|bush|socket|trap|fit|tee|valve|cement|glue|pan/i],
+  },
+  /* a zone damper's cable, one a damper — never a joiner or a controller's own cable */
+  zone_cable: {
+    label: "Zone damper cable",
+    unit: "each",
+    match: [/\bzone\b.*\bcable\b|\bdamper\b.*\bcable\b/i],
+    not: [/barrel|joiner|bridge|cpu|cat\s*5|nova\s*kit/i],
+  },
   condensate_pump: {
     label: "Condensate pump",
     unit: "each",

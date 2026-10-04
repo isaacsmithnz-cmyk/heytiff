@@ -4,6 +4,7 @@ import { useState } from "react";
 import { addJobPicklistItem } from "@/app/actions/job-picklist";
 import { CLIMATE_ZONES } from "@/lib/studio/loads";
 import type { BriefRooms, BriefRoomsResult } from "@/lib/quotes/brief-rooms-server";
+import { ductedAsks, ductedKitRows, outletName, type DuctedPair } from "@/lib/quotes/brief-ducted";
 import { kitRows, multiKitRows, multiPipeWords, type MultiOption, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
 
 /* ROOMS FROM THE BRIEF, on the job card's Quote section (Isaac, 2026-10-04:
@@ -97,6 +98,20 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
       outdoorAt: multiWhereOf(),
     });
 
+  /* a whole system's rows, as the ducted block built them */
+  const addSystem = async (key: string, rows: ReturnType<typeof kitRows>) => {
+    setBusy(key);
+    setNote(null);
+    try {
+      await addRows(job, rows);
+      setAdded((s) => new Set(s).add(key));
+      onAdded();
+    } catch {
+      setNote("The system couldn't be added. Try again.");
+    }
+    setBusy(null);
+  };
+
   const addMulti = async (m: MultiOption) => {
     const key = `multi|${m.outdoor}`;
     const rows = multiRows(m);
@@ -162,6 +177,8 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
                 <em>{`“${r.said}”`}</em>
                 <span>{`${r.loadKw} kW`}</span>
               </div>
+              {!rooms.ducted && (
+              <>
               <div className="wb2-mline">
                 <b>Pipe run</b>
                 <em>{runs[r.name] === undefined && r.runM != null ? "From the brief" : runOf(r) == null ? "To ask: goes on as Run to ask" : "Typed here"}</em>
@@ -220,8 +237,19 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
                   </div>
                 );
               })}
+              </>
+              )}
             </div>
           ))}
+          {rooms.ducted && (
+            <Ducted
+              system={rooms.ducted}
+              roomNames={rooms.rooms.map((r) => r.name)}
+              busy={busy}
+              added={added}
+              onAdd={(key, rows) => void addSystem(key, rows)}
+            />
+          )}
           {rooms.multi && !rooms.multi.ok && <p className="wb2-shtext">{`One multi for these rooms: ${rooms.multi.why}.`}</p>}
           {rooms.multi?.ok && (
             <div>
@@ -285,5 +313,113 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
         </>
       )}
     </section>
+  );
+}
+
+/* ONE DUCTED SYSTEM FOR THE ROOMS — the pair that covers them together, and
+   the air side as the brief gives it: its outlets, returns, ductwork piece
+   by piece, and zoning; what the brief left out is asked. */
+function Ducted({
+  system,
+  roomNames,
+  busy,
+  added,
+  onAdd,
+}: {
+  system: NonNullable<BriefRooms["ducted"]>;
+  /** the rooms the brief sized: the system's zones' rooms */
+  roomNames: string[];
+  busy: string | null;
+  added: Set<string>;
+  onAdd: (key: string, rows: ReturnType<typeof ductedKitRows>) => void;
+}) {
+  const { read } = system;
+  const [run, setRun] = useState<string | undefined>(undefined);
+  const [where, setWhere] = useState<OutdoorAt | "" | undefined>(undefined);
+  const runM = (() => {
+    if (run === undefined) return read.run.m;
+    const n = Number(run);
+    return run.trim() !== "" && Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 10) / 10 : null;
+  })();
+  const outdoorAt = where === undefined ? read.outdoor.at : where || null;
+  const choices = { runM, outdoorAt, newCircuit: read.circuit.needed, drainPump: read.drain.how === "pump" };
+  const rowsOf = (o: DuctedPair) => ductedKitRows(o, read, choices);
+  const first = system.options[0];
+  return (
+    <div>
+      <div className="wb2-mline">
+        <b>{`One ducted system for the ${roomNames.length} rooms`}</b>
+        <em>{`${system.loadKw} kW together`}</em>
+        <span />
+      </div>
+      {system.options.length === 0 && <p className="wb2-shtext">No ducted pair in the data pack covers that load: Studio, or two systems.</p>}
+      {system.options.map((o) => {
+        const key = `ducted|${o.indoor}|${o.outdoor}`;
+        return (
+          <div className="wb2-mline" key={key}>
+            <b>{`${o.indoor} + ${o.outdoor}`}</b>
+            <em>{`${o.coolKw} kW cooling, ${o.heatKw} kW heating${o.airflowLs ? `, ${o.airflowLs} L/s` : ""}`}</em>
+            <span>
+              <button type="button" className="pbtn ghost sm" disabled={busy !== null || added.has(key)} onClick={() => onAdd(key, rowsOf(o))}>
+                {added.has(key) ? "Added" : busy === key ? "Adding" : "Add to materials"}
+              </button>
+            </span>
+          </div>
+        );
+      })}
+      <div className="wb2-mline">
+        <b>Pipe run</b>
+        <em>{run === undefined && read.run.m != null ? "From the brief" : runM == null ? "To ask: goes on as Run to ask" : "Typed here"}</em>
+        <span className="qs-in">
+          <input
+            className="wb2-fi wb2-jqpct"
+            inputMode="decimal"
+            aria-label="Pipe run for the ducted system, metres"
+            value={run ?? (read.run.m != null ? String(read.run.m) : "")}
+            disabled={busy !== null}
+            onChange={(e) => setRun(e.target.value)}
+          />
+          <em>m</em>
+        </span>
+      </div>
+      <div className="wb2-mline">
+        <b>Outdoor</b>
+        <em>{where === undefined && read.outdoor.at != null ? "From the brief" : outdoorAt == null ? "To ask: goes on as an outdoor mount to ask" : "Set here"}</em>
+        <span>
+          <select
+            className="wb2-sel"
+            aria-label="Where the ducted system's outdoor sits"
+            value={outdoorAt ?? ""}
+            disabled={busy !== null}
+            onChange={(e) => setWhere(e.target.value as OutdoorAt | "")}
+          >
+            {WHERE.map((w) => (
+              <option key={w.value} value={w.value}>
+                {w.label}
+              </option>
+            ))}
+          </select>
+        </span>
+      </div>
+      {read.outlets.length > 0 && (
+        <p className="wb2-shtext">{`Outlets: ${read.outlets.map((o) => `${o.count || "?"} × ${outletName(o).toLowerCase()}${o.room ? ` (${o.room})` : ""}`).join(", ")}.`}</p>
+      )}
+      {read.returns.length > 0 && <p className="wb2-shtext">{`Returns: ${read.returns.map((r) => (r.common ? "a common return" : r.room)).join(", ")}.`}</p>}
+      {read.layout.length > 0 && <p className="wb2-shtext">{`Ductwork, as the brief has it: ${read.layout.map((p) => `“${p.said}”`).join(" ")}`}</p>}
+      {read.zoning && <p className="wb2-shtext">{`Zoning: “${read.zoning.said}”`}</p>}
+      {system.air.map((w) => (
+        <p className="wb2-shtext" key={w}>{`${w}.`}</p>
+      ))}
+      {first && (
+        <p className="wb2-shtext">
+          {`With it: ${rowsOf(first)
+            .slice(2)
+            .map((k) => `${k.name.toLowerCase()} (${k.qty})`)
+            .join(", ")}.`}
+        </p>
+      )}
+      <p className="wb2-shtext">{`To ask: ${ductedAsks(read, choices, roomNames).join("; ")}.`}</p>
+      {system.dropped.length > 0 && <p className="wb2-shtext">{`Not used, their words aren't the brief's: ${system.dropped.join(", ")}.`}</p>}
+    </div>
   );
 }

@@ -20,6 +20,7 @@ For each room the brief gives an area or two side lengths for, return:
 - said: the brief's own words you read it from, copied exactly, character for character, as short as still holds the size (one clause).
 - area_m2: the area when the brief states one; null when it gives sides instead.
 - sides_m: the two side lengths in metres when the brief gives sides ("6 x 5", "6m by 5m"); null otherwise.
+- run_m and run_said: the pipe run from indoor to outdoor in metres, and the brief's own words it's in, copied exactly; only when the brief states the run; null otherwise.
 - ceiling_m, glazing (low/moderate/high), insulation (well_insulated/standard/poor), facing (N, NE, E, SE, S, SW, W, NW: the main outside wall), room_above (true when another floor is above, false when it's under the roof), style (wall, ducted, cassette, floor, bulkhead, under-ceiling): only when the brief says it; null otherwise.
 
 A room the brief gives no size for is left out. Never estimate a size, never convert a room count or a unit's capacity into an area, never fill a field the brief doesn't state.
@@ -38,12 +39,14 @@ const schema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "said", "area_m2", "sides_m", "ceiling_m", "glazing", "insulation", "facing", "room_above", "style"],
+        required: ["name", "said", "area_m2", "sides_m", "run_m", "run_said", "ceiling_m", "glazing", "insulation", "facing", "room_above", "style"],
         properties: {
           name: { type: "string" },
           said: { type: "string" },
           area_m2: { type: ["number", "null"] },
           sides_m: { anyOf: [{ type: "array", items: { type: "number" } }, { type: "null" }] },
+          run_m: { type: ["number", "null"] },
+          run_said: { type: ["string", "null"] },
           ceiling_m: { type: ["number", "null"] },
           glazing: { anyOf: [{ type: "string", enum: ["low", "moderate", "high"] }, { type: "null" }] },
           insulation: { anyOf: [{ type: "string", enum: ["well_insulated", "standard", "poor"] }, { type: "null" }] },
@@ -69,6 +72,8 @@ type Raw = {
     said: string;
     area_m2: number | null;
     sides_m: number[] | null;
+    run_m: number | null;
+    run_said: string | null;
     ceiling_m: number | null;
     glazing: ReadRoom["glazing"];
     insulation: ReadRoom["insulation"];
@@ -92,6 +97,8 @@ const readOf = (raw: Raw): ReadBrief => ({
     facing: r.facing ?? null,
     roomAbove: typeof r.room_above === "boolean" ? r.room_above : null,
     style: r.style ?? null,
+    runM: typeof r.run_m === "number" ? r.run_m : null,
+    runSaid: typeof r.run_said === "string" ? r.run_said.slice(0, 300) : null,
   })),
   buildingType: raw.building_type ?? null,
   zone: raw.zone && isZone(raw.zone.zone) ? { zone: raw.zone.zone, town: String(raw.zone.town ?? "").slice(0, 60) } : null,

@@ -38,6 +38,7 @@ describe("the job's list, priced", () => {
       { name: "Additional refrigerant", sub: "System 1, beyond pre-charge", qty: "820 g" },
       { name: "Mystery bracket", sub: "", qty: "1" },
       { name: "MUZ-AP71VG2", sub: "outdoor unit, 7.1/8 kW", qty: "1" },
+      { name: "ø6.35 / ø12.7 pair coil", sub: "liquid / gas mm, Bed 2", qty: "Run to ask" },
     ],
     deps
   );
@@ -58,6 +59,7 @@ describe("the job's list, priced", () => {
       { name: "Additional refrigerant", qty: "820 g", why: "Bought by the bottle, not the gram" },
       { name: "Mystery bracket", qty: "1", why: "Not in your price book" },
       { name: "MUZ-AP71VG2", qty: "1", why: "Confirm its order code (MUZ-AP71VGD2-A2) in Quoting" },
+      { name: "ø6.35 / ø12.7 pair coil", qty: "Run to ask", why: "Its length isn't known yet: ask" },
     ]);
   });
 

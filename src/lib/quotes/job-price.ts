@@ -80,7 +80,12 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
     const key = `row-${i}`;
     const count = countOf(r.qty);
     if (!count) {
-      unpriced.push({ name: r.name, qty: r.qty, why: /\d\s*(g|kg)\b/i.test(r.qty) ? "Bought by the bottle, not the gram" : "No quantity to price" });
+      const why = /\d\s*(g|kg)\b/i.test(r.qty)
+        ? "Bought by the bottle, not the gram"
+        : /\bask\b/i.test(r.qty)
+          ? "Its length isn't known yet: ask"
+          : "No quantity to price";
+      unpriced.push({ name: r.name, qty: r.qty, why });
       return;
     }
     const material = (p: Priced, code: string, extra: Partial<BuildLine> = {}): BuildLine => ({

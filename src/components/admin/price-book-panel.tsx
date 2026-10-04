@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { CategoryKey } from "@/lib/quotes/categories";
-import { COLUMN_FIELDS, MAX_DISCOUNT_PCT, pricingWords, type ColumnField, type Columns, type DiscountRule } from "@/lib/quotes/price-book";
+import { BUILT_IN_SUPPLIERS, COLUMN_FIELDS, MAX_DISCOUNT_PCT, pricingWords, type ColumnField, type Columns, type DiscountRule } from "@/lib/quotes/price-book";
 import type { CategoryCount, ModelOffers, SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
@@ -19,7 +19,9 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    — each product once with every supplier's price, the search narrowing
    the shelf when one is open.
 
-   A supplier HeyTiff doesn't know is added by name; its price list can be
+   A new business starts with no suppliers: it adds its own. The ones whose
+   own files HeyTiff reads (AAD, Reece, the Mitsubishi trade book) are a press
+   each; any other is added by name, and its price list can be
    any CSV or workbook. When the file's headings aren't ones HeyTiff reads,
    its first rows are shown and a person says which column is the code,
    the description and the price — once: the next file reads the same. */
@@ -159,6 +161,30 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
     }, () => setBusy(null));
   };
 
+  /* a supplier whose own file HeyTiff reads, added by the business */
+  const addKnown = async (key: string, name: string) => {
+    setBusy("add");
+    setNote(null);
+    const body = JSON.stringify({ builtIn: key });
+    await withCleanup(async () => {
+      try {
+        const a = (await (await fetch("/api/quoting/suppliers", { method: "POST", headers: { "content-type": "application/json" }, body })).json()) as {
+          ok: boolean;
+          reason?: string;
+        };
+        if (!a.ok) {
+          setNote({ tone: "bad", text: addRefusal(a.reason) });
+          return;
+        }
+        setNote({ tone: "ok", text: `${name} added. Upload its price list.` });
+        onImported();
+      } catch {
+        setNote({ tone: "bad", text: "That supplier couldn't be added. Try again." });
+      }
+    }, () => setBusy(null));
+  };
+  const knownToAdd = BUILT_IN_SUPPLIERS.filter((b) => !suppliers.some((s) => s.key === b.key));
+
   const saveDiscount = async (s: SupplierView, discountPct: number, rules: DiscountRule[]) => {
     setBusy(s.key);
     setNote(null);
@@ -296,7 +322,13 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
               aria-label="New supplier's name"
             />
           </span>
-          <span role="cell" />
+          <span role="cell" className="qs-act qs-acts2" aria-label="Suppliers whose own files HeyTiff reads">
+            {knownToAdd.map((b) => (
+              <button key={b.key} type="button" className="pbtn ghost sm" disabled={busy !== null} onClick={() => void addKnown(b.key, b.name)}>
+                {`Add ${b.name}`}
+              </button>
+            ))}
+          </span>
           <span role="cell" className="qs-act">
             <button type="button" className="pbtn ghost sm" disabled={busy !== null || newName.trim().length < 2} onClick={() => void add()}>
               {busy === "add" ? "Adding" : "Add supplier"}

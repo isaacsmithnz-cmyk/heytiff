@@ -1,8 +1,9 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
-import { addSupplier, readSuppliers, saveSupplierDiscount } from "@/lib/quotes/price-book-server";
+import { addBuiltInSupplier, addSupplier, readSuppliers, saveSupplierDiscount } from "@/lib/quotes/price-book-server";
 
-/* A supplier the business buys from that HeyTiff didn't know (POST {name}):
+/* A supplier the business buys from: one whose own file HeyTiff reads (POST
+   {builtIn: key}), or one HeyTiff didn't know (POST {name}):
    its price list is any CSV or workbook, read by its headings or by the
    columns a person matches once. And a list-price supplier's discount, the
    business's own (PATCH {key, discountPct, rules}). `financials`, like the
@@ -20,7 +21,12 @@ async function gate(): Promise<string | Response> {
 export async function POST(req: Request) {
   const orgId = await gate();
   if (orgId instanceof Response) return orgId;
-  const body = (await req.json().catch(() => ({}))) as { name?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { name?: unknown; builtIn?: unknown };
+  /* a supplier whose own file HeyTiff reads, by its key */
+  if (typeof body.builtIn === "string") {
+    const added = await addBuiltInSupplier(orgId, body.builtIn);
+    return Response.json(added ? { ok: true, supplier: added } : { ok: false, reason: "That supplier is already in the price book." });
+  }
   const name = typeof body.name === "string" ? body.name.replace(/\s+/g, " ").trim().slice(0, 60) : "";
   if (name.length < 2) return Response.json({ ok: false, reason: "Give the supplier a name." }, { status: 400 });
   const supplier = await addSupplier(orgId, name);

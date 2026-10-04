@@ -152,7 +152,7 @@ const CSS = `
        What replaces it is this inset. The frame is drawn AT it, so the band
        is a rounded rectangle sitting on the paper rather than one bled to the
        paper's corners and squared off there - which is what the sheet used to
-       print, and what Isaac asked to be rid of.
+       print, and what the owner asked to be rid of.
 
        10mm, and the SAME 10mm the design sheet uses (--dsd-edge): these are
        both the business's documents, they share every other number through

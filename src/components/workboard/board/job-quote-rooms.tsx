@@ -4,6 +4,7 @@ import { useState } from "react";
 import { addJobPicklistItem } from "@/app/actions/job-picklist";
 import { CLIMATE_ZONES } from "@/lib/studio/loads";
 import type { BriefRooms, BriefRoomsResult } from "@/lib/quotes/brief-rooms-server";
+import { VRF_METHOD_WORDS, vrfKitRows, type VrfMethod, type VrfOption } from "@/lib/quotes/brief-vrf";
 import { ductedAsks, ductedKitRows, outletName, type DuctedPair } from "@/lib/quotes/brief-ducted";
 import { kitRows, multiKitRows, withSwap, type Swap, multiPipeWords, type MultiOption, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
 
@@ -73,7 +74,17 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
   const rezone = (zone: number) =>
     rooms &&
     void post(
-      { read: rooms.read, zone, buildingType: rooms.buildingType, buildingSaid: rooms.buildingSaid, dropped: rooms.dropped, ducted: rooms.ducted, swap: swapOf() },
+      {
+        read: rooms.read,
+        zone,
+        buildingType: rooms.buildingType,
+        buildingSaid: rooms.buildingSaid,
+        dropped: rooms.dropped,
+        ducted: rooms.ducted,
+        swap: swapOf(),
+        vrfSaid: rooms.vrfSaid,
+        vrfHeads: rooms.vrfHeads,
+      },
       "zone"
     );
 
@@ -107,6 +118,21 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
       }),
       swapOf(),
       "the multi"
+    );
+
+  /* how the VRF's heads connect: the brief's way, else branch boxes when
+     they serve every room, else City Multi — or as a person switches it */
+  const [vrfWay, setVrfWay] = useState<VrfMethod | null>(null);
+  const vrfWayOf = (): VrfMethod => vrfWay ?? rooms?.vrfHeads ?? (rooms?.vrf?.box?.ok ? "box" : "joint");
+  const vrfP = rooms?.vrf ? rooms.vrf[vrfWayOf()] : null;
+  const vrfRows = (v: VrfOption) =>
+    withSwap(
+      vrfKitRows(v, rooms?.rooms ?? [], {
+        runs: Object.fromEntries((rooms?.rooms ?? []).map((r) => [r.name, runOf(r)])),
+        outdoorAt: multiWhereOf(),
+      }),
+      swapOf(),
+      "the VRF"
     );
 
   /* a whole system's rows, as the ducted block built them */
@@ -337,6 +363,79 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
               ))}
               <p className="wb2-shtext">
                 {`With it: ${multiRows(rooms.multi.multi)
+                  .filter((k) => !/indoor unit|outdoor unit/i.test(k.sub))
+                  .map((k) => `${k.name.toLowerCase()} (${k.qty})`)
+                  .join(", ")}.`}
+              </p>
+            </div>
+          )}
+          {vrfP && !vrfP.ok && <p className="wb2-shtext">{`A VRF for these rooms: ${vrfP.why}.`}</p>}
+          {vrfP?.ok && (
+            <div>
+              <div className="wb2-mline">
+                <b>{`${rooms.vrfSaid ? "A" : "Or a"} VRF for the ${vrfP.vrf.heads.length} rooms`}</b>
+                <em>{`${vrfP.vrf.outdoor}, ${vrfP.vrf.coolKw} kW cooling, ${vrfP.vrf.heatKw} kW heating`}</em>
+                <span>
+                  <button
+                    type="button"
+                    className="pbtn ghost sm"
+                    disabled={busy !== null || added.has(`vrf|${vrfP.vrf.outdoor}`)}
+                    onClick={() => vrfP?.ok && void addSystem(`vrf|${vrfP.vrf.outdoor}`, vrfRows(vrfP.vrf))}
+                  >
+                    {added.has(`vrf|${vrfP.vrf.outdoor}`) ? "Added" : busy === `vrf|${vrfP.vrf.outdoor}` ? "Adding" : "Add to materials"}
+                  </button>
+                </span>
+              </div>
+              <div className="wb2-mline">
+                <b>Heads</b>
+                <em>{vrfWay === null && rooms.vrfHeads ? "From the brief" : "Every head the same way, never a mix"}</em>
+                <span>
+                  <select
+                    className="wb2-sel"
+                    aria-label="How the VRF's heads connect"
+                    value={vrfWayOf()}
+                    disabled={busy !== null}
+                    onChange={(e) => setVrfWay(e.target.value as VrfMethod)}
+                  >
+                    {(["box", "joint"] as const).map((m) => (
+                      <option key={m} value={m}>
+                        {VRF_METHOD_WORDS[m]}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              </div>
+              {vrfP.vrf.heads.map((h) => (
+                <div className="wb2-mline" key={`vrf-${h.room}`}>
+                  <b>{h.indoor}</b>
+                  <em>{`${h.style} for ${h.room}, ${h.coolKw} kW cooling, ${h.heatKw} kW heating`}</em>
+                  <span />
+                </div>
+              ))}
+              <div className="wb2-mline">
+                <b>Outdoor</b>
+                <em>{multiWhere === undefined && multiWhereOf() != null ? "From the brief" : multiWhereOf() == null ? "To ask: goes on as an outdoor mount to ask" : "Set here"}</em>
+                <span>
+                  <select
+                    className="wb2-sel"
+                    aria-label="Where the VRF's outdoor sits"
+                    value={multiWhereOf() ?? ""}
+                    disabled={busy !== null}
+                    onChange={(e) => setMultiWhere(e.target.value as OutdoorAt | "")}
+                  >
+                    {WHERE.map((w) => (
+                      <option key={w.value} value={w.value}>
+                        {w.label}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              </div>
+              <p className="wb2-shtext">
+                {`From the data pack: ${vrfP.vrf.fittings.map((f) => (f.part ? `${f.part} (${f.kind === "box" ? "branch box" : f.kind})` : `a ${f.kind} to size`)).join(", ") || "no fittings"}.`}
+              </p>
+              <p className="wb2-shtext">
+                {`With it: ${vrfRows(vrfP.vrf)
                   .filter((k) => !/indoor unit|outdoor unit/i.test(k.sub))
                   .map((k) => `${k.name.toLowerCase()} (${k.qty})`)
                   .join(", ")}.`}

@@ -28,6 +28,8 @@ const read = (rooms: ReadRoom[]): ReadBrief => ({
   buildingType: "residential",
   zone: { zone: 5, town: "Riverview" },
   ducted: null,
+  vrf: false,
+  vrfHeads: null,
   swap: { replacing: null, replacingSaid: null, keepPipe: null, keepPipeSaid: null },
 });
 
@@ -237,5 +239,36 @@ describe("a swap, on any kit", () => {
     ]);
     expect(withSwap(rows, { replacing: true, keepPipe: false }, "Living").map((r) => r.name)).toContain("ø6.35 / ø12.7 pair coil");
     expect(withSwap(rows, { replacing: false, keepPipe: false }, "Living")).toEqual(rows);
+  });
+});
+
+/* ── the rooms on a VRF or PUMY, on the shipped pack ── */
+import { sizeVrf, vrfKitRows } from "../brief-vrf";
+
+describe("the rooms on a VRF", () => {
+  const pack = shipped();
+  const five = ["Bed 1", "Bed 2", "Bed 3", "Bed 4", "Study"].map((n) => sized(n, 2.0, 8));
+
+  it("puts every head on branch boxes, or every head a City Multi head on joints — never a mix", () => {
+    const box = sizeVrf(five, pack, "box");
+    const joint = sizeVrf(five, pack, "joint");
+    expect(box?.ok && joint?.ok).toBe(true);
+    if (!box?.ok || !joint?.ok) return;
+    expect(box.vrf.outdoor).toMatch(/^PUMY/);
+    expect(box.vrf.fittings.map((f) => f.kind)).toEqual(expect.arrayContaining(["box"]));
+    expect(box.vrf.heads.every((h) => /^M[SLF]Z|^S[LE]Z|^PEAD/.test(h.indoor))).toBe(true);
+    expect(joint.vrf.fittings.every((f) => f.kind !== "box")).toBe(true);
+    expect(joint.vrf.sections.filter((s) => s.room).map((s) => s.room).sort()).toEqual(["Bed 1", "Bed 2", "Bed 3", "Bed 4", "Study"]);
+  });
+
+  it("puts on the outdoor once, each head, each fitting by its part, each section at its size — a head's own run, the main asked", () => {
+    const p = sizeVrf(five, pack, "box");
+    if (!p?.ok) throw new Error("no vrf");
+    const rows = vrfKitRows(p.vrf, five, { runs: Object.fromEntries(five.map((r) => [r.name, 8])), outdoorAt: "ground" });
+    expect(rows.filter((r) => /indoor unit/.test(r.sub))).toHaveLength(5);
+    expect(rows.filter((r) => r.name === "Ground mount")).toHaveLength(1);
+    expect(rows.filter((r) => /main line/.test(r.sub)).every((r) => r.qty === "Run to ask")).toBe(true);
+    expect(rows.filter((r) => /pair coil|copper/.test(r.name) && / Bed 1$/.test(r.sub)).map((r) => r.qty)).toEqual(["8 m"]);
+    for (const f of p.vrf.fittings) if (f.part) expect(rows.map((r) => r.name)).toContain(f.part);
   });
 });

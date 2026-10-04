@@ -62,6 +62,10 @@ export type ReadBrief = {
   rooms: ReadRoom[];
   /** one ducted system for the rooms, when the brief describes one */
   ducted: DuctedRead | null;
+  /** the brief names a VRF, VRV, PUMY or City Multi system */
+  vrf: boolean;
+  /** how it says the heads connect: a branch box, or City Multi on joints */
+  vrfHeads: "box" | "joint" | null;
   /** a swap: an old system comes out, the existing pipe is kept — each only
       when the brief says, with its words */
   swap: { replacing: boolean | null; replacingSaid: string | null; keepPipe: boolean | null; keepPipeSaid: string | null };

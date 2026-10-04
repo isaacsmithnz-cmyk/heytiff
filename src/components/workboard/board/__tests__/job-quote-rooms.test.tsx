@@ -34,6 +34,9 @@ const rooms: BriefRooms = {
   multi: null,
   ducted: null,
   swap: { replacing: false, keepPipe: false },
+  vrf: null,
+  vrfSaid: false,
+  vrfHeads: null,
 };
 
 it("reads the rooms on a press, sizes them, and puts a pair on the job only when a person adds it", async () => {

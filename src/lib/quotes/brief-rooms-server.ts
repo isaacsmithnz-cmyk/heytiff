@@ -2,7 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
 import type { BuildingType } from "@/lib/studio/loads";
-import { checkRooms, isZone, sizeRoom, type ReadBrief, type ReadRoom, type SizedRoom } from "./brief-rooms";
+import { checkRooms, isZone, sizeMulti, sizeRoom, type MultiProposal, type ReadBrief, type ReadRoom, type SizedRoom } from "./brief-rooms";
 import { MODEL, readProposalJob, readStoredProposal } from "./proposal-writer";
 
 /* The rooms in a job's brief, read by Tiff and sized from the shared data
@@ -140,6 +140,8 @@ export type BriefRooms = {
   buildingType: BuildingType;
   buildingSaid: boolean;
   zone: { zone: number; from: "address" | "chosen"; town: string | null } | null;
+  /** the same rooms on one multi, when there are two or more */
+  multi: MultiProposal | null;
 };
 
 export type BriefRoomsResult = { ok: true; rooms: BriefRooms } | { ok: false; reason: string };
@@ -155,7 +157,7 @@ export async function sizeRooms(
   const ref = await latestInstalledPack(PACK_BRAND);
   const pack = ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
   const sized = zone && pack ? read.filter((r): r is ReadRoom & { areaM2: number } => r.areaM2 != null).map((r) => sizeRoom(r, zone.zone, buildingType, pack)) : [];
-  return { read, rooms: sized, dropped, buildingType, buildingSaid, zone };
+  return { read, rooms: sized, dropped, buildingType, buildingSaid, zone, multi: pack ? sizeMulti(sized, pack) : null };
 }
 
 /** One read of a brief by Tiff: the rooms as Tiff says them, unchecked. */

@@ -31,6 +31,7 @@ const rooms: BriefRooms = {
   buildingType: "residential",
   buildingSaid: true,
   zone: { zone: 5, from: "address", town: "Riverview" },
+  multi: null,
 };
 
 it("reads the rooms on a press, sizes them, and puts a pair on the job only when a person adds it", async () => {

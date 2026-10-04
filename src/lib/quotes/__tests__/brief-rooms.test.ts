@@ -144,3 +144,71 @@ describe("a pair on the job", () => {
     expect(rooms[0]).toMatchObject({ outdoorAt: "ground", newCircuit: true, drain: null });
   });
 });
+
+/* ── one multi for the rooms, on the shipped pack ── */
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
+import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
+import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
+import { multiKitRows, multiPipeWords, sizeMulti, type SizedRoom } from "../brief-rooms";
+
+const SEED = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
+const shipped = (): DataPack => {
+  const meta = JSON.parse(readFileSync(join(SEED, "meta.json"), "utf8")) as PackMeta;
+  const sections: PackSource["sections"] = {};
+  for (const s of PACK_SECTIONS) {
+    const f = join(SEED, `${s}.json`);
+    if (existsSync(f)) sections[s] = JSON.parse(readFileSync(f, "utf8"));
+  }
+  return assemblePack({ meta, sections });
+};
+
+const sized = (name: string, loadKw: number, runM: number | null = null): SizedRoom => ({
+  name,
+  said: name,
+  areaM2: 1,
+  loadKw,
+  assumed: [],
+  style: "wall",
+  runM,
+  outdoorAt: null,
+  drain: null,
+  newCircuit: null,
+  options: [],
+});
+
+describe("one multi for the rooms", () => {
+  const pack = shipped();
+
+  it("sizes a head per room and the smallest outdoor the combination table takes them on that covers their loads together", () => {
+    const p = sizeMulti([sized("Main", 2.6, 8), sized("Bed 2", 2.0, 12), sized("Bed 3", 2.0, 14)], pack);
+    expect(p?.ok).toBe(true);
+    if (!p?.ok) return;
+    expect(p.multi.heads.map((h) => h.room)).toEqual(["Main", "Bed 2", "Bed 3"]);
+    /* 2.6 + 2.0 + 2.0 = 6.6 kW: past the 3F54's 5.4, so the 4F71 */
+    expect(p.multi.outdoor).toBe("MXZ-4F71VGD");
+    expect(multiPipeWords(p.multi, [{ room: "Main", runM: 8 }, { room: "Bed 2", runM: 12 }, { room: "Bed 3", runM: 14 }])).toEqual([
+      `34 m of pipe, of the ${p.multi.maxTotalM} m it takes`,
+    ]);
+    expect(multiPipeWords(p.multi, [{ room: "Main", runM: 30 }, { room: "Bed 2", runM: null }, { room: "Bed 3", runM: 5 }])).toEqual([
+      `Main's 30 m is over the ${p.multi.maxBranchM} m a branch takes`,
+    ]);
+  });
+
+  it("puts the outdoor on once and each head with its own coil, cover, drain and consumables", () => {
+    const p = sizeMulti([sized("Main", 2.6), sized("Bed 2", 2.0)], pack);
+    if (!p?.ok) throw new Error("no multi");
+    const rows = multiKitRows(p.multi, [sized("Main", 2.6), { ...sized("Bed 2", 2.0), drain: "pump" as const }], { runs: { Main: 8, "Bed 2": null }, outdoorAt: "wall" });
+    const names = rows.map((r) => r.name);
+    expect(names.filter((n) => n === "Wall bracket")).toHaveLength(1);
+    expect(names.filter((n) => n === "Isolator")).toHaveLength(1);
+    expect(names.filter((n) => n === "Consumables")).toHaveLength(2);
+    expect(names).toContain("Condensate pump");
+    expect(rows.filter((r) => /pair coil/.test(r.name)).map((r) => r.qty)).toEqual(["8 m", "Run to ask"]);
+  });
+
+  it("says when no multi takes the rooms, and none for a single room", () => {
+    expect(sizeMulti([sized("Hall", 30), sized("Bed", 2)], pack)).toEqual({ ok: false, why: "No multi head of that style in the data pack covers Hall's 30 kW" });
+    expect(sizeMulti([sized("Only", 2)], pack)).toBeNull();
+  });
+});

@@ -4,24 +4,38 @@ import { useState } from "react";
 import { addJobPicklistItem } from "@/app/actions/job-picklist";
 import { CLIMATE_ZONES } from "@/lib/studio/loads";
 import type { BriefRooms, BriefRoomsResult } from "@/lib/quotes/brief-rooms-server";
-import type { PairOption } from "@/lib/quotes/brief-rooms";
+import { kitRows, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
 
 /* ROOMS FROM THE BRIEF, on the job card's Quote section (Isaac, 2026-10-04:
    "What if I said the room is 30m2?"). Pressed, Tiff reads the rooms the
    brief gives a size for; each is sized from the climate zone's watts a
    square metre and offered the data pack's pairs that cover it. What the
    brief didn't say is listed to ask. A pair goes on the job's Materials
-   list only when a person adds it, and then the Price block prices it. */
+   list only when a person adds it — with its pair coil and an isolator —
+   and then the Price block prices it. */
 
 const ROUTE = "/api/workboard/brief-rooms";
 const ZONES = Object.keys(CLIMATE_ZONES).map(Number);
 const BUILDING_WORDS = { residential: "a home", light_commercial: "an office or shop", commercial: "a commercial building" } as const;
+
+/** The rows on the job's Materials list, one after another, in order. */
+async function addRows(job: string, rows: ReturnType<typeof kitRows>) {
+  for (const row of rows) await addJobPicklistItem(job, { kind: "material", ...row });
+}
 
 export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => void }) {
   const [rooms, setRooms] = useState<BriefRooms | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
+  /* the pipe run a person typed for a room, over the brief's */
+  const [runs, setRuns] = useState<Record<string, string>>({});
+  const runOf = (r: SizedRoom): number | null => {
+    const typed = runs[r.name];
+    if (typed === undefined) return r.runM;
+    const n = Number(typed);
+    return typed.trim() !== "" && Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 10) / 10 : null;
+  };
 
   const post = async (body: object, word: string) => {
     setBusy(word);
@@ -39,13 +53,15 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
   const rezone = (zone: number) =>
     rooms && void post({ read: rooms.read, zone, buildingType: rooms.buildingType, buildingSaid: rooms.buildingSaid, dropped: rooms.dropped }, "zone");
 
-  const add = async (room: string, o: PairOption) => {
-    const key = `${room}|${o.indoor}`;
+  const add = async (room: SizedRoom, o: PairOption) => {
+    const key = `${room.name}|${o.indoor}`;
+    /* read OUT HERE: React Compiler can't lower a loop or a conditional
+       inside a try, and gives up on the whole component */
+    const rows = kitRows({ name: room.name, runM: runOf(room) }, o);
     setBusy(key);
     setNote(null);
     try {
-      await addJobPicklistItem(job, { kind: "material", name: o.indoor, qty: "1", sub: `${o.style} indoor unit, ${room}` });
-      await addJobPicklistItem(job, { kind: "material", name: o.outdoor, qty: "1", sub: `Outdoor unit, ${room}` });
+      await addRows(job, rows);
       setAdded((s) => new Set(s).add(key));
       onAdded();
     } catch {
@@ -104,6 +120,21 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
                 <em>{`“${r.said}”`}</em>
                 <span>{`${r.loadKw} kW`}</span>
               </div>
+              <div className="wb2-mline">
+                <b>Pipe run</b>
+                <em>{runs[r.name] === undefined && r.runM != null ? "From the brief" : runOf(r) == null ? "To ask: goes on as Run to ask" : "Typed here"}</em>
+                <span className="qs-in">
+                  <input
+                    className="wb2-fi wb2-jqpct"
+                    inputMode="decimal"
+                    aria-label={`Pipe run for ${r.name}, metres`}
+                    value={runs[r.name] ?? (r.runM != null ? String(r.runM) : "")}
+                    disabled={busy !== null}
+                    onChange={(e) => setRuns((cur) => ({ ...cur, [r.name]: e.target.value }))}
+                  />
+                  <em>m</em>
+                </span>
+              </div>
               {r.assumed.length > 0 && <p className="wb2-shtext">{`Counted as standard, to ask: ${r.assumed.join(", ")}.`}</p>}
               {r.options.length === 0 && <p className="wb2-shtext">No single split in the data pack covers it: a multi or ducted system, in Studio.</p>}
               {r.options.map((o) => {
@@ -113,7 +144,7 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
                     <b>{`${o.indoor} + ${o.outdoor}`}</b>
                     <em>{`${o.style}, ${o.coolKw} kW cooling, ${o.heatKw} kW heating`}</em>
                     <span>
-                      <button type="button" className="pbtn ghost sm" disabled={busy !== null || added.has(key)} onClick={() => void add(r.name, o)}>
+                      <button type="button" className="pbtn ghost sm" disabled={busy !== null || added.has(key)} onClick={() => void add(r, o)}>
                         {added.has(key) ? "Added" : busy === key ? "Adding" : "Add to materials"}
                       </button>
                     </span>

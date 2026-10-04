@@ -40,6 +40,10 @@ export type ReadRoom = {
   facing: Orientation | null;
   roomAbove: boolean | null;
   style: IndoorStyle | null;
+  /** the pipe run, indoor to outdoor, when the brief states it, and the
+      words it's in */
+  runM: number | null;
+  runSaid: string | null;
 };
 
 export type ReadBrief = {
@@ -56,6 +60,9 @@ export type PairOption = {
   /** the pair's rated output, cooling and heating */
   coolKw: number;
   heatKw: number;
+  /** the pair's pipe, liquid and gas, from the pack */
+  liquidMm: number;
+  gasMm: number;
 };
 
 export type SizedRoom = {
@@ -66,6 +73,8 @@ export type SizedRoom = {
   /** what the brief didn't say, counted as standard: to ask */
   assumed: string[];
   style: IndoorStyle;
+  /** the pipe run the brief states, checked; null to ask */
+  runM: number | null;
   options: PairOption[];
 };
 
@@ -94,7 +103,9 @@ export function checkRooms(read: ReadBrief, brief: string): { rooms: (ReadRoom &
       dropped.push(r.name);
       continue;
     }
-    rooms.push({ ...r, areaM2: area });
+    /* a run is kept only when its words are the brief's and hold it */
+    const runOk = r.runM != null && r.runM > 0 && r.runM <= 100 && !!r.runSaid && text.includes(norm(r.runSaid)) && numberIn(norm(r.runSaid), r.runM);
+    rooms.push({ ...r, areaM2: area, runM: runOk ? r.runM : null, runSaid: runOk ? r.runSaid : null });
   }
   return { rooms, dropped };
 }
@@ -139,7 +150,7 @@ export function sizeRoom(
     orientation: room.facing ?? undefined,
     roomAbove: room.roomAbove ?? undefined,
   });
-  const assumed = (Object.keys(ASK) as (keyof typeof ASK)[]).filter((k) => room[k] == null).map((k) => ASK[k]);
+  const assumed: string[] = (Object.keys(ASK) as (keyof typeof ASK)[]).filter((k) => room[k] == null).map((k) => ASK[k]);
   const style = room.style ?? "wall";
   const ff = new Map(pack.indoor_units.map((u) => [u.model, u.form_factor]));
   const covering = pack.pair_tables
@@ -157,9 +168,26 @@ export function sizeRoom(
       style: formFactorLabel(ff.get(p.idu_model)) ?? "Indoor",
       coolKw: p.rated_cool_kw!,
       heatKw: p.rated_heat_kw!,
+      liquidMm: p.pipe_liquid_mm,
+      gasMm: p.pipe_gas_mm,
     }));
-  return { name: room.name, said: room.said, areaM2: room.areaM2, loadKw: Math.round(loadKw * 10) / 10, assumed, style, options };
+  if (room.runM == null) assumed.push("the pipe run");
+  return { name: room.name, said: room.said, areaM2: room.areaM2, loadKw: Math.round(loadKw * 10) / 10, assumed, style, runM: room.runM, options };
 }
 
 export const ZONE_LABEL = (z: number) => CLIMATE_ZONES[z]?.label ?? `Zone ${z}`;
 export const isZone = (z: unknown): z is number => typeof z === "number" && Number.isInteger(z) && !!CLIMATE_ZONES[z];
+
+/** The rows a pair goes on the job with: the two units, its pair coil at
+    the pack's sizes (the run the brief states, else to ask), and an
+    isolator. Each is priced from the business's own items — the units by
+    their order codes, the coil and isolator by its preferred ones. */
+export const RUN_TO_ASK = "Run to ask";
+export function kitRows(room: Pick<SizedRoom, "name" | "runM">, o: PairOption): { name: string; sub: string; qty: string }[] {
+  return [
+    { name: o.indoor, sub: `${o.style} indoor unit, ${room.name}`, qty: "1" },
+    { name: o.outdoor, sub: `Outdoor unit, ${room.name}`, qty: "1" },
+    { name: `ø${o.liquidMm} / ø${o.gasMm} pair coil`, sub: `liquid / gas mm, ${room.name}`, qty: room.runM != null ? `${room.runM} m` : RUN_TO_ASK },
+    { name: "Isolator", sub: room.name, qty: "1" },
+  ];
+}

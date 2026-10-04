@@ -42,6 +42,8 @@ import {
   type PaymentStage,
 } from "@/lib/quotes/payment";
 import type { StoredProposal } from "@/lib/quotes/proposal-writer";
+import type { QuotePrice } from "@/lib/quotes/quote-price-server";
+import { stillToPrice } from "@/lib/quotes/job-price";
 import { STANDARD_NOTES, standardTemplates, type PaymentTerms, type QuoteNote } from "@/lib/templates/settings";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
@@ -1179,14 +1181,20 @@ function OptionEdit({
 }
 
 /** The Price block's total for the job, ex GST: what its own materials and
-    labour come to at the business's own prices. Null when it can't be read
-    or nothing is set to price it. */
-async function pricedTotal(job: string): Promise<number | null> {
+    labour come to at the business's own prices — only when nothing is left
+    to price, so a proposal never takes a total so far. Otherwise what's
+    stopping it, in words. */
+async function pricedTotal(job: string): Promise<{ cents: number } | { why: string }> {
   const a = (await (await fetch(`/api/workboard/quote-price?job=${encodeURIComponent(job)}`)).json()) as {
     ok: boolean;
-    price?: { ok: boolean; build?: { exGstCents: number } };
+    price?: QuotePrice;
   };
-  return a.ok && a.price?.ok && a.price.build ? a.price.build.exGstCents : null;
+  const p = a.ok ? a.price : null;
+  if (!p || !p.ok) return { why: "The Price block has no total yet: set what it asks for, then try again." };
+  const left = stillToPrice({ unpriced: p.unpriced, labourFrom: p.labourFrom, labourCents: p.build.labour.sellCents });
+  if (left.length > 0)
+    return { why: `The Price block still has ${left.length} to price (${left.map((u) => u.name).join(", ")}): price them, then try again.` };
+  return { cents: p.build.exGstCents };
 }
 
 function PricingEdit({
@@ -1212,9 +1220,9 @@ function PricingEdit({
   const take = async (i: number) => {
     setTaking(i);
     setPriceNote(null);
-    const total = await pricedTotal(job).catch(() => null);
-    if (total == null) setPriceNote("The Price block has no total yet: set what it asks for, then try again.");
-    else setPrices((cur) => cur.map((p, j) => (j === i ? String(total / 100) : p)));
+    const total = await pricedTotal(job).catch(() => ({ why: "The Price block couldn't be read: try again." }));
+    if ("why" in total) setPriceNote(total.why);
+    else setPrices((cur) => cur.map((p, j) => (j === i ? String(total.cents / 100) : p)));
     setTaking(null);
   };
   const [items, setItems] = useState(draft.items.map((it) => `${it.qty} × ${it.name}`).join("\n"));

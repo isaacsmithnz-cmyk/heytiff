@@ -23,10 +23,45 @@ it("prices the job's own list and labour, with GST, and lists what it couldn't",
   expect(screen.getByText("$500")).toBeInTheDocument();
   expect(screen.getByText("1 person-day, from the brief")).toBeInTheDocument();
   expect(screen.getByText("$1,120")).toBeInTheDocument();
-  expect(screen.getByText("Inc GST")).toBeInTheDocument();
+  expect(screen.getByText("Inc GST, so far")).toBeInTheDocument();
   expect(screen.getByText("$1,782")).toBeInTheDocument();
-  expect(screen.getByText("Not priced: 1 of the job's materials")).toBeInTheDocument();
+  expect(screen.getByText("Part priced: 1 still to price")).toBeInTheDocument();
   expect(screen.getByText("Not in your price book")).toBeInTheDocument();
+});
+
+it("calls a total whole only when nothing is left to price", async () => {
+  const build = priceBuildUp(
+    [{ key: "row-0", group: "Units", name: "MSZ-AP71VGD2", code: "MSZ-AP71VGKD2-A2", supplierKey: "aad", qty: 1, unitBuyCents: 40000, kind: "unit" }],
+    [{ stage: "Install", people: 1, days: 1 }],
+    settings
+  );
+  answer({ ok: true, build, unpriced: [], labourFrom: "brief", rows: 1 });
+  render(<JobQuotePrice job="j-1" visible />);
+  expect(await screen.findByText("The job's materials and labour, at your prices")).toBeInTheDocument();
+  expect(screen.getByText("Inc GST")).toBeInTheDocument();
+  expect(screen.queryByText("Still to price")).toBeNull();
+});
+
+/* Isaac's walk, 2026-10-05: a $0 line read as a price. */
+it("lists labour nothing gives as still to price, never a $0 line", async () => {
+  const build = priceBuildUp(
+    [{ key: "row-0", group: "Install kit", name: "Wall bracket", code: "CWB180", supplierKey: "aad", qty: 1, unitBuyCents: 3079, kind: "material" }],
+    [],
+    settings
+  );
+  answer({ ok: true, build, unpriced: [], labourFrom: "none", rows: 1 });
+  render(<JobQuotePrice job="j-1" visible />);
+  expect(await screen.findByText("Part priced: 1 still to price")).toBeInTheDocument();
+  expect(screen.getByText("Labour")).toBeInTheDocument();
+  expect(screen.getByText("Not in the brief, and no typical yet")).toBeInTheDocument();
+  expect(screen.queryByText("$0")).toBeNull();
+});
+
+it("shows no figures when there's nothing to price", async () => {
+  answer({ ok: true, build: priceBuildUp([], [], settings), unpriced: [], labourFrom: "none", rows: 0 });
+  render(<JobQuotePrice job="j-1" visible />);
+  expect(await screen.findByText("Nothing to price yet")).toBeInTheDocument();
+  expect(screen.queryByText(/GST/)).toBeNull();
 });
 
 it("says what isn't set, with the way to Quoting, and prices nothing", async () => {

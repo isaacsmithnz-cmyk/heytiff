@@ -206,3 +206,18 @@ export function labourVisits(advice: LabourAdvice, dayHours: number): { visits: 
   }
   return { visits: [], from: "none" };
 }
+
+/** What a priced quote still lacks before its total is the quote's: the
+    labour when nothing gives it, then each material with no price. Empty
+    means the total is whole; anything here makes it a total so far, which
+    a proposal never takes (Isaac's walk, 2026-10-05: $72 shown as the
+    quote with five items and the labour unpriced). */
+export function stillToPrice(p: { unpriced: Unpriced[]; labourFrom: "brief" | "history" | "none"; labourCents: number }): Unpriced[] {
+  const labour: Unpriced[] =
+    p.labourFrom === "none"
+      ? [{ name: "Labour", qty: "", why: "Not in the brief, and no typical yet" }]
+      : p.labourCents <= 0
+        ? [{ name: "Labour", qty: "", why: "The brief gives no days or hours to price" }]
+        : [];
+  return [...labour, ...p.unpriced];
+}

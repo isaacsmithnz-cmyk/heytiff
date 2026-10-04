@@ -15,6 +15,7 @@ const rooms: BriefRooms = {
       name: "Living",
       said: "living room, room is 30m2",
       areaM2: 30,
+      statedKw: null,
       loadKw: 4.4,
       assumed: ["the ceiling height"],
       style: "wall",

@@ -55,7 +55,7 @@ describe("the job's list, priced", () => {
 
   it("lists what it couldn't price, with why — never a guess", () => {
     expect(unpriced).toEqual([
-      { name: "ø9.52 / ø15.88 pair coil", qty: "10 m", why: "No preferred item for it in Quoting" },
+      { name: "ø9.52 / ø15.88 pair coil", qty: "10 m", why: "Choose your pair coil 3/8 + 5/8 in Quoting" },
       { name: "Additional refrigerant", qty: "820 g", why: "Bought by the bottle, not the gram" },
       { name: "Mystery bracket", qty: "1", why: "Not in your price book" },
       { name: "MUZ-AP71VG2", qty: "1", why: "Confirm its order code (MUZ-AP71VGD2-A2) in Quoting" },
@@ -84,5 +84,45 @@ describe("the labour it prices", () => {
       { stage: "Install", people: 1, days: 0.8 },
     ]);
     expect(labourVisits({ from: "none" }, 8)).toEqual({ visits: [], from: "none" });
+  });
+});
+
+describe("a kit's rows", () => {
+  const kitDeps: JobPriceDeps = {
+    ...deps,
+    component: (key) =>
+      key === "pipe_cover"
+        ? { perUnitCents: 3614, supplierKey: "x", code: "COVER-2.4", name: "PIPE COVER 2.4M", lengthM: 2.4 }
+        : key === "ground_mount"
+          ? { perUnitCents: 1372, supplierKey: "x", code: "PAD", name: "GROUND PAD" }
+          : null,
+    allowance: (k) => (k === "consumables" ? 3182 : null),
+  };
+  const { lines, unpriced } = priceJobList(
+    [
+      { name: "Ground mount", sub: "for the outdoor's 840 mm, 53 kg, Living", qty: "1" },
+      { name: "Pipe cover", sub: "along the run, Living", qty: "6 m" },
+      { name: "Consumables", sub: "a head, Living", qty: "1" },
+      { name: "New circuit", sub: "Living", qty: "1" },
+      { name: "Drain hose", sub: "along the run, Living", qty: "6 m" },
+      { name: "Outdoor mount", sub: "Bed 2", qty: "Where it sits: ask" },
+    ],
+    kitDeps
+  );
+
+  it("prices each part by the business's own item, pipe cover in its whole lengths, and an allowance at its own figure", () => {
+    expect(lines.map((l) => [l.name, l.code, l.qty, l.unitBuyCents])).toEqual([
+      ["Ground mount", "PAD", 1, 1372],
+      ["Pipe cover", "COVER-2.4", 3, 3614],
+      ["Consumables", null, 1, 3182],
+    ]);
+  });
+
+  it("says what to set, and what to ask — never a figure of its own", () => {
+    expect(unpriced).toEqual([
+      { name: "New circuit", qty: "1", why: "Set your new circuit allowance in Quoting" },
+      { name: "Drain hose", qty: "6 m", why: "Choose your drain hose in Quoting" },
+      { name: "Outdoor mount", qty: "Where it sits: ask", why: "Where the outdoor sits isn't known yet: ask" },
+    ]);
   });
 });

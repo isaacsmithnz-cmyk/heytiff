@@ -19,7 +19,12 @@ const rooms: BriefRooms = {
       assumed: ["the ceiling height"],
       style: "wall",
       runM: null,
-      options: [{ indoor: "MSZ-AP50VGD2", outdoor: "MUZ-AP50VG2", style: "Wall", coolKw: 5, heatKw: 6, liquidMm: 6.35, gasMm: 12.7 }],
+      outdoorAt: null,
+      drain: null,
+      newCircuit: null,
+      options: [
+        { indoor: "MSZ-AP50VGD2", outdoor: "MUZ-AP50VG2", style: "Wall", coolKw: 5, heatKw: 6, liquidMm: 6.35, gasMm: 12.7, outdoorWidthMm: 840, outdoorWeightKg: 53, outdoorAmps: 16 },
+      ],
     },
   ],
   dropped: ["Bed 3"],
@@ -45,7 +50,10 @@ it("reads the rooms on a press, sizes them, and puts a pair on the job only when
   expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "MSZ-AP50VGD2", qty: "1", sub: "Wall indoor unit, Living" });
   expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "MUZ-AP50VG2", qty: "1", sub: "Outdoor unit, Living" });
   expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "ø6.35 / ø12.7 pair coil", qty: "Run to ask", sub: "liquid / gas mm, Living" });
-  expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "Isolator", qty: "1", sub: "Living" });
+  expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "Isolator", qty: "1", sub: "for the outdoor's 16 A, Living" });
+  /* nobody said where the outdoor sits: it goes on to ask */
+  expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "Outdoor mount", qty: "Where it sits: ask", sub: "Living" });
+  expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "Consumables", qty: "1", sub: "a head, Living" });
   expect(onAdded).toHaveBeenCalled();
   expect(await screen.findByRole("button", { name: "Added" })).toBeDisabled();
 });
@@ -56,7 +64,10 @@ it("takes a pipe run typed for the room over the brief's", async () => {
   render(<JobQuoteRooms job="j-1" onAdded={jest.fn()} />);
   await userEvent.click(screen.getByRole("button", { name: "Size the rooms from the brief" }));
   await userEvent.type(await screen.findByLabelText("Pipe run for Living, metres"), "8");
+  await userEvent.selectOptions(screen.getByLabelText("Where Living's outdoor sits"), "wall");
   expect(screen.getByText("Typed here")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Add to materials" }));
   expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "ø6.35 / ø12.7 pair coil", qty: "8 m", sub: "liquid / gas mm, Living" });
+  expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "Wall bracket", qty: "1", sub: "for the outdoor's 840 mm, 53 kg, Living" });
+  expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", { kind: "material", name: "Pipe cover", qty: "8 m", sub: "along the run, Living" });
 });

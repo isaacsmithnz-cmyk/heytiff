@@ -4,15 +4,23 @@ import { useState } from "react";
 import { addJobPicklistItem } from "@/app/actions/job-picklist";
 import { CLIMATE_ZONES } from "@/lib/studio/loads";
 import type { BriefRooms, BriefRoomsResult } from "@/lib/quotes/brief-rooms-server";
-import { kitRows, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
+import { kitRows, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
 
 /* ROOMS FROM THE BRIEF, on the job card's Quote section (Isaac, 2026-10-04:
    "What if I said the room is 30m2?"). Pressed, Tiff reads the rooms the
    brief gives a size for; each is sized from the climate zone's watts a
    square metre and offered the data pack's pairs that cover it. What the
    brief didn't say is listed to ask. A pair goes on the job's Materials
-   list only when a person adds it — with its pair coil and an isolator —
-   and then the Price block prices it. */
+   list only when a person adds it — with its kit: pair coil, the outdoor's
+   mount and isolator, pipe cover, drain, consumables, and a pump or a new
+   circuit when the brief says — and then the Price block prices it. */
+
+const WHERE: { value: OutdoorAt | ""; label: string }[] = [
+  { value: "", label: "Not said" },
+  { value: "ground", label: "Ground" },
+  { value: "wall", label: "Wall" },
+  { value: "roof", label: "Roof" },
+];
 
 const ROUTE = "/api/workboard/brief-rooms";
 const ZONES = Object.keys(CLIMATE_ZONES).map(Number);
@@ -37,6 +45,14 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
     return typed.trim() !== "" && Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 10) / 10 : null;
   };
 
+  /* where the outdoor sits, as a person set it over the brief's */
+  const [wheres, setWheres] = useState<Record<string, OutdoorAt | "">>({});
+  const whereOf = (r: SizedRoom): OutdoorAt | null => {
+    const set = wheres[r.name];
+    return set === undefined ? r.outdoorAt : set || null;
+  };
+  const kitOf = (r: SizedRoom, o: PairOption) => kitRows(r, o, { runM: runOf(r), outdoorAt: whereOf(r) });
+
   const post = async (body: object, word: string) => {
     setBusy(word);
     setNote(null);
@@ -57,7 +73,7 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
     const key = `${room.name}|${o.indoor}`;
     /* read OUT HERE: React Compiler can't lower a loop or a conditional
        inside a try, and gives up on the whole component */
-    const rows = kitRows({ name: room.name, runM: runOf(room) }, o);
+    const rows = kitOf(room, o);
     setBusy(key);
     setNote(null);
     try {
@@ -135,6 +151,33 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
                   <em>m</em>
                 </span>
               </div>
+              <div className="wb2-mline">
+                <b>Outdoor</b>
+                <em>{wheres[r.name] === undefined && r.outdoorAt != null ? "From the brief" : whereOf(r) == null ? "To ask: goes on as an outdoor mount to ask" : "Set here"}</em>
+                <span>
+                  <select
+                    className="wb2-sel"
+                    aria-label={`Where ${r.name}'s outdoor sits`}
+                    value={whereOf(r) ?? ""}
+                    disabled={busy !== null}
+                    onChange={(e) => setWheres((cur) => ({ ...cur, [r.name]: e.target.value as OutdoorAt | "" }))}
+                  >
+                    {WHERE.map((w) => (
+                      <option key={w.value} value={w.value}>
+                        {w.label}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              </div>
+              {r.options[0] && (
+                <p className="wb2-shtext">
+                  {`With the pair: ${kitOf(r, r.options[0])
+                    .slice(2)
+                    .map((k) => `${k.name.toLowerCase()} (${k.qty})`)
+                    .join(", ")}.`}
+                </p>
+              )}
               {r.assumed.length > 0 && <p className="wb2-shtext">{`Counted as standard, to ask: ${r.assumed.join(", ")}.`}</p>}
               {r.options.length === 0 && <p className="wb2-shtext">No single split in the data pack covers it: a multi or ducted system, in Studio.</p>}
               {r.options.map((o) => {

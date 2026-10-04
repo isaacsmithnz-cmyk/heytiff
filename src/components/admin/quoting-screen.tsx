@@ -13,11 +13,15 @@ import { PriceBook } from "./price-book-panel";
 import { LinksPanel } from "./links-panel";
 import { SameItemsPanel } from "./same-items-panel";
 import {
+  ALLOWANCES,
+  ALLOWANCE_KEYS,
+  MAX_ALLOWANCE_CENTS,
   MAX_CHARGE_OUT_CENTS,
   MAX_CONTINGENCY_HOURS,
   MAX_CONTINGENCY_PCT,
   MAX_DAY_HOURS,
   MAX_MARKUP_PCT,
+  type AllowanceKey,
   type QuoteSettings,
 } from "@/lib/quotes/settings";
 import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
@@ -240,6 +244,13 @@ export function QuotingScreen({
               </div>
             </section>
 
+            <AllowancesGroup
+              key={JSON.stringify(saved.allowances)}
+              saved={saved.allowances}
+              busy={busy}
+              onSave={(allowances) => void save({ ...saved, allowances }, "Allowances saved")}
+            />
+
             <PriceBook suppliers={suppliers} onImported={() => router.refresh()} />
 
             <LinksPanel />
@@ -280,6 +291,56 @@ export function QuotingScreen({
         </div>
       </div>
     </div>
+  );
+}
+
+/* WHAT A KIT CARRIES THAT ISN'T ONE ITEM — the business's own figure for
+   each, at cost: its materials markup goes on top. Blank, a quote's kit
+   lists the line and asks for it here (Isaac, 2026-10-04). */
+function AllowancesGroup({
+  saved,
+  busy,
+  onSave,
+}: {
+  saved: QuoteSettings["allowances"];
+  busy: boolean;
+  onSave: (a: QuoteSettings["allowances"]) => void;
+}) {
+  const [typed, setTyped] = useState<Record<AllowanceKey, string>>(
+    () => Object.fromEntries(ALLOWANCE_KEYS.map((k) => [k, dollarsField(saved[k])])) as Record<AllowanceKey, string>
+  );
+  const next = Object.fromEntries(ALLOWANCE_KEYS.map((k) => [k, centsOrNone(typed[k])])) as QuoteSettings["allowances"];
+  const changed = ALLOWANCE_KEYS.some((k) => next[k] !== saved[k]);
+  const valid = ALLOWANCE_KEYS.every((k) => inRange(typed[k].replace(/[$,\s]/g, ""), 0, MAX_ALLOWANCE_CENTS / 100));
+  return (
+    <section className="qs-group">
+      <h2 className="qs-h">Allowances, at cost</h2>
+      <div className="qs-fields">
+        {ALLOWANCE_KEYS.map((k) => (
+          <label className="qs-field" key={k}>
+            <span>{ALLOWANCES[k].label}</span>
+            <span className="qs-in">
+              <em>$</em>
+              <input
+                className="wb2-fi"
+                inputMode="decimal"
+                value={typed[k]}
+                disabled={busy}
+                onChange={(e) => setTyped((cur) => ({ ...cur, [k]: e.target.value }))}
+                aria-label={`${ALLOWANCES[k].label} allowance, dollars ${ALLOWANCES[k].per}`}
+              />
+              <em>{ALLOWANCES[k].per}</em>
+            </span>
+            <em className="qs-share">{saved[k] == null ? "Not set" : "Set"}</em>
+          </label>
+        ))}
+      </div>
+      <div className="wb2-jqacts">
+        <button type="button" className="pbtn primary" disabled={busy || !changed || !valid} onClick={() => onSave(next)}>
+          Save allowances
+        </button>
+      </div>
+    </section>
   );
 }
 

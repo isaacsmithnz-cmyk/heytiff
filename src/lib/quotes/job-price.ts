@@ -1,6 +1,8 @@
 import type { BuildLine, Visit } from "./buildup";
 import { categoryOf } from "./categories";
-import { COMPONENT_KEYS, matchesComponent, type ComponentKey } from "./components";
+import { KIT, RUN_TO_ASK, WHERE_TO_ASK } from "./brief-rooms";
+import { COMPONENT_KEYS, QUOTE_COMPONENTS, matchesComponent, type ComponentKey } from "./components";
+import { ALLOWANCES, type AllowanceKey } from "./settings";
 import type { Priced, PriceOf } from "./ducted-template";
 import type { LabourAdvice } from "./labour-history";
 
@@ -26,7 +28,15 @@ import type { LabourAdvice } from "./labour-history";
 export type ListRow = { name: string; sub: string; qty: string };
 
 export type UnitOffer = { buyCents: number; supplierKey: string; name: string; code: string };
-export type ComponentPrice = { perUnitCents: number; supplierKey: string; code: string; name: string };
+export type ComponentPrice = {
+  perUnitCents: number;
+  supplierKey: string;
+  code: string;
+  name: string;
+  /** one piece's length, for a part bought by the piece and needed by the
+      metre (pipe cover); null when its name doesn't say */
+  lengthM?: number | null;
+};
 
 export type JobPriceDeps = {
   priceOf: PriceOf;
@@ -36,7 +46,26 @@ export type JobPriceDeps = {
   unitProposed?: (model: string) => string[];
   /** the business's chosen item for a common part, per metre or each */
   component: (key: ComponentKey) => ComponentPrice | null;
+  /** the business's own allowance, at cost; null when it hasn't set it */
+  allowance?: (key: AllowanceKey) => number | null;
 };
+
+/* A kit's rows by name: the part each is, priced by the business's own
+   preferred item for it (Quoting), or its own allowance. */
+const KIT_PART: Record<string, ComponentKey> = {
+  [KIT.groundMount]: "ground_mount",
+  [KIT.wallBracket]: "wall_bracket",
+  [KIT.isolator]: "isolator",
+  [KIT.pipeCover]: "pipe_cover",
+  [KIT.drainHose]: "drain_hose",
+  [KIT.pump]: "condensate_pump",
+};
+const KIT_ALLOWANCE: Record<string, AllowanceKey> = Object.fromEntries(
+  (Object.keys(ALLOWANCES) as AllowanceKey[]).map((k) => [ALLOWANCES[k].label, k])
+);
+
+const askWhy = (qty: string) =>
+  qty === WHERE_TO_ASK ? "Where the outdoor sits isn't known yet: ask" : qty === RUN_TO_ASK ? "Its length isn't known yet: ask" : "Not known yet: ask";
 
 export type Unpriced = { name: string; qty: string; why: string };
 
@@ -83,7 +112,7 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
       const why = /\d\s*(g|kg)\b/i.test(r.qty)
         ? "Bought by the bottle, not the gram"
         : /\bask\b/i.test(r.qty)
-          ? "Its length isn't known yet: ask"
+          ? askWhy(r.qty)
           : "No quantity to price";
       unpriced.push({ name: r.name, qty: r.qty, why });
       return;
@@ -101,6 +130,15 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
       ...extra,
     });
 
+    /* a kit's allowance: the business's own figure, or say to set it */
+    const allowanceKey = KIT_ALLOWANCE[r.name.trim()];
+    if (allowanceKey) {
+      const cents = deps.allowance?.(allowanceKey) ?? null;
+      if (cents == null) return void unpriced.push({ name: r.name, qty: r.qty, why: `Set your ${ALLOWANCES[allowanceKey].label.toLowerCase()} allowance in Quoting` });
+      lines.push({ key, group: "Materials", name: r.name, code: null, supplierKey: null, qty: count.n, unitBuyCents: cents, kind: "material", duct: false });
+      return;
+    }
+
     const unit = deps.unitOffer(r.name.trim());
     const waiting = unit ? [] : (deps.unitProposed?.(r.name.trim()) ?? []);
     if (waiting.length > 0) {
@@ -116,11 +154,19 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
     if (code && byCode) return void lines.push(material(byCode, code));
 
     const pair = PAIR_ROW.exec(r.name);
-    const compKey = pair ? PAIR_MM[`${Number(pair[1])}+${Number(pair[2])}`] : COMPONENT_KEYS.find((k) => matchesComponent(k, r.name));
+    const compKey = pair
+      ? PAIR_MM[`${Number(pair[1])}+${Number(pair[2])}`]
+      : (KIT_PART[r.name.trim()] ?? COMPONENT_KEYS.find((k) => matchesComponent(k, r.name)));
     if (compKey) {
       const c = deps.component(compKey);
-      if (!c) return void unpriced.push({ name: r.name, qty: r.qty, why: "No preferred item for it in Quoting" });
-      lines.push({ key, group: "Materials", name: r.name, code: c.code, supplierKey: c.supplierKey, qty: count.n, unitBuyCents: c.perUnitCents, kind: "material", duct: false });
+      if (!c) return void unpriced.push({ name: r.name, qty: r.qty, why: `Choose your ${QUOTE_COMPONENTS[compKey].label.toLowerCase()} in Quoting` });
+      /* bought by the piece, needed by the metre: whole pieces of its length */
+      let qty = count.n;
+      if (QUOTE_COMPONENTS[compKey].unit === "each" && count.unit === "m") {
+        if (!c.lengthM) return void unpriced.push({ name: r.name, qty: r.qty, why: `How long one ${c.name} is isn't in its name: set it in Quoting` });
+        qty = Math.ceil(count.n / c.lengthM - 1e-9);
+      }
+      lines.push({ key, group: "Materials", name: r.name, code: c.code, supplierKey: c.supplierKey, qty, unitBuyCents: c.perUnitCents, kind: "material", duct: false });
       return;
     }
     const byName = deps.priceOf(r.name.trim());

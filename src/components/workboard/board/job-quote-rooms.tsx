@@ -4,7 +4,7 @@ import { useState } from "react";
 import { addJobPicklistItem } from "@/app/actions/job-picklist";
 import { CLIMATE_ZONES } from "@/lib/studio/loads";
 import type { BriefRooms, BriefRoomsResult } from "@/lib/quotes/brief-rooms-server";
-import { kitRows, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
+import { kitRows, multiKitRows, multiPipeWords, type MultiOption, type OutdoorAt, type PairOption, type SizedRoom } from "@/lib/quotes/brief-rooms";
 
 /* ROOMS FROM THE BRIEF, on the job card's Quote section (Isaac, 2026-10-04:
    "What if I said the room is 30m2?"). Pressed, Tiff reads the rooms the
@@ -82,6 +82,32 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
       onAdded();
     } catch {
       setNote("That pair couldn't be added. Try again.");
+    }
+    setBusy(null);
+  };
+
+  /* the same rooms on one multi: where its outdoor sits, set here over the
+     first the brief said */
+  const [multiWhere, setMultiWhere] = useState<OutdoorAt | "" | undefined>(undefined);
+  const multiWhereOf = (): OutdoorAt | null =>
+    multiWhere === undefined ? (rooms?.rooms.find((r) => r.outdoorAt != null)?.outdoorAt ?? null) : multiWhere || null;
+  const multiRows = (m: MultiOption) =>
+    multiKitRows(m, rooms?.rooms ?? [], {
+      runs: Object.fromEntries((rooms?.rooms ?? []).map((r) => [r.name, runOf(r)])),
+      outdoorAt: multiWhereOf(),
+    });
+
+  const addMulti = async (m: MultiOption) => {
+    const key = `multi|${m.outdoor}`;
+    const rows = multiRows(m);
+    setBusy(key);
+    setNote(null);
+    try {
+      await addRows(job, rows);
+      setAdded((s) => new Set(s).add(key));
+      onAdded();
+    } catch {
+      setNote("The multi couldn't be added. Try again.");
     }
     setBusy(null);
   };
@@ -196,6 +222,63 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
               })}
             </div>
           ))}
+          {rooms.multi && !rooms.multi.ok && <p className="wb2-shtext">{`One multi for these rooms: ${rooms.multi.why}.`}</p>}
+          {rooms.multi?.ok && (
+            <div>
+              <div className="wb2-mline">
+                <b>{`Or one multi for the ${rooms.multi.multi.heads.length} rooms`}</b>
+                <em>{`${rooms.multi.multi.outdoor}, ${rooms.multi.multi.coolKw} kW cooling, ${rooms.multi.multi.heatKw} kW heating`}</em>
+                <span>
+                  <button
+                    type="button"
+                    className="pbtn ghost sm"
+                    disabled={busy !== null || added.has(`multi|${rooms.multi.multi.outdoor}`)}
+                    onClick={() => rooms.multi?.ok && void addMulti(rooms.multi.multi)}
+                  >
+                    {added.has(`multi|${rooms.multi.multi.outdoor}`) ? "Added" : busy === `multi|${rooms.multi.multi.outdoor}` ? "Adding" : "Add to materials"}
+                  </button>
+                </span>
+              </div>
+              {rooms.multi.multi.heads.map((h) => (
+                <div className="wb2-mline" key={`head-${h.room}`}>
+                  <b>{h.indoor}</b>
+                  <em>{`${h.style} for ${h.room}, ${h.coolKw} kW cooling, ${h.heatKw} kW heating`}</em>
+                  <span />
+                </div>
+              ))}
+              <div className="wb2-mline">
+                <b>Outdoor</b>
+                <em>{multiWhere === undefined && multiWhereOf() != null ? "From the brief" : multiWhereOf() == null ? "To ask: goes on as an outdoor mount to ask" : "Set here"}</em>
+                <span>
+                  <select
+                    className="wb2-sel"
+                    aria-label="Where the multi's outdoor sits"
+                    value={multiWhereOf() ?? ""}
+                    disabled={busy !== null}
+                    onChange={(e) => setMultiWhere(e.target.value as OutdoorAt | "")}
+                  >
+                    {WHERE.map((w) => (
+                      <option key={w.value} value={w.value}>
+                        {w.label}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              </div>
+              {multiPipeWords(
+                rooms.multi.multi,
+                rooms.rooms.map((r) => ({ room: r.name, runM: runOf(r) }))
+              ).map((w) => (
+                <p className="wb2-shtext" key={w}>{`${w}.`}</p>
+              ))}
+              <p className="wb2-shtext">
+                {`With it: ${multiRows(rooms.multi.multi)
+                  .filter((k) => !/indoor unit|outdoor unit/i.test(k.sub))
+                  .map((k) => `${k.name.toLowerCase()} (${k.qty})`)
+                  .join(", ")}.`}
+              </p>
+            </div>
+          )}
           {rooms.dropped.length > 0 && (
             <p className="wb2-shtext">{`Not used, their size isn't in the brief's words: ${rooms.dropped.join(", ")}.`}</p>
           )}

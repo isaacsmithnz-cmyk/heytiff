@@ -8,6 +8,7 @@ import {
   type RoomCondition,
 } from "@/lib/studio/loads";
 import { formFactorLabel } from "@/lib/studio/form-factors";
+import { proposeMultiIdus, proposeMultiOdus } from "@/lib/studio/multi";
 
 /* ROOMS READ FROM THE BRIEF, SIZED (Isaac, 2026-10-04: "What if I said the
    room is 30m2?… API call should be able to gauge based on the size of the
@@ -269,5 +270,116 @@ export function kitRows(room: Pick<SizedRoom, "name" | "drain" | "newCircuit">, 
   if (room.drain === "pump") rows.push({ name: KIT.pump, sub: `it can't drain by gravity, ${room.name}`, qty: "1" });
   rows.push({ name: KIT.consumables, sub: `a head, ${room.name}`, qty: "1" });
   if (room.newCircuit) rows.push({ name: KIT.newCircuit, sub: room.name, qty: "1" });
+  return rows;
+}
+
+/* ── ONE MULTI FOR THE ROOMS ─────────────────────────────────────────────
+   The same rooms on one outdoor, as Studio sizes a multi: each room's head
+   the smallest of its style that covers its load (proposeMultiIdus), the
+   outdoor the smallest the pack's combination table takes them on and that
+   covers their loads together (proposeMultiOdus) — the table, never a
+   ratio. The pack's pipe limits are checked against the runs known. */
+
+export type MultiHead = { room: string; indoor: string; style: string; coolKw: number; heatKw: number; liquidMm: number; gasMm: number };
+
+export type MultiOption = {
+  outdoor: string;
+  coolKw: number;
+  heatKw: number;
+  outdoorWidthMm: number | null;
+  outdoorWeightKg: number | null;
+  outdoorAmps: number | null;
+  heads: MultiHead[];
+  /** the pack's limits on pipe, in metres */
+  maxTotalM: number | null;
+  maxBranchM: number | null;
+};
+
+export type MultiProposal = { ok: true; multi: MultiOption } | { ok: false; why: string };
+
+export function sizeMulti(rooms: readonly SizedRoom[], pack: DataPack): MultiProposal | null {
+  if (rooms.length < 2) return null;
+  const heads: { room: SizedRoom; idu: DataPack["indoor_units"][number] }[] = [];
+  for (const r of rooms) {
+    /* the smallest that suits; else, for a room smaller than any head, the
+       smallest that covers it — there is nothing smaller to buy */
+    const mine = proposeMultiIdus(pack, r.loadKw, "worst-of-both").filter((p) => STYLE_OF[p.idu.form_factor] === r.style);
+    const fit = mine.find((p) => p.fit === "fits") ?? mine.find((p) => p.capacityKw >= r.loadKw);
+    if (!fit) return { ok: false, why: `No multi head of that style in the data pack covers ${r.name}'s ${r.loadKw} kW` };
+    heads.push({ room: r, idu: fit.idu });
+  }
+  const required = rooms.reduce((n, r) => n + r.loadKw, 0);
+  const pick = proposeMultiOdus(pack, heads.map((h) => h.idu), "worst-of-both", { requiredKw: required }).find((p) => p.recommended);
+  if (!pick) return { ok: false, why: "No multi outdoor in the data pack takes these heads together" };
+  return {
+    ok: true,
+    multi: {
+      outdoor: pick.odu.model,
+      coolKw: pick.odu.capacity_cool_kw,
+      heatKw: pick.odu.capacity_heat_kw,
+      outdoorWidthMm: pick.odu.width_mm ?? null,
+      outdoorWeightKg: pick.odu.weight_kg ?? null,
+      outdoorAmps: pick.odu.max_amps_a ?? null,
+      heads: heads.map(({ room, idu }) => ({
+        room: room.name,
+        indoor: idu.model,
+        style: formFactorLabel(idu.form_factor) ?? "Indoor",
+        coolKw: idu.capacity_cool_kw,
+        heatKw: idu.capacity_heat_kw,
+        liquidMm: idu.conn_liquid_mm,
+        gasMm: idu.conn_gas_mm,
+      })),
+      maxTotalM: pick.rule.max_total_pipe_m ?? null,
+      maxBranchM: pick.rule.max_per_branch_m ?? null,
+    },
+  };
+}
+
+/** The pack's pipe limits against the runs: said when one is over, and the
+    total once every run is known. */
+export function multiPipeWords(m: MultiOption, runs: readonly { room: string; runM: number | null }[]): string[] {
+  const out: string[] = [];
+  for (const r of runs) {
+    if (r.runM != null && m.maxBranchM != null && r.runM > m.maxBranchM) out.push(`${r.room}'s ${r.runM} m is over the ${m.maxBranchM} m a branch takes`);
+  }
+  if (runs.every((r) => r.runM != null) && m.maxTotalM != null) {
+    const total = Math.round(runs.reduce((n, r) => n + (r.runM ?? 0), 0) * 10) / 10;
+    out.push(total > m.maxTotalM ? `${total} m of pipe is over the ${m.maxTotalM} m it takes` : `${total} m of pipe, of the ${m.maxTotalM} m it takes`);
+  }
+  return out;
+}
+
+/** A multi's kit: the outdoor once, with its mount, isolator and a new
+    circuit when the brief says; then each head with its own coil at its
+    sizes, pipe cover and drain along its run, consumables, and a pump when
+    the brief says its room can't drain. */
+export function multiKitRows(
+  m: MultiOption,
+  rooms: readonly Pick<SizedRoom, "name" | "drain" | "newCircuit">[],
+  c: { runs: Record<string, number | null>; outdoorAt: OutdoorAt | null }
+): { name: string; sub: string; qty: string }[] {
+  const size = [m.outdoorWidthMm != null ? `${m.outdoorWidthMm} mm` : null, m.outdoorWeightKg != null ? `${m.outdoorWeightKg} kg` : null].filter(Boolean).join(", ");
+  const system = `the multi`;
+  const rows = [
+    { name: m.outdoor, sub: `Multi outdoor unit, ${m.heads.length} heads`, qty: "1" },
+    c.outdoorAt
+      ? { name: MOUNT_NAME[c.outdoorAt], sub: `${size ? `for the outdoor's ${size}, ` : ""}${system}`, qty: "1" }
+      : { name: KIT.mount, sub: system, qty: WHERE_TO_ASK },
+    { name: KIT.isolator, sub: `${m.outdoorAmps != null ? `for the outdoor's ${m.outdoorAmps} A, ` : ""}${system}`, qty: "1" },
+  ];
+  if (rooms.some((r) => r.newCircuit)) rows.push({ name: KIT.newCircuit, sub: system, qty: "1" });
+  for (const h of m.heads) {
+    const room = rooms.find((r) => r.name === h.room);
+    const runM = c.runs[h.room] ?? null;
+    const run = runM != null ? `${runM} m` : RUN_TO_ASK;
+    rows.push(
+      { name: h.indoor, sub: `${h.style} indoor unit, ${h.room}`, qty: "1" },
+      { name: `ø${h.liquidMm} / ø${h.gasMm} pair coil`, sub: `liquid / gas mm, ${h.room}`, qty: run },
+      { name: KIT.pipeCover, sub: `along the run, ${h.room}`, qty: run },
+      { name: KIT.drainHose, sub: `along the run, ${h.room}`, qty: run }
+    );
+    if (room?.drain === "pump") rows.push({ name: KIT.pump, sub: `it can't drain by gravity, ${h.room}`, qty: "1" });
+    rows.push({ name: KIT.consumables, sub: `a head, ${h.room}`, qty: "1" });
+  }
   return rows;
 }

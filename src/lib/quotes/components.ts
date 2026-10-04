@@ -36,11 +36,14 @@ export const QUOTE_COMPONENTS = {
   pair_coil_14_58: { label: "Pair coil 1/4 + 5/8", unit: "m", match: [COIL, coil("1/4", "5/8")], not: NOT_COIL },
   pair_coil_38_58: { label: "Pair coil 3/8 + 5/8", unit: "m", match: [COIL, coil("3/8", "5/8")], not: NOT_COIL },
   pair_coil_38_34: { label: "Pair coil 3/8 + 3/4", unit: "m", match: [COIL, coil("3/8", "3/4")], not: NOT_COIL },
+  /* twin and earth: "TPS", "T&E", "2C+E" — never single-core building wire
+     (SDI), twin active with no earth, flex cord or the clips that hold it
+     (Isaac's walk, 2026-10-05: SDI 1 core red priced the circuit) */
   power_cable: {
     label: "Power cable, 2.5 mm² TPS",
     unit: "m",
-    match: [/2\.5\s*mm/i, /tps|t\s*&\s*e|twin|core|cable/i],
-    not: [/angle|conduit|gland/i],
+    match: [/2\.5\s*mm/i, /\btps\b|\bt\s*&\s*e\b|\b2\s*c\s*\+\s*e\b|twin\s*(&|and)\s*earth/i],
+    not: [/angle|conduit|gland|\bsdi\b|\b1\s*core\b|single|active|flex|clips?\b/i],
   },
   drain_hose: { label: "Drain hose", unit: "m", match: [/drain/i, /hose/i] },
   pipe_cover: {
@@ -80,7 +83,9 @@ export const QUOTE_COMPONENTS = {
     label: "Condensate drain pipe, one length",
     unit: "each",
     match: [/\bpvc\b/i, /\b(19|20|25)\s*mm\b/i, /\d(\.\d+)?\s*m\b/i],
-    not: [/clamp|elbow|saddle|clip|bush|socket|trap|fit|tee|valve|cement|glue|pan/i],
+    /* electrical conduit and tape are PVC by the length too (Isaac's walk,
+       2026-10-05: 20 mm flex conduit priced the drain) */
+    not: [/clamp|elbow|saddle|clip|bush|socket|trap|fit|tee|valve|cement|glue|pan|conduit|tape|insulation|flex/i],
   },
   /* a zone damper's cable, one a damper — never a joiner or a controller's own cable */
   zone_cable: {

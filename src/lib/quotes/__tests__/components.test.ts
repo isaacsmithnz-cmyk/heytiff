@@ -30,6 +30,19 @@ describe("which price-book items a component matches", () => {
   it("takes the cable, not the slotted angle of the same gauge", () => {
     expect(matchesComponent("power_cable", "2.5mm Twin and Earth Flat Cable (Per Meter)")).toBe(true);
     expect(matchesComponent("power_cable", "SLOTTED ANGLE 40X40-2.5mm 3M")).toBe(false);
+    /* Isaac's walk, 2026-10-05: twin and earth, never single core, twin active, flex or clips */
+    expect(matchesComponent("power_cable", "Flat Twin 2C +E 2.5mm PVC/ PVC White 450- 750V per metre")).toBe(true);
+    expect(matchesComponent("power_cable", "Cable Tps 2.5Mm 7/067 2C+E100M per metre")).toBe(true);
+    expect(matchesComponent("power_cable", "2.5MMSQ 7/.67 T&E TPS 450/750V 90C WHITE 100M")).toBe(true);
+    expect(matchesComponent("power_cable", "SDI 1 Core 7/0. 67 2.5mm PVC/ PVC Red Core White 450/ 750V per metre")).toBe(false);
+    expect(matchesComponent("power_cable", "Flat Twin Active 2C 2.5mm PVC/ PVC Red/ White White 450/ 750V per metre")).toBe(false);
+    expect(matchesComponent("power_cable", "Flex Cable O/ D 2C +E 2.5mm PVC/ PVC Black 250/ 440V per metre")).toBe(false);
+    expect(matchesComponent("power_cable", "Cable Clips 2.5Mm")).toBe(false);
+    /* a drain is PVC pipe by the length, never electrical conduit or tape */
+    expect(matchesComponent("condensate_drain", "PVC 20mm 3.9M")).toBe(true);
+    expect(matchesComponent("condensate_drain", "Flex Conduit M/ D 20mm 20M PVC Grey")).toBe(false);
+    expect(matchesComponent("condensate_drain", "Rigid Conduit Medium Duty 20mm 4M PVC Grey")).toBe(false);
+    expect(matchesComponent("condensate_drain", "Elect Insulation Tape GP L20M trxW 19mm x0.1 5mm PVC Blk")).toBe(false);
   });
 
   it("takes a length of cover, not a joint or a fitting", () => {

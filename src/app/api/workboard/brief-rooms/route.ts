@@ -1,14 +1,14 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
-import { isZone, type ReadRoom } from "@/lib/quotes/brief-rooms";
+import { isZone, MAX_HEAD_KW, type ReadRoom } from "@/lib/quotes/brief-rooms";
 import type { DuctedRead } from "@/lib/quotes/brief-ducted";
 import { readBriefRooms, sizeRooms } from "@/lib/quotes/brief-rooms-server";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import type { BuildingType } from "@/lib/studio/loads";
 
-/* The job card's Quote section: the rooms the brief gives a size for, read
-   by Tiff and sized from the data pack (Isaac, 2026-10-04: "What if I said
-   the room is 30m2?"). POST {job} reads the brief; POST {job, read, zone,
+/* The job card's Quote section: the rooms the brief gives a size for (an
+   area, or the unit's kW), read by Tiff and sized from the data pack
+   (Isaac, 2026-10-04: "What if I said the room is 30m2?"). POST {job} reads the brief; POST {job, read, zone,
    buildingType} sizes rooms already read at a zone a person chose, with no
    second read. Running the board, like the draft beside it; no money in it.
 
@@ -30,7 +30,10 @@ export async function POST(req: Request) {
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
 
   if (Array.isArray(body.read) && isZone(body.zone)) {
-    const read = (body.read as ReadRoom[]).slice(0, 20).filter((r) => r && typeof r.areaM2 === "number" && r.areaM2 > 0 && r.areaM2 <= 500);
+    /* each room as it was read and checked: an area, or the unit size its brief names */
+    const read = (body.read as ReadRoom[])
+      .slice(0, 20)
+      .filter((r) => r && ((typeof r.areaM2 === "number" && r.areaM2 > 0 && r.areaM2 <= 500) || (r.areaM2 == null && typeof r.unitKw === "number" && r.unitKw > 0 && r.unitKw <= MAX_HEAD_KW)));
     const building = BUILDINGS.includes(body.buildingType as BuildingType) ? (body.buildingType as BuildingType) : "residential";
     const dropped = Array.isArray(body.dropped) ? body.dropped.filter((d): d is string => typeof d === "string").slice(0, 20) : [];
     /* a ducted system already read and checked, handed back as it was given */

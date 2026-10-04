@@ -230,13 +230,13 @@ export function JobQuoteRooms({ job, onAdded }: { job: string; onAdded: () => vo
               </select>
             </span>
           </div>
-          {rooms.read.length === 0 && <p className="wb2-shtext">The brief gives no room sizes.</p>}
+          {rooms.read.length === 0 && <p className="wb2-shtext">The brief gives no room sizes or unit sizes.</p>}
           {rooms.rooms.map((r) => (
             <div key={r.name + r.said}>
               <div className="wb2-mline">
-                <b>{`${r.name}, ${r.areaM2} m²`}</b>
+                <b>{r.areaM2 != null ? `${r.name}, ${r.areaM2} m²` : r.name}</b>
                 <em>{`“${r.said}”`}</em>
-                <span>{`${r.loadKw} kW`}</span>
+                <span>{r.statedKw != null ? `${r.statedKw} kW, named` : `${r.loadKw} kW`}</span>
               </div>
               {!rooms.ducted && (
               <>

@@ -20,11 +20,12 @@ const PACK_BRAND = "mitsubishi-electric";
 
 const SYSTEM_PROMPT = `You read an air-conditioning job's brief and site address for the rooms it gives a size for.
 
-For each room the brief gives an area or two side lengths for, return:
+For each room the brief gives an area, two side lengths, or its unit's capacity in kW for, return:
 - name: the room as the brief names it ("Living", "Bed 2"); "Room" if it doesn't name one.
 - said: the brief's own words you read it from, copied exactly, character for character, as short as still holds the size (one clause).
-- area_m2: the area when the brief states one; null when it gives sides instead.
+- area_m2: the area when the brief states one; null when it gives sides or only a unit size.
 - sides_m: the two side lengths in metres when the brief gives sides ("6 x 5", "6m by 5m"); an empty list otherwise.
+- unit_kw: the capacity in kW the brief names for this room's indoor unit ("6kw Kitchen", "4.2kw high wall to master bed"); 0 when it names none. A count of the same unit ("2.5kw x 2") is that many rooms, each with the same said, named as the brief names them, else "Head 1", "Head 2". An outdoor unit's size is not a room's.
 - outdoor_at and outdoor_said: where this room's outdoor unit sits — ground (a slab, a pad, a balcony floor, the ground), wall (on brackets), or roof — and the brief's own words, copied exactly. "unknown" and "" when it doesn't say.
 - drain and drain_said: "gravity" when the brief says it drains by gravity or to a point it can fall to, "pump" when it says it needs a pump or can't fall; with the words. "unknown" and "" when it doesn't say.
 - new_circuit and circuit_said: "yes" when the brief says a new circuit or power from the switchboard is needed, "no" when it says existing power is used; with the words. "unknown" and "" when it doesn't say.
@@ -32,7 +33,7 @@ For each room the brief gives an area or two side lengths for, return:
 - ceiling_m: only when the brief says it; null otherwise.
 - glazing (low/moderate/high), insulation (well_insulated/standard/poor), facing (N, NE, E, SE, S, SW, W, NW: the main outside wall), room_above ("yes" when another floor is above, "no" when it's under the roof), style (wall, ducted, cassette, floor, bulkhead, under-ceiling): only when the brief says it; "unknown" otherwise.
 
-A room the brief gives no size for is left out. Never estimate a size, never convert a room count or a unit's capacity into an area, never fill a field the brief doesn't state.
+A room the brief gives no size for is left out. Never estimate a size or a capacity, never convert a room count or a unit's capacity into an area, never fill a field the brief doesn't state.
 
 building_type: residential for a home, light_commercial for an office or shop, commercial for anything bigger; "unknown" if you can't tell.
 
@@ -61,12 +62,14 @@ const schema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "said", "area_m2", "sides_m", "run_m", "run_said", "outdoor_at", "outdoor_said", "drain", "drain_said", "new_circuit", "circuit_said", "ceiling_m", "glazing", "insulation", "facing", "room_above", "style"],
+        required: ["name", "said", "area_m2", "sides_m", "unit_kw", "run_m", "run_said", "outdoor_at", "outdoor_said", "drain", "drain_said", "new_circuit", "circuit_said", "ceiling_m", "glazing", "insulation", "facing", "room_above", "style"],
         properties: {
           name: { type: "string" },
           said: { type: "string" },
           area_m2: { type: ["number", "null"] },
           sides_m: { type: "array", items: { type: "number" } },
+          /* 0 for none: not one more nullable field */
+          unit_kw: { type: "number" },
           run_m: { type: ["number", "null"] },
           run_said: { type: "string" },
           outdoor_at: known(["ground", "wall", "roof"]),
@@ -211,6 +214,7 @@ type Raw = {
     said: string;
     area_m2: number | null;
     sides_m: number[];
+    unit_kw?: number;
     run_m: number | null;
     run_said: string;
     outdoor_at: string;
@@ -325,6 +329,7 @@ const readOf = (raw: Raw): ReadBrief => ({
     said: String(r.said ?? "").slice(0, 300),
     areaM2: typeof r.area_m2 === "number" ? r.area_m2 : null,
     sidesM: Array.isArray(r.sides_m) && r.sides_m.length === 2 ? [r.sides_m[0]!, r.sides_m[1]!] : null,
+    unitKw: pos(r.unit_kw),
     ceilingM: typeof r.ceiling_m === "number" && r.ceiling_m >= 2 && r.ceiling_m <= 8 ? r.ceiling_m : null,
     glazing: oneOf(r.glazing, ["low", "moderate", "high"] as const),
     insulation: oneOf(r.insulation, ["well_insulated", "standard", "poor"] as const),
@@ -402,7 +407,11 @@ export async function sizeRooms(
 ): Promise<BriefRooms> {
   const ref = await latestInstalledPack(PACK_BRAND);
   const pack = ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
-  const sized = zone && pack ? read.filter((r): r is ReadRoom & { areaM2: number } => r.areaM2 != null).map((r) => sizeRoom(r, zone.zone, buildingType, pack)) : [];
+  /* a room with an area needs the zone to size it; one whose brief names
+     its unit's size doesn't */
+  const sized = pack
+    ? read.filter((r) => (zone && r.areaM2 != null) || (r.areaM2 == null && r.unitKw != null)).map((r) => sizeRoom(r, zone?.zone ?? 0, buildingType, pack))
+    : [];
   const multi = pack && !ducted && !vrfSaid ? sizeMulti(sized, pack) : null;
   /* a ducted brief is one system for the rooms: its pair covers them together */
   const system = ducted && pack && sized.length > 0 ? sizeDucted(sized, pack) : null;

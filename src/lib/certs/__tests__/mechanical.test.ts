@@ -202,12 +202,18 @@ describe("the paper's facts", () => {
     expect(certFileName("74/10 Etham Avenue", "1383")).toBe("Mechanical Compliance Certificate – 74-10 Etham Avenue – job 1383.pdf");
   });
 
-  it("print a class only when one was picked, and a serial column only when there is a serial", () => {
+  it("print a class only when one was picked, and a serial column only when serials are added", () => {
     const a = answersFor(JOB_3326, AC, "other");
     expect(buildCertificate(a).building).toBeNull();
     expect(buildCertificate(a).showSerials).toBe(false);
     a.systems[0].outdoor.serial = "1234567";
+    expect(buildCertificate(a).showSerials).toBe(false);
+    a.serialsGiven = true;
     expect(buildCertificate(a).showSerials).toBe(true);
+    /* a version saved before the option printed whatever serial was typed */
+    const { serialsGiven: _gone, ...old } = { ...a };
+    expect(normaliseCertAnswers(old).serialsGiven).toBe(true);
+    expect(normaliseCertAnswers({ ...old, systems: [{ ...old.systems[0], outdoor: { ...old.systems[0].outdoor, serial: "" } }] }).serialsGiven).toBe(false);
     expect(buildCertificate({ ...a, building: "office" }).building).toEqual({ label: "Office", cls: "Class 5" });
   });
 

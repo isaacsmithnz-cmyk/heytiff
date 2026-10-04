@@ -93,6 +93,15 @@ function requirement(raw: unknown): Requirement {
   };
 }
 
+/** Whether any row of a saved version carries a serial. */
+function hasSerial(r: Record<string, unknown>): boolean {
+  const rows = [
+    ...list(r.systems, 20).flatMap((s) => [obj(s).outdoor, ...list(obj(s).indoors, 60)]),
+    ...list(r.fans, 60),
+  ];
+  return rows.some((row) => typeof obj(row).serial === "string" && (obj(row).serial as string).trim() !== "");
+}
+
 export function normaliseCertAnswers(raw: unknown): CertAnswers {
   const r = obj(raw);
   const covers = obj(r.covers);
@@ -120,5 +129,7 @@ export function normaliseCertAnswers(raw: unknown): CertAnswers {
     airBalance: oneOf(r.airBalance, ["attached", "others"] as const),
     notCoveredExtra: text(r.notCoveredExtra, 200),
     equipmentConfirmed: bool(r.equipmentConfirmed),
+    /* a version saved before the option printed whatever serial was typed */
+    serialsGiven: r.serialsGiven === undefined ? hasSerial(r) : bool(r.serialsGiven),
   };
 }

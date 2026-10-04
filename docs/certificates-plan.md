@@ -126,9 +126,12 @@ Filled in from the job (see Prefill), then corrected.
   job sheet said "29 kW" for units that add up to 19.8.
 - **Ventilation:** each fan's location and model, and its airflow (see The fan
   list).
-- **Serial numbers** are optional in v1, because nothing captures them yet.
-  The paper shows a serial column only when at least one row has a serial.
-  Phase 2 reads them off nameplate photos.
+- **Serial numbers** are an option (2026-10-04): "Add serial numbers" puts a
+  Serial box on every outdoor unit, indoor unit and fan (identical units on
+  one row take theirs comma-separated). Off, the paper prints no serial
+  column. Reading them off dataplate photos was weighed and left: a plate
+  says the model and serial, never the room, so identical units in different
+  rooms couldn't be told apart.
 - **What else was installed**, as two ticks, each suggested from the quote:
   - ductwork, plenums or flexible duct
   - penetrations through fire-rated walls or floors (asks which fire-stopping

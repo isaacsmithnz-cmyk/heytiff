@@ -333,6 +333,26 @@ describe("where the exhaust goes", () => {
   });
 });
 
+describe("serial numbers", () => {
+  it("are an option: ticked, every unit gets a serial box", async () => {
+    certWizardContext.mockImplementation(async () =>
+      context({
+        job: { uuid: "job-1", number: "2933", address: "8/119 McEvoy St\nAlexandria NSW 2015", description: JOB_2933, companyUuid: "co-1", clientName: "RCC", completedOn: "2026-07-16" },
+        reading: readQuote(JOB_2933),
+        building: suggestBuilding("8/119 McEvoy St"),
+      })
+    );
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    const eq = panel("equipment");
+    expect(eq.queryByLabelText("Serial")).toBeNull();
+    await userEvent.click(eq.getByRole("checkbox", { name: "Add serial numbers" }));
+    /* the outdoor unit, its indoor unit and the fan */
+    expect(eq.getAllByLabelText("Serial")).toHaveLength(3);
+  });
+});
+
 describe("the state the job is in", () => {
   it("is read off the address, and names the form a Victorian certifier also wants", async () => {
     certWizardContext.mockImplementation(async () =>

@@ -2745,6 +2745,13 @@ export function JobSheet({
                     const basis = family ? (family.basis === "ex" ? "ex GST" : "inc GST") : MONEY_BASIS;
                     return cents != null ? `${fmtAud(cents)} ${basis}` : null;
                   })(),
+                  /* the same figure as money, for the new quote to stand beside */
+                  quoted: (() => {
+                    if (!moneyVisible) return null;
+                    const cents = family ? family.valueCents : (money?.valueCents ?? null);
+                    const basis: "ex" | "inc" = family ? (family.basis === "ex" ? "ex" : "inc") : MONEY_BASIS === "inc GST" ? "inc" : "ex";
+                    return cents != null ? { cents, basis } : null;
+                  })(),
                 }}
                 onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
               >

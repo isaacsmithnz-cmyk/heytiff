@@ -118,6 +118,9 @@ export type Sm8Quote = {
   sentOn: string | null;
   /** Already worded, "$45,430 inc GST"; null without the money grant. */
   value: string | null;
+  /** The same, as money, on the basis ServiceM8 holds it; null without the
+      money grant. */
+  quoted?: { cents: number; basis: "ex" | "inc" } | null;
 };
 
 export function JobQuoteFace({
@@ -498,7 +501,7 @@ export function JobQuoteFace({
             onSave={(pricing) => saveBlock("pricing", (d) => ({ ...d, ...pricing }))}
           />
         ) : (
-          <PricingBody draft={draft} totals={totals?.totals ?? null} />
+          <PricingBody draft={draft} totals={totals?.totals ?? null} quoted={sm8?.quoted ?? null} />
         )}
       </QuoteBlock>
 
@@ -813,7 +816,25 @@ function NamedRows({ label, rows }: { label: string; rows: readonly { name: stri
   );
 }
 
-function PricingBody({ draft, totals }: { draft: ProposalDraft; totals: OptionTotal[] | null }) {
+/** The new total against what ServiceM8 quoted, on ServiceM8's own basis
+    (Isaac, 2026-10-05: "it can just show you a comparison of what was
+    already quoted versus the new quote"). */
+export function againstQuoted(t: OptionTotal, quoted: { cents: number; basis: "ex" | "inc" }): string {
+  const mine = quoted.basis === "ex" ? t.cents : t.incCents;
+  const gap = mine - quoted.cents;
+  const was = `ServiceM8 quoted ${fmtAud(quoted.cents)} ${quoted.basis} GST`;
+  return gap === 0 ? `${was}: the same` : `${was}: ${fmtAud(Math.abs(gap))} ${gap > 0 ? "more" : "less"}`;
+}
+
+function PricingBody({
+  draft,
+  totals,
+  quoted,
+}: {
+  draft: ProposalDraft;
+  totals: OptionTotal[] | null;
+  quoted: { cents: number; basis: "ex" | "inc" } | null;
+}) {
   return (
     <>
       <p className="wb2-jqmode">{PRICING_WORDS[draft.pricingMode]}</p>
@@ -834,7 +855,8 @@ function PricingBody({ draft, totals }: { draft: ProposalDraft; totals: OptionTo
                   <span>{whole != null ? `${fmtAud(whole)} + GST` : t ? `${t.left} still to price` : "Not priced yet"}</span>
                   <b>
                     {optionHeading(draft, i)}
-                    {whole != null && <em>{`${fmtAud(Math.round(whole * 1.1))} inc GST`}</em>}
+                    {whole != null && t && <em>{`${fmtAud(t.incCents)} inc GST`}</em>}
+                    {whole != null && t && quoted && <em>{againstQuoted(t, quoted)}</em>}
                   </b>
                 </li>
               );
@@ -1225,7 +1247,7 @@ function OptionEdit({
 
 /** Each option's total, ex GST, as its Price block works it out: whole,
     or what's left to price. Null to a reader without money access. */
-export type OptionTotal = { cents: number; left: number };
+export type OptionTotal = { cents: number; incCents: number; left: number };
 
 async function optionTotals(job: string): Promise<OptionTotal[] | null> {
   const a = (await (await fetch(`/api/workboard/quote-price?job=${encodeURIComponent(job)}`)).json()) as { ok: boolean; price?: QuotePrice };
@@ -1233,6 +1255,7 @@ async function optionTotals(job: string): Promise<OptionTotal[] | null> {
   if (!p || !p.ok) return null;
   return p.options.map((o) => ({
     cents: o.build.exGstCents,
+    incCents: o.build.incGstCents,
     left: stillToPrice({ unpriced: o.unpriced, labourFrom: p.labourFrom, labourCents: o.build.labour.sellCents }).length,
   }));
 }

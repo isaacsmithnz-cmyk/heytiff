@@ -291,7 +291,7 @@ const pricedAs = (options: { cents: number; labour: number; unpriced: { name: st
           price: {
             ok: true,
             labourFrom: "brief",
-            options: options.map((o, i) => ({ name: `Option ${i + 1}`, build: { exGstCents: o.cents, labour: { sellCents: o.labour } }, unpriced: o.unpriced, rows: 3 })),
+            options: options.map((o, i) => ({ name: `Option ${i + 1}`, build: { exGstCents: o.cents, incGstCents: Math.round(o.cents * 1.1), labour: { sellCents: o.labour } }, unpriced: o.unpriced, rows: 3 })),
           },
         })
       : route(url, init)
@@ -313,4 +313,22 @@ it("never shows a total so far as an option's price", async () => {
   await openFace();
   expect(await screen.findByText("2 still to price")).toBeInTheDocument();
   expect(screen.queryByText("$65.72 + GST")).toBeNull();
+});
+
+/* Isaac, 2026-10-05: "it can just show you a comparison of what was already
+   quoted versus the new quote" */
+it("stands each option's total beside what ServiceM8 quoted, on ServiceM8's basis", async () => {
+  pricedAs([{ cents: 1_200_000, labour: 224_000, unpriced: [] }]);
+  render(
+    <JobQuoteFace
+      job="j-1"
+      address={null}
+      visible
+      onToast={jest.fn()}
+      sm8={{ papers: [], sentOn: "2026-09-22", value: "$12,650 inc GST", quoted: { cents: 1_265_000, basis: "inc" } }}
+    />
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
+  /* $12,000 ex is $13,200 inc: $550 more than the $12,650 inc quoted */
+  expect(await screen.findByText("ServiceM8 quoted $12,650 inc GST: $550 more")).toBeInTheDocument();
 });

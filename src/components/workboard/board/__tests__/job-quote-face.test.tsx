@@ -332,3 +332,19 @@ it("stands each option's total beside what ServiceM8 quoted, on ServiceM8's basi
   /* $12,000 ex is $13,200 inc: $550 more than the $12,650 inc quoted */
   expect(await screen.findByText("ServiceM8 quoted $12,650 inc GST: $550 more")).toBeInTheDocument();
 });
+
+it("says what the customer sees, the business's default until the quote says otherwise", async () => {
+  const route = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
+    !init?.method && url.startsWith("/api/workboard/quote-draft") ? respond({ ok: true, proposal: stored(), showLines: false }) : route(url, init)
+  );
+  await openFace();
+  expect(await screen.findByText("The customer sees each option's total")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Show line items to the customer" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save pricing" }));
+  });
+  const put = (fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === "PUT").at(-1)!;
+  expect(JSON.parse(put[1]!.body!).draft.showLines).toBe(true);
+});

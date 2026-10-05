@@ -4,6 +4,7 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { normaliseDraft } from "@/lib/quotes/proposal";
 import { orgTemplates } from "@/lib/templates/query";
 import { readSm8QuoteBrief } from "@/lib/quotes/sm8-quote-brief-server";
+import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import {
   CHANGED_MEANWHILE,
   SAVE_FAILED,
@@ -55,12 +56,14 @@ export async function GET(req: Request) {
   const target = await resolveJobCard(who.orgId, job);
   /* sm8Brief: what ServiceM8's own quote says, for "Update ServiceM8 quote"
      to start from — read from the mirror, never from ServiceM8 */
-  const [proposal, t, sm8Brief] = await Promise.all([
+  const [proposal, t, sm8Brief, settings] = await Promise.all([
     readStoredProposal(who.orgId, target.parentRemoteId),
     orgTemplates(who.orgId),
     readSm8QuoteBrief(who.orgId, target.parentRemoteId).catch(() => null),
+    readQuoteSettings(who.orgId),
   ]);
-  return Response.json({ ok: true, proposal, templates: { notes: t.quoteNotes, terms: t.paymentTerms }, sm8Brief });
+  /* showLines: the business's own default for what the customer sees */
+  return Response.json({ ok: true, proposal, templates: { notes: t.quoteNotes, terms: t.paymentTerms }, sm8Brief, showLines: settings.showLines });
 }
 
 export async function POST(req: Request) {

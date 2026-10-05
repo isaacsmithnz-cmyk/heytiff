@@ -80,7 +80,7 @@ const noteFor = (t: QuoteTemplates, key: string): QuoteNote | null =>
   t.notes.find((n) => n.key === key) ?? STANDARD_NOTES.find((n) => n.key === key) ?? null;
 
 type Answer =
-  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates; sm8Brief?: string | null }
+  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates; sm8Brief?: string | null; showLines?: boolean }
   /** `proposal` comes back when the draft moved on underneath the change */
   | { ok: false; reason: string; proposal?: StoredProposal | null };
 /** A person's edit, applied to the draft as it stands when its turn comes. */
@@ -154,6 +154,8 @@ export function JobQuoteFace({
   const sm8Quoted = !!sm8 && (sm8.papers.length > 0 || !!sm8.sentOn);
   const [open, setOpen] = useState(false);
   const [sm8Brief, setSm8Brief] = useState<string | null>(null);
+  /* the business's own default for what the customer sees */
+  const [linesByDefault, setLinesByDefault] = useState(false);
   /* each option's total, read again whenever the quote changes */
   const [totals, setTotals] = useState<{ at: string; totals: OptionTotal[] | null } | null>(null);
   const sm8Block = sm8Quoted ? (
@@ -201,6 +203,7 @@ export function JobQuoteFace({
         latest.current = a.proposal;
         setLoaded(a.proposal);
         setSm8Brief(a.sm8Brief ?? null);
+        setLinesByDefault(a.showLines === true);
         if (a.proposal) setBrief(a.proposal.brief);
       })
       /* NOT the draft box: drafting on a read that failed would pay for a
@@ -497,11 +500,12 @@ export function JobQuoteFace({
         {editing === "pricing" ? (
           <PricingEdit
             draft={draft}
+            linesByDefault={linesByDefault}
             onCancel={() => setEditing(null)}
             onSave={(pricing) => saveBlock("pricing", (d) => ({ ...d, ...pricing }))}
           />
         ) : (
-          <PricingBody draft={draft} totals={totals?.totals ?? null} quoted={sm8?.quoted ?? null} />
+          <PricingBody draft={draft} totals={totals?.totals ?? null} quoted={sm8?.quoted ?? null} showLines={draft.showLines ?? linesByDefault} />
         )}
       </QuoteBlock>
 
@@ -830,14 +834,17 @@ function PricingBody({
   draft,
   totals,
   quoted,
+  showLines,
 }: {
   draft: ProposalDraft;
   totals: OptionTotal[] | null;
   quoted: { cents: number; basis: "ex" | "inc" } | null;
+  showLines: boolean;
 }) {
   return (
     <>
       <p className="wb2-jqmode">{PRICING_WORDS[draft.pricingMode]}</p>
+      <p className="wb2-jqmode">{showLines ? "The customer sees each option's line items and its total" : "The customer sees each option's total"}</p>
       <ul className="wb2-jqlines">
         {draft.pricingMode === "itemised"
           ? draft.items.map((it, i) => (
@@ -1264,14 +1271,17 @@ async function optionTotals(job: string): Promise<OptionTotal[] | null> {
    have to manually enter it in"): it is its Price block's total. */
 function PricingEdit({
   draft,
+  linesByDefault,
   onCancel,
   onSave,
 }: {
   draft: ProposalDraft;
+  linesByDefault: boolean;
   onCancel: () => void;
-  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances">) => Promise<boolean>;
+  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances" | "showLines">) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState(draft.pricingMode);
+  const [lines, setLines] = useState(draft.showLines ?? linesByDefault);
   const [items, setItems] = useState(draft.items.map((it) => `${it.qty} × ${it.name}`).join("\n"));
   const [extras, setExtras] = useState(namedText(draft.extras));
   const [allowances, setAllowances] = useState(namedText(draft.allowances));
@@ -1284,10 +1294,16 @@ function PricingEdit({
       }),
       extras: namedOf(extras),
       allowances: namedOf(allowances),
+      /* the business's default stays the default until it's changed here */
+      showLines: lines === linesByDefault && draft.showLines == null ? null : lines,
     })
   );
   return (
     <div className="wb2-jqform">
+      <label className="wb2-jqcheck">
+        <input type="checkbox" checked={lines} onChange={(e) => setLines(e.target.checked)} disabled={busy} />
+        Show line items to the customer
+      </label>
       {(["multiple_choice", "optional", "itemised"] as const).map((m) => (
         <label className="wb2-jqcheck" key={m}>
           <input type="radio" name="jq-mode" checked={mode === m} onChange={() => setMode(m)} disabled={busy} />

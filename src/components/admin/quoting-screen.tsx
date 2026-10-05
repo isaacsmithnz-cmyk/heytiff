@@ -276,6 +276,26 @@ export function QuotingScreen({
               </div>
             </section>
 
+            {/* Isaac, 2026-10-05: "show line items to customer or leave it off
+                by default so that they just see the total price" */}
+            <section className="qs-group">
+              <h2 className="qs-h">What the customer sees</h2>
+              <div className="qs-fields">
+                <label className="qs-field">
+                  <span>On a quote, unless it says otherwise</span>
+                  <select
+                    className="wb2-sel"
+                    value={saved.showLines ? "lines" : "total"}
+                    disabled={busy}
+                    onChange={(e) => void save({ ...saved, showLines: e.target.value === "lines" }, "Saved")}
+                  >
+                    <option value="total">Each option&apos;s total</option>
+                    <option value="lines">Each option&apos;s line items and its total</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
             <PriceBook suppliers={suppliers} onImported={() => router.refresh()} />
 
             <LinksPanel />

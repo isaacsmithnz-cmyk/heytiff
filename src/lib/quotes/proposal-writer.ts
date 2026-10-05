@@ -42,7 +42,7 @@ import type { PaymentTerms, QuoteNote } from "@/lib/templates/settings";
 export const MODEL = "claude-opus-5-5";
 /* If the model declines on policy grounds, the API re-runs the same request
    on this one inside the same call rather than returning nothing. */
-const FALLBACK_MODEL = "claude-opus-4-8";
+export const FALLBACK_MODEL = "claude-opus-4-8";
 /* Thinking can't be turned off on this model and counts against the cap, so
    the cap leaves room for it on top of a long draft (about 1,100 tokens of
    JSON): a call that stops at the cap is paid for and returns nothing. */

@@ -18,15 +18,13 @@ const task = (id: string, name: string, over: Partial<JobTask> = {}): JobTask =>
   visit: 1,
   sort: 0,
   progress: 0,
-  doneAt: null,
-  doneBy: null,
   serial: null,
   modelRead: null,
   source: "quote",
   ...over,
 });
 const up = (taskId: string, day: string, from: number, to: number, note = "", by = "Callum Vrieze"): TaskUpdate => ({ id: `${taskId}-${day}`, taskId, day, from, to, note, by, at: `${day}T05:00:00Z` });
-const day = (d: string, over: Partial<VisitDay> = {}): VisitDay => ({ day: d, crew: ["Callum Vrieze", "Alex Morozoff"], crewNode: "Callum Vrieze, Alex Morozoff", length: "Full day", hours: "16h", onSite: false, ...over });
+const day = (d: string, over: Partial<VisitDay> = {}): VisitDay => ({ day: d, crewNode: "Callum Vrieze, Alex Morozoff", minutes: 960, length: "Full day", onSite: false, ...over });
 
 const TASKS = [
   task("pen", "Garage penetrations", { progress: 100, sort: 0 }),
@@ -38,10 +36,10 @@ const UPDATES = [up("pen", "2026-10-06", 0, 100), up("rough", "2026-10-06", 0, 5
 
 let fetchMock: jest.Mock;
 const sent = (method: string) => (fetchMock.mock.calls as [string, { method?: string; body?: string }?][]).filter(([, i]) => i?.method === method).map(([, i]) => JSON.parse(i!.body!));
-const answer = (over: Record<string, unknown> = {}) => ({ ok: true, tasks: TASKS, updates: UPDATES, photos: [], today: "2026-10-07", canMake: false, manage: true, ...over });
+const answer = (over: Record<string, unknown> = {}) => ({ ok: true, tasks: TASKS, updates: UPDATES, photos: [], today: "2026-10-07", booked: [], quoted: null, canMake: false, manage: true, note: null, ...over });
 
 beforeEach(() => {
-  fetchMock = jest.fn(async (_url: string, init?: { method?: string }) => ({ json: async () => (init?.method ? answer() : answer()) }));
+  fetchMock = jest.fn(async () => ({ json: async () => answer() }));
   (global as unknown as { fetch: unknown }).fetch = fetchMock;
 });
 
@@ -50,10 +48,10 @@ const mount = (over: Partial<Parameters<typeof JobVisitTasks>[0]> = {}) =>
     <JobVisitTasks
       job="job-1"
       visible
-      onSite={[day("2026-05-26", { crew: ["Michael Diamond"], crewNode: "Michael Diamond", length: "Pop-in", hours: "2h" }), day("2026-10-06"), day("2026-10-07", { onSite: true, hours: "4h" })]}
-      ahead={[day("2026-10-12", { crewNode: null, length: null, hours: null })]}
+      onSite={[day("2026-05-26", { crewNode: "Michael Diamond", length: "Pop-in", minutes: 120 }), day("2026-10-06"), day("2026-10-07", { onSite: true, minutes: 240 })]}
+      ahead={[day("2026-10-12", { crewNode: null, length: null, minutes: 0 })]}
       workOrderDate="2026-09-29 00:00:00"
-      onSiteWords="22h on site"
+      onSiteMinutes={1320}
       emptyWords="Nobody's been on site yet, and nothing is booked."
       {...over}
     />
@@ -135,7 +133,7 @@ it("reads nothing until the face is open, and says so when there's nothing at al
   expect(fetchMock).not.toHaveBeenCalled();
   expect(screen.getByText("Nobody's been on site yet, and nothing is booked.")).toBeInTheDocument();
   rerender(
-    <JobVisitTasks job="job-1" visible onSite={[]} ahead={[]} workOrderDate={null} onSiteWords={null} emptyWords="Nobody's been on site yet, and nothing is booked." />
+    <JobVisitTasks job="job-1" visible onSite={[]} ahead={[]} workOrderDate={null} onSiteMinutes={null} emptyWords="Nobody's been on site yet, and nothing is booked." />
   );
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 });
@@ -165,11 +163,11 @@ it("still reads the tasks when the face was left before the first read landed", 
   let land: (v: unknown) => void = () => undefined;
   fetchMock.mockImplementation(() => new Promise((r) => (land = r)));
   const { rerender } = mount();
-  rerender(<JobVisitTasks job="job-1" visible={false} onSite={[day("2026-10-06")]} ahead={[]} workOrderDate={null} onSiteWords={null} emptyWords="" />);
+  rerender(<JobVisitTasks job="job-1" visible={false} onSite={[day("2026-10-06")]} ahead={[]} workOrderDate={null} onSiteMinutes={null} emptyWords="" />);
   await act(async () => {
     land({ json: async () => answer() });
   });
-  rerender(<JobVisitTasks job="job-1" visible onSite={[day("2026-10-06")]} ahead={[]} workOrderDate={null} onSiteWords={null} emptyWords="" />);
+  rerender(<JobVisitTasks job="job-1" visible onSite={[day("2026-10-06")]} ahead={[]} workOrderDate={null} onSiteMinutes={null} emptyWords="" />);
   expect(await screen.findByText("Garage penetrations")).toBeInTheDocument();
 });
 
@@ -232,4 +230,46 @@ it("keeps a plate photo that couldn't be read, says so, and offers to type it", 
   expect(screen.getByRole("img", { name: "The rating plate" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Type the model and serial" }));
   expect(screen.getByLabelText("Serial")).toBeInTheDocument();
+});
+
+/* Isaac, 2026-10-03: "17.5 h on site of 32 h quoted", green under, amber up to 15% over, red past it */
+it("sets the hours on site against the hours quoted, in the colour of how far over", async () => {
+  fetchMock.mockImplementation(async () => ({ json: async () => answer({ quoted: { hours: 32, people: 2, visits: 2 } }) }));
+  /* the work since the work order: the site measure before it isn't counted */
+  const { container, rerender } = mount({ onSite: [day("2026-05-26", { minutes: 120 }), day("2026-10-06", { minutes: 600 }), day("2026-10-07", { minutes: 450 })] });
+  expect(await screen.findByText("17h 30m")).toBeInTheDocument();
+  expect(screen.getByText("on site of 32h quoted")).toBeInTheDocument();
+  expect(screen.getByText("2 people, 2 visits")).toBeInTheDocument();
+  expect(container.querySelector(".jcl-hbar .jcl-tbar i")).toHaveClass("ok");
+  const at = (minutes: number) =>
+    rerender(
+      <JobVisitTasks job="job-1" visible onSite={[day("2026-10-06", { minutes })]} ahead={[]} workOrderDate={null} onSiteMinutes={minutes} emptyWords="" />
+    );
+  at(32 * 60 * 1.1);
+  expect(container.querySelector(".jcl-hbar .jcl-tbar i")).toHaveClass("warn");
+  at(32 * 60 * 1.3);
+  expect(container.querySelector(".jcl-hbar .jcl-tbar i")).toHaveClass("bad");
+  expect(container.querySelector(".jcl-hbar .jcl-tbar i")).toHaveStyle({ width: "100%" });
+});
+
+it("offers to book a visit the quote planned that isn't booked yet", async () => {
+  const onBook = jest.fn();
+  fetchMock.mockImplementation(async () => ({ json: async () => answer({ tasks: [task("comm", "Commission the system", { stage: "Commissioning", visit: 5 })], updates: [] }) }));
+  mount({ onBook });
+  fireEvent.click(await screen.findByRole("button", { name: "Book visit 5" }));
+  expect(onBook).toHaveBeenCalled();
+});
+
+it("leaves what was said about one view behind when another is opened", async () => {
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({
+    json: async () => (init?.method === "PUT" ? { ok: false, reason: "That couldn't be saved. Try again." } : answer()),
+  }));
+  mount();
+  const box = await screen.findByRole("checkbox", { name: "Drains for Level 3: not done" });
+  await act(async () => {
+    fireEvent.click(box);
+  });
+  expect(screen.getByText("That couldn't be saved. Try again.")).toBeInTheDocument();
+  fireEvent.click(screen.getAllByRole("button", { name: "Drains for Level 3" })[0]!);
+  expect(screen.queryByText("That couldn't be saved. Try again.")).toBeNull();
 });

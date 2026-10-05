@@ -47,9 +47,12 @@ jest.mock("@/lib/images/for-claude", () => ({ imageForClaude: jest.fn() }));
 jest.mock("@/lib/documents/query", () => ({ DOCUMENTS_BUCKET: "documents", signMany: jest.fn(async () => new Map()) }));
 
 import { normaliseDraft } from "@/lib/quotes/proposal";
-import { applyTaskEdit, editOf, makeTasksFromQuote, serialsWith } from "../visit-tasks-server";
+import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";
+import { applyTaskEdit, editOf, makeTasksFromQuote, quotePlan, quotedHours, serialsWith } from "../visit-tasks-server";
 
 const ID = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b";
+const DOC = "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c";
+const onThisJob = { kind: "job_document", sm8_job_uuid: "job-1", uploaded_at: "2026-10-08T01:00:00Z", storage_ref: "org-1/plate.jpg", mime_type: "image/jpeg" };
 
 const draft = normaliseDraft({
   options: [
@@ -153,11 +156,10 @@ describe("a day's work on a task", () => {
 /* Isaac, 2026-10-06: "snap the photo of that particular unit, and serial
    numbers etc. can be read from there using photos" */
 describe("a unit's photo", () => {
-  const DOC = "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c";
 
   it("keeps a plate's photo on the task and reads its model and serial onto it", async () => {
     tables.job_tasks = { one: { id: ID, progress: 0 } };
-    tables.documents = { one: { kind: "job_document", sm8_job_uuid: "job-1", uploaded_at: "2026-10-08T01:00:00Z", storage_ref: "org-1/plate.jpg", mime_type: "image/jpeg" } };
+    tables.documents = { one: onThisJob };
     const read = jest.fn(async () => ({ model: "PEFY-P25VMX-A", serial: "52X04417" }));
     const res = await applyTaskEdit("org-1", "job-1", { userId: "user-1", name: "Alex" }, { kind: "photo", id: ID, documentId: DOC, role: "plate" }, read);
     expect(res).toEqual({ ok: true });
@@ -174,7 +176,7 @@ describe("a unit's photo", () => {
       ok: false,
       reason: "That photo didn't land on this job.",
     });
-    tables.documents = { one: { kind: "job_document", sm8_job_uuid: "job-1", uploaded_at: "x", storage_ref: "r", mime_type: null } };
+    tables.documents = { one: onThisJob };
     expect(await applyTaskEdit("org-1", "job-1", { userId: "u", name: null }, { kind: "photo", id: ID, documentId: DOC, role: "plate" }, read)).toEqual({
       ok: true,
       note: "The plate couldn't be read from that photo. Type the model and serial instead.",
@@ -190,22 +192,58 @@ describe("a unit's photo", () => {
 });
 
 describe("a plate read onto a task", () => {
-  const DOC = "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c";
-  const doc = { kind: "job_document", sm8_job_uuid: "job-1", uploaded_at: "x", storage_ref: "r", mime_type: "image/jpeg" };
 
   it("writes only what the plate gave, so a serial typed in stays", async () => {
     tables.job_tasks = { one: { id: ID, progress: 0, unit: { qty: 1 }, serial: "TYPED-1", model_read: null } };
-    tables.documents = { one: doc };
+    tables.documents = { one: onThisJob };
     await applyTaskEdit("org-1", "job-1", { userId: "u", name: null }, { kind: "photo", id: ID, documentId: DOC, role: "plate" }, jest.fn(async () => ({ model: "MSZ-AP35VG", serial: "" })));
     const update = calls.find((c) => c.table === "job_tasks" && c.op === "update")!.row as Record<string, unknown>;
     expect(update.model_read).toBe("MSZ-AP35VG");
     expect("serial" in update).toBe(false);
   });
 
+  it("says so when a row already has all its serials, rather than drop the read", async () => {
+    tables.job_tasks = { one: { id: ID, progress: 0, unit: { qty: 2 }, serial: "A1, B2" } };
+    tables.documents = { one: onThisJob };
+    const res = await applyTaskEdit("org-1", "job-1", { userId: "u", name: null }, { kind: "photo", id: ID, documentId: DOC, role: "plate" }, jest.fn(async () => ({ model: "", serial: "B3" })));
+    expect(res).toEqual({ ok: true, note: "This row has its 2 serials. Change what was read to replace one with B3." });
+    expect(calls.find((c) => c.table === "job_tasks" && c.op === "update")).toBeUndefined();
+  });
+
   it("collects one serial a unit on a row of several, never twice", () => {
-    expect(serialsWith(null, "A1", 2)).toBe("A1");
-    expect(serialsWith("A1", "B2", 2)).toBe("A1, B2");
-    expect(serialsWith("A1, B2", "B2", 2)).toBe("A1, B2");
-    expect(serialsWith("A1", "B2", 1)).toBe("B2");
+    expect(serialsWith(null, "A1", 2)).toEqual({ serials: "A1", full: false });
+    expect(serialsWith("A1", "B2", 2)).toEqual({ serials: "A1, B2", full: false });
+    expect(serialsWith("A1, B2", "B2", 2)).toEqual({ serials: "A1, B2", full: false });
+    expect(serialsWith("A1, B2", "B3", 2)).toEqual({ serials: "A1, B2", full: true });
+    expect(serialsWith("A1", "B2", 1)).toEqual({ serials: "B2", full: false });
+  });
+});
+
+describe("the hours quoted", () => {
+  it("is the accepted option's own labour at the business's day, with its crew and visits", async () => {
+    expect(quotedHours(await quotePlan("org-1", "job-1"))).toEqual({ hours: 32, people: 2, visits: 2 });
+  });
+
+  it("is each accepted option's own labour, else the brief's, added up as the price is", async () => {
+    const two = normaliseDraft({
+      options: [
+        { name: "Upstairs", lines: ["A split."], labour: { visits: [{ stage: "Install", people: 1, days: 1 }], from: "you" } },
+        { name: "Downstairs", lines: ["A split."] },
+      ],
+      pricingMode: "optional",
+      accepted: [0, 1],
+    })!;
+    readStoredProposal.mockResolvedValue({ draft: two, brief: "", changes: [], updatedAt: "x", cardId: "job-1" });
+    (readQuoteLabour as jest.Mock).mockResolvedValueOnce({
+      brief: { visits: [{ stage: "Install", people: 2, days: 1, hours: 16 }], personHours: 16, personDays: 2, said: ["2 pax 1 day"] },
+      typical: null,
+      dayHours: 8,
+    });
+    expect(quotedHours(await quotePlan("org-1", "job-1"))).toEqual({ hours: 24, people: 2, visits: 2 });
+  });
+
+  it("is nothing on a quote with nothing accepted", async () => {
+    readStoredProposal.mockResolvedValue({ draft: { ...draft, accepted: [], options: [draft.options[0]!, draft.options[0]!] }, brief: "", changes: [], updatedAt: "x", cardId: "job-1" });
+    expect(quotedHours(await quotePlan("org-1", "job-1"))).toBeNull();
   });
 });

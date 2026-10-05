@@ -24,9 +24,9 @@ export const PLATE_PROMPT =
   "Copy every character as printed; never correct, complete or guess one. Leave a field empty when it isn't on the plate or can't be read clearly. If the photo isn't a rating plate, leave both empty.";
 
 const MAX = 60;
-/** A plate's code as printed: one line, its own case, nothing that isn't a
-    code's character. */
-const codeOf = (v: unknown): string =>
+/** A plate's code as printed — what was read, or a person's own correction:
+    one line, its own case, nothing that isn't a code's character. */
+export const plateCode = (v: unknown): string =>
   typeof v === "string"
     ? v
         /* a marking in angle brackets (<H>, <BS>) is no part of the code */
@@ -43,13 +43,10 @@ const codeOf = (v: unknown): string =>
 export function parsePlate(raw: unknown): { model: string; serial: string } | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
-  const model = codeOf(o.model);
-  const serial = codeOf(o.serial);
+  const model = plateCode(o.model);
+  const serial = plateCode(o.serial);
   return model || serial ? { model, serial } : null;
 }
-
-/** A person's own correction to what was read, kept the same way. */
-export const plateCode = codeOf;
 
 /** Whether the plate's model is the quote's: the same code, spaces and case
     aside. */

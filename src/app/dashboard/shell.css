@@ -6877,20 +6877,17 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-vhrs { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
 .jcl-vlen + .jcl-vhrs { margin-top:0; padding-top:0; }
 .jcl-visit > em + .jcl-vhrs { margin-top:auto; padding-top:8px; }
-/* VISITS AND THEIR TASKS (board/job-visit-tasks.tsx, Isaac 2026-10-06): a
-   card a visit with its tasks under it — what was done on it, what's still
-   to do on it — wider once there are tasks to read; the same tasks as one
-   list by the quote's stages; one task opened, with how far it's got. Its buttons are scoped under `.fg`
-   to out-rank the shell's button reset, which is (0,1,1) */
+/* VISITS AND THEIR TASKS (board/job-visit-tasks.tsx). Its buttons are
+   scoped under `.fg` to out-rank the shell's button reset, which is (0,1,1) */
 .jcl-visits.tasks { grid-auto-columns:316px; align-items:start; }
 .jcl-visit.now { border-color:var(--ink); }
 .jcl-visit.plan { border-style:dashed; }
 .jcl-vh { display:flex; align-items:baseline; gap:8px; }
 .jcl-vh b { font-size:16px; font-weight:600; }
 .jcl-vword { margin-left:auto; font-size:14px; font-weight:500; }
-.jcl-vword.ok { color:var(--ok-t); }
-.jcl-vword.info { color:var(--info-t); }
-.jcl-vword.quiet { color:var(--q); }
+.jcl-vword.ok, .jcl-tstat.ok { color:var(--ok-t); }
+.jcl-vword.info, .jcl-tstat.info { color:var(--info-t); }
+.jcl-vword.quiet, .jcl-tstat.quiet { color:var(--q); }
 .jcl-vday { font-size:13px; color:var(--q); }
 .jcl-visits.tasks .jcl-vlen { padding-top:12px; }
 .jcl-tasks { margin:8px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; }
@@ -6898,7 +6895,7 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-task:first-child { border-top:0; }
 .jcl-tasks.cols { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:24px; }
 .jcl-tasks.cols .jcl-task:nth-child(2) { border-top:0; }
-.jcl-tasks.rows .jcl-task { grid-template-columns:16px minmax(0,1fr) 180px 100px; padding:8px 0; }
+.jcl-tasks.rows .jcl-task { grid-template-columns:16px minmax(0,1fr) 180px 100px; }
 .fg .jcl-tbox { width:16px; height:16px; margin-top:2px; padding:0; display:inline-flex; align-items:center; justify-content:center;
   border:1.5px solid var(--q); border-radius:var(--r-control); background:var(--paper); color:var(--paper); cursor:pointer;
   position:relative; overflow:hidden; }
@@ -6917,9 +6914,6 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-tnote q { color:var(--ink); }
 .jcl-tvis { font-size:13px; color:var(--q); }
 .jcl-tstat { font-size:14px; font-weight:500; text-align:right; }
-.jcl-tstat.ok { color:var(--ok-t); }
-.jcl-tstat.info { color:var(--info-t); }
-.jcl-tstat.quiet { color:var(--q); }
 .jcl-tsel { max-width:100%; }
 .jcl-tloose, .jcl-tall { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
 .jcl-tall { gap:16px; }
@@ -6927,6 +6921,11 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-tghead b { font-weight:600; }
 .jcl-tghead em { font-style:normal; color:var(--q); }
 .jcl-tmake { margin:8px 0 16px; }
+.jcl-hbar { display:flex; flex-direction:column; gap:8px; margin:8px 0 16px; }
+.jcl-hbar .jcl-hrs em { margin-left:auto; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
+.jcl-tbar > i.ok { background:var(--ok-t); }
+.jcl-tbar > i.warn { background:var(--warn); }
+.jcl-tbar > i.bad { background:var(--bad); }
 .jcl-tadd { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:16px; }
 .jcl-tadd .wb2-fi { flex:1 1 220px; }
 .jcl-tchk { display:inline-flex; align-items:center; gap:8px; font-size:13px; }
@@ -6971,7 +6970,7 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-tkv dt { color:var(--q); font-weight:500; }
 .jcl-tkv dd { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; }
 .jcl-tkv dd b { font-weight:600; }
-.jcl-tkv dd em { font-style:normal; color:var(--q); }
+.jcl-tkv dd em { font-style:normal; }
 .jcl-tkv dd em.ok { color:var(--ok-t); font-weight:600; }
 .jcl-tkv dd em.warn { color:var(--warn-t); font-weight:600; }
 /* check in / check out, at the head of Installation */

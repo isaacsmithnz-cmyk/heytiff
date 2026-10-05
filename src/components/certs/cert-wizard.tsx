@@ -19,10 +19,8 @@ import {
   type CertWizardContext,
 } from "@/app/actions/certificates";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
-import { attachJobDocument } from "@/app/actions/job-documents";
-import { uploadFile } from "@/lib/documents/upload-client";
+import { fileOnJob } from "@/lib/documents/file-on-job";
 import { withCleanup } from "@/lib/ui/with-cleanup";
-import { thrownWords } from "@/lib/stale-deploy";
 import { MAX_REASON, MAX_REQUIREMENT_TEXT, MAX_REQUIREMENTS } from "@/lib/certs/input";
 import { makeOf, withMakes } from "@/lib/certs/make";
 import { hasSerials } from "@/lib/certs/from-quote";
@@ -144,22 +142,6 @@ async function sharePdf(url: string, fileName: string): Promise<boolean> {
     return true;
   } catch {
     return false;
-  }
-}
-
-/* A FILE ONTO THE JOB'S DOCUMENTS, as the Documents face's own upload files
-   it. Out here, as a plain function, because React Compiler 1.0 can't lower
-   a throw, an `&&` or a ternary inside a component's try. */
-async function fileOnJob(file: File, jobUuid: string): Promise<{ ok: true; documentId: string } | { ok: false; error: string }> {
-  try {
-    const up = await uploadFile(file, "job_document");
-    if (!up.ok) return { ok: false, error: up.error };
-    if (up.file.previewUrl) URL.revokeObjectURL(up.file.previewUrl);
-    const put = await attachJobDocument(up.file.documentId, jobUuid);
-    if (!put.ok) return { ok: false, error: put.error };
-    return { ok: true, documentId: up.file.documentId };
-  } catch (e) {
-    return { ok: false, error: thrownWords(e, "That upload didn't finish.") };
   }
 }
 

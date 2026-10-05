@@ -132,7 +132,6 @@ import {
 import type { BookedEntry, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
-  fmtMinutesAsHours,
   sm8TimeOf,
   sm8Tone,
   type AllJobRow,
@@ -1667,23 +1666,9 @@ export function JobSheet({
         ));
   /* the days booked ahead; who's booked is said once, in the bookings
      above the visits, so their cards don't repeat it */
-  const bookedByDay = new Map<string, BookedEntry[]>();
-  for (const b of standing ?? []) {
-    const day = b.start.slice(0, 10);
-    bookedByDay.set(day, [...(bookedByDay.get(day) ?? []), b]);
-  }
-  const daysAhead: VisitDay[] = [...bookedByDay.entries()].map(([day, crew]) => ({
-    day,
-    crew: crew.map((b) => b.staffName ?? "").filter(Boolean),
-    crewNode: null,
-    length: null,
-    hours: null,
-    onSite: false,
-  }));
-  if (!standing && detail?.nextBooking) {
-    const nb = detail.nextBooking;
-    daysAhead.push({ day: nb.start.slice(0, 10), crew: nb.staffName ? [nb.staffName] : [], crewNode: null, length: null, hours: null, onSite: false });
-  }
+  const daysAhead: VisitDay[] = [
+    ...new Set([...(standing ?? []).map((b) => b.start), ...(!standing && detail?.nextBooking ? [detail.nextBooking.start] : [])].map((s) => s.slice(0, 10))),
+  ].map((day) => ({ day, crewNode: null, minutes: 0, length: null, onSite: false }));
   const listed = new Set((standing ?? []).map((b) => b.uuid.trim().toLowerCase()));
   const above = bkVerbs
     .map((v) => ({ ...v, bookings: v.bookings.filter((b) => !(listed.has(b.uuid) && bkLines[b.uuid])) }))
@@ -2676,24 +2661,29 @@ export function JobSheet({
                   </p>
                 </div>
               )}
-              {/* VISITS AND THEIR TASKS (Isaac, 2026-10-06): a card a visit,
-                  the days worked, today and the days booked, each with its
-                  tasks from the quote; or the tasks as one list. */}
               {detail ? (
                 <JobVisitTasks
                   job={cardId ?? row.id}
                   visible={tab === "visits"}
                   onSite={detail.visits.map((v) => ({
                     day: v.day,
-                    crew: v.crew.map((c) => c.name),
                     crewNode: visitCrew(v),
                     length: visitLength(v),
-                    hours: v.minutes > 0 ? fmtMinutesAsHours(v.minutes) : null,
+                    minutes: v.minutes,
                     onSite: v.crew.some((c) => c.onSite),
                   }))}
                   ahead={daysAhead}
                   workOrderDate={detail.workOrderDate}
-                  onSiteWords={detail.timeOnSite ? `${fmtMinutesAsHours(detail.timeOnSite.minutes)} on site` : null}
+                  onSiteMinutes={detail.timeOnSite?.minutes ?? null}
+                  onBook={
+                    bookings?.canBook && cardId
+                      ? () => {
+                          /* a Book in already open, half filled, is kept */
+                          if (!bookIn) openPanel(null);
+                          document.getElementById("jcsec-visits")?.scrollIntoView?.({ block: "start" });
+                        }
+                      : undefined
+                  }
                   emptyWords={above.length > 0 || detail.queue ? "" : "Nobody's been on site yet, and nothing is booked."}
                 />
               ) : (

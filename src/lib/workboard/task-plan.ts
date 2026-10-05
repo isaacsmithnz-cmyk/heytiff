@@ -14,7 +14,7 @@ import { MAX_TASKS, MAX_TASK_NAME, TASK_KINDS, type TaskKind, type TaskUnit } fr
    gets its own task, whether Tiff wrote one or not. Pure. */
 
 /** A visit the quote's labour plans: the stage and the crew for that day. */
-export type PlannedVisit = { n: number; stage: VisitStage; people: number };
+type PlannedVisit = { n: number; stage: VisitStage; people: number };
 
 /** The quote's labour as visits, one a day: "Rough-in, 2 people, 3 days" is
     visits 1 to 3. A part day is a visit of its own. A site measure comes
@@ -34,18 +34,22 @@ export function plannedVisits(labour: readonly Visit[]): PlannedVisit[] {
   return out;
 }
 
+/** A unit of an accepted option, with the option it's in. */
+type OptionUnit = UnitLine & { option: number };
+
 /** The units of the accepted options, numbered from 1 across them all. */
-export function unitsOf(options: readonly ProposalOption[]): UnitLine[] {
-  return options.flatMap((o) => o.units);
+export function unitsOf(options: readonly ProposalOption[]): OptionUnit[] {
+  return options.flatMap((o, option) => o.units.map((u) => ({ ...u, option })));
 }
 
 /** What a unit task is for, kept on the task. */
-export const taskUnitOf = (u: UnitLine): TaskUnit => ({
+const taskUnitOf = (u: OptionUnit): TaskUnit => ({
   role: u.role,
   room: u.room,
   model: u.model,
   capacity: u.capacity,
   type: u.type,
+  option: u.option,
   system: u.system,
   qty: u.qty,
 });
@@ -99,14 +103,12 @@ Only work the quote says or plainly needs (every install is commissioned and han
     known facts, and the visits planned. */
 export function tasksPrompt(input: {
   site: string | null;
-  client: string | null;
   options: readonly ProposalOption[];
   facts: readonly string[];
   visits: readonly PlannedVisit[];
 }): string {
   const units = unitsOf(input.options);
   const parts = [
-    input.client ? `Client: ${input.client}` : null,
     input.site ? `Site: ${input.site.replace(/\n+/g, ", ")}` : null,
     ...input.options.map((o) => `The accepted option, "${o.name}":\n${o.lines.map((l) => `- ${l}`).join("\n")}`),
     units.length
@@ -122,14 +124,14 @@ export function tasksPrompt(input: {
   return `${parts.filter(Boolean).join("\n\n")}\n\nWrite the task list.`;
 }
 
-export type NewTask = { name: string; stage: VisitStage; kind: TaskKind; unit: TaskUnit | null; visit: number | null; sort: number };
+type NewTask = { name: string; stage: VisitStage; kind: TaskKind; unit: TaskUnit | null; visit: number | null; sort: number };
 
 const clean = (s: unknown) =>
   typeof s === "string" ? s.replace(/^[-*•–]\s*/, "").replace(/\s+/g, " ").trim().slice(0, MAX_TASK_NAME) : "";
 
 /** Tiff's answer, checked: each task with a stage, a kind, a unit that
     exists and a visit that's planned; every unit with a task of its own. */
-export function parseTasks(raw: unknown, units: readonly UnitLine[], visits: readonly PlannedVisit[]): NewTask[] {
+export function parseTasks(raw: unknown, units: readonly OptionUnit[], visits: readonly PlannedVisit[]): NewTask[] {
   const list = raw && typeof raw === "object" && Array.isArray((raw as { tasks?: unknown }).tasks) ? ((raw as { tasks: unknown[] }).tasks) : [];
   const out: NewTask[] = [];
   const covered = new Set<number>();

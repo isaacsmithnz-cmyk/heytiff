@@ -38,9 +38,7 @@ describe("the visits the quote plans", () => {
       "7 Commissioning",
     ]);
   });
-});
 
-describe("the visits the quote plans, a site measure and several options", () => {
   it("leaves the site measure out, and runs several options' labour stage by stage", () => {
     const two = [
       { stage: "Site measure" as const, people: 1, days: 0.5 },
@@ -55,7 +53,7 @@ describe("the visits the quote plans, a site measure and several options", () =>
 
 describe("what Tiff is handed", () => {
   it("names the option's scope, its units numbered, the site's facts and the visits", () => {
-    const p = tasksPrompt({ site: "44 Leinster Street\nPaddington NSW 2021", client: null, options: option, facts: ["Outdoor unit location: Garage, on a slab"], visits: plannedVisits(labour) });
+    const p = tasksPrompt({ site: "44 Leinster Street\nPaddington NSW 2021", options: option, facts: ["Outdoor unit location: Garage, on a slab"], visits: plannedVisits(labour) });
     expect(p).toContain("Site: 44 Leinster Street, Paddington NSW 2021");
     expect(p).toContain("- Outdoor unit in the garage.");
     expect(p).toContain("3. indoor: Level 2 Bedroom 3, 2.8 kW, Ducted, PEFY-P25VMX-A");
@@ -65,7 +63,7 @@ describe("what Tiff is handed", () => {
   });
 
   it("says so when no visits are planned", () => {
-    expect(tasksPrompt({ site: null, client: null, options: option, facts: [], visits: [] })).toContain("visit is 0 for every task");
+    expect(tasksPrompt({ site: null, options: option, facts: [], visits: [] })).toContain("visit is 0 for every task");
   });
 });
 

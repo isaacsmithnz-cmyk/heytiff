@@ -1,9 +1,10 @@
-/* The price book's items: the most used first, a shelf in families that
-   open onto their sizes, and a supplier's price pressed to prefer it — said
-   at once, sent with the part's other codes, and put back if refused. */
+/* The price book's items: the whole book once, then Most used (by quotes),
+   a shelf in families, units by maker and type, and a search — all sorted
+   in the browser with nothing more asked of the server. A supplier's price
+   pressed prefers it at once, and is put back if refused. */
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { BookItems } from "../book-items";
-import type { BookView, Product } from "@/lib/quotes/families";
+import type { Product } from "@/lib/quotes/families";
 
 const offer = (supplierKey: string, supplierName: string, code: string, name: string, netCents: number) => ({
   supplierKey,
@@ -17,8 +18,8 @@ const product = (over: Partial<Product> & Pick<Product, "key" | "name" | "offers
   category: "pipe",
   cheapest: over.offers[0] ?? null,
   preferred: null,
-  jobLines: 0,
-  bought: 0,
+  brand: null,
+  quotes: 0,
   ...over,
 });
 
@@ -26,22 +27,31 @@ const coil = product({
   key: "aad|PC1412",
   name: "PAIRED COIL 1/4+1/2X20M",
   offers: [offer("reece", "Reece", "9800006-1", "ARDENT PR CU 1/4 X 1/2", 18000), offer("aad", "AAD", "PC1412", "PAIRED COIL 1/4+1/2X20M", 19100)],
-  jobLines: 38,
-  bought: 2,
+  quotes: 30,
 });
 const small = product({ key: "aad|PC1438", name: "PAIRED COIL 1/4+3/8X20M", offers: [offer("aad", "AAD", "PC1438", "PAIRED COIL 1/4+3/8X20M", 15747)] });
-
-const counts = { used: 1, preferred: 0, shelves: [{ key: "pipe" as const, label: "Pipe and coil", count: 2 }] };
-const USED: BookView = {
-  sections: [{ key: "pipe", label: "Pipe and coil", families: [{ key: "PAIRED COIL", label: "Paired coil", products: [coil] }] }],
-  total: 1,
-  shown: 1,
-};
-const SHELF: BookView = {
-  sections: [{ key: "pipe", label: "Pipe and coil", families: [{ key: "PAIRED COIL", label: "Paired coil", products: [small, coil] }] }],
-  total: 2,
-  shown: 2,
-};
+const daikin = product({
+  key: "aad|FTXZ25",
+  name: "DAIKIN ZENA HWS IND 2.5KW R32",
+  category: "units",
+  brand: "Daikin",
+  offers: [offer("aad", "AAD", "FTXZ25", "DAIKIN ZENA HWS IND 2.5KW R32", 100000)],
+});
+const daikinBig = product({
+  key: "aad|FTXZ50",
+  name: "DAIKIN ZENA HWS IND 5KW R32",
+  category: "units",
+  brand: "Daikin",
+  offers: [offer("aad", "AAD", "FTXZ50", "DAIKIN ZENA HWS IND 5KW R32", 150000)],
+});
+const fujitsu = product({
+  key: "aad|ASTG09KMTC",
+  name: "FUJITSU LIFESTYLE R/C HWS IND 2.5KW",
+  category: "units",
+  brand: "Fujitsu",
+  offers: [offer("aad", "AAD", "ASTG09KMTC", "FUJITSU LIFESTYLE R/C HWS IND 2.5KW", 22248)],
+});
+const BOOK = [coil, small, daikin, daikinBig, fujitsu];
 
 const answer = (body: unknown) => ({ json: async () => body }) as Response;
 
@@ -54,34 +64,43 @@ function serve(preferOk = true) {
       return answer(preferOk ? { ok: true } : { ok: false, reason: "The price book needs money access." });
     }
     asked.push(url);
-    /* a search reads only what matches, so it brings no counts */
-    const searching = new URL(url, "http://x").searchParams.get("q");
-    return answer({ ok: true, ...(url.includes("view=pipe") ? SHELF : USED), counts: searching ? null : counts });
+    return answer({ ok: true, products: BOOK });
   }) as unknown as typeof fetch;
   return { posted, asked };
 }
 
-it("opens on the most used, each part with how often it's used and every supplier's price", async () => {
+it("opens on the parts on the most quotes, with every supplier's price", async () => {
   serve();
   render(<BookItems />);
   expect(await screen.findByText("PAIRED COIL 1/4+1/2X20M")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Most used" })).toBeInTheDocument();
-  expect(screen.getByText("9800006-1, PC1412. On 38 job lines, bought 2 times")).toBeInTheDocument();
+  expect(screen.getByText("9800006-1, PC1412. On 30 quotes")).toBeInTheDocument();
+  /* a part on no quote isn't most used */
+  expect(screen.queryByText("PAIRED COIL 1/4+3/8X20M")).toBeNull();
   /* the lowest price is in the state's green */
   expect(screen.getByRole("button", { name: "Prefer Reece's 9800006-1 at $180.00" })).toHaveClass("ok");
 });
 
-it("prefers a supplier's price at once, sending the part's other codes to clear", async () => {
+it("asks the server once: shelves and searches are sorted here", async () => {
+  const { asked } = serve();
+  render(<BookItems />);
+  await screen.findByText("PAIRED COIL 1/4+1/2X20M");
+  fireEvent.click(screen.getByRole("button", { name: "Pipe and coil 2" }));
+  fireEvent.change(screen.getByLabelText("Search the price book"), { target: { value: "zena" } });
+  fireEvent.click(screen.getByRole("button", { name: "Most used 1" }));
+  expect(screen.getByText("DAIKIN ZENA HWS IND 2.5KW R32")).toBeInTheDocument();
+  expect(asked).toEqual(["/api/quoting/price-book"]);
+});
+
+it("prefers a supplier's price at once, the server working out the part's other codes", async () => {
   const { posted } = serve();
   render(<BookItems />);
   const aad = await screen.findByRole("button", { name: "Prefer AAD's PC1412 at $191.00" });
   await act(async () => {
     fireEvent.click(aad);
   });
-  /* the server works out the part's other codes; the page sends only its own */
   expect(posted).toEqual([{ ref: "aad|PC1412", on: true }]);
-  const on = screen.getByRole("button", { name: "Preferred AAD's PC1412 at $191.00" });
-  expect(on).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "Preferred AAD's PC1412 at $191.00" })).toHaveAttribute("aria-pressed", "true");
   expect(within(screen.getByRole("navigation", { name: "Price book views" })).getByRole("button", { name: "Preferred 1" })).toBeInTheDocument();
 });
 
@@ -97,13 +116,10 @@ it("puts a refused preference back and says why", async () => {
 });
 
 it("shows a shelf as families that open onto their sizes", async () => {
-  const { asked } = serve();
+  serve();
   render(<BookItems />);
   await screen.findByText("PAIRED COIL 1/4+1/2X20M");
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Pipe and coil 2" }));
-  });
-  expect(asked.at(-1)).toContain("view=pipe");
+  fireEvent.click(screen.getByRole("button", { name: "Pipe and coil 2" }));
   const family = screen.getByRole("button", { name: /Paired coil/ });
   expect(family).toHaveAttribute("aria-expanded", "false");
   expect(within(family).getByText("$157.47 to $180.00")).toBeInTheDocument();
@@ -113,43 +129,14 @@ it("shows a shelf as families that open onto their sizes", async () => {
   expect(screen.getByText("PAIRED COIL 1/4+3/8X20M")).toBeInTheDocument();
 });
 
-it("keeps the view chosen while the first one was still coming", async () => {
-  let first: ((r: Response) => void) | null = null;
-  global.fetch = jest.fn((url: string) =>
-    url.includes("view=used")
-      ? new Promise<Response>((done) => {
-          first = done;
-        })
-      : Promise.resolve(answer({ ok: true, ...SHELF, counts }))
-  ) as unknown as typeof fetch;
-  render(<BookItems />);
-  /* the rail has no shelves until an answer lands: open Preferred, then the first answer arrives late */
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Preferred" }));
-  });
-  expect(await screen.findByRole("heading", { name: "Preferred" })).toBeInTheDocument();
-  await act(async () => {
-    first!(answer({ ok: true, ...USED, counts: { ...counts, used: 7 } }));
-  });
-  expect(screen.getByRole("heading", { name: "Preferred" })).toBeInTheDocument();
-  /* its counts are still the book's, and the rail takes them */
-  expect(screen.getByRole("button", { name: "Most used 7" })).toBeInTheDocument();
-  expect(screen.getByText("2 parts")).toBeInTheDocument();
-});
-
-it("keeps the rail's counts through a search, which can't count the shelves", async () => {
+/* Isaac, 2026-10-05: "the unit section is very messy. Needs to be sorted by brand" */
+it("shows units by maker, A to Z, each maker's units by type in kW order", async () => {
   serve();
   render(<BookItems />);
   await screen.findByText("PAIRED COIL 1/4+1/2X20M");
-  jest.useFakeTimers();
-  try {
-    fireEvent.change(screen.getByLabelText("Search the price book"), { target: { value: "coil" } });
-    await act(async () => {
-      jest.advanceTimersByTime(300);
-    });
-  } finally {
-    jest.useRealTimers();
-  }
-  expect(await screen.findByRole("heading", { name: "The whole price book" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Pipe and coil 2" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Units 3" }));
+  expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Daikin2", "Fujitsu1"]);
+  const daikinSection = screen.getByRole("region", { name: "Daikin" });
+  fireEvent.click(within(daikinSection).getByRole("button", { name: /Wall split indoor/ }));
+  expect(within(daikinSection).getAllByText(/DAIKIN ZENA/).map((e) => e.textContent)).toEqual(["DAIKIN ZENA HWS IND 2.5KW R32", "DAIKIN ZENA HWS IND 5KW R32"]);
 });

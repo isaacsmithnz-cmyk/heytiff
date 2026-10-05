@@ -41,7 +41,11 @@ export async function sameItemProposals(orgId: string): Promise<SameItemsView> {
     };
   };
   return {
-    proposals: proposeSameItems(items, decisions.decided).map((p) => ({ ...p, a: side(p.a), b: side(p.b) })),
+    proposals: proposeSameItems(items, decisions.decided)
+      .map((p) => ({ ...p, a: side(p.a), b: side(p.b) }))
+      /* one part's price at two suppliers is never more than twice the
+         other's: a pair that far apart is two different things */
+      .filter((p) => !(p.a.netCents > 0 && p.b.netCents > 0 && Math.max(p.a.netCents, p.b.netCents) > 2 * Math.min(p.a.netCents, p.b.netCents))),
     confirmed: decisions.confirmed.length,
   };
 }

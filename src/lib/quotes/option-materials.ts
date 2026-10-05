@@ -28,7 +28,18 @@ import {
    goes on asked, and the Price says so. Nothing is stored: change a unit
    or answer the checklist and the list follows. Pure. */
 
-export type OptionRow = { name: string; sub: string; qty: string };
+export type OptionRow = {
+  name: string;
+  sub: string;
+  qty: string;
+  /** the system a unit is part of, so its indoor and outdoor are priced
+      from one supplier (job-price.ts) */
+  system?: number;
+};
+
+/** A system's rows, its units marked as that system's. */
+const ofSystem = (rows: readonly OptionRow[], n: number): OptionRow[] =>
+  rows.map((r) => (/\b(indoor|outdoor) unit\b/i.test(r.sub) ? { ...r, system: n } : r));
 
 type Pack = DataPack;
 
@@ -134,14 +145,15 @@ export function optionMaterials(option: Pick<ProposalOption, "name" | "units">, 
   /* a single outdoor carries every indoor that names none */
   const onSystem = (n: number) => indoors.filter((u) => u.system === n || (outdoors.length === 1 && !outdoors.some((o) => o.system === u.system)));
 
-  const systems = outdoors.length ? outdoors : indoors.length ? [null] : [];
-  for (const o of systems) {
+  /** One system's rows: a split pair's kit, a multi's, or its units as written. */
+  const systemRows = (o: UnitLine | null): OptionRow[] => {
+    const rows: OptionRow[] = [];
     const heads = o ? onSystem(o.system) : indoors;
     /* each head of a kind, one by one: "2 × 2.5 kW, Bedrooms" is two rooms */
     const expanded = heads.flatMap((u) => Array.from({ length: Math.max(1, u.qty) }, (_, i) => ({ u, name: roomOf(u, i + 1, Math.max(1, u.qty)) })));
     if (expanded.length === 0) {
       if (o) rows.push({ name: o.model || `${o.capacity} outdoor unit`.trim(), sub: `Outdoor unit, ${o.room || option.name}`, qty: String(Math.max(1, o.qty)) });
-      continue;
+      return rows;
     }
     const sized = pack
       ? expanded.map(({ u, name }) => sizeRoom(readRoom(name, kwOf(u.capacity), styleOf(u.type), f, expanded.length === 1 ? f.runM : null), 0, "residential", pack))
@@ -157,10 +169,10 @@ export function optionMaterials(option: Pick<ProposalOption, "name" | "units">, 
       if (room && pick) {
         const kit = kitRows(room, pick, { runM: f.runM, outdoorAt: f.outdoorAt });
         rows.push(...withSwap(kit, { replacing: f.replacing, keepPipe: f.keepPipe }, room.name));
-        continue;
+        return rows;
       }
       rows.push(...unpacked(head, o, expanded[0]!.name, f));
-      continue;
+      return rows;
     }
 
     /* several heads on one outdoor: a multi, by the combination table */
@@ -168,11 +180,16 @@ export function optionMaterials(option: Pick<ProposalOption, "name" | "units">, 
     if (multi?.ok) {
       const kit = multiKitRows(multi.multi, sized, { runs: Object.fromEntries(sized.map((r) => [r.name, null])), outdoorAt: f.outdoorAt });
       rows.push(...withSwap(kit, { replacing: f.replacing, keepPipe: f.keepPipe }, "the multi"));
-      continue;
+      return rows;
     }
     if (o) rows.push({ name: o.model || `${o.capacity} outdoor unit`.trim(), sub: `Outdoor unit, ${multi && !multi.ok ? multi.why : "no data pack for it"}`, qty: "1" });
     for (const { u, name } of expanded) rows.push({ name: u.model || `${u.capacity} ${u.type}`.trim(), sub: `Indoor unit, ${name}`, qty: "1" });
-  }
+    return rows;
+  };
+
+  /* system by system, each one's units marked as its own */
+  const systems = outdoors.length ? outdoors : indoors.length ? [null] : [];
+  for (const [n, o] of systems.entries()) rows.push(...ofSystem(systemRows(o), n + 1));
 
   for (const fan of option.units.filter((u) => u.role === "fan")) {
     rows.push({ name: fan.model || fan.type || "Fan", sub: `Fan, ${fan.room || option.name}`, qty: String(Math.max(1, fan.qty)) });

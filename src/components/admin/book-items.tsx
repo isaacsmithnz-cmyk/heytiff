@@ -1,23 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Offer } from "@/lib/quotes/price-book";
-import type { BookCounts, BookView, BookViewKey, Family, Product } from "@/lib/quotes/families";
+import { countsOf, viewOf, type BookViewKey, type Family, type Product } from "@/lib/quotes/families";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* THE PRICE BOOK'S ITEMS — the book sorted so a person can find a part
    without knowing its code (families.ts sorts it).
 
-   Down the left, what to look at: the parts the business uses most (its
-   own job lines and invoices), the ones it has put forward, then every
-   shelf. On the right, the shelf's families — "Paired coil, 11 sizes" —
-   each opening onto its sizes, and every size with each supplier's price.
+   Down the left, what to look at: the parts on the most quotes, the ones
+   the business has put forward, then every shelf. On the right, the shelf's
+   families — "Paired coil, 11 sizes" — each opening onto its sizes, and
+   every size with each supplier's price. Units, controls and parts come by
+   maker first ("Daikin"), a unit's families by type ("Wall split indoor").
+
+   The whole book comes once a visit and is sorted here: a shelf, a search,
+   Most used answer at once, with nothing asked of the server (Isaac,
+   2026-10-05: "the price book is slow to load").
 
    A supplier's price is the newer of its price list's and what was last
    paid on its invoices; the one not taken is under it, with its date.
-
-   A search reads only what holds its words; the rail's counts stay as the
-   last view of the whole book left them.
 
    PREFERRED: pressing a supplier's price puts that item forward. From then
    on a quote takes it over a cheaper one, the job checklist's search lists
@@ -46,35 +48,15 @@ const otherWords = (o: Offer) =>
     : null;
 const refOf = (o: Offer) => `${o.supplierKey}|${o.code}`;
 
-/** A view, and the rail's counts when it was a view of the whole book (a
-    search reads only what matches, so it can't count the shelves). */
-type Answer = ({ ok: true; counts: BookCounts | null } & BookView) | { ok: false; reason?: string };
+type Answer = { ok: true; products: Product[] } | { ok: false; reason?: string };
 
 /* read OUT HERE rather than inside the try that asks for it: React Compiler
    gives up on a component with a value block inside a try */
-const viewIn = (a: Answer): BookView | null => (a.ok ? { sections: a.sections, total: a.total, shown: a.shown } : null);
-const countsIn = (a: Answer) => (a.ok ? a.counts : null);
+const productsIn = (a: Answer) => (a.ok ? a.products : null);
 const refusalOf = (a: { ok: boolean; reason?: string }) => (a.ok ? null : (a.reason ?? "That couldn't be saved. Try again."));
 
-/** The view asked for. The most used and the preferred are short lists; a
-    search from either looks through the whole book. */
-function viewUrl(v: BookViewKey, words: string): string {
-  const q = words.trim();
-  const searching = q.length >= 2;
-  const target = searching && (v === "used" || v === "preferred") ? "all" : v;
-  return `${ROUTE}?${new URLSearchParams({ view: target, q: searching ? q : "" })}`;
-}
-
-/** How often a part is used, in words. */
-function usedWords(p: Product): string | null {
-  const parts = [
-    p.jobLines ? `on ${n(p.jobLines)} job line${p.jobLines === 1 ? "" : "s"}` : null,
-    p.bought ? `bought ${n(p.bought)} time${p.bought === 1 ? "" : "s"}` : null,
-  ].filter(Boolean);
-  if (parts.length === 0) return null;
-  const text = parts.join(", ");
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
+/** How often a part goes on a quote, in words. */
+const usedWords = (p: Product) => (p.quotes ? `On ${n(p.quotes)} quote${p.quotes === 1 ? "" : "s"}` : null);
 
 /** A family's prices, lowest to highest. */
 function rangeOf(f: Family): string {
@@ -85,7 +67,9 @@ function rangeOf(f: Family): string {
   return lo === hi ? $(lo) : `${$(lo)} to ${$(hi)}`;
 }
 
-/** One part: its name and codes, how often it's used, every supplier's price. */
+const partsIn = (fs: Family[]) => fs.reduce((m, f) => m + f.products.length, 0);
+
+/** One part: its name and codes, how often it's quoted, every supplier's price. */
 function ProductRow({ p, busy, onPrefer }: { p: Product; busy: boolean; onPrefer: (p: Product, o: Offer) => void }) {
   const codes = [...new Set(p.offers.map((o) => o.code))].join(", ");
   const used = usedWords(p);
@@ -121,67 +105,27 @@ function ProductRow({ p, busy, onPrefer }: { p: Product; busy: boolean; onPrefer
 }
 
 export function BookItems() {
+  const [products, setProducts] = useState<Product[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [view, setView] = useState<BookViewKey>("used");
   const [q, setQ] = useState("");
-  const [book, setBook] = useState<BookView | null>(null);
-  const [counts, setCounts] = useState<BookCounts | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /* each load takes a ticket; only the latest one's view is shown, so an
-     answer that lands after a newer question can't replace its view */
-  const asked = useRef(0);
 
-  /** An answer in: the rail's counts whenever it brings them (they're the
-      whole book's, whichever view asked), the view only if it's the latest. */
-  const land = (a: Answer, mine: number) => {
-    const c = countsIn(a);
-    if (c) setCounts(c);
-    if (mine !== asked.current) return;
-    const got = viewIn(a);
-    setBook(got);
-    setFailed(got === null);
-  };
-
-  const load = async (v: BookViewKey, words: string) => {
-    const mine = ++asked.current;
-    setLoading(true);
-    const url = viewUrl(v, words);
-    await withCleanup(async () => {
-      try {
-        const a = (await (await fetch(url)).json()) as Answer;
-        land(a, mine);
-      } catch {
-        if (mine === asked.current) setFailed(true);
-      }
-    }, () => {
-      if (mine === asked.current) setLoading(false);
-    });
-  };
-
-  /* the first view, once, with a ticket like any other */
+  /* the whole book, once */
   useEffect(() => {
     let live = true;
-    const mine = ++asked.current;
-    fetch(viewUrl("used", ""))
+    fetch(ROUTE)
       .then((r) => r.json() as Promise<Answer>)
       .then((a) => {
         if (!live) return;
-        const c = countsIn(a);
-        if (c) setCounts(c);
-        if (mine !== asked.current) return;
-        const got = viewIn(a);
-        setBook(got);
-        setFailed(got === null);
+        const got = productsIn(a);
+        if (got) setProducts(got);
+        else setFailed(true);
       })
       .catch(() => {
-        if (live && mine === asked.current) setFailed(true);
-      })
-      .finally(() => {
-        if (live && mine === asked.current) setLoading(false);
+        if (live) setFailed(true);
       });
     return () => {
       live = false;
@@ -191,42 +135,19 @@ export function BookItems() {
   const go = (v: BookViewKey) => {
     setView(v);
     setOpen(new Set());
-    if (timer.current) clearTimeout(timer.current);
-    void load(v, q);
   };
 
-  const search = (value: string) => {
-    setQ(value);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void load(view, value), 250);
-  };
-
-  /* every copy of the part on screen takes the change: a part can sit in
-     the most-used list and on its shelf */
-  const mark = (key: string, preferred: Offer | null, delta: number) => {
-    setCounts((c) => (c ? { ...c, preferred: c.preferred + delta } : c));
-    setBook((b) =>
-      b
-        ? {
-            ...b,
-            sections: b.sections.map((s) => ({
-              ...s,
-              families: s.families.map((f) => ({ ...f, products: f.products.map((p) => (p.key === key ? { ...p, preferred } : p)) })),
-            })),
-          }
-        : b
-    );
-  };
+  /** A part's preferred item, everywhere it's shown. */
+  const mark = (key: string, preferred: Offer | null) =>
+    setProducts((ps) => (ps ? ps.map((p) => (p.key === key ? { ...p, preferred } : p)) : ps));
 
   const prefer = async (p: Product, o: Offer) => {
     const was = p.preferred;
     const on = was === null || refOf(was) !== refOf(o);
-    /* one more preferred part, one fewer, or the same part moved */
-    const delta = was === null ? 1 : on ? 0 : -1;
     const body = JSON.stringify({ ref: refOf(o), on });
-    mark(p.key, on ? o : null, delta);
+    mark(p.key, on ? o : null);
     const undo = (why: string) => {
-      mark(p.key, was, -delta);
+      mark(p.key, was);
       setNote(why);
     };
     setBusy(true);
@@ -258,11 +179,16 @@ export function BookItems() {
 
   const searching = q.trim().length >= 2;
   const onShelf = view !== "used" && view !== "preferred";
+  /* the most used and the preferred are short lists; a search from either
+     looks through the whole book */
+  const looking: BookViewKey = searching && !onShelf ? "all" : view;
+  const counts = products ? countsOf(products) : null;
+  const book = products ? viewOf(products, looking, searching ? q : "") : null;
   /* a shelf opens on its families; a search, the most used and the
      preferred list their parts */
   const folded = onShelf && !searching;
   const shelfLabel = counts?.shelves.find((s) => s.key === view)?.label;
-  const title = view === "used" ? "Most used" : view === "preferred" ? "Preferred" : (shelfLabel ?? "");
+  const title = searching && !onShelf ? "The whole price book" : view === "used" ? "Most used" : view === "preferred" ? "Preferred" : (shelfLabel ?? "");
   const families = book?.sections.reduce((m, s) => m + s.families.length, 0) ?? 0;
 
   return (
@@ -291,8 +217,8 @@ export function BookItems() {
       <div className="pbk-main">
         <div className="pbk-head">
           <div>
-            <h2 className="pbk-title">{searching && !onShelf ? "The whole price book" : title}</h2>
-            {book && !failed && (
+            <h2 className="pbk-title">{title}</h2>
+            {book && (
               <p className="qs-sub">
                 {book.total > book.shown
                   ? `${n(book.total)} parts, the first ${n(book.shown)}`
@@ -305,7 +231,7 @@ export function BookItems() {
           <input
             className="wb2-fi pbk-find"
             value={q}
-            onChange={(e) => search(e.target.value)}
+            onChange={(e) => setQ(e.target.value)}
             placeholder={onShelf && shelfLabel ? `Search ${shelfLabel.toLowerCase()}` : "Search the price book"}
             aria-label="Search the price book"
           />
@@ -319,29 +245,32 @@ export function BookItems() {
           <p className="qs-sub">Sorting the price book</p>
         ) : book.sections.length === 0 ? (
           <p className="qs-sub">
-            {loading
-              ? "Looking"
-              : searching
-                ? "Nothing in the price book matches."
-                : view === "preferred"
-                  ? "Press a supplier's price on any part to prefer it."
-                  : view === "used"
-                    ? "Upload your suppliers' invoices, or link ServiceM8, to see what you use most."
-                    : "Nothing on this shelf yet."}
+            {searching
+              ? "Nothing in the price book matches."
+              : view === "preferred"
+                ? "Press a supplier's price on any part to prefer it."
+                : view === "used"
+                  ? "Parts land here as they go on quotes."
+                  : "Nothing on this shelf yet."}
           </p>
         ) : (
           book.sections.map((s) => (
             <section key={s.key} className="pbk-sec" aria-label={s.label}>
-              {(book.sections.length > 1 || !onShelf) && <h3 className="pbk-sech">{s.label}</h3>}
+              {(book.sections.length > 1 || !onShelf) && (
+                <h3 className="pbk-sech">
+                  {s.label}
+                  <em>{n(partsIn(s.families))}</em>
+                </h3>
+              )}
               <div>
                 {s.families.map((f) =>
                   folded && f.products.length > 1 ? (
                     <div key={f.key} className="pbk-fam">
                       <button
                         type="button"
-                        className={open.has(f.key) ? "pbk-famrow on" : "pbk-famrow"}
-                        aria-expanded={open.has(f.key)}
-                        onClick={() => toggle(f.key)}
+                        className={open.has(`${s.key}|${f.key}`) ? "pbk-famrow on" : "pbk-famrow"}
+                        aria-expanded={open.has(`${s.key}|${f.key}`)}
+                        onClick={() => toggle(`${s.key}|${f.key}`)}
                       >
                         <span className="qs-item">
                           <b>{f.label}</b>
@@ -353,7 +282,7 @@ export function BookItems() {
                         </span>
                         <span className="pbk-range">{rangeOf(f)}</span>
                       </button>
-                      {open.has(f.key) && (
+                      {open.has(`${s.key}|${f.key}`) && (
                         <div className="pbk-sizes">
                           {f.products.map((p) => (
                             <ProductRow key={p.key} p={p} busy={busy} onPrefer={(x, o) => void prefer(x, o)} />

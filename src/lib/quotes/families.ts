@@ -1,5 +1,6 @@
 import { netCents, searchWords, type Offer, type PricePoint, type Supplier } from "./price-book";
 import { CATEGORIES, categoryOf, type CategoryKey } from "./categories";
+import { brandOf, capacityOf, unitFamilyOf, withoutBrand } from "./brands";
 import { productsOf, refOf } from "./same-items";
 
 /* THE PRICE BOOK SORTED: shelves, then families, then the sizes.
@@ -19,9 +20,19 @@ import { productsOf, refOf } from "./same-items";
 
    What comes first: a family holding a preferred item, then the most used,
    then by name. Inside a family, the preferred item, then size order — or,
-   on the most-used list, the most used. Worked out at read from the names,
-   never stored, so a better rule re-sorts the book without an import.
-   Pure: the page, the quote and the tests read the same answer. */
+   on the most-used list, the most used.
+
+   UNITS, CONTROLS, PARTS: by maker first (brands.ts) — "Daikin", then its
+   families. A unit's family is its type and part, "Wall split indoor", in
+   kW order; the maker's own words come off a family's name under its
+   heading.
+
+   MOST USED is what goes on the business's quotes: how many quotes each
+   part has been on (ServiceM8's and HeyTiff's, quote_item_uses.sql).
+
+   Worked out at read from the names, never stored, so a better rule
+   re-sorts the book without an import. Pure: the page, the quote and the
+   tests read the same answer, and the page sorts in the browser. */
 
 /** An item as the book holds it, enough to place and price it. */
 export type ShelfItem = {
@@ -49,16 +60,16 @@ export type Product = {
   cheapest: Offer | null;
   /** the supplier's item the business put forward, when it has */
   preferred: Offer | null;
-  /** lines on the business's own jobs that were this part */
-  jobLines: number;
-  /** times its invoices say it was bought */
-  bought: number;
+  /** who makes it, when its name or supplier says */
+  brand: string | null;
+  /** how many of the business's quotes it has been on */
+  quotes: number;
 };
 
 export type Family = { key: string; label: string; products: Product[] };
 
-/** How often a product is used: job lines and purchases together. */
-export const usesOf = (p: Product) => p.jobLines + p.bought;
+/** How often a product is used: the quotes it has been on. */
+export const usesOf = (p: Product) => p.quotes;
 
 /* the words that are a unit or a joiner once the figure beside them is gone */
 const UNIT_WORDS = new Set([
@@ -116,6 +127,19 @@ export function sizesOf(name: string): number[] {
   return out;
 }
 
+/** The code a product's maker would know it by: its first supplier's. */
+const codeOf = (p: Product) => (p.cheapest ?? p.offers[0])?.code ?? "";
+
+/** What a product is sorted by within its family: a unit's kW, else the
+    figures in its name. */
+const sizeKey = (p: Product): number[] => {
+  if (p.category === "units") {
+    const kw = capacityOf(p.name, codeOf(p));
+    return kw == null ? [Infinity] : [kw];
+  }
+  return sizesOf(p.name);
+};
+
 /** Two products by their sizes, each read once beforehand. */
 const bySize = (sizes: Map<Product, number[]>) => (a: Product, b: Product) => {
   const sa = sizes.get(a)!;
@@ -131,7 +155,7 @@ export function productsFrom(
   suppliers: Supplier[],
   confirmed: [string, string][],
   preferred: Set<string>,
-  jobLinesByCode: Map<string, number>
+  quotesByCode: Map<string, number>
 ): Product[] {
   const sup = new Map(suppliers.map((s) => [s.key, s]));
   const keyOf = productsOf(items, confirmed);
@@ -146,7 +170,16 @@ export function productsFrom(
       .map((r): Offer => {
         const s = sup.get(r.supplierKey)!;
         const other = r.other ? { netCents: netCents(s, r.code, r.other.cents, r.other.net), on: r.other.on, from: r.other.from } : null;
-        return { supplierKey: s.key, supplierName: s.name, code: r.code, name: r.name, netCents: netCents(s, r.code, r.cents, r.net), pricedOn: r.pricedOn, other };
+        /* what's empty stays off the page's copy of the book: seven thousand parts */
+        return {
+          supplierKey: s.key,
+          supplierName: s.name,
+          code: r.code,
+          name: r.name,
+          netCents: netCents(s, r.code, r.cents, r.net),
+          ...(r.pricedOn ? { pricedOn: r.pricedOn } : {}),
+          ...(other ? { other } : {}),
+        };
       })
       .sort((a, b) => (a.netCents > 0 ? a.netCents : Infinity) - (b.netCents > 0 ? b.netCents : Infinity));
     const cheapest = offers.find((o) => o.netCents > 0) ?? null;
@@ -159,25 +192,38 @@ export function productsFrom(
       offers,
       cheapest,
       preferred: offers.find((o) => preferred.has(refOf(o))) ?? null,
-      jobLines: [...codes].reduce((n, c) => n + (jobLinesByCode.get(c) ?? 0), 0),
-      bought: rows.reduce((n, r) => n + (r.timesBought ?? 0), 0),
+      brand: offers.map((o) => brandOf(o.name, o.code, o.supplierKey)).find((b) => b !== null) ?? null,
+      /* a quote holding two of the part's codes is rare; the larger count stands */
+      quotes: Math.max(0, ...[...codes].map((c) => quotesByCode.get(c) ?? 0)),
     };
   });
 }
 
 /** Products into families, the preferred and the most used first. `use`
-    orders a family's products by use (the most-used list); otherwise by size. */
-export function organise(products: Product[], order: "size" | "use" = "size"): Family[] {
+    orders a family's products by use (the most-used list); otherwise by size.
+    Under a maker's heading (`brand`) its own words come off the families'
+    names. A unit's family is its type and part, in the types' order. */
+export function organise(products: Product[], order: "size" | "use" = "size", brand: string | null = null): Family[] {
   const families = new Map<string, Family>();
+  const unitOrder = new Map<string, number>();
   for (const p of products) {
-    const f = familyOf(p.name);
+    let f: { key: string; label: string };
+    if (p.category === "units") {
+      const u = unitFamilyOf(p.name, codeOf(p));
+      unitOrder.set(u.key, u.order);
+      f = u;
+    } else {
+      f = familyOf(brand ? withoutBrand(p.name, brand) : p.name);
+    }
     const fam = families.get(f.key) ?? { key: f.key, label: f.label, products: [] };
     fam.products.push(p);
     families.set(f.key, fam);
   }
   const anyPreferred = (f: Family) => (f.products.some((p) => p.preferred) ? 0 : 1);
   const used = (f: Family) => f.products.reduce((n, p) => n + usesOf(p), 0);
-  const sizes = new Map(products.map((p) => [p, sizesOf(p.name)]));
+  /* units keep their types' order; other families come by use */
+  const rank = (f: Family) => (unitOrder.has(f.key) ? unitOrder.get(f.key)! : -used(f));
+  const sizes = new Map(products.map((p) => [p, sizeKey(p)]));
   const sized = bySize(sizes);
   for (const f of families.values()) {
     f.products.sort(
@@ -187,7 +233,7 @@ export function organise(products: Product[], order: "size" | "use" = "size"): F
         sized(a, b)
     );
   }
-  return [...families.values()].sort((a, b) => anyPreferred(a) - anyPreferred(b) || used(b) - used(a) || a.label.localeCompare(b.label));
+  return [...families.values()].sort((a, b) => anyPreferred(a) - anyPreferred(b) || rank(a) - rank(b) || a.label.localeCompare(b.label));
 }
 
 /** Every word in the code or the name (searchWords: lower case). */
@@ -196,7 +242,15 @@ export const matchesWords = (p: Product, words: string[]) =>
 
 export type BookViewKey = "used" | "preferred" | "all" | CategoryKey;
 
-export type BookSection = { key: CategoryKey; label: string; families: Family[] };
+/** A heading in a view: a shelf ("Pipe and coil"), or on a shelf sorted by
+    maker, a maker ("Daikin"). */
+export type BookSection = { key: string; label: string; families: Family[] };
+
+/** The shelves sorted by maker before family. */
+export const BY_MAKER: CategoryKey[] = ["units", "controls", "accessories", "parts", "heating"];
+
+/** The heading for what no name or supplier names a maker of. */
+export const OTHER_MAKES = "Other makes";
 
 export type BookCounts = { used: number; preferred: number; shelves: { key: CategoryKey; label: string; count: number }[] };
 
@@ -210,7 +264,8 @@ export type BookView = {
 
 /** the most-used list: the parts the business reaches for */
 export const MOST_USED = 40;
-/** past this many products a view is narrowed by searching */
+/** past this many parts a list of parts (a search, the preferred) is
+    narrowed by searching; a shelf's families have no cap */
 export const VIEW_CAP = 300;
 
 /** The most used, busiest first. */
@@ -242,22 +297,36 @@ export function viewOf(products: Product[], view: BookViewKey, query: string): B
           : products.filter((p) => p.category === view);
   const found = picked.filter((p) => matchesWords(p, words));
 
-  /* shelves in the book's order; the most-used list puts its busiest first */
+  /* shelves in the book's order; the most-used list puts its busiest first;
+     a shelf sorted by maker has a heading per maker, A to Z */
   const order = view === "used" ? "use" : "size";
-  const sections = CATEGORIES.map((c) => ({ key: c.key, label: c.label, families: organise(found.filter((p) => p.category === c.key), order) }))
-    .filter((s) => s.families.length > 0);
+  let sections: BookSection[];
+  if ((BY_MAKER as string[]).includes(view)) {
+    const byBrand = new Map<string, Product[]>();
+    for (const p of found) byBrand.set(p.brand ?? OTHER_MAKES, [...(byBrand.get(p.brand ?? OTHER_MAKES) ?? []), p]);
+    sections = [...byBrand.entries()]
+      .sort(([a], [b]) => (a === OTHER_MAKES ? 1 : b === OTHER_MAKES ? -1 : a.localeCompare(b)))
+      .map(([brand, ps]) => ({ key: `maker:${brand}`, label: brand, families: organise(ps, order, brand === OTHER_MAKES ? null : brand) }));
+  } else {
+    sections = CATEGORIES.map((c) => ({ key: c.key, label: c.label, families: organise(found.filter((p) => p.category === c.key), order) })).filter(
+      (s) => s.families.length > 0
+    );
+  }
   if (view === "used") {
     const usesIn = (s: BookSection) => s.families.reduce((n, f) => n + f.products.reduce((m, p) => m + usesOf(p), 0), 0);
     sections.sort((a, b) => usesIn(b) - usesIn(a));
   }
 
-  /* whole families, until the cap */
+  /* whole families, until the cap — a shelf of families is drawn a row a
+     family, so a shelf has none: every maker on Units, not the first four */
+  const shelf = view !== "used" && view !== "preferred" && view !== "all" && words.length === 0;
+  const cap = shelf ? Infinity : VIEW_CAP;
   let shown = 0;
   const capped: BookSection[] = [];
   for (const s of sections) {
     const families: Family[] = [];
     for (const f of s.families) {
-      if (shown >= VIEW_CAP) break;
+      if (shown >= cap) break;
       families.push(f);
       shown += f.products.length;
     }

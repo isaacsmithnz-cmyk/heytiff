@@ -321,32 +321,27 @@ export function priceOfRow(r: StoredRow): { cents: number; net: boolean; pricedO
   return { cents: price.cents, net: price.net, pricedOn: price.from === "invoice" ? price.on : r.priced_on, other };
 }
 
-/** Every current item in the book, a page at a time. */
+const PAGE = 1000;
+
+/** Every current item in the book: the first page says how many there are,
+    and the rest are asked for at once rather than one after another (eight
+    pages in turn took seconds). */
 export async function currentItems(orgId: string): Promise<BookItem[]> {
-  const out: BookItem[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabaseAdmin
+  const page = (from: number, count = false) =>
+    supabaseAdmin
       .from("quote_price_items")
-      .select(`supplier_key, code, name, times_bought, uom, ${PRICE_COLUMNS}`)
+      .select(`supplier_key, code, name, times_bought, uom, ${PRICE_COLUMNS}`, count ? { count: "exact" } : undefined)
       .eq("org_id", orgId)
       .eq("current", true)
       .order("supplier_key")
       .order("code")
-      .range(from, from + 999);
-    if (error || !data) break;
-    for (const r of data as unknown as ({ supplier_key: string; code: string; name: string; times_bought: number | null; uom: string | null } & StoredRow)[]) {
-      out.push({
-        supplierKey: r.supplier_key,
-        code: r.code,
-        name: r.name,
-        ...priceOfRow(r),
-        timesBought: r.times_bought,
-        uom: r.uom,
-      });
-    }
-    if (data.length < 1000) break;
-  }
-  return out;
+      .range(from, from + PAGE - 1);
+  const first = await page(0, true);
+  if (first.error || !first.data) return [];
+  const total = first.count ?? first.data.length;
+  const rest = await Promise.all(Array.from({ length: Math.max(0, Math.ceil(total / PAGE) - 1) }, (_, i) => page((i + 1) * PAGE)));
+  const rows = [first, ...rest].flatMap((r) => (r.data ?? []) as unknown as FoundRow[]);
+  return rows.map(asBookItem);
 }
 
 export type ModelOffers = {

@@ -508,7 +508,7 @@ function ComponentRow({
                   <span className="qs-item">
                     {g.name}
                     <em>
-                      {[g.code, g.uses ? `On ${g.uses} job line${g.uses === 1 ? "" : "s"}` : null]
+                      {[g.code, g.uses ? `On ${g.uses} quote${g.uses === 1 ? "" : "s"}` : null]
                         .filter(Boolean)
                         .join(", ")}
                     </em>

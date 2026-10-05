@@ -1,22 +1,24 @@
 /**
  * @jest-environment node
  */
-/* How many of the business's job lines were each code — one count for the
-   price book's Most used and the Quoting page's preferred items alike
-   (2026-10-05): ServiceM8's job lines through the catalogue item each one
-   names, a Reece item counted under Reece's own code too. */
+/* The price book's own reads and writes: how many quotes each part has
+   been on (Isaac, 2026-10-05: "the most used should come from quotes. And
+   items that get pulled from the quotes can sit in the most used"), what a
+   quote pulled in, and an item put forward. */
 jest.mock("server-only", () => ({}));
 
 type Row = Record<string, string | number | boolean | null>;
 const TABLES: Record<string, Row[]> = {};
-const asked: { table: string; in?: [string, unknown[]]; order?: string }[] = [];
+let RPC: { fn: string; args: unknown; data: unknown; error: unknown } | null = null;
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
+    rpc: async (fn: string, args: unknown) => {
+      RPC = { ...(RPC ?? { data: [], error: null }), fn, args };
+      return { data: RPC.data, error: RPC.error };
+    },
     from: (table: string) => {
       const filters: ((r: Row) => boolean)[] = [];
-      const log: (typeof asked)[number] = { table };
-      asked.push(log);
       let order: string | null = null;
       let removing = false;
       const rows = () => {
@@ -26,6 +28,10 @@ jest.mock("@/lib/supabase-server", () => ({
       const q = {
         select: () => q,
         delete: () => ((removing = true), q),
+        insert: async (rs: Row[]) => {
+          TABLES[table] = [...(TABLES[table] ?? []), ...rs];
+          return { error: null };
+        },
         upsert: async (row: Row) => {
           TABLES[table] = [...(TABLES[table] ?? []).filter((r) => !(r.org_id === row.org_id && r.supplier_key === row.supplier_key && r.code === row.code)), row];
           return { error: null };
@@ -33,9 +39,9 @@ jest.mock("@/lib/supabase-server", () => ({
         match: (o: Row) => (Object.entries(o).forEach(([c, v]) => filters.push((r) => r[c] === v)), q),
         eq: (c: string, v: unknown) => (filters.push((r) => r[c] === v), q),
         not: (c: string) => (filters.push((r) => r[c] != null), q),
-        in: (c: string, vs: unknown[]) => ((log.in = [c, vs]), filters.push((r) => vs.includes(r[c])), q),
-        order: (c: string) => ((log.order = c), (order = c), q),
-        range: async (from: number, to: number) => ({ data: rows().slice(from, to + 1), error: null }),
+        in: (c: string, vs: unknown[]) => (filters.push((r) => vs.includes(r[c])), q),
+        order: (c: string) => ((order = c), q),
+        range: async (from: number, to: number) => ({ data: rows().slice(from, to + 1), error: null, count: rows().length }),
         then: (ok: (v: { data: Row[]; error: null }) => unknown) => {
           const found = rows();
           if (removing) TABLES[table] = (TABLES[table] ?? []).filter((r) => !found.includes(r));
@@ -47,52 +53,50 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { jobLinesByCode, setPreferred } from "../book-view-server";
-
-const line = (i: number, material: string): Row => ({ org_id: "org", uuid: `line-${String(i).padStart(5, "0")}`, active: 1, material_uuid: material });
+import { quotesByCode, recordQuoteItems, setPreferred } from "../book-view-server";
 
 beforeEach(() => {
-  asked.length = 0;
-  TABLES.sm8_materials = [
-    { org_id: "org", uuid: "m-coil", item_number: "PC1412" },
-    { org_id: "org", uuid: "m-pump", item_number: "REC3210002-1" },
-    { org_id: "org", uuid: "m-quote", item_number: "As Per Quote" },
-  ];
-  TABLES.sm8_job_materials = [
-    ...Array.from({ length: 1200 }, (_, i) => line(i, "m-quote")),
-    ...Array.from({ length: 38 }, (_, i) => line(2000 + i, "m-coil")),
-    ...Array.from({ length: 21 }, (_, i) => line(3000 + i, "m-pump")),
-    { org_id: "org", uuid: "line-gone", active: 0, material_uuid: "m-coil" },
-  ];
+  RPC = null;
+  for (const k of Object.keys(TABLES)) delete TABLES[k];
 });
 
-it("counts every code's lines across pages, a Reece item under Reece's code too", async () => {
-  const lines = await jobLinesByCode("org");
-  expect(lines.get("PC1412")).toBe(38);
-  expect(lines.get("3210002-1")).toBe(21);
-  expect(lines.get("REC3210002-1")).toBe(21);
-  expect(lines.get("As Per Quote")).toBe(1200);
-  /* paged by the line's own key */
-  expect(asked.filter((a) => a.table === "sm8_job_materials").every((a) => a.order === "uuid")).toBe(true);
+describe("quotes each part has been on", () => {
+  it("are counted in the database, in one call, for the one business", async () => {
+    RPC = { fn: "", args: null, data: [{ code: "CMADJ", quotes: 42 }, { code: "PC1412", quotes: "30" }], error: null };
+    const counts = await quotesByCode("org");
+    expect(RPC.fn).toBe("quote_item_counts");
+    expect(RPC.args).toEqual({ p_org: "org" });
+    expect([...counts.entries()]).toEqual([
+      ["CMADJ", 42],
+      ["PC1412", 30],
+    ]);
+  });
+
+  it("are none when the count can't be read, never an error", async () => {
+    RPC = { fn: "", args: null, data: null, error: { message: "no function" } };
+    expect((await quotesByCode("org")).size).toBe(0);
+  });
 });
 
-it("for a few codes, reads only their catalogue items and their lines", async () => {
-  const lines = await jobLinesByCode("org", ["PC1412", "3210002-1"]);
-  expect([...lines.entries()].sort()).toEqual([
-    ["3210002-1", 21],
-    ["PC1412", 38],
-    ["REC3210002-1", 21],
-  ]);
-  const catalogue = asked.find((a) => a.table === "sm8_materials")!;
-  expect(catalogue.in?.[1]).toEqual(expect.arrayContaining(["PC1412", "REC3210002-1"]));
-  const jobLines = asked.find((a) => a.table === "sm8_job_materials")!;
-  expect(jobLines.in?.[1]).toEqual(expect.arrayContaining(["m-coil", "m-pump"]));
-  expect(jobLines.in?.[1]).not.toContain("m-quote");
-});
-
-it("is empty, and reads no lines, when no catalogue item holds the codes", async () => {
-  expect((await jobLinesByCode("org", ["NOPE"])).size).toBe(0);
-  expect(asked.some((a) => a.table === "sm8_job_materials")).toBe(false);
+describe("what a quote pulled in", () => {
+  it("replaces what the quote held the last time it was priced", async () => {
+    TABLES.quote_item_uses = [
+      { org_id: "org", sm8_job_uuid: "job-1", supplier_key: "aad", code: "OLD" },
+      { org_id: "org", sm8_job_uuid: "job-2", supplier_key: "aad", code: "OTHER-JOB" },
+    ];
+    await recordQuoteItems("org", "job-1", [
+      { supplierKey: "aad", code: "PC1412" },
+      { supplierKey: "aad", code: "PC1412" },
+      { supplierKey: "reece", code: "3210002-1" },
+      /* an allowance has no item */
+      { supplierKey: null, code: null },
+    ]);
+    expect(TABLES.quote_item_uses!.map((r) => `${r.sm8_job_uuid} ${r.supplier_key}|${r.code}`).sort()).toEqual([
+      "job-1 aad|PC1412",
+      "job-1 reece|3210002-1",
+      "job-2 aad|OTHER-JOB",
+    ]);
+  });
 });
 
 describe("an item put forward", () => {
@@ -115,7 +119,6 @@ describe("an item put forward", () => {
   beforeEach(() => {
     TABLES.quote_price_items = [item("aad", "PC1412"), item("reece", "9800006-1"), item("aad", "PC1438")];
     TABLES.quote_same_items = [{ org_id: "org", a_ref: "aad|PC1412", b_ref: "reece|9800006-1", decision: "confirmed" }];
-    TABLES.quote_suppliers = [];
   });
 
   it("takes the preference off the part's other codes, whatever the page knew", async () => {

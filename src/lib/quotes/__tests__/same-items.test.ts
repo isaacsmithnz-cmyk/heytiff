@@ -111,3 +111,22 @@ describe("sameProductRefs", () => {
     expect(sameProductRefs(items, [], "aad|PC1438")).toEqual(["aad|PC1438"]);
   });
 });
+
+/* Isaac, 2026-10-05: "AAD, they've got Fujitsu Lifestyle Indoor
+   AST-09KMTC… $200, but that's just the indoor head. The other side is the
+   entire kit" — Reece names the whole system by the head's code. */
+describe("units", () => {
+  it("never proposes an indoor head as the whole system it belongs to", () => {
+    const p = proposeSameItems(
+      [
+        aad("ASTG09KMTC", "FUJITSU LIFESTYLE R/C HWS IND 2.5KW"),
+        reece("3102341-1", "FUJITSU WALL MOUNTED AC ASTG09KMTC 2.5KW (EA)"),
+        aad("DXK09ZSA-WF1", "MHI AVANTI HWS IND 2.5KW R/C INV WIFI"),
+        reece("3102874-1", "MHI WHS AC DXK09ZSA-WF1 AVANTI IDU 2.5KW (EA)"),
+      ],
+      new Set()
+    );
+    /* the MHI head against the MHI head still is one part */
+    expect(p.map((x) => [x.a.code, x.b.code])).toEqual([["DXK09ZSA-WF1", "3102874-1"]]);
+  });
+});

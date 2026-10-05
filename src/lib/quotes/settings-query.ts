@@ -12,7 +12,7 @@ import {
 import { netCents } from "./price-book";
 import { currentItems, readPreferred, readSameDecisions, readSuppliers, type BookItem, type SupplierView } from "./price-book-server";
 import { productsOf, refOf } from "./same-items";
-import { jobLinesByCode } from "./book-view-server";
+import { quotesByCode } from "./book-view-server";
 import { normaliseQuoteSettings, type QuoteSettings } from "./settings";
 
 /* The Quoting page's reads: the business's settings, and for each component
@@ -52,7 +52,7 @@ export type ComponentGroup = {
   name: string;
   /** the lowest offer's roll, or the person's correction on the chosen one */
   rollM: number | null;
-  /** how many lines on the business's jobs were this item */
+  /** how many of the business's quotes this item has been on */
   uses: number;
   offers: ComponentOffer[];
 };
@@ -112,9 +112,9 @@ export async function componentShortlists(
   const matched = new Map<ComponentKey, BookItem[]>(
     COMPONENT_KEYS.map((k) => [k, book.filter((m) => matchesComponent(k, m.name))])
   );
-  /* how many lines on the business's jobs were each item: the same count
+  /* how many of the business's quotes each item has been on: the same count
      the price book's Most used reads */
-  const uses = await jobLinesByCode(orgId, [...new Set([...matched.values()].flat().map((m) => m.code))]);
+  const uses = await quotesByCode(orgId);
 
   return COMPONENT_KEYS.map((key) => {
     const c = QUOTE_COMPONENTS[key];

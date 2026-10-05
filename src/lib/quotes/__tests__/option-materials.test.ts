@@ -97,3 +97,24 @@ it("keeps a unit the data pack doesn't hold as written, its kit asked", () => {
   expect(rows.slice(0, 2).map((r) => r.name)).toEqual(["ARTH09KSLAP", "AOTH24KBCA3"]);
   expect(rows.find((r) => r.name === "Outdoor mount")?.qty).toBe("Where it sits: ask");
 });
+
+/* Isaac, 2026-10-05: "Anything that's a pair should come from one supplier"
+   — each system's units say which system they are, so they're priced together */
+it("marks each system's units as its own, and nothing else", () => {
+  const rows = optionMaterials(
+    {
+      name: "Two splits",
+      units: [
+        unit({ role: "outdoor", room: "Side", capacity: "2.5 kW", system: 1 }),
+        unit({ room: "Bed 1", capacity: "2.5 kW", type: "High wall", system: 1 }),
+        unit({ role: "outdoor", room: "Back", capacity: "6 kW", system: 2 }),
+        unit({ room: "Living", capacity: "6 kW", type: "High wall", system: 2 }),
+      ],
+    },
+    [],
+    pack
+  );
+  const units = rows.filter((r) => /indoor unit|outdoor unit/i.test(r.sub));
+  expect(units.map((r) => r.system)).toEqual([1, 1, 2, 2]);
+  expect(rows.filter((r) => !/indoor unit|outdoor unit/i.test(r.sub)).every((r) => r.system === undefined)).toBe(true);
+});

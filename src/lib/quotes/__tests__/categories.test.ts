@@ -28,7 +28,32 @@ it.each([
   ["NITTO DUCT TAPE BLACK 48mm x 30M", "BTAPE", "consumables"],
   ["PRIME R290 DISPOSABLE CYLINDER 400G (EA)", "1-1", "refrigerant"],
   ["ME ACC AIR OUTLET GUIDE PUZ-ZM71", "X", "accessories"],
-  ["MILWAUKEE INKZALL COLOUR MARKERS 4 PACK (EA)", "1-1", "other"],
+  ["MILWAUKEE INKZALL COLOUR MARKERS 4 PACK (EA)", "1-1", "consumables"],
+  /* the shelf tidy of 2026-10-05, on names from the real book */
+  /* "flush" is a flushing agent, never a flush-mount switch (Isaac: "looking at refrigerant… a lot of work") */
+  ["GPO Flush Standard 2G 10A 250V Horizontal White Electric", "X", "electrical"],
+  ["Switch Cover Plate Flush Std Blank Vert White", "X", "electrical"],
+  ["Smoke Alarm PE Type 220- 240V AC 9VDC Battery Gen 4 Flush", "X", "electrical"],
+  ["UNIVERSAL FLUSHING AGENT 5LT (EA)", "X", "refrigerant"],
+  ["Flush Face Diffuser White 4W 300 x 300", "FF41212", "grilles"],
+  ["RECTORSEAL RUN CAP 10MFD-450V MK450-10 (EA)", "X", "parts"],
+  ["TRUNK CAP 2.4M SURF MIST NSW", "X", "mounting"],
+  ["SMARTDUCT STRAIGHT DUCT 2M X 80MM (EA)", "X", "mounting"],
+  ["JOINER METAL 150 NSW", "X", "ducting"],
+  ["Solid Elbow 90deg 20mm PVC Grey", "X", "electrical"],
+  ["CABLE TIE WHITE 4.5 x 200mm PK100", "X", "consumables"],
+  ["Energy Recovery Lossnay 278 L/s", "LGH-100RVX3-E", "fans"],
+  ["KADEN WINDOW AC KW09 R32 2.7KW (EA)", "X", "units"],
+  ["Gree R32 Window Unit 2.7kW WIFI", "X", "units"],
+  ["PLP-6EALM2 Grille with Receiver and Remote Controller", "PLP-6EALM2", "accessories"],
+  ["COMPRESSION ELBOW 20C x 20C", "CFE20C", "plumbing"],
+  ["VAC PUMP 2SPD 100L/MIN 240V", "X", "consumables"],
+  ["CRH RUBBER SUIT FLOOR STOPS A242A (EA)", "X", "refrigeration"],
+  ["P/BOWL CABINET COOLER MED TEMP", "X", "refrigeration"],
+  ["BRAEMAR INNOV-AIRE HWS IND 2.8KW", "X", "units"],
+  ["LS THERMAL OVERLOAD 7.0-10.0A MT-32-10 (EA)", "X", "parts"],
+  ["SAMAC 18-20KWN/C1284x360-2X450", "NCSAMAC180-200", "ducting"],
+  ["MOTHER SUGAR FREE CAN 500ML (EA)", "X", "other"],
 ])("%s → %s", (name, code, shelf) => {
   expect(categoryOf(name, code)).toBe(shelf);
 });

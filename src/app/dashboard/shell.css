@@ -12222,3 +12222,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .pbk-famrow b { font-weight:600; }
 .pbk-range { font-size:14px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
 .pbk-sizes { padding-left:24px; }
+.pbk-sech em { margin-left:8px; font-style:normal; font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+
+/* The price book's suppliers (price-book-panel.tsx): one quiet row each,
+   which opens onto what can be done to it */
+.pbs-head, .fg button.pbs-row { display:grid; grid-template-columns:220px minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap:16px; align-items:center; }
+.pbs-head { padding:0 12px 8px; font-size:13px; font-weight:500; color:var(--q); }
+.fg button.pbs-row { width:100%; padding:12px; border-top:1px solid var(--line); text-align:left; font-size:14px; transition:background-color var(--t-fast) var(--ease); }
+.fg button.pbs-row:hover { background:var(--tint); }
+.fg button.pbs-row.on { background:var(--tint-2); }
+.pbs-row b { font-weight:600; }
+.pbs-none { color:var(--q); }
+.pbs-panel { display:flex; flex-direction:column; gap:12px; padding:12px 12px 24px; }
+.pbs-panel .qs-sub { margin:0; }
+.pbs-panel .qs-match { margin-top:0; }
+.pbs-acts { display:flex; gap:8px; }
+.pbs-add { display:flex; align-items:center; gap:8px; margin-top:16px; }
+.pbs-add .wb2-fi { width:320px; }
+.pbs-addbtn { margin-top:16px; }

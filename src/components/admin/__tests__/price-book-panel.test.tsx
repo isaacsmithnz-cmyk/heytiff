@@ -42,6 +42,9 @@ it("asks which column is which, then reads the file with the columns chosen", as
 
   const onImported = jest.fn();
   render(<PriceBook suppliers={[acme]} onImported={onImported} />);
+  /* a supplier is one quiet row; its uploads are inside it */
+  expect(screen.queryByLabelText("Upload Acme price list")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /^Acme/ }));
   const input = screen.getByLabelText("Upload Acme price list");
   const file = new File(["x"], "acme.xlsx");
   await act(async () => {
@@ -69,34 +72,52 @@ it("asks which column is which, then reads the file with the columns chosen", as
 });
 
 /* Isaac, 2026-10-04: "test the engine on a new org… ensure no hard coded
-   parts from us come in". A new business has no suppliers; the ones whose
-   own files HeyTiff reads are offered, a press each. */
-it("starts a new business with no suppliers, offering the files HeyTiff reads", async () => {
+   parts from us come in". A new business has no suppliers: the one thing to
+   do is add one, and naming one whose own files HeyTiff reads adds it as
+   that (2026-10-05: one "Add supplier", not a button per supplier). */
+it("starts a new business with no suppliers and the form to add one, offering the files HeyTiff reads", async () => {
   const posted: unknown[] = [];
   global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === "POST" && url === "/api/quoting/suppliers") {
       posted.push(JSON.parse(String(init.body)));
       return { json: async () => ({ ok: true }) } as Response;
     }
-    return { json: async () => ({ ok: true, categories: [] }) } as Response;
+    return { json: async () => ({ ok: true }) } as Response;
   }) as unknown as typeof fetch;
   const onImported = jest.fn();
-  render(<PriceBook suppliers={[]} onImported={onImported} />);
-  expect(screen.queryByText("No price list yet")).toBeNull();
-  for (const name of ["Add AAD", "Add Reece", "Add Mitsubishi Electric"]) expect(screen.getByRole("button", { name })).toBeEnabled();
+  const { container } = render(<PriceBook suppliers={[]} onImported={onImported} />);
+  expect(screen.queryByRole("list", { name: "Suppliers" })).toBeNull();
+  /* the suppliers HeyTiff reads are offered as the name is typed */
+  expect([...container.querySelectorAll("datalist option")].map((o) => o.getAttribute("value"))).toEqual(["AAD", "Reece", "Mitsubishi Electric"]);
+  fireEvent.change(screen.getByLabelText("New supplier's name"), { target: { value: "reece" } });
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Add Reece" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add supplier" }));
   });
   expect(posted).toEqual([{ builtIn: "reece" }]);
   expect(onImported).toHaveBeenCalled();
-  expect(await screen.findByText("Reece added. Upload its price list.")).toBeInTheDocument();
+  expect(await screen.findByText("Reece added. Open it to upload its price list.")).toBeInTheDocument();
+
+  /* any other supplier by its name */
+  fireEvent.click(screen.getByRole("button", { name: "Add a supplier" }));
+  fireEvent.change(screen.getByLabelText("New supplier's name"), { target: { value: "JH Sheetmetal" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add supplier" }));
+  });
+  expect(posted[1]).toEqual({ name: "JH Sheetmetal" });
 });
 
-it("doesn't offer a supplier the business already has", () => {
-  global.fetch = jest.fn(async () => ({ json: async () => ({ ok: true, categories: [] }) })) as unknown as typeof fetch;
-  render(<PriceBook suppliers={[{ ...acme, key: "aad", name: "AAD", format: "aad_csv", file: "csv" }]} onImported={jest.fn()} />);
-  expect(screen.queryByRole("button", { name: "Add AAD" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Add Reece" })).toBeInTheDocument();
+it("doesn't offer a supplier the business already has, and keeps the list to one row each", () => {
+  global.fetch = jest.fn(async () => ({ json: async () => ({ ok: true }) })) as unknown as typeof fetch;
+  const { container } = render(
+    <PriceBook suppliers={[{ ...acme, key: "aad", name: "AAD", format: "aad_csv", file: "csv", importedAt: "2026-09-29T00:00:00Z", itemCount: 3579 }]} onImported={jest.fn()} />
+  );
+  /* one row, no buttons but the row itself and Add a supplier */
+  const buttons = screen.getAllByRole("button").map((b) => b.textContent);
+  expect(buttons).toHaveLength(2);
+  expect(buttons[0]).toMatch(/^AADNet prices3,579 items, prices from 29 Sept? 2026None yet$/);
+  expect(buttons[1]).toBe("Add a supplier");
+  fireEvent.click(screen.getByRole("button", { name: "Add a supplier" }));
+  expect([...container.querySelectorAll("datalist option")].map((o) => o.getAttribute("value"))).toEqual(["Reece", "Mitsubishi Electric"]);
 });
 
 /* Isaac, 2026-10-05: invoices are the same supplier's prices, not another
@@ -114,6 +135,9 @@ it("takes a supplier's invoices under the supplier, asking no discount for what 
     } as Response;
   }) as unknown as typeof fetch;
   render(<PriceBook suppliers={[{ ...acme, name: "Mitsubishi Electric", pricing: "list_less", discountPct: 30 }]} onImported={jest.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: /^Mitsubishi Electric/ }));
+  /* a list-price supplier's discount sits in its open row */
+  expect(screen.getByRole("heading", { name: "Discount" })).toBeInTheDocument();
   await act(async () => {
     fireEvent.change(screen.getByLabelText("Add Mitsubishi Electric invoices"), { target: { files: [new File(["x"], "invoices.xlsx")] } });
   });

@@ -32,3 +32,20 @@ it("offers lowest each, then all from one supplier with what it costs over", () 
 it("leaves $0.00 and unpriced lines out of the sums", () => {
   expect(basketOptions([{ key: "x", qty: 1, offers: [aad(0)] }])).toEqual([]);
 });
+
+/* Isaac, 2026-10-05: "Anything that's a pair should come from one supplier, not mix and match" */
+it("bought together, offers only the suppliers that have every line — lowest each only when none does", () => {
+  const pair: BasketLine[] = [
+    { key: "indoor", qty: 1, offers: [aad(40927), reece(42000)] },
+    { key: "outdoor", qty: 1, offers: [aad(126940), reece(120000)] },
+  ];
+  expect(basketOptions(pair, { together: true }).map((o) => [o.label, o.totalCents, o.overCents])).toEqual([
+    ["All from Reece", 162000, 0],
+    ["All from AAD", 167867, 5867],
+  ]);
+  const nobodyHasBoth: BasketLine[] = [
+    { key: "indoor", qty: 1, offers: [aad(40927)] },
+    { key: "outdoor", qty: 1, offers: [reece(120000)] },
+  ];
+  expect(basketOptions(nobodyHasBoth, { together: true }).map((o) => o.label)).toEqual(["Lowest each"]);
+});

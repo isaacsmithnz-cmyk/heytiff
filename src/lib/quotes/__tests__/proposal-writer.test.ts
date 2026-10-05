@@ -180,9 +180,19 @@ describe("the prompts", () => {
     expect(p).not.toMatch(/\$|price/i);
   });
 
-  it("the instructions carry every checklist topic and ban the vague words", () => {
-    for (const k of CHECKLIST_KEYS) expect(SYSTEM_PROMPT).toContain(`- ${k} (`);
+  it("the instructions carry every checklist topic but crew and time, and ban the vague words", () => {
+    for (const k of CHECKLIST_KEYS.filter((k) => k !== "labour")) expect(SYSTEM_PROMPT).toContain(`- ${k} (`);
+    expect(SYSTEM_PROMPT).not.toContain("- labour (");
+    /* an ask is a whole question about this job, with answers to tap (Isaac's 2905) */
+    expect(SYSTEM_PROMPT).toContain('never "Riser route between levels"');
+    expect(SYSTEM_PROMPT).toContain("at most eight");
     expect(SYSTEM_PROMPT).toContain('Never write "TBC", "to be confirmed", "as discussed" or "a suitable point"');
+  });
+
+  /* Isaac's 2905: a brief built from ServiceM8's quote is the scope already quoted */
+  it("reads a brief from ServiceM8's quote as the scope already quoted", () => {
+    expect(draftPrompt(job, "As quoted in ServiceM8:\nVRF system")).toContain("The quote ServiceM8 already holds for this job");
+    expect(draftPrompt(job, "Own 6 kW split")).toContain("What was said about the job after the site visit:");
   });
 
   it("a change carries the draft, the brief, and the answers given since", () => {

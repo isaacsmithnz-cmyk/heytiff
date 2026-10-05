@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { SM8_BRIEF_HEAD } from "./sm8-quote-brief";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
@@ -14,7 +15,7 @@ import {
   normaliseDraft,
   type ProposalDraft,
 } from "./proposal";
-import { CHECKLIST, CHECKLIST_KEYS, keepSettled } from "./checklist";
+import { CHECKLIST, CHECKLIST_KEYS, capAsks, keepSettled } from "./checklist";
 import { PAYMENT_PRESET_KEYS } from "./payment";
 import { orgTemplates } from "@/lib/templates/query";
 import type { PaymentTerms, QuoteNote } from "@/lib/templates/settings";
@@ -190,8 +191,13 @@ const draftSchema = (noteKeys: readonly string[]) => ({
           key: { type: "string", enum: CHECKLIST_KEYS },
           state: { type: "string", enum: ["known", "ask", "na"] },
           answer: { type: "string" },
+          /* an ask's own question, answers and rank; empty or 0 otherwise.
+             Plain strings and an integer: no nullable field added */
+          question: { type: "string" },
+          choices: { type: "array", items: { type: "string" } },
+          rank: { type: "integer" },
         },
-        required: ["key", "state", "answer"],
+        required: ["key", "state", "answer", "question", "choices", "rank"],
         additionalProperties: false,
       },
     },
@@ -211,7 +217,9 @@ const draftSchema = (noteKeys: readonly string[]) => ({
   additionalProperties: false,
 });
 
-const CHECKLIST_LIBRARY = CHECKLIST_KEYS.map(
+/* The topics, with the usual way each is asked and answered — a HINT for the
+   question Tiff writes for this job, never the question itself. */
+const CHECKLIST_LIBRARY = CHECKLIST_KEYS.filter((k) => k !== "labour").map(
   (k) =>
     `- ${k} (${CHECKLIST[k].group}, ${CHECKLIST[k].label}): ${CHECKLIST[k].question}` +
     (CHECKLIST[k].choices.length ? ` Usual answers: ${CHECKLIST[k].choices.join("; ")}.` : "")
@@ -261,7 +269,12 @@ notes — Keys for the notes this job needs, from the business's notes listed wi
 
 payment_preset — "domestic_small" for a home job of a day or two; "domestic_construction" for a home job that runs in stages over weeks or months (a whole house, a renovation, a new build); "commercial" for a business.
 
-checklist — You are the supervisor. For every topic below that applies to this job, say what is known in a few words ("known"), or that it has to be asked ("ask"), or that it doesn't apply here but someone might wonder ("na", with the reason in a few words). Leave out topics that plainly don't belong to this kind of job (grilles for a wall split, a model for building works). The topics:
+checklist — You are the supervisor. For every topic below that applies to this job, say what is known in a few words ("known"), or that it has to be asked ("ask"), or that it doesn't apply here but someone might wonder ("na", with the reason in a few words). Leave out topics that plainly don't belong to this kind of job (grilles for a wall split, a model for building works), and topics the scope already rules out (grilles it excludes, an old system on a new build).
+- known: answer is the fact, in a few words. Never a question, never "confirm" or "check". question "", choices [], rank 0.
+- na: answer is the reason, in a few words. question "", choices [], rank 0.
+- ask: answer "". question is ONE plain-English question a person on site could answer straight away. It names the rooms, units, levels or places on THIS job and, when it isn't obvious, says what the answer changes. Not a topic heading, not a fragment. For example "How do the pipes get from the garage up to the Level 3 bedroom and study: a riser cupboard, inside the walls, or outside in trunking?" — never "Riser route between levels". choices are two to four short answers a person would tap, each a few words ("Riser cupboard", "Inside the walls", "Outside in trunking"); the person can always type their own. rank orders the asks: 1 is the one that changes the price, the scope or how it's installed the most.
+- Ask only what changes the price, the scope or how the job is installed, at most eight, and only what the job's words leave open. Labour is never a question: crew and time are the business's own call.
+The topics, each with the usual way it's asked (a hint for your question, not the question):
 ${CHECKLIST_LIBRARY}
 
 Where a fact the scope needs is missing, put the topic on the checklist as "ask" and leave the fact out of the scope line. Never write "TBC", "to be confirmed", "as discussed" or "a suitable point" in the scope. Never invent a model number, a measurement, a price or a fact you were not told. Never mention prices at all, except an allowance you were given. Never mention this software or that anything was generated.`;
@@ -303,9 +316,15 @@ export function jobBlock(job: ProposalJob): string {
   return parts.filter(Boolean).join("\n");
 }
 
-/** The user turn for a first draft. */
+/** The user turn for a first draft. A brief that is ServiceM8's own quote is
+    read as the scope already quoted: built on, with only what it leaves open
+    asked. */
 export function draftPrompt(job: ProposalJob, brief: string): string {
-  return `${jobBlock(job)}\n\nWhat was said about the job after the site visit:\n${brief.trim()}\n\nFill in the proposal and the checklist.`;
+  const words = brief.trim();
+  const head = words.includes(SM8_BRIEF_HEAD)
+    ? "The quote ServiceM8 already holds for this job, as the office wrote it. Build the proposal on it, keeping what it says; ask only what it leaves open that changes the price, the scope or the install:"
+    : "What was said about the job after the site visit:";
+  return `${jobBlock(job)}\n\n${head}\n${words}\n\nFill in the proposal and the checklist.`;
 }
 
 /** The draft as the writer's own field names, for a change. */
@@ -320,7 +339,14 @@ function asFields(draft: ProposalDraft) {
     allowances: draft.allowances,
     notes: draft.notes,
     payment_preset: draft.payment.preset,
-    checklist: draft.checklist.map(({ key, state, answer }) => ({ key, state, answer })),
+    checklist: draft.checklist.map(({ key, state, answer, question, choices, rank }) => ({
+      key,
+      state,
+      answer,
+      question: question ?? "",
+      choices: choices ?? [],
+      rank: rank ?? 0,
+    })),
   };
 }
 
@@ -517,7 +543,15 @@ export async function writeProposal(
     const written = await runProposalWrite(draftPrompt(job, req.brief), client, pickable(job).map((n) => n.key));
     if (!written.ok) return written;
     const draft = withTemplates(written.draft, job, []);
-    const stored = await storeProposal(orgId, userId, job.cardId, { ...draft, payment: termsFor(job, draft.payment.preset) }, req.brief.trim(), []);
+    /* Tiff's asks cut to the eight that matter most */
+    const stored = await storeProposal(
+      orgId,
+      userId,
+      job.cardId,
+      { ...draft, checklist: capAsks(draft.checklist), payment: termsFor(job, draft.payment.preset) },
+      req.brief.trim(),
+      []
+    );
     return stored.ok ? stored : { ok: false, reason: SAVE_FAILED };
   }
 
@@ -531,6 +565,9 @@ export async function writeProposal(
     written.draft.payment.preset === current.draft.payment.preset ? current.draft.payment : termsFor(job, written.draft.payment.preset);
   /* and so does every answer a person gave, whatever Tiff sent back */
   written.draft.checklist = keepSettled(current.draft.checklist, written.draft.checklist);
+  /* the cap after the person's answers are back: a re-asked settled topic
+     never takes an open question's place */
+  written.draft.checklist = capAsks(written.draft.checklist);
   /* and what the customer sees: a person's choice, never Tiff's */
   written.draft.showLines = current.draft.showLines;
   /* and every price a person set: Tiff never sets one, so an option keeps

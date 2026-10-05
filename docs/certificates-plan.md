@@ -680,7 +680,8 @@ from the plan above:
   and the bell asks the owner to approve each new version.
 
 The golden jobs are tested in `lib/certs/__tests__/mechanical.test.ts`, the
-quote reader and the matcher in `quote.test.ts`, the paper in
+quote reader and the matcher in `quote.test.ts`, Tiff's reading of a
+description in `description-reader.test.ts`, the paper in
 `components/certs/__tests__/certificate-paper.test.tsx`, the wizard in
 `cert-wizard.test.tsx`, and the Documents face's rows in
 `job-documents-face.test.tsx`.
@@ -730,6 +731,30 @@ equipment record:
   quote reader (`src/lib/certs/quote.ts`) is only used for jobs quoted
   before the quote builder, and its note says to check every row against
   what was installed.
+
+### A job's description, read by Tiff (2026-10-05)
+
+For a job quoted before the quote builder, Tiff reads the description
+(`readJobDescription`, `src/lib/certs/description-reader.ts`). Opus 5.5 at
+medium effort, about 1.5c and 4–11s a read.
+
+- **Why:** on the four quotes held back from more rules, the rule reader
+  read none right and Opus read all four. They were asterisked Daikin
+  models, a VRF's indoors written "63 VMHS ducted system to …", bold room
+  headings, and "final agreed location". Sonnet 5.5 read two (about 0.6c)
+  and was wrong in plausible ways, like a bedroom given as the outdoor unit's
+  place, so it wasn't chosen.
+- **The wizard opens on the rule reader's draft at once** and shows "Tiff is
+  reading the job's description…". Her reading replaces the equipment while
+  nothing in it has been changed. Once a unit is edited, her reading is
+  dropped.
+- **The rule reader stays.** It is the draft with no key or a failed read.
+  A yes from either reader stands for ductwork, fire rated and ventilation.
+  The refrigerant is hers, else the rules'. The quote's stated connected
+  total is the rules' own figure. A reading with no units where the rules
+  found some keeps the rules' units.
+- Tested on recorded replies, so no test calls a model:
+  `description-reader.test.ts`, from `fixtures/description-reads.json`.
 
 Nothing needed migrating: `quote_drafts.draft` is jsonb, no quote had been
 saved yet, and a row saved before roles existed reads as an indoor unit.

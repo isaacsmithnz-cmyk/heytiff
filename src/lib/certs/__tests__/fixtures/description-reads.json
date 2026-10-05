@@ -1,0 +1,597 @@
+{
+  "JOB_1245": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 10,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "PEA-M100HAA",
+            "capacityKw": 10,
+            "location": "Under floor - kitchen, dining, guest, playroom and media room"
+          }
+        ]
+      },
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 7,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "PEAD-M71JAA",
+            "capacityKw": 7,
+            "location": "Above walk in robes of master bedroom - master bed, bed 1 and bed 2"
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": ""
+  },
+  "JOB_1300": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 22,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 7,
+            "location": "Kitchen"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 3.6,
+            "location": "Second living area/upstairs"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 3.6,
+            "location": "Master bedroom"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 2.8,
+            "location": "Second bedroom"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 3.6,
+            "location": "Third bedroom"
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": ""
+  },
+  "JOB_1383": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 20,
+          "location": "Rooftop"
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 9,
+            "location": "Living"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 3.6,
+            "location": "Master Bed"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 2.8,
+            "location": "Office"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 2.2,
+            "location": "Rumpus"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 2.2,
+            "location": "Guest bed"
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": ""
+  },
+  "JOB_1930": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 10,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 10,
+            "location": "Main House"
+          }
+        ]
+      },
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 3.5,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 3.5,
+            "location": "Master Bedroom"
+          }
+        ]
+      },
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 5,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 5,
+            "location": "Pool Room"
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": ""
+  },
+  "JOB_2043": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 0,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 0,
+            "location": "Living, dining, kitchen, hall, bed 4, bed 5 and rumpus"
+          }
+        ]
+      },
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 15.5,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 3.6,
+            "location": "Study 1"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 2.8,
+            "location": "Study 2"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 3.6,
+            "location": "Bedroom 1"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 2.8,
+            "location": "Bedroom 2"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 2.8,
+            "location": "Bedroom 3"
+          }
+        ]
+      }
+    ],
+    "fans": [
+      {
+        "qty": 4,
+        "model": "100mm Jetflow In-Line Mixed Flow Fan",
+        "location": "Ground floor"
+      },
+      {
+        "qty": 2,
+        "model": "100mm Jetflow In-Line Mixed Flow Fan",
+        "location": "First floor"
+      },
+      {
+        "qty": 1,
+        "model": "SJMF150-S",
+        "location": "Sub floor (exhaust)"
+      },
+      {
+        "qty": 1,
+        "model": "SJMF150-S",
+        "location": "Sub floor (supply)"
+      }
+    ],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": true,
+    "refrigerant": ""
+  },
+  "JOB_2147": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 0,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 4,
+            "model": "",
+            "capacityKw": 3.5,
+            "location": ""
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": false,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": ""
+  },
+  "JOB_2207": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 15.5,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "63 VMHS",
+            "capacityKw": 0,
+            "location": "First floor bedrooms"
+          },
+          {
+            "qty": 1,
+            "model": "32 VMX",
+            "capacityKw": 0,
+            "location": "Ground floor guest bedroom/office"
+          },
+          {
+            "qty": 1,
+            "model": "63 VMX",
+            "capacityKw": 0,
+            "location": "Kitchen and living room"
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": ""
+  },
+  "JOB_248": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 8.5,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 8.5,
+            "location": "First floor bedrooms"
+          }
+        ]
+      },
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 8.5,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 8.5,
+            "location": "Ground floor"
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": ""
+  },
+  "JOB_2699": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "",
+          "capacityKw": 7,
+          "location": "Balcony"
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 5,
+            "location": "Living room"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 2.5,
+            "location": "Master bedroom"
+          },
+          {
+            "qty": 1,
+            "model": "",
+            "capacityKw": 2.5,
+            "location": "Baby's room"
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": false,
+    "fireRated": true,
+    "ventilation": false,
+    "refrigerant": ""
+  },
+  "JOB_279": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "PUHY-P400YNW",
+          "capacityKw": 40,
+          "location": "Bottom level"
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "PEFY-P32VMX-E1",
+            "capacityKw": 3.6,
+            "location": "Study"
+          },
+          {
+            "qty": 3,
+            "model": "PEFY-P32VMX-E1",
+            "capacityKw": 3.6,
+            "location": "Bedrooms 1, 2 and 3"
+          },
+          {
+            "qty": 1,
+            "model": "PEFY-P32VMX-E1",
+            "capacityKw": 3.6,
+            "location": "Studio"
+          },
+          {
+            "qty": 1,
+            "model": "PEFY-P50VMX-E1",
+            "capacityKw": 5.6,
+            "location": "Master Bedroom"
+          },
+          {
+            "qty": 1,
+            "model": "PEFY-P63VMX-E1",
+            "capacityKw": 7.1,
+            "location": "Void Space"
+          },
+          {
+            "qty": 1,
+            "model": "PEFY-P140VMHS-ER1",
+            "capacityKw": 16,
+            "location": "Ground Floor Level"
+          }
+        ]
+      }
+    ],
+    "fans": [
+      {
+        "qty": 1,
+        "model": "Lossnay",
+        "location": ""
+      }
+    ],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": true,
+    "refrigerant": ""
+  },
+  "JOB_2885": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "RZAC71G2V1",
+          "capacityKw": 7.1,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "FDYBA71AV1",
+            "capacityKw": 7.1,
+            "location": "Kitchen"
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": "R32"
+  },
+  "JOB_2933": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "RZQ250LY1",
+          "capacityKw": 24,
+          "location": "Roof"
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "FDYQN250LBV1",
+            "capacityKw": 24,
+            "location": "Offices 1-5, Meeting Room & Open Plan Area"
+          }
+        ]
+      }
+    ],
+    "fans": [
+      {
+        "qty": 1,
+        "model": "200mm Silent Series",
+        "location": "Bathroom"
+      }
+    ],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": true,
+    "refrigerant": ""
+  },
+  "JOB_3140": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "WK-MXZ-2F52VF-A2",
+          "capacityKw": 5.2,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "SEZ-M35DA3",
+            "capacityKw": 3.5,
+            "location": ""
+          },
+          {
+            "qty": 1,
+            "model": "SEZ-M25DA3",
+            "capacityKw": 2.5,
+            "location": ""
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": true,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": "R32"
+  },
+  "JOB_3326": {
+    "systems": [
+      {
+        "outdoor": {
+          "qty": 1,
+          "model": "MUZ-AP42VGD2-A2",
+          "capacityKw": 4.2,
+          "location": ""
+        },
+        "indoors": [
+          {
+            "qty": 1,
+            "model": "MSZ-AP42VGKD2-A2",
+            "capacityKw": 4.2,
+            "location": ""
+          }
+        ]
+      }
+    ],
+    "fans": [],
+    "ductwork": false,
+    "fireRated": false,
+    "ventilation": false,
+    "refrigerant": "R32"
+  }
+}

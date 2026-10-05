@@ -43,6 +43,7 @@ import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteLabour } from "./job-quote-labour";
 import { JobQuotePrice } from "./job-quote-price";
 import { JobQuoteFace } from "./job-quote-face";
+import { JobQuoteSend } from "./job-quote-send";
 import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
 import { JobCustomerDialog } from "./job-customer-dialog";
@@ -2763,6 +2764,7 @@ export function JobSheet({
               >
                 <JobQuoteLabour key={cardId ?? row.id} job={cardId ?? row.id} visible={tab === "quote"} />
                 <JobQuotePrice key={`price-${cardId ?? row.id}`} job={cardId ?? row.id} visible={tab === "quote"} />
+                <JobQuoteSend key={`send-${cardId ?? row.id}`} job={cardId ?? row.id} visible={tab === "quote"} />
               </JobQuoteFace>
             )}
 

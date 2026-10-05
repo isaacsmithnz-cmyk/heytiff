@@ -13,6 +13,7 @@
    imports nothing (sm8-booking-words), so this file stays pure data */
 import { BOOKING_WORDS } from "./sm8-booking-words";
 import { JOB_WORDS } from "./sm8-job-words";
+import { QUOTE_WORDS } from "./sm8-quote-words";
 
 export type ProviderId = "xero" | "servicem8";
 
@@ -408,6 +409,10 @@ export const SM8_WRITE_SCOPES: ScopeEntry[] = [
   { scope: "create_jobs", area: "Workboard", why: JOB_WORDS.scope.createJobs },
   { scope: "manage_customers", area: "Workboard", why: JOB_WORDS.scope.customers },
   { scope: "manage_job_contacts", area: "Workboard", why: JOB_WORDS.scope.jobContacts },
+  /* ACCEPTED QUOTES (2026-10-05): read off ServiceM8's reference that day —
+     manage_job_materials (the JobMaterial endpoint: create, and DELETE as a
+     soft delete). The job's scope and status are manage_jobs, already asked. */
+  { scope: "manage_job_materials", area: "Workboard", why: QUOTE_WORDS.scope.materials },
 ];
 
 export const SM8_WRITE_SCOPE_LIST: string[] = SM8_WRITE_SCOPES.map((s) => s.scope);
@@ -431,6 +436,9 @@ export const SM8_WRITE_KIND_SCOPES = {
      client's name and address, the job's billing address — every one a
      permission already asked for new jobs or bookings */
   customer: ["manage_job_contacts", "manage_customers", "manage_jobs"],
+  /* an accepted quote sent from the job card: the job's scope and status,
+     and its lines */
+  quote: ["manage_jobs", "manage_job_materials"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Sm8WriteKindName = keyof typeof SM8_WRITE_KIND_SCOPES;

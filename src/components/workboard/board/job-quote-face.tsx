@@ -354,6 +354,8 @@ export function JobQuoteFace({
         setLabourError(null);
         setRedraft(false);
         setEditing(null);
+        /* a new draft asks its own questions: none held open from the last */
+        if (kind === "draft") setOn(null);
         if (kind === "change") setChange("");
       } catch {
         setError("Tiff couldn't be reached. Try again.");

@@ -692,6 +692,20 @@ describe("the list on the right", () => {
     expect(screen.getAllByText("Parapet wall, on brackets").find((e) => e.classList.contains("wb2-jqhas"))).toBeDefined();
   });
 
+  it("holds no question open from the last draft once a new one lands", async () => {
+    face();
+    await screen.findByText("What Tiff read");
+    fireEvent.click(screen.getByRole("button", { name: "Change Where and how" }));
+    expect(screen.getByText("Where does the outdoor unit go, and on what?")).toHaveClass("wb2-jqask");
+    fireEvent.click(screen.getByRole("button", { name: "Start again" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Draft proposal" }));
+    });
+    await screen.findByText("What Tiff read");
+    expect(screen.queryByText("Where does the outdoor unit go, and on what?")).toBeNull();
+    expect(document.querySelector(".wb2-jqask")).toHaveTextContent("What covers the pipes where they're seen?");
+  });
+
   it("from the Proposal, scrolls to the question once the Build-up shows", async () => {
     const asked = stored();
     asked.draft.checklist = [{ key: "drain_to", state: "ask", answer: "", question: "Where does the drain go?", choices: [], rank: 1 }];

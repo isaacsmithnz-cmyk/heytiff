@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { unsetWords } from "@/lib/quotes/build-settings";
 import { stillToPrice, type LabourFrom } from "@/lib/quotes/job-price";
+import { RUN_TO_ASK, WHERE_TO_ASK } from "@/lib/quotes/brief-rooms";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import type { PriceState, QuoteStep, StepKey } from "@/lib/quotes/quote-steps";
 
@@ -153,7 +154,8 @@ export function PriceLines({ option }: { option: OptionPrice }) {
               {u.name}
               <small>{u.why}</small>
             </td>
-            <td className="q">{u.qty}</td>
+            {/* a length or a place not known yet is said in its why */}
+            <td className="q">{u.qty === RUN_TO_ASK || u.qty === WHERE_TO_ASK ? "" : u.qty}</td>
             <td className="a">Still to price</td>
           </tr>
         ))}

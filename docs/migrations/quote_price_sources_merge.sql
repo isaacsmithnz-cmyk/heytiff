@@ -63,10 +63,23 @@ where supplier_key = 'mitsubishi_invoiced'
                   where q.org_id = p.org_id and q.supplier_key = 'mitsubishi' and q.code = p.code);
 delete from public.quote_preferred_items where supplier_key = 'mitsubishi_invoiced';
 update public.quote_unit_choices set supplier_key = 'mitsubishi' where supplier_key = 'mitsubishi_invoiced';
--- a same-item pair between the two is one supplier's own code now
-delete from public.quote_same_items
-where (a_ref like 'mitsubishi_invoiced|%' or b_ref like 'mitsubishi_invoiced|%')
-  and replace(a_ref, 'mitsubishi_invoiced|', 'mitsubishi|') = replace(b_ref, 'mitsubishi_invoiced|', 'mitsubishi|');
+-- a same-item pair names the supplier's key now, the smaller ref first as
+-- the table keeps them; a pair that becomes one item with itself goes
+insert into public.quote_same_items (org_id, a_ref, b_ref, decision, decided_by, decided_at)
+select org_id, least(a2, b2), greatest(a2, b2), decision, decided_by, decided_at
+from (
+  select org_id, decision, decided_by, decided_at,
+         case when starts_with(a_ref, 'mitsubishi_invoiced|') then 'mitsubishi|' || substr(a_ref, 21) else a_ref end a2,
+         case when starts_with(b_ref, 'mitsubishi_invoiced|') then 'mitsubishi|' || substr(b_ref, 21) else b_ref end b2
+  from public.quote_same_items
+  where starts_with(a_ref, 'mitsubishi_invoiced|') or starts_with(b_ref, 'mitsubishi_invoiced|')
+) moved
+where a2 <> b2
+  and exists (select 1 from public.quote_suppliers s where s.org_id = moved.org_id and s.key = 'mitsubishi')
+on conflict (org_id, a_ref, b_ref) do nothing;
+delete from public.quote_same_items q
+where (starts_with(q.a_ref, 'mitsubishi_invoiced|') or starts_with(q.b_ref, 'mitsubishi_invoiced|'))
+  and exists (select 1 from public.quote_suppliers s where s.org_id = q.org_id and s.key = 'mitsubishi');
 
 -- the invoices' file, on the supplier
 update public.quote_suppliers s

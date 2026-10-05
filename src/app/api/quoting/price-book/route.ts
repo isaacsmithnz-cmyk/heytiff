@@ -11,6 +11,7 @@ import {
   parseReeceCsv,
   previewRows,
   dateInName,
+  searchWords,
   todayInSydney,
   type Columns,
   type ParseResult,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/quotes/price-book";
 import { excelDate, readSheet, sheetNames } from "@/lib/quotes/xlsx";
 import { isCategory } from "@/lib/quotes/categories";
-import { viewOf, type BookViewKey } from "@/lib/quotes/families";
+import { countsOf, viewOf, type BookViewKey } from "@/lib/quotes/families";
 import { bookProducts } from "@/lib/quotes/book-view-server";
 import { importInvoiceRows, importPriceRows, readSuppliers, saveSupplierLayout } from "@/lib/quotes/price-book-server";
 
@@ -53,7 +54,12 @@ export async function GET(req: Request) {
   const q = (params.get("q") ?? "").slice(0, 60);
   const asked = params.get("view");
   const view: BookViewKey = asked === "preferred" || asked === "all" || isCategory(asked) ? asked : "used";
-  return Response.json({ ok: true, ...viewOf(await bookProducts(who.orgId), view, q) });
+  /* a search reads only the items holding its words; the rail's counts
+     come with a view of the whole book */
+  const words = searchWords(q);
+  const whole = words.length === 0;
+  const products = await bookProducts(who.orgId, whole ? null : words);
+  return Response.json({ ok: true, ...viewOf(products, view, q), counts: whole ? countsOf(products) : null });
 }
 
 /** The columns a person matched, from the form: known fields, column

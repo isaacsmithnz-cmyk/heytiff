@@ -15,6 +15,7 @@ import {
   type StoredItem,
   planInvoices,
   planPriceList,
+  searchWords,
   type PricingKind,
   type Supplier,
   todayInSydney,
@@ -375,7 +376,68 @@ export async function readSameDecisions(orgId: string): Promise<SameDecisions> {
   };
 }
 
-type FoundRow = { supplier_key: string; code: string; name: string; times_bought: number | null } & StoredRow;
+/** The items the business put forward in the price book, "supplier|code" each. */
+export async function readPreferred(orgId: string): Promise<Set<string>> {
+  const { data } = await supabaseAdmin.from("quote_preferred_items").select("supplier_key, code").eq("org_id", orgId);
+  return new Set(((data ?? []) as { supplier_key: string; code: string }[]).map((r) => `${r.supplier_key}|${r.code}`));
+}
+
+type FoundRow = { supplier_key: string; code: string; name: string; times_bought: number | null; uom: string | null } & StoredRow;
+
+const asBookItem = (r: FoundRow): BookItem => ({
+  supplierKey: r.supplier_key,
+  code: r.code,
+  name: r.name,
+  ...priceOfRow(r),
+  timesBought: r.times_bought,
+  uom: r.uom,
+});
+
+/** The current items whose code or name holds every word (searchWords),
+    and the confirmed same-item partners of what's found, though their names
+    differ. The database narrows by the longest word — the one fewest names
+    hold — up to `limit` rows; every word is then checked here. */
+export async function matchingItems(orgId: string, words: string[], confirmed: [string, string][], limit = 400): Promise<BookItem[]> {
+  if (words.length === 0) return [];
+  const narrow = [...words].sort((a, b) => b.length - a.length)[0]!;
+  const rows: FoundRow[] = [];
+  for (let from = 0; from < limit; from += 1000) {
+    const { data, error } = await supabaseAdmin
+      .from("quote_price_items")
+      .select(`supplier_key, code, name, times_bought, uom, ${PRICE_COLUMNS}`)
+      .eq("org_id", orgId)
+      .eq("current", true)
+      .or(`code.ilike.%${narrow}%,name.ilike.%${narrow}%`)
+      .order("supplier_key")
+      .order("code")
+      .range(from, Math.min(from + 999, limit - 1));
+    if (error || !data) break;
+    rows.push(...(data as unknown as FoundRow[]));
+    if (data.length < 1000) break;
+  }
+  const found = rows.filter((r) => words.every((w) => `${r.code} ${r.name}`.toLowerCase().includes(w)));
+
+  /* the confirmed partners of what was found */
+  const foundRefs = new Set(found.map((r) => `${r.supplier_key}|${r.code}`));
+  const partners = new Set<string>();
+  for (const [a, b] of confirmed) {
+    if (foundRefs.has(a) && !foundRefs.has(b)) partners.add(b);
+    if (foundRefs.has(b) && !foundRefs.has(a)) partners.add(a);
+  }
+  if (partners.size > 0) {
+    const codes = [...new Set([...partners].map((r) => r.slice(r.indexOf("|") + 1)))];
+    for (let i = 0; i < codes.length; i += 200) {
+      const { data: more } = await supabaseAdmin
+        .from("quote_price_items")
+        .select(`supplier_key, code, name, times_bought, uom, ${PRICE_COLUMNS}`)
+        .eq("org_id", orgId)
+        .eq("current", true)
+        .in("code", codes.slice(i, i + 200));
+      for (const r of (more ?? []) as unknown as FoundRow[]) if (partners.has(`${r.supplier_key}|${r.code}`)) found.push(r);
+    }
+  }
+  return found.map(asBookItem);
+}
 
 /** A model (or a few words of its name) at every supplier that has it,
     cheapest first; the business's preferred items first, then its most
@@ -383,74 +445,38 @@ type FoundRow = { supplier_key: string; code: string; name: string; times_bought
     a pair a person confirmed as one part under two codes: finding AAD's
     PC1412 finds Reece's 9800006-1 beside it. */
 export async function findOffers(orgId: string, query: string, suppliers: Supplier[]): Promise<ModelOffers[]> {
-  const q = query.trim().replace(/[%_,()]/g, " ").trim();
-  if (q.length < 2) return [];
-  /* the database narrows by the first word; every word must be in the
-     code or the name */
-  const words = q.toLowerCase().split(/\s+/).slice(0, 4);
-  const { data: found } = await supabaseAdmin
-    .from("quote_price_items")
-    .select(`supplier_key, code, name, times_bought, ${PRICE_COLUMNS}`)
-    .eq("org_id", orgId)
-    .eq("current", true)
-    .or(`code.ilike.%${words[0]}%,name.ilike.%${words[0]}%`)
-    .order("code")
-    .limit(400);
-  const data = ((found ?? []) as unknown as FoundRow[]).filter((r) => words.every((w) => `${r.code} ${r.name}`.toLowerCase().includes(w)));
+  const words = searchWords(query);
+  if (words.join("").length < 2) return [];
+  const [{ confirmed }, preferred] = await Promise.all([readSameDecisions(orgId), readPreferred(orgId)]);
+  const items = await matchingItems(orgId, words, confirmed);
+  const products = productsOf(items, confirmed);
 
-  /* the confirmed partners of what was found, though their names differ */
-  const { confirmed } = await readSameDecisions(orgId);
-  const foundRefs = new Set(data.map((r) => `${r.supplier_key}|${r.code}`));
-  const partners = new Set<string>();
-  for (const [a, b] of confirmed) {
-    if (foundRefs.has(a) && !foundRefs.has(b)) partners.add(b);
-    if (foundRefs.has(b) && !foundRefs.has(a)) partners.add(a);
-  }
-  if (partners.size > 0) {
-    const codes = [...partners].map((r) => r.slice(r.indexOf("|") + 1));
-    const { data: more } = await supabaseAdmin
-      .from("quote_price_items")
-      .select(`supplier_key, code, name, times_bought, ${PRICE_COLUMNS}`)
-      .eq("org_id", orgId)
-      .eq("current", true)
-      .in("code", codes.slice(0, 200));
-    for (const r of (more ?? []) as unknown as FoundRow[]) if (partners.has(`${r.supplier_key}|${r.code}`)) data.push(r);
-  }
-  const products = productsOf(
-    data.map((r) => ({ supplierKey: r.supplier_key, code: r.code })),
-    confirmed
-  );
-
-  const byCode = new Map<string, { name: string; offers: Offer[] }>();
+  const byCode = new Map<string, { name: string; offers: Offer[]; bought: number }>();
   const nameOf = new Map(suppliers.map((s) => [s.key, s]));
-  for (const r of data) {
-    const s = nameOf.get(r.supplier_key);
+  for (const i of items) {
+    const s = nameOf.get(i.supplierKey);
     if (!s) continue;
-    const key = products.get(`${r.supplier_key}|${r.code}`) ?? r.code;
-    const entry = byCode.get(key) ?? { name: r.name, offers: [] };
-    const p = priceOfRow(r);
+    const key = products.get(`${i.supplierKey}|${i.code}`) ?? i.code;
+    const entry = byCode.get(key) ?? { name: i.name, offers: [], bought: 0 };
     entry.offers.push({
       supplierKey: s.key,
       supplierName: s.name,
-      code: r.code,
-      name: r.name,
-      netCents: netCents(s, r.code, p.cents, p.net),
-      pricedOn: p.pricedOn,
+      code: i.code,
+      name: i.name,
+      netCents: netCents(s, i.code, i.cents, i.net),
+      pricedOn: i.pricedOn,
     });
+    entry.bought += i.timesBought ?? 0;
     byCode.set(key, entry);
   }
   /* what the business put forward comes first, then what it has bought most */
-  const { data: put } = await supabaseAdmin.from("quote_preferred_items").select("supplier_key, code").eq("org_id", orgId);
-  const preferred = new Set(((put ?? []) as { supplier_key: string; code: string }[]).map((r) => `${r.supplier_key}|${r.code}`));
-  const bought = new Map(data.map((r) => [`${r.supplier_key}|${r.code}`, r.times_bought ?? 0]));
   return [...byCode.values()]
     .map((e) => {
       const cmp = compareOffers(e.offers);
       const pick = e.offers.find((o) => preferred.has(`${o.supplierKey}|${o.code}`)) ?? null;
-      const uses = e.offers.reduce((n, o) => n + (bought.get(`${o.supplierKey}|${o.code}`) ?? 0), 0);
-      return { model: { code: cmp.cheapest?.code ?? "", name: e.name, ...cmp, preferred: pick }, uses };
+      return { model: { code: cmp.cheapest?.code ?? "", name: e.name, ...cmp, preferred: pick }, bought: e.bought };
     })
-    .sort((a, b) => (a.model.preferred ? 0 : 1) - (b.model.preferred ? 0 : 1) || b.uses - a.uses)
+    .sort((a, b) => (a.model.preferred ? 0 : 1) - (b.model.preferred ? 0 : 1) || b.bought - a.bought)
     .slice(0, 40)
     .map((m) => m.model);
 }

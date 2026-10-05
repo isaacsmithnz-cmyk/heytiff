@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Offer } from "@/lib/quotes/price-book";
-import type { BookView, BookViewKey, Family, Product } from "@/lib/quotes/families";
+import type { BookCounts, BookView, BookViewKey, Family, Product } from "@/lib/quotes/families";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* THE PRICE BOOK'S ITEMS — the book sorted so a person can find a part
@@ -15,6 +15,9 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
 
    A supplier's price is the newer of its price list's and what was last
    paid on its invoices; the one not taken is under it, with its date.
+
+   A search reads only what holds its words; the rail's counts stay as the
+   last view of the whole book left them.
 
    PREFERRED: pressing a supplier's price puts that item forward. From then
    on a quote takes it over a cheaper one, the job checklist's search lists
@@ -43,11 +46,14 @@ const otherWords = (o: Offer) =>
     : null;
 const refOf = (o: Offer) => `${o.supplierKey}|${o.code}`;
 
-type Answer = ({ ok: true } & BookView) | { ok: false; reason?: string };
+/** A view, and the rail's counts when it was a view of the whole book (a
+    search reads only what matches, so it can't count the shelves). */
+type Answer = ({ ok: true; counts: BookCounts | null } & BookView) | { ok: false; reason?: string };
 
 /* read OUT HERE rather than inside the try that asks for it: React Compiler
    gives up on a component with a value block inside a try */
-const viewIn = (a: Answer) => (a.ok ? a : null);
+const viewIn = (a: Answer): BookView | null => (a.ok ? { sections: a.sections, total: a.total, shown: a.shown } : null);
+const countsIn = (a: Answer) => (a.ok ? a.counts : null);
 const refusalOf = (a: { ok: boolean; reason?: string }) => (a.ok ? null : (a.reason ?? "That couldn't be saved. Try again."));
 
 /** The view asked for. The most used and the preferred are short lists; a
@@ -118,15 +124,23 @@ export function BookItems() {
   const [view, setView] = useState<BookViewKey>("used");
   const [q, setQ] = useState("");
   const [book, setBook] = useState<BookView | null>(null);
+  const [counts, setCounts] = useState<BookCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* each load takes a ticket; only the latest one's view is shown, so an
+     answer that lands after a newer question can't replace its view */
   const asked = useRef(0);
 
-  const land = (a: Answer) => {
+  /** An answer in: the rail's counts whenever it brings them (they're the
+      whole book's, whichever view asked), the view only if it's the latest. */
+  const land = (a: Answer, mine: number) => {
+    const c = countsIn(a);
+    if (c) setCounts(c);
+    if (mine !== asked.current) return;
     const got = viewIn(a);
     setBook(got);
     setFailed(got === null);
@@ -139,7 +153,7 @@ export function BookItems() {
     await withCleanup(async () => {
       try {
         const a = (await (await fetch(url)).json()) as Answer;
-        if (mine === asked.current) land(a);
+        land(a, mine);
       } catch {
         if (mine === asked.current) setFailed(true);
       }
@@ -148,19 +162,27 @@ export function BookItems() {
     });
   };
 
-  /* the first view, once */
+  /* the first view, once, with a ticket like any other */
   useEffect(() => {
     let live = true;
+    const mine = ++asked.current;
     fetch(viewUrl("used", ""))
       .then((r) => r.json() as Promise<Answer>)
       .then((a) => {
         if (!live) return;
+        const c = countsIn(a);
+        if (c) setCounts(c);
+        if (mine !== asked.current) return;
         const got = viewIn(a);
         setBook(got);
         setFailed(got === null);
       })
-      .catch(() => live && setFailed(true))
-      .finally(() => live && setLoading(false));
+      .catch(() => {
+        if (live && mine === asked.current) setFailed(true);
+      })
+      .finally(() => {
+        if (live && mine === asked.current) setLoading(false);
+      });
     return () => {
       live = false;
     };
@@ -181,12 +203,12 @@ export function BookItems() {
 
   /* every copy of the part on screen takes the change: a part can sit in
      the most-used list and on its shelf */
-  const mark = (key: string, preferred: Offer | null, delta: number) =>
+  const mark = (key: string, preferred: Offer | null, delta: number) => {
+    setCounts((c) => (c ? { ...c, preferred: c.preferred + delta } : c));
     setBook((b) =>
       b
         ? {
             ...b,
-            counts: { ...b.counts, preferred: b.counts.preferred + delta },
             sections: b.sections.map((s) => ({
               ...s,
               families: s.families.map((f) => ({ ...f, products: f.products.map((p) => (p.key === key ? { ...p, preferred } : p)) })),
@@ -194,13 +216,14 @@ export function BookItems() {
           }
         : b
     );
+  };
 
   const prefer = async (p: Product, o: Offer) => {
     const was = p.preferred;
     const on = was === null || refOf(was) !== refOf(o);
     /* one more preferred part, one fewer, or the same part moved */
     const delta = was === null ? 1 : on ? 0 : -1;
-    const body = JSON.stringify({ ref: refOf(o), on, others: p.offers.map(refOf) });
+    const body = JSON.stringify({ ref: refOf(o), on });
     mark(p.key, on ? o : null, delta);
     const undo = (why: string) => {
       mark(p.key, was, -delta);
@@ -233,7 +256,6 @@ export function BookItems() {
       return next;
     });
 
-  const counts = book?.counts;
   const searching = q.trim().length >= 2;
   const onShelf = view !== "used" && view !== "preferred";
   /* a shelf opens on its families; a search, the most used and the

@@ -10,6 +10,7 @@ import {
   netCents,
   planInvoices,
   planPriceList,
+  searchWords,
   type StoredItem,
 } from "../price-book";
 
@@ -62,6 +63,11 @@ describe("which price a quote takes", () => {
     expect(effectivePrice({ ...base, listedOn: null, paidCents: 1, paidOn: "2026-09-29" }).price.from).toBe("list");
   });
 
+  it("reads a search the same way everywhere: lower case, four words, nothing that breaks a filter", () => {
+    expect(searchWords('PAIRED coil 1/4" (x20m), 50%_off*')).toEqual(["paired", "coil", "1/4", "x20m"]);
+    expect(searchWords("  ")).toEqual([]);
+  });
+
   it("reads a price list's date from its file name, day first", () => {
     expect(dateInName("ME_PriceList_11-08-2026_HVAC_FINAL.pdf")).toBe("2026-08-11");
     expect(dateInName("aad-prices.csv")).toBeNull();
@@ -91,6 +97,19 @@ describe("a new price list", () => {
       expect(u).not.toHaveProperty("paid_cents");
     }
   });
+
+  it("dates its prices by its own date, never the last file's: no date of its own is none", () => {
+    /* Go's last file was an invoice export, its rows dated 2024; a 2026
+       list with no date column must not keep 2024 and lose to a 2025 invoice */
+    const plan = planPriceList(book(stored("CBL2.5TE")), [{ code: "CBL2.5TE", name: "Flat Twin 2.5", cents: 190 }], { ...ctx, listOn: "2026-10-01" });
+    expect(plan.upserts[0]).toMatchObject({ priced_on: null, listed_on: "2026-10-01" });
+    const dated = planPriceList(book(), [{ code: "CBL2.5TE", name: "Flat Twin 2.5", cents: 173, pricedOn: "2025-09-23" }], { ...ctx, listOn: "2026-10-01" });
+    expect(dated.upserts[0]).toMatchObject({ priced_on: "2025-09-23" });
+    /* and the list it wrote is the newer price */
+    expect(
+      effectivePrice({ cents: 190, onList: true, listedOn: "2026-10-01", importedAt: null, pricedOn: null, paidCents: 150, paidOn: "2025-06-01" }).price.from
+    ).toBe("list");
+  });
 });
 
 describe("invoices", () => {
@@ -112,10 +131,21 @@ describe("invoices", () => {
     expect(plan.upserts[1]).toMatchObject({ supplier_key: "mitsubishi", on_list: false, cents: 87152, paid_cents: 87152, paid_on: "2026-08-31" });
   });
 
-  it("an older invoice never replaces a newer one's price", () => {
-    const before = book(stored("PAR-41MAAM", { paid_cents: 12530, paid_on: "2026-09-21" }));
-    const plan = planInvoices(before, [{ code: "PAR-41MAAM", name: "x", cents: 11000, pricedOn: "2025-09-24" }], { ...ctx, today: "2026-10-05" });
-    expect(plan.upserts[0]).toMatchObject({ paid_cents: 12530, paid_on: "2026-09-21" });
+  it("an older invoice never replaces a newer one's price, counts or words", () => {
+    const before = book(
+      stored("PAR-41MAAM", { paid_cents: 12530, paid_on: "2026-09-21", times_bought: 40, qty_bought: 181 }),
+      stored("PEFY-P32VMX-E1", { name: "3.6kW C/M Compact Ceiling Concealed 450mmD", on_list: false, paid_cents: 87152, paid_on: "2026-08-31", times_bought: 16 })
+    );
+    const plan = planInvoices(
+      before,
+      [
+        { code: "PAR-41MAAM", name: "x", cents: 11000, pricedOn: "2025-09-24", timesBought: 12, qtyBought: 30 },
+        { code: "PEFY-P32VMX-E1", name: "PEFY 32 (old wording)", cents: 80000, pricedOn: "2025-01-10", timesBought: 3 },
+      ],
+      { ...ctx, today: "2026-10-05" }
+    );
+    expect(plan.upserts[0]).toMatchObject({ paid_cents: 12530, paid_on: "2026-09-21", times_bought: 40, qty_bought: 181 });
+    expect(plan.upserts[1]).toMatchObject({ name: "3.6kW C/M Compact Ceiling Concealed 450mmD", paid_cents: 87152, times_bought: 16 });
     expect(plan.summary.changed).toBe(0);
   });
 });

@@ -1,6 +1,6 @@
 /* One part at two suppliers, on names from the business's real price
    files (2026-09-30). */
-import { decidedKey, productsOf, proposeSameItems, sizesOf, type SameItem } from "../same-items";
+import { decidedKey, productsOf, proposeSameItems, sameProductRefs, sizesOf, type SameItem } from "../same-items";
 
 const aad = (code: string, name: string): SameItem => ({ supplierKey: "aad", code, name });
 const reece = (code: string, name: string): SameItem => ({ supplierKey: "reece", code, name });
@@ -87,5 +87,27 @@ describe("productsOf", () => {
     expect(p.get("reece|9800006-1")).toBe("aad|PC1412");
     expect(p.get("mitsubishi|MSZ-AP25VGD")).toBe(p.get("aad|MSZ-AP25VGD"));
     expect(p.has("aad|ALONE")).toBe(false);
+  });
+});
+
+/* The price book takes a preference off a part's other codes; which codes
+   those are is worked out from the book, never from the page (2026-10-05). */
+describe("sameProductRefs", () => {
+  it("names every code of the part: the same code elsewhere, a pack size, a confirmed pair", () => {
+    const items = [
+      { supplierKey: "aad", code: "PC1412" },
+      { supplierKey: "jz_electrical", code: "PC1412" },
+      { supplierKey: "reece", code: "9800006-1" },
+      { supplierKey: "reece", code: "9800006-2" },
+      { supplierKey: "aad", code: "PC1438" },
+    ];
+    expect(sameProductRefs(items, [["aad|PC1412", "reece|9800006-1"]], "reece|9800006-2").sort()).toEqual([
+      "aad|PC1412",
+      "jz_electrical|PC1412",
+      "reece|9800006-1",
+      "reece|9800006-2",
+    ]);
+    /* a part of its own is only itself */
+    expect(sameProductRefs(items, [], "aad|PC1438")).toEqual(["aad|PC1438"]);
   });
 });

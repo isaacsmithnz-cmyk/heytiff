@@ -2,7 +2,7 @@
    the sizes taken out, sizes in order, the business's preferred and most
    used first. Names are the suppliers' own, as their files send them. */
 import { BUILT_IN_SUPPLIERS, type Supplier } from "../price-book";
-import { familyOf, organise, productsFrom, sizesOf, viewOf, type ShelfItem } from "../families";
+import { countsOf, familyOf, organise, productsFrom, sizesOf, viewOf, type ShelfItem } from "../families";
 
 const SUPPLIERS: Supplier[] = [
   ...BUILT_IN_SUPPLIERS,
@@ -70,7 +70,7 @@ it("puts the preferred part and its family first, then the most used", () => {
 it("lists the most used by shelf, the preferred, a shelf in families, and a search of the whole book", () => {
   const products = productsFrom(BOOK, SUPPLIERS, [], new Set(["aad|PC1412"]), new Map([["CMADJ", 57]]));
   const used = viewOf(products, "used", "");
-  expect(used.counts).toMatchObject({ used: 2, preferred: 1 });
+  expect(countsOf(products)).toMatchObject({ used: 2, preferred: 1 });
   expect(used.sections.map((s) => s.label)).toEqual(["Mounting and covering", "Electrical"]);
 
   expect(viewOf(products, "preferred", "").sections[0]!.families[0]!.products[0]!.preferred?.code).toBe("PC1412");

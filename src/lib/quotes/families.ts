@@ -1,4 +1,4 @@
-import { netCents, type Offer, type PricePoint, type Supplier } from "./price-book";
+import { netCents, searchWords, type Offer, type PricePoint, type Supplier } from "./price-book";
 import { CATEGORIES, categoryOf, type CategoryKey } from "./categories";
 import { productsOf, refOf } from "./same-items";
 
@@ -116,9 +116,10 @@ export function sizesOf(name: string): number[] {
   return out;
 }
 
-const bySize = (a: Product, b: Product) => {
-  const sa = sizesOf(a.name);
-  const sb = sizesOf(b.name);
+/** Two products by their sizes, each read once beforehand. */
+const bySize = (sizes: Map<Product, number[]>) => (a: Product, b: Product) => {
+  const sa = sizes.get(a)!;
+  const sb = sizes.get(b)!;
   for (let i = 0; i < Math.min(sa.length, sb.length); i++) if (sa[i] !== sb[i]) return sa[i]! - sb[i]!;
   return sa.length - sb.length || a.name.localeCompare(b.name);
 };
@@ -176,18 +177,20 @@ export function organise(products: Product[], order: "size" | "use" = "size"): F
   }
   const anyPreferred = (f: Family) => (f.products.some((p) => p.preferred) ? 0 : 1);
   const used = (f: Family) => f.products.reduce((n, p) => n + usesOf(p), 0);
+  const sizes = new Map(products.map((p) => [p, sizesOf(p.name)]));
+  const sized = bySize(sizes);
   for (const f of families.values()) {
     f.products.sort(
       (a, b) =>
         (a.preferred ? 0 : 1) - (b.preferred ? 0 : 1) ||
         (order === "use" ? usesOf(b) - usesOf(a) : 0) ||
-        bySize(a, b)
+        sized(a, b)
     );
   }
   return [...families.values()].sort((a, b) => anyPreferred(a) - anyPreferred(b) || used(b) - used(a) || a.label.localeCompare(b.label));
 }
 
-/** Every word in the code or the name. */
+/** Every word in the code or the name (searchWords: lower case). */
 export const matchesWords = (p: Product, words: string[]) =>
   words.every((w) => p.offers.some((o) => `${o.code} ${o.name}`.toLowerCase().includes(w)));
 
@@ -198,7 +201,6 @@ export type BookSection = { key: CategoryKey; label: string; families: Family[] 
 export type BookCounts = { used: number; preferred: number; shelves: { key: CategoryKey; label: string; count: number }[] };
 
 export type BookView = {
-  counts: BookCounts;
   sections: BookSection[];
   /** products in the view, before the cap */
   total: number;
@@ -211,16 +213,23 @@ export const MOST_USED = 40;
 /** past this many products a view is narrowed by searching */
 export const VIEW_CAP = 300;
 
-/** A view of the book: the most used, the preferred, one shelf, or a search
-    of the whole book — each in shelves, then families. */
-export function viewOf(products: Product[], view: BookViewKey, query: string): BookView {
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 4);
-  const used = products.filter((p) => usesOf(p) > 0).sort((a, b) => usesOf(b) - usesOf(a));
-  const counts: BookCounts = {
-    used: Math.min(MOST_USED, used.length),
+/** The most used, busiest first. */
+const mostUsed = (products: Product[]) => products.filter((p) => usesOf(p) > 0).sort((a, b) => usesOf(b) - usesOf(a));
+
+/** What the rail counts, from the whole book. */
+export function countsOf(products: Product[]): BookCounts {
+  return {
+    used: Math.min(MOST_USED, mostUsed(products).length),
     preferred: products.filter((p) => p.preferred).length,
     shelves: CATEGORIES.map((c) => ({ ...c, count: products.filter((p) => p.category === c.key).length })).filter((c) => c.count > 0),
   };
+}
+
+/** A view of the book: the most used, the preferred, one shelf, or a search
+    of the whole book — each in shelves, then families. */
+export function viewOf(products: Product[], view: BookViewKey, query: string): BookView {
+  const words = searchWords(query);
+  const used = view === "used" ? mostUsed(products) : [];
   const picked =
     view === "used"
       ? used.slice(0, MOST_USED)
@@ -254,5 +263,5 @@ export function viewOf(products: Product[], view: BookViewKey, query: string): B
     }
     if (families.length) capped.push({ ...s, families });
   }
-  return { counts, sections: capped, total: found.length, shown };
+  return { sections: capped, total: found.length, shown };
 }

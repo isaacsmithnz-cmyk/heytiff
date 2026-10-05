@@ -1,6 +1,5 @@
-import { readSameDecisions, currentItems, readSuppliers } from "./price-book-server";
+import { readPreferred, readSameDecisions, currentItems, readSuppliers } from "./price-book-server";
 import { makePriceOf } from "./price-resolver";
-import { readPreferred } from "./book-view-server";
 import type { PriceOf } from "./ducted-template";
 
 /* The resolver on the live price book: loaded once per quote build, then

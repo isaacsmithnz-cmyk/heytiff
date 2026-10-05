@@ -212,6 +212,16 @@ export function proposeSameItems(items: SameItem[], decided: Set<string>): SameP
   return out;
 }
 
+/** Every "supplier|code" of the part `ref` is: the item itself, the same
+    code at other suppliers, its pack sizes, and confirmed pairs through each
+    other. */
+export function sameProductRefs(items: { supplierKey: string; code: string }[], confirmed: [string, string][], ref: string): string[] {
+  const keyOf = productsOf(items, confirmed);
+  const key = keyOf.get(ref);
+  if (key === undefined) return [ref];
+  return [...keyOf.entries()].filter(([, k]) => k === key).map(([r]) => r);
+}
+
 /** Each item's product: items sharing a code, and confirmed pairs, joined
     through each other. The key is the smallest "supplier|code" in the
     product; an item that is its own product has none. */

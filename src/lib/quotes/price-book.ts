@@ -300,6 +300,19 @@ export function parseHeadedRows(rows: Row[], excelDate: (serial: number) => stri
 /** The invoice workbooks are headed sheets. */
 export const parseInvoicedRows = parseHeadedRows;
 
+/** The words a search looks for: lower case, at most four, without the
+    characters that would break the database's filter or match anything
+    (% _ * , ( ) " and a backslash). Every search of the book reads them
+    the same way. */
+export function searchWords(query: string): string[] {
+  return query
+    .toLowerCase()
+    .replace(/[%_*,()"\\]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
 /** What the business pays for an item: the net price as sent, or the list
     price less the discount that applies to its range. `net` is a price that
     is already what was paid — an invoice's — which no discount comes off. */
@@ -431,13 +444,13 @@ export function planPriceList(
 ): { upserts: Record<string, unknown>[]; offList: string[]; gone: string[]; summary: ImportSummary } {
   let added = 0;
   let changed = 0;
-  /* the columns only some files have are written only when this one has
-     them: a trade book must not wipe what the invoices counted */
+  /* the purchase counts are written only when this file has them: a trade
+     book must not wipe what the invoices counted. Its prices' date and unit
+     are the file's own, always — a date left from the last file would make
+     this list's prices look as old as that one's */
   const has = (f: (r: PriceRow) => unknown) => rows.some((r) => f(r) != null);
-  const withDates = has((r) => r.pricedOn);
   const withTimes = has((r) => r.timesBought);
   const withQty = has((r) => r.qtyBought);
-  const withUom = has((r) => r.uom);
   const upserts = rows.map((r) => {
     const had = before.get(r.code);
     const listed = had && had.on_list && had.current ? had : undefined;
@@ -457,10 +470,10 @@ export function planPriceList(
       current: true,
       on_list: true,
       listed_on: ctx.listOn,
-      ...(withDates ? { priced_on: r.pricedOn ?? null } : {}),
+      priced_on: r.pricedOn ?? null,
+      uom: r.uom ?? null,
       ...(withTimes ? { times_bought: r.timesBought ?? null } : {}),
       ...(withQty ? { qty_bought: r.qtyBought ?? null } : {}),
-      ...(withUom ? { uom: r.uom ?? null } : {}),
     };
   });
   const inFile = new Set(rows.map((r) => r.code));
@@ -490,12 +503,15 @@ export function planInvoices(
     const newer = !had || had.paid_on == null || on >= had.paid_on;
     if (!live) added++;
     else if (newer && had.paid_cents !== r.cents) changed++;
+    /* an older invoice than the one in changes nothing it would make older:
+       not the price, not the counts, not an invoiced item's words */
+    const older = had !== undefined && !newer;
     return {
       org_id: ctx.orgId,
       supplier_key: ctx.supplierKey,
       code: r.code,
-      /* the list's own words and price stay; an invoiced item takes the invoice's */
-      name: listed ? had.name : r.name,
+      /* the list's own words and price stay; an invoiced item takes the newest invoice's */
+      name: listed || older ? had.name : r.name,
       cents: listed ? had.cents : r.cents,
       previous_cents: had?.previous_cents ?? null,
       price_changed_at: had?.price_changed_at ?? null,
@@ -503,10 +519,10 @@ export function planInvoices(
       last_import_at: had?.last_import_at ?? ctx.now,
       current: true,
       on_list: listed,
-      paid_cents: newer ? r.cents : had.paid_cents,
-      paid_on: newer ? on : had.paid_on,
-      times_bought: r.timesBought ?? had?.times_bought ?? null,
-      qty_bought: r.qtyBought ?? had?.qty_bought ?? null,
+      paid_cents: older ? had.paid_cents : r.cents,
+      paid_on: older ? had.paid_on : on,
+      times_bought: older ? (had.times_bought ?? r.timesBought ?? null) : (r.timesBought ?? had?.times_bought ?? null),
+      qty_bought: older ? (had.qty_bought ?? r.qtyBought ?? null) : (r.qtyBought ?? had?.qty_bought ?? null),
     };
   });
   return { upserts, summary: { read: rows.length, added, changed, gone: 0 } };

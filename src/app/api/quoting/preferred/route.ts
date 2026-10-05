@@ -3,9 +3,9 @@ import { can } from "@/lib/permissions-server";
 import { readSuppliers } from "@/lib/quotes/price-book-server";
 import { setPreferred } from "@/lib/quotes/book-view-server";
 
-/* An item put forward in the price book, or taken back: POST {ref, on,
-   others} — "supplier|code" each, `others` the part's codes at the other
-   suppliers, which lose the preference. `financials`, like the rest of the
+/* An item put forward in the price book, or taken back: POST {ref, on},
+   ref "supplier|code". The part's other codes lose the preference — the
+   server works out which they are. `financials`, like the rest of the
    price book. */
 
 async function gate(): Promise<{ orgId: string; userId: string } | Response> {
@@ -29,14 +29,10 @@ const refIn = (v: unknown, keys: Set<string>): string | null => {
 export async function POST(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
-  const body = (await req.json().catch(() => ({}))) as { ref?: unknown; on?: unknown; others?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { ref?: unknown; on?: unknown };
   const keys = new Set((await readSuppliers(who.orgId)).map((s) => s.key));
   const ref = refIn(body.ref, keys);
   if (!ref || typeof body.on !== "boolean") return Response.json({ ok: false, reason: "That item isn't in the price book." }, { status: 400 });
-  const others = (Array.isArray(body.others) ? body.others : [])
-    .slice(0, 50)
-    .map((r) => refIn(r, keys))
-    .filter((r): r is string => r !== null);
-  const ok = await setPreferred(who.orgId, who.userId, ref, body.on, others);
+  const ok = await setPreferred(who.orgId, who.userId, ref, body.on);
   return ok ? Response.json({ ok: true }) : Response.json({ ok: false, reason: "That couldn't be saved. Try again." }, { status: 500 });
 }

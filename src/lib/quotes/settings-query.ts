@@ -10,9 +10,9 @@ import {
   type ComponentKey,
 } from "./components";
 import { netCents } from "./price-book";
-import { currentItems, readSameDecisions, readSuppliers, type BookItem, type SupplierView } from "./price-book-server";
+import { currentItems, readPreferred, readSameDecisions, readSuppliers, type BookItem, type SupplierView } from "./price-book-server";
 import { productsOf, refOf } from "./same-items";
-import { readPreferred } from "./book-view-server";
+import { jobLinesByCode } from "./book-view-server";
 import { normaliseQuoteSettings, type QuoteSettings } from "./settings";
 
 /* The Quoting page's reads: the business's settings, and for each component
@@ -79,38 +79,6 @@ export type ComponentShortlist = {
 
 const SHORTLIST = 8;
 
-/** How many job lines used each of these codes, through the job-line
-    mirror's link to ServiceM8's catalogue item and that item's code. */
-async function usesByCode(orgId: string, codes: string[]): Promise<Map<string, number>> {
-  const uses = new Map<string, number>();
-  if (codes.length === 0) return uses;
-  /* ServiceM8's catalogue holds Reece's items as "REC" + Reece's code */
-  const asked = [...codes, ...codes.map((c) => `REC${c}`)].slice(0, 1000);
-  const { data: cat } = await supabaseAdmin
-    .from("sm8_materials")
-    .select("uuid, item_number")
-    .eq("org_id", orgId)
-    .in("item_number", asked);
-  const codeOf = new Map(
-    ((cat ?? []) as { uuid: string; item_number: string }[]).map((r) => [
-      r.uuid,
-      codes.includes(r.item_number) ? r.item_number : r.item_number.replace(/^REC/, ""),
-    ])
-  );
-  if (codeOf.size === 0) return uses;
-  const { data } = await supabaseAdmin
-    .from("sm8_job_materials")
-    .select("material_uuid")
-    .eq("org_id", orgId)
-    .eq("active", 1)
-    .in("material_uuid", [...codeOf.keys()])
-    .limit(10000);
-  for (const r of (data ?? []) as { material_uuid: string | null }[]) {
-    const code = r.material_uuid ? codeOf.get(r.material_uuid) : undefined;
-    if (code) uses.set(code, (uses.get(code) ?? 0) + 1);
-  }
-  return uses;
-}
 
 /* $0.00 is an item nobody priced, not a free one, and a metre can't be
    priced from a roll of unknown length: both rank last and are never the
@@ -144,7 +112,9 @@ export async function componentShortlists(
   const matched = new Map<ComponentKey, BookItem[]>(
     COMPONENT_KEYS.map((k) => [k, book.filter((m) => matchesComponent(k, m.name))])
   );
-  const uses = await usesByCode(orgId, [...new Set([...matched.values()].flat().map((m) => m.code))]);
+  /* how many lines on the business's jobs were each item: the same count
+     the price book's Most used reads */
+  const uses = await jobLinesByCode(orgId, [...new Set([...matched.values()].flat().map((m) => m.code))]);
 
   return COMPONENT_KEYS.map((key) => {
     const c = QUOTE_COMPONENTS[key];

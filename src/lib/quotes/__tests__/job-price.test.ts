@@ -1,4 +1,4 @@
-import { countOf, labourVisits, priceJobList, type JobPriceDeps } from "../job-price";
+import { briefVisits, countOf, optionLabour, priceJobList, stillToPrice, type JobPriceDeps } from "../job-price";
 import { priceBuildUp } from "../buildup";
 import { ONE_BUSINESS } from "./fixtures/one-business";
 
@@ -64,10 +64,7 @@ describe("the job's list, priced", () => {
   });
 
   it("adds up at the business's own markups and day, with GST", () => {
-    const { visits } = labourVisits(
-      { from: "brief", labour: { visits: [{ stage: "Install", people: 2, days: 1, hours: 16 }], personHours: 16, personDays: 2, said: [] } },
-      8
-    );
+    const visits = briefVisits({ visits: [{ stage: "Install", people: 2, days: 1, hours: 16 }], personHours: 16, personDays: 2, said: [] }, 8);
     const b = priceBuildUp(lines, visits, { ...ONE_BUSINESS, contingency: null });
     expect(b.labour).toMatchObject({ personDays: 2, sellCents: 2 * 8 * 16500 });
     expect(b.gstCents).toBe(Math.round(b.exGstCents / 10));
@@ -76,14 +73,25 @@ describe("the job's list, priced", () => {
 });
 
 describe("the labour it prices", () => {
-  it("is the brief's visits, else the typical hours as one visit at the business's day, else none", () => {
-    expect(labourVisits({ from: "brief", labour: { visits: [{ stage: "Return", people: 1, days: null, hours: 4 }], personHours: 4, personDays: null, said: [] } }, 8).visits).toEqual([
-      { stage: "Return", people: 1, days: 0.5 },
-    ]);
-    expect(labourVisits({ from: "history", typical: { kind: "maintenance", hours: 6, jobs: 37, words: "" } }, 7.5).visits).toEqual([
-      { stage: "Install", people: 1, days: 0.8 },
-    ]);
-    expect(labourVisits({ from: "none" }, 8)).toEqual({ visits: [], from: "none" });
+  const brief = briefVisits({ visits: [{ stage: "Return", people: 1, days: null, hours: 4 }], personHours: 4, personDays: null, said: [] }, 8);
+
+  it("reads the brief's visits in days, by the business's own day", () => {
+    expect(brief).toEqual([{ stage: "Return", people: 1, days: 0.5 }]);
+    expect(briefVisits(null, 8)).toEqual([]);
+  });
+
+  /* Isaac, 2026-10-05: labour set on an option prices it; Tiff's suggestion
+     never does until a person applies it */
+  it("is the option's own labour, else the brief's, else none", () => {
+    const own = { visits: [{ stage: "Rough-in" as const, people: 2, days: 3 }], from: "tiff" as const };
+    expect(optionLabour(own, brief)).toEqual({ visits: own.visits, from: "tiff" });
+    expect(optionLabour(null, brief)).toEqual({ visits: brief, from: "brief" });
+    expect(optionLabour(null, [])).toEqual({ visits: [], from: "none" });
+  });
+
+  it("says labour is still to price when nothing gives it", () => {
+    expect(stillToPrice({ unpriced: [], labourFrom: "none", labourCents: 0 })).toEqual([{ name: "Labour", qty: "", why: "Not in the brief, and not set on the option" }]);
+    expect(stillToPrice({ unpriced: [], labourFrom: "you", labourCents: 1000 })).toEqual([]);
   });
 });
 

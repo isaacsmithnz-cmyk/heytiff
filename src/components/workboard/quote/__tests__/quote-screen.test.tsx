@@ -29,7 +29,6 @@ jest.mock("../../board/job-quote-face", () => ({
     );
   },
 }));
-jest.mock("../../board/job-quote-labour", () => ({ JobQuoteLabour: () => <p>Labour</p> }));
 jest.mock("../../board/job-quote-price", () => ({ JobQuotePrice: ({ version }: { version: string }) => <p>{`Price block, ${version}`}</p> }));
 jest.mock("../../board/job-quote-send", () => ({ JobQuoteSend: () => <p>Send block</p> }));
 jest.mock("../../board/job-media-viewer", () => ({
@@ -62,7 +61,6 @@ it("lays the quote out full screen: the way back to the job card's Quote, the bu
   expect(screen.getByRole("link", { name: "Job 2905" })).toHaveAttribute("href", `/dashboard/workboard?job=${JOB}&face=quote`);
   expect(screen.getByRole("heading", { level: 1 })).not.toHaveTextContent(/^Quote$/);
   expect(screen.getByText("Builder, page, $64,790 inc GST")).toBeInTheDocument();
-  expect(screen.getByText("Labour")).toBeInTheDocument();
   expect(await screen.findByText("Quote from ServiceM8")).toBeInTheDocument();
   expect(screen.getByText("Sent Tue 1 Sept, $64,790 inc GST")).toBeInTheDocument();
   /* the price reads each version afresh, not remounted */

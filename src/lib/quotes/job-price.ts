@@ -5,7 +5,8 @@ import { COMPONENT_KEYS, QUOTE_COMPONENTS, matchesComponent, type ComponentKey }
 import { ALLOWANCES, type AllowanceKey } from "./settings";
 import { RANGE_KINDS, needWords, pickFromRange, rangeNeedOf, type RangeKind, type RangeSize } from "./ranges";
 import type { Priced, PriceOf } from "./ducted-template";
-import type { LabourAdvice } from "./labour-history";
+import type { BriefLabour } from "./brief-labour";
+import type { OptionLabour } from "./proposal";
 
 /* THE JOB'S OWN LIST, PRICED (Isaac, 2026-10-04: "Switch it on now").
 
@@ -321,16 +322,22 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
 /** The labour a quote prices: the brief's visits, else the business's
     typical hours for the kind of work as one visit; none otherwise. Days
     come from the business's own working day. */
-export function labourVisits(advice: LabourAdvice, dayHours: number): { visits: Visit[]; from: "brief" | "history" | "none" } {
-  if (advice.from === "brief") {
-    const visits = advice.labour.visits
-      .map((v) => ({ stage: v.stage, people: v.people, days: v.days ?? (v.hours != null ? v.hours / dayHours : null) }))
-      .filter((v): v is Visit => v.days != null && v.days > 0);
-    return { visits, from: "brief" };
-  }
-  if (advice.from === "history") {
-    return { visits: [{ stage: "Install", people: 1, days: advice.typical.hours / dayHours }], from: "history" };
-  }
+/** Where an option's labour comes from: set on it, the brief's, or nowhere. */
+export type LabourFrom = OptionLabour["from"] | "brief" | "none";
+
+/** The brief's visits, in days: what prices an option that sets no labour
+    of its own. A visit in hours turns into days only by the business's day. */
+export function briefVisits(brief: BriefLabour | null, dayHours: number): Visit[] {
+  return (brief?.visits ?? [])
+    .map((v) => ({ stage: v.stage, people: v.people, days: v.days ?? (v.hours != null ? v.hours / dayHours : null) }))
+    .filter((v): v is Visit => v.days != null && v.days > 0);
+}
+
+/** An option's labour, as priced: labour set on it, else the brief's, else
+    none — never Tiff's suggestion until a person applies it. */
+export function optionLabour(own: OptionLabour | null, brief: readonly Visit[]): { visits: Visit[]; from: LabourFrom } {
+  if (own && own.visits.length > 0) return { visits: own.visits, from: own.from };
+  if (brief.length > 0) return { visits: [...brief], from: "brief" };
   return { visits: [], from: "none" };
 }
 
@@ -339,12 +346,12 @@ export function labourVisits(advice: LabourAdvice, dayHours: number): { visits: 
     means the total is whole; anything here makes it a total so far, which
     a proposal never takes (Isaac's walk, 2026-10-05: $72 shown as the
     quote with five items and the labour unpriced). */
-export function stillToPrice(p: { unpriced: Unpriced[]; labourFrom: "brief" | "history" | "none"; labourCents: number }): Unpriced[] {
+export function stillToPrice(p: { unpriced: Unpriced[]; labourFrom: LabourFrom; labourCents: number }): Unpriced[] {
   const labour: Unpriced[] =
     p.labourFrom === "none"
-      ? [{ name: "Labour", qty: "", why: "Not in the brief, and no typical yet" }]
+      ? [{ name: "Labour", qty: "", why: "Not in the brief, and not set on the option" }]
       : p.labourCents <= 0
-        ? [{ name: "Labour", qty: "", why: "The brief gives no days or hours to price" }]
+        ? [{ name: "Labour", qty: "", why: p.labourFrom === "brief" ? "The brief gives no days or hours to price" : "Its labour gives no days to price" }]
         : [];
   return [...labour, ...p.unpriced];
 }

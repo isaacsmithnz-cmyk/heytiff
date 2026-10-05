@@ -15,8 +15,13 @@
      amps, the poles, the colour — and at least two of them.
 
    A kit or set is never the same part as a single one, nor a fire-rated
-   part the same as a standard one. Pure: the page, the searches and the
-   tests all read this. */
+   part the same as a standard one, nor a unit's indoor head the same as the
+   whole system a wholesaler names by the head's code (Isaac, 2026-10-05:
+   AAD's FUJITSU LIFESTYLE R/C HWS IND 2.5KW, $222, against Reece's
+   FUJITSU WALL MOUNTED AC ASTG09KMTC 2.5KW, the whole system at $852).
+   Pure: the page, the searches and the tests all read this. */
+
+import { unitPartOf } from "./brands";
 
 export type SameItem = { supplierKey: string; code: string; name: string };
 
@@ -157,6 +162,10 @@ export function proposeSameItems(items: SameItem[], decided: Set<string>): SameP
   const offer = (a: SameItem, b: SameItem, why: SameProposal["why"], shared: string[], score: number) => {
     if (a.supplierKey === b.supplierKey || a.code === b.code) return;
     if (flagsOf(a.name) !== flagsOf(b.name)) return;
+    /* an indoor head, an outdoor unit and a whole system are three things */
+    const pa = unitPartOf(a.name, a.code);
+    const pb = unitPartOf(b.name, b.code);
+    if (pa && pb && pa !== pb) return;
     const key = pairKey(baseRefOf(a), baseRefOf(b));
     if (decided.has(key)) return;
     const had = found.get(key);

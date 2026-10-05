@@ -5,6 +5,7 @@ import { labourVisits, priceJobList, type ComponentPrice, type ListRow, type Unp
 import { pricedLinks, readUnitChoices } from "./links-server";
 import { readOrgDay } from "./org-day-server";
 import { currentItems, readPreferred, readSameDecisions, readSuppliers } from "./price-book-server";
+import { recordQuoteItems } from "./book-view-server";
 import { makePriceOf } from "./price-resolver";
 import { readQuoteLabour } from "./quote-labour-server";
 import { componentShortlists, readQuoteSettings } from "./settings-query";
@@ -86,12 +87,11 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   const deps = { priceOf, unitOffer, unitProposed, component, allowance: (k: AllowanceKey) => settings.allowances[k] };
   /* the job's labour, on each option until an option carries its own */
   const { visits, from } = labour ? labourVisits(labour.advice, built.settings.dayHours) : { visits: [], from: "none" as const };
-  return {
-    ok: true,
-    labourFrom: from,
-    options: lists.map((l) => {
-      const { lines, unpriced } = priceJobList(l.rows, deps);
-      return { name: l.name, build: priceBuildUp(lines, visits, built.settings), unpriced, rows: l.rows.length };
-    }),
-  };
+  const options = lists.map((l) => {
+    const { lines, unpriced } = priceJobList(l.rows, deps);
+    return { name: l.name, lines, build: priceBuildUp(lines, visits, built.settings), unpriced, rows: l.rows.length };
+  });
+  /* what this quote pulled from the price book, for the price book's Most used */
+  if (lists.length > 0) await recordQuoteItems(orgId, jobUuid, options.flatMap((o) => o.lines));
+  return { ok: true, labourFrom: from, options: options.map(({ lines: _lines, ...o }) => o) };
 }

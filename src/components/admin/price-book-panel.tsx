@@ -73,11 +73,29 @@ const importedNote = (name: string, kind: Kind, a: Extract<ImportAnswer, { ok: t
 const addRefusal = (reason: string | undefined) => reason ?? "That supplier couldn't be added.";
 const discountRefusal = (reason: string | undefined) => reason ?? "The discount couldn't be saved.";
 
+/** A supplier's price list, in a few words. */
+const listWords = (s: SupplierView) =>
+  s.importedAt ? `${n(s.itemCount ?? 0)} items, prices from ${dateOf(s.listOn ?? s.importedAt)}` : null;
+/** A supplier's invoices, in a few words. */
+const invoiceWords = (s: SupplierView) => (s.invoicedAt ? `${n(s.invoiceItems ?? 0)} items, ${dateOf(s.invoicedAt)}` : null);
+/** The files behind them, for the open row. */
+const filesWords = (s: SupplierView) =>
+  [s.fileName ? `Price list from ${s.fileName}` : null, s.invoiceFileName ? `invoices from ${s.invoiceFileName}` : null].filter(Boolean).join(", ");
+
+const n = (v: number) => v.toLocaleString("en-AU");
+
+/* A SUPPLIER IS ONE QUIET ROW (Isaac, 2026-10-05: "that whole page is
+   messy. There's so many buttons to press"): its name, how it prices, its
+   price list and its invoices. Pressing the row opens what can be done to
+   it — upload a price list, add invoices, and for a list-price supplier its
+   discount — and only that row's. One "Add a supplier" closes the list. */
 export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]; onImported: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string; detail?: string } | null>(null);
   const [matching, setMatching] = useState<Matching | null>(null);
-  const [discounting, setDiscounting] = useState<SupplierView | null>(null);
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  /* a new business starts with the form open: it has nothing else to do here */
+  const [adding, setAdding] = useState(suppliers.length === 0);
   const [newName, setNewName] = useState("");
 
   const upload = async (s: SupplierView, file: File, kind: Kind, layout?: { columns: Columns; pricing: "net" | "list_less"; discountPct: number }) => {
@@ -110,38 +128,18 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
     }, () => setBusy(null));
   };
 
+  /* a supplier whose own files HeyTiff reads (AAD, Reece, the Mitsubishi
+     trade book) when the name typed is one of theirs; any other by name */
+  const knownToAdd = BUILT_IN_SUPPLIERS.filter((b) => !suppliers.some((s) => s.key === b.key));
   const add = async () => {
     const name = newName.trim();
     if (name.length < 2) return;
+    const known = knownToAdd.find((b) => b.name.toLowerCase() === name.toLowerCase());
+    const body = JSON.stringify(known ? { builtIn: known.key } : { name });
+    /* worked out here, not in the try: the compiler can't lower a value block inside one */
+    const added = `${known ? known.name : name} added. Open it to upload its price list.`;
     setBusy("add");
     setNote(null);
-    await withCleanup(async () => {
-      try {
-        const a = (await (
-          await fetch("/api/quoting/suppliers", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ name }),
-          })
-        ).json()) as { ok: boolean; reason?: string };
-        if (!a.ok) {
-          setNote({ tone: "bad", text: addRefusal(a.reason) });
-          return;
-        }
-        setNewName("");
-        setNote({ tone: "ok", text: `${name} added. Upload its price list.` });
-        onImported();
-      } catch {
-        setNote({ tone: "bad", text: "That supplier couldn't be added. Try again." });
-      }
-    }, () => setBusy(null));
-  };
-
-  /* a supplier whose own file HeyTiff reads, added by the business */
-  const addKnown = async (key: string, name: string) => {
-    setBusy("add");
-    setNote(null);
-    const body = JSON.stringify({ builtIn: key });
     await withCleanup(async () => {
       try {
         const a = (await (await fetch("/api/quoting/suppliers", { method: "POST", headers: { "content-type": "application/json" }, body })).json()) as {
@@ -152,14 +150,15 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
           setNote({ tone: "bad", text: addRefusal(a.reason) });
           return;
         }
-        setNote({ tone: "ok", text: `${name} added. Upload its price list.` });
+        setNewName("");
+        setAdding(false);
+        setNote({ tone: "ok", text: added });
         onImported();
       } catch {
         setNote({ tone: "bad", text: "That supplier couldn't be added. Try again." });
       }
     }, () => setBusy(null));
   };
-  const knownToAdd = BUILT_IN_SUPPLIERS.filter((b) => !suppliers.some((s) => s.key === b.key));
 
   const saveDiscount = async (s: SupplierView, discountPct: number, rules: DiscountRule[]) => {
     setBusy(s.key);
@@ -177,7 +176,6 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
           setNote({ tone: "bad", text: discountRefusal(a.reason) });
           return;
         }
-        setDiscounting(null);
         setNote({ tone: "ok", text: `${s.name} discount saved.` });
         onImported();
       } catch {
@@ -185,6 +183,32 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
       }
     }, () => setBusy(null));
   };
+
+  const fileInput = (s: SupplierView, kind: Kind) => (
+    <label className="pbtn ghost sm qs-upload" aria-disabled={busy !== null}>
+      {busy === `${s.key}:${kind}` ? "Reading the file" : kind === "invoices" ? "Add invoices" : "Upload price list"}
+      <input
+        type="file"
+        className="qs-file"
+        aria-label={kind === "invoices" ? `Add ${s.name} invoices` : `Upload ${s.name} price list`}
+        accept={
+          kind === "invoices" || s.format === "headed"
+            ? ".csv,text/csv,.xlsx"
+            : s.file === "csv"
+              ? ".csv,text/csv"
+              : s.file === "xlsx"
+                ? ".xlsx"
+                : ".pdf,application/pdf"
+        }
+        disabled={busy !== null}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) void upload(s, f, kind);
+        }}
+      />
+    </label>
+  );
 
   return (
     <section className="qs-group">
@@ -194,122 +218,91 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
           {note.detail && <span className="qs-notedetail">{note.detail}</span>}
         </div>
       )}
-      <div className="qs-table" role="table" aria-label="Suppliers">
-        {suppliers.map((s) => (
-          <div className="qs-row qs-suprow" role="row" key={s.key}>
-            <b role="cell">{s.name}</b>
-            <span role="cell" className="qs-item">
-              {pricingWords(s)}
-              <em>
-                {s.importedAt
-                  ? `Price list: ${(s.itemCount ?? 0).toLocaleString("en-AU")} items from ${s.fileName ?? "a file"}, prices from ${dateOf(s.listOn ?? s.importedAt)}`
-                  : "No price list yet"}
-              </em>
-              {s.invoicedAt && (
-                <em>{`Invoices: ${(s.invoiceItems ?? 0).toLocaleString("en-AU")} items from ${s.invoiceFileName ?? "a file"} on ${dateOf(s.invoicedAt)}`}</em>
-              )}
-            </span>
-            <span role="cell" className="qs-act qs-acts2">
-              {s.pricing === "list_less" && (
-                <button
-                  type="button"
-                  className="pbtn ghost sm"
-                  disabled={busy !== null}
-                  aria-expanded={discounting?.key === s.key}
-                  onClick={() => setDiscounting((d) => (d?.key === s.key ? null : s))}
-                >
-                  Discount
-                </button>
-              )}
-              <label className="pbtn ghost sm qs-upload" aria-disabled={busy !== null}>
-                {busy === `${s.key}:invoices` ? "Reading the file" : "Add invoices"}
-                <input
-                  type="file"
-                  className="qs-file"
-                  accept=".csv,text/csv,.xlsx"
-                  aria-label={`Add ${s.name} invoices`}
-                  disabled={busy !== null}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = "";
-                    if (f) void upload(s, f, "invoices");
-                  }}
-                />
-              </label>
-              <label className="pbtn ghost sm qs-upload" aria-disabled={busy !== null}>
-                {busy === `${s.key}:list` ? "Reading the file" : "Upload price list"}
-                <input
-                  type="file"
-                  className="qs-file"
-                  aria-label={`Upload ${s.name} price list`}
-                  accept={
-                    s.format === "headed"
-                      ? ".csv,text/csv,.xlsx"
-                      : s.file === "csv"
-                        ? ".csv,text/csv"
-                        : s.file === "xlsx"
-                          ? ".xlsx"
-                          : ".pdf,application/pdf"
-                  }
-                  disabled={busy !== null}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = "";
-                    if (f) void upload(s, f, "list");
-                  }}
-                />
-              </label>
-            </span>
+      {suppliers.length > 0 && (
+        <div className="pbs" role="list" aria-label="Suppliers">
+          <div className="pbs-head" aria-hidden="true">
+            <span>Supplier</span>
+            <span>Prices</span>
+            <span>Price list</span>
+            <span>Invoices</span>
           </div>
-        ))}
-        <div className="qs-row qs-suprow" role="row">
-          <span role="cell" className="qs-addsup">
-            <input
-              className="wb2-fi"
-              value={newName}
-              disabled={busy !== null}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void add();
-              }}
-              placeholder="Another supplier"
-              aria-label="New supplier's name"
-            />
-          </span>
-          <span role="cell" className="qs-act qs-acts2" aria-label="Suppliers whose own files HeyTiff reads">
-            {knownToAdd.map((b) => (
-              <button key={b.key} type="button" className="pbtn ghost sm" disabled={busy !== null} onClick={() => void addKnown(b.key, b.name)}>
-                {`Add ${b.name}`}
-              </button>
-            ))}
-          </span>
-          <span role="cell" className="qs-act">
-            <button type="button" className="pbtn ghost sm" disabled={busy !== null || newName.trim().length < 2} onClick={() => void add()}>
-              {busy === "add" ? "Adding" : "Add supplier"}
-            </button>
-          </span>
+          {suppliers.map((s) => {
+            const isOpen = openKey === s.key;
+            const list = listWords(s);
+            const invoices = invoiceWords(s);
+            const files = filesWords(s);
+            return (
+              <div key={s.key} role="listitem">
+                <button type="button" className={isOpen ? "pbs-row on" : "pbs-row"} aria-expanded={isOpen} onClick={() => setOpenKey(isOpen ? null : s.key)}>
+                  <b>{s.name}</b>
+                  <span>{pricingWords(s)}</span>
+                  <span className={list ? undefined : "pbs-none"}>{list ?? "None yet"}</span>
+                  <span className={invoices ? undefined : "pbs-none"}>{invoices ?? "None yet"}</span>
+                </button>
+                {isOpen && (
+                  <div className="pbs-panel">
+                    {files && <p className="qs-sub">{`${files}.`}</p>}
+                    <div className="pbs-acts">
+                      {fileInput(s, "list")}
+                      {fileInput(s, "invoices")}
+                    </div>
+                    {matching?.supplier.key === s.key && (
+                      <MatchColumns
+                        m={matching}
+                        busy={busy !== null}
+                        onCancel={() => setMatching(null)}
+                        onRead={(layout) => void upload(matching.supplier, matching.file, matching.kind, layout)}
+                      />
+                    )}
+                    {s.pricing === "list_less" && (
+                      <SupplierDiscount
+                        key={s.key}
+                        supplier={s}
+                        busy={busy !== null}
+                        onSave={(discountPct, rules) => void saveDiscount(s, discountPct, rules)}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-      </div>
-
-      {matching && (
-        <MatchColumns
-          m={matching}
-          busy={busy !== null}
-          onCancel={() => setMatching(null)}
-          onRead={(layout) => void upload(matching.supplier, matching.file, matching.kind, layout)}
-        />
       )}
 
-      {discounting && (
-        <SupplierDiscount
-          key={discounting.key}
-          supplier={discounting}
-          busy={busy !== null}
-          onCancel={() => setDiscounting(null)}
-          onSave={(discountPct, rules) => void saveDiscount(discounting, discountPct, rules)}
-        />
+      {adding ? (
+        <div className="pbs-add">
+          <input
+            className="wb2-fi"
+            list="pbs-known"
+            value={newName}
+            disabled={busy !== null}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void add();
+            }}
+            placeholder="Supplier's name"
+            aria-label="New supplier's name"
+          />
+          <datalist id="pbs-known">
+            {knownToAdd.map((b) => (
+              <option key={b.key} value={b.name} />
+            ))}
+          </datalist>
+          {suppliers.length > 0 && (
+            <button type="button" className="pbtn ghost" disabled={busy !== null} onClick={() => setAdding(false)}>
+              Cancel
+            </button>
+          )}
+          <button type="button" className="pbtn primary" disabled={busy !== null || newName.trim().length < 2} onClick={() => void add()}>
+            {busy === "add" ? "Adding" : "Add supplier"}
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="pbtn ghost pbs-addbtn" onClick={() => setAdding(true)}>
+          Add a supplier
+        </button>
       )}
-
     </section>
   );
 }
@@ -431,12 +424,10 @@ function MatchColumns({
 function SupplierDiscount({
   supplier,
   busy,
-  onCancel,
   onSave,
 }: {
   supplier: SupplierView;
   busy: boolean;
-  onCancel: () => void;
   onSave: (discountPct: number, rules: DiscountRule[]) => void;
 }) {
   const [pct, setPct] = useState(supplier.discountPct ? String(supplier.discountPct) : "");
@@ -447,7 +438,7 @@ function SupplierDiscount({
     setRules((rs) => rs.map((r, j) => (j === i ? { ...r, ...part } : r)));
   return (
     <div className="qs-match">
-      <h3 className="qs-h">{`${supplier.name} discount`}</h3>
+      <h3 className="qs-h">Discount</h3>
       <div className="qs-fields">
         <label className="qs-field">
           <span>Off every list price</span>
@@ -493,9 +484,6 @@ function SupplierDiscount({
       <div className="wb2-jqacts">
         <button type="button" className="pbtn ghost" disabled={busy} onClick={() => setRules((rs) => [...rs, { prefix: "", pct: "" }])}>
           Add a range
-        </button>
-        <button type="button" className="pbtn ghost" disabled={busy} onClick={onCancel}>
-          Cancel
         </button>
         <button
           type="button"

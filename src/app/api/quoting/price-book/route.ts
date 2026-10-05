@@ -11,21 +11,18 @@ import {
   parseReeceCsv,
   previewRows,
   dateInName,
-  searchWords,
   todayInSydney,
   type Columns,
   type ParseResult,
   type PricingKind,
 } from "@/lib/quotes/price-book";
 import { excelDate, readSheet, sheetNames } from "@/lib/quotes/xlsx";
-import { isCategory } from "@/lib/quotes/categories";
-import { countsOf, viewOf, type BookViewKey } from "@/lib/quotes/families";
 import { bookProducts } from "@/lib/quotes/book-view-server";
 import { importInvoiceRows, importPriceRows, readSuppliers, saveSupplierLayout } from "@/lib/quotes/price-book-server";
 
-/* The price book: a view of it (GET ?view=used|preferred|all|<shelf>&q=
-   — the most used, the preferred, a shelf, or a search of the whole book,
-   each sorted into families), or a supplier's new file taken in (POST,
+/* The price book: the whole book as products (GET), sorted, searched and
+   viewed in the browser so a shelf or a search answers at once — or a
+   supplier's new file taken in (POST,
    multipart: supplier, file, kind). `kind` is "list", a price list that
    replaces the last one, or "invoices", what was paid for the codes on them
    and nothing else — the same supplier either way. A route, not a server action: the Mitsubishi trade book is a 3 MB
@@ -47,19 +44,10 @@ async function gate(): Promise<{ orgId: string } | Response> {
   return { orgId };
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   const who = await gate();
   if (who instanceof Response) return who;
-  const params = new URL(req.url).searchParams;
-  const q = (params.get("q") ?? "").slice(0, 60);
-  const asked = params.get("view");
-  const view: BookViewKey = asked === "preferred" || asked === "all" || isCategory(asked) ? asked : "used";
-  /* a search reads only the items holding its words; the rail's counts
-     come with a view of the whole book */
-  const words = searchWords(q);
-  const whole = words.length === 0;
-  const products = await bookProducts(who.orgId, whole ? null : words);
-  return Response.json({ ok: true, ...viewOf(products, view, q), counts: whole ? countsOf(products) : null });
+  return Response.json({ ok: true, products: await bookProducts(who.orgId) });
 }
 
 /** The columns a person matched, from the form: known fields, column

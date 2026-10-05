@@ -56,5 +56,37 @@ export function readingFromQuote(options: readonly ProposalOption[]): QuoteReadi
   };
 }
 
+/** A unit's serial, read off its rating plate on the job's Installation
+    (Isaac, 2026-10-06: "serial numbers etc. can be read from there using
+    photos"). */
+export type UnitSerial = { room: string; model: string; serial: string };
+
+/** The certificate's rows with the serials read on the job: each row takes
+    the serial of the unit in the same place with the same model, once. A
+    row with no such unit keeps what it had. */
+export function withSerials(reading: QuoteReading, serials: readonly UnitSerial[]): QuoteReading {
+  const key = (place: string, model: string) => `${place.trim().toLowerCase()}|${model.toUpperCase().replace(/\s/g, "")}`;
+  const left = new Map<string, string[]>();
+  for (const s of serials) {
+    if (!s.serial.trim()) continue;
+    const k = key(s.room, s.model);
+    left.set(k, [...(left.get(k) ?? []), s.serial.trim()]);
+  }
+  const take = <R extends { location: string; model: string; serial: string }>(row: R): R => {
+    const queue = left.get(key(row.location, row.model));
+    const serial = queue?.shift();
+    return serial && !row.serial ? { ...row, serial } : row;
+  };
+  return {
+    ...reading,
+    systems: reading.systems.map((s) => ({ ...s, outdoor: take(s.outdoor), indoors: s.indoors.map(take) })),
+    fans: reading.fans.map(take),
+  };
+}
+
+/** Whether any row has a serial to print. */
+export const hasSerials = (r: Pick<QuoteReading, "systems" | "fans">): boolean =>
+  r.systems.some((s) => !!s.outdoor.serial || s.indoors.some((i) => !!i.serial)) || r.fans.some((f) => !!f.serial);
+
 /** Whether the accepted options hold any equipment rows at all. */
 export const quoteHasEquipment = (options: readonly ProposalOption[]): boolean => options.some((o) => o.units.length > 0);

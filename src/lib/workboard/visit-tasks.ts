@@ -45,6 +45,10 @@ export type JobTask = {
   source: "quote" | "person";
 };
 
+/** A photo taken on a task: the unit in place, its rating plate, or other. */
+export type TaskPhoto = { id: string; taskId: string; role: "unit" | "plate" | "other"; url: string | null; at: string };
+export const PHOTO_ROLES: readonly TaskPhoto["role"][] = ["unit", "plate", "other"];
+
 /** One day's work on a task. `day` is the account's own date, YYYY-MM-DD. */
 export type TaskUpdate = { id: string; taskId: string; day: string; from: number; to: number; note: string; by: string | null; at: string };
 

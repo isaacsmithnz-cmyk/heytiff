@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { attachJobDocument } from "@/app/actions/job-documents";
 import { Waiting } from "@/components/ui/orb";
+import { uploadFile } from "@/lib/documents/upload-client";
+import { sameModel } from "@/lib/workboard/plate-read";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { VISIT_STAGES, type VisitStage } from "@/lib/quotes/buildup";
@@ -14,6 +17,7 @@ import {
   visitSlots,
   type JobTask,
   type TaskLine,
+  type TaskPhoto,
   type TaskUpdate,
   type VisitSlot,
 } from "@/lib/workboard/visit-tasks";
@@ -36,6 +40,7 @@ type Answer =
       ok: true;
       tasks: JobTask[];
       updates: TaskUpdate[];
+      photos: TaskPhoto[];
       today: string;
       /** days booked since the work order that nobody checked in on */
       booked?: { day: string; crew: string[] }[];
@@ -57,7 +62,33 @@ const STATE_WORD: Record<VisitSlot["state"], { text: string; tone: string }> = {
 
 /** The answer's tasks, or why they couldn't be had: a call, so a try/catch
     below holds no value block React Compiler 1.0 can't lower. */
-const loadedOf = (a: Answer): Loaded | null => (a.ok ? a : null);
+const loadedOf = (a: Answer): Loaded | null => (a.ok ? { ...a, photos: a.photos ?? [] } : null);
+
+/** A photo onto the job's documents, as the Documents face files one: out
+    here, as a plain function, because React Compiler 1.0 can't lower a
+    conditional inside a component's try. */
+async function photoOnJob(file: File, job: string): Promise<{ ok: true; documentId: string } | { ok: false; error: string }> {
+  try {
+    const up = await uploadFile(file, "job_document");
+    if (!up.ok) return { ok: false, error: up.error };
+    if (up.file.previewUrl) URL.revokeObjectURL(up.file.previewUrl);
+    const put = await attachJobDocument(up.file.documentId, job);
+    if (!put.ok) return { ok: false, error: put.error };
+    return { ok: true, documentId: up.file.documentId };
+  } catch {
+    return { ok: false, error: "That photo didn't upload. Try again." };
+  }
+}
+
+const ROLE_WORDS: Record<TaskPhoto["role"], string> = { unit: "The unit in place", plate: "The rating plate", other: "A photo" };
+
+/** What a unit task's line says of its photos. */
+function photoWords(task: JobTask, photos: readonly TaskPhoto[]): string | null {
+  if (task.kind !== "unit") return null;
+  const n = photos.filter((p) => p.taskId === task.id).length;
+  if (n === 0) return "Unit and plate photos";
+  return `${n} photo${n === 1 ? "" : "s"}${task.serial ? ", serial read" : ""}`;
+}
 const reasonOf = (a: Answer): string | null => (a.ok ? null : a.reason);
 
 export function JobVisitTasks({
@@ -140,6 +171,7 @@ export function JobVisitTasks({
   const today = data?.today ?? null;
   const tasks = data?.tasks ?? [];
   const updates = data?.updates ?? [];
+  const photos = data?.photos ?? [];
   const from = workOrderDate ? workOrderDate.slice(0, 10) : null;
   const planned = tasks.reduce((m, t) => Math.max(m, t.visit ?? 0), 0);
   /* until the account's today is read, the booked days are still ahead and
@@ -193,8 +225,10 @@ export function JobVisitTasks({
   if (open && today) {
     return (
       <TaskDetail
+        job={job}
         task={open}
         updates={updates.filter((u) => u.taskId === open.id)}
+        photos={photos.filter((p) => p.taskId === open.id)}
         slots={slots}
         today={today}
         manage={manage}
@@ -269,6 +303,7 @@ export function JobVisitTasks({
                           <TaskItem
                             key={`${slot.n}-${l.task.id}`}
                             line={l}
+                            camera={photoWords(l.task, photos)}
                             live={slot.state !== "done" || l.lastDay === today}
                             saving={saving}
                             onOpen={() => setOpenId(l.task.id)}
@@ -297,6 +332,7 @@ export function JobVisitTasks({
                   <TaskItem
                     key={l.task.id}
                     line={l}
+                    camera={photoWords(l.task, photos)}
                     live
                     saving={saving}
                     onOpen={() => setOpenId(l.task.id)}
@@ -346,7 +382,24 @@ function TaskBox({ line, live, saving, onOpen, onTick, undoTo }: { line: { task:
   );
 }
 
-function TaskItem({ line, live, saving, onOpen, onTick, undoTo }: { line: TaskLine; live: boolean; saving: boolean; onOpen: () => void; onTick: (to: number) => void; undoTo: number }) {
+function TaskItem({
+  line,
+  camera,
+  live,
+  saving,
+  onOpen,
+  onTick,
+  undoTo,
+}: {
+  line: TaskLine;
+  /** a unit task's photos, said in a few words */
+  camera?: string | null;
+  live: boolean;
+  saving: boolean;
+  onOpen: () => void;
+  onTick: (to: number) => void;
+  undoTo: number;
+}) {
   return (
     <li className={`jcl-task ${line.mark}`}>
       <TaskBox line={line} live={live} saving={saving} onOpen={onOpen} onTick={onTick} undoTo={undoTo} />
@@ -364,6 +417,12 @@ function TaskItem({ line, live, saving, onOpen, onTick, undoTo }: { line: TaskLi
           <span className="jcl-tnote">
             {line.note.by ? `${line.note.by.split(" ")[0]}: ` : ""}
             <q>{line.note.text}</q>
+          </span>
+        )}
+        {camera && (
+          <span className="jcl-tcam">
+            <Icon name="cam" size={12} />
+            {camera}
           </span>
         )}
       </span>
@@ -487,8 +546,10 @@ function AddTask({ slots, saving, onAdd }: { slots: readonly VisitSlot[]; saving
 }
 
 function TaskDetail({
+  job,
   task,
   updates,
+  photos,
   slots,
   today,
   manage,
@@ -497,8 +558,10 @@ function TaskDetail({
   onBack,
   onEdit,
 }: {
+  job: string;
   task: JobTask;
   updates: readonly TaskUpdate[];
+  photos: readonly TaskPhoto[];
   slots: readonly VisitSlot[];
   today: string;
   manage: boolean;
@@ -548,6 +611,8 @@ function TaskDetail({
         )}
         <em>{`${task.stage}, ${task.source === "quote" ? "from the quote" : "added"}`}</em>
       </div>
+
+      {task.kind === "unit" && <UnitPhotos job={job} task={task} photos={photos} saving={saving} onEdit={onEdit} />}
 
       {task.kind === "progress" && (
         <div className="jcl-tprog">
@@ -657,3 +722,150 @@ function TaskDetail({
   );
 }
 
+/* A UNIT'S PHOTOS (Isaac, 2026-10-06: "snap the photo of that particular
+   unit, and serial numbers etc. can be read from there using photos"): the
+   unit in place and its rating plate. The plate's model and serial are
+   read from its photo, checked against the quote, and go on the
+   certificate; a person can change what was read. */
+function UnitPhotos({
+  job,
+  task,
+  photos,
+  saving,
+  onEdit,
+}: {
+  job: string;
+  task: JobTask;
+  photos: readonly TaskPhoto[];
+  saving: boolean;
+  onEdit: (e: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const [busy, setBusy] = useState<TaskPhoto["role"] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [changing, setChanging] = useState(false);
+  const [model, setModel] = useState(task.modelRead ?? "");
+  const [serial, setSerial] = useState(task.serial ?? "");
+  const take = async (file: File | undefined, role: TaskPhoto["role"]) => {
+    if (!file) return;
+    setBusy(role);
+    setError(null);
+    const up = await photoOnJob(file, job);
+    if (up.ok) await onEdit({ kind: "photo", id: task.id, documentId: up.documentId, role });
+    else setError(up.error);
+    setBusy(null);
+  };
+  const read = !!(task.modelRead || task.serial);
+  const quoted = task.unit?.model ?? "";
+  return (
+    <div className="jcl-tunit">
+      <div className="jcl-tshots">
+        {photos.map((p) => (
+          <figure key={p.id}>
+            {p.url ? (
+              <a href={p.url} target="_blank" rel="noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element -- a signed link to our own bucket */}
+                <img src={p.url} alt={ROLE_WORDS[p.role]} />
+              </a>
+            ) : (
+              <span className="jcl-tshot-gone">No longer here</span>
+            )}
+            <figcaption>{ROLE_WORDS[p.role]}</figcaption>
+          </figure>
+        ))}
+      </div>
+      <div className="wb2-jqacts">
+        {busy ? (
+          <Waiting note={busy === "plate" ? "Reading the plate" : "Adding the photo"} />
+        ) : (
+          (["unit", "plate"] as const).map((role) => (
+            <label key={role} className={`pbtn ${role === "plate" && !photos.some((p) => p.role === "plate") ? "primary" : "ghost"} sm jcl-tfile`}>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="sr-only"
+                disabled={saving}
+                onChange={(e) => {
+                  void take(e.target.files?.[0], role);
+                  e.target.value = "";
+                }}
+              />
+              {role === "unit" ? "Photo of the unit" : "Photo of the plate"}
+            </label>
+          ))
+        )}
+      </div>
+      {error && <p className="wb2-sherr">{error}</p>}
+      {(read || changing) && (
+        <div className="jcl-tread">
+          <span className="jcl-tghead">
+            <b>Read from the plate photo</b>
+          </span>
+          {changing ? (
+            <>
+              <div className="jcl-tform">
+                <label>
+                  <span>Model</span>
+                  <input className="wb2-fi" aria-label="Model" value={model} disabled={saving} onChange={(e) => setModel(e.target.value)} />
+                </label>
+                <label>
+                  <span>Serial</span>
+                  <input className="wb2-fi" aria-label="Serial" value={serial} disabled={saving} onChange={(e) => setSerial(e.target.value)} />
+                </label>
+              </div>
+              <div className="wb2-jqacts">
+                <button type="button" className="pbtn ghost" disabled={saving} onClick={() => setChanging(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="pbtn primary"
+                  disabled={saving}
+                  onClick={() => void onEdit({ kind: "plate", id: task.id, model, serial }).then((ok) => ok && setChanging(false))}
+                >
+                  Save
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <dl className="jcl-tkv">
+                <dt>Model</dt>
+                <dd>
+                  <b>{task.modelRead || "Not read"}</b>
+                  {task.modelRead && quoted && (
+                    <em className={sameModel(task.modelRead, quoted) ? "ok" : "warn"}>{sameModel(task.modelRead, quoted) ? "Matches the quote" : `The quote says ${quoted}`}</em>
+                  )}
+                </dd>
+                <dt>Serial</dt>
+                <dd>
+                  <b>{task.serial || "Not read"}</b>
+                  {task.serial && <em>Goes on the certificate</em>}
+                </dd>
+              </dl>
+              <div className="wb2-jqacts">
+                <button
+                  type="button"
+                  className="pbtn ghost sm"
+                  disabled={saving}
+                  onClick={() => {
+                    setModel(task.modelRead ?? "");
+                    setSerial(task.serial ?? "");
+                    setChanging(true);
+                  }}
+                >
+                  Change what was read
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {!read && !changing && photos.some((p) => p.role === "plate") && (
+        <button type="button" className="pbtn ghost sm" disabled={saving} onClick={() => setChanging(true)}>
+          Type the model and serial
+        </button>
+      )}
+    </div>
+  );
+}

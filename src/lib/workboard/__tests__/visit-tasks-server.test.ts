@@ -30,6 +30,7 @@ jest.mock("@/lib/supabase-server", () => ({
           then: (res: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(res),
         };
       };
+      q.upsert = (row: unknown) => (calls.push({ ...call, op: "upsert", row }), Promise.resolve({ error: null }));
       q.update = (row: unknown) => (calls.push({ ...call, op: "update", row }), q);
       q.delete = () => (calls.push({ ...call, op: "delete" }), q);
       q.then = (res: (v: unknown) => unknown) => answer().then(res);
@@ -42,6 +43,8 @@ jest.mock("@/lib/quotes/proposal-writer", () => ({ MODEL: "claude-opus-5-5", rea
 jest.mock("@/lib/quotes/quote-labour-server", () => ({ readQuoteLabour: jest.fn(async () => ({ brief: null, typical: null, dayHours: 8 })) }));
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn(async () => "Australia/Sydney") }));
 jest.mock("@/lib/workboard/dates", () => ({ todayInZone: () => "2026-10-08" }));
+jest.mock("@/lib/images/for-claude", () => ({ imageForClaude: jest.fn() }));
+jest.mock("@/lib/documents/query", () => ({ DOCUMENTS_BUCKET: "documents", signMany: jest.fn(async () => new Map()) }));
 
 import { normaliseDraft } from "@/lib/quotes/proposal";
 import { applyTaskEdit, editOf, makeTasksFromQuote } from "../visit-tasks-server";
@@ -144,5 +147,44 @@ describe("a day's work on a task", () => {
     expect(calls.find((c) => c.op === "update")!.row).toMatchObject({ progress: 100, done_by: "Callum Vrieze" });
     tables.job_tasks = {};
     expect(await applyTaskEdit("org-1", "job-1", { userId: "u", name: null }, { kind: "remove", id: ID })).toEqual({ ok: false, reason: "That task isn't on this job any more." });
+  });
+});
+
+/* Isaac, 2026-10-06: "snap the photo of that particular unit, and serial
+   numbers etc. can be read from there using photos" */
+describe("a unit's photo", () => {
+  const DOC = "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c";
+
+  it("keeps a plate's photo on the task and reads its model and serial onto it", async () => {
+    tables.job_tasks = { one: { id: ID, progress: 0 } };
+    tables.documents = { one: { kind: "job_document", sm8_job_uuid: "job-1", uploaded_at: "2026-10-08T01:00:00Z", storage_ref: "org-1/plate.jpg", mime_type: "image/jpeg" } };
+    const read = jest.fn(async () => ({ model: "PEFY-P25VMX-A", serial: "52X04417" }));
+    const res = await applyTaskEdit("org-1", "job-1", { userId: "user-1", name: "Alex" }, { kind: "photo", id: ID, documentId: DOC, role: "plate" }, read);
+    expect(res).toEqual({ ok: true });
+    expect(read).toHaveBeenCalledWith("org-1/plate.jpg", "image/jpeg");
+    expect(calls.find((c) => c.table === "job_task_photos" && c.op === "upsert")!.row).toMatchObject({ task_id: ID, document_id: DOC, role: "plate" });
+    expect(calls.find((c) => c.table === "job_tasks" && c.op === "update")!.row).toMatchObject({ model_read: "PEFY-P25VMX-A", serial: "52X04417" });
+  });
+
+  it("refuses a photo that isn't on this job, and says so when the plate can't be read", async () => {
+    tables.job_tasks = { one: { id: ID, progress: 0 } };
+    tables.documents = { one: { kind: "job_document", sm8_job_uuid: "another-job", uploaded_at: "x", storage_ref: "r", mime_type: null } };
+    const read = jest.fn(async () => null);
+    expect(await applyTaskEdit("org-1", "job-1", { userId: "u", name: null }, { kind: "photo", id: ID, documentId: DOC, role: "plate" }, read)).toEqual({
+      ok: false,
+      reason: "That photo didn't land on this job.",
+    });
+    tables.documents = { one: { kind: "job_document", sm8_job_uuid: "job-1", uploaded_at: "x", storage_ref: "r", mime_type: null } };
+    expect(await applyTaskEdit("org-1", "job-1", { userId: "u", name: null }, { kind: "photo", id: ID, documentId: DOC, role: "plate" }, read)).toEqual({
+      ok: false,
+      reason: "The plate couldn't be read from that photo. Type the model and serial instead.",
+    });
+    /* the photo is kept all the same */
+    expect(calls.filter((c) => c.table === "job_task_photos" && c.op === "upsert")).toHaveLength(1);
+  });
+
+  it("takes a person's own model and serial as printed codes", () => {
+    expect(editOf({ kind: "plate", id: ID, model: " pefy-p25vmx-a", serial: "52x04417 " })).toEqual({ kind: "plate", id: ID, model: "PEFY-P25VMX-A", serial: "52X04417" });
+    expect(editOf({ kind: "photo", id: ID, documentId: "nope", role: "plate" })).toBeNull();
   });
 });

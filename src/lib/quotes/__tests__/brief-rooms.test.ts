@@ -1,4 +1,4 @@
-import { checkRooms, kitRows, sizeRoom, withSwap, type ReadBrief, type ReadRoom } from "../brief-rooms";
+import { checkRooms, countIn, kitRows, nearestKw, sizeRoom, withSwap, type ReadBrief, type ReadRoom } from "../brief-rooms";
 
 /* Isaac, 2026-10-04: "What if I said the room is 30m2?" */
 
@@ -7,6 +7,7 @@ const room0 = (r: Partial<ReadRoom>): ReadRoom => ({
   said: "",
   areaM2: null,
   sidesM: null,
+  unitKw: null,
   ceilingM: null,
   glazing: null,
   insulation: null,
@@ -54,6 +55,35 @@ describe("a room read from the brief", () => {
     /* a run in the brief's words is kept; one that isn't, isn't */
     expect(rooms.map((r) => r.runM)).toEqual([7, null]);
   });
+
+  /* Isaac's walk, 2026-10-05: "6kw Kitchen, 2.5kw x 2" read as no rooms */
+  it("is kept on the unit size its words name, as many as the words count, each its own name", () => {
+    const named = "3 x Head Multi Outdoor\n* 6kw Kitchen\n* 2.5kw x 2\n* 3 combi pump";
+    const { rooms, dropped } = checkRooms(
+      read([
+        room0({ name: "Kitchen", said: "6kw Kitchen", unitKw: 6 }),
+        room0({ name: "Head", said: "2.5kw x 2", unitKw: 2.5 }),
+        room0({ name: "Head", said: "2.5kw x 2", unitKw: 2.5 }),
+        room0({ name: "Head", said: "2.5kw x 2", unitKw: 2.5 }),
+        room0({ name: "Lounge", said: "6kw Kitchen", unitKw: 7 }),
+      ]),
+      named
+    );
+    expect(rooms.map((r) => [r.name, r.unitKw, r.areaM2])).toEqual([
+      ["Kitchen", 6, null],
+      ["Head", 2.5, null],
+      ["Head 2", 2.5, null],
+    ]);
+    /* a third head the words don't count, and a size they don't hold */
+    expect(dropped).toEqual(["Head", "Lounge"]);
+  });
+
+  it("counts the rooms a clause holds", () => {
+    expect(countIn("2.5kw x 2")).toBe(2);
+    expect(countIn("2 x 2.5kw high walls")).toBe(2);
+    expect(countIn("6kw Kitchen")).toBe(1);
+    expect(countIn("max 2 heads")).toBe(1);
+  });
 });
 
 const pack = {
@@ -96,6 +126,17 @@ describe("a room sized", () => {
     expect(s.loadKw).toBe(7);
     expect(s.options).toEqual([]);
     expect(s.assumed).not.toContain("which way it faces");
+  });
+
+  it("takes the pack's pairs nearest a unit size the brief names, with no load to ask about", () => {
+    const s = sizeRoom(room0({ name: "Living", said: "5.2kw to living", unitKw: 5.2 }), 0, "residential", pack);
+    expect(s.statedKw).toBe(5.2);
+    expect(s.areaM2).toBeNull();
+    expect(s.options.map((o) => o.indoor)).toEqual(["MSZ-AP50VGD2", "MSZ-EF50VGW"]);
+    expect(s.assumed).toEqual(["the style of unit (counted as a wall split)", "the pipe run", "where the outdoor sits"]);
+    expect(sizeRoom(room0({ name: "Kitchen", said: "6kw Kitchen", unitKw: 6, style: "wall" }), 0, "residential", pack).options.map((o) => o.indoor)).toEqual(["MSZ-AP60VGD2"]);
+    expect(nearestKw([2.5, 7.1, 8], 7)).toBe(7.1);
+    expect(nearestKw([5, 6], 5.5)).toBe(6);
   });
 
   it("keeps to the style the brief names", () => {
@@ -175,6 +216,7 @@ const sized = (name: string, loadKw: number, runM: number | null = null): SizedR
   name,
   said: name,
   areaM2: 1,
+  statedKw: null,
   loadKw,
   assumed: [],
   style: "wall",
@@ -213,6 +255,20 @@ describe("one multi for the rooms", () => {
     expect(names.filter((n) => n === "Consumables")).toHaveLength(2);
     expect(names).toContain("Condensate pump");
     expect(rows.filter((r) => /pair coil/.test(r.name)).map((r) => r.qty)).toEqual(["8 m", "Run to ask"]);
+  });
+
+  /* Isaac's walk, 2026-10-05, job 3347: "3 x Head Multi Outdoor, 6kw Kitchen, 2.5kw x 2" */
+  it("puts heads the brief names on at their sizes, and the smallest outdoor the table takes them on", () => {
+    const named = (name: string, kw: number): SizedRoom => ({ ...sized(name, kw), areaM2: null, statedKw: kw });
+    const p = sizeMulti([named("Kitchen", 6), named("Head", 2.5), named("Head 2", 2.5)], pack);
+    if (!p?.ok) throw new Error("no multi");
+    expect(p.multi.heads.map((h) => [h.room, h.indoor])).toEqual([
+      ["Kitchen", "MSZ-AP60VGD2"],
+      ["Head", "MSZ-AP25VGD2"],
+      ["Head 2", "MSZ-AP25VGD2"],
+    ]);
+    /* named heads bring no load to cover: diversity is normal on a multi */
+    expect(p.multi.outdoor).toBe("MXZ-4F71VGD");
   });
 
   it("says when no multi takes the rooms, and none for a single room", () => {

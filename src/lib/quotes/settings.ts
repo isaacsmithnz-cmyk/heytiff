@@ -29,6 +29,9 @@ export type QuoteSettings = {
   /** how the business usually runs ductwork, for a brief that doesn't say;
       null: asked */
   usualLayout: UsualLayout | null;
+  /** whether a quote shows the customer its line items unless it says
+      otherwise; false: each option's total only (Isaac, 2026-10-05) */
+  showLines: boolean;
   preferred: Partial<Record<ComponentKey, Preferred>>;
 };
 
@@ -62,6 +65,7 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   contingencyHours: null,
   allowances: { consumables: null, newCircuit: null, flush: null, recovery: null },
   usualLayout: null,
+  showLines: false,
   preferred: {},
 };
 
@@ -127,6 +131,7 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
     contingencyHours: clampTo(r.contingency_hours ?? r.contingencyHours, 0, MAX_CONTINGENCY_HOURS) ?? d.contingencyHours,
     allowances: allowancesOf(r),
     usualLayout: ((v: unknown) => (v === "trunks" || v === "plenum" ? v : null))(r.usual_layout ?? r.usualLayout),
+    showLines: (r.show_lines ?? r.showLines) === true,
     preferred: preferredOf(r.preferred),
   };
 }
@@ -146,6 +151,7 @@ export function quoteSettingsRow(s: QuoteSettings) {
     contingency_hours: s.contingencyHours,
     ...Object.fromEntries(ALLOWANCE_KEYS.map((k) => [ALLOWANCES[k].column, s.allowances[k]])),
     usual_layout: s.usualLayout,
+    show_lines: s.showLines,
     preferred,
   };
 }

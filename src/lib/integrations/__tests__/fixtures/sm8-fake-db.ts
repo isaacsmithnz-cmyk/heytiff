@@ -99,8 +99,20 @@ export function sm8WriteShapeOk(r: Row): boolean {
   const customerNone = CUSTOMER_COLUMNS.every(none);
   if (r.kind !== "leave" && !leaveNone) return false;
   if (r.kind !== "job" && !jobNone) return false;
-  if (r.kind !== "customer" && !customerNone) return false;
+  if (r.kind !== "customer" && r.kind !== "quote" && !customerNone) return false;
   switch (r.kind) {
+    /* sm8_quote_queue.sql's branch: the customer change's two columns */
+    case "quote": {
+      const f = r.cust_fields;
+      if (!(none("note_id") && none("depends_on") && none("flag_done") && none("note_text") && bookingNone && leaveNone && jobNone)) return false;
+      if (!["job", "jobmaterial"].includes(String(r.cust_object))) return false;
+      if (!f || typeof f !== "object" || Array.isArray(f)) return false;
+      if (!some("sm8_job_uuid")) return false;
+      if (op === "update") return r.cust_object === "job" && r.target_uuid === r.sm8_job_uuid;
+      if (op === "create") return r.cust_object === "jobmaterial" && none("target_uuid");
+      if (op === "delete") return r.cust_object === "jobmaterial" && some("target_uuid") && none("taken_back_at");
+      return false;
+    }
     /* sm8_customer_queue.sql's branch */
     case "customer": {
       const f = r.cust_fields;
@@ -534,7 +546,7 @@ export function makeFakeDb() {
       return Promise.resolve({ data: !!conn, error: null });
     }
     if (name === "sm8_set_write_kind") {
-      if (!conn || !["attachment", "note", "booking", "leave", "job", "customer"].includes(String(args.p_kind))) return Promise.resolve({ data: null, error: null });
+      if (!conn || !["attachment", "note", "booking", "leave", "job", "customer", "quote"].includes(String(args.p_kind))) return Promise.resolve({ data: null, error: null });
       const was = Array.isArray(conn.write_kinds) ? (conn.write_kinds as string[]) : ["attachment"];
       const kind = String(args.p_kind);
       conn.write_kinds = args.p_on ? [...new Set([...was, kind])].sort() : was.filter((k) => k !== kind);

@@ -24,7 +24,14 @@ import type { DuctedRead } from "./brief-ducted";
    brief says them. What it doesn't say is counted as standard and listed
    to ask. The data pack's split pairs that cover the load are the options,
    smallest first, for a person to pick; nothing goes on the job until they
-   do. Pure. */
+   do. Pure.
+
+   A UNIT SIZE THE BRIEF NAMES is a size too (Isaac's walk, 2026-10-05:
+   "6kw Kitchen, 2.5kw x 2" read as no rooms at all). The brief decides: a
+   room whose words name its unit's kW is kept on those words, and its pair
+   is the pack's nearest to that size — no load is worked out for it, and
+   a multi's outdoor is the one the combination table takes the heads on,
+   never one sized to their sum. */
 
 export type IndoorStyle = "wall" | "ducted" | "cassette" | "floor" | "bulkhead" | "under-ceiling";
 
@@ -36,6 +43,9 @@ export type ReadRoom = {
   areaM2: number | null;
   /** "6 x 5": the two sides, when the brief gives sides, not an area */
   sidesM: [number, number] | null;
+  /** the unit's capacity the brief names for this room ("6kw Kitchen"), in
+      kW; null when it names none */
+  unitKw: number | null;
   ceilingM: number | null;
   glazing: GlazingLevel | null;
   insulation: RoomCondition | null;
@@ -94,7 +104,11 @@ export type PairOption = {
 export type SizedRoom = {
   name: string;
   said: string;
-  areaM2: number;
+  /** the area the brief gives; null when it names the unit's size instead */
+  areaM2: number | null;
+  /** the unit's size the brief names; the room's units are matched to it */
+  statedKw: number | null;
+  /** the load worked out from the area, or the stated size */
   loadKw: number;
   /** what the brief didn't say, counted as standard: to ask */
   assumed: string[];
@@ -112,13 +126,28 @@ const norm = (s: string) => s.toLowerCase().replace(/[²]/g, "2").replace(/\s+/g
 const numberIn = (text: string, n: number) =>
   new RegExp(`(^|[^\\d.])${String(n).replace(".", "\\.")}(\\.0+)?(?![\\d])`).test(text);
 
-/** The rooms whose words are in the brief and whose size is in those
-    words; everything else Tiff said about a room is kept only if the brief
-    could have said it (a style, a facing). */
-export function checkRooms(read: ReadBrief, brief: string): { rooms: (ReadRoom & { areaM2: number })[]; dropped: string[] } {
+/** How many rooms one clause can hold: "2.5kw x 2" and "2 x 2.5kw" are
+    two; anything else is one. */
+export function countIn(said: string): number {
+  const counts = [...said.matchAll(/(?:^|[^\d.])(\d{1,2})\s*[x×](?![a-z])|(?<![a-z])[x×]\s*(\d{1,2})(?![\d.])/gi)]
+    .map((m) => Number(m[1] ?? m[2]))
+    .filter((n) => n >= 1 && n <= 10);
+  return counts.length ? Math.max(...counts) : 1;
+}
+
+/** The largest single head a stated size can be, in kW. */
+export const MAX_HEAD_KW = 30;
+
+/** The rooms whose words are in the brief and whose size — an area, two
+    sides, or the unit's kW — is in those words; everything else Tiff said
+    about a room is kept only if the brief could have said it (a style, a
+    facing). One clause holds only as many rooms as it counts. */
+export function checkRooms(read: ReadBrief, brief: string): { rooms: ReadRoom[]; dropped: string[] } {
   const text = norm(brief);
-  const rooms: (ReadRoom & { areaM2: number })[] = [];
+  const rooms: ReadRoom[] = [];
   const dropped: string[] = [];
+  const perClause = new Map<string, number>();
+  const names = new Set<string>();
   for (const r of read.rooms) {
     const said = norm(r.said);
     const inBrief = said.length >= 3 && text.includes(said);
@@ -128,17 +157,26 @@ export function checkRooms(read: ReadBrief, brief: string): { rooms: (ReadRoom &
         : r.sidesM && r.sidesM.every((s) => s > 0 && numberIn(said, s))
           ? Math.round(r.sidesM[0] * r.sidesM[1] * 10) / 10
           : null;
-    if (!inBrief || area == null || area > 500) {
+    const unitKw = r.unitKw != null && r.unitKw > 0 && r.unitKw <= MAX_HEAD_KW && numberIn(said, r.unitKw) ? r.unitKw : null;
+    const seen = perClause.get(said) ?? 0;
+    if (!inBrief || (area == null && unitKw == null) || (area != null && area > 500) || seen >= countIn(said)) {
       dropped.push(r.name);
       continue;
     }
+    perClause.set(said, seen + 1);
+    /* each room its own name: the runs and the multi's heads go by it */
+    let name = r.name;
+    for (let n = 2; names.has(name); n++) name = `${r.name} ${n}`;
+    names.add(name);
     /* a run is kept only when its words are the brief's and hold it */
     const runOk = r.runM != null && r.runM > 0 && r.runM <= 100 && !!r.runSaid && text.includes(norm(r.runSaid)) && numberIn(norm(r.runSaid), r.runM);
     /* a fact is kept only when its words are the brief's */
     const inWords = (w: string | null) => !!w && norm(w).length >= 3 && text.includes(norm(w));
     rooms.push({
       ...r,
+      name,
       areaM2: area,
+      unitKw,
       runM: runOk ? r.runM : null,
       runSaid: runOk ? r.runSaid : null,
       outdoorAt: inWords(r.outdoorSaid) ? r.outdoorAt : null,
@@ -169,18 +207,70 @@ const ASK = {
   style: "the style of unit (counted as a wall split)",
 } as const;
 
+/** The size nearest a stated one among those given: "7kw" is 7.1, "5.2kw"
+    is 5.0; a tie goes to the larger. */
+export function nearestKw(sizes: readonly number[], statedKw: number): number | undefined {
+  return [...new Set(sizes)].sort((a, b) => Math.abs(a - statedKw) - Math.abs(b - statedKw) || b - a)[0];
+}
+
 /** One room's load, and the pack's split pairs that cover it — the unit
     must cover the load cooling AND heating, as Studio sizes — at the
-    smallest size that does, one per series. */
+    smallest size that does, one per series. A room whose brief names its
+    unit's size takes the pack's pairs nearest that size instead, and has
+    no load to ask about. */
 export function sizeRoom(
-  room: ReadRoom & { areaM2: number },
+  room: ReadRoom,
   zone: number,
   buildingType: BuildingType,
   pack: Pick<DataPack, "indoor_units" | "pair_tables"> & Partial<Pick<DataPack, "outdoor_units">>,
   limit = 4
 ): SizedRoom {
+  const style = room.style ?? "wall";
+  const ff = new Map(pack.indoor_units.map((u) => [u.model, u.form_factor]));
+  const odu = new Map((pack.outdoor_units ?? []).map((u) => [u.model, u]));
+  const ofStyle = pack.pair_tables
+    .filter((p) => p.rated_cool_kw != null && p.rated_heat_kw != null)
+    .filter((p) => STYLE_OF[ff.get(p.idu_model) ?? ""] === style);
+  const optionOf = (p: (typeof ofStyle)[number]): PairOption => ({
+    indoor: p.idu_model,
+    outdoor: p.odu_model,
+    style: formFactorLabel(ff.get(p.idu_model)) ?? "Indoor",
+    coolKw: p.rated_cool_kw!,
+    heatKw: p.rated_heat_kw!,
+    liquidMm: p.pipe_liquid_mm,
+    gasMm: p.pipe_gas_mm,
+    outdoorWidthMm: odu.get(p.odu_model)?.width_mm ?? null,
+    outdoorWeightKg: odu.get(p.odu_model)?.weight_kg ?? null,
+    outdoorAmps: odu.get(p.odu_model)?.max_amps_a ?? null,
+  });
+  const fitAsked = () => [...(room.runM == null ? ["the pipe run"] : []), ...(room.outdoorAt == null ? ["where the outdoor sits"] : [])];
+
+  if (room.areaM2 == null && room.unitKw != null) {
+    const stated = room.unitKw;
+    const at = nearestKw(ofStyle.map((p) => p.rated_cool_kw!), stated);
+    return {
+      name: room.name,
+      said: room.said,
+      areaM2: null,
+      statedKw: stated,
+      loadKw: stated,
+      assumed: [...(room.style == null ? [ASK.style] : []), ...fitAsked()],
+      style,
+      runM: room.runM,
+      outdoorAt: room.outdoorAt,
+      drain: room.drain,
+      newCircuit: room.newCircuit,
+      options: ofStyle
+        .filter((p) => p.rated_cool_kw === at)
+        .sort((a, b) => a.idu_model.localeCompare(b.idu_model))
+        .slice(0, limit)
+        .map(optionOf),
+    };
+  }
+
+  const areaM2 = room.areaM2 ?? 0;
   const loadKw = roomHeatLoadKw({
-    areaM2: room.areaM2,
+    areaM2,
     climateZone: zone,
     buildingType,
     glazing: room.glazing ?? undefined,
@@ -189,37 +279,20 @@ export function sizeRoom(
     orientation: room.facing ?? undefined,
     roomAbove: room.roomAbove ?? undefined,
   });
-  const assumed: string[] = (Object.keys(ASK) as (keyof typeof ASK)[]).filter((k) => room[k] == null).map((k) => ASK[k]);
-  const style = room.style ?? "wall";
-  const ff = new Map(pack.indoor_units.map((u) => [u.model, u.form_factor]));
-  const odu = new Map((pack.outdoor_units ?? []).map((u) => [u.model, u]));
-  const covering = pack.pair_tables
-    .filter((p) => p.rated_cool_kw != null && p.rated_heat_kw != null)
-    .filter((p) => STYLE_OF[ff.get(p.idu_model) ?? ""] === style)
+  const assumed: string[] = [...(Object.keys(ASK) as (keyof typeof ASK)[]).filter((k) => room[k] == null).map((k) => ASK[k]), ...fitAsked()];
+  const covering = ofStyle
     .filter((p) => Math.min(p.rated_cool_kw!, p.rated_heat_kw!) >= loadKw)
     .sort((a, b) => a.rated_cool_kw! - b.rated_cool_kw! || a.idu_model.localeCompare(b.idu_model));
   const smallest = covering[0]?.rated_cool_kw;
   const options = covering
     .filter((p) => p.rated_cool_kw === smallest)
     .slice(0, limit)
-    .map((p) => ({
-      indoor: p.idu_model,
-      outdoor: p.odu_model,
-      style: formFactorLabel(ff.get(p.idu_model)) ?? "Indoor",
-      coolKw: p.rated_cool_kw!,
-      heatKw: p.rated_heat_kw!,
-      liquidMm: p.pipe_liquid_mm,
-      gasMm: p.pipe_gas_mm,
-      outdoorWidthMm: odu.get(p.odu_model)?.width_mm ?? null,
-      outdoorWeightKg: odu.get(p.odu_model)?.weight_kg ?? null,
-      outdoorAmps: odu.get(p.odu_model)?.max_amps_a ?? null,
-    }));
-  if (room.runM == null) assumed.push("the pipe run");
-  if (room.outdoorAt == null) assumed.push("where the outdoor sits");
+    .map(optionOf);
   return {
     name: room.name,
     said: room.said,
-    areaM2: room.areaM2,
+    areaM2,
+    statedKw: null,
     loadKw: Math.round(loadKw * 10) / 10,
     assumed,
     style,
@@ -311,14 +384,26 @@ export function sizeMulti(rooms: readonly SizedRoom[], pack: DataPack): MultiPro
   if (rooms.length < 2) return null;
   const heads: { room: SizedRoom; idu: DataPack["indoor_units"][number] }[] = [];
   for (const r of rooms) {
+    const mine = proposeMultiIdus(pack, r.statedKw ?? r.loadKw, "worst-of-both").filter((p) => STYLE_OF[p.idu.form_factor] === r.style);
+    /* a head the brief names: the nearest of that style to its size */
+    if (r.statedKw != null) {
+      const at = nearestKw(mine.map((p) => p.idu.capacity_cool_kw), r.statedKw);
+      const named = mine.find((p) => p.idu.capacity_cool_kw === at);
+      if (!named) return { ok: false, why: `No multi head of that style in the data pack for ${r.name}'s ${r.statedKw} kW` };
+      heads.push({ room: r, idu: named.idu });
+      continue;
+    }
     /* the smallest that suits; else, for a room smaller than any head, the
        smallest that covers it — there is nothing smaller to buy */
-    const mine = proposeMultiIdus(pack, r.loadKw, "worst-of-both").filter((p) => STYLE_OF[p.idu.form_factor] === r.style);
     const fit = mine.find((p) => p.fit === "fits") ?? mine.find((p) => p.capacityKw >= r.loadKw);
     if (!fit) return { ok: false, why: `No multi head of that style in the data pack covers ${r.name}'s ${r.loadKw} kW` };
     heads.push({ room: r, idu: fit.idu });
   }
-  const required = rooms.reduce((n, r) => n + r.loadKw, 0);
+  /* rooms with loads worked out must be covered together (a named head
+     counting at its size beside them); heads the brief names, all of them,
+     bring no load, and take the smallest outdoor the combination table
+     takes them on */
+  const required = rooms.some((r) => r.statedKw == null) ? rooms.reduce((n, r) => n + r.loadKw, 0) : null;
   const pick = proposeMultiOdus(pack, heads.map((h) => h.idu), "worst-of-both", { requiredKw: required }).find((p) => p.recommended);
   if (!pick) return { ok: false, why: "No multi outdoor in the data pack takes these heads together" };
   return {

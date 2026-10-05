@@ -55,3 +55,9 @@ export function sm8CustomersAllowed(): boolean {
 export function sm8JobsAllowed(): boolean {
   return sm8WriteKindsEnabled().includes("job");
 }
+
+/** Whether this deployment sends accepted quotes to ServiceM8 (SM8_WRITES
+    names `quote`). */
+export function sm8QuotesAllowed(): boolean {
+  return sm8WriteKindsEnabled().includes("quote");
+}

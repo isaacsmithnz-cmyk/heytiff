@@ -57,3 +57,21 @@ it("pairs Mitsubishi's Thai-built code with a wholesaler's code for the same mod
   /* two wholesaler codes that only differ by "-A" are never joined */
   expect(p("PAR-ZM01A-A")).toMatchObject({ buyCents: 27831 });
 });
+
+it("takes the item the business put forward over a cheaper one, and a unit's chosen supplier over both", () => {
+  const put = new Set(["aad|PC1412"]);
+  const p = makePriceOf({ items, suppliers: SUPPLIERS, confirmed: [["aad|PC1412", "reece|9800006-1"]], preferred: put });
+  /* Reece's same coil is $10 less; the business prefers AAD's */
+  expect(p("PC1412")).toMatchObject({ supplierKey: "aad", buyCents: 19100 });
+  expect(p("9800006-1")).toMatchObject({ supplierKey: "aad", buyCents: 19100 });
+  const chosen = makePriceOf({
+    items,
+    suppliers: SUPPLIERS,
+    confirmed: [],
+    preferred: new Set(["aad|PEA-M100HAA"]),
+    chosenSupplier: new Map([["PEA-M100HAA", "mitsubishi"]]),
+  });
+  expect(chosen("PEA-M100HAA")).toMatchObject({ supplierKey: "mitsubishi" });
+  /* a preferred item nobody priced is never taken */
+  expect(makePriceOf({ items, suppliers: SUPPLIERS, confirmed: [], preferred: new Set(["aad|HAX1"]) })("HAX1")).toBeNull();
+});

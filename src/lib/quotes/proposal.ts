@@ -170,6 +170,9 @@ export type ProposalDraft = {
   /** The options the client accepted, by index. One when they pick one;
       any number when they tick the ones they want. Empty until marked. */
   accepted: number[];
+  /** Whether the customer sees each option's line items, or only its total;
+      null: the business's own default (Quoting). */
+  showLines: boolean | null;
 };
 
 /* ── the clamps ── */
@@ -340,6 +343,7 @@ export function normaliseDraft(raw: unknown): ProposalDraft | null {
     payment: payment(r.payment),
     checklist: checklist(r.checklist),
     accepted: acceptedOf(r.accepted, options.length, mode === "optional"),
+    showLines: ((v: unknown) => (typeof v === "boolean" ? v : null))(r.showLines ?? r.show_lines),
   };
 }
 

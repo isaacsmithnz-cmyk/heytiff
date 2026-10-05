@@ -42,8 +42,8 @@ import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteLabour } from "./job-quote-labour";
 import { JobQuotePrice } from "./job-quote-price";
-import { JobQuoteRooms } from "./job-quote-rooms";
 import { JobQuoteFace } from "./job-quote-face";
+import { JobQuoteSend } from "./job-quote-send";
 import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
 import { JobCustomerDialog } from "./job-customer-dialog";
@@ -370,7 +370,6 @@ export function JobSheet({
   const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(null);
   /* bumped when the Quote section's Rooms adds a pair, so the Materials
      list and the Price read it again */
-  const [quoteRev, setQuoteRev] = useState(0);
   /* WHICH OF THIS JOB'S PHOTOS ARE STARRED. Its own read on its own clock,
      like the files — a set of attachment ids, because that is the only
      question the card asks of it. Null until it lands: an empty Set would
@@ -2731,8 +2730,7 @@ export function JobSheet({
           {manage &&
             panel(
               "quote",
-              <>
-                <JobQuoteFace
+              <JobQuoteFace
                 job={cardId ?? row.id}
                 address={detail ? detail.address ?? detail.geoLine : null}
                 visible={tab === "quote"}
@@ -2748,24 +2746,26 @@ export function JobSheet({
                     const basis = family ? (family.basis === "ex" ? "ex GST" : "inc GST") : MONEY_BASIS;
                     return cents != null ? `${fmtAud(cents)} ${basis}` : null;
                   })(),
+                  /* the same figure as money, for the new quote to stand beside */
+                  quoted: (() => {
+                    if (!moneyVisible) return null;
+                    const cents = family ? family.valueCents : (money?.valueCents ?? null);
+                    const basis: "ex" | "inc" = family ? (family.basis === "ex" ? "ex" : "inc") : MONEY_BASIS === "inc GST" ? "inc" : "ex";
+                    return cents != null ? { cents, basis } : null;
+                  })(),
                 }}
                 onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
-              />
+                onJobMaterials={() => {
+                  if (!cardId) return;
+                  void listJobPicklist(cardId)
+                    .then(setPicklist)
+                    .catch(() => undefined);
+                }}
+              >
                 <JobQuoteLabour key={cardId ?? row.id} job={cardId ?? row.id} visible={tab === "quote"} />
-                {cardId && manage && (
-                  <JobQuoteRooms
-                    key={`rooms-${cardId}`}
-                    job={cardId}
-                    onAdded={() => {
-                      setQuoteRev((n) => n + 1);
-                      void listJobPicklist(cardId)
-                        .then(setPicklist)
-                        .catch(() => undefined);
-                    }}
-                  />
-                )}
-                <JobQuotePrice key={`price-${cardId ?? row.id}-${quoteRev}`} job={cardId ?? row.id} visible={tab === "quote"} />
-              </>
+                <JobQuotePrice key={`price-${cardId ?? row.id}`} job={cardId ?? row.id} visible={tab === "quote"} />
+                <JobQuoteSend key={`send-${cardId ?? row.id}`} job={cardId ?? row.id} visible={tab === "quote"} />
+              </JobQuoteFace>
             )}
 
           {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,

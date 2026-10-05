@@ -301,7 +301,7 @@ ceiling exhaust fans" nobody should type a figure at all.
 - **No fan list.** There was one (a model with its rated L/s, filled in
   wherever the model was typed). It was removed on 2026-10-03: the figure is
   only printed when asked for, and then it is typed. The `fan_models` table
-  is left in place, unused.
+  was dropped 2026-10-05.
 - **Rated** is the manufacturer's figure at the duct run installed, read off
   the fan curve rather than the free-air number. **Measured** is a reading on
   site (a vane anemometer and hood). The paper always says which: a rated
@@ -328,7 +328,7 @@ after reading and it says "Not read yet".
 from the code 2026-10-03). The answers and the paper have no certifier
 field, and Tiff reads only the requirements, not who sent them. The
 `certifier_profiles` table and `certificate_versions.certifier_profile_id`
-are in production but unused; nothing writes them.
+were dropped 2026-10-05 (`drop_unused_cert_tables`).
 
 The section below describes the commonest case, a certifier's list, which is
 a table of items, one per trade, whose mechanical item is the brief for our
@@ -382,7 +382,6 @@ all.
 | What else was installed | The work-done description ("fire rated pair coil", "plenums", "condensation pump") | 1 |
 | Fan airflow | Typed, when the fan's "Add its airflow" is ticked; the accepted quote's figure waits there | 1 |
 | Certifier, project number, the certifier's requirements | The certifier's list, read by Tiff | 1 |
-| Certifier names already used, for spelling | `certifier_profiles`. Never chosen for the person: certifiers change from job to job | 1 |
 | Equipment and refrigerant charge from the design | `studio_designs.sm8_job_uuid`, and `evaluateVrfCharge` as a suggestion for kg added | 2 |
 | Serial numbers | `job_photo_readings.ocr_text` on nameplate photos, offered to confirm, never filled in silently | 2 |
 
@@ -502,7 +501,6 @@ create table public.certificate_versions (
   requirements jsonb not null default '[]', -- each certifier requirement as written,
                                         -- and its clause, own statement or reason
   requirements_document_id uuid,        -- the certifier's list this version answered
-  certifier_profile_id uuid,
   content jsonb not null,               -- what the library wrote, frozen
   library_version text not null,
   reason text not null,                 -- "First issue", or why it was reissued
@@ -513,27 +511,6 @@ create table public.certificate_versions (
   issued_by_staff_id uuid not null,
   issued_at timestamptz not null default now(),
   unique (certificate_id, version)
-);
-
-create table public.certifier_profiles (
-  id uuid primary key default gen_random_uuid(),
-  org_id uuid not null,
-  name text not null,                   -- "FutureCert"
-  clause_keys text[] not null default '{}',
-  updated_at timestamptz not null default now(),
-  unique (org_id, name)
-);
-
--- removed from the app 2026-10-03; the table stays, unused
-create table public.fan_models (
-  id uuid primary key default gen_random_uuid(),
-  org_id uuid not null,
-  model text not null,
-  rated_lps numeric not null check (rated_lps > 0),
-  spec_document_id uuid,                -- the spec sheet the figure came from
-  created_by_staff_id uuid,
-  created_at timestamptz not null default now(),
-  unique (org_id, model)
 );
 
 create table public.cert_template_approvals (
@@ -703,7 +680,8 @@ from the plan above:
   and the bell asks the owner to approve each new version.
 
 The golden jobs are tested in `lib/certs/__tests__/mechanical.test.ts`, the
-quote reader and the matcher in `quote.test.ts`, the paper in
+quote reader and the matcher in `quote.test.ts`, Tiff's reading of a
+description in `description-reader.test.ts`, the paper in
 `components/certs/__tests__/certificate-paper.test.tsx`, the wizard in
 `cert-wizard.test.tsx`, and the Documents face's rows in
 `job-documents-face.test.tsx`.
@@ -753,6 +731,30 @@ equipment record:
   quote reader (`src/lib/certs/quote.ts`) is only used for jobs quoted
   before the quote builder, and its note says to check every row against
   what was installed.
+
+### A job's description, read by Tiff (2026-10-05)
+
+For a job quoted before the quote builder, Tiff reads the description
+(`readJobDescription`, `src/lib/certs/description-reader.ts`). Opus 5.5 at
+medium effort, about 1.5c and 4–11s a read.
+
+- **Why:** on the four quotes held back from more rules, the rule reader
+  read none right and Opus read all four. They were asterisked Daikin
+  models, a VRF's indoors written "63 VMHS ducted system to …", bold room
+  headings, and "final agreed location". Sonnet 5.5 read two (about 0.6c)
+  and was wrong in plausible ways, like a bedroom given as the outdoor unit's
+  place, so it wasn't chosen.
+- **The wizard opens on the rule reader's draft at once** and shows "Tiff is
+  reading the job's description…". Her reading replaces the equipment while
+  nothing in it has been changed. Once a unit is edited, her reading is
+  dropped.
+- **The rule reader stays.** It is the draft with no key or a failed read.
+  A yes from either reader stands for ductwork, fire rated and ventilation.
+  The refrigerant is hers, else the rules'. The quote's stated connected
+  total is the rules' own figure. A reading with no units where the rules
+  found some keeps the rules' units.
+- Tested on recorded replies, so no test calls a model:
+  `description-reader.test.ts`, from `fixtures/description-reads.json`.
 
 Nothing needed migrating: `quote_drafts.draft` is jsonb, no quote had been
 saved yet, and a row saved before roles existed reads as an indoor unit.

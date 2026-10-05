@@ -12184,8 +12184,39 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .qs-state.ok { color:var(--ok-t); }
 .qs-list li:has(.qs-groupoffers) { grid-template-columns:minmax(0, 1fr) minmax(0, 1.4fr); }
 .qs-groupoffers { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
-.qs-offerbtn { display:flex; flex-direction:column; align-items:flex-start; padding:4px 12px; border:1px solid var(--line);
-  border-radius:var(--r-button); background:var(--paper); font-size:14px; font-weight:500; font-variant-numeric:tabular-nums; }
+/* `.fg button` resets every button's border and fill at (0,1,1): these
+   carry the element so the price's edge and its chosen fill survive it */
+.fg button.qs-offerbtn { display:flex; flex-direction:column; align-items:flex-start; padding:4px 12px; border:1px solid var(--line);
+  border-radius:var(--r-button); background:var(--paper); font-size:14px; font-weight:500; font-variant-numeric:tabular-nums;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg button.qs-offerbtn:hover:not(:disabled) { background:var(--tint); }
 .qs-offerbtn em { font-style:normal; font-size:12px; color:var(--q); }
 .qs-offerbtn.ok { color:var(--ok-t); }
-.qs-offerbtn.on { background:var(--tint); border-color:var(--ink); }
+.fg button.qs-offerbtn.on { background:var(--tint-2); border-color:var(--ink); }
+
+/* The price book's items (book-items.tsx): what to look at down the left,
+   the shelf's families on the right */
+.pbk { display:grid; grid-template-columns:240px minmax(0, 1fr); gap:32px; align-items:start; }
+.pbk-rail { position:sticky; top:0; display:flex; flex-direction:column; gap:2px; }
+.fg button.pbk-view { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 12px;
+  border-radius:var(--r-button); font-size:14px; font-weight:500; text-align:left; transition:background-color var(--t-fast) var(--ease); }
+.fg button.pbk-view:hover { background:var(--tint); }
+.fg button.pbk-view.on { background:var(--tint-2); font-weight:600; }
+.pbk-view em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.pbk-railsep { height:1px; margin:8px 12px; background:var(--line); }
+.pbk-main { min-width:0; }
+.pbk-head { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:16px; }
+.pbk-title { margin:0; font-size:20px; font-weight:600; }
+.pbk-find { width:320px; }
+.pbk-sec + .pbk-sec { margin-top:24px; }
+.pbk-sech { margin:0 0 4px; font-size:16px; font-weight:600; }
+.pbk-prod { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.2fr); gap:16px; align-items:center;
+  padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
+.pbk-prod b { font-weight:600; }
+.fg button.pbk-famrow { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:16px; align-items:center; width:100%;
+  padding:8px 12px; border-top:1px solid var(--line); text-align:left; font-size:14px; transition:background-color var(--t-fast) var(--ease); }
+.fg button.pbk-famrow:hover { background:var(--tint); }
+.fg button.pbk-famrow.on { background:var(--tint-2); }
+.pbk-famrow b { font-weight:600; }
+.pbk-range { font-size:14px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.pbk-sizes { padding-left:24px; }

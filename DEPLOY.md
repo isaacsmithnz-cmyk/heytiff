@@ -611,6 +611,41 @@ adds the kind, two columns and its shape branch.
 
 **Rollback:** Customer details Off (cancels waiting rows); `SM8_WRITES` without `customer`, redeploy, wait two minutes; cancel what's left with `update public.sm8_writes set status = 'cancelled', last_error = 'Sending customer changes to ServiceM8 was switched off before it went.', lease_until = null, claim_id = null, updated_at = now() where kind = 'customer' and status in ('queued', 'sending', 'failed', 'trial');`; revert the code. Changes already made stay in ServiceM8.
 
+#### Accepted quotes to ServiceM8
+
+The seventh kind of write is **quote** (Isaac, 2026-10-05). Once an option
+is marked accepted, the job card's Quote section shows **To ServiceM8** —
+exactly what will go — and, where the owner has it on, **Send to ServiceM8
+as a work order**. One press is one row per record: the job's invoice
+description (`work_done_description`) and its status to Work Order when it
+was a Quote (`job/{uuid}.json`, with the live status sent back unchanged
+when it's already a Work Order); each line that was on the job taken off
+(`DELETE jobmaterial/{uuid}.json`, sent only after a live read finds it
+active, never a second time); each of the quote's lines added under our
+uuid (`jobmaterial.json`) — one per accepted option at its total, "…, as per
+quote", when the business shows customers totals only (Admin → Quoting,
+"What the customer sees"), or every line with labour by the person-day when
+it shows line items. Lines carry a unit price and cost ex GST on the tax rate
+the business's own lines already use. The press first checks the job hasn't
+changed in ServiceM8 since the quote was reviewed (the mirror's edit date the
+card saw, the mirror's now, and ServiceM8's live one). A quote with anything
+left to price, an invoiced job, or a job past Work Order is refused. The
+owner's card carries **Accepted quotes**, starting **Off**. It needs
+`manage_jobs` (asked already) and **`manage_job_materials`, which is new: a
+reconnect**. The migration `docs/migrations/sm8_quote_queue.sql` adds the
+kind and its shape branch, keeping its record and fields in the customer
+change's two columns (no new columns).
+
+**The order:**
+
+1. Apply `docs/migrations/sm8_quote_queue.sql` before the deploy. **Never re-run `sm8_customer_queue.sql` after it.**
+2. Deploy. With `SM8_WRITES` not naming `quote`, the card shows **To ServiceM8** as a preview and nothing else.
+3. Add `quote` to `SM8_WRITES` and redeploy.
+4. The owner turns **Accepted quotes On** with sending on **Trial run** first: a press checks and logs every row, and nothing reaches ServiceM8.
+5. Reconnect ServiceM8 and approve `manage_job_materials`; switch sending **On**; send one throwaway job and check its lines and a draft invoice in ServiceM8.
+
+**Rollback:** Accepted quotes Off (cancels waiting rows); `SM8_WRITES` without `quote`, redeploy, wait two minutes; cancel what's left with `update public.sm8_writes set status = 'cancelled', last_error = 'Sending accepted quotes to ServiceM8 was switched off before it went.', lease_until = null, claim_id = null, updated_at = now() where kind = 'quote' and status in ('queued', 'sending', 'failed', 'trial');`; revert the code. Lines already sent stay in ServiceM8; lines taken off are inactive there and can be put back from ServiceM8.
+
 #### Time off on the Schedule (leave to ServiceM8, part two)
 
 The sync reads ServiceM8's Availability (`availability.json`) into
@@ -858,9 +893,10 @@ docs/certificates-plan.md is the design.
    `certificates`).
 2. Nothing new in Vercel. Issuing prints the PDF through the same headless
    Chromium as the Studio's Send to job (`@sparticuz/chromium`, `APP_BASE_URL`,
-   `AUTH0_SECRET` for the print ticket), and reading a certifier's list uses
-   `ANTHROPIC_API_KEY`. Without that key everything works except the read,
-   which says Tiff isn't set up.
+   `AUTH0_SECRET` for the print ticket), and reading a certifier's list or an
+   older job's description uses `ANTHROPIC_API_KEY`. Without that key
+   everything works except the reads: the list says Tiff isn't set up, and a
+   description keeps the rule reader's draft.
 3. Apply `docs/migrations/certificate_wording.sql` before the deploy that
    writes it: one nullable column (`cert_template_approvals.wording`, the
    statements as the owner read them) and the one earlier approval back-filled.
@@ -880,6 +916,10 @@ docs/certificates-plan.md is the design.
    business has changed (`docs/migrations/org_templates.sql`). No row means
    the standard wording, so nothing needs seeding. **Applied to production
    2026-10-03** (migration `org_templates`).
+6. `docs/migrations/drop_unused_cert_tables.sql` drops `certifier_profiles`,
+   `fan_models` and `certificate_versions.certifier_profile_id`, which nothing
+   reads or writes. **Applied to production 2026-10-05** (migration
+   `drop_unused_cert_tables`).
 
 ---
 

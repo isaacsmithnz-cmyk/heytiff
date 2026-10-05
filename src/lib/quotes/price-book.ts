@@ -300,10 +300,24 @@ export function parseHeadedRows(rows: Row[], excelDate: (serial: number) => stri
 /** The invoice workbooks are headed sheets. */
 export const parseInvoicedRows = parseHeadedRows;
 
+/** The words a search looks for: lower case, at most four, without the
+    characters that would break the database's filter or match anything
+    (% _ * , ( ) " and a backslash). Every search of the book reads them
+    the same way. */
+export function searchWords(query: string): string[] {
+  return query
+    .toLowerCase()
+    .replace(/[%_*,()"\\]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
 /** What the business pays for an item: the net price as sent, or the list
-    price less the discount that applies to its range. */
-export function netCents(supplier: Supplier, code: string, cents: number): number {
-  if (supplier.pricing === "net") return cents;
+    price less the discount that applies to its range. `net` is a price that
+    is already what was paid — an invoice's — which no discount comes off. */
+export function netCents(supplier: Supplier, code: string, cents: number, net = false): number {
+  if (net || supplier.pricing === "net") return cents;
   const rule = supplier.rules.find((r) => code.toUpperCase().startsWith(r.prefix.toUpperCase()));
   const pct = rule ? rule.discountPct : supplier.discountPct;
   return Math.round(cents * (1 - pct / 100));
@@ -311,7 +325,6 @@ export function netCents(supplier: Supplier, code: string, cents: number): numbe
 
 /** The supplier's pricing, in a few words, for the page. */
 export function pricingWords(s: Supplier): string {
-  if (s.file === "xlsx") return "What was charged, by invoice";
   if (s.pricing === "net") return "Net prices";
   if (!s.discountPct && s.rules.length === 0) return "List prices, no discount set";
   const rules = s.rules.map((r) => `${r.prefix} less ${r.discountPct}%`).join(", ");
@@ -326,6 +339,9 @@ export type Offer = {
   netCents: number;
   /** the invoice date an invoiced price was charged on */
   pricedOn?: string | null;
+  /** the supplier's other price for it, not taken: the price list's when an
+      invoice is newer, the latest invoice's when the list is */
+  other?: { netCents: number; on: string | null; from: "list" | "invoice" } | null;
 };
 
 /** One model at every supplier that has it, cheapest first, with how much
@@ -335,4 +351,179 @@ export function compareOffers(offers: Offer[]): { offers: Offer[]; cheapest: Off
   const cheapest = sorted[0] ?? null;
   const next = sorted[1];
   return { offers: sorted, cheapest, savesCents: cheapest && next ? next.netCents - cheapest.netCents : null };
+}
+
+/* ONE SUPPLIER, TWO SOURCES OF PRICE (2026-10-05). A supplier's item can be
+   on its price list, on its invoices, or both: Mitsubishi Electric's trade
+   book lists the splits, and the VRF indoors it only ever quotes are priced
+   from what the business paid. Isaac: "newest wins" — a new price list
+   replaces an older invoice's price, and a newer invoice the list's. Both
+   are kept, and the one not taken is shown beside it. */
+
+/** An item's prices as the book stores them. */
+export type StoredPrices = {
+  /** the price list's price, as the list states it (net, or list) */
+  cents: number;
+  /** false: only ever invoiced */
+  onList: boolean;
+  /** the date the price list's prices are from */
+  listedOn: string | null;
+  /** when the list was taken in, the date its prices are from when no other is known */
+  importedAt: string | null;
+  /** an invoiced price workbook's own date for the price */
+  pricedOn: string | null;
+  /** the latest invoice: what was paid, and on what date */
+  paidCents: number | null;
+  paidOn: string | null;
+};
+
+/** One of an item's prices: as stored, already paid (`net`) or as listed, and its date. */
+export type PricePoint = { cents: number; net: boolean; on: string | null; from: "list" | "invoice" };
+
+/** The price a quote takes, the newer of the list's and the latest
+    invoice's, and the other one when there is one. A date that isn't known
+    loses to one that is. */
+export function effectivePrice(p: StoredPrices): { price: PricePoint; other: PricePoint | null } {
+  const paid: PricePoint | null = p.paidCents != null ? { cents: p.paidCents, net: true, on: p.paidOn, from: "invoice" } : null;
+  if (!p.onList) return { price: paid ?? { cents: p.cents, net: true, on: p.pricedOn, from: "invoice" }, other: null };
+  const list: PricePoint = { cents: p.cents, net: false, on: p.pricedOn ?? p.listedOn ?? (p.importedAt ? p.importedAt.slice(0, 10) : null), from: "list" };
+  if (!paid) return { price: list, other: null };
+  const paidNewer = paid.on != null && (list.on == null || paid.on >= list.on);
+  return paidNewer ? { price: paid, other: list } : { price: list, other: paid };
+}
+
+/** Today's date where the business is, YYYY-MM-DD. */
+export const todayInSydney = () => new Date().toLocaleDateString("en-CA", { timeZone: "Australia/Sydney" });
+
+/** The date a price list's file name gives its prices, day first as
+    Australia writes it: "ME_PriceList_11-08-2026_HVAC.pdf" is 11 August. */
+export function dateInName(name: string): string | null {
+  const m = name.match(/(?:^|\D)(\d{1,2})[-_.](\d{1,2})[-_.](20\d\d)(?:\D|$)/);
+  if (!m) return null;
+  const [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+export type ImportSummary = {
+  read: number;
+  added: number;
+  changed: number;
+  /** in the book before, not in this file, and not invoiced: dropped */
+  gone: number;
+};
+
+/** A supplier's item as the book holds it, for an import to change. */
+export type StoredItem = {
+  code: string;
+  name: string;
+  cents: number;
+  previous_cents: number | null;
+  price_changed_at: string | null;
+  first_seen_at: string;
+  last_import_at: string;
+  current: boolean;
+  on_list: boolean;
+  paid_cents: number | null;
+  paid_on: string | null;
+  times_bought: number | null;
+  qty_bought: number | null;
+};
+
+type PlanContext = { orgId: string; supplierKey: string; now: string };
+
+/** A new PRICE LIST: every row in (a changed price keeps the one it
+    replaced), its prices dated `listOn`; what the list no longer has comes
+    off it — dropped from the book (`gone`), unless an invoice prices it,
+    when it stays as an invoiced item (`offList`). A list never touches an
+    item's invoiced price or purchase counts. */
+export function planPriceList(
+  before: Map<string, StoredItem>,
+  rows: PriceRow[],
+  ctx: PlanContext & { listOn: string }
+): { upserts: Record<string, unknown>[]; offList: string[]; gone: string[]; summary: ImportSummary } {
+  let added = 0;
+  let changed = 0;
+  /* the purchase counts are written only when this file has them: a trade
+     book must not wipe what the invoices counted. Its prices' date and unit
+     are the file's own, always — a date left from the last file would make
+     this list's prices look as old as that one's */
+  const has = (f: (r: PriceRow) => unknown) => rows.some((r) => f(r) != null);
+  const withTimes = has((r) => r.timesBought);
+  const withQty = has((r) => r.qtyBought);
+  const upserts = rows.map((r) => {
+    const had = before.get(r.code);
+    const listed = had && had.on_list && had.current ? had : undefined;
+    if (!listed) added++;
+    const moved = listed !== undefined && listed.cents !== r.cents;
+    if (moved) changed++;
+    return {
+      org_id: ctx.orgId,
+      supplier_key: ctx.supplierKey,
+      code: r.code,
+      name: r.name,
+      cents: r.cents,
+      previous_cents: moved ? listed.cents : (listed?.previous_cents ?? null),
+      price_changed_at: moved ? ctx.now : (listed?.price_changed_at ?? null),
+      first_seen_at: had?.first_seen_at ?? ctx.now,
+      last_import_at: ctx.now,
+      current: true,
+      on_list: true,
+      listed_on: ctx.listOn,
+      priced_on: r.pricedOn ?? null,
+      uom: r.uom ?? null,
+      ...(withTimes ? { times_bought: r.timesBought ?? null } : {}),
+      ...(withQty ? { qty_bought: r.qtyBought ?? null } : {}),
+    };
+  });
+  const inFile = new Set(rows.map((r) => r.code));
+  const off = [...before.values()].filter((r) => r.on_list && r.current && !inFile.has(r.code));
+  const offList = off.filter((r) => r.paid_cents != null).map((r) => r.code);
+  const gone = off.filter((r) => r.paid_cents == null).map((r) => r.code);
+  return { upserts, offList, gone, summary: { read: rows.length, added, changed, gone: gone.length } };
+}
+
+/** INVOICES: what the business paid for each code on them, on the
+    invoice's date (else today). Only those codes change — an invoice never
+    takes anything else off the book. A code the supplier's list doesn't
+    have becomes an invoiced item of that supplier; a newer invoice replaces
+    an older one's price, an older one never replaces a newer. */
+export function planInvoices(
+  before: Map<string, StoredItem>,
+  rows: PriceRow[],
+  ctx: PlanContext & { today: string }
+): { upserts: Record<string, unknown>[]; summary: ImportSummary } {
+  let added = 0;
+  let changed = 0;
+  const upserts = rows.map((r) => {
+    const had = before.get(r.code);
+    const on = r.pricedOn ?? ctx.today;
+    const live = had !== undefined && had.current;
+    const listed = live && had.on_list;
+    const newer = !had || had.paid_on == null || on >= had.paid_on;
+    if (!live) added++;
+    else if (newer && had.paid_cents !== r.cents) changed++;
+    /* an older invoice than the one in changes nothing it would make older:
+       not the price, not the counts, not an invoiced item's words */
+    const older = had !== undefined && !newer;
+    return {
+      org_id: ctx.orgId,
+      supplier_key: ctx.supplierKey,
+      code: r.code,
+      /* the list's own words and price stay; an invoiced item takes the newest invoice's */
+      name: listed || older ? had.name : r.name,
+      cents: listed ? had.cents : r.cents,
+      previous_cents: had?.previous_cents ?? null,
+      price_changed_at: had?.price_changed_at ?? null,
+      first_seen_at: had?.first_seen_at ?? ctx.now,
+      last_import_at: had?.last_import_at ?? ctx.now,
+      current: true,
+      on_list: listed,
+      paid_cents: older ? had.paid_cents : r.cents,
+      paid_on: older ? had.paid_on : on,
+      times_bought: older ? (had.times_bought ?? r.timesBought ?? null) : (r.timesBought ?? had?.times_bought ?? null),
+      qty_bought: older ? (had.qty_bought ?? r.qtyBought ?? null) : (r.qtyBought ?? had?.qty_bought ?? null),
+    };
+  });
+  return { upserts, summary: { read: rows.length, added, changed, gone: 0 } };
 }

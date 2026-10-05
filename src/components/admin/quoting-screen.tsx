@@ -8,10 +8,6 @@ import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { saveQuoteSettings } from "@/app/actions/quote-settings";
 import { profitSharePct, sellCents, type ComponentKey } from "@/lib/quotes/components";
 import type { ComponentGroup, ComponentOffer, ComponentShortlist } from "@/lib/quotes/settings-query";
-import type { SupplierView } from "@/lib/quotes/price-book-server";
-import { PriceBook } from "./price-book-panel";
-import { LinksPanel } from "./links-panel";
-import { SameItemsPanel } from "./same-items-panel";
 import {
   ALLOWANCES,
   ALLOWANCE_KEYS,
@@ -65,12 +61,10 @@ const inRange = (s: string, lo: number, hi: number) => s.trim() === "" || (Numbe
 export function QuotingScreen({
   initial,
   components,
-  suppliers,
   calc,
 }: {
   initial: QuoteSettings;
   components: ComponentShortlist[];
-  suppliers: SupplierView[];
   /** what the business's Rate Calculator says, when it has one */
   calc: CalcDay | null;
 }) {
@@ -276,11 +270,25 @@ export function QuotingScreen({
               </div>
             </section>
 
-            <PriceBook suppliers={suppliers} onImported={() => router.refresh()} />
-
-            <LinksPanel />
-
-            <SameItemsPanel />
+            {/* Isaac, 2026-10-05: "show line items to customer or leave it off
+                by default so that they just see the total price" */}
+            <section className="qs-group">
+              <h2 className="qs-h">What the customer sees</h2>
+              <div className="qs-fields">
+                <label className="qs-field">
+                  <span>On a quote, unless it says otherwise</span>
+                  <select
+                    className="wb2-sel"
+                    value={saved.showLines ? "lines" : "total"}
+                    disabled={busy}
+                    onChange={(e) => void save({ ...saved, showLines: e.target.value === "lines" }, "Saved")}
+                  >
+                    <option value="total">Each option&apos;s total</option>
+                    <option value="lines">Each option&apos;s line items and its total</option>
+                  </select>
+                </label>
+              </div>
+            </section>
 
             <section className="qs-group">
               <h2 className="qs-h">Preferred items</h2>
@@ -438,7 +446,7 @@ function ComponentRow({
               {pick.group.name}
               <em>
                 {`${pick.offer.code}, ${pick.offer.supplierName}${pick.offer.pack ? `, ${pick.offer.pack}` : ""}, `}
-                <span className={pick.overridden ? "qs-state warn" : "qs-state"}>{pick.overridden ? "Override" : "Lowest price"}</span>
+                <span className={pick.overridden ? "qs-state warn" : "qs-state"}>{pick.overridden ? "Override" : pick.preferred ? "Preferred" : "Lowest price"}</span>
               </em>
             </>
           ) : (

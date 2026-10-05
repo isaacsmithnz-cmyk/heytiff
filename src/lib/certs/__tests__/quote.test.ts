@@ -1,6 +1,6 @@
 import { matchRequirement } from "../match";
 import { isOutdoorModel, modelsIn, readQuote, statedConnectedKw, suggestBuilding } from "../quote";
-import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_1930, JOB_2043, JOB_2147, JOB_2207, JOB_248, JOB_2699, JOB_2885, JOB_279, JOB_2933, JOB_3140, JOB_3326 } from "./fixtures/jobs";
+import { FUTURECERT_9_1, JOB_1245, JOB_1300, JOB_1383, JOB_2043, JOB_248, JOB_2699, JOB_2885, JOB_279, JOB_2933, JOB_3140, JOB_3326 } from "./fixtures/jobs";
 
 /* The wizard's first draft, read off six real jobs. Each is only a
    suggestion the person corrects, but a good one saves the typing. */
@@ -241,14 +241,7 @@ describe("readQuote on the October samples", () => {
     ]);
   });
 
-  /* Held for the Sonnet 5.5 comparison (Isaac, 2026-10-03): if a model reads
-     older descriptions, these are its test, not more rules. */
-  it.todo("2933: the Daikin models written with trailing asterisks (FDYQN250LBV1**, RZQ250LY1**)");
-  it.todo("2207: the VRF's three ducted indoor units written as \"63 VMHS ducted system to …\"");
-  it.todo("1930: the bold room headings (Master Bedroom, Pool Room), not \"Return air located in hallway\"");
-  it.todo("2147: \"final agreed location\" is not where the outdoor unit is");
-  /* referenced so the fixtures stay in use until the todos are written */
-  it("keeps the held samples readable", () => {
-    for (const job of [JOB_2207, JOB_1930, JOB_2147]) expect(readQuote(job).systems.length).toBeGreaterThan(0);
-  });
+  /* The quotes held back from more rules (2933's asterisked models, 2207's
+     "63 VMHS ducted system to …", 1930's bold room headings, 2147's "final
+     agreed location") are Tiff's to read: description-reader.test.ts. */
 });

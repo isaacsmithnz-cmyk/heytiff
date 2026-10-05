@@ -310,3 +310,12 @@ it("says what a unit's order code gives it: the K is Wi-Fi built in", () => {
   const { lines } = priceJobList([{ name: "MSZ-AP71VGD2", sub: "Wall split, 7.1 kW", qty: "1" }], deps);
   expect(lines[0]).toMatchObject({ code: "MSZ-AP71VGKD2-A2", features: ["Wi-Fi built in", "Demand response (DRED) ready"] });
 });
+
+it("says what any maker's unit has, from its supplier's description", () => {
+  const daikin: JobPriceDeps = {
+    ...deps,
+    unitOffer: (model) => (model === "RZQ71LV1" ? { buyCents: 250000, supplierKey: "aad", name: "DAIKIN PREMIUM OUT 7.1KW 3PH R32 DRED", code: "RZQ71LV1" } : null),
+  };
+  const { lines } = priceJobList([{ name: "RZQ71LV1", sub: "Outdoor unit", qty: "1" }], daikin);
+  expect(lines[0]!.features).toEqual(["Demand response (DRED) ready"]);
+});

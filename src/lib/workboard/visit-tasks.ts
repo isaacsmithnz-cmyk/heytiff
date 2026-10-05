@@ -25,7 +25,17 @@ export const TASK_KINDS = ["tick", "progress", "unit"] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
 /** The quote's unit a unit task is for, as it stood when the task was made. */
-export type TaskUnit = { role: "outdoor" | "indoor" | "fan"; room: string; model: string; capacity: string; type: string };
+export type TaskUnit = {
+  role: "outdoor" | "indoor" | "fan";
+  room: string;
+  model: string;
+  capacity: string;
+  type: string;
+  /** the outdoor unit it runs from (its own number, for an outdoor); 0 for a fan */
+  system?: number;
+  /** identical units in the same place: each has its own serial */
+  qty?: number;
+};
 
 export type JobTask = {
   id: string;

@@ -211,3 +211,25 @@ it("takes a unit's plate photo onto the job and shows what was read off it again
   });
   expect(sent("PUT")[1]).toEqual({ job: "job-1", edit: { kind: "plate", id: "hang", model: "PEFY-P25VMX-A", serial: "52X04418" } });
 });
+
+it("keeps a plate photo that couldn't be read, says so, and offers to type it", async () => {
+  const hang = task("hang", "Hang the Study unit", { stage: "Install", kind: "unit", visit: 2, unit: { role: "indoor", room: "Study", model: "MSZ-AP35VG", capacity: "3.5 kW", type: "High wall" } });
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({
+    json: async () =>
+      init?.method === "PUT"
+        ? answer({ tasks: [hang], updates: [], photos: [{ id: "p1", taskId: "hang", role: "plate", url: "https://files.example/p.jpg", at: "x" }], note: "The plate couldn't be read from that photo. Type the model and serial instead." })
+        : answer({ tasks: [hang], updates: [] }),
+  }));
+  uploadFile.mockResolvedValue({ ok: true, file: { documentId: "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c", fileName: "p.jpg", mimeType: "image/jpeg", sizeBytes: 1, previewUrl: null } });
+  attachJobDocument.mockResolvedValue({ ok: true });
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Hang the Study unit" }));
+  expect(screen.getByLabelText("Photo of the plate")).toHaveAttribute("accept", "image/jpeg,image/png,image/webp");
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Photo of the plate"), { target: { files: [new File(["x"], "p.jpg", { type: "image/jpeg" })] } });
+  });
+  expect(await screen.findByText("The plate couldn't be read from that photo. Type the model and serial instead.")).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "The rating plate" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Type the model and serial" }));
+  expect(screen.getByLabelText("Serial")).toBeInTheDocument();
+});

@@ -6960,7 +6960,7 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-tshots:empty { display:none; }
 .jcl-tshots figure { margin:0; display:flex; flex-direction:column; gap:4px; }
 .jcl-tshots img { display:block; width:100%; aspect-ratio:4 / 3; object-fit:cover; border-radius:var(--r-button); border:1px solid var(--line); }
-.jcl-tshots figcaption { font-size:12px; font-weight:600; }
+.jcl-tshots figcaption { font-size:12px; font-weight:500; }
 .jcl-tshot-gone { display:grid; place-items:center; aspect-ratio:4 / 3; border-radius:var(--r-button); background:var(--tint); font-size:12px; color:var(--q); }
 .jcl-tfile { cursor:pointer; }
 .jcl-tfile:focus-within { box-shadow:var(--ring); }
@@ -6968,7 +6968,7 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-tkv { margin:0; display:grid; grid-template-columns:96px minmax(0,1fr); }
 .jcl-tkv dt, .jcl-tkv dd { margin:0; padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
 .jcl-tkv dt:first-of-type, .jcl-tkv dt:first-of-type + dd { border-top:0; }
-.jcl-tkv dt { color:var(--q); }
+.jcl-tkv dt { color:var(--q); font-weight:500; }
 .jcl-tkv dd { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; }
 .jcl-tkv dd b { font-weight:600; }
 .jcl-tkv dd em { font-style:normal; color:var(--q); }

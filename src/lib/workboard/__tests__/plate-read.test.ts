@@ -40,8 +40,8 @@ describe("the certificate's serials", () => {
 
   it("puts each unit's serial on its own row, by place and model", () => {
     const r = withSerials(readingFromQuote(options), [
-      { room: "Level 2 Bedroom 4", model: "PEFY-P25VMX-A", serial: "52X04418" },
-      { room: "Garage", model: "PUMY-P200YKMD2-A", serial: "9ZW00012" },
+      { role: "indoor", system: 1, room: "Level 2 Bedroom 4", model: "PEFY-P25VMX-A", modelRead: "PEFY-P25VMX-A", serial: "52X04418" },
+      { role: "outdoor", system: 1, room: "Garage", model: "PUMY-P200YKMD2-A", modelRead: null, serial: "9ZW00012" },
     ]);
     expect(r.systems[0]!.outdoor.serial).toBe("9ZW00012");
     expect(r.systems[0]!.indoors.map((i) => [i.location, i.serial])).toEqual([
@@ -50,5 +50,41 @@ describe("the certificate's serials", () => {
     ]);
     expect(hasSerials(r)).toBe(true);
     expect(hasSerials(readingFromQuote(options))).toBe(false);
+  });
+});
+
+describe("the certificate's serials, where units look alike", () => {
+  const twin = normaliseDraft({
+    options: [
+      {
+        name: "Two systems",
+        lines: ["Two splits."],
+        units: [
+          { role: "outdoor", room: "Side", capacity: "3.5 kW", type: "Outdoor unit", model: "MUZ-AP35VG", qty: 1, system: 1 },
+          { role: "outdoor", room: "Side", capacity: "3.5 kW", type: "Outdoor unit", model: "MUZ-AP35VG", qty: 1, system: 2 },
+          { role: "indoor", room: "Bedroom", capacity: "3.5 kW", type: "High wall", model: "MSZ-AP35VG", qty: 1, system: 1 },
+          { role: "indoor", room: "Study", capacity: "3.5 kW", type: "High wall", model: "MSZ-AP35VG", qty: 1, system: 2 },
+        ],
+      },
+    ],
+  })!.options;
+
+  it("keeps each system's serial on its own outdoor unit", () => {
+    const r = withSerials(readingFromQuote(twin), [
+      { role: "outdoor", system: 2, room: "Side", model: "MUZ-AP35VG", modelRead: null, serial: "S-TWO" },
+      { role: "outdoor", system: 1, room: "Side", model: "MUZ-AP35VG", modelRead: null, serial: "S-ONE" },
+    ]);
+    expect(r.systems.map((s) => s.outdoor.serial)).toEqual(["S-ONE", "S-TWO"]);
+  });
+
+  it("puts the plate's model on the row when it isn't the quote's, beside its own serial", () => {
+    const r = withSerials(readingFromQuote(twin), [{ role: "indoor", system: 2, room: "Study", model: "MSZ-AP35VG", modelRead: "MSZ-AP50VG", serial: "S-STUDY" }]);
+    expect(r.systems[1]!.indoors[0]).toMatchObject({ model: "MSZ-AP50VG", serial: "S-STUDY" });
+  });
+
+  it("never fills a row there's nothing to match by", () => {
+    const orphan = normaliseDraft({ options: [{ name: "Head", lines: ["A head."], units: [{ role: "indoor", room: "", capacity: "", type: "High wall", model: "", qty: 1, system: 0 }] }] })!.options;
+    const r = withSerials(readingFromQuote(orphan), [{ role: "indoor", system: null, room: "", model: "", modelRead: null, serial: "LOOSE" }]);
+    expect(r.systems[0]!.outdoor.serial).toBe("");
   });
 });

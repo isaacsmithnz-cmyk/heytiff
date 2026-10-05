@@ -117,14 +117,23 @@ export async function certListFiles(jobUuid: string): Promise<CertListFile[] | n
 async function unitSerials(orgId: string, jobUuid: string): Promise<UnitSerial[]> {
   const { data } = await supabaseAdmin
     .from("job_tasks")
-    .select("unit, serial")
+    .select("unit, serial, model_read")
     .eq("org_id", orgId)
     .eq("sm8_job_uuid", jobUuid)
     .eq("kind", "unit")
-    .not("serial", "is", null);
-  return ((data ?? []) as { unit: { room?: string; model?: string } | null; serial: string | null }[])
+    .not("serial", "is", null)
+    .order("sort", { ascending: true });
+  type Row = { unit: { role?: string; system?: number; room?: string; model?: string } | null; serial: string | null; model_read: string | null };
+  return ((data ?? []) as Row[])
     .filter((r) => r.unit && r.serial)
-    .map((r) => ({ room: r.unit!.room ?? "", model: r.unit!.model ?? "", serial: r.serial! }));
+    .map((r) => ({
+      role: r.unit!.role === "outdoor" || r.unit!.role === "fan" ? r.unit!.role : "indoor",
+      system: typeof r.unit!.system === "number" ? r.unit!.system : null,
+      room: r.unit!.room ?? "",
+      model: r.unit!.model ?? "",
+      modelRead: r.model_read,
+      serial: r.serial!,
+    }));
 }
 
 /** Everything the wizard opens on. Null for a job this workspace doesn't hold. */

@@ -46,6 +46,8 @@ type Answer =
       booked?: { day: string; crew: string[] }[];
       canMake: boolean;
       manage: boolean;
+      /** done, with something to say: the plate couldn't be read */
+      note?: string | null;
     }
   | { ok: false; reason: string };
 type Loaded = Extract<Answer, { ok: true }>;
@@ -80,6 +82,10 @@ async function photoOnJob(file: File, job: string): Promise<{ ok: true; document
   }
 }
 
+/** The time now, for the handlers that ask when the tasks were read —
+    never read while rendering. */
+const clockMs = () => Date.now();
+
 const ROLE_WORDS: Record<TaskPhoto["role"], string> = { unit: "The unit in place", plate: "The rating plate", other: "A photo" };
 
 /** What a unit task's line says of its photos. */
@@ -89,7 +95,7 @@ function photoWords(task: JobTask, photos: readonly TaskPhoto[]): string | null 
   if (n === 0) return "Unit and plate photos";
   return `${n} photo${n === 1 ? "" : "s"}${task.serial ? ", serial read" : ""}`;
 }
-const reasonOf = (a: Answer): string | null => (a.ok ? null : a.reason);
+const reasonOf = (a: Answer): string | null => (a.ok ? (a.note ?? null) : a.reason);
 
 export function JobVisitTasks({
   job,
@@ -122,6 +128,8 @@ export function JobVisitTasks({
   const [making, setMaking] = useState(false);
   const [saving, setSaving] = useState(false);
   const strip = useRef<HTMLOListElement>(null);
+  /* when the tasks were read: a photo's link lasts an hour */
+  const readAt = useRef(0);
 
   /* read once, the first time the face is open; no cancel on a tab switch,
      or a read that lands while another face is up would be dropped and
@@ -133,6 +141,7 @@ export function JobVisitTasks({
     fetch(`${ROUTE}?job=${encodeURIComponent(job)}`)
       .then((r) => r.json() as Promise<Answer>)
       .then((a) => {
+        readAt.current = clockMs();
         setData(loadedOf(a));
         setError(reasonOf(a));
       })
@@ -151,9 +160,25 @@ export function JobVisitTasks({
       a = { ok: false, reason: "That couldn't be saved. Try again." };
     }
     const next = loadedOf(a);
+    if (next) readAt.current = clockMs();
     if (next) setData(next);
     setError(reasonOf(a));
     return !!next;
+  };
+
+  /* a task opened, its photos' links read afresh when the last read is
+     near the hour they last */
+  const openTask = (id: string) => {
+    setOpenId(id);
+    if (clockMs() - readAt.current < 50 * 60 * 1000) return;
+    void fetch(`${ROUTE}?job=${encodeURIComponent(job)}`)
+      .then((r) => r.json() as Promise<Answer>)
+      .then((a) => {
+        const next = loadedOf(a);
+        if (next) readAt.current = clockMs();
+        if (next) setData(next);
+      })
+      .catch(() => undefined);
   };
 
   const make = async () => {
@@ -306,7 +331,7 @@ export function JobVisitTasks({
                             camera={photoWords(l.task, photos)}
                             live={slot.state !== "done" || l.lastDay === today}
                             saving={saving}
-                            onOpen={() => setOpenId(l.task.id)}
+                            onOpen={() => openTask(l.task.id)}
                             onTick={(to) => void edit({ kind: "progress", id: l.task.id, to, note: "" })}
                             undoTo={undoTo(l.task, updates)}
                           />
@@ -335,7 +360,7 @@ export function JobVisitTasks({
                     camera={photoWords(l.task, photos)}
                     live
                     saving={saving}
-                    onOpen={() => setOpenId(l.task.id)}
+                    onOpen={() => openTask(l.task.id)}
                     onTick={(to) => void edit({ kind: "progress", id: l.task.id, to, note: "" })}
                     undoTo={undoTo(l.task, updates)}
                   />
@@ -345,7 +370,7 @@ export function JobVisitTasks({
           )}
         </>
       ) : (
-        <AllTasks tasks={tasks} updates={updates} slots={slots} manage={manage} saving={saving} onOpen={setOpenId} onEdit={edit} />
+        <AllTasks tasks={tasks} updates={updates} slots={slots} manage={manage} saving={saving} onOpen={openTask} onEdit={edit} />
       )}
       {manage && data && tasks.length > 0 && view === "all" && <AddTask slots={slots} saving={saving} onAdd={edit} />}
       {manage && data && tasks.length === 0 && !data.canMake && <AddTask slots={slots} saving={saving} onAdd={edit} />}
@@ -781,7 +806,7 @@ function UnitPhotos({
             <label key={role} className={`pbtn ${role === "plate" && !photos.some((p) => p.role === "plate") ? "primary" : "ghost"} sm jcl-tfile`}>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 capture="environment"
                 className="sr-only"
                 disabled={saving}
@@ -840,7 +865,6 @@ function UnitPhotos({
                 <dt>Serial</dt>
                 <dd>
                   <b>{task.serial || "Not read"}</b>
-                  {task.serial && <em>Goes on the certificate</em>}
                 </dd>
               </dl>
               <div className="wb2-jqacts">
@@ -861,7 +885,7 @@ function UnitPhotos({
           )}
         </div>
       )}
-      {!read && !changing && photos.some((p) => p.role === "plate") && (
+      {!read && !changing && (
         <button type="button" className="pbtn ghost sm" disabled={saving} onClick={() => setChanging(true)}>
           Type the model and serial
         </button>

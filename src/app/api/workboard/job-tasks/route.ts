@@ -88,7 +88,7 @@ export async function PUT(req: Request) {
   const target = await resolveJobCard(who.orgId, job);
   const done = await applyTaskEdit(who.orgId, target.parentRemoteId, { userId: who.userId, name: await nameOf(who.orgId, who.userId) }, edit);
   if (!done.ok) return Response.json(done);
-  return Response.json(await answer(who.orgId, target.parentRemoteId, who.manage));
+  return Response.json({ ...(await answer(who.orgId, target.parentRemoteId, who.manage)), note: done.note ?? null });
 }
 
 /** The person's own name, for the line their update leaves. */

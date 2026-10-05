@@ -112,13 +112,14 @@ async function readTaskPhotos(orgId: string, taskIds: readonly string[]): Promis
 
 /** A rating plate's model and serial, read from its photo; null when the
     photo can't be read or holds neither. */
-export async function readPlate(storageRef: string, mime: string | null, client: Anthropic = new Anthropic()): Promise<{ model: string; serial: string } | null> {
+export async function readPlate(storageRef: string, mime: string | null, client?: Anthropic): Promise<{ model: string; serial: string } | null> {
   const { data: blob } = await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).download(storageRef);
   if (!blob) return null;
   const image = await imageForClaude(Buffer.from(await blob.arrayBuffer()), mime);
   if (!image) return null;
+  if (!client && !process.env.ANTHROPIC_API_KEY) return null;
   try {
-    const response = await client.beta.messages.create({
+    const response = await (client ?? new Anthropic()).beta.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
       betas: ["server-side-fallback-2026-06-01"],
@@ -276,6 +277,15 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const visitIn = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 99 ? v : null);
 const nameIn = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, MAX_TASK_NAME) : "");
 
+/** A task's serials with one more read: a row of several identical units
+    collects one each, comma between, never twice; a single unit's is the
+    newest. */
+export function serialsWith(have: string | null, read: string, qty: number): string {
+  if (qty <= 1 || !have) return read;
+  const list = have.split(",").map((s) => s.trim()).filter(Boolean);
+  return list.includes(read) ? list.join(", ") : [...list, read].slice(0, qty).join(", ");
+}
+
 /** An edit as the browser sent it, checked; null when it isn't one. */
 export function editOf(raw: unknown): TaskEdit | null {
   if (!raw || typeof raw !== "object") return null;
@@ -307,7 +317,14 @@ export function editOf(raw: unknown): TaskEdit | null {
       return id && documentId ? { kind: "photo", id, documentId, role } : null;
     }
     case "plate":
-      return id ? { kind: "plate", id, model: plateCode(o.model), serial: plateCode(o.serial) } : null;
+      return id
+        ? {
+            kind: "plate",
+            id,
+            model: plateCode(o.model),
+            serial: (typeof o.serial === "string" ? o.serial : "").split(",").map(plateCode).filter(Boolean).join(", "),
+          }
+        : null;
     case "unphoto": {
       const photoId = typeof o.photoId === "string" && UUID.test(o.photoId) ? o.photoId : null;
       return id && photoId ? { kind: "unphoto", id, photoId } : null;
@@ -317,7 +334,9 @@ export function editOf(raw: unknown): TaskEdit | null {
   }
 }
 
-export type EditResult = { ok: true } | { ok: false; reason: string };
+/** `note`: done, with something to say (the photo's kept, the plate
+    couldn't be read). */
+export type EditResult = { ok: true; note?: string } | { ok: false; reason: string };
 
 /** One edit, on this job's own task. `who` names the person for the
     update's line. */
@@ -345,8 +364,14 @@ export async function applyTaskEdit(
     return error ? { ok: false, reason: "The task couldn't be added. Try again." } : { ok: true };
   }
 
-  const { data } = await supabaseAdmin.from("job_tasks").select("id, progress").eq("org_id", orgId).eq("sm8_job_uuid", cardId).eq("id", edit.id).maybeSingle();
-  const row = data as { id: string; progress: number } | null;
+  const { data } = await supabaseAdmin
+    .from("job_tasks")
+    .select("id, progress, unit, serial, model_read")
+    .eq("org_id", orgId)
+    .eq("sm8_job_uuid", cardId)
+    .eq("id", edit.id)
+    .maybeSingle();
+  const row = data as { id: string; progress: number; unit?: TaskUnit | null; serial?: string | null; model_read?: string | null } | null;
   if (!row) return { ok: false, reason: "That task isn't on this job any more." };
   const now = new Date().toISOString();
 
@@ -412,12 +437,13 @@ export async function applyTaskEdit(
       if (error) return { ok: false, reason: "That photo couldn't be kept. Try again." };
       if (edit.role === "plate") {
         const plate = await read(d.storage_ref, d.mime_type);
-        if (!plate) return { ok: false, reason: "The plate couldn't be read from that photo. Type the model and serial instead." };
-        await supabaseAdmin
-          .from("job_tasks")
-          .update({ model_read: plate.model || null, serial: plate.serial || null, updated_at: now })
-          .eq("org_id", orgId)
-          .eq("id", edit.id);
+        /* the photo stays on the task either way; a plate that can't be read
+           is typed in instead */
+        if (!plate) return { ok: true, note: "The plate couldn't be read from that photo. Type the model and serial instead." };
+        const update: Record<string, string> = { updated_at: now };
+        if (plate.model) update.model_read = plate.model;
+        if (plate.serial) update.serial = serialsWith(row.serial ?? null, plate.serial, row.unit?.qty ?? 1);
+        await supabaseAdmin.from("job_tasks").update(update).eq("org_id", orgId).eq("id", edit.id);
       }
       return { ok: true };
     }

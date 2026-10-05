@@ -1,6 +1,7 @@
 import type { ProposalOption, UnitLine } from "@/lib/quotes/proposal";
 import { EMPTY_FAN, EMPTY_ROW, EMPTY_TEST, type AcRow, type AcSystem, type FanRow } from "./mechanical";
 import { installedFrom, type QuoteReading } from "./quote";
+import { sameModel } from "@/lib/workboard/plate-read";
 
 /* THE EQUIPMENT, FROM THE ACCEPTED QUOTE. A job quoted in HeyTiff holds its
    equipment as rows (lib/quotes/proposal, UnitLine): each outdoor unit, the
@@ -58,29 +59,36 @@ export function readingFromQuote(options: readonly ProposalOption[]): QuoteReadi
 
 /** A unit's serial, read off its rating plate on the job's Installation
     (Isaac, 2026-10-06: "serial numbers etc. can be read from there using
-    photos"). */
-export type UnitSerial = { room: string; model: string; serial: string };
+    photos"): the quote's unit it's for — its role, system, place and model
+    — and what the plate said. */
+export type UnitSerial = { role: "outdoor" | "indoor" | "fan"; system: number | null; room: string; model: string; modelRead: string | null; serial: string };
 
 /** The certificate's rows with the serials read on the job: each row takes
-    the serial of the unit in the same place with the same model, once. A
-    row with no such unit keeps what it had. */
+    the serial of the quote's unit in the same system and place with the
+    same model, once; where the plate's model isn't the quote's, the row
+    takes the plate's — the certificate says what's on the wall. A row with
+    no such unit, or nothing to match by, keeps what it had. */
 export function withSerials(reading: QuoteReading, serials: readonly UnitSerial[]): QuoteReading {
-  const key = (place: string, model: string) => `${place.trim().toLowerCase()}|${model.toUpperCase().replace(/\s/g, "")}`;
-  const left = new Map<string, string[]>();
-  for (const s of serials) {
-    if (!s.serial.trim()) continue;
-    const k = key(s.room, s.model);
-    left.set(k, [...(left.get(k) ?? []), s.serial.trim()]);
-  }
-  const take = <R extends { location: string; model: string; serial: string }>(row: R): R => {
-    const queue = left.get(key(row.location, row.model));
-    const serial = queue?.shift();
-    return serial && !row.serial ? { ...row, serial } : row;
+  const norm = (place: string, model: string) => `${place.trim().toLowerCase()}|${model.toUpperCase().replace(/\s/g, "")}`;
+  const left = serials.filter((s) => s.serial.trim()).map((s) => ({ ...s, used: false }));
+  const take = <R extends { location: string; model: string; serial: string }>(row: R, role: UnitSerial["role"], system: number | null): R => {
+    if (row.serial || (!row.location.trim() && !row.model.trim())) return row;
+    const hit = left.find((s) => !s.used && s.role === role && (system == null || s.system == null || s.system === system) && norm(s.room, s.model) === norm(row.location, row.model));
+    if (!hit) return row;
+    hit.used = true;
+    const model = hit.modelRead && !sameModel(hit.modelRead, hit.model) ? hit.modelRead : row.model;
+    return { ...row, model, serial: hit.serial.trim() };
   };
+  /* the systems are the quote's outdoor units in order, numbered from 1; a
+     last system with no outdoor holds the indoor units no outdoor ran */
+  const outdoors = reading.systems.filter((s) => s.outdoor.location.trim() || s.outdoor.model.trim()).length;
   return {
     ...reading,
-    systems: reading.systems.map((s) => ({ ...s, outdoor: take(s.outdoor), indoors: s.indoors.map(take) })),
-    fans: reading.fans.map(take),
+    systems: reading.systems.map((s, i) => {
+      const system = i < outdoors ? i + 1 : null;
+      return { ...s, outdoor: take(s.outdoor, "outdoor", system), indoors: s.indoors.map((r) => take(r, "indoor", system)) };
+    }),
+    fans: reading.fans.map((f) => take(f, "fan", null)),
   };
 }
 

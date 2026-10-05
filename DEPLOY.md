@@ -60,7 +60,7 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `APP_BASE_URL` | **`https://heytiff.vercel.app`** ← the one value that differs from local |
 | `SUPABASE_SERVICE_ROLE_KEY` | same as local |
 | `SUPABASE_JWT_SECRET` | same as local |
-| `HQ_EMAILS` | comma-separated allowlist of staff logins for the hidden `/hq` portal (see `docs/hq-portal.md`). **Unset ⇒ `/hq` 404s for everyone** (fail-closed). |
+| `HQ_USER_IDS` | comma-separated allowlist of Auth0 account ids (a profile's `user_id`) for the hidden `/hq` portal — ids, not emails, so a changed sign-in address keeps access (`src/lib/hq/allow.ts`). **Unset ⇒ `/hq` 404s for everyone** (fail-closed). |
 | `GOOGLE_MAPS_API_KEY` | Google Places key behind the address autocomplete on the staff and Organisation address fields. **Optional — unset, those fields are plain text inputs and nothing else changes.** Server-side only: it is read in the `/api/address` proxy and must never be given a `NEXT_PUBLIC_` prefix, which would ship it to every browser. |
 | `XERO_CLIENT_ID` | See **Xero** below. Optional — unset, Admin → Integrations renders but says connecting isn't available. |
 | `XERO_CLIENT_SECRET` | Same. Server-side only, never `NEXT_PUBLIC_`. |

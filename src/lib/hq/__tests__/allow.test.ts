@@ -1,11 +1,11 @@
-import { hqAllowlist, isHqEmail } from "../allow";
+import { hqAllowlist, isHqUser } from "../allow";
 
 describe("hqAllowlist", () => {
-  it("splits, trims, lowercases and drops blanks", () => {
-    expect(hqAllowlist("A@x.com, b@Y.com ,, c@z.com,")).toEqual([
-      "a@x.com",
-      "b@y.com",
-      "c@z.com",
+  it("splits, trims and drops blanks", () => {
+    expect(hqAllowlist("auth0|abc, google-oauth2|123 ,, auth0|def,")).toEqual([
+      "auth0|abc",
+      "google-oauth2|123",
+      "auth0|def",
     ]);
   });
 
@@ -16,24 +16,28 @@ describe("hqAllowlist", () => {
   });
 });
 
-describe("isHqEmail", () => {
-  const raw = "isaac@heytiff.com, staff@heytiff.com";
+describe("isHqUser", () => {
+  const raw = "auth0|6a3a0a461bc41e0eea64e546, auth0|staff";
 
-  it("matches case-insensitively regardless of surrounding space", () => {
-    expect(isHqEmail("isaac@heytiff.com", raw)).toBe(true);
-    expect(isHqEmail("ISAAC@heytiff.com", raw)).toBe(true);
-    expect(isHqEmail("  staff@HEYTIFF.com ", raw)).toBe(true);
+  it("matches the account id, whatever space surrounds it", () => {
+    expect(isHqUser("auth0|6a3a0a461bc41e0eea64e546", raw)).toBe(true);
+    expect(isHqUser(" auth0|staff ", raw)).toBe(true);
   });
 
-  it("rejects emails not on the list", () => {
-    expect(isHqEmail("stranger@gmail.com", raw)).toBe(false);
+  it("is exact: Auth0 ids are case-sensitive, and another identity is another user", () => {
+    expect(isHqUser("auth0|6A3A0A461BC41E0EEA64E546", raw)).toBe(false);
+    expect(isHqUser("google-oauth2|6a3a0a461bc41e0eea64e546", raw)).toBe(false);
   });
 
-  it("fails closed: empty email or empty allowlist ⇒ false", () => {
-    expect(isHqEmail(null, raw)).toBe(false);
-    expect(isHqEmail(undefined, raw)).toBe(false);
-    expect(isHqEmail("", raw)).toBe(false);
-    expect(isHqEmail("isaac@heytiff.com", "")).toBe(false);
-    expect(isHqEmail("isaac@heytiff.com", undefined)).toBe(false);
+  it("rejects ids not on the list", () => {
+    expect(isHqUser("auth0|stranger", raw)).toBe(false);
+  });
+
+  it("fails closed: empty id or empty allowlist ⇒ false", () => {
+    expect(isHqUser(null, raw)).toBe(false);
+    expect(isHqUser(undefined, raw)).toBe(false);
+    expect(isHqUser("", raw)).toBe(false);
+    expect(isHqUser("auth0|staff", "")).toBe(false);
+    expect(isHqUser("auth0|staff", undefined)).toBe(false);
   });
 });

@@ -4,7 +4,7 @@ import { auth0 } from "./lib/auth0";
 import { INVITEE_HINT_COOKIE, clearInviteeHint, hintedLoginUrl } from "./lib/invite-hint";
 
 // Login gate only (optimistic, per Next 16 proxy guidance). Fine-grained HQ
-// staff authorization (the HQ_EMAILS allowlist → 404) lives in the /hq layout,
+// staff authorization (the HQ_USER_IDS allowlist → 404) lives in the /hq layout,
 // pages and every /hq server action — never here.
 const protectedRoutes = ["/dashboard", "/hq", "/welcome", "/start"];
 

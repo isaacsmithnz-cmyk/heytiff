@@ -116,7 +116,7 @@ export default async function HqOverviewPage() {
   );
 
   const REQUIRED_ENV = [
-    "HQ_EMAILS",
+    "HQ_USER_IDS",
     "NEXT_PUBLIC_SUPABASE_URL",
     "SUPABASE_SERVICE_ROLE_KEY",
     "AUTH0_DOMAIN",

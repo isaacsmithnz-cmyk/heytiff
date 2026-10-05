@@ -129,24 +129,24 @@ describe("saveOrgSection", () => {
      it — so the conversion is the feature, and a string "14" reaching the
      column would be the database's problem to refuse instead of ours. */
   it("stores payment terms as a NUMBER, not the text the form sent", async () => {
-    await saveOrgSection("identity", { payment_terms_days: "14" });
+    await saveOrgSection("preferences", { payment_terms_days: "14" });
     expect(update.mock.calls[0][0]).toMatchObject({ payment_terms_days: 14 });
   });
 
   it("keeps 0 — due on receipt is an answer, not an empty box", async () => {
-    await saveOrgSection("identity", { payment_terms_days: "0" });
+    await saveOrgSection("preferences", { payment_terms_days: "0" });
     expect(update.mock.calls[0][0]).toMatchObject({ payment_terms_days: 0 });
   });
 
   it("clears the terms on empty", async () => {
-    await saveOrgSection("identity", { payment_terms_days: "" });
+    await saveOrgSection("preferences", { payment_terms_days: "" });
     expect(update.mock.calls[0][0]).toMatchObject({ payment_terms_days: null });
   });
 
   it("refuses terms that are not whole days, before writing", async () => {
     for (const junk of ["two weeks", "7.5", "-3", "3000"]) {
       update.mockClear();
-      const res = await saveOrgSection("identity", { payment_terms_days: junk });
+      const res = await saveOrgSection("preferences", { payment_terms_days: junk });
       expect(res).toMatchObject({ ok: false, fields: ["payment_terms_days"] });
       expect(update).not.toHaveBeenCalled();
     }
@@ -358,24 +358,24 @@ describe("getOrgBrand", () => {
    "we don't know". */
 describe("the expiry window", () => {
   it("stores the window as a NUMBER, not the text the form sent", async () => {
-    await saveOrgSection("identity", { expiry_warn_days: "14" });
+    await saveOrgSection("preferences", { expiry_warn_days: "14" });
     expect(update.mock.calls[0][0]).toMatchObject({ expiry_warn_days: 14 });
   });
 
   it("refuses a window the CHECK would refuse, before writing — blank included", async () => {
     for (const junk of ["", "0", "366", "-14", "1.5", "thirty"]) {
       update.mockClear();
-      const res = await saveOrgSection("identity", { expiry_warn_days: junk });
+      const res = await saveOrgSection("preferences", { expiry_warn_days: junk });
       expect(res).toMatchObject({ ok: false, fields: ["expiry_warn_days"] });
       expect(update).not.toHaveBeenCalled();
     }
   });
 
   it("converts the email switch to a boolean", async () => {
-    await saveOrgSection("identity", { expiry_email: "No" });
+    await saveOrgSection("preferences", { expiry_email: "No" });
     expect(update.mock.calls[0][0]).toMatchObject({ expiry_email: false });
     update.mockClear();
-    await saveOrgSection("identity", { expiry_email: "Yes" });
+    await saveOrgSection("preferences", { expiry_email: "Yes" });
     expect(update.mock.calls[0][0]).toMatchObject({ expiry_email: true });
   });
 });

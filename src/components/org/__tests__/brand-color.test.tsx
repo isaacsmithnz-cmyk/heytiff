@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { BrandColorPicker } from "../brand-color";
 
-/* The document colour, and the miniature sheet it repaints. Its value lives on
-   the server, so each test re-renders with whatever the last write left — the
-   way the page does after revalidation. */
+/* The document colour row: a swatch, the hex, Remove. Its value lives on the
+   server, so each test re-renders with whatever the last write left — the way
+   the page does after revalidation. */
 function setup(initial: string | null = null) {
   let value = initial;
   const onSet = jest.fn(async (hex: string) => {
@@ -14,53 +14,69 @@ function setup(initial: string | null = null) {
     value = null;
     return { ok: true as const };
   });
-  const view = () => (
-    <BrandColorPicker value={value} name="Blue Sky Air" abn="51 824 753 556" onSet={onSet} onClear={onClear} />
-  );
+  const view = () => <BrandColorPicker value={value} onSet={onSet} onClear={onClear} />;
   const utils = render(view());
-  const band = () => (utils.container.querySelector(".orgcol-band") as HTMLElement).style.background;
-  return { ...utils, onSet, onClear, band, refresh: () => utils.rerender(view()) };
+  return { ...utils, onSet, onClear, refresh: () => utils.rerender(view()) };
 }
 
-it("frames the sheet in the colour once one is picked", async () => {
-  const { band, refresh, onSet } = setup();
-  expect(band()).toBe("transparent");
+const swatch = () => screen.getByLabelText("Brand colour") as HTMLInputElement;
+const hex = () => screen.getByLabelText("Brand colour hex") as HTMLInputElement;
 
-  const swatch = screen.getByLabelText("Brand colour");
+it("saves a picked colour when the pointer lets go, and shows it in the box", async () => {
+  const { onSet, refresh } = setup();
   await act(async () => {
-    fireEvent.input(swatch, { target: { value: "#ff0000" } });
-    fireEvent.change(swatch, { target: { value: "#ff0000" } });
+    fireEvent.input(swatch(), { target: { value: "#ff0000" } });
+    fireEvent.change(swatch(), { target: { value: "#ff0000" } });
   });
   refresh();
   expect(onSet).toHaveBeenCalledWith("#ff0000");
-  expect(band()).not.toBe("transparent");
+  expect(hex()).toHaveValue("#ff0000");
+  expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 });
 
-/* Remove cleared the hex box and nothing else: once the picker had been
-   touched, the sheet went on drawing the removed colour's frame and the
-   swatch went on showing it — a preview of a document nobody can now get. */
-it("takes the frame off the sheet when the colour is removed", async () => {
-  const { band, refresh } = setup();
-  const swatch = screen.getByLabelText("Brand colour") as HTMLInputElement;
+/* A drag across the spectrum is hundreds of `input` events and one `change`:
+   saving on every frame would be hundreds of writes for one decision. */
+it("does not save while the swatch is still being dragged", async () => {
+  const { onSet } = setup();
   await act(async () => {
-    fireEvent.input(swatch, { target: { value: "#ff0000" } });
-    fireEvent.change(swatch, { target: { value: "#ff0000" } });
+    fireEvent.input(swatch(), { target: { value: "#112233" } });
+    fireEvent.input(swatch(), { target: { value: "#445566" } });
   });
-  refresh();
+  expect(onSet).not.toHaveBeenCalled();
+});
+
+it("saves a typed hex on Enter", async () => {
+  const { onSet } = setup();
+  await act(async () => {
+    fireEvent.change(hex(), { target: { value: "#0a7d3b" } });
+    fireEvent.keyDown(hex(), { key: "Enter" });
+  });
+  expect(onSet).toHaveBeenCalledWith("#0a7d3b");
+});
+
+it("refuses something that isn't a colour, and says so without a round trip", async () => {
+  const { onSet } = setup();
+  await act(async () => {
+    fireEvent.change(hex(), { target: { value: "blue" } });
+    fireEvent.keyDown(hex(), { key: "Enter" });
+  });
+  expect(screen.getByText("That isn't a colour — use a hex value like #1a2b4c.")).toBeInTheDocument();
+  expect(onSet).not.toHaveBeenCalled();
+});
+
+/* Remove cleared the hex box and nothing else: the swatch went on showing the
+   removed colour beside a field that said nothing. */
+it("puts the swatch and the box back when the colour is removed", async () => {
+  const { onClear, refresh } = setup("#ff0000");
+  expect(swatch().value).toBe("#ff0000");
 
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
   });
   refresh();
 
-  expect(band()).toBe("transparent");
-  expect(swatch.value).not.toBe("#ff0000");
-  expect(screen.getByLabelText("Brand colour hex")).toHaveValue("");
+  expect(onClear).toHaveBeenCalled();
+  expect(swatch().value).not.toBe("#ff0000");
+  expect(hex()).toHaveValue("");
   expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
-});
-
-it("prints the business's own name and ABN on separate lines", () => {
-  const { container } = setup();
-  const lines = Array.from(container.querySelectorAll(".orgcol-page span")).map((s) => s.textContent);
-  expect(lines).toEqual(["Blue Sky Air", "ABN 51 824 753 556"]);
 });

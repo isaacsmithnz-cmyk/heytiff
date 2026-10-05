@@ -3,38 +3,39 @@
 import { useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { uploadFile } from "@/lib/documents/upload-client";
-import { BrandLogo } from "./letterhead";
-import { NO_BRAND } from "@/lib/org/brand";
 import type { SaveResult } from "./types";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
-/* The company logo.
+/* The company logo — one ROW on the Company tab, like every other setting.
 
-   IT IS NOT INSIDE AN EDIT FORM ANY MORE, and that is the whole change. It used
-   to be the last field of the Company identity card's edit view: the only way
-   to discover the app could hold a logo at all was to press Edit on a card
-   titled after something else and scroll to the bottom of a form. Read the
-   screen and there was no logo on it — which is indistinguishable from the
-   feature not existing.
+   IT IS NOT INSIDE AN EDIT FORM, and that is the whole point of where it lives.
+   It used to be the last field of a card's edit view: the only way to discover
+   the app could hold a logo at all was to press Edit on a card titled after
+   something else and scroll to the bottom of a form. Read the screen and there
+   was no logo on it — indistinguishable from the feature not existing.
 
-   So it is a TILE on the Your business card now, in read mode, always. Empty,
-   it is a dashed drop target that says what it wants; filled, it is the logo at
-   the size it will be used. Either way it is the first thing on the screen.
+   So the row says what is there: the artwork in a box at the size it prints,
+   or that initials stand in, and the one verb that fits (Upload, or Replace and
+   Remove). The row is also the drop target, because a drop is the gesture
+   people reach for with an image.
 
    THE BYTES DON'T COME THROUGH HERE. uploadFile asks the server for a signed
    slot, PUTs the file straight to storage and confirms it; all this component
    then does is hand the resulting document id to setOrgLogo, which re-checks
    that the document is this org's, is an org_logo, and finished uploading.
 
-   IT SAVES ITSELF — it always did, and now nothing around it pretends
-   otherwise. Picking a file writes it immediately, because the thing you are
-   looking at IS the confirmation. There is no card draft to keep in step now
-   that it sits outside the edit cycle. */
+   IT SAVES ITSELF. Picking a file writes it immediately, because the row
+   changing IS the confirmation — there is no card draft to keep in step.
+
+   WHERE IT LANDS IS NOT SHOWN HERE. The templates draw every document with the
+   logo on it, so that is where to check it against a white page and a dark bar;
+   a second copy of those surfaces on this screen was a preview built from rules
+   that could drift from the real ones. */
 
 /** Same set the server accepts; the picker filters on it and the drop handler
     re-checks it, because a drop bypasses `accept` entirely.
 
-    NO SVG. The tile offered it from the start, and it could never be stored:
+    NO SVG. The row offered it from the start, and it could never be stored:
     `checkUpload` (lib/documents/files) and the `documents` bucket's own MIME
     allowlist both refuse image/svg+xml, so an SVG got as far as "photos and
     PDFs only" and stopped. Offering it here is a promise the storage layer
@@ -85,10 +86,8 @@ export function LogoUploader({
     }, () => setBusy(false));
   };
 
-  /* A drop is the gesture people reach for with an image, and the tile is
-     already the right shape for it. It refuses a non-image HERE rather than
-     letting the round trip refuse it, because the answer is instant and the
-     file never leaves the machine. */
+  /* It refuses a non-image HERE rather than letting the round trip refuse it,
+     because the answer is instant and the file never leaves the machine. */
   const drop = (e: React.DragEvent) => {
     e.preventDefault();
     setOver(false);
@@ -103,33 +102,25 @@ export function LogoUploader({
   };
 
   return (
-    <div className="orglogo">
-      {/* The tile is the button. Not a <button> wrapping an <img>, because the
-          same element is also the drop zone and a nested Remove control would
-          be a button inside a button — the Remove sits beside it below. */}
-      <div
-        className={`orglogo-tile${logoUrl ? " has" : ""}${over ? " over" : ""}${busy ? " busy" : ""}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setOver(true);
-        }}
-        onDragLeave={() => setOver(false)}
-        onDrop={drop}
-      >
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+    <div
+      className={`orglogo${over ? " over" : ""}${busy ? " busy" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={drop}
+    >
+      {logoUrl ? (
+        <span className="orglogo-thumb">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoUrl} alt="Company logo" />
-        ) : (
-          <span className="orglogo-empty">
-            <Icon name="upload" size={22} />
-            <b>Drop an image</b>
-            <em>PNG, JPG or WEBP</em>
-          </span>
-        )}
-        {busy && <span className="orglogo-busy" aria-hidden="true" />}
-      </div>
+        </span>
+      ) : (
+        <span className="orglogo-none">Initials stand in</span>
+      )}
 
-      <div className="orglogo-act">
+      <span className="orglogo-act">
         <button
           className="pbtn ghost"
           type="button"
@@ -144,39 +135,7 @@ export function LogoUploader({
             Remove
           </button>
         )}
-      </div>
-
-      {/* WHERE IT ACTUALLY GOES.
-
-          The tile above is the artwork on white at 224px, and on its own that
-          is a preview which cannot fail — every logo looks right that big on
-          that ground. The two places a customer meets this logo are neither:
-          a document, and the dark bar on a share link at 26px tall. The rail
-          shipped a logo 9px tall in black ink on black because nothing on this
-          screen could have told anyone otherwise.
-
-          So the sentence that used to sit here — "Goes on everything the
-          business sends a customer" — is now the picture instead, and only the
-          empty state still says it in words, where there is nothing to draw.
-
-          Built from the same `BrandLogo` and the same classes the real
-          surfaces use, over their real grounds. A preview assembled from a
-          COPY of those rules is one that drifts, and a drifting preview is
-          worse than none: it is confidently wrong. */}
-      {logoUrl ? (
-        <div className="orglogo-uses">
-          <div className="orglogo-use paper">
-            <em>On a document</em>
-            <BrandLogo brand={{ ...NO_BRAND, logoUrl }} className="org-lh-logo" />
-          </div>
-          <div className="orglogo-use dark">
-            <em>On a share link</em>
-            <BrandLogo brand={{ ...NO_BRAND, logoUrl }} className="org-mark-logo org-plate" />
-          </div>
-        </div>
-      ) : (
-        <p className="orglogo-where">Goes on everything the business sends a customer.</p>
-      )}
+      </span>
 
       <input
         ref={fileRef}

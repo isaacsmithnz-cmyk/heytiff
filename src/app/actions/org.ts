@@ -100,7 +100,8 @@ export async function saveOrgSection(
   }
 
   /* The expiry window: one number for everything that expires, and whether the
-     morning email carries it. Both ride the identity card. The number is NOT
+     morning email carries it. Both ride the Preferences tab, as does payment
+     terms above. The number is NOT
      NULL in the table, so a cleared box is refused rather than written. */
   if (warnRaw !== undefined) {
     const days = readExpiryWarnDays(warnRaw ?? "");

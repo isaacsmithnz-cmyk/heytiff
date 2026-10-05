@@ -228,3 +228,38 @@ describe("what a kit line needs, read back", () => {
     expect(needWords("wall_bracket", { kg: 114, w: 1050 })).toBe("114 kg, 1050 mm wide");
   });
 });
+
+/* the whole book read on 2026-10-06, before Isaac walks his ranges: the
+   names the first samples didn't have */
+describe("the rest of the book's names", () => {
+  it("takes AAD's metal BTOs and double BTOs as fittings, and no fitting with a range of sizes at each end", () => {
+    for (const n of ["METAL BTO200.150.150 NSW", "METAL DBTO250.200.200.200 NSW", "DBTO 250.200.150.150 INSULATED", "Y 150.100.100 PLAIN", "300 X 200 X 200 X 200 DBTO METAL (EA)"]) {
+      expect([n, inKind("fitting", n)]).toEqual([n, true]);
+    }
+    expect(fittingOf("METAL BTO200.150.150 NSW")).toEqual({ ins: [200], outs: [150, 150] });
+    expect(fittingOf("QUIETFLO FLEXI Y 400 350 300")).toEqual({ ins: [400], outs: [350, 300] });
+    expect(fittingOf("DBTO 400-450, 300-350-400, 200-250, 200-250 INS")).toBeNull();
+    /* a comma after one fitting's sizes is only a comma */
+    expect(fittingOf("Y 14-10-10, insulated")).toEqual({ ins: [350], outs: [250, 250] });
+    expect(fittingOf("Bto 12- 8- 8- 8, plain")).toEqual({ ins: [300], outs: [200, 200, 200] });
+  });
+
+  it("never reads a square face as a round diffuser's size", () => {
+    expect(inKind("round_diffuser", "Flush Face Diffuser White 4W 300 x 300")).toBe(false);
+    expect(inKind("round_diffuser", "AIRFORM FULLCONE ROUND DIFFUSER 250MM (EA)")).toBe(true);
+    expect(size("round_diffuser", "Ventmann Circular Diffuser 250")).toEqual({ mm: 250 });
+  });
+
+  it("takes a chevron return, and leaves slotted angle and strut out of slot diffusers", () => {
+    expect(inKind("return_grille", "HALF CHEVRON R/A FILTERED HINGED 900X400")).toBe(true);
+    expect(size("return_grille", "HALF CHEVRON R/A FILTERED HINGED 900X400")).toEqual({ w: 900, h: 400 });
+    expect(inKind("slot_diffuser", "SLOTTED ANGLE 30X30-2.5mm 3M")).toBe(false);
+    expect(inKind("slot_diffuser", "STRUT SLOTTED 40X20X2.5 3MTR")).toBe(false);
+    expect(inKind("slot_diffuser", "LINEAR 2 SLOT DIFF 1200X97 RC")).toBe(true);
+  });
+
+  it("takes a motorised zone damper by its size", () => {
+    expect(inKind("zone_damper", "ZONEBOSS PLA MOTOR DAMPER 3NM 24V 250MM (EA)")).toBe(true);
+    expect(size("zone_damper", "ZONEBOSS PLA MOTOR DAMPER 3NM 24V 250MM (EA)")).toEqual({ mm: 250 });
+  });
+});

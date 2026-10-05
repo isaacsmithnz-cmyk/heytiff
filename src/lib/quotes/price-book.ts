@@ -512,7 +512,7 @@ export function planInvoices(
       code: r.code,
       /* the list's own words and price stay; an invoiced item takes the newest invoice's */
       name: listed || older ? had.name : r.name,
-      cents: listed ? had.cents : r.cents,
+      cents: listed || older ? had.cents : r.cents,
       previous_cents: had?.previous_cents ?? null,
       price_changed_at: had?.price_changed_at ?? null,
       first_seen_at: had?.first_seen_at ?? ctx.now,

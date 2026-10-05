@@ -1825,7 +1825,7 @@ describe("the Visits face", () => {
     expect(f.queryByText("0m")).toBeNull();
   });
 
-  it("lays every visit out as a card, oldest first, numbered by day", async () => {
+  it("lays every visit out as a card, oldest first, numbered as visits", async () => {
     const many = Array.from({ length: 12 }, (_, i) => ({
       day: `2026-08-${String(20 - i).padStart(2, "0")}`,
       minutes: 60,
@@ -1839,9 +1839,9 @@ describe("the Visits face", () => {
     const strip = within(screen.getByRole("list", { name: "Visits, oldest first" }));
     const cards = strip.getAllByRole("listitem");
     expect(cards).toHaveLength(12);
-    expect(within(cards[0]!).getByText("Day 1")).toBeInTheDocument();
+    expect(within(cards[0]!).getByText("Visit 1")).toBeInTheDocument();
     expect(within(cards[0]!).getByText("Sun 9 Aug")).toBeInTheDocument();
-    expect(within(cards[11]!).getByText("Day 12")).toBeInTheDocument();
+    expect(within(cards[11]!).getByText("Visit 12")).toBeInTheDocument();
     expect(within(cards[11]!).getByText("Thu 20 Aug")).toBeInTheDocument();
     /* an hour for one person is a pop-in */
     expect(within(cards[0]!).getByText("Pop-in")).toBeInTheDocument();

@@ -7,6 +7,7 @@ import {
   namesSupplier,
   otherSupplierNamed,
   parseInvoiceRead,
+  tidyName,
   withBookPrices,
   type HeldItem,
 } from "../invoice-read";
@@ -193,4 +194,22 @@ it("asks for every field it reads, with nothing left open — structured output 
   expect([...item.required].sort()).toEqual(Object.keys(item.properties).sort());
   expect(INVOICE_LINES_SCHEMA.additionalProperties).toBe(false);
   expect(item.additionalProperties).toBe(false);
+});
+
+describe("a product's name, readable", () => {
+  it.each([
+    ["4.5kW C/M Compact CeilingConcealed450mmD", "4.5kW C/M Compact Ceiling Concealed 450mmD"],
+    ["Indoor Unit - wireless R/C with WiFi", "Indoor Unit - wireless R/C with WiFi"],
+    ["AirTouch 5 zone controller", "AirTouch 5 zone controller"],
+    ["PEFY-P40VMX-E1 ducted , low static", "PEFY-P40VMX-E1 ducted, low static"],
+    ["- Wired controller ( backlit ) --", "Wired controller (backlit)"],
+    ["Pipe clamp,, 9.52mm", "Pipe clamp, 9.52mm"],
+  ])("%s", (raw, clean) => {
+    expect(tidyName(raw)).toBe(clean);
+  });
+
+  it("reads an invoice's lines with their names made readable", () => {
+    const read = parseInvoiceRead({ lines: [line("PEFY-P40VMX-E1", "4.5kW C/M Compact CeilingConcealed450mmD", 1, 910.52)] }, TODAY);
+    expect(read.lines[0]!.name).toBe("4.5kW C/M Compact Ceiling Concealed 450mmD");
+  });
 });

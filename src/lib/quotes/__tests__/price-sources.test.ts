@@ -131,6 +131,25 @@ describe("invoices", () => {
     expect(plan.upserts[1]).toMatchObject({ supplier_key: "mitsubishi", on_list: false, cents: 87152, paid_cents: 87152, paid_on: "2026-08-31" });
   });
 
+  it("keeps an invoiced item's name over the same words run together, and takes new words when they differ", () => {
+    const before = book(
+      stored("PEFY-P40VMX-E1", { name: "4.5kW C/M Compact Ceiling Concealed 450mmD", cents: 90000, on_list: false, paid_cents: 90000, paid_on: "2026-09-21" }),
+      stored("PEFY-P50VMX-E1", { name: "5.6kW C/M Compact Ceiling Concealed 450mmD", cents: 94900, on_list: false, paid_cents: 94900, paid_on: "2026-09-21" })
+    );
+    const plan = planInvoices(
+      before,
+      [
+        { code: "PEFY-P40VMX-E1", name: "4.5kW C/M Compact CeilingConcealed450mmD", cents: 91052, pricedOn: "2026-10-03" },
+        { code: "PEFY-P50VMX-E1", name: "5.6kW City Multi compact ducted, 450 deep", cents: 95500, pricedOn: "2026-10-03" },
+      ],
+      { ...ctx, today: "2026-10-05" }
+    );
+    expect(plan.upserts.map((u) => [u.name, u.paid_cents])).toEqual([
+      ["4.5kW C/M Compact Ceiling Concealed 450mmD", 91052],
+      ["5.6kW City Multi compact ducted, 450 deep", 95500],
+    ]);
+  });
+
   it("an older invoice never replaces a newer one's price, counts or words", () => {
     const before = book(
       stored("PAR-41MAAM", { paid_cents: 12530, paid_on: "2026-09-21", times_bought: 40, qty_bought: 181 }),

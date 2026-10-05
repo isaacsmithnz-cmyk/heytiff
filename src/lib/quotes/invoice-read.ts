@@ -93,6 +93,24 @@ const NOT_A_PRODUCT =
   /\b(freight|cartage|courier|postage|surcharge|card\s*fee|merchant\s*fee|rounding|deposit|payment|small\s*order\s*(fee|charge)|delivery\s*(charge|fee))\b|^delivery$/i;
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
+
+/** A product's name, readable (Isaac, 2026-10-05: "I just want the name to
+    be understandable and clear, no bad punctuation"): the words a print
+    runs together pulled apart — "CeilingConcealed450mmD" is "Ceiling
+    Concealed 450mmD" — and stray spacing and punctuation gone. A code, a
+    brand ("WiFi", "AirTouch") and a size ("4.5kW", "450mmD") are left as
+    they are. */
+export function tidyName(raw: string): string {
+  return raw
+    .replace(/([a-z]{3,})([A-Z][a-z]{3,})/g, "$1 $2")
+    .replace(/\b([A-Z][a-z]{3,})(\d)/g, "$1 $2")
+    .replace(/\s+([,.;:)])/g, "$1")
+    .replace(/\(\s+/g, "(")
+    .replace(/([,;:\-–/])\1+/g, "$1")
+    .replace(/^[\s,.;:\-–/*]+|[\s,;:\-–/*]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
 /** A date as yyyy-mm-dd, when it's a real one and not after today: a date
@@ -128,7 +146,7 @@ export function parseInvoiceRead(raw: unknown, today: string): InvoiceRead {
   for (const l of Array.isArray(r.lines) ? r.lines.slice(0, MAX_INVOICE_LINES) : []) {
     const line = (l && typeof l === "object" ? l : {}) as Record<string, unknown>;
     const code = str(line.code, 80);
-    const name = str(line.description, 200);
+    const name = tidyName(str(line.description, 200));
     const qty = num(line.qty);
     const label = name || code || "A line";
     if (NOT_A_PRODUCT.test(name) || NOT_A_PRODUCT.test(code)) {

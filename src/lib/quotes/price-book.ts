@@ -488,6 +488,11 @@ export function planPriceList(
     takes anything else off the book. A code the supplier's list doesn't
     have becomes an invoiced item of that supplier; a newer invoice replaces
     an older one's price, an older one never replaces a newer. */
+/** Whether two names are the same words, whatever their spacing, case or
+    punctuation: "Compact CeilingConcealed450mmD" is "Compact Ceiling
+    Concealed 450mmD". */
+export const sameWords = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]/g, "") === b.toLowerCase().replace(/[^a-z0-9]/g, "");
+
 export function planInvoices(
   before: Map<string, StoredItem>,
   rows: PriceRow[],
@@ -510,8 +515,9 @@ export function planInvoices(
       org_id: ctx.orgId,
       supplier_key: ctx.supplierKey,
       code: r.code,
-      /* the list's own words and price stay; an invoiced item takes the newest invoice's */
-      name: listed || older ? had.name : r.name,
+      /* the list's own words and price stay; an invoiced item takes the
+         newest invoice's words, unless they're the same words run together */
+      name: listed || older || (had !== undefined && sameWords(had.name, r.name)) ? had.name : r.name,
       cents: listed || older ? had.cents : r.cents,
       previous_cents: had?.previous_cents ?? null,
       price_changed_at: had?.price_changed_at ?? null,

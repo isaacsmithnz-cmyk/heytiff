@@ -133,17 +133,34 @@ describe("a ducted system read from the brief", () => {
     expect(ductedAirWords(pair, sized)[0]).toMatch(/^The unit's 1000 L\/s through 6 returns, split by size: living: about 132 L\/s, 2\.7 m\/s;/);
   });
 
-  it("prices its plain parts by the business's own items, and waits on the price book for the sized ones", () => {
-    const { unpriced } = priceJobList(ductedKitRows(pair, read, choices).slice(8, 12), {
+  it("prices its sized parts from the business's ranges, and says which range to choose when it has none", () => {
+    const rows = ductedKitRows(pair, read, choices).slice(8, 12);
+    const none = priceJobList(rows, { priceOf: () => null, unitOffer: () => null, component: () => null });
+    expect(none.unpriced.map((u) => [u.name, u.why])).toEqual([
+      ["MDO, Ø250 neck", "Choose your MDOs in Quoting"],
+      ["Round diffuser, Ø250 neck", "Choose your round diffusers in Quoting"],
+      ["Bar grille 3000 × 150, flangeless", "Choose your bar grilles in Quoting"],
+      ["Return grille, Ø250 spigot", "Choose your return grilles in Quoting"],
+    ]);
+
+    /* AAD's jet diffusers by neck, and a return box with two 16" spigots */
+    const offer = (code: string, name: string, size: object, perUnitCents: number) => ({ code, name, size, perUnitCents, supplierKey: "aad" });
+    const ranged = priceJobList(rows, {
       priceOf: () => null,
       unitOffer: () => null,
       component: () => null,
+      range: (kind) =>
+        kind === "round_diffuser"
+          ? [offer("EJ200", "JET DIFFUSER GLOSS ABS 200", { mm: 200 }, 1503), offer("EJ250", "JET DIFFUSER GLOSS ABS 250", { mm: 250 }, 2456)]
+          : kind === "return_grille"
+            ? [offer("RAB2900", "R/A Box Return Air Box 900 X 400 2 X16\"", { w: 900, h: 400, spigots: [400, 400] }, 4200)]
+            : [],
     });
-    expect(unpriced.map((u) => [u.name, u.why])).toEqual([
-      ["MDO, Ø250 neck", "Priced from your range for it, once the price book has it"],
-      ["Round diffuser, Ø250 neck", "Priced from your range for it, once the price book has it"],
-      ["Bar grille 3000 × 150, flangeless", "Priced from your range for it, once the price book has it"],
-      ["Return grille, Ø250 spigot", "Priced from your range for it, once the price book has it"],
+    expect(ranged.lines.map((l) => [l.name, l.code, l.qty, l.unitBuyCents, l.duct])).toEqual([["Round diffuser, Ø250 neck", "EJ250", 1, 2456, true]]);
+    expect(ranged.unpriced.map((u) => [u.name, u.why])).toEqual([
+      ["MDO, Ø250 neck", "Choose your MDOs in Quoting"],
+      ["Bar grille 3000 × 150, flangeless", "Choose your bar grilles in Quoting"],
+      ["Return grille, Ø250 spigot", "No Ø250 spigot in your return grilles"],
     ]);
   });
 });

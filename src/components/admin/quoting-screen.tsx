@@ -22,6 +22,8 @@ import {
   type QuoteSettings,
 } from "@/lib/quotes/settings";
 import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
+import type { RangeView } from "@/lib/quotes/ranges";
+import { RangesGroup } from "./quoting-ranges";
 
 /* QUOTING — what a quote is priced by.
 
@@ -44,7 +46,11 @@ import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
    at several suppliers is one row with every supplier's price beside it,
    the lowest in the state's green. A roll's length is read off the item's
    name; where it can't be, it can be typed, and a metre can't be priced
-   until it is. */
+   until it is.
+
+   RANGES: a part a kit needs at a size — an isolator, a bracket, dampers,
+   flex, diffusers, grilles, Ys and BTOs, plenums — from the business's own
+   range of it (quoting-ranges.tsx). */
 
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
 const $ = (cents: number | null) => (cents == null ? "–" : money.format(cents / 100));
@@ -61,10 +67,13 @@ const inRange = (s: string, lo: number, hi: number) => s.trim() === "" || (Numbe
 export function QuotingScreen({
   initial,
   components,
+  ranges,
   calc,
 }: {
   initial: QuoteSettings;
   components: ComponentShortlist[];
+  /** the business's ranges of the parts that come in sizes */
+  ranges: RangeView[];
   /** what the business's Rate Calculator says, when it has one */
   calc: CalcDay | null;
 }) {
@@ -320,6 +329,8 @@ export function QuotingScreen({
                 ))}
               </div>
             </section>
+
+            <RangesGroup initial={ranges} />
           </ScreenPanel>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { isBoxHead } from "@/lib/studio/multi";
 import { isVrfHead, joinsVrf, vrfOutdoorsListing } from "@/lib/studio/vrf";
 import { provisionalVrfTree, sizeVrfTree } from "@/lib/studio/vrf-tree";
 import { KIT, RUN_TO_ASK, STYLE_OF, WHERE_TO_ASK, type OutdoorAt, type SizedRoom } from "./brief-rooms";
+import { forTheOutdoorsCurrent, forTheOutdoorsSize } from "./ranges";
 
 /* THE ROOMS ON A VRF OR PUMY — switched on in the Rooms block (Isaac,
    2026-10-04: the install kits, "VRF / PUMY: already built (#997), waiting
@@ -26,6 +27,7 @@ export type VrfOption = {
   outdoorWidthMm: number | null;
   outdoorWeightKg: number | null;
   outdoorAmps: number | null;
+  outdoorPhase?: "1" | "3" | null;
   heads: VrfHead[];
   /** the joints and branch boxes Studio's sizer chose: a part, or none */
   fittings: { kind: "joint" | "header" | "box"; part: string | null; branches: number }[];
@@ -80,6 +82,7 @@ export function vrfOptionOf(
     outdoorWidthMm: odu.width_mm ?? null,
     outdoorWeightKg: odu.weight_kg ?? null,
     outdoorAmps: odu.max_amps_a ?? null,
+    outdoorPhase: odu.phase ?? null,
     heads: heads.map(({ room, idu }) => ({
       room,
       indoor: idu.model,
@@ -107,12 +110,11 @@ export function vrfKitRows(
   c: { runs: Record<string, number | null>; outdoorAt: OutdoorAt | null }
 ): { name: string; sub: string; qty: string }[] {
   const sys = "the VRF";
-  const size = [v.outdoorWidthMm != null ? `${v.outdoorWidthMm} mm` : null, v.outdoorWeightKg != null ? `${v.outdoorWeightKg} kg` : null].filter(Boolean).join(", ");
   const mount = c.outdoorAt ? ({ ground: KIT.groundMount, wall: KIT.wallBracket, roof: KIT.roofStand } as const)[c.outdoorAt] : null;
   const rows = [
     { name: v.outdoor, sub: `VRF outdoor unit, ${v.heads.length} heads`, qty: "1" },
-    mount ? { name: mount, sub: `${size ? `for the outdoor's ${size}, ` : ""}${sys}`, qty: "1" } : { name: KIT.mount, sub: sys, qty: WHERE_TO_ASK },
-    { name: KIT.isolator, sub: `${v.outdoorAmps != null ? `for the outdoor's ${v.outdoorAmps} A, ` : ""}${sys}`, qty: "1" },
+    mount ? { name: mount, sub: `${forTheOutdoorsSize(v.outdoorWidthMm, v.outdoorWeightKg)}${sys}`, qty: "1" } : { name: KIT.mount, sub: sys, qty: WHERE_TO_ASK },
+    { name: KIT.isolator, sub: `${forTheOutdoorsCurrent(v.outdoorAmps, v.outdoorPhase ?? null)}${sys}`, qty: "1" },
   ];
   if (rooms.some((r) => r.newCircuit)) rows.push({ name: KIT.newCircuit, sub: sys, qty: "1" });
   for (const h of v.heads) rows.push({ name: h.indoor, sub: `${h.style} indoor unit, ${h.room}`, qty: "1" });

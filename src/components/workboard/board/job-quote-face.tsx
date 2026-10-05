@@ -3,6 +3,7 @@
 import { fmtAud } from "@/lib/workboard/project-money";
 import Link from "next/link";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { NoteToken } from "@/components/notes/note-token";
 import { Waiting } from "@/components/ui/orb";
 import { Icon } from "@/components/shell/icon";
@@ -23,6 +24,7 @@ import {
   proposalTitle,
   removeUnit,
   setUnitRole,
+  statusAfterChange,
   toggleAccepted,
   unitPlace,
   unitWords,
@@ -36,9 +38,7 @@ import { VISIT_STAGES, type Visit, type VisitStage } from "@/lib/quotes/buildup"
 import type { QuoteLabour } from "@/lib/quotes/quote-labour-server";
 import {
   CHECKLIST,
-  GROUP_ORDER,
   asksByImpact,
-  checklistCounts,
   type CheckItem,
   type ChecklistKey,
 } from "@/lib/quotes/checklist";
@@ -51,7 +51,8 @@ import {
 } from "@/lib/quotes/payment";
 import type { StoredProposal } from "@/lib/quotes/proposal-writer";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
-import { stillToPrice } from "@/lib/quotes/job-price";
+import { quoteSteps, type StepKey } from "@/lib/quotes/quote-steps";
+import { PriceLines, PriceSummary, QuoteStepsLine, leftOn, priceState } from "../quote/quote-parts";
 import { STANDARD_NOTES, standardTemplates, type PaymentTerms, type QuoteNote } from "@/lib/templates/settings";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
@@ -155,6 +156,9 @@ export function JobQuoteFace({
   mode = "card",
   onVersion,
   onCancel,
+  price,
+  actionsEl = null,
+  send = null,
 }: {
   /** The job card's uuid, or the row's until the record read lands. */
   job: string;
@@ -182,6 +186,13 @@ export function JobQuoteFace({
   onVersion?: (version: string | null) => void;
   /** The page: leaving the box that drafts one, with nothing drafted. */
   onCancel?: () => void;
+  /** The page: the quote priced, read by the page for each version;
+      undefined without the money grant or until it's read. */
+  price?: QuotePrice | null;
+  /** The page: where its corner buttons go, in the band beside the title. */
+  actionsEl?: HTMLElement | null;
+  /** The page: what goes to ServiceM8 once an option is accepted. */
+  send?: ReactNode;
 }) {
   /* THE QUOTE OPENS FROM ONE BUTTON (Isaac, 2026-10-05): "Create a quote"
      when there is none, "Continue quote" on a draft, and on a job quoted in
@@ -192,8 +203,12 @@ export function JobQuoteFace({
   const [sm8Brief, setSm8Brief] = useState<string | null>(null);
   /* the business's own default for what the customer sees */
   const [linesByDefault, setLinesByDefault] = useState(false);
-  /* each option's total, read again whenever the quote changes */
-  const [totals, setTotals] = useState<{ at: string; totals: OptionTotal[] | null } | null>(null);
+  /* the page: which face, which option the list reads, and which topic the
+     questions are on (a topic opened from What Tiff read stays open) */
+  const [tab, setTab] = useState<"build" | "proposal">("build");
+  const [pick, setPick] = useState(0);
+  const [on, setOn] = useState<{ key: ChecklistKey | null; chosen: boolean } | null>(null);
+  const questionsAt = useRef<HTMLElement | null>(null);
   /* on the page, ServiceM8's quote sits beside the builder, not in it */
   const sm8Block = sm8Quoted && mode === "card" ? (
     <div className="wb2-jcsec">
@@ -269,16 +284,6 @@ export function JobQuoteFace({
   useEffect(() => {
     onVersion?.(version);
   }, [version, onVersion]);
-  useEffect(() => {
-    if (!open || !version) return;
-    let live = true;
-    optionTotals(job)
-      .then((t) => live && setTotals({ at: version, totals: t }))
-      .catch(() => live && setTotals({ at: version, totals: null }));
-    return () => {
-      live = false;
-    };
-  }, [open, version, job]);
 
   /* Tiff's labour for each option, on a draft written before Tiff made one */
   const suggestLabour = async (at: number) => {
@@ -350,15 +355,19 @@ export function JobQuoteFace({
     }, () => setWorking(null));
   };
 
-  const save = (edit: Edit): Promise<boolean> => {
+  /** An edit to the draft. Any edit but the quote's own status takes an
+      approval back: an approval is of the version on screen. */
+  const save = (edit: Edit, keepStatus = false): Promise<boolean> => {
     const run = async () => {
       const base = latest.current;
       if (!base) return false;
+      const edited = edit(base.draft);
+      const next = !keepStatus && edited.status?.approvedAt ? { ...edited, status: statusAfterChange(edited.status) } : edited;
       try {
         const res = await fetch(ROUTE, {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ job, draft: edit(base.draft), base: base.updatedAt }),
+          body: JSON.stringify({ job, draft: next, base: base.updatedAt }),
         });
         const a = (await res.json()) as Answer;
         if (!a.ok) {
@@ -383,7 +392,7 @@ export function JobQuoteFace({
      materials list for the job"). */
   const accept = async (i: number) => {
     const marking = !(latest.current?.draft.accepted ?? []).includes(i);
-    const ok = await save((d) => ({ ...d, accepted: toggleAccepted(d, i) }));
+    const ok = await save((d) => ({ ...d, accepted: toggleAccepted(d, i) }), true);
     if (!ok || !marking) return;
     /* the call alone inside the try: React Compiler 1.0 can't lower a
        conditional or an optional call inside a try/catch */
@@ -409,7 +418,7 @@ export function JobQuoteFace({
 
   if (readFailed && loaded === undefined) {
     return (
-      <div className="wb2-jcsec wb2-jq">
+      <div className={mode === "page" ? "hd-body qp-face wb2-jcsec wb2-jq" : "wb2-jcsec wb2-jq"}>
         <p className="wb2-sherr">The saved proposal couldn&rsquo;t be read.</p>
         <div className="wb2-jqacts">
           <button type="button" className="pbtn ghost" onClick={() => setReads((n) => n + 1)}>
@@ -419,7 +428,14 @@ export function JobQuoteFace({
       </div>
     );
   }
-  if (loaded === undefined) return <Waiting note="Reading the proposal" />;
+  if (loaded === undefined)
+    return mode === "page" ? (
+      <div className="hd-body qp-face">
+        <Waiting note="Reading the proposal" />
+      </div>
+    ) : (
+      <Waiting note="Reading the proposal" />
+    );
 
   const proposal = loaded;
   /* the card's face: the way into the page, never the builder itself */
@@ -476,19 +492,116 @@ export function JobQuoteFace({
       </>
     );
   }
-  if (!proposal || redraft) {
-    return (
-      <>
-      {sm8Block}
-      <div className="wb2-jcsec wb2-jq">
-        <div className="wb2-jcdhead">
-          <b>{proposal ? "Start the proposal again" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}</b>
+  /* ── THE QUOTE PAGE (Isaac, 2026-10-06, the mock-up he called "much
+     cleaner"): Home's frame. The progress line where Home has "Your day",
+     the corner button its next step, then Build-up and Proposal. Build-up
+     reads down the page: what Tiff took from the brief, the questions,
+     what each option is made of, its labour, and the box that changes it.
+     Proposal is the client's paper, every block editable. The list on the
+     right is Home's: the price at its top, then what's left to answer and to
+     price, in their colours. ── */
+  const draftNow = !proposal || redraft ? null : proposal.draft;
+  const names = draftNow ? draftNow.options.map((_, i) => optionHeading(draftNow, i)) : [];
+  const at = draftNow && pick < draftNow.options.length ? pick : 0;
+  const priced = price?.ok ? price.options[at] : undefined;
+  const { steps, next } = quoteSteps({
+    draft: draftNow,
+    drafted: draftNow && proposal ? { at: proposal.updatedAt, changed: proposal.changes.length > 0 } : null,
+    price: priceState(price),
+    when: whenOf,
+  });
+  const busy = working !== null;
+
+  /* approved and sent, by hand; Undo takes back the last one marked */
+  const mark = (step: "approve" | "sent") =>
+    save((d) => {
+      const now = new Date().toISOString();
+      const was = d.status ?? { approvedAt: null, sentAt: null };
+      return { ...d, status: step === "approve" ? { ...was, approvedAt: now } : { ...was, sentAt: now } };
+    }, true).then((ok) => ok && onToast(step === "approve" ? "Quote approved" : "Quote marked sent"));
+  const undo = (key: StepKey) =>
+    void save((d) => {
+      const was = d.status ?? { approvedAt: null, sentAt: null };
+      const left = key === "approved" ? { ...was, approvedAt: null } : { ...was, sentAt: null };
+      return { ...d, status: left.approvedAt || left.sentAt ? left : null };
+    }, true);
+  /* a question opened from anywhere: the topic, on the Build-up, in view */
+  const choose = (key: ChecklistKey) => {
+    setOn({ key, chosen: true });
+    setTab("build");
+    questionsAt.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  };
+
+  const sm8Group = sm8Quoted ? (
+    <section className="hd-ls-g" aria-label="Quote from ServiceM8">
+      <h2 className="hd-ls-grp">Quote from ServiceM8</h2>
+      <p className="qp-sm8">{[sm8!.sentOn ? `Sent ${fmtAuWeekdayDayMonth(sm8!.sentOn)}` : "Not sent yet", sm8!.value].filter(Boolean).join(", ")}</p>
+      {sm8!.papers.map((p) => (
+        <DocRow key={p.remoteId} item={p} onOpen={(item) => onOpenPaper?.(item)} />
+      ))}
+    </section>
+  ) : null;
+
+  const frame = (flow: ReactNode, paper: ReactNode, rail: ReactNode, actions: ReactNode) => (
+    <>
+      {actionsEl && actions ? createPortal(actions, actionsEl) : null}
+      <section className="hd-day" aria-label="Where the quote is">
+        <QuoteStepsLine steps={steps} onUndo={draftNow ? undo : undefined} />
+      </section>
+      <div className="hd-body">
+        {paper && (
+          <div className="hd-tabs" role="tablist" aria-label="Quote">
+            {(["build", "proposal"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={tab === t}
+                className={tab === t ? "hd-tab on" : "hd-tab"}
+                onClick={() => setTab(t)}
+              >
+                {t === "build" ? "Build-up" : "Proposal"}
+                <span className="hd-tabw" aria-hidden="true">
+                  {t === "build" ? "Build-up" : "Proposal"}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="hd-fx">
+          <div className="hd-main">
+            <div className="hd-col">
+              <div className="hd-face qp-face" role={paper ? "tabpanel" : undefined} aria-label="Build-up" hidden={!!paper && tab !== "build"}>
+                {flow}
+              </div>
+              {paper && (
+                <div className="hd-face qp-face" role="tabpanel" aria-label="Proposal" hidden={tab !== "proposal"}>
+                  {paper}
+                </div>
+              )}
+            </div>
+            {rail && (
+              <aside className="hd-list qp-rail" aria-label="The price and what's open">
+                {rail}
+              </aside>
+            )}
+          </div>
         </div>
+      </div>
+    </>
+  );
+
+  if (!proposal || redraft) {
+    const box = (
+      <section className="qp-sec" aria-labelledby="qp-brief-h">
+        <h2 className="qp-h" id="qp-brief-h">
+          {proposal ? "Start the proposal again" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}
+        </h2>
         <NoteToken
           as="field"
           label="what the job is"
           offer={false}
-          rows={6}
+          rows={8}
           value={brief}
           onChange={setBrief}
           disabled={working !== null}
@@ -516,195 +629,146 @@ export function JobQuoteFace({
             </>
           )}
         </div>
-      </div>
-      </>
+      </section>
     );
+    return frame(box, null, sm8Group, null);
   }
 
   const { draft } = proposal;
   const title = proposalTitle(address);
-  const busy = working !== null;
+  const asks = asksByImpact(draft.checklist);
+  const known = draft.checklist.filter((i) => i.state !== "ask");
+  const left = priced ? leftOn(priced) : [];
+  const totals: OptionTotal[] | null = price?.ok
+    ? price.options.map((o) => ({ cents: o.build.exGstCents, incCents: o.build.incGstCents, left: leftOn(o).length }))
+    : null;
 
-  return (
+  const actions = (
     <>
-      {sm8Block}
-      <SiteChecklist
-        items={draft.checklist}
-        busy={busy}
-        applying={working === "apply"}
-        onAnswer={(key, answer) =>
-          save((d) => ({
-            ...d,
-            /* keeps the question it was asked with, for its Change */
-            checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "known", answer, fresh: true, rank: undefined } : i)),
-          }))
-        }
-        onSkip={(key) =>
-          save((d) => ({
-            ...d,
-            checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "na", answer: "Not needed on this job", rank: undefined } : i)),
-          }))
-        }
-        onApply={() => void write("apply")}
-      />
+      {tab !== "proposal" && (
+        <button type="button" className="pbtn ghost" onClick={() => setTab("proposal")}>
+          Preview proposal
+        </button>
+      )}
+      {draft.accepted.length === 0 && (
+        <button
+          type="button"
+          className={next === "accepted" ? "pbtn primary" : "pbtn ghost"}
+          disabled={busy}
+          onClick={() => (draft.options.length === 1 ? void accept(0) : setTab("proposal"))}
+        >
+          Mark accepted
+        </button>
+      )}
+      {next === "approve" && (
+        <button type="button" className="pbtn primary" disabled={busy} onClick={() => void mark("approve")}>
+          Approve
+        </button>
+      )}
+      {next === "sent" && (
+        <button type="button" className="pbtn primary" disabled={busy} onClick={() => void mark("sent")}>
+          Mark sent
+        </button>
+      )}
+    </>
+  );
 
-      <div className="wb2-jcsec wb2-jq wb2-jqblock">
-        <div className="wb2-jcdhead">
-          <b>Proposal</b>
-          <em>
-            {proposal.changes.length ? "Changed" : "Drafted"} {whenOf(proposal.updatedAt)}
-          </em>
-        </div>
-        <p className="wb2-jqtitle">{title}</p>
-        <div className="wb2-jqacts">
+  const flow = (
+    <>
+      <section className="qp-sec" aria-labelledby="qp-read-h">
+        <div className="qp-sh">
+          <h2 className="qp-h" id="qp-read-h">
+            What Tiff read
+          </h2>
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setRedraft(true)}>
             Start again
           </button>
         </div>
-      </div>
-
-      <QuoteBlock title="Intro" onEdit={() => setEditing("intro")} editing={editing === "intro"}>
-        {editing === "intro" ? (
-          <TextEdit
-            label="the intro"
-            value={draft.intro}
-            word="Save intro"
-            onCancel={() => setEditing(null)}
-            onSave={(intro) => saveBlock("intro", (d) => ({ ...d, intro }))}
-          />
-        ) : (
-          <p className="wb2-shtext wb2-jcread">{draft.intro}</p>
+        <BriefWords text={proposal.brief} />
+        {known.length > 0 && (
+          <ul className="qp-read" aria-label="What Tiff took from it">
+            {known.map((i) => (
+              <li key={i.key} className={i.state === "na" ? "na" : undefined}>
+                <span>{CHECKLIST[i.key].label}</span>
+                <span>{i.answer}</span>
+                <button
+                  type="button"
+                  className="pbtn ghost sm"
+                  aria-label={`Change ${CHECKLIST[i.key].label}`}
+                  disabled={busy}
+                  onClick={() => choose(i.key)}
+                >
+                  Change
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
-      </QuoteBlock>
+      </section>
 
-      {(draft.why || editing === "why") && (
-        <QuoteBlock title="Why this system" onEdit={() => setEditing("why")} editing={editing === "why"}>
-          {editing === "why" ? (
-            <TextEdit
-              label="why this system"
-              value={draft.why}
-              word="Save"
-              onCancel={() => setEditing(null)}
-              onSave={(why) => saveBlock("why", (d) => ({ ...d, why }))}
-            />
-          ) : (
-            <p className="wb2-shtext wb2-jcread">{draft.why}</p>
-          )}
-        </QuoteBlock>
+      <section className="qp-sec" ref={questionsAt} aria-label="Questions">
+        <SiteChecklist
+          items={draft.checklist}
+          on={on}
+          setOn={setOn}
+          busy={busy}
+          applying={working === "apply"}
+          onAnswer={(key, answer) =>
+            save((d) => ({
+              ...d,
+              /* keeps the question it was asked with, for its Change */
+              checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "known", answer, fresh: true, rank: undefined } : i)),
+            }))
+          }
+          onSkip={(key) =>
+            save((d) => ({
+              ...d,
+              checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "na", answer: "Not needed on this job", rank: undefined } : i)),
+            }))
+          }
+          onApply={() => void write("apply")}
+        />
+      </section>
+
+      {priced && (
+        <section className="qp-sec" aria-labelledby="qp-in-h">
+          <h2 className="qp-h" id="qp-in-h">
+            What&rsquo;s in it
+          </h2>
+          {draft.options.length > 1 && <p className="qp-sub">{names[at]}</p>}
+          <PriceLines option={priced} />
+        </section>
       )}
 
-      {draft.options.map((o, i) => {
-        const key: Block = `option-${i}`;
-        return (
-          <QuoteBlock
+      <section className="qp-sec" aria-labelledby="qp-lab-h">
+        <h2 className="qp-h" id="qp-lab-h">
+          Labour
+        </h2>
+        {draft.options.map((o, i) => (
+          <OptionLabourRow
             key={i}
-            title={optionHeading(draft, i)}
-            onEdit={() => setEditing(key)}
-            editing={editing === key}
-            aside={
-              /* the option the client took is the job's equipment: what the
-                 compliance certificate is filled in from */
-              <button
-                type="button"
-                className={`pbtn ghost sm wb2-jqacc${draft.accepted.includes(i) ? " on" : ""}`}
-                aria-pressed={draft.accepted.includes(i)}
-                onClick={() => void accept(i)}
-              >
-                {draft.accepted.includes(i) ? "Accepted" : "Mark accepted"}
-              </button>
+            option={o}
+            heading={names[i]!}
+            label={draft.options.length > 1 ? names[i]! : null}
+            facts={labourFacts}
+            disabled={busy}
+            suggesting={working === "labour" && labourAt === i}
+            error={labourAt === i ? labourError : null}
+            onSet={(labour) =>
+              save((d) => ({ ...d, options: d.options.map((x, j) => (j === i ? { ...x, labour } : x)) })).then((ok) => {
+                if (ok) setLabourError(null);
+                return ok;
+              })
             }
-          >
-            {editing === key ? (
-              <OptionEdit
-                option={o}
-                onCancel={() => setEditing(null)}
-                onSave={(next) => saveBlock(key, (d) => ({ ...d, options: d.options.map((x, j) => (j === i ? next : x)) }))}
-                onRemove={
-                  draft.options.length > 1
-                    ? () =>
-                        saveBlock(key, (d) => ({
-                          ...d,
-                          options: d.options.filter((_, j) => j !== i),
-                          accepted: acceptedAfterRemoving(d.accepted, i),
-                        }))
-                    : undefined
-                }
-              />
-            ) : (
-              <>
-                <OptionBody option={o} />
-                <OptionLabourRow
-                  option={o}
-                  heading={optionHeading(draft, i)}
-                  facts={labourFacts}
-                  disabled={busy}
-                  suggesting={working === "labour" && labourAt === i}
-                  error={labourAt === i ? labourError : null}
-                  onSet={(labour) =>
-                    save((d) => ({ ...d, options: d.options.map((x, j) => (j === i ? { ...x, labour } : x)) })).then((ok) => {
-                      if (ok) setLabourError(null);
-                      return ok;
-                    })
-                  }
-                  onSuggest={() => void suggestLabour(i)}
-                />
-              </>
-            )}
-          </QuoteBlock>
-        );
-      })}
-
-      <QuoteBlock title="Pricing" onEdit={() => setEditing("pricing")} editing={editing === "pricing"}>
-        {editing === "pricing" ? (
-          <PricingEdit
-            draft={draft}
-            linesByDefault={linesByDefault}
-            onCancel={() => setEditing(null)}
-            onSave={(pricing) => saveBlock("pricing", (d) => ({ ...d, ...pricing }))}
+            onSuggest={() => void suggestLabour(i)}
           />
-        ) : (
-          <PricingBody draft={draft} totals={totals?.totals ?? null} quoted={sm8?.quoted ?? null} showLines={draft.showLines ?? linesByDefault} />
-        )}
-      </QuoteBlock>
+        ))}
+      </section>
 
-      <QuoteBlock title="Payment" onEdit={() => setEditing("payment")} editing={editing === "payment"}>
-        <PaymentBlock
-          payment={draft.payment}
-          terms={tpl.terms}
-          editing={editing === "payment"}
-          onCancel={() => setEditing(null)}
-          onPick={(payment) => save((d) => ({ ...d, payment }))}
-          onSave={(payment) => saveBlock("payment", (d) => ({ ...d, payment }))}
-        />
-      </QuoteBlock>
-
-      <QuoteBlock title="Notes for this job" onEdit={() => setEditing("notes")} editing={editing === "notes"}>
-        {editing === "notes" ? (
-          <NotesEdit
-            picked={draft.notes}
-            library={tpl.notes}
-            onCancel={() => setEditing(null)}
-            onSave={(notes) => saveBlock("notes", (d) => ({ ...d, notes }))}
-          />
-        ) : draft.notes.length === 0 ? (
-          <p className="wb2-jqmode">No notes on this quote.</p>
-        ) : (
-          draft.notes.map((k) => {
-            const n = noteFor(tpl, k);
-            return n ? (
-              <div className="wb2-jqnote" key={k}>
-                <b>{n.heading}</b>
-                <Bullets lines={n.lines} />
-              </div>
-            ) : null;
-          })
-        )}
-      </QuoteBlock>
-
-      <div className="wb2-jcsec wb2-jq wb2-jqblock">
-        <div className="wb2-jcdhead">
-          <b>Change the proposal</b>
-        </div>
+      <section className="qp-sec" aria-labelledby="qp-change-h">
+        <h2 className="qp-h" id="qp-change-h">
+          Change the proposal
+        </h2>
         <NoteToken
           as="field"
           label="what to change"
@@ -725,10 +789,237 @@ export function JobQuoteFace({
             </button>
           )}
         </div>
-      </div>
+      </section>
       {/* the builder's sections read the quote afresh each time it changes */}
       <Fragment key={proposal.updatedAt}>{children}</Fragment>
     </>
+  );
+
+  const paper = (
+    <div className="qp-desk">
+      <article className="qp-paper" aria-label="The proposal">
+        <div className="wb2-jcsec wb2-jq">
+          <div className="wb2-jcdhead">
+            <b>Proposal</b>
+            <em>
+              {proposal.changes.length ? "Changed" : "Drafted"} {whenOf(proposal.updatedAt)}
+            </em>
+          </div>
+          <p className="wb2-jqtitle">{title}</p>
+        </div>
+
+        <QuoteBlock title="Intro" onEdit={() => setEditing("intro")} editing={editing === "intro"}>
+          {editing === "intro" ? (
+            <TextEdit
+              label="the intro"
+              value={draft.intro}
+              word="Save intro"
+              onCancel={() => setEditing(null)}
+              onSave={(intro) => saveBlock("intro", (d) => ({ ...d, intro }))}
+            />
+          ) : (
+            <p className="wb2-shtext wb2-jcread">{draft.intro}</p>
+          )}
+        </QuoteBlock>
+
+        {(draft.why || editing === "why") && (
+          <QuoteBlock title="Why this system" onEdit={() => setEditing("why")} editing={editing === "why"}>
+            {editing === "why" ? (
+              <TextEdit
+                label="why this system"
+                value={draft.why}
+                word="Save"
+                onCancel={() => setEditing(null)}
+                onSave={(why) => saveBlock("why", (d) => ({ ...d, why }))}
+              />
+            ) : (
+              <p className="wb2-shtext wb2-jcread">{draft.why}</p>
+            )}
+          </QuoteBlock>
+        )}
+
+        {draft.options.map((o, i) => {
+          const key: Block = `option-${i}`;
+          return (
+            <QuoteBlock
+              key={i}
+              title={names[i]!}
+              onEdit={() => setEditing(key)}
+              editing={editing === key}
+              aside={
+                /* the option the client took is the job's equipment: what the
+                   compliance certificate is filled in from */
+                <button
+                  type="button"
+                  className={`pbtn ghost sm wb2-jqacc${draft.accepted.includes(i) ? " on" : ""}`}
+                  aria-pressed={draft.accepted.includes(i)}
+                  onClick={() => void accept(i)}
+                >
+                  {draft.accepted.includes(i) ? "Accepted" : "Mark accepted"}
+                </button>
+              }
+            >
+              {editing === key ? (
+                <OptionEdit
+                  option={o}
+                  onCancel={() => setEditing(null)}
+                  onSave={(nextOption) => saveBlock(key, (d) => ({ ...d, options: d.options.map((x, j) => (j === i ? nextOption : x)) }))}
+                  onRemove={
+                    draft.options.length > 1
+                      ? () =>
+                          saveBlock(key, (d) => ({
+                            ...d,
+                            options: d.options.filter((_, j) => j !== i),
+                            accepted: acceptedAfterRemoving(d.accepted, i),
+                          }))
+                      : undefined
+                  }
+                />
+              ) : (
+                <OptionBody option={o} />
+              )}
+            </QuoteBlock>
+          );
+        })}
+
+        <QuoteBlock title="Pricing" onEdit={() => setEditing("pricing")} editing={editing === "pricing"}>
+          {editing === "pricing" ? (
+            <PricingEdit
+              draft={draft}
+              linesByDefault={linesByDefault}
+              onCancel={() => setEditing(null)}
+              onSave={(pricing) => saveBlock("pricing", (d) => ({ ...d, ...pricing }))}
+            />
+          ) : (
+            <PricingBody draft={draft} totals={totals} quoted={sm8?.quoted ?? null} showLines={draft.showLines ?? linesByDefault} />
+          )}
+        </QuoteBlock>
+
+        <QuoteBlock title="Payment" onEdit={() => setEditing("payment")} editing={editing === "payment"}>
+          <PaymentBlock
+            payment={draft.payment}
+            terms={tpl.terms}
+            editing={editing === "payment"}
+            onCancel={() => setEditing(null)}
+            onPick={(payment) => save((d) => ({ ...d, payment }))}
+            onSave={(payment) => saveBlock("payment", (d) => ({ ...d, payment }))}
+          />
+        </QuoteBlock>
+
+        <QuoteBlock title="Notes for this job" onEdit={() => setEditing("notes")} editing={editing === "notes"}>
+          {editing === "notes" ? (
+            <NotesEdit
+              picked={draft.notes}
+              library={tpl.notes}
+              onCancel={() => setEditing(null)}
+              onSave={(notes) => saveBlock("notes", (d) => ({ ...d, notes }))}
+            />
+          ) : draft.notes.length === 0 ? (
+            <p className="wb2-jqmode">No notes on this quote.</p>
+          ) : (
+            draft.notes.map((k) => {
+              const n = noteFor(tpl, k);
+              return n ? (
+                <div className="wb2-jqnote" key={k}>
+                  <b>{n.heading}</b>
+                  <Bullets lines={n.lines} />
+                </div>
+              ) : null;
+            })
+          )}
+        </QuoteBlock>
+      </article>
+    </div>
+  );
+
+  const rail = (
+    <>
+      {price?.ok && draft.options.length > 1 && (
+        <div className="qp-seg" role="group" aria-label="Option">
+          {names.map((n, i) => (
+            <button key={i} type="button" aria-pressed={at === i} title={n} onClick={() => setPick(i)}>
+              {`Option ${i + 1}`}
+            </button>
+          ))}
+        </div>
+      )}
+      {price && <PriceSummary price={price} at={at} names={names} />}
+      {sm8Group}
+      {asks.length > 0 && (
+        <section className="hd-ls-g" aria-label="To answer">
+          <h2 className="hd-ls-grp due">
+            To answer <span className="hd-ls-n">{asks.length}</span>
+          </h2>
+          <ul className="hd-ls-rows">
+            {asks.map((i) => (
+              <li className="hd-ls-it" key={i.key}>
+                <div className="hd-ls-fold">
+                  <div className="hd-ls-row has-vb">
+                    <span className="hd-ls-lead">
+                      <i className="hd-ls-dot" data-dot="due" aria-hidden="true" />
+                    </span>
+                    <span className="hd-ls-t">{CHECKLIST[i.key].label}</span>
+                    <span className="hd-ls-sub">{i.question || CHECKLIST[i.key].question}</span>
+                    <span className="hd-ls-vbs">
+                      <button type="button" className="hd-ls-vb" aria-label={`Answer ${CHECKLIST[i.key].label}`} onClick={() => choose(i.key)}>
+                        Answer
+                      </button>
+                    </span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {left.length > 0 && (
+        <section className="hd-ls-g" aria-label="Still to price">
+          <h2 className="hd-ls-grp late">
+            Still to price <span className="hd-ls-n">{left.length}</span>
+          </h2>
+          <ul className="hd-ls-rows">
+            {left.map((u, i) => (
+              <li className="hd-ls-it" key={i}>
+                <div className="hd-ls-fold">
+                  <div className="hd-ls-row">
+                    <span className="hd-ls-lead">
+                      <i className="hd-ls-dot" data-dot="late" aria-hidden="true" />
+                    </span>
+                    <span className="hd-ls-t">{u.name}</span>
+                    <span className="hd-ls-sub late">{u.why}</span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {known.length > 0 && (
+        <section className="hd-ls-g" aria-label="Known">
+          <h2 className="hd-ls-grp today">
+            Known <span className="hd-ls-n">{known.length}</span>
+          </h2>
+          <p className="qp-known">{known.map((i) => CHECKLIST[i.key].label).join(", ")}</p>
+        </section>
+      )}
+      {draft.accepted.length > 0 && send}
+    </>
+  );
+
+  return frame(flow, paper, rail, actions);
+}
+
+/** The brief in the person's own words: two lines until it's asked for. */
+function BriefWords({ text }: { text: string }) {
+  const [all, setAll] = useState(false);
+  if (!text.trim()) return null;
+  return (
+    <blockquote className={all ? "qp-brief open" : "qp-brief"}>
+      <span>{text}</span>
+      <button type="button" className="hd-ls-link" aria-expanded={all} onClick={() => setAll((v) => !v)}>
+        {all ? "Show less" : "Show the whole brief"}
+      </button>
+    </blockquote>
   );
 }
 
@@ -736,6 +1027,8 @@ export function JobQuoteFace({
 
 function SiteChecklist({
   items,
+  on,
+  setOn,
   busy,
   applying,
   onAnswer,
@@ -743,6 +1036,10 @@ function SiteChecklist({
   onApply,
 }: {
   items: CheckItem[];
+  /** The topic being asked, held by the page so What Tiff read and the list
+      on the right can open one; `chosen` is a topic a person opened. */
+  on: { key: ChecklistKey | null; chosen: boolean } | null;
+  setOn: (next: { key: ChecklistKey | null; chosen: boolean }) => void;
   busy: boolean;
   applying: boolean;
   onAnswer: (key: ChecklistKey, answer: string) => Promise<boolean>;
@@ -752,11 +1049,10 @@ function SiteChecklist({
 }) {
   /* the question that changes the most first (Isaac's 2905, 2026-10-05) */
   const asks = asksByImpact(items);
-  /* What the card is on. `chosen` is a topic the person opened themselves,
-     which stays open even when it's known; a topic the card moved on to by
-     itself gives way to the first open question once it's settled, so a
-     rewrite of the draft never leaves the card on an answered topic. */
-  const [on, setOn] = useState<{ key: ChecklistKey | null; chosen: boolean } | null>(null);
+  /* What the card is on. A topic the person opened themselves stays open
+     even when it's known; a topic the card moved on to by itself gives way
+     to the first open question once it's settled, so a rewrite of the draft
+     never leaves the card on an answered topic. */
   const first = asks[0]?.key ?? null;
   const asking =
     on === null
@@ -769,10 +1065,10 @@ function SiteChecklist({
   const [saving, setSaving] = useState(false);
   if (items.length === 0) return null;
 
-  const counts = checklistCounts(items);
   const fresh = items.filter((i) => i.fresh).length;
   const current = asking ? CHECKLIST[asking] : null;
   const currentItem = asking ? items.find((i) => i.key === asking) : undefined;
+  const others = asks.filter((i) => i.key !== asking);
 
   /* Tiff's question for this job, else (an old draft) the topic's own */
   const questionOf = (i: CheckItem) => i.question || CHECKLIST[i.key].question;
@@ -792,11 +1088,16 @@ function SiteChecklist({
   };
 
   return (
-    <div className="wb2-jcsec wb2-jq">
-      <div className="wb2-jcdhead">
-        <b>Site checklist</b>
-        <em>{`${counts.known} known, ${counts.ask} to ask`}</em>
-      </div>
+    <>
+      <h2 className={`qp-h ${asks.length > 0 || fresh > 0 ? "due" : "done"}`}>
+        {asks.length > 0 ? (
+          <>
+            Questions <span className="hd-ls-n">{asks.length}</span>
+          </>
+        ) : (
+          "Questions answered"
+        )}
+      </h2>
 
       {current && currentItem && (
         <div className="wb2-jqnow">
@@ -863,41 +1164,29 @@ function SiteChecklist({
         </div>
       )}
 
-      <ul className="wb2-jqcheck-list">
-        {GROUP_ORDER.map((g) => {
-          const rows = items.filter((i) => CHECKLIST[i.key].group === g);
-          if (rows.length === 0) return null;
-          return (
-            <li key={g} className="wb2-jqcg">
-              <b>{g}</b>
-              <ul>
-                {rows.map((i) => (
-                  <li key={i.key} className={asking === i.key ? "on" : undefined}>
-                    <span className="wb2-jqct">{CHECKLIST[i.key].label}</span>
-                    <span className="wb2-jqca">{i.state === "ask" ? questionOf(i) : i.answer}</span>
-                    <span className={`wb2-jqcs ${i.state === "known" ? "ok" : i.state === "ask" ? "warn" : "q"}`}>
-                      {i.state === "known" ? "Known" : i.state === "ask" ? "Ask" : "Not needed"}
-                    </span>
-                    <button
-                      type="button"
-                      className="pbtn ghost sm"
-                      aria-label={`${i.state === "ask" ? "Answer" : "Change"} ${CHECKLIST[i.key].label}`}
-                      disabled={busy}
-                      onClick={() => {
-                        setOwn(null);
-                        setAsking(i.key, true);
-                      }}
-                    >
-                      {i.state === "ask" ? "Answer" : "Change"}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+      {others.length > 0 && (
+        <ul className="qp-asks" aria-label="Still to ask">
+          {others.map((i) => (
+            <li key={i.key}>
+              <span>{CHECKLIST[i.key].label}</span>
+              <span>{questionOf(i)}</span>
+              <button
+                type="button"
+                className="pbtn ghost sm"
+                aria-label={`Answer ${CHECKLIST[i.key].label}`}
+                disabled={busy}
+                onClick={() => {
+                  setOwn(null);
+                  setAsking(i.key, true);
+                }}
+              >
+                Answer
+              </button>
             </li>
-          );
-        })}
-      </ul>
-    </div>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
@@ -1435,17 +1724,6 @@ function OptionEdit({
     or what's left to price. Null to a reader without money access. */
 export type OptionTotal = { cents: number; incCents: number; left: number };
 
-async function optionTotals(job: string): Promise<OptionTotal[] | null> {
-  const a = (await (await fetch(`/api/workboard/quote-price?job=${encodeURIComponent(job)}`)).json()) as { ok: boolean; price?: QuotePrice };
-  const p = a.ok ? a.price : null;
-  if (!p || !p.ok) return null;
-  return p.options.map((o) => ({
-    cents: o.build.exGstCents,
-    incCents: o.build.incGstCents,
-    left: stillToPrice({ unpriced: o.unpriced, labourFrom: o.labourFrom, labourCents: o.build.labour.sellCents }).length,
-  }));
-}
-
 /* ── an option's labour ── */
 
 const hrsWords = (h: number) => `${Math.round(h * 10) / 10} hrs`;
@@ -1486,6 +1764,7 @@ const LABOUR_SET_WORDS: Record<OptionLabour["from"], string> = {
 function OptionLabourRow({
   option,
   heading,
+  label = "Labour",
   facts,
   disabled,
   suggesting,
@@ -1496,6 +1775,8 @@ function OptionLabourRow({
   option: ProposalOption;
   /** The option's heading, "Option 1: Ducted", for its buttons' names. */
   heading: string;
+  /** What the row is headed with; null under a section that already says. */
+  label?: string | null;
   facts: QuoteLabour | null;
   disabled: boolean;
   suggesting: boolean;
@@ -1524,7 +1805,7 @@ function OptionLabourRow({
   if (editing) {
     return (
       <div className="wb2-jqnote">
-        <b>Labour</b>
+        {label && <b>{label}</b>}
         <VisitsEdit
           initial={own?.visits ?? (briefDays.length ? briefDays : (option.suggestion?.visits ?? []))}
           onCancel={() => setEditing(false)}
@@ -1541,7 +1822,7 @@ function OptionLabourRow({
   const typicalVisits = typical && dayHours ? [{ stage: "Install" as const, people: 1, days: Math.round((typical.hours / dayHours) * 1000) / 1000 }] : null;
   return (
     <div className="wb2-jqnote">
-      <b>Labour</b>
+      {label && <b>{label}</b>}
       {own ? (
         <>
           <VisitRows visits={own.visits} />

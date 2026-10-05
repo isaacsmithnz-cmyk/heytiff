@@ -1,13 +1,17 @@
-/* The Quote face: the site checklist stands first and asks one question at
-   a time; an answer saves on the spot with no model call; the blocks stand
-   in the skeleton's order with no Copy anywhere; the payment terms switch by
-   the kind of job; and a job with no draft opens on the box that drafts
-   one. */
+/* The Quote face: on the quote page, Home's frame (Isaac, 2026-10-06, the
+   mock-up he called "much cleaner"): the progress line and its next step,
+   Build-up reading down the page (what Tiff read, the questions one at a
+   time, what's in it, the labour, the change box) and the proposal on its
+   own tab, with the list on the right. An answer saves on the spot with no
+   model call; the blocks stand in the skeleton's order with no Copy
+   anywhere; the payment terms switch by the kind of job; and a job with no
+   draft opens on the box that drafts one. */
 
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { normaliseDraft } from "@/lib/quotes/proposal";
 import { PAYMENT_PRESETS } from "@/lib/quotes/payment";
 import type { StoredProposal } from "@/lib/quotes/proposal-writer";
+import type { QuotePrice } from "@/lib/quotes/quote-price-server";
 
 import { JobQuoteFace } from "../job-quote-face";
 
@@ -53,29 +57,38 @@ beforeEach(() => {
 });
 
 /** The quote page's builder, open from the start. */
-const face = (onToast = jest.fn()) =>
-  render(<JobQuoteFace mode="page" job="j-1" address={"12 Smith St\nMosman NSW 2088"} visible onToast={onToast} />);
-const openFace = async (onToast = jest.fn()) => face(onToast);
+const face = (onToast = jest.fn(), price?: QuotePrice | null) =>
+  render(<JobQuoteFace mode="page" job="j-1" address={"12 Smith St\nMosman NSW 2088"} visible onToast={onToast} price={price} />);
+const openFace = async (onToast = jest.fn(), price?: QuotePrice | null) => face(onToast, price);
+/** The proposal, as the client reads it, is its own tab. */
+const toProposal = () => fireEvent.click(screen.getByRole("tab", { name: "Proposal" }));
 
-it("stands the checklist first and the blocks in the skeleton's order, with nothing to copy", async () => {
+it("reads down the page, then stands the blocks in the skeleton's order on the Proposal tab, with nothing to copy", async () => {
   const { container } = await openFace();
-  await screen.findByText("Site checklist");
-  const heads = [...container.querySelectorAll(".wb2-jcdhead b")].map((b) => b.textContent);
-  expect(heads).toEqual([
-    "Site checklist",
+  await screen.findByText("What Tiff read");
+  const build = screen.getByRole("tabpanel", { name: "Build-up" });
+  expect([...build.querySelectorAll("h2")].map((h) => h.textContent)).toEqual(["What Tiff read", "Questions 1", "Labour", "Change the proposal"]);
+  /* what Tiff took from the brief, each with its Change; the open one is a question */
+  expect(within(build).getByText("Parapet wall, on brackets")).toBeInTheDocument();
+  expect(within(build).getByRole("button", { name: "Change Where and how" })).toBeInTheDocument();
+  toProposal();
+  const paper = screen.getByRole("tabpanel", { name: "Proposal" });
+  expect([...paper.querySelectorAll(".wb2-jcdhead b")].map((b) => b.textContent)).toEqual([
     "Proposal",
     "Intro",
     "Option 1: Install client-supplied 6 kW split",
     "Pricing",
     "Payment",
     "Notes for this job",
-    "Change the proposal",
   ]);
-  expect(screen.getByText("Air Conditioning Scope – 12 Smith St, Mosman")).toBeInTheDocument();
-  expect(screen.getByText("2 known, 1 to ask")).toBeInTheDocument();
+  expect(within(paper).getByText("Air Conditioning Scope – 12 Smith St, Mosman")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /copy/i })).toBeNull();
-  expect(screen.getByText("Living room")).toBeInTheDocument();
-  expect(screen.getByText("Wi-Fi adaptor")).toBeInTheDocument();
+  expect(within(paper).getByText("Living room")).toBeInTheDocument();
+  expect(within(paper).getByText("Wi-Fi adaptor")).toBeInTheDocument();
+  /* the list on the right: what's open, then what's known */
+  const list = container.querySelector(".qp-rail") as HTMLElement;
+  expect(within(list).getByText("To answer")).toBeInTheDocument();
+  expect(within(list).getByText("Known")).toBeInTheDocument();
 });
 
 /* Isaac, 2026-10-05: "it should have opened up the proper quote screen not a
@@ -89,7 +102,7 @@ it("shows a draft on the card as Continue quote, a link to the quote page, with 
   const link = await screen.findByRole("link", { name: "Continue quote" });
   expect(link).toHaveAttribute("href", "/dashboard/workboard/quotes/j-1");
   expect(screen.getByText(/Drafted .*, 1 to ask/)).toBeInTheDocument();
-  expect(screen.queryByText("Site checklist")).toBeNull();
+  expect(screen.queryByText("What Tiff read")).toBeNull();
   expect(screen.queryByText("Price block")).toBeNull();
 });
 
@@ -100,7 +113,7 @@ it("opens the page's builder at once, with its own sections and the quote's vers
       <p>Labour block</p>
     </JobQuoteFace>
   );
-  expect(await screen.findByText("Site checklist")).toBeInTheDocument();
+  expect(await screen.findByText("What Tiff read")).toBeInTheDocument();
   expect(screen.getByText("Labour block")).toBeInTheDocument();
   expect(onVersion).toHaveBeenLastCalledWith("2026-09-29T08:00:00Z");
 });
@@ -166,7 +179,8 @@ it("asks Tiff's own question for this job with its answers, the biggest first, a
 
 it("switches the payment terms by the kind of job", async () => {
   await openFace();
-  await screen.findByText("Site checklist");
+  await screen.findByText("What Tiff read");
+  toProposal();
   const terms = screen.getByRole("radiogroup", { name: "Payment terms" });
   expect(within(terms).getByRole("radio", { name: "Home, small job" })).toHaveAttribute("aria-checked", "true");
   await act(async () => {
@@ -187,7 +201,7 @@ it("opens the page on the box that drafts one when the job has none, and drafts 
   await act(async () => {
     fireEvent.click(draft);
   });
-  await waitFor(() => expect(screen.getByText("Site checklist")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("What Tiff read")).toBeInTheDocument());
   const post = (fetchMock.mock.calls as Call[]).find(([, init]) => init?.method === "POST");
   expect(JSON.parse(post![1]!.body!)).toEqual({ job: "j-1", brief: "Own 6 kW split, parapet wall", replace: false });
 });
@@ -200,14 +214,16 @@ it("a read that fails offers Try again, never the box that would draft over it",
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   });
-  await screen.findByText("Site checklist");
+  await screen.findByText("What Tiff read");
 });
 
 it("saves on the copy it was made from, and an answer leaves an open editor open", async () => {
   await openFace();
-  await screen.findByText("Site checklist");
+  await screen.findByText("What Tiff read");
+  toProposal();
   fireEvent.click(screen.getByRole("button", { name: "Edit Intro" }));
   fireEvent.change(screen.getByDisplayValue(/Here is the scope/), { target: { value: "Hi Jane, half typed" } });
+  fireEvent.click(screen.getByRole("tab", { name: "Build-up" }));
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
   });
@@ -219,7 +235,7 @@ it("saves on the copy it was made from, and an answer leaves an open editor open
 it("shows the proposal as it stands when someone else saved first", async () => {
   const onToast = jest.fn();
   await openFace(onToast);
-  await screen.findByText("Site checklist");
+  await screen.findByText("What Tiff read");
   const newer = { ...stored(), updatedAt: "2026-09-29T09:00:00Z", draft: normaliseDraft({ ...stored().draft, intro: "Hi Jane,\nNewer words." })! };
   fetchMock.mockImplementationOnce(() => respond({ ok: false, reason: "Someone else changed this proposal", proposal: newer }));
   await act(async () => {
@@ -231,7 +247,8 @@ it("shows the proposal as it stands when someone else saved first", async () => 
 
 it("the payment editor opens on the stages the draft holds now", async () => {
   await openFace();
-  await screen.findByText("Site checklist");
+  await screen.findByText("What Tiff read");
+  toProposal();
   const terms = screen.getByRole("radiogroup", { name: "Payment terms" });
   await act(async () => {
     fireEvent.click(within(terms).getByRole("radio", { name: "Home, construction" }));
@@ -242,7 +259,9 @@ it("the payment editor opens on the stages the draft holds now", async () => {
 
 it("marks an option accepted, the job's equipment for its certificate", async () => {
   await openFace();
-  const mark = await screen.findByRole("button", { name: "Mark accepted" });
+  await screen.findByText("What Tiff read");
+  toProposal();
+  const mark = screen.getByRole("button", { name: "Mark accepted" });
   expect(mark).toHaveAttribute("aria-pressed", "false");
   await act(async () => {
     fireEvent.click(mark);
@@ -255,6 +274,7 @@ it("marks an option accepted, the job's equipment for its certificate", async ()
 it("shows a unit with no model as not given yet, and edits the equipment row by row", async () => {
   await openFace();
   await screen.findByText("Living room");
+  toProposal();
   expect(screen.getByText("Model not given yet")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Edit Option 1: Install client-supplied 6 kW split" }));
   fireEvent.change(screen.getByLabelText("Model"), { target: { value: "msz-ap60vgd" } });
@@ -313,8 +333,8 @@ describe("a quote ServiceM8 generated", () => {
     const onCancel = jest.fn();
     render(<JobQuoteFace mode="page" job="j-1" address={null} visible onToast={jest.fn()} sm8={sm8} onCancel={onCancel} />);
     expect(await screen.findByText("Update ServiceM8 quote")).toBeInTheDocument();
-    /* ServiceM8's quote sits beside the builder on the page, not in it */
-    expect(screen.queryByText("Quote from ServiceM8")).toBeNull();
+    /* ServiceM8's quote heads the list on the right, beside the box */
+    expect(within(screen.getByRole("complementary")).getByText("Quote from ServiceM8")).toBeInTheDocument();
     /* filled once the draft read says there's no draft */
     await waitFor(() =>
       expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
@@ -360,43 +380,42 @@ describe("a quote ServiceM8 generated", () => {
 
 /* Isaac, 2026-10-05: "the customer should be able to see the total for each
    option… you should not have to manually enter it in" */
-const pricedAs = (options: { cents: number; labour: number; unpriced: { name: string; qty: string; why: string }[] }[]) => {
-  const route = fetchMock.getMockImplementation()!;
-  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
-    url.startsWith("/api/workboard/quote-price")
-      ? respond({
-          ok: true,
-          price: {
-            ok: true,
-            labourFrom: "brief",
-            options: options.map((o, i) => ({ name: `Option ${i + 1}`, build: { exGstCents: o.cents, incGstCents: Math.round(o.cents * 1.1), labour: { sellCents: o.labour } }, unpriced: o.unpriced, rows: 3 })),
-          },
-        })
-      : route(url, init)
-  );
-};
+const pricedAs = (options: { cents: number; labour: number; unpriced: { name: string; qty: string; why: string }[] }[]): QuotePrice =>
+  ({
+    ok: true,
+    options: options.map((o, i) => ({
+      name: `Option ${i + 1}`,
+      build: { exGstCents: o.cents, incGstCents: Math.round(o.cents * 1.1), gstCents: Math.round(o.cents * 0.1), buyCents: 0, groups: [], contingency: null, labour: { sellCents: o.labour, personDays: 2, hours: 0, visits: [] } },
+      unpriced: o.unpriced,
+      rows: 3,
+      labourFrom: "brief",
+    })),
+  }) as unknown as QuotePrice;
 
 it("shows each option's total from its Price block, ex and inc GST, with nothing typed", async () => {
-  pricedAs([{ cents: 812_500, labour: 224_000, unpriced: [] }]);
-  await openFace();
-  expect(await screen.findByText("$8,125 + GST")).toBeInTheDocument();
-  expect(screen.getByText("$8,937.50 inc GST")).toBeInTheDocument();
+  await openFace(jest.fn(), pricedAs([{ cents: 812_500, labour: 224_000, unpriced: [] }]));
+  await screen.findByText("What Tiff read");
+  toProposal();
+  const paper = screen.getByRole("tabpanel", { name: "Proposal" });
+  expect(within(paper).getByText("$8,125 + GST")).toBeInTheDocument();
+  expect(within(paper).getByText("$8,937.50 inc GST")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
   expect(screen.queryByRole("button", { name: "Take the priced total" })).toBeNull();
   expect(screen.queryByLabelText(/price, dollars ex GST/)).toBeNull();
 });
 
 it("never shows a total so far as an option's price", async () => {
-  pricedAs([{ cents: 6_572, labour: 0, unpriced: [{ name: "Drain socket", qty: "1", why: "Not in your price book" }] }]);
-  await openFace();
-  expect(await screen.findByText("2 still to price")).toBeInTheDocument();
+  await openFace(jest.fn(), pricedAs([{ cents: 6_572, labour: 0, unpriced: [{ name: "Drain socket", qty: "1", why: "Not in your price book" }] }]));
+  await screen.findByText("What Tiff read");
+  toProposal();
+  const paper = screen.getByRole("tabpanel", { name: "Proposal" });
+  expect(within(paper).getByText("2 still to price")).toBeInTheDocument();
   expect(screen.queryByText("$65.72 + GST")).toBeNull();
 });
 
 /* Isaac, 2026-10-05: "it can just show you a comparison of what was already
    quoted versus the new quote" */
 it("stands each option's total beside what ServiceM8 quoted, on ServiceM8's basis", async () => {
-  pricedAs([{ cents: 1_200_000, labour: 224_000, unpriced: [] }]);
   render(
     <JobQuoteFace
       mode="page"
@@ -404,6 +423,7 @@ it("stands each option's total beside what ServiceM8 quoted, on ServiceM8's basi
       address={null}
       visible
       onToast={jest.fn()}
+      price={pricedAs([{ cents: 1_200_000, labour: 224_000, unpriced: [] }])}
       sm8={{ papers: [], sentOn: "2026-09-22", value: "$12,650 inc GST", quoted: { cents: 1_265_000, basis: "inc" } }}
     />
   );
@@ -418,6 +438,7 @@ it("says what the customer sees, the business's default until the quote says oth
   );
   await openFace();
   expect(await screen.findByText("The customer sees each option's total")).toBeInTheDocument();
+  toProposal();
   fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
   fireEvent.click(screen.getByRole("checkbox", { name: "Show line items to the customer" }));
   await act(async () => {
@@ -435,9 +456,10 @@ it("puts an option's materials on the job's list when it's marked accepted", asy
   const onToast = jest.fn();
   const onJobMaterials = jest.fn();
   render(<JobQuoteFace mode="page" job="j-1" address={null} visible onToast={onToast} onJobMaterials={onJobMaterials} />);
-  await screen.findByText("Site checklist");
+  await screen.findByText("What Tiff read");
+  toProposal();
   await act(async () => {
-    fireEvent.click(await screen.findByRole("button", { name: "Mark accepted" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark accepted" }));
   });
   await waitFor(() => expect(onJobMaterials).toHaveBeenCalled());
   expect(onToast).toHaveBeenCalledWith("The accepted option's materials are on the job's list");
@@ -578,5 +600,118 @@ describe("an option's labour", () => {
       fireEvent.click(screen.getByRole("button", { name: "Save labour" }));
     });
     expect(screen.queryByText("Tiff couldn't suggest labour for this one. Set it yourself.")).toBeNull();
+  });
+});
+
+/* Isaac, 2026-10-06: "You should still be able to manually approve" — the
+   page's corner is the quote's next step: Approve, Mark sent, then Mark
+   accepted, each by hand, with the last one marked taken back by Undo */
+describe("the quote's next step, by hand", () => {
+  let corner: HTMLDivElement;
+  beforeEach(() => {
+    corner = document.createElement("div");
+    document.body.appendChild(corner);
+  });
+  afterEach(() => corner.remove());
+  const page = () => render(<JobQuoteFace mode="page" job="j-1" address={null} visible onToast={jest.fn()} actionsEl={corner} />);
+  const lastPut = () => JSON.parse((fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === "PUT").at(-1)![1]!.body!) as { draft: StoredProposal["draft"] };
+
+  it("approves, then marks it sent, each on the progress line, and Undo takes the last one back", async () => {
+    page();
+    await screen.findByText("What Tiff read");
+    const line = screen.getByRole("list", { name: "Where the quote is" });
+    expect(line.querySelector('[aria-current="step"]')).toHaveTextContent("ApprovedNot yet");
+    await act(async () => {
+      fireEvent.click(within(corner).getByRole("button", { name: "Approve" }));
+    });
+    expect(lastPut().draft.status?.approvedAt).toEqual(expect.any(String));
+    expect(await within(corner).findByRole("button", { name: "Mark sent" })).toBeInTheDocument();
+    expect(line).toHaveTextContent(/Approved \w{3}, \d+ \w+/);
+    await act(async () => {
+      fireEvent.click(within(corner).getByRole("button", { name: "Mark sent" }));
+    });
+    expect(lastPut().draft.status).toEqual({ approvedAt: expect.any(String), sentAt: expect.any(String) });
+    /* sent: the next step is the client's yes */
+    expect(await within(corner).findByRole("button", { name: "Mark accepted" })).toHaveClass("primary");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Undo sent" }));
+    });
+    expect(lastPut().draft.status).toEqual({ approvedAt: expect.any(String), sentAt: null });
+  });
+
+  it("takes an approval back when the quote changes after it", async () => {
+    page();
+    await screen.findByText("What Tiff read");
+    await act(async () => {
+      fireEvent.click(within(corner).getByRole("button", { name: "Approve" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
+    });
+    expect(lastPut().draft.status ?? null).toBeNull();
+  });
+
+  it("marks a one-option quote accepted from the corner, whatever came before", async () => {
+    page();
+    await screen.findByText("What Tiff read");
+    await act(async () => {
+      fireEvent.click(within(corner).getByRole("button", { name: "Mark accepted" }));
+    });
+    expect(lastPut().draft.accepted).toEqual([0]);
+  });
+});
+
+describe("the list on the right", () => {
+  it("opens a question from To answer, and a known topic from What Tiff read", async () => {
+    const asked = stored();
+    asked.draft.checklist = [
+      { key: "pipe_covering", state: "ask", answer: "", question: "What covers the pipes on the rear wall?", choices: ["Colorbond trunking"], rank: 1 },
+      { key: "drain_to", state: "ask", answer: "", question: "Where does the drain go from the bedroom?", choices: ["Downpipe"], rank: 2 },
+      { key: "outdoor_location", state: "known", answer: "Parapet wall, on brackets" },
+    ];
+    fetchMock.mockImplementation(() => respond({ ok: true, proposal: asked }));
+    const { container } = face();
+    await screen.findByText("What Tiff read");
+    const list = container.querySelector(".qp-rail") as HTMLElement;
+    expect(within(list).getByText("2")).toBeInTheDocument();
+    fireEvent.click(within(list).getByRole("button", { name: "Answer Where to" }));
+    expect(screen.getAllByText("Where does the drain go from the bedroom?")[0]).toHaveClass("wb2-jqask");
+    fireEvent.click(screen.getByRole("button", { name: "Change Where and how" }));
+    expect(screen.getByText("Where does the outdoor unit go, and on what?")).toHaveClass("wb2-jqask");
+  });
+
+  it("prices the option being read, and lists what's still to price in the late red", async () => {
+    const price = {
+      ok: true,
+      options: [
+        {
+          name: "Split",
+          build: {
+            exGstCents: 300_000,
+            incGstCents: 330_000,
+            gstCents: 30_000,
+            buyCents: 120_000,
+            contingency: null,
+            groups: [{ name: "Units", buyCents: 100_000, sellCents: 125_000, lines: [{ key: "u1", group: "Units", name: "MSZ-AP25", code: "X", supplierKey: "aad", qty: 1, unitBuyCents: 100_000, kind: "unit", buyCents: 100_000, sellCents: 125_000 }] }],
+            labour: { sellCents: 0, personDays: 0, hours: 0, visits: [] },
+          },
+          unpriced: [{ name: "Wall bracket", qty: "1", why: "Not in your price book" }],
+          rows: 2,
+          labourFrom: "none",
+        },
+      ],
+    } as unknown as QuotePrice;
+    const { container } = face(jest.fn(), price);
+    await screen.findByText("What Tiff read");
+    const list = container.querySelector(".qp-rail") as HTMLElement;
+    expect(within(list).getByText("$3,000")).toBeInTheDocument();
+    expect(within(list).getByText("Option 1: Install client-supplied 6 kW split, ex GST, so far")).toBeInTheDocument();
+    /* labour nothing gives is still to price, never a $0 line */
+    expect(within(list).queryByText("$0")).toBeNull();
+    expect(within(list).getByText("Still to price", { selector: "h2 *, h2" })).toBeInTheDocument();
+    expect(within(list).getByText("Not in your price book")).toBeInTheDocument();
+    /* and down the page, what the option is made of */
+    expect(screen.getByRole("heading", { name: "What’s in it" })).toBeInTheDocument();
+    expect(screen.getByText("MSZ-AP25")).toBeInTheDocument();
   });
 });

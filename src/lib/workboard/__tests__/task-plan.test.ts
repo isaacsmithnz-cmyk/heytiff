@@ -40,6 +40,19 @@ describe("the visits the quote plans", () => {
   });
 });
 
+describe("the visits the quote plans, a site measure and several options", () => {
+  it("leaves the site measure out, and runs several options' labour stage by stage", () => {
+    const two = [
+      { stage: "Site measure" as const, people: 1, days: 0.5 },
+      { stage: "Rough-in" as const, people: 2, days: 1 },
+      { stage: "Install" as const, people: 2, days: 1 },
+      { stage: "Rough-in" as const, people: 2, days: 1 },
+      { stage: "Install" as const, people: 2, days: 1 },
+    ];
+    expect(plannedVisits(two).map((v) => v.stage)).toEqual(["Rough-in", "Rough-in", "Install", "Install"]);
+  });
+});
+
 describe("what Tiff is handed", () => {
   it("names the option's scope, its units numbered, the site's facts and the visits", () => {
     const p = tasksPrompt({ site: "44 Leinster Street\nPaddington NSW 2021", client: null, options: option, facts: ["Outdoor unit location: Garage, on a slab"], visits: plannedVisits(labour) });

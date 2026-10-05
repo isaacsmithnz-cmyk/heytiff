@@ -89,6 +89,15 @@ describe("a task carried across visits", () => {
     expect(today[0]).toMatchObject({ pctWords: "85%", meta: "Up 15% from visit 2" });
   });
 
+  it("a tick taken back the same visit leaves no trail", () => {
+    const hang = task("hang", "Hang the Bedroom 3 unit", { visit: 4 });
+    const ups = [up("hang", "2026-10-08", 0, 100), up("hang", "2026-10-08", 100, 0)];
+    const { visits } = placeTasks([hang], ups, slotsOn("2026-10-08"));
+    expect(visits.find((v) => v.slot.n === 3)!.lines).toEqual([]);
+    expect(visits.find((v) => v.slot.n === 4)!.lines[0]).toMatchObject({ mark: "open", meta: null });
+    expect(taskRows([hang], ups, slotsOn("2026-10-08"), (d) => d)[0]!.rows[0]!.visits).toBe("Visit 4");
+  });
+
   it("a task finished on a visit is ticked on that visit's card and nowhere after", () => {
     const done = task("pen", "Garage penetrations", { progress: 100 });
     const { visits, unplaced } = placeTasks([done], [up("pen", "2026-10-06", 0, 100)], slotsOn("2026-10-08"));

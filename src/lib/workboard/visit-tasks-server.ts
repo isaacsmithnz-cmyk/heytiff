@@ -69,6 +69,39 @@ export async function readJobTasks(orgId: string, cardId: string): Promise<JobTa
   return { tasks: ((tasks ?? []) as TaskRow[]).map(taskOf), updates: ((updates ?? []) as UpdateRow[]).map(updateOf) };
 }
 
+/** The days booked on the job since its work order and before today, with
+    who was booked: a day the crew went but nobody checked in is still a
+    visit, or every visit after it would be numbered one short. */
+export async function pastBookedDays(orgId: string, cardId: string, today: string): Promise<{ day: string; crew: string[] }[]> {
+  const { data: job } = await supabaseAdmin.from("sm8_jobs").select("work_order_date").eq("org_id", orgId).eq("uuid", cardId).maybeSingle();
+  const from = ((job as { work_order_date: string | null } | null)?.work_order_date ?? "").slice(0, 10);
+  const { data } = await supabaseAdmin
+    .from("sm8_job_activities")
+    .select("start_date, staff_uuid")
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .eq("job_uuid", cardId)
+    .eq("activity_was_scheduled", 1)
+    .lt("start_date", `${today} 00:00:00`)
+    .order("start_date", { ascending: true });
+  const rows = ((data ?? []) as { start_date: string | null; staff_uuid: string | null }[]).filter((r) => r.start_date && (!from || r.start_date.slice(0, 10) >= from));
+  if (rows.length === 0) return [];
+  const staffIds = [...new Set(rows.map((r) => r.staff_uuid).filter((s): s is string => !!s))];
+  const { data: staff } = staffIds.length
+    ? await supabaseAdmin.from("sm8_staff").select("uuid, first, last").eq("org_id", orgId).in("uuid", staffIds)
+    : { data: [] };
+  const nameOf = new Map(((staff ?? []) as { uuid: string; first: string | null; last: string | null }[]).map((s) => [s.uuid, [s.first, s.last].filter(Boolean).join(" ")]));
+  const days = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const day = r.start_date!.slice(0, 10);
+    const set = days.get(day) ?? new Set<string>();
+    const name = r.staff_uuid ? nameOf.get(r.staff_uuid) : "";
+    if (name) set.add(name);
+    days.set(day, set);
+  }
+  return [...days.entries()].map(([day, crew]) => ({ day, crew: [...crew] }));
+}
+
 /** The account's own today, the day an update is logged against. */
 export async function accountToday(orgId: string): Promise<string> {
   return todayInZone(await getSm8Timezone(orgId));
@@ -132,6 +165,10 @@ export async function makeTasksFromQuote(orgId: string, userId: string, cardId: 
   }
   const tasks = parseTasks(raw, units, visits);
   if (tasks.length === 0) return { ok: false, reason: "Tiff couldn't write the tasks for this one. Add them yourself." };
+  /* asked again after the call: a second press, or a second manager, may
+     have made them meanwhile */
+  const { count: since } = await supabaseAdmin.from("job_tasks").select("id", { count: "exact", head: true }).eq("org_id", orgId).eq("sm8_job_uuid", cardId);
+  if ((since ?? 0) > 0) return { ok: false, reason: "This job already has its tasks." };
   const { error } = await supabaseAdmin.from("job_tasks").insert(
     tasks.map((t) => ({ org_id: orgId, sm8_job_uuid: cardId, name: t.name, stage: t.stage, kind: t.kind, unit: t.unit, visit: t.visit, sort: t.sort, source: "quote", created_by: userId }))
   );
@@ -220,23 +257,33 @@ export async function applyTaskEdit(orgId: string, cardId: string, who: { userId
     case "progress": {
       if (edit.to === row.progress && !edit.note) return { ok: true };
       const done = edit.to >= 100;
+      /* the day's work goes on record first; the task moves only once it is,
+         so progress never changes with no day to show for it */
+      const { data: logged, error: logError } = await supabaseAdmin
+        .from("job_task_updates")
+        .insert({
+          org_id: orgId,
+          task_id: edit.id,
+          sm8_job_uuid: cardId,
+          day: await accountToday(orgId),
+          pct_from: row.progress,
+          pct_to: edit.to,
+          note: edit.note,
+          by_user: who.userId,
+          by_name: who.name,
+        })
+        .select("id")
+        .single();
+      if (logError || !logged) return { ok: false, reason: "That couldn't be saved. Try again." };
       const { error } = await supabaseAdmin
         .from("job_tasks")
         .update({ progress: edit.to, done_at: done ? now : null, done_by: done ? who.name : null, updated_at: now })
         .eq("org_id", orgId)
         .eq("id", edit.id);
-      if (error) return { ok: false, reason: "That couldn't be saved. Try again." };
-      await supabaseAdmin.from("job_task_updates").insert({
-        org_id: orgId,
-        task_id: edit.id,
-        sm8_job_uuid: cardId,
-        day: await accountToday(orgId),
-        pct_from: row.progress,
-        pct_to: edit.to,
-        note: edit.note,
-        by_user: who.userId,
-        by_name: who.name,
-      });
+      if (error) {
+        await supabaseAdmin.from("job_task_updates").delete().eq("org_id", orgId).eq("id", (logged as { id: string }).id);
+        return { ok: false, reason: "That couldn't be saved. Try again." };
+      }
       return { ok: true };
     }
     case "visit": {

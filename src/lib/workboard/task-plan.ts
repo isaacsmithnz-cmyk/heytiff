@@ -17,10 +17,17 @@ import { MAX_TASKS, MAX_TASK_NAME, TASK_KINDS, type TaskKind, type TaskUnit } fr
 export type PlannedVisit = { n: number; stage: VisitStage; people: number };
 
 /** The quote's labour as visits, one a day: "Rough-in, 2 people, 3 days" is
-    visits 1 to 3. A part day is a visit of its own. */
+    visits 1 to 3. A part day is a visit of its own. A site measure comes
+    before the work order and is no visit of the work; several options'
+    labour runs in the order of the work, stage by stage. */
 export function plannedVisits(labour: readonly Visit[]): PlannedVisit[] {
   const out: PlannedVisit[] = [];
-  for (const v of labour) {
+  const work = labour
+    .filter((v) => v.stage !== "Site measure")
+    .map((v, i) => ({ v, i }))
+    .sort((a, b) => VISIT_STAGES.indexOf(a.v.stage) - VISIT_STAGES.indexOf(b.v.stage) || a.i - b.i)
+    .map((x) => x.v);
+  for (const v of work) {
     const days = Math.max(1, Math.ceil(v.days - 1e-9));
     for (let i = 0; i < days && out.length < 60; i++) out.push({ n: out.length + 1, stage: v.stage, people: v.people });
   }

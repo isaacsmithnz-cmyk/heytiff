@@ -121,6 +121,12 @@ function factsOf(task: JobTask, ups: TaskUpdate[], slots: readonly VisitSlot[]):
     const v = visitOfDay(slots, u.day);
     if (v != null && !worked.includes(v)) worked.push(v);
   }
+  /* a visit whose work cancels out — ticked, then unticked, no note — did
+     nothing to the task */
+  for (const v of [...worked]) {
+    const mine = ups.filter((u) => visitOfDay(slots, u.day) === v);
+    if (mine[0]!.from === mine[mine.length - 1]!.to && !mine.some((u) => u.note.trim())) worked.splice(worked.indexOf(v), 1);
+  }
   if (task.progress >= 100) return { task, ups, worked, shownOn: null, from: null };
   const last = worked.length ? worked[worked.length - 1]! : null;
   const planned = task.visit;
@@ -145,6 +151,8 @@ export type TaskLine = {
   pctWords: string | null;
   meta: string | null;
   note: { by: string | null; text: string } | null;
+  /** the day of the last work this line shows; null for work still to do */
+  lastDay: string | null;
 };
 
 const markOf = (pct: number): TaskMark => (pct >= 100 ? "done" : pct > 0 ? "part" : "open");
@@ -195,6 +203,7 @@ export function placeTasks(
         pctWords: last.to > 0 && last.to < 100 ? `${last.to}%` : null,
         meta,
         note: noted ? { by: noted.by, text: noted.note.trim() } : null,
+        lastDay: last.day,
       });
     }
     /* still to do: on the visit it shows on, unless that visit already
@@ -207,12 +216,13 @@ export function placeTasks(
         pctWords: task.progress > 0 ? `${task.progress}%` : null,
         meta: from != null ? `From visit ${from}` : null,
         note: null,
+        lastDay: null,
       };
       if (shownOn == null) unplaced.push(line);
       else if (!worked.includes(shownOn)) at(shownOn)?.lines.push(line);
     } else if (worked.length === 0) {
       /* done with no day's work on record (ticked before any visit) */
-      const line: TaskLine = { task, mark: "done", pct: 100, pctWords: null, meta: null, note: null };
+      const line: TaskLine = { task, mark: "done", pct: 100, pctWords: null, meta: null, note: null, lastDay: null };
       const v = task.visit != null ? at(task.visit) : undefined;
       if (v) v.lines.push(line);
       else unplaced.push(line);

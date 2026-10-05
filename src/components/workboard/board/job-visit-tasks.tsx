@@ -32,7 +32,16 @@ import {
 const ROUTE = "/api/workboard/job-tasks";
 
 type Answer =
-  | { ok: true; tasks: JobTask[]; updates: TaskUpdate[]; today: string; canMake: boolean; manage: boolean }
+  | {
+      ok: true;
+      tasks: JobTask[];
+      updates: TaskUpdate[];
+      today: string;
+      /** days booked since the work order that nobody checked in on */
+      booked?: { day: string; crew: string[] }[];
+      canMake: boolean;
+      manage: boolean;
+    }
   | { ok: false; reason: string };
 type Loaded = Extract<Answer, { ok: true }>;
 
@@ -83,22 +92,23 @@ export function JobVisitTasks({
   const [saving, setSaving] = useState(false);
   const strip = useRef<HTMLOListElement>(null);
 
+  /* read once, the first time the face is open; no cancel on a tab switch,
+     or a read that lands while another face is up would be dropped and
+     never asked again */
   const asked = useRef<string | null>(null);
   useEffect(() => {
     if (!visible || asked.current === job) return;
     asked.current = job;
-    let live = true;
     fetch(`${ROUTE}?job=${encodeURIComponent(job)}`)
       .then((r) => r.json() as Promise<Answer>)
       .then((a) => {
-        if (!live) return;
         setData(loadedOf(a));
         setError(reasonOf(a));
       })
-      .catch(() => live && setError("The tasks couldn't be read just now."));
-    return () => {
-      live = false;
-    };
+      .catch(() => {
+        asked.current = null;
+        setError("The tasks couldn't be read just now.");
+      });
   }, [job, visible]);
 
   const send = async (method: "POST" | "PUT", body: Record<string, unknown>): Promise<boolean> => {
@@ -135,10 +145,17 @@ export function JobVisitTasks({
   /* until the account's today is read, the booked days are still ahead and
      the cards say no state */
   const firstAhead = ahead.map((v) => v.day.slice(0, 10)).sort()[0] ?? "9999-12-31";
-  const slots = visitSlots({ onSite, ahead, today: today ?? firstAhead, from, planned });
+  /* a day booked since the work order that nobody checked in on is still a
+     visit: without it every visit after would be numbered one short */
+  const checkedIn = new Set(onSite.map((v) => v.day.slice(0, 10)));
+  const bookedPast: VisitDay[] = (data?.booked ?? [])
+    .filter((b) => !checkedIn.has(b.day))
+    .map((b) => ({ day: b.day, crew: b.crew, crewNode: b.crew.length ? b.crew.join(", ") : null, length: null, hours: null, onSite: false }));
+  const went = [...onSite, ...bookedPast];
+  const slots = visitSlots({ onSite: went, ahead, today: today ?? firstAhead, from, planned });
   const site = onSite.filter((v) => from && v.day.slice(0, 10) < from).sort((a, b) => a.day.localeCompare(b.day));
-  const dayOf = new Map([...ahead, ...onSite].map((v) => [v.day.slice(0, 10), v]));
-  const workedDays = new Set(onSite.map((v) => v.day.slice(0, 10)));
+  const dayOf = new Map([...ahead, ...went].map((v) => [v.day.slice(0, 10), v]));
+  const workedDays = checkedIn;
   const placed = placeTasks(tasks, updates, slots);
   const manage = data?.manage ?? false;
   const open = openId ? tasks.find((t) => t.id === openId) ?? null : null;
@@ -150,15 +167,23 @@ export function JobVisitTasks({
     if (!ol || view !== "visit" || open) return;
     const card = focusN != null ? ol.querySelector<HTMLElement>(`[data-visit="${focusN}"]`) : null;
     ol.scrollLeft = card ? Math.max(0, card.offsetLeft - ol.offsetLeft - 16) : ol.scrollWidth;
-  }, [focusN, view, open, data]);
+  }, [focusN, view, open]);
 
-  const nothing = slots.length === 0 && site.length === 0 && tasks.length === 0 && !data?.canMake;
-  if (nothing) return emptyWords ? <p className="int-hint">{emptyWords}</p> : null;
+  /* nothing to show, and nothing a manager could add */
+  const nothing = slots.length === 0 && site.length === 0 && tasks.length === 0 && !data?.canMake && !data?.manage;
+  if (nothing) {
+    return (
+      <>
+        {error && <p className="wb2-sherr">{error}</p>}
+        {emptyWords && <p className="int-hint">{emptyWords}</p>}
+      </>
+    );
+  }
 
   const counts = doneCount(tasks);
   const totalWords = [
     /* the days on site so far, as the face has always counted them */
-    onSite.length ? `${onSite.length} visit${onSite.length === 1 ? "" : "s"}` : null,
+    went.length ? `${went.length} visit${went.length === 1 ? "" : "s"}` : null,
     onSiteWords,
     tasks.length ? `${counts.done} of ${counts.of} tasks done` : null,
   ]
@@ -209,6 +234,7 @@ export function JobVisitTasks({
         </div>
       )}
       {error && <p className="wb2-sherr">{error}</p>}
+      {slots.length === 0 && site.length === 0 && tasks.length === 0 && emptyWords && <p className="int-hint">{emptyWords}</p>}
 
       {view === "visit" ? (
         <>
@@ -243,7 +269,7 @@ export function JobVisitTasks({
                           <TaskItem
                             key={`${slot.n}-${l.task.id}`}
                             line={l}
-                            live={slot.state !== "done" || l.mark !== "done"}
+                            live={slot.state !== "done" || l.lastDay === today}
                             saving={saving}
                             onOpen={() => setOpenId(l.task.id)}
                             onTick={(to) => void edit({ kind: "progress", id: l.task.id, to, note: "" })}

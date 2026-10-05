@@ -6872,8 +6872,6 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 /* INSTALLATION: a card per visit, oldest on the left, scrolling sideways */
 .jcl-visits { margin:0; padding:0 0 8px; list-style:none; display:grid; grid-auto-flow:column; grid-auto-columns:240px; gap:12px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; }
 .jcl-visit { display:flex; flex-direction:column; gap:4px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); scroll-snap-align:end; }
-.jcl-vn { font-size:12px; font-weight:500; color:var(--q); }
-.jcl-visit > b { font-size:16px; font-weight:600; }
 .jcl-visit > em { font-style:normal; font-size:13px; line-height:1.45; color:var(--ink); }
 .jcl-vlen { margin-top:auto; padding-top:8px; font-size:12px; font-weight:500; color:var(--q); }
 .jcl-vhrs { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
@@ -6889,10 +6887,10 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-visit.plan { border-style:dashed; }
 .jcl-vh { display:flex; align-items:baseline; gap:8px; }
 .jcl-vh b { font-size:16px; font-weight:600; }
-.jcl-vword { margin-left:auto; font-size:13px; font-weight:600; }
+.jcl-vword { margin-left:auto; font-size:14px; font-weight:500; }
 .jcl-vword.ok { color:var(--ok-t); }
 .jcl-vword.info { color:var(--info-t); }
-.jcl-vword.quiet { color:var(--q); font-weight:500; }
+.jcl-vword.quiet { color:var(--q); }
 .jcl-vday { font-size:13px; color:var(--q); }
 .jcl-visits.tasks .jcl-vlen { padding-top:12px; }
 .jcl-tasks { margin:8px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; }
@@ -6918,10 +6916,10 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-tnote { font-size:12px; color:var(--q); }
 .jcl-tnote q { color:var(--ink); }
 .jcl-tvis { font-size:13px; color:var(--q); }
-.jcl-tstat { font-size:13px; font-weight:600; text-align:right; }
+.jcl-tstat { font-size:14px; font-weight:500; text-align:right; }
 .jcl-tstat.ok { color:var(--ok-t); }
 .jcl-tstat.info { color:var(--info-t); }
-.jcl-tstat.quiet { color:var(--q); font-weight:500; }
+.jcl-tstat.quiet { color:var(--q); }
 .jcl-tsel { max-width:100%; }
 .jcl-tloose, .jcl-tall { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
 .jcl-tall { gap:16px; }

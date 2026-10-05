@@ -134,3 +134,36 @@ it("reads nothing until the face is open, and says so when there's nothing at al
   );
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 });
+
+it("counts a booked day nobody checked in on as a visit, so the later visits keep their numbers", async () => {
+  fetchMock.mockImplementation(async () => ({ json: async () => answer({ booked: [{ day: "2026-10-06", crew: ["Callum Vrieze"] }] }) }));
+  mount({ onSite: [day("2026-10-07", { onSite: true })] });
+  expect(await screen.findByText("From visit 1")).toBeInTheDocument();
+  expect(within(card("Visit 1")).getByText("Callum Vrieze")).toBeInTheDocument();
+  expect(within(card("Visit 2")).getByText("On site now")).toBeInTheDocument();
+});
+
+it("lets a tick made today on a day with no visit be taken back from the card it shows on", async () => {
+  fetchMock.mockImplementation(async () => ({
+    json: async () => answer({ today: "2026-10-09", tasks: [task("drains", "Drains for Level 3", { visit: 2, progress: 100 })], updates: [up("drains", "2026-10-09", 0, 100)] }),
+  }));
+  mount();
+  const box = await screen.findByRole("checkbox", { name: "Drains for Level 3: done" });
+  expect(box).toBeEnabled();
+  await act(async () => {
+    fireEvent.click(box);
+  });
+  expect(sent("PUT")).toEqual([{ job: "job-1", edit: { kind: "progress", id: "drains", to: 0, note: "" } }]);
+});
+
+it("still reads the tasks when the face was left before the first read landed", async () => {
+  let land: (v: unknown) => void = () => undefined;
+  fetchMock.mockImplementation(() => new Promise((r) => (land = r)));
+  const { rerender } = mount();
+  rerender(<JobVisitTasks job="job-1" visible={false} onSite={[day("2026-10-06")]} ahead={[]} workOrderDate={null} onSiteWords={null} emptyWords="" />);
+  await act(async () => {
+    land({ json: async () => answer() });
+  });
+  rerender(<JobVisitTasks job="job-1" visible onSite={[day("2026-10-06")]} ahead={[]} workOrderDate={null} onSiteWords={null} emptyWords="" />);
+  expect(await screen.findByText("Garage penetrations")).toBeInTheDocument();
+});

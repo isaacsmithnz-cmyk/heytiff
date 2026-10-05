@@ -23,7 +23,13 @@ jest.mock("@/lib/supabase-server", () => ({
       q.eq = (c: string, v: unknown) => (call.filters.push([c, v]), q);
       q.order = () => q;
       q.maybeSingle = () => Promise.resolve({ data: (tables[table] ?? {}).one ?? null, error: null });
-      q.insert = (row: unknown) => (calls.push({ ...call, op: "insert", row }), Promise.resolve({ error: null }));
+      q.insert = (row: unknown) => {
+        calls.push({ ...call, op: "insert", row });
+        return {
+          select: () => ({ single: async () => ({ data: { id: "upd-1" }, error: null }) }),
+          then: (res: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(res),
+        };
+      };
       q.update = (row: unknown) => (calls.push({ ...call, op: "update", row }), q);
       q.delete = () => (calls.push({ ...call, op: "delete" }), q);
       q.then = (res: (v: unknown) => unknown) => answer().then(res);

@@ -7286,6 +7286,7 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
   display:flex; flex-direction:column; gap:4px; }
 .wb2-jqnow .wb2-jqacts .pbtn.ghost { background:var(--paper); }
 .wb2-jqask { margin:0; font-size:16px; font-weight:600; line-height:1.45; max-width:62ch; }
+.wb2-jqhas { margin:0; font-size:14px; line-height:1.5; color:var(--q); max-width:62ch; }
 .wb2-jqlead-r { margin-left:auto; }
 .wb2-jqown { display:flex; gap:8px; align-items:center; margin-top:8px; }
 .wb2-jqown .wb2-fi { flex:1; min-width:0; }

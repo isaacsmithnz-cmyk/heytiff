@@ -659,6 +659,16 @@ describe("the quote's next step, by hand", () => {
     });
     expect(lastPut().draft.accepted).toEqual([0]);
   });
+
+  it("keeps the line where the quote is while it's started again", async () => {
+    page();
+    await screen.findByText("What Tiff read");
+    fireEvent.click(screen.getByRole("button", { name: "Start again" }));
+    expect(screen.getByRole("heading", { name: "Start the proposal again" })).toBeInTheDocument();
+    const line = screen.getByRole("list", { name: "Where the quote is" });
+    expect(line).toHaveTextContent(/Drafted/);
+    expect(line).not.toHaveTextContent("Not drafted yet");
+  });
 });
 
 describe("the list on the right", () => {
@@ -678,6 +688,56 @@ describe("the list on the right", () => {
     expect(screen.getAllByText("Where does the drain go from the bedroom?")[0]).toHaveClass("wb2-jqask");
     fireEvent.click(screen.getByRole("button", { name: "Change Where and how" }));
     expect(screen.getByText("Where does the outdoor unit go, and on what?")).toHaveClass("wb2-jqask");
+    /* a topic opened to change it says what it holds now */
+    expect(screen.getAllByText("Parapet wall, on brackets").find((e) => e.classList.contains("wb2-jqhas"))).toBeDefined();
+  });
+
+  it("holds no question open from the last draft once a new one lands", async () => {
+    face();
+    await screen.findByText("What Tiff read");
+    fireEvent.click(screen.getByRole("button", { name: "Change Where and how" }));
+    expect(screen.getByText("Where does the outdoor unit go, and on what?")).toHaveClass("wb2-jqask");
+    fireEvent.click(screen.getByRole("button", { name: "Start again" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Draft proposal" }));
+    });
+    await screen.findByText("What Tiff read");
+    expect(screen.queryByText("Where does the outdoor unit go, and on what?")).toBeNull();
+    expect(document.querySelector(".wb2-jqask")).toHaveTextContent("What covers the pipes where they're seen?");
+  });
+
+  it("from the Proposal, scrolls to the question once the Build-up shows", async () => {
+    const asked = stored();
+    asked.draft.checklist = [{ key: "drain_to", state: "ask", answer: "", question: "Where does the drain go?", choices: [], rank: 1 }];
+    fetchMock.mockImplementation(() => respond({ ok: true, proposal: asked }));
+    const shown: boolean[] = [];
+    const was = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      shown.push(!this.closest("[role=tabpanel]")?.hasAttribute("hidden"));
+    };
+    try {
+      const { container } = face();
+      await screen.findByText("What Tiff read");
+      toProposal();
+      fireEvent.click(within(container.querySelector(".qp-rail") as HTMLElement).getByRole("button", { name: "Answer Where to" }));
+      expect(screen.getByRole("tab", { name: "Build-up" })).toHaveAttribute("aria-selected", "true");
+      expect(shown).toEqual([true]);
+    } finally {
+      Element.prototype.scrollIntoView = was;
+    }
+  });
+
+  it("names six known topics, then says how many more", async () => {
+    const known = stored();
+    known.draft.checklist = (["model", "indoor_type", "indoor_position", "outdoor_location", "pipe_route", "drain_to", "power_supply", "power_phase"] as const).map((key) => ({
+      key,
+      state: "known" as const,
+      answer: "Said",
+    }));
+    fetchMock.mockImplementation(() => respond({ ok: true, proposal: known }));
+    const { container } = face();
+    await screen.findByText("What Tiff read");
+    expect(container.querySelector(".qp-known")).toHaveTextContent(/^Model, Type, Where, Where and how, Route, Where to and 2 more$/);
   });
 
   it("prices the option being read, and lists what's still to price in the late red", async () => {

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { unsetWords } from "@/lib/quotes/build-settings";
 import { stillToPrice, type LabourFrom } from "@/lib/quotes/job-price";
+import { RUN_TO_ASK, WHERE_TO_ASK } from "@/lib/quotes/brief-rooms";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import type { PriceState, QuoteStep, StepKey } from "@/lib/quotes/quote-steps";
 
@@ -59,8 +60,10 @@ export function priceState(price: QuotePrice | null | undefined): PriceState {
 /* ── the progress line ── */
 
 export function QuoteStepsLine({ steps, onUndo }: { steps: QuoteStep[]; onUndo?: (key: StepKey) => void }) {
-  /* only the last thing marked by hand can be taken back */
-  const undoable = [...steps].reverse().find((s) => s.state === "done" && (s.key === "approved" || s.key === "sent"))?.key;
+  /* only the last thing marked by hand can be taken back; once accepted,
+     that's the option's own Accepted, on the Proposal */
+  const accepted = steps.some((s) => s.key === "accepted" && s.state === "done");
+  const undoable = accepted ? undefined : [...steps].reverse().find((s) => s.state === "done" && (s.key === "approved" || s.key === "sent"))?.key;
   return (
     <ol className="qp-steps" aria-label="Where the quote is">
       {steps.map((s) => (
@@ -151,7 +154,8 @@ export function PriceLines({ option }: { option: OptionPrice }) {
               {u.name}
               <small>{u.why}</small>
             </td>
-            <td className="q">{u.qty}</td>
+            {/* a length or a place not known yet is said in its why */}
+            <td className="q">{u.qty === RUN_TO_ASK || u.qty === WHERE_TO_ASK ? "" : u.qty}</td>
             <td className="a">Still to price</td>
           </tr>
         ))}

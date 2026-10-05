@@ -2,6 +2,7 @@ import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import { priceBuildUp } from "@/lib/quotes/buildup";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { PriceLines, PriceSummary, QuoteStepsLine, priceState, useQuotePrice } from "../quote-parts";
+import { RUN_TO_ASK } from "@/lib/quotes/brief-rooms";
 
 /* Isaac, 2026-10-04: "Switch it on now"; 2026-10-06: the quote page in
    Home's frame — each option's lines down the page, its price at the top of
@@ -109,4 +110,26 @@ it("draws the steps in their states, and offers Undo on the last one marked by h
   screen.getByRole("button", { name: "Undo approved" }).click();
   expect(onUndo).toHaveBeenCalledWith("approved");
   expect(screen.getByText("Sent").closest("li")).toHaveAttribute("aria-current", "step");
+});
+
+it("takes nothing back on the line once the client said yes: that's the option's own Accepted", () => {
+  render(
+    <QuoteStepsLine
+      onUndo={jest.fn()}
+      steps={[
+        { key: "approved", label: "Approved", state: "done", words: "Approved Tue 6 Oct" },
+        { key: "sent", label: "Sent", state: "todo", words: "Not marked" },
+        { key: "accepted", label: "Accepted", state: "done", words: "Option 1" },
+      ]}
+    />
+  );
+  expect(screen.queryByRole("button", { name: /^Undo/ })).toBeNull();
+});
+
+it("leaves a length not known yet out of the quantity: its why says so", () => {
+  const build = priceBuildUp([ap71], [{ stage: "Install", people: 1, days: 1 }], settings);
+  render(<PriceLines option={option({ build, unpriced: [{ name: "Pipe cover", qty: RUN_TO_ASK, why: "Its length isn't known yet" }], rows: 2 })} />);
+  const row = screen.getByText("Pipe cover").closest("tr")!;
+  expect(row).not.toHaveTextContent(RUN_TO_ASK);
+  expect(row).toHaveTextContent("Its length isn't known yet");
 });

@@ -44,7 +44,7 @@ export async function readSm8SendView(orgId: string, cardId: string): Promise<Se
     draft: proposal.draft,
     accepted: accepted.flatMap((index) => {
       const o = price.options[index];
-      return o ? [{ index, build: o.build, left: stillToPrice({ unpriced: o.unpriced, labourFrom: price.labourFrom, labourCents: o.build.labour.sellCents }).length }] : [];
+      return o ? [{ index, build: o.build, left: stillToPrice({ unpriced: o.unpriced, labourFrom: o.labourFrom, labourCents: o.build.labour.sellCents }).length }] : [];
     }),
     showLines: proposal.draft.showLines ?? settings.showLines,
     job: { status: row.status, invoiced: row.invoice_sent === true || row.invoice_sent === 1 },

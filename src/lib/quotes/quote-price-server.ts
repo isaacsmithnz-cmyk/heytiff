@@ -1,7 +1,7 @@
 import "server-only";
 import { priceBuildUp, type BuildUp } from "./buildup";
 import { buildSettingsOf, type BuildUnset } from "./build-settings";
-import { labourVisits, priceJobList, type ComponentPrice, type ListRow, type Unpriced, type UnitOffer } from "./job-price";
+import { briefVisits, optionLabour, priceJobList, type LabourFrom, type ComponentPrice, type ListRow, type Unpriced, type UnitOffer } from "./job-price";
 import { pricedLinks, readUnitChoices } from "./links-server";
 import { readOrgDay } from "./org-day-server";
 import { currentItems, readPreferred, readSameDecisions, readSuppliers } from "./price-book-server";
@@ -14,6 +14,7 @@ import { rollMetresOf } from "./components";
 import { optionMaterials } from "./option-materials";
 import type { RangeKind } from "./ranges";
 import type { AllowanceKey } from "./settings";
+import type { ProposalOption } from "./proposal";
 import { readStoredProposal } from "./proposal-writer";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
 
@@ -27,11 +28,11 @@ import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/serve
 
 const PACK_BRAND = "mitsubishi-electric";
 
-export type OptionPrice = { name: string; build: BuildUp; unpriced: Unpriced[]; rows: number };
+export type OptionPrice = { name: string; build: BuildUp; unpriced: Unpriced[]; rows: number; labourFrom: LabourFrom };
 
 export type QuotePrice =
   | { ok: false; unset: BuildUnset[] }
-  | { ok: true; options: OptionPrice[]; labourFrom: "brief" | "history" | "none" };
+  | { ok: true; options: OptionPrice[] };
 
 export async function readQuotePrice(orgId: string, jobUuid: string): Promise<QuotePrice> {
   const [settings, day] = await Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]);
@@ -40,9 +41,10 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
 
   const [proposal, ref] = await Promise.all([readStoredProposal(orgId, jobUuid).catch(() => null), latestInstalledPack(PACK_BRAND)]);
   const pack = ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
-  const lists: { name: string; rows: ListRow[] }[] = (proposal?.draft.options ?? []).map((o) => ({
+  const lists: { name: string; rows: ListRow[]; labour: ProposalOption["labour"] }[] = (proposal?.draft.options ?? []).map((o) => ({
     name: o.name,
     rows: optionMaterials(o, proposal!.draft.checklist, pack),
+    labour: o.labour,
   }));
   const rows = lists.flatMap((l) => l.rows);
 
@@ -58,7 +60,7 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   const [links, shortlists, labour] = await Promise.all([
     rows.length ? pricedLinks(orgId, { items: book, suppliers }) : Promise.resolve([]),
     rows.length ? componentShortlists(orgId, settings, suppliers, { book, same, preferred }) : Promise.resolve([]),
-    readQuoteLabour(orgId, jobUuid, { money: true }),
+    readQuoteLabour(orgId, jobUuid),
   ]);
   const priceOf = makePriceOf({ items: book, suppliers, confirmed: same.confirmed, chosenSupplier: choices, preferred });
 
@@ -100,13 +102,14 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
     allowance: (k: AllowanceKey) => settings.allowances[k],
     range: (kind: RangeKind) => ranges.get(kind) ?? [],
   };
-  /* the job's labour, on each option until an option carries its own */
-  const { visits, from } = labour ? labourVisits(labour.advice, built.settings.dayHours) : { visits: [], from: "none" as const };
+  /* each option's own labour, else the brief's (Isaac, 2026-10-05) */
+  const brief = briefVisits(labour?.brief ?? null, built.settings.dayHours);
   const options = lists.map((l) => {
     const { lines, unpriced } = priceJobList(l.rows, deps);
-    return { name: l.name, lines, build: priceBuildUp(lines, visits, built.settings), unpriced, rows: l.rows.length };
+    const { visits, from } = optionLabour(l.labour, brief);
+    return { name: l.name, lines, build: priceBuildUp(lines, visits, built.settings), unpriced, rows: l.rows.length, labourFrom: from };
   });
   /* what this quote pulled from the price book, for the price book's Most used */
   if (lists.length > 0) await recordQuoteItems(orgId, jobUuid, options.flatMap((o) => o.lines));
-  return { ok: true, labourFrom: from, options: options.map(({ lines: _lines, ...o }) => o) };
+  return { ok: true, options: options.map(({ lines: _lines, ...o }) => o) };
 }

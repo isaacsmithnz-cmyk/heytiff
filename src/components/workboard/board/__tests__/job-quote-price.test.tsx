@@ -17,7 +17,7 @@ it("prices the job's own list and labour, with GST, and lists what it couldn't",
     [{ stage: "Install", people: 1, days: 1 }],
     settings
   );
-  answer({ ok: true, labourFrom: "brief", options: [{ name: "Split", build, unpriced: [{ name: "Mystery bracket", qty: "1", why: "Not in your price book" }], rows: 2 }] });
+  answer({ ok: true, options: [{ name: "Split", build, unpriced: [{ name: "Mystery bracket", qty: "1", why: "Not in your price book" }], rows: 2, labourFrom: "brief" }] });
   render(<JobQuotePrice job="j-1" visible />);
   expect(await screen.findByText("MSZ-AP71VGD2")).toBeInTheDocument();
   expect(screen.getByText("$500")).toBeInTheDocument();
@@ -35,7 +35,7 @@ it("calls a total whole only when nothing is left to price", async () => {
     [{ stage: "Install", people: 1, days: 1 }],
     settings
   );
-  answer({ ok: true, labourFrom: "brief", options: [{ name: "Split", build, unpriced: [], rows: 1 }] });
+  answer({ ok: true, options: [{ name: "Split", build, unpriced: [], rows: 1, labourFrom: "brief" }] });
   render(<JobQuotePrice job="j-1" visible />);
   expect(await screen.findByText("Its materials and labour, at your prices")).toBeInTheDocument();
   expect(screen.getByText("Inc GST")).toBeInTheDocument();
@@ -49,16 +49,16 @@ it("lists labour nothing gives as still to price, never a $0 line", async () => 
     [],
     settings
   );
-  answer({ ok: true, labourFrom: "none", options: [{ name: "Split", build, unpriced: [], rows: 1 }] });
+  answer({ ok: true, options: [{ name: "Split", build, unpriced: [], rows: 1, labourFrom: "none" }] });
   render(<JobQuotePrice job="j-1" visible />);
   expect(await screen.findByText("Part priced: 1 still to price")).toBeInTheDocument();
   expect(screen.getByText("Labour")).toBeInTheDocument();
-  expect(screen.getByText("Not in the brief, and no typical yet")).toBeInTheDocument();
+  expect(screen.getByText("Not in the brief, and not set on the option")).toBeInTheDocument();
   expect(screen.queryByText("$0")).toBeNull();
 });
 
 it("shows no figures when there's nothing to price", async () => {
-  answer({ ok: true, labourFrom: "none", options: [{ name: "Split", build: priceBuildUp([], [], settings), unpriced: [], rows: 0 }] });
+  answer({ ok: true, options: [{ name: "Split", build: priceBuildUp([], [], settings), unpriced: [], rows: 0, labourFrom: "none" }] });
   render(<JobQuotePrice job="j-1" visible />);
   expect(await screen.findByText("Nothing to price yet")).toBeInTheDocument();
   expect(screen.queryByText(/GST/)).toBeNull();
@@ -91,9 +91,9 @@ it("prices each option on its own", async () => {
     [{ stage: "Install", people: 2, days: 1 }],
     settings
   );
-  answer({ ok: true, labourFrom: "brief", options: [
-    { name: "One multi", build: one, unpriced: [], rows: 1 },
-    { name: "Three splits", build: two, unpriced: [], rows: 1 },
+  answer({ ok: true, options: [
+    { name: "One multi", build: one, unpriced: [], rows: 1, labourFrom: "brief" },
+    { name: "Three splits", build: two, unpriced: [], rows: 1, labourFrom: "brief" },
   ] });
   render(<JobQuotePrice job="j-1" visible />);
   expect(await screen.findByText("Price, option 1: One multi")).toBeInTheDocument();
@@ -113,7 +113,7 @@ it("says which supplier a unit is from, and when no one supplier has the whole s
     [{ stage: "Install", people: 1, days: 1 }],
     settings
   );
-  answer({ ok: true, labourFrom: "brief", options: [{ name: "Split", build, unpriced: [], rows: 2 }] });
+  answer({ ok: true, options: [{ name: "Split", build, unpriced: [], rows: 2, labourFrom: "brief" }] });
   render(<JobQuotePrice job="j-1" visible />);
   /* and what its order code gives it */
   expect(await screen.findByText("1 at $520 buy, from Mitsubishi Electric, Wi-Fi built in")).toBeInTheDocument();

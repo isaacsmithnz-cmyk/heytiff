@@ -17,7 +17,6 @@ import { Split } from "../board/inspector";
 import { DocRow } from "../board/job-documents-face";
 import { JobMediaViewer } from "../board/job-media-viewer";
 import { JobQuoteFace } from "../board/job-quote-face";
-import { JobQuoteLabour } from "../board/job-quote-labour";
 import { JobQuotePrice } from "../board/job-quote-price";
 import { JobQuoteSend } from "../board/job-quote-send";
 import { ToastHost, useBoardToasts } from "../board/toasts";
@@ -29,7 +28,7 @@ import { sm8QuoteOf } from "./sm8-quote-of";
 
    The builder on the left, open from the start: the box that drafts one
    (seeded with ServiceM8's quote when it holds one), then the questions, the
-   proposal, its labour. Beside it, what the quote is read against and what
+   proposal, each option's labour. Beside it, what the quote is read against and what
    it comes to: ServiceM8's own quote, the price of each option, and what
    goes to ServiceM8 once an option is accepted — each read afresh whenever
    the quote changes. The way back is the job card.
@@ -171,9 +170,7 @@ export function QuoteScreen({
                       sm8={sm8}
                       onVersion={setVersion}
                       onCancel={() => router.push(back)}
-                    >
-                      <JobQuoteLabour job={job} visible />
-                    </JobQuoteFace>
+                    />
                   </div>
                 </div>
               </Split>

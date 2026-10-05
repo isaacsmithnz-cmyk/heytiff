@@ -10,8 +10,11 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { DocRow } from "./job-documents-face";
 import {
+  MAX_CREW,
   MAX_UNIT_QTY,
   MAX_UNITS,
+  MAX_VISIT_DAYS,
+  MAX_VISITS,
   PRICING_WORDS,
   UNIT_ROLES,
   acceptedAfterRemoving,
@@ -23,11 +26,14 @@ import {
   toggleAccepted,
   unitPlace,
   unitWords,
+  type OptionLabour,
   type ProposalDraft,
   type ProposalOption,
   type UnitLine,
   type UnitRole,
 } from "@/lib/quotes/proposal";
+import { VISIT_STAGES, type Visit, type VisitStage } from "@/lib/quotes/buildup";
+import type { QuoteLabour } from "@/lib/quotes/quote-labour-server";
 import {
   CHECKLIST,
   GROUP_ORDER,
@@ -82,13 +88,25 @@ const noteFor = (t: QuoteTemplates, key: string): QuoteNote | null =>
   t.notes.find((n) => n.key === key) ?? STANDARD_NOTES.find((n) => n.key === key) ?? null;
 
 type Answer =
-  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates; sm8Brief?: string | null; showLines?: boolean }
+  | {
+      ok: true;
+      proposal: StoredProposal | null;
+      templates?: QuoteTemplates;
+      sm8Brief?: string | null;
+      showLines?: boolean;
+      /** the brief's labour, beside each option */
+      labour?: QuoteLabour | null;
+    }
   /** `proposal` comes back when the draft moved on underneath the change */
   | { ok: false; reason: string; proposal?: StoredProposal | null };
 /** A person's edit, applied to the draft as it stands when its turn comes. */
 type Edit = (draft: ProposalDraft) => ProposalDraft;
 
 const ROUTE = "/api/workboard/quote-draft";
+
+/** The labour an answer carries: a call, so a write's try/catch holds no
+    value block React Compiler 1.0 can't lower. */
+const labourIn = (a: Answer): QuoteLabour | null => (a.ok ? (a.labour ?? null) : null);
 
 const whenOf = (iso: string) =>
   new Date(iso).toLocaleDateString("en-AU", {
@@ -193,7 +211,12 @@ export function JobQuoteFace({
   const [brief, setBrief] = useState("");
   const [change, setChange] = useState("");
   const [redraft, setRedraft] = useState(false);
-  const [working, setWorking] = useState<"draft" | "change" | "apply" | null>(null);
+  const [working, setWorking] = useState<"draft" | "change" | "apply" | "labour" | null>(null);
+  /* the brief's labour, read with the draft; and why a suggestion couldn't be had */
+  const [labourFacts, setLabourFacts] = useState<QuoteLabour | null>(null);
+  const [labourError, setLabourError] = useState<string | null>(null);
+  /* the option whose Suggest labour was pressed: its row waits and says why */
+  const [labourAt, setLabourAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Block | null>(null);
   const [reads, setReads] = useState(0);
@@ -222,6 +245,7 @@ export function JobQuoteFace({
         latest.current = a.proposal;
         setLoaded(a.proposal);
         setSm8Brief(a.sm8Brief ?? null);
+        setLabourFacts(a.labour ?? null);
         setLinesByDefault(a.showLines === true);
         if (a.proposal) setBrief(a.proposal.brief);
       })
@@ -256,6 +280,33 @@ export function JobQuoteFace({
     };
   }, [open, version, job]);
 
+  /* Tiff's labour for each option, on a draft written before Tiff made one */
+  const suggestLabour = async (at: number) => {
+    if (working) return;
+    setWorking("labour");
+    setLabourAt(at);
+    setLabourError(null);
+    await withCleanup(async () => {
+      try {
+        const res = await fetch(ROUTE, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ job, suggestLabour: true }),
+        });
+        const a = (await res.json()) as Answer;
+        if (!a.ok) {
+          setLabourError(a.reason);
+          if (a.proposal) land(a.proposal);
+          return;
+        }
+        land(a.proposal);
+        setLabourFacts(labourIn(a));
+      } catch {
+        setLabourError("Tiff couldn't be reached. Try again.");
+      }
+    }, () => setWorking(null));
+  };
+
   const write = async (kind: "draft" | "change" | "apply") => {
     const words = kind === "draft" ? brief : change;
     if ((kind !== "apply" && !words.trim()) || working) return;
@@ -287,6 +338,9 @@ export function JobQuoteFace({
           return;
         }
         land(a.proposal);
+        /* a new brief can give labour, or stop giving it: read with the draft */
+        setLabourFacts(labourIn(a));
+        setLabourError(null);
         setRedraft(false);
         setEditing(null);
         if (kind === "change") setChange("");
@@ -577,7 +631,24 @@ export function JobQuoteFace({
                 }
               />
             ) : (
-              <OptionBody option={o} />
+              <>
+                <OptionBody option={o} />
+                <OptionLabourRow
+                  option={o}
+                  heading={optionHeading(draft, i)}
+                  facts={labourFacts}
+                  disabled={busy}
+                  suggesting={working === "labour" && labourAt === i}
+                  error={labourAt === i ? labourError : null}
+                  onSet={(labour) =>
+                    save((d) => ({ ...d, options: d.options.map((x, j) => (j === i ? { ...x, labour } : x)) })).then((ok) => {
+                      if (ok) setLabourError(null);
+                      return ok;
+                    })
+                  }
+                  onSuggest={() => void suggestLabour(i)}
+                />
+              </>
             )}
           </QuoteBlock>
         );
@@ -1312,8 +1383,11 @@ function OptionEdit({
       units,
       pros: linesOf(pros),
       cons: linesOf(cons),
-      /* the scope's edit keeps the option's price; Pricing sets it */
+      /* the scope's edit keeps the option's price and labour; they're set
+         where they're shown */
       priceCents: option.priceCents,
+      labour: option.labour,
+      suggestion: option.suggestion,
     })
   );
   const removing = useSaving(() => (onRemove ? onRemove() : Promise.resolve(false)));
@@ -1368,8 +1442,253 @@ async function optionTotals(job: string): Promise<OptionTotal[] | null> {
   return p.options.map((o) => ({
     cents: o.build.exGstCents,
     incCents: o.build.incGstCents,
-    left: stillToPrice({ unpriced: o.unpriced, labourFrom: p.labourFrom, labourCents: o.build.labour.sellCents }).length,
+    left: stillToPrice({ unpriced: o.unpriced, labourFrom: o.labourFrom, labourCents: o.build.labour.sellCents }).length,
   }));
+}
+
+/* ── an option's labour ── */
+
+const hrsWords = (h: number) => `${Math.round(h * 10) / 10} hrs`;
+const peopleWords = (n: number) => (n === 1 ? "1 person" : `${n} people`);
+const daysWords = (d: number) => {
+  if (Number.isInteger(d)) return d === 1 ? "1 day" : `${d} days`;
+  if (Number.isInteger(d * 2)) return d < 1 ? "half a day" : `${Math.floor(d)} and a half days`;
+  return `${Math.round(d * 100) / 100} days`;
+};
+
+function VisitRows({ visits }: { visits: readonly { stage: string; people: number; days: number | null; hours?: number | null }[] }) {
+  return (
+    <ul className="wb2-jqlines">
+      {visits.map((v, i) => (
+        <li key={i}>
+          <span>{v.stage}</span>
+          <b>{`${peopleWords(v.people)}, ${v.days != null ? daysWords(v.days) : hrsWords(v.hours ?? 0)}`}</b>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const LABOUR_SET_WORDS: Record<OptionLabour["from"], string> = {
+  tiff: "Tiff's suggestion, applied",
+  typical: "Your typical, applied",
+  you: "Set on the quote",
+};
+
+/* AN OPTION'S LABOUR, under its scope (Isaac, 2026-10-05: "api call can
+   recommend a labour amount to use if none is provided in the brief";
+   "typical labour hours for this type of job is 32 hours. And click
+   apply"). What prices the option, in order: labour set on it, else the
+   brief's. With neither, Tiff's suggestion from the option's own equipment
+   waits with Apply, and nothing is priced until it's pressed; beside it,
+   once the business's post-job reviews say so, what its jobs of this kind
+   typically take. */
+function OptionLabourRow({
+  option,
+  heading,
+  facts,
+  disabled,
+  suggesting,
+  error,
+  onSet,
+  onSuggest,
+}: {
+  option: ProposalOption;
+  /** The option's heading, "Option 1: Ducted", for its buttons' names. */
+  heading: string;
+  facts: QuoteLabour | null;
+  disabled: boolean;
+  suggesting: boolean;
+  /** Why Tiff's suggestion couldn't be had, said under the row. */
+  error: string | null;
+  /** Labour on the option, or null to take it off. */
+  onSet: (labour: OptionLabour | null) => Promise<boolean>;
+  /** Tiff's suggestion, for a draft written before Tiff made one. */
+  onSuggest: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const brief = facts?.brief ?? null;
+  const own = option.labour;
+  const priced = !!own || !!brief;
+  const suggestion = priced ? null : option.suggestion;
+  const typical = facts?.typical ?? null;
+  const dayHours = facts?.dayHours ?? null;
+  /* the brief's visits in days by the business's own day; one given only in
+     hours, with no day set, keeps its row with the days left to fill */
+  const briefDays = (brief?.visits ?? []).map((v) => ({
+    stage: v.stage,
+    people: v.people,
+    days: v.days ?? (v.hours != null && dayHours ? Math.round((v.hours / dayHours) * 1000) / 1000 : null),
+  }));
+
+  if (editing) {
+    return (
+      <div className="wb2-jqnote">
+        <b>Labour</b>
+        <VisitsEdit
+          initial={own?.visits ?? (briefDays.length ? briefDays : (option.suggestion?.visits ?? []))}
+          onCancel={() => setEditing(false)}
+          onSave={async (visits) => {
+            const ok = await onSet(visits.length ? { visits, from: "you" } : null);
+            if (ok) setEditing(false);
+            return ok;
+          }}
+        />
+      </div>
+    );
+  }
+
+  const typicalVisits = typical && dayHours ? [{ stage: "Install" as const, people: 1, days: Math.round((typical.hours / dayHours) * 1000) / 1000 }] : null;
+  return (
+    <div className="wb2-jqnote">
+      <b>Labour</b>
+      {own ? (
+        <>
+          <VisitRows visits={own.visits} />
+          <p className="wb2-jqmode">{LABOUR_SET_WORDS[own.from]}</p>
+        </>
+      ) : brief ? (
+        <>
+          <VisitRows visits={brief.visits} />
+          <p className="wb2-jqmode">{`From the brief: ${brief.said.map((s) => `“${s}”`).join(" ")}`}</p>
+        </>
+      ) : suggestion ? (
+        <>
+          <p className="wb2-jqmode">Not in the brief. Tiff suggests:</p>
+          <VisitRows visits={suggestion.visits} />
+          {suggestion.why && <p className="wb2-shtext">{suggestion.why}</p>}
+        </>
+      ) : (
+        <p className="wb2-jqmode">Not in the brief</p>
+      )}
+      {typical && <p className="wb2-shtext">{typical.words}</p>}
+      {error && <p className="wb2-sherr">{error}</p>}
+      <div className="wb2-jqacts">
+        {suggesting ? (
+          <Waiting note="Working out the labour" />
+        ) : (
+          <>
+            {suggestion && (
+              <button
+                type="button"
+                className="pbtn primary sm"
+                aria-label={`Apply Tiff's labour to ${heading}`}
+                disabled={disabled}
+                onClick={() => void onSet({ visits: suggestion.visits, from: "tiff" })}
+              >
+                Apply
+              </button>
+            )}
+            {typicalVisits && !own && (
+              <button
+                type="button"
+                className="pbtn ghost sm"
+                aria-label={`Apply your typical labour to ${heading}`}
+                disabled={disabled}
+                onClick={() => void onSet({ visits: typicalVisits, from: "typical" })}
+              >
+                Apply your typical
+              </button>
+            )}
+            {!priced && !suggestion && (
+              <button type="button" className="pbtn ghost sm" aria-label={`Suggest labour for ${heading}`} disabled={disabled} onClick={onSuggest}>
+                Suggest labour
+              </button>
+            )}
+            <button
+              type="button"
+              className="pbtn ghost sm"
+              aria-label={`${priced || suggestion ? "Change" : "Set"} labour for ${heading}`}
+              disabled={disabled}
+              onClick={() => setEditing(true)}
+            >
+              {priced || suggestion ? "Change" : "Set labour"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type VisitRow = { stage: VisitStage; people: string; days: string };
+
+/** A row as typed, as a visit: whole people, and days as typed. Null when
+    either is missing or out of range. */
+function visitOf(r: VisitRow): Visit | null {
+  const people = Number(r.people.trim());
+  const days = Number(r.days.trim());
+  if (!r.people.trim() || !r.days.trim() || !Number.isInteger(people) || people < 1 || people > MAX_CREW) return null;
+  if (!Number.isFinite(days) || days <= 0 || days > MAX_VISIT_DAYS) return null;
+  return { stage: r.stage, people, days: Math.round(days * 1000) / 1000 };
+}
+
+function VisitsEdit({
+  initial,
+  onCancel,
+  onSave,
+}: {
+  /** A visit's days may be missing: the row opens with them to fill. */
+  initial: readonly { stage: VisitStage; people: number; days: number | null }[];
+  onCancel: () => void;
+  onSave: (visits: Visit[]) => Promise<boolean>;
+}) {
+  const [rows, setRows] = useState<VisitRow[]>(() =>
+    initial.map((v) => ({ stage: v.stage, people: String(v.people), days: v.days == null ? "" : String(v.days) }))
+  );
+  const [tried, setTried] = useState(false);
+  const visits = rows.map(visitOf);
+  const whole = visits.every((v) => v !== null);
+  const { busy, run } = useSaving(() => onSave(visits.filter((v): v is Visit => v !== null)));
+  const set = (i: number, patch: Partial<VisitRow>) => setRows((cur) => cur.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  return (
+    <div className="wb2-jqform">
+      <div className="wb2-jqunited">
+        {rows.map((r, i) => (
+          <div key={i} className="wb2-jqunit">
+            <label className="m">
+              <span>Visit</span>
+              <select className="wb2-sel" value={r.stage} disabled={busy} onChange={(e) => set(i, { stage: e.target.value as VisitStage })}>
+                {VISIT_STAGES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="s">
+              <span>People</span>
+              <input className="wb2-fi" inputMode="numeric" value={r.people} disabled={busy} onChange={(e) => set(i, { people: e.target.value })} />
+            </label>
+            <label className="s">
+              <span>Days</span>
+              <input className="wb2-fi" inputMode="decimal" value={r.days} disabled={busy} onChange={(e) => set(i, { days: e.target.value })} />
+            </label>
+            <button type="button" className="wb2-ico wb2-jqunitx" aria-label={`Clear visit ${i + 1}`} disabled={busy} onClick={() => setRows((cur) => cur.filter((_, j) => j !== i))}>
+              <Icon name="x" size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+      {tried && !whole && <p className="wb2-sherr">Each visit needs how many people and how many days.</p>}
+      <EditFoot
+        busy={busy}
+        onCancel={onCancel}
+        onSave={() => {
+          setTried(true);
+          if (whole) void run();
+        }}
+        saveWord="Save labour"
+        extra={
+          rows.length < MAX_VISITS ? (
+            <button type="button" className="pbtn ghost wb2-jqlead" disabled={busy} onClick={() => setRows((cur) => [...cur, { stage: "Install", people: "", days: "" }])}>
+              Add a visit
+            </button>
+          ) : undefined
+        }
+      />
+    </div>
+  );
 }
 
 /* An option's price is never typed (Isaac, 2026-10-05: "you should not

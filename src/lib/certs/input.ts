@@ -41,6 +41,7 @@ function row(raw: unknown): AcRow {
   const qty = num(r.qty, 99);
   return {
     location: text(r.location, 120),
+    make: text(r.make, 60),
     model: text(r.model, 80),
     qty: qty && qty >= 1 ? Math.floor(qty) : 1,
     capacityKw: num(r.capacityKw, 2000),
@@ -66,6 +67,7 @@ function fan(raw: unknown): FanRow {
   const r = row(f);
   return {
     location: r.location,
+    make: r.make,
     model: r.model,
     qty: r.qty,
     airflowGiven: bool(f.airflowGiven),

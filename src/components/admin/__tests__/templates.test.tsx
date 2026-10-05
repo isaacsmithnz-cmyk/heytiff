@@ -66,10 +66,11 @@ const WARN = { text: "1 change to approve", tone: "warn" as const };
 describe("the certificate", () => {
   it("is the certificate itself, on the business's letterhead, with every statement saying when it prints", () => {
     render(<CertificateTemplate {...props()} brand={BRAND} papers={PAPERS} status={WARN} />);
-    expect(screen.getByRole("heading", { level: 1, name: "Mechanical Compliance Certificate" })).toBeInTheDocument();
+    expect(document.querySelector(".cer h1")).toHaveTextContent("Mechanical Compliance Certificate");
+    expect(screen.getAllByText("[Make]").length).toBeGreaterThan(0);
     expect(screen.getByText("Coolbreeze Air")).toBeInTheDocument();
     expect(screen.getByText("I certify that:")).toBeInTheDocument();
-    expect(screen.getByLabelText("Refrigerant circuit, AS/NZS 5149.2")).toHaveTextContent("[The refrigerant and the charge added, per outdoor unit when they differ]");
+    expect(screen.getByLabelText("Refrigerant circuit, AS/NZS 5149.2")).toHaveTextContent("[the refrigerant]");
     expect(screen.getByLabelText("Refrigerant circuit, AS/NZS 5149.2")).toHaveTextContent("On every air conditioning certificate");
     expect(screen.getByLabelText("Ductwork, AS 4254")).toHaveTextContent("When it was installed");
     expect(screen.getByLabelText("Air balance report")).toHaveTextContent("Changed");

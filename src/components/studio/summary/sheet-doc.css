@@ -221,7 +221,7 @@
   text-wrap: balance;
 }
 .dsd-prep { display: flex; flex-direction: column; margin-top: 26px; }
-.dsd-lab {
+.dsd:not(.cer-plain) .dsd-lab {
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -379,7 +379,7 @@
   padding-top: 10px;
   border-top: 1px solid var(--dsd-rule);
 }
-.dsd-job em {
+.dsd:not(.cer-plain) .dsd-job em {
   font-style: normal;
   font-size: 10.5px;
   font-weight: 800;
@@ -469,7 +469,7 @@
   justify-content: space-between;
   gap: 10px;
 }
-.dsd-figs dt {
+.dsd:not(.cer-plain) .dsd-figs dt {
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -1162,7 +1162,7 @@
      again. The alignment is the sheet's — ranged left, like everything else
      on the page. */
   .dsd-figs > div { justify-content: space-between; }
-  .dsd-figs dt { font-size: 7.5px; letter-spacing: 0.06em; }
+  .dsd:not(.cer-plain) .dsd-figs dt { font-size: 7.5px; letter-spacing: 0.06em; }
   .dsd-figs dd { font-size: 14px; }
 
   /* and the consumables keep their three shelves rather than stacking */

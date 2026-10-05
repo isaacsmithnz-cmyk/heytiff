@@ -410,6 +410,7 @@ function readFans(lines: readonly string[]): FanRow[] {
 
 /* ── the building, from the address ────────────────────────────────────── */
 
+/** `because` finishes "suggested …": "from the street address". */
 export type BuildingGuess = { building: Building; because: string };
 
 /** A hint, never an answer: the wizard marks the option the address
@@ -417,10 +418,10 @@ export type BuildingGuess = { building: Building; because: string };
     building decides which statements the certificate makes. */
 export function suggestBuilding(address: string | null): BuildingGuess {
   const first = (address ?? "").split("\n")[0]?.trim() ?? "";
-  if (/^shop\b/i.test(first)) return { building: "shop", because: "The address names a shop." };
-  if (/\b(lv|lvl|level|suite)\b/i.test(first)) return { building: "office", because: "The address has a level or suite." };
+  if (/^shop\b/i.test(first)) return { building: "shop", because: "from the shop in the address" };
+  if (/\b(lv|lvl|level|suite)\b/i.test(first)) return { building: "office", because: "from the level or suite in the address" };
   if (/^\s*(unit|apartment|apt)\b/i.test(first) || /^\s*\d+[a-z]?\s*\/\s*\d+/i.test(first)) {
-    return { building: "apartment", because: "The address has a unit number." };
+    return { building: "apartment", because: "from the unit number in the address" };
   }
-  return { building: "house", because: "The address is a street address." };
+  return { building: "house", because: "from the street address" };
 }

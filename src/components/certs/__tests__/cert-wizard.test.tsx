@@ -78,20 +78,20 @@ beforeEach(() => {
 describe("what the job already says", () => {
   it("hints at the building from the address but makes the person pick it, and dates it from ServiceM8", async () => {
     open();
-    await screen.findByRole("tab", { name: "What it covers" });
+    await screen.findByRole("tab", { name: "The job" });
     const covers = panel("covers");
     expect(covers.getByRole("checkbox", { name: /Air conditioning/ })).toBeChecked();
     for (const r of covers.getAllByRole("radio")) expect(r).not.toBeChecked();
-    expect(covers.getByText("Class 5, The address suggests this")).toBeInTheDocument();
-    expect(covers.getByText("The address has a level or suite. Pick one to confirm.")).toBeInTheDocument();
+    expect(covers.getByText("Class 5, suggested from the level or suite in the address")).toBeInTheDocument();
+    expect(covers.getByText("Choose one to confirm.")).toBeInTheDocument();
     await tab("Sign");
     expect(panel("sign").getByRole("button", { name: "Choose what kind of building it is." })).toBeInTheDocument();
-    await tab("What it covers");
+    await tab("The job");
     await userEvent.click(covers.getByRole("radio", { name: /Office/ }));
     expect(covers.getByRole("radio", { name: /Office/ })).toBeChecked();
-    expect(covers.queryByText(/The address suggests this/)).toBeNull();
+    expect(covers.queryByText(/suggested from/)).toBeNull();
     expect(panel("sign").queryByRole("button", { name: "Choose what kind of building it is." })).toBeNull();
-    expect(covers.getByRole("button", { name: "Works completed" })).toHaveTextContent("25/09/2026");
+    expect(covers.getByRole("button", { name: "Date the works were completed" })).toHaveTextContent("25/09/2026");
     expect(covers.getByText("From ServiceM8")).toBeInTheDocument();
   });
 
@@ -104,6 +104,26 @@ describe("what the job already says", () => {
     expect(eq.getByDisplayValue("MSZ-AP42VGKD2-A2")).toBeInTheDocument();
     expect(eq.queryByRole("checkbox", { name: /A condensate pump/ })).toBeNull();
     expect(eq.getByRole("checkbox", { name: /Ductwork/ })).not.toBeChecked();
+  });
+});
+
+describe("the make", () => {
+  it("is read off each model, follows a new model, and keeps one typed by hand", async () => {
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    const eq = panel("equipment");
+    const makes = () => eq.getAllByLabelText("Make") as HTMLInputElement[];
+    expect(makes().map((m) => m.value)).toEqual(["Mitsubishi Electric", "Mitsubishi Electric"]);
+    const indoorModel = eq.getAllByLabelText("Model")[1];
+    await userEvent.clear(indoorModel);
+    await userEvent.type(indoorModel, "FTXM35W");
+    expect(makes()[1].value).toBe("Daikin");
+    await userEvent.clear(makes()[0]);
+    await userEvent.type(makes()[0], "Mitsubishi");
+    const outdoorModel = eq.getAllByLabelText("Model")[0];
+    await userEvent.type(outdoorModel, "X");
+    expect(makes()[0].value).toBe("Mitsubishi");
   });
 });
 
@@ -122,7 +142,8 @@ describe("what the quote says about itself", () => {
     await tab("Equipment");
     const eq = panel("equipment");
     expect(eq.getByText(/The quote says 29.0 kW connected, but these rows add to 19.8 kW/)).toBeInTheDocument();
-    const living = eq.getAllByLabelText("kW each")[0];
+    /* the outdoor unit's kW comes first, then the first room's */
+    const living = eq.getAllByLabelText("kW")[1];
     await userEvent.clear(living);
     await userEvent.type(living, "18.2");
     expect(eq.queryByText(/The quote says/)).toBeNull();
@@ -209,21 +230,21 @@ describe("issuing", () => {
     await tab("Sign");
     expect(screen.getByRole("button", { name: "Issue the certificate" })).toBeDisabled();
     expect(panel("sign").getByRole("button", { name: /Enter the refrigerant added/ })).toBeInTheDocument();
-    expect(panel("sign").getByRole("button", { name: /Confirm every unit installed is listed/ })).toBeInTheDocument();
+    expect(panel("sign").getByRole("button", { name: /Check every unit against its rating plate/ })).toBeInTheDocument();
     expect(panel("sign").queryByRole("button", { name: /test pressure|vacuum/i })).toBeNull();
 
     /* the quote names the unit but not the room it went in */
-    expect(panel("sign").getByRole("button", { name: /Say where indoor unit 1/ })).toBeInTheDocument();
-    await tab("What it covers");
+    expect(panel("sign").getByRole("button", { name: /Enter the room for indoor unit 1/ })).toBeInTheDocument();
+    await tab("The job");
     await userEvent.click(panel("covers").getByRole("radio", { name: /Office/ }));
     await tab("Equipment");
     await userEvent.type(panel("equipment").getByLabelText("Room"), "Office");
-    await userEvent.click(panel("equipment").getByRole("checkbox", { name: /Every unit installed is listed/ }));
+    await userEvent.click(panel("equipment").getByRole("checkbox", { name: /checked every unit against its rating plate/ }));
 
     await tab("Checks");
     const checks = panel("checks");
     expect(checks.queryByLabelText(/Test pressure|Vacuum/)).toBeNull();
-    await userEvent.type(checks.getByLabelText("Added, kg"), "0");
+    await userEvent.type(checks.getByLabelText("Refrigerant added (kg)"), "0");
     await tab("Sign");
     const issue = screen.getByRole("button", { name: "Issue the certificate" });
     await waitFor(() => expect(issue).toBeEnabled());
@@ -253,7 +274,7 @@ describe("issuing", () => {
     await screen.findByRole("tab", { name: "Sign" });
     await userEvent.click(panel("covers").getByRole("radio", { name: /Office/ }));
     await tab("Equipment");
-    await userEvent.click(panel("equipment").getByRole("checkbox", { name: /Every unit installed is listed/ }));
+    await userEvent.click(panel("equipment").getByRole("checkbox", { name: /checked every unit against its rating plate/ }));
     await tab("Sign");
     const issue = screen.getByRole("button", { name: "Issue the certificate" });
     await waitFor(() => expect(issue).toBeEnabled());
@@ -271,7 +292,7 @@ describe("issuing", () => {
     open();
     await screen.findByRole("tab", { name: "Sign" });
     await tab("Sign");
-    expect(panel("sign").getByText(/Anyone with their own current ARC licence and contractor licence can sign/)).toBeInTheDocument();
+    expect(panel("sign").getByText(/To issue a certificate you need a current ARC licence and contractor licence/)).toBeInTheDocument();
     expect(panel("sign").getByText("Not on your staff card")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Issue the certificate" })).toBeDisabled();
   });
@@ -303,9 +324,9 @@ describe("what you've been asked to cover", () => {
   it("is a text box: what is typed is read, and nothing about a certifier is asked or kept", async () => {
     readCertifierEmail.mockImplementation(async () => reading([{ text: "Exhaust fans to AS 1668.2", clause: null, notOurs: false }]));
     const list = await openStep();
-    const read = list.getByRole("button", { name: "Read it" });
+    const read = list.getByRole("button", { name: "Read the requirements" });
     expect(read).toBeDisabled();
-    await userEvent.type(list.getByLabelText("What you've been asked to cover"), "Hi Isaac, please certify the exhaust fans to AS 1668.2");
+    await userEvent.type(list.getByLabelText("What the certificate must cover"), "Hi Isaac, please certify the exhaust fans to AS 1668.2");
     expect(list.getByText(/Not read yet/)).toBeInTheDocument();
     await userEvent.click(read);
     expect(readCertifierEmail).toHaveBeenCalledWith("job-1", "Hi Isaac, please certify the exhaust fans to AS 1668.2");
@@ -329,8 +350,8 @@ describe("what you've been asked to cover", () => {
     expect(within(pick).getByRole("group", { name: "From ServiceM8" })).toHaveTextContent("OC List of Requirements.pdf");
     expect(within(pick).getByRole("group", { name: "Uploaded here" })).toHaveTextContent("Photo of list.jpg");
     await userEvent.selectOptions(pick, "f-sm8");
-    await userEvent.type(list.getByLabelText("What you've been asked to cover"), "Fans to AS 1668.2 too please");
-    await userEvent.click(list.getByRole("button", { name: "Read it" }));
+    await userEvent.type(list.getByLabelText("What the certificate must cover"), "Fans to AS 1668.2 too please");
+    await userEvent.click(list.getByRole("button", { name: "Read the requirements" }));
     expect(readCertifierList).toHaveBeenCalledWith("job-1", "f-sm8");
     expect(await list.findByDisplayValue("AC installed to AS/NZS 5149")).toBeInTheDocument();
     expect(list.getByDisplayValue("Fans to AS 1668.2")).toBeInTheDocument();
@@ -339,16 +360,16 @@ describe("what you've been asked to cover", () => {
   it("says when Tiff found nothing to cover", async () => {
     readCertifierEmail.mockImplementation(async () => reading([]));
     const list = await openStep();
-    await userEvent.type(list.getByLabelText("What you've been asked to cover"), "Can you send the cert please");
-    await userEvent.click(list.getByRole("button", { name: "Read it" }));
-    expect(await list.findByText("Tiff found nothing in it for this certificate to cover.")).toBeInTheDocument();
+    await userEvent.type(list.getByLabelText("What the certificate must cover"), "Can you send the cert please");
+    await userEvent.click(list.getByRole("button", { name: "Read the requirements" }));
+    expect(await list.findByText("Tiff found no requirements in it for this certificate.")).toBeInTheDocument();
   });
 
   it("lists as many requests as a certificate holds, and says so when Tiff found more", async () => {
     readCertifierEmail.mockImplementation(async () => reading(Array.from({ length: 31 }, (_, i) => ({ text: `Item ${i + 1}`, clause: null, notOurs: false }))));
     const list = await openStep();
-    await userEvent.type(list.getByLabelText("What you've been asked to cover"), "A long list");
-    await userEvent.click(list.getByRole("button", { name: "Read it" }));
+    await userEvent.type(list.getByLabelText("What the certificate must cover"), "A long list");
+    await userEvent.click(list.getByRole("button", { name: "Read the requirements" }));
     expect(await list.findByText("Tiff found 31 things asked for. A certificate holds 30, so the first 30 are listed.")).toBeInTheDocument();
     expect(list.getByDisplayValue("Item 30")).toBeInTheDocument();
     expect(list.queryByDisplayValue("Item 31")).toBeNull();
@@ -402,7 +423,7 @@ describe("serial numbers", () => {
     await tab("Equipment");
     const eq = panel("equipment");
     expect(eq.queryByLabelText("Serial")).toBeNull();
-    await userEvent.click(eq.getByRole("checkbox", { name: "Add serial numbers" }));
+    await userEvent.click(eq.getByRole("checkbox", { name: "Show serial numbers on the certificate" }));
     /* the outdoor unit, its indoor unit and the fan */
     expect(eq.getAllByLabelText("Serial")).toHaveLength(3);
   });
@@ -414,7 +435,7 @@ describe("the state the job is in", () => {
       context({ job: { ...context().job, address: "12 Smith St\nRichmond VIC 3121" } })
     );
     open();
-    await screen.findByRole("tab", { name: "What it covers" });
+    await screen.findByRole("tab", { name: "The job" });
     const covers = panel("covers");
     expect(covers.getByLabelText("State")).toHaveValue("VIC");
     expect(covers.getByText("From the address")).toBeInTheDocument();
@@ -424,7 +445,7 @@ describe("the state the job is in", () => {
   it("takes the business's own state when the address doesn't say", async () => {
     certWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "12 Smith St" }, orgState: "QLD" }));
     open();
-    await screen.findByRole("tab", { name: "What it covers" });
+    await screen.findByRole("tab", { name: "The job" });
     expect(panel("covers").getByLabelText("State")).toHaveValue("QLD");
     expect(panel("covers").getByText("From your company settings")).toBeInTheDocument();
   });
@@ -432,10 +453,10 @@ describe("the state the job is in", () => {
   it("asks for it when neither the address nor the company settings say", async () => {
     certWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "12 Smith St" }, orgState: null }));
     open();
-    await screen.findByRole("tab", { name: "What it covers" });
+    await screen.findByRole("tab", { name: "The job" });
     expect(panel("covers").getByLabelText("State")).toHaveValue("");
     await tab("Sign");
-    expect(panel("sign").getByRole("button", { name: "Say which state the job is in." })).toBeInTheDocument();
+    expect(panel("sign").getByRole("button", { name: "Choose the state the job is in." })).toBeInTheDocument();
   });
 });
 
@@ -453,10 +474,10 @@ describe("a fan's airflow", () => {
     await tab("Equipment");
     const eq = panel("equipment");
     expect(eq.queryByLabelText("L/s")).toBeNull();
-    await userEvent.click(eq.getAllByRole("checkbox", { name: "Add its airflow" })[0]);
+    await userEvent.click(eq.getAllByRole("checkbox", { name: "Show its airflow" })[0]);
     expect(eq.getByLabelText("L/s")).toBeInTheDocument();
     await tab("Sign");
-    expect(panel("sign").getByRole("button", { name: /its airflow, or untick it\./ })).toBeInTheDocument();
+    expect(panel("sign").getByRole("button", { name: /Enter the airflow for the .+ fan, or untick Show its airflow\./ })).toBeInTheDocument();
   });
 });
 
@@ -466,7 +487,7 @@ describe("every unit listed", () => {
     await screen.findByRole("tab", { name: "Equipment" });
     await tab("Equipment");
     const eq = panel("equipment");
-    const tick = eq.getByRole("checkbox", { name: /Every unit installed is listed/ });
+    const tick = eq.getByRole("checkbox", { name: /checked every unit against its rating plate/ });
     await userEvent.click(tick);
     expect(tick).toBeChecked();
     await userEvent.type(eq.getByLabelText("Room"), "Office");
@@ -477,10 +498,10 @@ describe("every unit listed", () => {
     open();
     await screen.findByRole("tab", { name: "Equipment" });
     await tab("Equipment");
-    await userEvent.click(panel("equipment").getByRole("checkbox", { name: /Every unit installed is listed/ }));
+    await userEvent.click(panel("equipment").getByRole("checkbox", { name: /checked every unit against its rating plate/ }));
     await tab("Checks");
-    await userEvent.type(panel("checks").getByLabelText("Added, kg"), "0.4");
+    await userEvent.type(panel("checks").getByLabelText("Refrigerant added (kg)"), "0.4");
     await tab("Equipment");
-    expect(panel("equipment").getByRole("checkbox", { name: /Every unit installed is listed/ })).toBeChecked();
+    expect(panel("equipment").getByRole("checkbox", { name: /checked every unit against its rating plate/ })).toBeChecked();
   });
 });

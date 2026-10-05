@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
-import { isHqEmail } from "./allow";
+import { isHqUser } from "./allow";
 
 /* HQ access enforcement (thin IO over the pure allowlist in allow.ts).
 
@@ -8,27 +8,37 @@ import { isHqEmail } from "./allow";
    Functions:
 
    - requireHqPage() — for /hq layout & pages. Signed out → login redirect;
-     signed in but not on HQ_EMAILS → notFound() (a 404, NOT a 403, so the
+     signed in but not on HQ_USER_IDS → notFound() (a 404, NOT a 403, so the
      route stays invisible to customers; there is no root not-found.tsx so this
      renders Next's default 404).
    - requireHq() — for Server Actions, which are POST-reachable independently of
      the UI (Next 16 docs: "verify authorization inside every Server Function").
-     Throws rather than redirects. */
+     Throws rather than redirects.
+
+   Access is decided by the session's `sub` alone. The email that comes back is
+   for display and for the audit columns (added_by, deleted_by); an account
+   with no email signs those with its id. */
+
+type HqStaff = { email: string; userId: string };
+
+function staffOf(user: { sub?: unknown; email?: unknown }): HqStaff {
+  const userId = String(user.sub);
+  const email = typeof user.email === "string" && user.email ? user.email : userId;
+  return { email, userId };
+}
 
 /** Page/layout guard: redirect signed-out users, 404 non-staff, else return staff. */
-export async function requireHqPage(): Promise<{ email: string; userId: string }> {
+export async function requireHqPage(): Promise<HqStaff> {
   const session = await auth0.getSession();
   if (!session) redirect("/auth/login");
-  const email = session.user.email ?? null;
-  if (!isHqEmail(email)) notFound();
-  return { email: email as string, userId: session.user.sub as string };
+  if (!isHqUser(session.user.sub)) notFound();
+  return staffOf(session.user);
 }
 
 /** Server-action guard: throw for signed-out / non-staff callers. */
-export async function requireHq(): Promise<{ email: string; userId: string }> {
+export async function requireHq(): Promise<HqStaff> {
   const session = await auth0.getSession();
   if (!session) throw new Error("Not authenticated");
-  const email = session.user.email ?? null;
-  if (!isHqEmail(email)) throw new Error("Not authorized");
-  return { email: email as string, userId: session.user.sub as string };
+  if (!isHqUser(session.user.sub)) throw new Error("Not authorized");
+  return staffOf(session.user);
 }

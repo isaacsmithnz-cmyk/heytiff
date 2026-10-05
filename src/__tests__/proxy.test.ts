@@ -14,10 +14,11 @@ import { join } from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 
 const middlewareSpy = jest.fn(async () => NextResponse.next());
+const getSessionSpy = jest.fn(async (): Promise<unknown> => null);
 jest.mock("@/lib/auth0", () => ({
   auth0: {
     middleware: (...a: unknown[]) => middlewareSpy(...(a as [])),
-    getSession: async () => null,
+    getSession: () => getSessionSpy(),
   },
 }));
 
@@ -185,5 +186,55 @@ describe("the invitee's address after the password screen", () => {
     const gone = res.cookies.get("ht_invitee");
     expect(gone?.value).toBe("");
     expect(gone?.maxAge).toBe(0);
+  });
+});
+
+/* Next reads a cookie the proxy sets on a server action as the action
+   changing it: the answer says "revalidated", and the open page is drawn
+   again and every link on it fetched again. The session's rolling cookie
+   rode on every action, so the bell's reads redrew the page each minute. */
+describe("a server action", () => {
+  const session = { user: { sub: "auth0|x" }, orgId: "org-1" };
+  const action = (url: string, headers: Record<string, string> = {}) =>
+    new NextRequest(url, {
+      method: "POST",
+      headers: { host: "go.hey-tiff.com", "next-action": "0082df15db84d079c588894e231b6573f4ee666ae6", ...headers },
+      body: "[]",
+    });
+
+  beforeEach(() => {
+    getSessionSpy.mockResolvedValue(session);
+    middlewareSpy.mockImplementation(async () => {
+      const res = NextResponse.next();
+      res.cookies.set("__session", "rolled");
+      return res;
+    });
+  });
+  afterEach(() => {
+    getSessionSpy.mockResolvedValue(null);
+    middlewareSpy.mockImplementation(async () => NextResponse.next());
+  });
+
+  test("goes through without the session's cookie set again", async () => {
+    const res = await proxy(action("https://go.hey-tiff.com/dashboard/workboard/quotes/job-1"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(middlewareSpy).not.toHaveBeenCalled();
+  });
+
+  test("still needs a session", async () => {
+    getSessionSpy.mockResolvedValue(null);
+    const res = await proxy(action("https://go.hey-tiff.com/dashboard"));
+    expect(new URL(res.headers.get("location") ?? "").pathname).toBe("/auth/login");
+  });
+
+  test("a page still rolls the session, and so does a plain POST", async () => {
+    const page = await proxy(req("https://go.hey-tiff.com/dashboard/workboard", "go.hey-tiff.com"));
+    expect(page.cookies.get("__session")?.value).toBe("rolled");
+    const post = await proxy(
+      new NextRequest("https://go.hey-tiff.com/api/workboard/quote-draft", { method: "POST", headers: { host: "go.hey-tiff.com" }, body: "{}" })
+    );
+    expect(post.cookies.get("__session")?.value).toBe("rolled");
+    expect(middlewareSpy).toHaveBeenCalledTimes(2);
   });
 });

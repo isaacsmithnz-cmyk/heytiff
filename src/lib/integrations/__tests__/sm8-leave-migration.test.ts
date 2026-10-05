@@ -23,7 +23,7 @@ const flat = (s: string) => s.replace(/\s+/g, " ").trim();
 /* the kinds of its day: the code's own, less new jobs, which
    sm8_new_job_queue.sql added after it (sm8-job-migration.test holds that
    one) */
-const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "job" && k !== "customer");
+const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "job" && k !== "customer" && k !== "quote");
 const NEW_COLUMNS = ["leave_staff_uuid", "leave_start", "leave_end"];
 
 function branchOf(src: string, kind: string): string {

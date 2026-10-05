@@ -3,7 +3,7 @@ import { join } from "path";
 import { SM8_WRITE_KIND_SCOPES } from "../providers";
 
 const SQL = readFileSync(join(process.cwd(), "docs/migrations/sm8_customer_queue.sql"), "utf8");
-const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES);
+const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "quote");
 const listed = (re: RegExp) =>
   (SQL.match(re)?.[1] ?? "")
     .split(",")

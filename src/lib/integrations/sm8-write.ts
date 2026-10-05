@@ -799,10 +799,30 @@ export async function deleteSm8JobContact(call: Sm8Call, uuid: string): Promise<
   return bookingRequest(call, "DELETE jobcontact", `jobcontact/${uuid}.json`, { method: "DELETE" });
 }
 
+/* QUOTES TO SERVICEM8 (Isaac, 2026-10-05: "copy the scope and line items to
+   service mate"). Read off ServiceM8's reference on 2026-10-05: POST
+   jobmaterial.json (manage_job_materials; a client uuid is accepted, so a
+   retry names the same line), DELETE jobmaterial/{uuid}.json (a soft
+   delete: active becomes 0). The job's scope and status go through
+   postSm8RecordUpdate on the job (manage_jobs). A DELETE IS NEVER SENT TO A
+   LINE ALREADY INACTIVE: the sender reads it first. */
+
+/** A line on a job, under OUR uuid: a unit price and cost ex GST, on a tax rate. */
+export async function postSm8JobMaterial(call: Sm8Call, uuid: string, jobUuid: string, fields: Record<string, string>): Promise<Sm8CustomerResult> {
+  if (!UUID.test(uuid) || !UUID.test(jobUuid) || !fields.name || !fields.quantity) return NOT_SENT;
+  return bookingRequest(call, "POST jobmaterial.json", "jobmaterial.json", { method: "POST", json: { uuid, job_uuid: jobUuid, ...fields } });
+}
+
+/** Take a line off a job. Sent only after a live read found it active. */
+export async function deleteSm8JobMaterial(call: Sm8Call, uuid: string): Promise<Sm8CustomerResult> {
+  if (!UUID.test(uuid)) return NOT_SENT;
+  return bookingRequest(call, "DELETE jobmaterial", `jobmaterial/${uuid}.json`, { method: "DELETE" });
+}
+
 export type Sm8RawCheck = { ok: true; found: false } | { ok: true; found: true; row: Record<string, unknown>; active: number | null } | Sm8ReadFailure;
 
 /** One record read back by its uuid, whole, through the list endpoint. */
-export async function readSm8Raw(call: Sm8Call, object: CustomerPath, uuid: string): Promise<Sm8RawCheck> {
+export async function readSm8Raw(call: Sm8Call, object: CustomerPath | "jobmaterial", uuid: string): Promise<Sm8RawCheck> {
   if (!UUID.test(uuid)) return { ok: true, found: false };
   const page = await fetchSm8Page(call, `${object}.json`, { cursor: "-1", filter: `uuid eq '${uuid}'`, timeoutMs: WRITE_READ_TIMEOUT_MS });
   if (!page.ok) return readFailure(page);

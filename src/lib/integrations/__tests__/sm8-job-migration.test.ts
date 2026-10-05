@@ -6,7 +6,7 @@ import { SM8_WRITE_KIND_SCOPES } from "../providers";
 const SQL = readFileSync(join(process.cwd(), "docs/migrations/sm8_new_job_queue.sql"), "utf8");
 /* the kinds of its day: the code's own, less customer changes, which
    sm8_customer_queue.sql added after it */
-const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "customer");
+const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "customer" && k !== "quote");
 const listed = (re: RegExp) =>
   (SQL.match(re)?.[1] ?? "")
     .split(",")

@@ -4,6 +4,8 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { normaliseDraft } from "@/lib/quotes/proposal";
 import { orgTemplates } from "@/lib/templates/query";
 import { readSm8QuoteBrief } from "@/lib/quotes/sm8-quote-brief-server";
+import { readQuoteSettings } from "@/lib/quotes/settings-query";
+import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
 import {
   CHANGED_MEANWHILE,
   SAVE_FAILED,
@@ -55,17 +57,28 @@ export async function GET(req: Request) {
   const target = await resolveJobCard(who.orgId, job);
   /* sm8Brief: what ServiceM8's own quote says, for "Update ServiceM8 quote"
      to start from — read from the mirror, never from ServiceM8 */
-  const [proposal, t, sm8Brief] = await Promise.all([
+  const [proposal, t, sm8Brief, settings] = await Promise.all([
     readStoredProposal(who.orgId, target.parentRemoteId),
     orgTemplates(who.orgId),
     readSm8QuoteBrief(who.orgId, target.parentRemoteId).catch(() => null),
+    readQuoteSettings(who.orgId),
   ]);
-  return Response.json({ ok: true, proposal, templates: { notes: t.quoteNotes, terms: t.paymentTerms }, sm8Brief });
+  /* showLines: the business's own default for what the customer sees */
+  return Response.json({ ok: true, proposal, templates: { notes: t.quoteNotes, terms: t.paymentTerms }, sm8Brief, showLines: settings.showLines });
 }
 
 export async function POST(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
+  /* {job, toJob: true}: the accepted option's materials onto the job's own
+     list — no model call, so it goes before the key check */
+  const peek = (await req.clone().json().catch(() => ({}))) as { job?: unknown; toJob?: unknown };
+  if (peek.toJob === true) {
+    const job = jobOf(peek.job);
+    if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
+    const target = await resolveJobCard(who.orgId, job);
+    return Response.json(await putAcceptedOnJob(who.orgId, who.userId, target.parentRemoteId));
+  }
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ ok: false, reason: "Tiff is offline: no API key is configured." });
   }

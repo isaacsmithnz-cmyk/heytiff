@@ -531,6 +531,8 @@ export async function writeProposal(
     written.draft.payment.preset === current.draft.payment.preset ? current.draft.payment : termsFor(job, written.draft.payment.preset);
   /* and so does every answer a person gave, whatever Tiff sent back */
   written.draft.checklist = keepSettled(current.draft.checklist, written.draft.checklist);
+  /* and what the customer sees: a person's choice, never Tiff's */
+  written.draft.showLines = current.draft.showLines;
   /* and every price a person set: Tiff never sets one, so an option keeps
      its price by its name, or by its place when the options stayed as many */
   written.draft.options = written.draft.options.map((o, i) => ({

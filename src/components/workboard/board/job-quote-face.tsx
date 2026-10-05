@@ -80,7 +80,7 @@ const noteFor = (t: QuoteTemplates, key: string): QuoteNote | null =>
   t.notes.find((n) => n.key === key) ?? STANDARD_NOTES.find((n) => n.key === key) ?? null;
 
 type Answer =
-  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates; sm8Brief?: string | null }
+  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates; sm8Brief?: string | null; showLines?: boolean }
   /** `proposal` comes back when the draft moved on underneath the change */
   | { ok: false; reason: string; proposal?: StoredProposal | null };
 /** A person's edit, applied to the draft as it stands when its turn comes. */
@@ -118,6 +118,9 @@ export type Sm8Quote = {
   sentOn: string | null;
   /** Already worded, "$45,430 inc GST"; null without the money grant. */
   value: string | null;
+  /** The same, as money, on the basis ServiceM8 holds it; null without the
+      money grant. */
+  quoted?: { cents: number; basis: "ex" | "inc" } | null;
 };
 
 export function JobQuoteFace({
@@ -127,6 +130,7 @@ export function JobQuoteFace({
   onToast,
   sm8 = null,
   onOpenPaper,
+  onJobMaterials,
   children,
 }: {
   /** The job card's uuid, or the row's until the record read lands. */
@@ -143,6 +147,8 @@ export function JobQuoteFace({
   /** The builder's own sections (its labour and price), shown only while
       the quote is open. */
   children?: ReactNode;
+  /** The job's own materials list changed (an accepted option went on it). */
+  onJobMaterials?: () => void;
 }) {
   /* THE QUOTE OPENS FROM ONE BUTTON (Isaac, 2026-10-05): "Create a quote"
      when there is none, "Continue quote" on a draft, and on a job quoted in
@@ -151,6 +157,8 @@ export function JobQuoteFace({
   const sm8Quoted = !!sm8 && (sm8.papers.length > 0 || !!sm8.sentOn);
   const [open, setOpen] = useState(false);
   const [sm8Brief, setSm8Brief] = useState<string | null>(null);
+  /* the business's own default for what the customer sees */
+  const [linesByDefault, setLinesByDefault] = useState(false);
   /* each option's total, read again whenever the quote changes */
   const [totals, setTotals] = useState<{ at: string; totals: OptionTotal[] | null } | null>(null);
   const sm8Block = sm8Quoted ? (
@@ -198,6 +206,7 @@ export function JobQuoteFace({
         latest.current = a.proposal;
         setLoaded(a.proposal);
         setSm8Brief(a.sm8Brief ?? null);
+        setLinesByDefault(a.showLines === true);
         if (a.proposal) setBrief(a.proposal.brief);
       })
       /* NOT the draft box: drafting on a read that failed would pay for a
@@ -283,6 +292,27 @@ export function JobQuoteFace({
     const next = queue.current.then(run, run);
     queue.current = next;
     return next;
+  };
+
+  /* Marking an option accepted puts its materials on the job's own list
+     (Isaac, 2026-10-05: "whichever one is accepted… will then turn into the
+     materials list for the job"). */
+  const accept = async (i: number) => {
+    const marking = !(latest.current?.draft.accepted ?? []).includes(i);
+    const ok = await save((d) => ({ ...d, accepted: toggleAccepted(d, i) }));
+    if (!ok || !marking) return;
+    /* the call alone inside the try: React Compiler 1.0 can't lower a
+       conditional or an optional call inside a try/catch */
+    let a: { ok: true; added: number; removed: number } | { ok: false; reason: string };
+    try {
+      const res = await fetch(ROUTE, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job, toJob: true }) });
+      a = (await res.json()) as typeof a;
+    } catch {
+      a = { ok: false, reason: "The job's materials couldn't be changed. Try again." };
+    }
+    if (!a.ok) return onToast(a.reason);
+    onJobMaterials?.();
+    onToast(a.added || a.removed ? "The accepted option's materials are on the job's list" : "The job's list already has the accepted option's materials");
   };
 
   /** A block's own Save: closes that block's editor when it lands, and
@@ -461,7 +491,7 @@ export function JobQuoteFace({
                 type="button"
                 className={`pbtn ghost sm wb2-jqacc${draft.accepted.includes(i) ? " on" : ""}`}
                 aria-pressed={draft.accepted.includes(i)}
-                onClick={() => void save((d) => ({ ...d, accepted: toggleAccepted(d, i) }))}
+                onClick={() => void accept(i)}
               >
                 {draft.accepted.includes(i) ? "Accepted" : "Mark accepted"}
               </button>
@@ -494,11 +524,12 @@ export function JobQuoteFace({
         {editing === "pricing" ? (
           <PricingEdit
             draft={draft}
+            linesByDefault={linesByDefault}
             onCancel={() => setEditing(null)}
             onSave={(pricing) => saveBlock("pricing", (d) => ({ ...d, ...pricing }))}
           />
         ) : (
-          <PricingBody draft={draft} totals={totals?.totals ?? null} />
+          <PricingBody draft={draft} totals={totals?.totals ?? null} quoted={sm8?.quoted ?? null} showLines={draft.showLines ?? linesByDefault} />
         )}
       </QuoteBlock>
 
@@ -813,10 +844,31 @@ function NamedRows({ label, rows }: { label: string; rows: readonly { name: stri
   );
 }
 
-function PricingBody({ draft, totals }: { draft: ProposalDraft; totals: OptionTotal[] | null }) {
+/** The new total against what ServiceM8 quoted, on ServiceM8's own basis
+    (Isaac, 2026-10-05: "it can just show you a comparison of what was
+    already quoted versus the new quote"). */
+export function againstQuoted(t: OptionTotal, quoted: { cents: number; basis: "ex" | "inc" }): string {
+  const mine = quoted.basis === "ex" ? t.cents : t.incCents;
+  const gap = mine - quoted.cents;
+  const was = `ServiceM8 quoted ${fmtAud(quoted.cents)} ${quoted.basis} GST`;
+  return gap === 0 ? `${was}: the same` : `${was}: ${fmtAud(Math.abs(gap))} ${gap > 0 ? "more" : "less"}`;
+}
+
+function PricingBody({
+  draft,
+  totals,
+  quoted,
+  showLines,
+}: {
+  draft: ProposalDraft;
+  totals: OptionTotal[] | null;
+  quoted: { cents: number; basis: "ex" | "inc" } | null;
+  showLines: boolean;
+}) {
   return (
     <>
       <p className="wb2-jqmode">{PRICING_WORDS[draft.pricingMode]}</p>
+      <p className="wb2-jqmode">{showLines ? "The customer sees each option's line items and its total" : "The customer sees each option's total"}</p>
       <ul className="wb2-jqlines">
         {draft.pricingMode === "itemised"
           ? draft.items.map((it, i) => (
@@ -834,7 +886,8 @@ function PricingBody({ draft, totals }: { draft: ProposalDraft; totals: OptionTo
                   <span>{whole != null ? `${fmtAud(whole)} + GST` : t ? `${t.left} still to price` : "Not priced yet"}</span>
                   <b>
                     {optionHeading(draft, i)}
-                    {whole != null && <em>{`${fmtAud(Math.round(whole * 1.1))} inc GST`}</em>}
+                    {whole != null && t && <em>{`${fmtAud(t.incCents)} inc GST`}</em>}
+                    {whole != null && t && quoted && <em>{againstQuoted(t, quoted)}</em>}
                   </b>
                 </li>
               );
@@ -1225,7 +1278,7 @@ function OptionEdit({
 
 /** Each option's total, ex GST, as its Price block works it out: whole,
     or what's left to price. Null to a reader without money access. */
-export type OptionTotal = { cents: number; left: number };
+export type OptionTotal = { cents: number; incCents: number; left: number };
 
 async function optionTotals(job: string): Promise<OptionTotal[] | null> {
   const a = (await (await fetch(`/api/workboard/quote-price?job=${encodeURIComponent(job)}`)).json()) as { ok: boolean; price?: QuotePrice };
@@ -1233,6 +1286,7 @@ async function optionTotals(job: string): Promise<OptionTotal[] | null> {
   if (!p || !p.ok) return null;
   return p.options.map((o) => ({
     cents: o.build.exGstCents,
+    incCents: o.build.incGstCents,
     left: stillToPrice({ unpriced: o.unpriced, labourFrom: p.labourFrom, labourCents: o.build.labour.sellCents }).length,
   }));
 }
@@ -1241,14 +1295,17 @@ async function optionTotals(job: string): Promise<OptionTotal[] | null> {
    have to manually enter it in"): it is its Price block's total. */
 function PricingEdit({
   draft,
+  linesByDefault,
   onCancel,
   onSave,
 }: {
   draft: ProposalDraft;
+  linesByDefault: boolean;
   onCancel: () => void;
-  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances">) => Promise<boolean>;
+  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances" | "showLines">) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState(draft.pricingMode);
+  const [lines, setLines] = useState(draft.showLines ?? linesByDefault);
   const [items, setItems] = useState(draft.items.map((it) => `${it.qty} × ${it.name}`).join("\n"));
   const [extras, setExtras] = useState(namedText(draft.extras));
   const [allowances, setAllowances] = useState(namedText(draft.allowances));
@@ -1261,10 +1318,16 @@ function PricingEdit({
       }),
       extras: namedOf(extras),
       allowances: namedOf(allowances),
+      /* the business's default stays the default until it's changed here */
+      showLines: lines === linesByDefault && draft.showLines == null ? null : lines,
     })
   );
   return (
     <div className="wb2-jqform">
+      <label className="wb2-jqcheck">
+        <input type="checkbox" checked={lines} onChange={(e) => setLines(e.target.checked)} disabled={busy} />
+        Show line items to the customer
+      </label>
       {(["multiple_choice", "optional", "itemised"] as const).map((m) => (
         <label className="wb2-jqcheck" key={m}>
           <input type="radio" name="jq-mode" checked={mode === m} onChange={() => setMode(m)} disabled={busy} />

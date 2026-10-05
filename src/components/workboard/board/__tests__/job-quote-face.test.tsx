@@ -291,7 +291,7 @@ const pricedAs = (options: { cents: number; labour: number; unpriced: { name: st
           price: {
             ok: true,
             labourFrom: "brief",
-            options: options.map((o, i) => ({ name: `Option ${i + 1}`, build: { exGstCents: o.cents, labour: { sellCents: o.labour } }, unpriced: o.unpriced, rows: 3 })),
+            options: options.map((o, i) => ({ name: `Option ${i + 1}`, build: { exGstCents: o.cents, incGstCents: Math.round(o.cents * 1.1), labour: { sellCents: o.labour } }, unpriced: o.unpriced, rows: 3 })),
           },
         })
       : route(url, init)
@@ -313,4 +313,54 @@ it("never shows a total so far as an option's price", async () => {
   await openFace();
   expect(await screen.findByText("2 still to price")).toBeInTheDocument();
   expect(screen.queryByText("$65.72 + GST")).toBeNull();
+});
+
+/* Isaac, 2026-10-05: "it can just show you a comparison of what was already
+   quoted versus the new quote" */
+it("stands each option's total beside what ServiceM8 quoted, on ServiceM8's basis", async () => {
+  pricedAs([{ cents: 1_200_000, labour: 224_000, unpriced: [] }]);
+  render(
+    <JobQuoteFace
+      job="j-1"
+      address={null}
+      visible
+      onToast={jest.fn()}
+      sm8={{ papers: [], sentOn: "2026-09-22", value: "$12,650 inc GST", quoted: { cents: 1_265_000, basis: "inc" } }}
+    />
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
+  /* $12,000 ex is $13,200 inc: $550 more than the $12,650 inc quoted */
+  expect(await screen.findByText("ServiceM8 quoted $12,650 inc GST: $550 more")).toBeInTheDocument();
+});
+
+it("says what the customer sees, the business's default until the quote says otherwise", async () => {
+  const route = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
+    !init?.method && url.startsWith("/api/workboard/quote-draft") ? respond({ ok: true, proposal: stored(), showLines: false }) : route(url, init)
+  );
+  await openFace();
+  expect(await screen.findByText("The customer sees each option's total")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Show line items to the customer" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save pricing" }));
+  });
+  const put = (fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === "PUT").at(-1)!;
+  expect(JSON.parse(put[1]!.body!).draft.showLines).toBe(true);
+});
+
+it("puts an option's materials on the job's list when it's marked accepted", async () => {
+  const route = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
+    init?.method === "POST" && JSON.parse(init.body!).toJob === true ? respond({ ok: true, added: 9, removed: 0 }) : route(url, init)
+  );
+  const onToast = jest.fn();
+  const onJobMaterials = jest.fn();
+  render(<JobQuoteFace job="j-1" address={null} visible onToast={onToast} onJobMaterials={onJobMaterials} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
+  await act(async () => {
+    fireEvent.click(await screen.findByRole("button", { name: "Mark accepted" }));
+  });
+  await waitFor(() => expect(onJobMaterials).toHaveBeenCalled());
+  expect(onToast).toHaveBeenCalledWith("The accepted option's materials are on the job's list");
 });

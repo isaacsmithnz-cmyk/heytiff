@@ -1,12 +1,17 @@
 import type { DataPack } from "@/lib/studio/packs/schema";
 import type { CheckItem } from "./checklist";
 import type { ProposalOption, UnitLine } from "./proposal";
+import { isBoxHead } from "@/lib/studio/multi";
+import { isVrfHead, joinsVrf, vrfOutdoorsListing } from "@/lib/studio/vrf";
+import { vrfKitRows, vrfOptionOf } from "./brief-vrf";
 import {
   KIT,
   kitRows,
   multiKitRows,
+  nearestKw,
   sizeMulti,
   sizeRoom,
+  STYLE_OF,
   withSwap,
   type IndoorStyle,
   type OutdoorAt,
@@ -78,18 +83,25 @@ const known = (checklist: readonly CheckItem[], key: CheckItem["key"]) => {
   return i && i.state === "known" ? i.answer.trim() : "";
 };
 
+/** What an outdoor sits on, from words. */
+const mountIn = (where: string): OutdoorAt | null =>
+  /roof/.test(where)
+    ? "roof"
+    : /bracket|wall/.test(where)
+      ? "wall"
+      : /ground|pad|slab|balcony|floor|under the house|garage|plant room|basement|car ?park/.test(where)
+        ? "ground"
+        : null;
+
 export function siteFacts(checklist: readonly CheckItem[]): SiteFacts {
-  const where = known(checklist, "outdoor_location").toLowerCase();
+  /* where the unit itself sits: the first clause first ("Garage, ducted to
+     roof garden" is the garage, not the roof), else the whole answer ("Side
+     of the house, on wall brackets") */
+  const answer = known(checklist, "outdoor_location").toLowerCase();
   const run = /(\d+(?:\.\d+)?)/.exec(known(checklist, "pipe_length"));
   const runM = run ? Number(run[1]) : NaN;
   return {
-    outdoorAt: /roof/.test(where)
-      ? "roof"
-      : /bracket|wall/.test(where)
-        ? "wall"
-        : /ground|pad|slab|balcony|floor|under the house/.test(where)
-          ? "ground"
-          : null,
+    outdoorAt: mountIn(answer.split(/[,;(]/)[0] ?? "") ?? mountIn(answer),
     runM: Number.isFinite(runM) && runM > 0 && runM <= 100 ? runM : null,
     keepPipe: /reuse|existing|keep/i.test(known(checklist, "pipe_reuse")),
     pump: /pump/i.test(known(checklist, "drain_fall")),
@@ -108,6 +120,16 @@ const sameModel = (written: string, pack: string) => {
   const b = norm(pack);
   return a.length >= 6 && (a.startsWith(b) || b.startsWith(a));
 };
+
+/** A model's body, its maker's suffix (-A, -E, -E4, -L) taken off: the
+    office writes PEFY-P25VMX-A where the data pack holds PEFY-P25VMX-E. */
+const body = (m: string) => {
+  let x = m.toUpperCase().trim();
+  for (let y = x.replace(/-[A-Z0-9]{1,2}$/, ""); y !== x; y = x.replace(/-[A-Z0-9]{1,2}$/, "")) x = y;
+  return norm(x);
+};
+/** The same unit, by its model or its body. */
+const sameUnit = (written: string, pack: string) => sameModel(written, pack) || (body(written).length >= 6 && body(written) === body(pack));
 
 const roomOf = (u: UnitLine, n: number, of: number): string => {
   const name = u.room.trim() || "Room";
@@ -155,6 +177,10 @@ export function optionMaterials(option: Pick<ProposalOption, "name" | "units">, 
       if (o) rows.push({ name: o.model || `${o.capacity} outdoor unit`.trim(), sub: `Outdoor unit, ${o.room || option.name}`, qty: String(Math.max(1, o.qty)) });
       return rows;
     }
+    /* a VRF or PUMY, named by its outdoor or its heads: Studio's tree */
+    const vrf = pack ? vrfRows(o, expanded, f, pack) : null;
+    if (vrf) return vrf;
+
     const sized = pack
       ? expanded.map(({ u, name }) => sizeRoom(readRoom(name, kwOf(u.capacity), styleOf(u.type), f, expanded.length === 1 ? f.runM : null), 0, "residential", pack))
       : [];
@@ -195,6 +221,62 @@ export function optionMaterials(option: Pick<ProposalOption, "name" | "units">, 
     rows.push({ name: fan.model || fan.type || "Fan", sub: `Fan, ${fan.room || option.name}`, qty: String(Math.max(1, fan.qty)) });
   }
   return rows;
+}
+
+/** A VRF or PUMY's rows (Isaac's 2905: a PUMY-P200 and six PEFY heads got no
+    kit): the outdoor the office wrote, or the one the pack lists for the
+    heads; each head as written, matched to the pack's unit by its model or
+    its body, else the pack's nearest of its style to its size; then the pipe
+    tree, joints and branch boxes from Studio's own sizer, and the VRF kit.
+    Null when the system isn't a VRF. */
+function vrfRows(o: UnitLine | null, expanded: readonly { u: UnitLine; name: string }[], f: SiteFacts, pack: Pack): OptionRow[] | null {
+  const odu = o?.model ? pack.outdoor_units.find((u) => u.system_type === "vrf" && sameUnit(o.model, u.model)) : undefined;
+  const written = expanded.map(({ u }) => (u.model ? pack.indoor_units.find((p) => joinsVrf(pack, p) && sameUnit(u.model, p.model)) : undefined));
+  if (!odu && !written.some((p) => p && isVrfHead(pack, p))) return null;
+
+  /* the rows when it can't be sized: the units as written, why, and the kit asked */
+  const asWritten = (why: string): OptionRow[] => [
+    o
+      ? { name: o.model || `${o.capacity} outdoor unit`.trim(), sub: `VRF outdoor unit, ${why}`, qty: "1" }
+      : { name: "VRF outdoor unit", sub: why, qty: "Size to ask" },
+    ...expanded.map(({ u, name }) => ({ name: u.model || `${u.capacity} ${u.type}`.trim(), sub: `Indoor unit, ${name}`, qty: "1" })),
+    { name: "VRF pipe, joints and kit", sub: "sized once the units are", qty: "Size to ask" },
+  ];
+  /* a model written for the outdoor that isn't a VRF in the pack is never
+     sized as another unit under its name */
+  if (o?.model && !odu) return asWritten(`${o.model} isn't a VRF outdoor in the data pack`);
+
+  /* heads the outdoor takes: City Multi heads on joints first, then its own
+     branch boxes' heads (a PUHY takes no branch boxes) */
+  const takes = (p: Pack["indoor_units"][number]) => isVrfHead(pack, p) || (odu ? !!odu.branch_boxes && isBoxHead(pack, odu, p) : joinsVrf(pack, p));
+  const heads: { room: string; idu: Pack["indoor_units"][number] }[] = [];
+  const unsized: string[] = [];
+  expanded.forEach(({ u, name }, i) => {
+    const kw = kwOf(u.capacity);
+    const style = styleOf(u.type) ?? "wall";
+    const pool = pack.indoor_units.filter((p) => takes(p) && STYLE_OF[p.form_factor] === style);
+    const at = kw != null ? nearestKw(pool.map((p) => p.capacity_cool_kw), kw) : undefined;
+    const idu =
+      (written[i] && takes(written[i]!) ? written[i] : undefined) ??
+      pool
+        .filter((p) => p.capacity_cool_kw === at)
+        .sort((a, b) => Number(isVrfHead(pack, b)) - Number(isVrfHead(pack, a)) || a.model.localeCompare(b.model))[0];
+    if (idu) heads.push({ room: name, idu });
+    else unsized.push(name);
+  });
+  const load = heads.reduce((n, h) => n + h.idu.capacity_cool_kw, 0);
+  const outdoor = odu ?? vrfOutdoorsListing(pack, heads.map((h) => h.idu), { load: { kw: load, basis: "worst-of-both" } })[0];
+  if (unsized.length) return asWritten(`no VRF head in the data pack this outdoor takes for ${unsized.join(", ")}`);
+  if (!outdoor) return asWritten("no VRF outdoor in the data pack takes these heads");
+  /* rows named by the pack's units, so the confirmed order codes price them
+     (Quoting's Equipment pack links); the office's -A beside a pack's -E is
+     confirmed there once */
+  const v = vrfOptionOf(pack, outdoor, heads);
+  const rooms = expanded.map(({ name }) => ({ name, drain: f.pump ? ("pump" as const) : null, newCircuit: f.newCircuit ? true : null }));
+  const kit = vrfKitRows(v, rooms, { runs: {}, outdoorAt: f.outdoorAt });
+  /* reused pipe: every section stays, the copper main included */
+  const piped = f.keepPipe ? kit.filter((r) => !/copper$/.test(r.name)) : kit;
+  return withSwap(piped, { replacing: f.replacing, keepPipe: f.keepPipe }, "the VRF");
 }
 
 /** A unit the data pack doesn't hold (another maker's, or a size it has

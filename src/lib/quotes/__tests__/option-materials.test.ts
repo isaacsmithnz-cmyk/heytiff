@@ -34,6 +34,12 @@ it("reads a size, a style, and what the site checklist knows", () => {
   expect(
     siteFacts(knownAs({ outdoor_location: "Wall brackets", pipe_length: "About 6 m", drain_fall: "Condensate pump", power_supply: "New circuit", old_system: "Remove and dispose", pipe_reuse: "New pipes" }))
   ).toEqual({ outdoorAt: "wall", runM: 6, keepPipe: false, pump: true, newCircuit: true, replacing: true });
+  /* the place first, the mount when the place doesn't say (the 2905 review) */
+  const at = (answer: string) => siteFacts(knownAs({ outdoor_location: answer })).outdoorAt;
+  expect(at("Garage, ducted to roof garden")).toBe("ground");
+  expect(at("Side of the house, on wall brackets")).toBe("wall");
+  expect(at("Rear yard, on a ground pad")).toBe("ground");
+  expect(at("North side, on the roof")).toBe("roof");
   /* what's still to ask counts for nothing */
   expect(siteFacts([{ key: "outdoor_location", state: "ask", answer: "" }]).outdoorAt).toBeNull();
 });
@@ -117,4 +123,80 @@ it("marks each system's units as its own, and nothing else", () => {
   const units = rows.filter((r) => /indoor unit|outdoor unit/i.test(r.sub));
   expect(units.map((r) => r.system)).toEqual([1, 1, 2, 2]);
   expect(rows.filter((r) => !/indoor unit|outdoor unit/i.test(r.sub)).every((r) => r.system === undefined)).toBe(true);
+});
+
+/* Isaac's 2905, 2026-10-05: a PUMY-P200 and six PEFY heads got no kit */
+describe("a VRF the office wrote", () => {
+  const job2905 = {
+    name: "Mitsubishi Electric VRF system",
+    units: [
+      unit({ role: "outdoor", room: "Garage", capacity: "22.4 kW", type: "Outdoor unit", model: "PUMY-P200YKMD2-A" }),
+      unit({ room: "Level 1 Dining/Kitchen", capacity: "7.1 kW", type: "Bulkhead", model: "PEFY-P63VMX-A" }),
+      unit({ room: "Level 2 Bedroom 2", capacity: "2.8 kW", type: "Bulkhead", model: "PEFY-P25VMX-A" }),
+      unit({ room: "Level 2 Bedroom 3", capacity: "2.8 kW", type: "Bulkhead", model: "PEFY-P25VMX-A" }),
+      unit({ room: "Level 2 Bedroom 4", capacity: "2.8 kW", type: "Bulkhead", model: "PEFY-P25VMX-A" }),
+      unit({ room: "Level 3 Bedroom 1", capacity: "3.6 kW", type: "Bulkhead", model: "PEFY-P32VMX" }),
+      unit({ room: "Level 3 Study", capacity: "2.2 kW", type: "Bulkhead", model: "PEFY-P20VMX-A" }),
+    ],
+  };
+
+  it("sizes it on Studio's VRF tree, its units named by the pack so their confirmed codes price them", () => {
+    const rows = optionMaterials(job2905, knownAs({ outdoor_location: "Garage, ducted to roof garden" }), pack);
+    expect(rows[0]).toMatchObject({ name: "PUMY-P200YKMD2-A", sub: "VRF outdoor unit, 6 heads", system: 1 });
+    const heads = rows.filter((r) => /indoor unit/.test(r.sub));
+    /* the office's -A matched to the pack's -E by the model's body */
+    expect(heads.map((r) => r.name)).toEqual(["PEFY-P63VMX-E", "PEFY-P25VMX-E", "PEFY-P25VMX-E", "PEFY-P25VMX-E", "PEFY-P32VMX-E", "PEFY-P20VMX-E"]);
+    expect(heads.every((r) => r.system === 1)).toBe(true);
+    /* the garage is ground, not the roof the ducts reach */
+    expect(rows.find((r) => r.name === "Ground mount")).toBeTruthy();
+    expect(rows.some((r) => r.name === "Roof stand")).toBe(false);
+    /* joints and the pipe at its sizes, nothing called a multi */
+    expect(rows.some((r) => /joint|header|branch box/i.test(r.sub) || /^CMY-/.test(r.name))).toBe(true);
+    expect(rows.some((r) => /pair coil|copper/.test(r.name))).toBe(true);
+    expect(rows.some((r) => /multi/i.test(r.sub))).toBe(false);
+  });
+
+  it("says why when a head isn't in the data pack", () => {
+    const rows = optionMaterials(
+      { name: "VRF", units: [job2905.units[0]!, unit({ room: "Hall", capacity: "", type: "Bulkhead", model: "" })] },
+      [],
+      pack
+    );
+    expect(rows[0]!.sub).toMatch(/^VRF outdoor unit, no VRF head in the data pack this outdoor takes for Hall/);
+    /* the kit stays asked, so the price is a total so far */
+    expect(rows.at(-1)).toMatchObject({ name: "VRF pipe, joints and kit", qty: "Size to ask" });
+  });
+
+  it("takes reused pipe as all of it, the copper main too", () => {
+    const rows = optionMaterials(job2905, knownAs({ pipe_reuse: "Reuse if they pass a pressure test" }), pack);
+    expect(rows.some((r) => /pair coil|copper/.test(r.name))).toBe(false);
+    expect(rows.some((r) => r.name === "Pipe flush")).toBe(true);
+  });
+
+  it("puts only heads a PUHY takes on it, City Multi before branch-box heads", () => {
+    const rows = optionMaterials(
+      {
+        name: "PUHY",
+        units: [
+          unit({ role: "outdoor", model: "PUHY-P200YNW-A1" }),
+          unit({ room: "Living", capacity: "7.1 kW", type: "Ducted" }),
+          unit({ room: "Bed 1", capacity: "2.8 kW", type: "Ducted" }),
+        ],
+      },
+      [],
+      pack
+    );
+    const heads = rows.filter((r) => /indoor unit/.test(r.sub)).map((r) => r.name);
+    expect(heads.every((m) => /^P.FY-/.test(m))).toBe(true);
+    expect(heads.some((m) => /^(PEAD|MSZ|SEZ)/.test(m))).toBe(false);
+  });
+
+  it("never sizes a written outdoor the pack doesn't hold as a VRF as another unit", () => {
+    const rows = optionMaterials(
+      { name: "x", units: [unit({ role: "outdoor", model: "PUMY-XX999" }), job2905.units[1]!, job2905.units[2]!] },
+      [],
+      pack
+    );
+    expect(rows[0]).toMatchObject({ name: "PUMY-XX999", sub: "VRF outdoor unit, PUMY-XX999 isn't a VRF outdoor in the data pack" });
+  });
 });

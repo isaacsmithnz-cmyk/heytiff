@@ -280,50 +280,9 @@ describe("a quote ServiceM8 generated", () => {
   });
 });
 
-/* Isaac, 2026-10-04: "Price onto the proposal" — each option the business's
-   own price, ex GST with inc GST beside it, taken from the Price block. */
-it("prices an option from the Price block's total, and shows it ex and inc GST", async () => {
-  const route = fetchMock.getMockImplementation()!;
-  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
-    url.startsWith("/api/workboard/quote-price") ? respond({
-          ok: true,
-          price: { ok: true, build: { exGstCents: 812_500, labour: { sellCents: 224_000 } }, unpriced: [], labourFrom: "brief", rows: 4 },
-        }) : route(url, init)
-  );
-  await openFace();
-  await screen.findByText("Site checklist");
-  expect(screen.getByText("Not priced yet")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Take the priced total" }));
-  });
-  expect(screen.getByDisplayValue("8125")).toBeInTheDocument();
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Save pricing" }));
-  });
-  const put = (fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === "PUT").at(-1)!;
-  expect(JSON.parse(put[1]!.body!).draft.options[0].priceCents).toBe(812_500);
-  expect(await screen.findByText("$8,125 + GST")).toBeInTheDocument();
-  expect(screen.getByText("$8,937.50 inc GST")).toBeInTheDocument();
-});
-
-it("says when the Price block has nothing to take yet", async () => {
-  const route = fetchMock.getMockImplementation()!;
-  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
-    url.startsWith("/api/workboard/quote-price") ? respond({ ok: true, price: { ok: false, unset: ["rate"] } }) : route(url, init)
-  );
-  await openFace();
-  await screen.findByText("Site checklist");
-  fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Take the priced total" }));
-  });
-  expect(screen.getByText("The Price block has no total yet: set what it asks for, then try again.")).toBeInTheDocument();
-});
-
-/* Isaac's walk, 2026-10-05: $72 shown as the quote with five items and the
-   labour unpriced — a total so far is never an option's price. */
-it("won't take a total so far, and says what's left to price", async () => {
+/* Isaac, 2026-10-05: "the customer should be able to see the total for each
+   option… you should not have to manually enter it in" */
+const pricedAs = (options: { cents: number; labour: number; unpriced: { name: string; qty: string; why: string }[] }[]) => {
   const route = fetchMock.getMockImplementation()!;
   fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
     url.startsWith("/api/workboard/quote-price")
@@ -331,20 +290,27 @@ it("won't take a total so far, and says what's left to price", async () => {
           ok: true,
           price: {
             ok: true,
-            build: { exGstCents: 6_572, labour: { sellCents: 0 } },
-            unpriced: [{ name: "Drain socket", qty: "1", why: "Not in your price book" }],
-            labourFrom: "none",
-            rows: 7,
+            labourFrom: "brief",
+            options: options.map((o, i) => ({ name: `Option ${i + 1}`, build: { exGstCents: o.cents, labour: { sellCents: o.labour } }, unpriced: o.unpriced, rows: 3 })),
           },
         })
       : route(url, init)
   );
+};
+
+it("shows each option's total from its Price block, ex and inc GST, with nothing typed", async () => {
+  pricedAs([{ cents: 812_500, labour: 224_000, unpriced: [] }]);
   await openFace();
-  await screen.findByText("Site checklist");
+  expect(await screen.findByText("$8,125 + GST")).toBeInTheDocument();
+  expect(screen.getByText("$8,937.50 inc GST")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Take the priced total" }));
-  });
-  expect(screen.getByText("The Price block still has 2 to price (Labour, Drain socket): price them, then try again.")).toBeInTheDocument();
-  expect(screen.queryByDisplayValue("65.72")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Take the priced total" })).toBeNull();
+  expect(screen.queryByLabelText(/price, dollars ex GST/)).toBeNull();
+});
+
+it("never shows a total so far as an option's price", async () => {
+  pricedAs([{ cents: 6_572, labour: 0, unpriced: [{ name: "Drain socket", qty: "1", why: "Not in your price book" }] }]);
+  await openFace();
+  expect(await screen.findByText("2 still to price")).toBeInTheDocument();
+  expect(screen.queryByText("$65.72 + GST")).toBeNull();
 });

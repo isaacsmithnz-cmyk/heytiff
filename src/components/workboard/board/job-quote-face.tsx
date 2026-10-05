@@ -1,7 +1,7 @@
 "use client";
 
 import { fmtAud } from "@/lib/workboard/project-money";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { NoteToken } from "@/components/notes/note-token";
 import { Waiting } from "@/components/ui/orb";
 import { Icon } from "@/components/shell/icon";
@@ -151,6 +151,8 @@ export function JobQuoteFace({
   const sm8Quoted = !!sm8 && (sm8.papers.length > 0 || !!sm8.sentOn);
   const [open, setOpen] = useState(false);
   const [sm8Brief, setSm8Brief] = useState<string | null>(null);
+  /* each option's total, read again whenever the quote changes */
+  const [totals, setTotals] = useState<{ at: string; totals: OptionTotal[] | null } | null>(null);
   const sm8Block = sm8Quoted ? (
     <div className="wb2-jcsec">
       <div className="wb2-jcdhead">
@@ -202,6 +204,18 @@ export function JobQuoteFace({
          new proposal over the one that couldn't be read */
       .catch(() => setReadFailed(true));
   }, [visible, job, reads]);
+
+  const version = loaded?.updatedAt ?? null;
+  useEffect(() => {
+    if (!open || !version) return;
+    let live = true;
+    optionTotals(job)
+      .then((t) => live && setTotals({ at: version, totals: t }))
+      .catch(() => live && setTotals({ at: version, totals: null }));
+    return () => {
+      live = false;
+    };
+  }, [open, version, job]);
 
   const write = async (kind: "draft" | "change" | "apply") => {
     const words = kind === "draft" ? brief : change;
@@ -479,13 +493,12 @@ export function JobQuoteFace({
       <QuoteBlock title="Pricing" onEdit={() => setEditing("pricing")} editing={editing === "pricing"}>
         {editing === "pricing" ? (
           <PricingEdit
-            job={job}
             draft={draft}
             onCancel={() => setEditing(null)}
             onSave={(pricing) => saveBlock("pricing", (d) => ({ ...d, ...pricing }))}
           />
         ) : (
-          <PricingBody draft={draft} />
+          <PricingBody draft={draft} totals={totals?.totals ?? null} />
         )}
       </QuoteBlock>
 
@@ -548,7 +561,8 @@ export function JobQuoteFace({
           )}
         </div>
       </div>
-      {children}
+      {/* the builder's sections read the quote afresh each time it changes */}
+      <Fragment key={proposal.updatedAt}>{children}</Fragment>
     </>
   );
 }
@@ -799,7 +813,7 @@ function NamedRows({ label, rows }: { label: string; rows: readonly { name: stri
   );
 }
 
-function PricingBody({ draft }: { draft: ProposalDraft }) {
+function PricingBody({ draft, totals }: { draft: ProposalDraft; totals: OptionTotal[] | null }) {
   return (
     <>
       <p className="wb2-jqmode">{PRICING_WORDS[draft.pricingMode]}</p>
@@ -811,15 +825,20 @@ function PricingBody({ draft }: { draft: ProposalDraft }) {
                 <b>{it.name}</b>
               </li>
             ))
-          : draft.options.map((o, i) => (
-              <li key={i}>
-                <span>{o.priceCents != null ? `${fmtAud(o.priceCents)} + GST` : "Not priced yet"}</span>
-                <b>
-                  {optionHeading(draft, i)}
-                  {o.priceCents != null && <em>{`${fmtAud(Math.round(o.priceCents * 1.1))} inc GST`}</em>}
-                </b>
-              </li>
-            ))}
+          : draft.options.map((_, i) => {
+              /* its Price block's total, once nothing is left to price */
+              const t = totals?.[i];
+              const whole = t && t.left === 0 ? t.cents : null;
+              return (
+                <li key={i}>
+                  <span>{whole != null ? `${fmtAud(whole)} + GST` : t ? `${t.left} still to price` : "Not priced yet"}</span>
+                  <b>
+                    {optionHeading(draft, i)}
+                    {whole != null && <em>{`${fmtAud(Math.round(whole * 1.1))} inc GST`}</em>}
+                  </b>
+                </li>
+              );
+            })}
       </ul>
       {draft.extras.length > 0 && (
         <div className="wb2-jqnote">
@@ -1204,51 +1223,32 @@ function OptionEdit({
   );
 }
 
-/** The Price block's total for the job, ex GST: what its own materials and
-    labour come to at the business's own prices — only when nothing is left
-    to price, so a proposal never takes a total so far. Otherwise what's
-    stopping it, in words. */
-async function pricedTotal(job: string): Promise<{ cents: number } | { why: string }> {
-  const a = (await (await fetch(`/api/workboard/quote-price?job=${encodeURIComponent(job)}`)).json()) as {
-    ok: boolean;
-    price?: QuotePrice;
-  };
+/** Each option's total, ex GST, as its Price block works it out: whole,
+    or what's left to price. Null to a reader without money access. */
+export type OptionTotal = { cents: number; left: number };
+
+async function optionTotals(job: string): Promise<OptionTotal[] | null> {
+  const a = (await (await fetch(`/api/workboard/quote-price?job=${encodeURIComponent(job)}`)).json()) as { ok: boolean; price?: QuotePrice };
   const p = a.ok ? a.price : null;
-  if (!p || !p.ok) return { why: "The Price block has no total yet: set what it asks for, then try again." };
-  const left = stillToPrice({ unpriced: p.unpriced, labourFrom: p.labourFrom, labourCents: p.build.labour.sellCents });
-  if (left.length > 0)
-    return { why: `The Price block still has ${left.length} to price (${left.map((u) => u.name).join(", ")}): price them, then try again.` };
-  return { cents: p.build.exGstCents };
+  if (!p || !p.ok) return null;
+  return p.options.map((o) => ({
+    cents: o.build.exGstCents,
+    left: stillToPrice({ unpriced: o.unpriced, labourFrom: p.labourFrom, labourCents: o.build.labour.sellCents }).length,
+  }));
 }
 
+/* An option's price is never typed (Isaac, 2026-10-05: "you should not
+   have to manually enter it in"): it is its Price block's total. */
 function PricingEdit({
-  job,
   draft,
   onCancel,
   onSave,
 }: {
-  job: string;
   draft: ProposalDraft;
   onCancel: () => void;
-  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances" | "options">) => Promise<boolean>;
+  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances">) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState(draft.pricingMode);
-  /* each option's price as typed, in dollars ex GST */
-  const [prices, setPrices] = useState<string[]>(draft.options.map((o) => (o.priceCents != null ? String(o.priceCents / 100) : "")));
-  const [taking, setTaking] = useState<number | null>(null);
-  const [priceNote, setPriceNote] = useState<string | null>(null);
-  const centsOf = (t: string) => {
-    const n = Number(t.replace(/[$,\s]/g, ""));
-    return t.trim() !== "" && Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
-  };
-  const take = async (i: number) => {
-    setTaking(i);
-    setPriceNote(null);
-    const total = await pricedTotal(job).catch(() => ({ why: "The Price block couldn't be read: try again." }));
-    if ("why" in total) setPriceNote(total.why);
-    else setPrices((cur) => cur.map((p, j) => (j === i ? String(total.cents / 100) : p)));
-    setTaking(null);
-  };
   const [items, setItems] = useState(draft.items.map((it) => `${it.qty} × ${it.name}`).join("\n"));
   const [extras, setExtras] = useState(namedText(draft.extras));
   const [allowances, setAllowances] = useState(namedText(draft.allowances));
@@ -1261,30 +1261,10 @@ function PricingEdit({
       }),
       extras: namedOf(extras),
       allowances: namedOf(allowances),
-      options: draft.options.map((o, i) => ({ ...o, priceCents: centsOf(prices[i] ?? "") })),
     })
   );
   return (
     <div className="wb2-jqform">
-      {mode !== "itemised" &&
-        draft.options.map((o, i) => (
-          <div className="wb2-jqstage" key={`price-${i}`}>
-            <span className="wb2-jqpcts">{optionHeading(draft, i)}</span>
-            <input
-              className="wb2-fi wb2-jqpct"
-              inputMode="decimal"
-              aria-label={`${optionHeading(draft, i)} price, dollars ex GST`}
-              value={prices[i] ?? ""}
-              disabled={busy || taking !== null}
-              onChange={(e) => setPrices((cur) => cur.map((p, j) => (j === i ? e.target.value : p)))}
-            />
-            <span className="wb2-jqpcts">+ GST</span>
-            <button type="button" className="pbtn ghost sm" disabled={busy || taking !== null} onClick={() => void take(i)}>
-              {taking === i ? "Taking" : "Take the priced total"}
-            </button>
-          </div>
-        ))}
-      {priceNote && <p className="wb2-sherr">{priceNote}</p>}
       {(["multiple_choice", "optional", "itemised"] as const).map((m) => (
         <label className="wb2-jqcheck" key={m}>
           <input type="radio" name="jq-mode" checked={mode === m} onChange={() => setMode(m)} disabled={busy} />

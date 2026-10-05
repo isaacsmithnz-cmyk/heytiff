@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { unsetWords } from "@/lib/quotes/build-settings";
-import { stillToPrice } from "@/lib/quotes/job-price";
+import { stillToPrice, type LabourFrom } from "@/lib/quotes/job-price";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 
 /* THE QUOTE, PRICED, on the job card's Quote section (Isaac, 2026-10-04:
@@ -27,7 +27,13 @@ type Answer = { ok: true; price: QuotePrice } | { ok: false; reason: string };
 
 const qtyWords = (n: number) => String(Math.round(n * 100) / 100);
 const daysWords = (d: number) => `${Math.round(d * 100) / 100} person-day${d === 1 ? "" : "s"}`;
-const LABOUR_FROM = { brief: "from the brief", history: "your typical for the work", none: "" } as const;
+const LABOUR_FROM: Record<LabourFrom, string> = {
+  brief: "from the brief",
+  tiff: "Tiff's suggestion",
+  typical: "your typical",
+  you: "set on the quote",
+  none: "",
+};
 
 export function JobQuotePrice({ job, visible, version }: { job: string; visible: boolean; version?: string | null }) {
   /* read again whenever the quote's version changes, the last price kept on
@@ -83,14 +89,14 @@ export function JobQuotePrice({ job, visible, version }: { job: string; visible:
   return (
     <>
       {price.options.map((o, i) => (
-        <OptionPriceBlock key={i} heading={price.options.length > 1 ? `Price, option ${i + 1}: ${o.name}` : "Price"} option={o} labourFrom={price.labourFrom} />
+        <OptionPriceBlock key={i} heading={price.options.length > 1 ? `Price, option ${i + 1}: ${o.name}` : "Price"} option={o} />
       ))}
     </>
   );
 }
 
-function OptionPriceBlock({ heading, option, labourFrom }: { heading: string; option: OptionPrice; labourFrom: "brief" | "history" | "none" }) {
-  const { build, unpriced, rows } = option;
+function OptionPriceBlock({ heading, option }: { heading: string; option: OptionPrice }) {
+  const { build, unpriced, rows, labourFrom } = option;
   const left = stillToPrice({ unpriced, labourFrom, labourCents: build.labour.sellCents });
   const labourPriced = build.labour.sellCents > 0;
   if (rows === 0 && !labourPriced) {

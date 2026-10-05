@@ -1,8 +1,8 @@
-import { labourAdvice, MIN_JOBS, sampleOf, typicalLabour, workKindOf, type LabourSample } from "../labour-history";
+import { MIN_JOBS, typicalLabour, workKindOf, type LabourSample } from "../labour-history";
 
 /* Isaac, 2026-10-04: "it should only show when enough jobs have run through
-   for it to say (you typically use 24hrs labour for this type of work)…
-   recommendation comes from orgs own history" */
+   for it to say (you typically use 24hrs labour for this type of work)";
+   2026-10-05: from the post-job review only, from 3 reviewed jobs */
 
 const samples = (kind: LabourSample["kind"], hours: number[]): LabourSample[] => hours.map((h, i) => ({ job: `${kind}-${i}`, kind, personHours: h }));
 
@@ -18,34 +18,17 @@ describe("the business's own labour history", () => {
     expect(workKindOf("Supply and install", null)).toBeNull();
   });
 
-  it("a past job is a sample only when its brief states its labour", () => {
-    expect(sampleOf("3256", "Mits Elec 7kw multi outdoor\n3 x pax for 1 day\nDave for 4 hrs for patching following day", "Install", 8)).toEqual({
-      job: "3256",
-      kind: "multi",
-      personHours: 28,
-    });
-    expect(sampleOf("3292", "Mits Elec 5.2kw multi outdoor, two heads", "Install", 8)).toBeNull();
-    /* a brief in days, from a business with no working day set, can't be counted in hours */
-    expect(sampleOf("3256", "Mits Elec 7kw multi outdoor\n3 x pax for 1 day", "Install", null)).toBeNull();
-    expect(sampleOf("3221", "Annual maintenance, allow 3 HRS x 1 PAX", "Maintenance", null)).toMatchObject({ personHours: 3 });
-  });
-
   it(`says nothing until there are ${MIN_JOBS} of the same kind, then the middle of them`, () => {
-    expect(typicalLabour(samples("multi", [16, 24, 28, 32]), "multi")).toBeNull();
-    expect(typicalLabour([...samples("multi", [16, 24, 28, 32]), ...samples("split", [12])], "multi")).toBeNull();
-    expect(typicalLabour(samples("multi", [16, 24, 28, 32, 40]), "multi")).toEqual({
+    expect(typicalLabour(samples("multi", [16, 24]), "multi")).toBeNull();
+    expect(typicalLabour([...samples("multi", [16, 24]), ...samples("split", [12])], "multi")).toBeNull();
+    expect(typicalLabour(samples("multi", [16, 28, 40]), "multi")).toEqual({
       kind: "multi",
       hours: 28,
-      jobs: 5,
-      words: "You typically use 28 hrs labour for a multi-split (5 of your jobs).",
+      jobs: 3,
+      words: "Typical multi-split jobs: 28 hrs, from 3 reviewed jobs.",
     });
+    expect(typicalLabour(samples("vrf", [56, 64, 72, 80]), "vrf")?.words).toBe("Typical VRF jobs: 68 hrs, from 4 reviewed jobs.");
   });
 
-  it("the brief first, then the history, else nothing — never a rule of thumb", () => {
-    const history = samples("multi", [16, 24, 28, 32, 40]);
-    expect(labourAdvice("4 guys x 3 days", "multi", history, 8)).toMatchObject({ from: "brief", labour: { personHours: 96 } });
-    expect(labourAdvice("Five heads in a heritage apartment", "multi", history, 8)).toMatchObject({ from: "history", typical: { hours: 28 } });
-    expect(labourAdvice("Five heads in a heritage apartment", "vrf", history, 8)).toEqual({ from: "none" });
-    expect(labourAdvice("Five heads", null, history, 8)).toEqual({ from: "none" });
-  });
+
 });

@@ -59,8 +59,10 @@ describe("normaliseDraft", () => {
       units: [{ role: "indoor", room: "Master bedroom", capacity: "7 kW", type: "High wall", model: "", qty: 1, system: 0, lps: null }],
       pros: [],
       cons: [],
-      /* no price until the business sets one */
+      /* no price until the business sets one, no labour until it's given */
       priceCents: null,
+      labour: null,
+      suggestion: null,
     });
     expect(d.pricingMode).toBe("optional");
     expect(d.extras).toEqual([{ name: "Wi-Fi adaptor", detail: "Control it from your phone" }]);

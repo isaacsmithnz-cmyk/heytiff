@@ -442,3 +442,83 @@ it("puts an option's materials on the job's list when it's marked accepted", asy
   await waitFor(() => expect(onJobMaterials).toHaveBeenCalled());
   expect(onToast).toHaveBeenCalledWith("The accepted option's materials are on the job's list");
 });
+
+/* Isaac, 2026-10-05: "api call can recommend a labour amount to use if none
+   is provided in the brief"; "typical labour hours for this type of job is
+   32 hours. And click apply" — each option's labour under its scope */
+describe("an option's labour", () => {
+  const withOption = (patch: Record<string, unknown>, labour: unknown = null) => {
+    const p = stored();
+    const draft = normaliseDraft({ ...p.draft, options: [{ ...p.draft.options[0], ...patch }] })!;
+    fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) => {
+      if (!init || !init.method) return respond({ ok: true, proposal: { ...p, draft }, labour });
+      if (init.method === "PUT") {
+        const { draft: next } = JSON.parse(init.body!) as { draft: StoredProposal["draft"] };
+        return respond({ ok: true, proposal: { ...p, draft: normaliseDraft(next) } });
+      }
+      return respond({ ok: true, proposal: { ...p, draft } });
+    });
+  };
+  const sent = (method: string) =>
+    (fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === method).map(([, init]) => JSON.parse(init!.body!));
+  const suggestion = { visits: [{ stage: "Rough-in", people: 2, days: 2 }, { stage: "Fit-off", people: 2, days: 1 }], why: "Six ducted heads over two levels." };
+
+  it("shows the brief's labour, with the words it was read from", async () => {
+    withOption({}, { brief: { visits: [{ stage: "Install", people: 3, days: 1, hours: 24 }], personHours: 24, personDays: 3, said: ["3 x pax for 1 day"] }, typical: null, dayHours: 8 });
+    face();
+    expect(await screen.findByText("From the brief: “3 x pax for 1 day”")).toBeInTheDocument();
+    expect(screen.getByText("3 people, 1 day")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
+  });
+
+  it("shows Tiff's suggestion and its reason, priced only once Apply is pressed", async () => {
+    withOption({ suggestion }, { brief: null, typical: null, dayHours: 8 });
+    face();
+    expect(await screen.findByText("Not in the brief. Tiff suggests:")).toBeInTheDocument();
+    expect(screen.getByText("Six ducted heads over two levels.")).toBeInTheDocument();
+    expect(screen.getByText("2 people, 2 days")).toBeInTheDocument();
+    expect(sent("PUT")).toEqual([]);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    });
+    expect(sent("PUT")[0].draft.options[0].labour).toEqual({ visits: suggestion.visits, from: "tiff" });
+    expect(await screen.findByText("Tiff's suggestion, applied")).toBeInTheDocument();
+  });
+
+  it("shows what the business's reviewed jobs typically take beside it", async () => {
+    withOption({ suggestion }, { brief: null, typical: { kind: "vrf", hours: 64, jobs: 3, words: "Typical VRF jobs: 64 hrs, from 3 reviewed jobs." }, dayHours: 8 });
+    face();
+    expect(await screen.findByText("Typical VRF jobs: 64 hrs, from 3 reviewed jobs.")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Apply your typical" }));
+    });
+    expect(sent("PUT")[0].draft.options[0].labour).toEqual({ visits: [{ stage: "Install", people: 1, days: 8 }], from: "typical" });
+  });
+
+  it("asks Tiff for a suggestion on a draft written before Tiff made one", async () => {
+    withOption({}, { brief: null, typical: null, dayHours: 8 });
+    face();
+    const ask = await screen.findByRole("button", { name: "Suggest labour" });
+    await act(async () => {
+      fireEvent.click(ask);
+    });
+    expect(sent("POST")).toEqual([{ job: "j-1", suggestLabour: true }]);
+  });
+
+  it("sets labour by hand, each visit whole, and saves it as set on the quote", async () => {
+    withOption({}, { brief: null, typical: null, dayHours: 8 });
+    face();
+    fireEvent.click(await screen.findByRole("button", { name: "Set labour" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add a visit" }));
+    fireEvent.change(screen.getByLabelText("People"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save labour" }));
+    expect(screen.getByText("Each visit needs how many people and how many days.")).toBeInTheDocument();
+    expect(sent("PUT")).toEqual([]);
+    fireEvent.change(screen.getByLabelText("Days"), { target: { value: "2.5" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save labour" }));
+    });
+    expect(sent("PUT")[0].draft.options[0].labour).toEqual({ visits: [{ stage: "Install", people: 2, days: 2.5 }], from: "you" });
+    expect(await screen.findByText("Set on the quote")).toBeInTheDocument();
+  });
+});

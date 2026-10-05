@@ -6,11 +6,13 @@ import { orgTemplates } from "@/lib/templates/query";
 import { readSm8QuoteBrief } from "@/lib/quotes/sm8-quote-brief-server";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
+import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";
 import {
   CHANGED_MEANWHILE,
   SAVE_FAILED,
   readStoredProposal,
   storeProposal,
+  suggestLabour,
   writeProposal,
   type ProposalRequest,
 } from "@/lib/quotes/proposal-writer";
@@ -57,14 +59,23 @@ export async function GET(req: Request) {
   const target = await resolveJobCard(who.orgId, job);
   /* sm8Brief: what ServiceM8's own quote says, for "Update ServiceM8 quote"
      to start from — read from the mirror, never from ServiceM8 */
-  const [proposal, t, sm8Brief, settings] = await Promise.all([
+  const [proposal, t, sm8Brief, settings, labour] = await Promise.all([
     readStoredProposal(who.orgId, target.parentRemoteId),
     orgTemplates(who.orgId),
     readSm8QuoteBrief(who.orgId, target.parentRemoteId).catch(() => null),
     readQuoteSettings(who.orgId),
+    readQuoteLabour(who.orgId, target.parentRemoteId).catch(() => null),
   ]);
-  /* showLines: the business's own default for what the customer sees */
-  return Response.json({ ok: true, proposal, templates: { notes: t.quoteNotes, terms: t.paymentTerms }, sm8Brief, showLines: settings.showLines });
+  /* showLines: the business's own default for what the customer sees;
+     labour: what the brief gives, beside each option */
+  return Response.json({
+    ok: true,
+    proposal,
+    templates: { notes: t.quoteNotes, terms: t.paymentTerms },
+    sm8Brief,
+    showLines: settings.showLines,
+    labour,
+  });
 }
 
 export async function POST(req: Request) {
@@ -83,7 +94,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, reason: "Tiff is offline: no API key is configured." });
   }
 
-  let body: { job?: unknown; brief?: unknown; change?: unknown; apply?: unknown; replace?: unknown } = {};
+  let body: { job?: unknown; brief?: unknown; change?: unknown; apply?: unknown; replace?: unknown; suggestLabour?: unknown } = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -94,6 +105,8 @@ export async function POST(req: Request) {
   const brief = text(body.brief);
   const change = text(body.change);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
+  /* {suggestLabour: true}: Tiff's labour for each option of the draft */
+  if (body.suggestLabour === true) return Response.json(await suggestLabour(who.orgId, who.userId, job));
 
   let request: ProposalRequest;
   if (change || body.apply === true) request = { kind: "change", change };

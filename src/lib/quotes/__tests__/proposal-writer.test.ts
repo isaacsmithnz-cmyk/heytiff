@@ -72,6 +72,7 @@ import {
   jobBlock,
   readProposalJob,
   runProposalWrite,
+  suggestLabour,
   writeProposal,
   type ProposalJob,
 } from "../proposal-writer";
@@ -216,8 +217,10 @@ describe("runProposalWrite", () => {
       units: [],
       pros: [],
       cons: [],
-      /* Tiff never prices an option */
+      /* Tiff never prices an option, or sets its labour */
       priceCents: null,
+      labour: null,
+      suggestion: null,
     });
     expect(res.draft.payment).toEqual({ preset: "domestic_small", stages: PAYMENT_PRESETS.domestic_small.stages });
     expect(res.draft.checklist.map((i) => i.key)).toEqual(["pipe_covering", "drain_to"]);
@@ -294,6 +297,56 @@ describe("writeProposal", () => {
     const { client } = clientSaying({ ...answer, payment_preset: "commercial" });
     await writeProposal("org", "user", "j-1", { kind: "change", change: "It's a bakery" }, client);
     expect(lastRow()?.draft.payment).toEqual({ preset: "commercial", stages: PAYMENT_PRESETS.commercial.stages });
+  });
+});
+
+/* Isaac, 2026-10-05: "api call can recommend a labour amount to use if none
+   is provided in the brief" — a suggestion, never priced until applied */
+describe("Tiff's labour suggestion", () => {
+  const suggested = { visits: [{ stage: "Rough-in", people: 2, days: 2 }, { stage: "Fit-off", people: 2, days: 1.5 }], why: "Six ducted heads over two levels." };
+
+  it("asks for each option's suggestion, a visit's stage from the list", async () => {
+    const { client, create } = clientSaying({ ...answer, options: [{ ...answer.options[0], labour_suggestion: suggested }] });
+    const res = await runProposalWrite("turn", client);
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.draft.options[0]!.suggestion).toEqual(suggested);
+    expect(res.draft.options[0]!.labour).toBeNull();
+    const schema = (create.mock.calls[0] as unknown as [{ output_config: { format: { schema: { properties: { options: { items: { required: string[]; properties: { labour_suggestion: { properties: { visits: { items: { properties: { stage: { enum: string[] } } } } } } } } } } } } } }])[0].output_config.format.schema;
+    expect(schema.properties.options.items.required).toContain("labour_suggestion");
+    expect(schema.properties.options.items.properties.labour_suggestion.properties.visits.items.properties.stage.enum).toContain("Rough-in");
+    expect(SYSTEM_PROMPT).toContain("labour_suggestion: only when the job's words give no labour");
+  });
+
+  it("a change keeps the labour a person set, and never shows Tiff a price or that labour", async () => {
+    const own = { visits: [{ stage: "Install" as const, people: 3, days: 2 }], from: "you" as const };
+    const set = { ...draft, options: draft.options.map((o) => ({ ...o, priceCents: 812_500, labour: own })) };
+    expect(changePrompt(job, "the brief", set, "shorter")).not.toMatch(/priceCents|"from":"you"/);
+    maybeSingle.mockResolvedValue({ data: { sm8_job_uuid: "j-1", draft: set, brief: "the brief", changes: [], updated_at: "2026-09-29T07:00:00Z" } });
+    const { client } = clientSaying({ ...answer, options: [{ ...answer.options[0], labour_suggestion: suggested }] });
+    await writeProposal("org", "user", "j-1", { kind: "change", change: "Mention the parapet" }, client);
+    expect(lastRow()?.draft.options[0]).toMatchObject({ labour: own, suggestion: suggested });
+  });
+
+  it("suggests labour onto a draft written before, on the copy it read, pricing nothing", async () => {
+    maybeSingle.mockResolvedValue({ data: { sm8_job_uuid: "j-1", draft, brief: "the brief", changes: ["earlier"], updated_at: "2026-09-29T07:00:00Z" } });
+    const { client, create } = clientSaying({ options: [{ labour_suggestion: suggested }] });
+    const res = await suggestLabour("org", "user", "j-1", client);
+    expect(res.ok).toBe(true);
+    expect(base).toHaveBeenCalledWith("2026-09-29T07:00:00Z");
+    expect(lastRow()?.draft.options[0]).toMatchObject({ suggestion: suggested, labour: null });
+    expect(lastRow()?.changes).toEqual(["earlier"]);
+    const turn = (create.mock.calls[0] as unknown as [{ messages: { content: string }[] }])[0].messages[0].content;
+    expect(turn).toContain("Installation of a client-supplied 6 kW split system.");
+  });
+
+  it("says so, and stores nothing, when there's no draft or no suggestion comes back", async () => {
+    const none = clientSaying({ options: [] });
+    expect(await suggestLabour("org", "user", "j-1", none.client)).toEqual({ ok: false, reason: "There's no proposal on this job yet. Draft one first." });
+    expect(none.create).not.toHaveBeenCalled();
+    maybeSingle.mockResolvedValue({ data: { sm8_job_uuid: "j-1", draft, brief: "the brief", changes: [], updated_at: "2026-09-29T07:00:00Z" } });
+    const empty = clientSaying({ options: [{ labour_suggestion: { visits: [], why: "" } }] });
+    expect(await suggestLabour("org", "user", "j-1", empty.client)).toEqual({ ok: false, reason: "Tiff couldn't suggest labour for this one. Set it yourself." });
+    expect(writes).toEqual([]);
   });
 });
 

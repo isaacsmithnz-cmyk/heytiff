@@ -14,7 +14,9 @@ import {
   MAX_OPTIONS,
   normaliseDraft,
   type ProposalDraft,
+  type ProposalOption,
 } from "./proposal";
+import { VISIT_STAGES } from "./buildup";
 import { CHECKLIST, CHECKLIST_KEYS, capAsks, keepSettled } from "./checklist";
 import { PAYMENT_PRESET_KEYS } from "./payment";
 import { orgTemplates } from "@/lib/templates/query";
@@ -122,6 +124,30 @@ export async function readProposalJob(orgId: string, remoteId: string): Promise<
 
 /* ── the call ── */
 
+/* An option's labour, as Tiff suggests it: plain fields, no nullable one
+   added (an empty list says there's no suggestion). */
+const LABOUR_SUGGESTION = {
+  type: "object",
+  properties: {
+    visits: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          stage: { type: "string", enum: VISIT_STAGES },
+          people: { type: "integer" },
+          days: { type: "number" },
+        },
+        required: ["stage", "people", "days"],
+        additionalProperties: false,
+      },
+    },
+    why: { type: "string" },
+  },
+  required: ["visits", "why"],
+  additionalProperties: false,
+};
+
 const named = {
   type: "object",
   properties: { name: { type: "string" }, detail: { type: "string" } },
@@ -162,8 +188,9 @@ const draftSchema = (noteKeys: readonly string[]) => ({
           },
           pros: { type: "array", items: { type: "string" } },
           cons: { type: "array", items: { type: "string" } },
+          labour_suggestion: LABOUR_SUGGESTION,
         },
-        required: ["name", "lines", "units", "pros", "cons"],
+        required: ["name", "lines", "units", "pros", "cons", "labour_suggestion"],
         additionalProperties: false,
       },
     },
@@ -256,6 +283,7 @@ options — One per real choice the client has. When there is only one way of do
   - model exactly as given, for example "PEA-M140HAA"; empty when it was not given. Never invent or guess a model; put "model" on the checklist as "ask" instead.
   - qty for identical units in the same room or place, otherwise 1.
 - pros, cons: only when the options are genuinely different ways of doing the job, two or three short points each, with the figures that make the difference. Empty with a single option.
+- labour_suggestion: only when the job's words give no labour (no crew with a time, such as "2 pax for 3 days" or "8 hrs x 2 men"). Then your suggestion for THIS option's labour, worked out from the equipment it puts in and the site: each visit's stage (${VISIT_STAGES.join(", ")}), how many people, and how many days (quarter days allowed). why is one plain sentence naming what drives it, for example "Six ducted heads over two levels and a ground-mount outdoor: two people for a two-day rough-in, then two days to fit off." It is shown to the business as your suggestion and priced only when they accept it. When the words give the labour, visits is empty and why is "".
 
 pricing_mode — "multiple_choice" when the client picks one option. "optional" when each block is a separate area or add-on they can take any of (name each by its area). "itemised" for work priced line by line, such as building works; then list the lines in items with a quantity.
 
@@ -277,7 +305,7 @@ checklist — You are the supervisor. For every topic below that applies to this
 The topics, each with the usual way it's asked (a hint for your question, not the question):
 ${CHECKLIST_LIBRARY}
 
-Where a fact the scope needs is missing, put the topic on the checklist as "ask" and leave the fact out of the scope line. Never write "TBC", "to be confirmed", "as discussed" or "a suitable point" in the scope. Never invent a model number, a measurement, a price or a fact you were not told. Never mention prices at all, except an allowance you were given. Never mention this software or that anything was generated.`;
+Where a fact the scope needs is missing, put the topic on the checklist as "ask" and leave the fact out of the scope line. Never write "TBC", "to be confirmed", "as discussed" or "a suitable point" in the scope. Never invent a model number, a measurement, a price or a fact you were not told; the labour suggestion is the one estimate you make, and it is marked as yours. Never mention prices at all, except an allowance you were given. Never mention this software or that anything was generated.`;
 
 /** The notes Tiff picks from: the ones not already on every quote. */
 const pickable = (job: ProposalJob) => job.noteLibrary.filter((n) => !n.always);
@@ -332,7 +360,15 @@ function asFields(draft: ProposalDraft) {
   return {
     intro: draft.intro,
     why: draft.why,
-    options: draft.options,
+    /* a person's price and labour stay out: they are kept by the server */
+    options: draft.options.map((o) => ({
+      name: o.name,
+      lines: o.lines,
+      units: o.units,
+      pros: o.pros,
+      cons: o.cons,
+      labour_suggestion: o.suggestion ?? { visits: [], why: "" },
+    })),
     pricing_mode: draft.pricingMode,
     items: draft.items,
     extras: draft.extras,
@@ -384,11 +420,12 @@ function reasonFor(err: unknown): string {
   return "The proposal couldn't be written. Try again.";
 }
 
-export async function runProposalWrite(
+/** One call to the writer, its answer as the schema's fields. */
+async function askWriter(
   userTurn: string,
-  client: Anthropic = new Anthropic(),
-  noteKeys: readonly string[] = []
-): Promise<WriteResult> {
+  schema: Record<string, unknown>,
+  client: Anthropic
+): Promise<{ ok: true; raw: Record<string, unknown> } | { ok: false; reason: string }> {
   try {
     const response = await client.beta.messages.create({
       model: MODEL,
@@ -399,7 +436,7 @@ export async function runProposalWrite(
          writing from a handed-over brief, not open reasoning. */
       output_config: {
         effort: "medium",
-        format: { type: "json_schema", schema: draftSchema(noteKeys) },
+        format: { type: "json_schema", schema },
       },
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userTurn }],
@@ -412,15 +449,80 @@ export async function runProposalWrite(
        model's partial answer can stand ahead of the full one */
     const block = [...response.content].reverse().find((b) => b.type === "text");
     if (!block || block.type !== "text") return { ok: false, reason: "Tiff returned nothing. Try again." };
-    /* the writer names a payment preset; the stages are HeyTiff's */
-    const raw = JSON.parse(block.text) as Record<string, unknown>;
-    const draft = normaliseDraft({ ...raw, payment: { preset: raw.payment_preset } });
-    if (!draft) return { ok: false, reason: "Tiff returned no scope. Say a little more about the job." };
-    return { ok: true, draft };
+    return { ok: true, raw: JSON.parse(block.text) as Record<string, unknown> };
   } catch (err) {
     if (err instanceof SyntaxError) return { ok: false, reason: "Tiff's answer couldn't be read. Try again." };
     return { ok: false, reason: reasonFor(err) };
   }
+}
+
+export async function runProposalWrite(
+  userTurn: string,
+  client: Anthropic = new Anthropic(),
+  noteKeys: readonly string[] = []
+): Promise<WriteResult> {
+  const asked = await askWriter(userTurn, draftSchema(noteKeys), client);
+  if (!asked.ok) return asked;
+  /* the writer names a payment preset; the stages are HeyTiff's */
+  const draft = normaliseDraft({ ...asked.raw, payment: { preset: asked.raw.payment_preset } });
+  if (!draft) return { ok: false, reason: "Tiff returned no scope. Say a little more about the job." };
+  return { ok: true, draft };
+}
+
+/* ── labour for a draft written before Tiff suggested it ── */
+
+const labourSchema = {
+  type: "object",
+  properties: {
+    options: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { labour_suggestion: LABOUR_SUGGESTION },
+        required: ["labour_suggestion"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["options"],
+  additionalProperties: false,
+};
+
+/** The user turn that asks only for each option's labour. */
+export function labourPrompt(job: ProposalJob, brief: string, draft: ProposalDraft): string {
+  const options = draft.options.map((o) => ({ name: o.name, lines: o.lines, units: o.units }));
+  return (
+    `${jobBlock(job)}\n\nWhat was said about the job after the site visit:\n${brief.trim()}\n\n` +
+    `The proposal's options:\n${JSON.stringify(options)}\n\n` +
+    `Suggest each option's labour, one entry per option in the same order, as labour_suggestion is described.`
+  );
+}
+
+/** Tiff's labour suggestion onto each option of a stored draft, for the
+    Apply beside it (Isaac, 2026-10-05: "api call can recommend a labour
+    amount to use if none is provided in the brief"). Nothing priced: a
+    suggestion waits for a person. */
+export async function suggestLabour(orgId: string, userId: string, remoteId: string, client: Anthropic = new Anthropic()): Promise<ProposalResult> {
+  const job = await readProposalJob(orgId, remoteId);
+  if (!job) return { ok: false, reason: "That job isn't in HeyTiff's copy of ServiceM8." };
+  const current = await readStoredProposal(orgId, job.cardId);
+  if (!current) return { ok: false, reason: "There's no proposal on this job yet. Draft one first." };
+  const asked = await askWriter(labourPrompt(job, current.brief, current.draft), labourSchema, client);
+  if (!asked.ok) return asked;
+  const got = Array.isArray(asked.raw.options) ? (asked.raw.options as unknown[]) : [];
+  const draft = normaliseDraft({
+    ...current.draft,
+    options: current.draft.options.map((o: ProposalOption, i) => ({
+      ...o,
+      suggestion: (got[i] as { labour_suggestion?: unknown } | undefined)?.labour_suggestion ?? null,
+    })),
+  });
+  if (!draft) return { ok: false, reason: SAVE_FAILED };
+  if (draft.options.every((o) => !o.suggestion)) return { ok: false, reason: "Tiff couldn't suggest labour for this one. Set it yourself." };
+  const stored = await storeProposal(orgId, userId, job.cardId, draft, current.brief, current.changes, current.updatedAt);
+  if (stored.ok) return stored;
+  if (!stored.conflict) return { ok: false, reason: SAVE_FAILED };
+  return { ok: false, reason: CHANGED_MEANWHILE, proposal: await readStoredProposal(orgId, job.cardId) };
 }
 
 /* ── the stored draft ── */
@@ -570,14 +672,13 @@ export async function writeProposal(
   written.draft.checklist = capAsks(written.draft.checklist);
   /* and what the customer sees: a person's choice, never Tiff's */
   written.draft.showLines = current.draft.showLines;
-  /* and every price a person set: Tiff never sets one, so an option keeps
-     its price by its name, or by its place when the options stayed as many */
-  written.draft.options = written.draft.options.map((o, i) => ({
-    ...o,
-    priceCents:
-      current.draft.options.find((c) => c.name === o.name)?.priceCents ??
-      (current.draft.options.length === written.draft.options.length ? (current.draft.options[i]?.priceCents ?? null) : null),
-  }));
+  /* and every price and labour a person set: Tiff sets neither, so an
+     option keeps them by its name, or by its place when the options stayed
+     as many */
+  const kept = <K extends "priceCents" | "labour">(o: ProposalOption, i: number, k: K): ProposalOption[K] | null =>
+    current.draft.options.find((c) => c.name === o.name)?.[k] ??
+    (current.draft.options.length === written.draft.options.length ? (current.draft.options[i]?.[k] ?? null) : null);
+  written.draft.options = written.draft.options.map((o, i) => ({ ...o, priceCents: kept(o, i, "priceCents"), labour: kept(o, i, "labour") }));
   const stored = await storeProposal(
     orgId,
     userId,

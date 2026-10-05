@@ -6,6 +6,7 @@ import {
   type CheckState,
   type ChecklistKey,
 } from "./checklist";
+import { VISIT_STAGES, type Visit, type VisitStage } from "./buildup";
 import {
   PAYMENT_PRESETS,
   PAYMENT_PRESET_KEYS,
@@ -67,6 +68,17 @@ export type UnitLine = {
   lps: number | null;
 };
 
+/* AN OPTION'S LABOUR (Isaac, 2026-10-05: "api call can recommend a labour
+   amount to use if none is provided in the brief"). The brief's own labour,
+   when it gives some, prices every option and is read where it's priced,
+   never stored here. Without it, Tiff suggests each option's labour from
+   the equipment it puts in — shown with its reason, priced only once a
+   person presses Apply. Labour set on an option (that suggestion applied,
+   the business's typical applied, or typed) prices it over the brief's. */
+export type LabourSuggestion = { visits: Visit[]; why: string };
+export type OptionLabour = { visits: Visit[]; from: "tiff" | "typical" | "you" };
+export const LABOUR_FROMS: readonly OptionLabour["from"][] = ["tiff", "typical", "you"];
+
 export type ProposalOption = {
   /** The option's own short name, without "Option 1:". Numbered where drawn. */
   name: string;
@@ -81,6 +93,10 @@ export type ProposalOption = {
       own price, set on the card (taken from the Price block, or typed);
       never Tiff's. Null until it's set. */
   priceCents: number | null;
+  /** Labour set on this option; null: the brief's, or none. */
+  labour: OptionLabour | null;
+  /** Tiff's suggestion, waiting for Apply; null when there is none. */
+  suggestion: LabourSuggestion | null;
 };
 
 /** The most an option's price can be: a typo's ceiling, not a guide. */
@@ -193,6 +209,9 @@ export const MAX_SHORT_CHARS = 120;
 export const MAX_QUESTION_CHARS = 200;
 export const MAX_CHOICES = 4;
 export const MAX_CHOICE_CHARS = 40;
+export const MAX_VISITS = 6;
+export const MAX_CREW = 20;
+export const MAX_VISIT_DAYS = 120;
 
 const clean = (s: unknown, max: number): string =>
   typeof s === "string" ? s.replace(/[ \t]+\n/g, "\n").trim().slice(0, max) : "";
@@ -323,6 +342,32 @@ function checklist(raw: unknown): CheckItem[] {
 const priceOf = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.min(MAX_OPTION_PRICE_CENTS, Math.round(v)) : null;
 
+/** Visits as typed or returned: a stage from the list, whole people, days
+    in quarters. A visit missing either is dropped, never guessed. */
+function visitsOf(raw: unknown): Visit[] {
+  return pairs(raw, MAX_VISITS, (o): Visit | null => {
+    const stage = VISIT_STAGES.includes(o.stage as VisitStage) ? (o.stage as VisitStage) : "Install";
+    const people = wholeIn(o.people, 0, MAX_CREW, 0);
+    const d = typeof o.days === "number" ? o.days : Number(o.days);
+    const days = Number.isFinite(d) ? Math.min(MAX_VISIT_DAYS, Math.round(d * 4) / 4) : 0;
+    return people > 0 && days > 0 ? { stage, people, days } : null;
+  });
+}
+
+function labourOf(raw: unknown): OptionLabour | null {
+  const o = obj(raw);
+  if (!o || !LABOUR_FROMS.includes(o.from as OptionLabour["from"])) return null;
+  const visits = visitsOf(o.visits);
+  return visits.length ? { visits, from: o.from as OptionLabour["from"] } : null;
+}
+
+function suggestionOf(raw: unknown): LabourSuggestion | null {
+  const o = obj(raw);
+  if (!o) return null;
+  const visits = visitsOf(o.visits);
+  return visits.length ? { visits, why: cleanLine(o.why) } : null;
+}
+
 export function normaliseDraft(raw: unknown): ProposalDraft | null {
   const r = obj(raw);
   if (!r) return null;
@@ -338,6 +383,9 @@ export function normaliseDraft(raw: unknown): ProposalDraft | null {
       pros: lineList(x.pros, MAX_PROS),
       cons: lineList(x.cons, MAX_PROS),
       priceCents: priceOf(x.priceCents ?? x.price_cents),
+      labour: labourOf(x.labour),
+      /* the writer's field, or the stored one */
+      suggestion: suggestionOf(x.suggestion ?? x.labour_suggestion),
     };
   });
   const mode = r.pricingMode ?? r.pricing_mode;

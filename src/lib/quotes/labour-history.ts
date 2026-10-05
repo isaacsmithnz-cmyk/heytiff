@@ -1,28 +1,28 @@
-import { labourFromBrief } from "./brief-labour";
-
 /* WHAT THE BUSINESS TYPICALLY TAKES, FROM ITS OWN JOBS (Isaac, 2026-10-04:
    "it should only show when enough jobs have run through for it to say
-   (you typically use 24hrs labour for this type of work)… recommendation
-   comes from orgs own history").
+   (you typically use 24hrs labour for this type of work)"; 2026-10-05: the
+   memory is built "Only in the review section" — the post-job review — and
+   shows from 3 reviewed jobs of a kind).
 
-   Every past job whose brief states its labour is a sample of its kind of
-   work. A suggestion is made only from MIN_JOBS of the same kind or more,
-   and it is the middle of them — never a rule of thumb, never another
-   business's numbers. Pure; the server reads the jobs. */
+   Every reviewed job is a sample of its kind of work. A typical is made only
+   from MIN_JOBS of the same kind or more, and it is the middle of them —
+   never a rule of thumb, never another business's numbers, never read off
+   old briefs. Pure; the reviews are read by the server. */
 
 export type WorkKind = "maintenance" | "service" | "split" | "multi" | "ducted" | "vrf";
 
+/** A kind of work, as "Typical ___ jobs" says it. */
 export const WORK_KIND_WORDS: Record<WorkKind, string> = {
   maintenance: "maintenance",
-  service: "a service call",
-  split: "a wall split",
-  multi: "a multi-split",
-  ducted: "a ducted system",
-  vrf: "a VRF system",
+  service: "service",
+  split: "wall split",
+  multi: "multi-split",
+  ducted: "ducted",
+  vrf: "VRF",
 };
 
-/** Below this many of its own jobs, the business has no "typical". */
-export const MIN_JOBS = 5;
+/** Below this many of its own reviewed jobs, the business has no "typical". */
+export const MIN_JOBS = 3;
 
 /** The kind of work a job is, from its category and its words. Null when
     it can't be told — and then it is nobody's sample. */
@@ -38,17 +38,8 @@ export function workKindOf(text: string | null | undefined, category: string | n
   return null;
 }
 
+/** A reviewed job: its kind of work and the person-hours it took. */
 export type LabourSample = { job: string; kind: WorkKind; personHours: number };
-
-/** A past job as a sample, when its brief states its labour in hours —
-    or in days and the business has set its working day — and its kind can
-    be told. */
-export function sampleOf(job: string, text: string | null, category: string | null, dayHours: number | null): LabourSample | null {
-  const kind = workKindOf(text, category);
-  const labour = labourFromBrief(text, dayHours);
-  if (!kind || !labour || labour.personHours == null || labour.personHours <= 0) return null;
-  return { job, kind, personHours: labour.personHours };
-}
 
 export type TypicalLabour = { kind: WorkKind; hours: number; jobs: number; words: string };
 
@@ -63,26 +54,6 @@ export function typicalLabour(samples: readonly LabourSample[], kind: WorkKind):
     kind,
     hours: rounded,
     jobs: hours.length,
-    words: `You typically use ${rounded} hrs labour for ${WORK_KIND_WORDS[kind]} (${hours.length} of your jobs).`,
+    words: `Typical ${WORK_KIND_WORDS[kind]} jobs: ${rounded} hrs, from ${hours.length} reviewed jobs.`,
   };
-}
-
-export type LabourAdvice =
-  | { from: "brief"; labour: NonNullable<ReturnType<typeof labourFromBrief>> }
-  | { from: "history"; typical: TypicalLabour }
-  | { from: "none" };
-
-/** Where a quote's labour comes from: the brief, then the business's own
-    history, else nowhere — and then the quote says labour isn't set. */
-export function labourAdvice(
-  brief: string | null,
-  kind: WorkKind | null,
-  samples: readonly LabourSample[],
-  dayHours: number | null
-): LabourAdvice {
-  const labour = labourFromBrief(brief, dayHours);
-  if (labour) return { from: "brief", labour };
-  const typical = kind ? typicalLabour(samples, kind) : null;
-  if (typical) return { from: "history", typical };
-  return { from: "none" };
 }

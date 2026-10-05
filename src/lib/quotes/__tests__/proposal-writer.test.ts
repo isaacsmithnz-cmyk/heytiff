@@ -70,6 +70,7 @@ import {
   changePrompt,
   draftPrompt,
   jobBlock,
+  labourPrompt,
   readProposalJob,
   runProposalWrite,
   suggestLabour,
@@ -325,6 +326,29 @@ describe("Tiff's labour suggestion", () => {
     const { client } = clientSaying({ ...answer, options: [{ ...answer.options[0], labour_suggestion: suggested }] });
     await writeProposal("org", "user", "j-1", { kind: "change", change: "Mention the parapet" }, client);
     expect(lastRow()?.draft.options[0]).toMatchObject({ labour: own, suggestion: suggested });
+  });
+
+  it("a change that reorders the options keeps each one's own labour and price", async () => {
+    const own = { visits: [{ stage: "Install" as const, people: 3, days: 2 }], from: "you" as const };
+    const two = normaliseDraft({
+      ...draft,
+      options: [
+        { name: "Three splits", lines: ["Three high walls."], labour: null },
+        { name: "One multi", lines: ["One multi outdoor."], priceCents: 900_000, labour: own },
+      ],
+    })!;
+    maybeSingle.mockResolvedValue({ data: { sm8_job_uuid: "j-1", draft: two, brief: "the brief", changes: [], updated_at: "2026-09-29T07:00:00Z" } });
+    const swapped = { ...answer, options: [{ ...answer.options[0], name: "One multi" }, { ...answer.options[0], name: "Three splits" }] };
+    const { client } = clientSaying(swapped);
+    await writeProposal("org", "user", "j-1", { kind: "change", change: "Put the multi first" }, client);
+    expect(lastRow()?.draft.options.map((o: { name: string; labour: unknown; priceCents: number | null }) => [o.name, o.labour, o.priceCents])).toEqual([
+      ["One multi", own, 900_000],
+      ["Three splits", null, null],
+    ]);
+  });
+
+  it("asks for every option's labour when Suggest labour is pressed", () => {
+    expect(labourPrompt(job, "the brief", draft)).toContain("suggest it for every option");
   });
 
   it("suggests labour onto a draft written before, on the copy it read, pricing nothing", async () => {

@@ -343,13 +343,14 @@ const priceOf = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.min(MAX_OPTION_PRICE_CENTS, Math.round(v)) : null;
 
 /** Visits as typed or returned: a stage from the list, whole people, days
-    in quarters. A visit missing either is dropped, never guessed. */
+    as given (to a thousandth). A visit missing either is dropped, never
+    guessed. */
 function visitsOf(raw: unknown): Visit[] {
   return pairs(raw, MAX_VISITS, (o): Visit | null => {
     const stage = VISIT_STAGES.includes(o.stage as VisitStage) ? (o.stage as VisitStage) : "Install";
     const people = wholeIn(o.people, 0, MAX_CREW, 0);
     const d = typeof o.days === "number" ? o.days : Number(o.days);
-    const days = Number.isFinite(d) ? Math.min(MAX_VISIT_DAYS, Math.round(d * 4) / 4) : 0;
+    const days = Number.isFinite(d) ? Math.min(MAX_VISIT_DAYS, Math.round(d * 1000) / 1000) : 0;
     return people > 0 && days > 0 ? { stage, people, days } : null;
   });
 }

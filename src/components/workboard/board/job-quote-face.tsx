@@ -104,6 +104,10 @@ type Edit = (draft: ProposalDraft) => ProposalDraft;
 
 const ROUTE = "/api/workboard/quote-draft";
 
+/** The labour an answer carries: a call, so a write's try/catch holds no
+    value block React Compiler 1.0 can't lower. */
+const labourIn = (a: Answer): QuoteLabour | null => (a.ok ? (a.labour ?? null) : null);
+
 const whenOf = (iso: string) =>
   new Date(iso).toLocaleDateString("en-AU", {
     weekday: "short",
@@ -211,6 +215,8 @@ export function JobQuoteFace({
   /* the brief's labour, read with the draft; and why a suggestion couldn't be had */
   const [labourFacts, setLabourFacts] = useState<QuoteLabour | null>(null);
   const [labourError, setLabourError] = useState<string | null>(null);
+  /* the option whose Suggest labour was pressed: its row waits and says why */
+  const [labourAt, setLabourAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Block | null>(null);
   const [reads, setReads] = useState(0);
@@ -275,9 +281,10 @@ export function JobQuoteFace({
   }, [open, version, job]);
 
   /* Tiff's labour for each option, on a draft written before Tiff made one */
-  const suggestLabour = async () => {
+  const suggestLabour = async (at: number) => {
     if (working) return;
     setWorking("labour");
+    setLabourAt(at);
     setLabourError(null);
     await withCleanup(async () => {
       try {
@@ -293,6 +300,7 @@ export function JobQuoteFace({
           return;
         }
         land(a.proposal);
+        setLabourFacts(labourIn(a));
       } catch {
         setLabourError("Tiff couldn't be reached. Try again.");
       }
@@ -330,6 +338,9 @@ export function JobQuoteFace({
           return;
         }
         land(a.proposal);
+        /* a new brief can give labour, or stop giving it: read with the draft */
+        setLabourFacts(labourIn(a));
+        setLabourError(null);
         setRedraft(false);
         setEditing(null);
         if (kind === "change") setChange("");
@@ -624,12 +635,18 @@ export function JobQuoteFace({
                 <OptionBody option={o} />
                 <OptionLabourRow
                   option={o}
+                  heading={optionHeading(draft, i)}
                   facts={labourFacts}
                   disabled={busy}
-                  suggesting={working === "labour"}
-                  error={labourError}
-                  onSet={(labour) => save((d) => ({ ...d, options: d.options.map((x, j) => (j === i ? { ...x, labour } : x)) }))}
-                  onSuggest={() => void suggestLabour()}
+                  suggesting={working === "labour" && labourAt === i}
+                  error={labourAt === i ? labourError : null}
+                  onSet={(labour) =>
+                    save((d) => ({ ...d, options: d.options.map((x, j) => (j === i ? { ...x, labour } : x)) })).then((ok) => {
+                      if (ok) setLabourError(null);
+                      return ok;
+                    })
+                  }
+                  onSuggest={() => void suggestLabour(i)}
                 />
               </>
             )}
@@ -1468,6 +1485,7 @@ const LABOUR_SET_WORDS: Record<OptionLabour["from"], string> = {
    typically take. */
 function OptionLabourRow({
   option,
+  heading,
   facts,
   disabled,
   suggesting,
@@ -1476,6 +1494,8 @@ function OptionLabourRow({
   onSuggest,
 }: {
   option: ProposalOption;
+  /** The option's heading, "Option 1: Ducted", for its buttons' names. */
+  heading: string;
   facts: QuoteLabour | null;
   disabled: boolean;
   suggesting: boolean;
@@ -1493,7 +1513,13 @@ function OptionLabourRow({
   const suggestion = priced ? null : option.suggestion;
   const typical = facts?.typical ?? null;
   const dayHours = facts?.dayHours ?? null;
-  const briefDays = (brief?.visits ?? []).flatMap((v) => (v.days != null ? [{ stage: v.stage, people: v.people, days: v.days }] : []));
+  /* the brief's visits in days by the business's own day; one given only in
+     hours, with no day set, keeps its row with the days left to fill */
+  const briefDays = (brief?.visits ?? []).map((v) => ({
+    stage: v.stage,
+    people: v.people,
+    days: v.days ?? (v.hours != null && dayHours ? Math.round((v.hours / dayHours) * 1000) / 1000 : null),
+  }));
 
   if (editing) {
     return (
@@ -1512,7 +1538,7 @@ function OptionLabourRow({
     );
   }
 
-  const typicalVisits = typical && dayHours ? [{ stage: "Install" as const, people: 1, days: Math.max(0.25, Math.round((typical.hours / dayHours) * 4) / 4) }] : null;
+  const typicalVisits = typical && dayHours ? [{ stage: "Install" as const, people: 1, days: Math.round((typical.hours / dayHours) * 1000) / 1000 }] : null;
   return (
     <div className="wb2-jqnote">
       <b>Labour</b>
@@ -1543,21 +1569,39 @@ function OptionLabourRow({
         ) : (
           <>
             {suggestion && (
-              <button type="button" className="pbtn primary sm" disabled={disabled} onClick={() => void onSet({ visits: suggestion.visits, from: "tiff" })}>
+              <button
+                type="button"
+                className="pbtn primary sm"
+                aria-label={`Apply Tiff's labour to ${heading}`}
+                disabled={disabled}
+                onClick={() => void onSet({ visits: suggestion.visits, from: "tiff" })}
+              >
                 Apply
               </button>
             )}
             {typicalVisits && !own && (
-              <button type="button" className="pbtn ghost sm" disabled={disabled} onClick={() => void onSet({ visits: typicalVisits, from: "typical" })}>
+              <button
+                type="button"
+                className="pbtn ghost sm"
+                aria-label={`Apply your typical labour to ${heading}`}
+                disabled={disabled}
+                onClick={() => void onSet({ visits: typicalVisits, from: "typical" })}
+              >
                 Apply your typical
               </button>
             )}
             {!priced && !suggestion && (
-              <button type="button" className="pbtn ghost sm" disabled={disabled} onClick={onSuggest}>
+              <button type="button" className="pbtn ghost sm" aria-label={`Suggest labour for ${heading}`} disabled={disabled} onClick={onSuggest}>
                 Suggest labour
               </button>
             )}
-            <button type="button" className="pbtn ghost sm" disabled={disabled} onClick={() => setEditing(true)}>
+            <button
+              type="button"
+              className="pbtn ghost sm"
+              aria-label={`${priced || suggestion ? "Change" : "Set"} labour for ${heading}`}
+              disabled={disabled}
+              onClick={() => setEditing(true)}
+            >
               {priced || suggestion ? "Change" : "Set labour"}
             </button>
           </>
@@ -1569,18 +1613,29 @@ function OptionLabourRow({
 
 type VisitRow = { stage: VisitStage; people: string; days: string };
 
-/** A row as typed, as a visit: whole people, days in quarters. Null when
+/** A row as typed, as a visit: whole people, and days as typed. Null when
     either is missing or out of range. */
 function visitOf(r: VisitRow): Visit | null {
   const people = Number(r.people.trim());
   const days = Number(r.days.trim());
   if (!r.people.trim() || !r.days.trim() || !Number.isInteger(people) || people < 1 || people > MAX_CREW) return null;
   if (!Number.isFinite(days) || days <= 0 || days > MAX_VISIT_DAYS) return null;
-  return { stage: r.stage, people, days: Math.max(0.25, Math.round(days * 4) / 4) };
+  return { stage: r.stage, people, days: Math.round(days * 1000) / 1000 };
 }
 
-function VisitsEdit({ initial, onCancel, onSave }: { initial: readonly Visit[]; onCancel: () => void; onSave: (visits: Visit[]) => Promise<boolean> }) {
-  const [rows, setRows] = useState<VisitRow[]>(() => initial.map((v) => ({ stage: v.stage, people: String(v.people), days: String(v.days) })));
+function VisitsEdit({
+  initial,
+  onCancel,
+  onSave,
+}: {
+  /** A visit's days may be missing: the row opens with them to fill. */
+  initial: readonly { stage: VisitStage; people: number; days: number | null }[];
+  onCancel: () => void;
+  onSave: (visits: Visit[]) => Promise<boolean>;
+}) {
+  const [rows, setRows] = useState<VisitRow[]>(() =>
+    initial.map((v) => ({ stage: v.stage, people: String(v.people), days: v.days == null ? "" : String(v.days) }))
+  );
   const [tried, setTried] = useState(false);
   const visits = rows.map(visitOf);
   const whole = visits.every((v) => v !== null);

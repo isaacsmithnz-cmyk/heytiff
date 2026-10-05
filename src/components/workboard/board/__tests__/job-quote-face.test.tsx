@@ -468,7 +468,7 @@ describe("an option's labour", () => {
     face();
     expect(await screen.findByText("From the brief: “3 x pax for 1 day”")).toBeInTheDocument();
     expect(screen.getByText("3 people, 1 day")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Apply Tiff's labour/ })).toBeNull();
   });
 
   it("shows Tiff's suggestion and its reason, priced only once Apply is pressed", async () => {
@@ -479,7 +479,7 @@ describe("an option's labour", () => {
     expect(screen.getByText("2 people, 2 days")).toBeInTheDocument();
     expect(sent("PUT")).toEqual([]);
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+      fireEvent.click(screen.getByRole("button", { name: "Apply Tiff's labour to Option 1: Install client-supplied 6 kW split" }));
     });
     expect(sent("PUT")[0].draft.options[0].labour).toEqual({ visits: suggestion.visits, from: "tiff" });
     expect(await screen.findByText("Tiff's suggestion, applied")).toBeInTheDocument();
@@ -490,7 +490,7 @@ describe("an option's labour", () => {
     face();
     expect(await screen.findByText("Typical VRF jobs: 64 hrs, from 3 reviewed jobs.")).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Apply your typical" }));
+      fireEvent.click(screen.getByRole("button", { name: /^Apply your typical labour/ }));
     });
     expect(sent("PUT")[0].draft.options[0].labour).toEqual({ visits: [{ stage: "Install", people: 1, days: 8 }], from: "typical" });
   });
@@ -498,7 +498,7 @@ describe("an option's labour", () => {
   it("asks Tiff for a suggestion on a draft written before Tiff made one", async () => {
     withOption({}, { brief: null, typical: null, dayHours: 8 });
     face();
-    const ask = await screen.findByRole("button", { name: "Suggest labour" });
+    const ask = await screen.findByRole("button", { name: /^Suggest labour for/ });
     await act(async () => {
       fireEvent.click(ask);
     });
@@ -508,7 +508,7 @@ describe("an option's labour", () => {
   it("sets labour by hand, each visit whole, and saves it as set on the quote", async () => {
     withOption({}, { brief: null, typical: null, dayHours: 8 });
     face();
-    fireEvent.click(await screen.findByRole("button", { name: "Set labour" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Set labour for Option 1: Install client-supplied 6 kW split" }));
     fireEvent.click(screen.getByRole("button", { name: "Add a visit" }));
     fireEvent.change(screen.getByLabelText("People"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Save labour" }));
@@ -520,5 +520,63 @@ describe("an option's labour", () => {
     });
     expect(sent("PUT")[0].draft.options[0].labour).toEqual({ visits: [{ stage: "Install", people: 2, days: 2.5 }], from: "you" });
     expect(await screen.findByText("Set on the quote")).toBeInTheDocument();
+  });
+
+  it("opens Change on the brief's own labour in days, and saving it unchanged prices the same hours", async () => {
+    withOption({}, { brief: { visits: [{ stage: "Install", people: 1, days: null, hours: 3 }], personHours: 3, personDays: null, said: ["Allowance 3 HRS x 1 PAX"] }, typical: null, dayHours: 8 });
+    face();
+    fireEvent.click(await screen.findByRole("button", { name: /^Change labour for/ }));
+    expect(screen.getByLabelText("Days")).toHaveValue("0.375");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save labour" }));
+    });
+    expect(sent("PUT")[0].draft.options[0].labour).toEqual({ visits: [{ stage: "Install", people: 1, days: 0.375 }], from: "you" });
+  });
+
+  it("reads the brief's labour again with a new draft", async () => {
+    const p = stored();
+    fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) => {
+      if (!init || !init.method) return respond({ ok: true, proposal: null, labour: { brief: null, typical: null, dayHours: 8 } });
+      if (init.method === "POST")
+        return respond({
+          ok: true,
+          proposal: p,
+          labour: { brief: { visits: [{ stage: "Install", people: 2, days: 3, hours: 24 }], personHours: 48, personDays: 6, said: ["2 pax for 3 days"] }, typical: null, dayHours: 8 },
+        });
+      return respond({ ok: false, reason: "no" });
+    });
+    face();
+    fireEvent.change(await screen.findByRole("textbox"), { target: { value: "Split in the living room, 2 pax for 3 days" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Draft proposal" }));
+    });
+    expect(await screen.findByText("From the brief: “2 pax for 3 days”")).toBeInTheDocument();
+  });
+
+  it("says why a suggestion couldn't be had under the option that asked, and clears it once labour is set", async () => {
+    const p = stored();
+    const two = normaliseDraft({ ...p.draft, options: [p.draft.options[0], { ...p.draft.options[0], name: "Ducted" }] })!;
+    fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) => {
+      if (!init || !init.method) return respond({ ok: true, proposal: { ...p, draft: two }, labour: { brief: null, typical: null, dayHours: 8 } });
+      if (init.method === "PUT") {
+        const { draft: next } = JSON.parse(init.body!) as { draft: StoredProposal["draft"] };
+        return respond({ ok: true, proposal: { ...p, draft: normaliseDraft(next) } });
+      }
+      return respond({ ok: false, reason: "Tiff couldn't suggest labour for this one. Set it yourself." });
+    });
+    face();
+    const ask = await screen.findByRole("button", { name: "Suggest labour for Option 2: Ducted" });
+    await act(async () => {
+      fireEvent.click(ask);
+    });
+    expect(screen.getAllByText("Tiff couldn't suggest labour for this one. Set it yourself.")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Set labour for Option 2: Ducted" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add a visit" }));
+    fireEvent.change(screen.getByLabelText("People"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("Days"), { target: { value: "1" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save labour" }));
+    });
+    expect(screen.queryByText("Tiff couldn't suggest labour for this one. Set it yourself.")).toBeNull();
   });
 });

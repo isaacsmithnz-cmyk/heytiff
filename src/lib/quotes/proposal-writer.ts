@@ -494,7 +494,9 @@ export function labourPrompt(job: ProposalJob, brief: string, draft: ProposalDra
   return (
     `${jobBlock(job)}\n\nWhat was said about the job after the site visit:\n${brief.trim()}\n\n` +
     `The proposal's options:\n${JSON.stringify(options)}\n\n` +
-    `Suggest each option's labour, one entry per option in the same order, as labour_suggestion is described.`
+    `Suggest each option's labour, one entry per option in the same order, as labour_suggestion is described — ` +
+    `except that the business has asked for it: HeyTiff couldn't read the labour from the brief, so suggest it for every option. ` +
+    `Where the job's notes or words do state a crew and time, use them and say so in why.`
   );
 }
 
@@ -673,11 +675,19 @@ export async function writeProposal(
   /* and what the customer sees: a person's choice, never Tiff's */
   written.draft.showLines = current.draft.showLines;
   /* and every price and labour a person set: Tiff sets neither, so an
-     option keeps them by its name, or by its place when the options stayed
-     as many */
-  const kept = <K extends "priceCents" | "labour">(o: ProposalOption, i: number, k: K): ProposalOption[K] | null =>
-    current.draft.options.find((c) => c.name === o.name)?.[k] ??
-    (current.draft.options.length === written.draft.options.length ? (current.draft.options[i]?.[k] ?? null) : null);
+     option keeps them by its name — the one option of that name, even when
+     it had none — or by its place when no name matches and the options
+     stayed as many */
+  const named = (list: readonly ProposalOption[], name: string) => list.filter((c) => c.name === name).length;
+  const kept = <K extends "priceCents" | "labour">(o: ProposalOption, i: number, k: K): ProposalOption[K] | null => {
+    const byName = named(current.draft.options, o.name) === 1 && named(written.draft.options, o.name) === 1;
+    const was = byName
+      ? current.draft.options.find((c) => c.name === o.name)
+      : current.draft.options.length === written.draft.options.length
+        ? current.draft.options[i]
+        : undefined;
+    return was?.[k] ?? null;
+  };
   written.draft.options = written.draft.options.map((o, i) => ({ ...o, priceCents: kept(o, i, "priceCents"), labour: kept(o, i, "labour") }));
   const stored = await storeProposal(
     orgId,

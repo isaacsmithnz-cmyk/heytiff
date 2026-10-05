@@ -105,15 +105,19 @@ export async function POST(req: Request) {
   const brief = text(body.brief);
   const change = text(body.change);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
+  /* every write answers with the labour its brief gives, for the row
+     beside each option to read with the draft */
+  const withLabour = async (r: Awaited<ReturnType<typeof writeProposal>>) =>
+    r.ok ? { ...r, labour: await readQuoteLabour(who.orgId, r.proposal.cardId).catch(() => null) } : r;
   /* {suggestLabour: true}: Tiff's labour for each option of the draft */
-  if (body.suggestLabour === true) return Response.json(await suggestLabour(who.orgId, who.userId, job));
+  if (body.suggestLabour === true) return Response.json(await withLabour(await suggestLabour(who.orgId, who.userId, job)));
 
   let request: ProposalRequest;
   if (change || body.apply === true) request = { kind: "change", change };
   else if (brief) request = { kind: "draft", brief, replace: body.replace === true };
   else return Response.json({ ok: false, reason: "Say what the job is first." }, { status: 400 });
 
-  return Response.json(await writeProposal(who.orgId, who.userId, job, request));
+  return Response.json(await withLabour(await writeProposal(who.orgId, who.userId, job, request)));
 }
 
 /** A person's own edit, or an answer on the checklist: the whole draft back,

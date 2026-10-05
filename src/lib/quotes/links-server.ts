@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
-import { codeFeatures, linkModels, type Decision, type ModelLink, type Proposal } from "./code-links";
+import { linkModels, type Decision, type ModelLink, type Proposal } from "./code-links";
+import { unitFeatures } from "./features";
 import { compareOffers, netCents, type Offer } from "./price-book";
 import { currentItems, readSuppliers, type BookItem } from "./price-book-server";
 
@@ -101,7 +102,7 @@ export async function pricedLinks(
       ...l,
       ...cmp,
       proposals: l.proposals.map((p) => ({ ...p, offers: offersFor(p.codes, items, suppliers).sort((a, b) => a.netCents - b.netCents) })),
-      features: l.codes[0] ? codeFeatures(l.codes[0]) : [],
+      features: l.codes[0] ? unitFeatures(items.find((i) => i.code === l.codes[0])?.name ?? "", l.codes[0]) : [],
     };
   });
 }

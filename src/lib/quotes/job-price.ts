@@ -1,7 +1,7 @@
 import type { BuildLine, Visit } from "./buildup";
 import { categoryOf } from "./categories";
 import { KIT, RUN_TO_ASK, WHERE_TO_ASK } from "./brief-rooms";
-import { codeFeatures } from "./code-links";
+import { unitFeatures } from "./features";
 import { COMPONENT_KEYS, QUOTE_COMPONENTS, matchesComponent, type ComponentKey } from "./components";
 import { ALLOWANCES, type AllowanceKey } from "./settings";
 import { RANGE_KINDS, needWords, pickFromRange, rangeNeedOf, type RangeKind, type RangeSize } from "./ranges";
@@ -245,9 +245,9 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
         system != null
           ? ((deps.unitOffers?.(r.name.trim()) ?? []).filter((o) => o.supplierKey === system && o.buyCents > 0).sort((a, b) => a.buyCents - b.buyCents)[0] ?? unit)
           : unit;
-      /* what the order code says the unit has (Isaac, 2026-10-05: "if it
-         adds wifi, does it specify in the quote?") */
-      const features = codeFeatures(from.code);
+      /* what the unit has, in its supplier's words, then its code's
+         (Isaac, 2026-10-05: "if it adds wifi, does it specify in the quote?") */
+      const features = unitFeatures(from.name, from.code);
       lines.push({
         key,
         group: "Units",

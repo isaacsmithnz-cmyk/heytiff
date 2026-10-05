@@ -10,6 +10,7 @@ import {
   accountToday,
   applyTaskEdit,
   pastBookedDays,
+  quotedHours,
   canMakeTasks,
   editOf,
   makeTasksFromQuote,
@@ -43,11 +44,11 @@ const jobOf = (v: unknown) => (typeof v === "string" ? v.trim().slice(0, 80) : "
 async function answer(orgId: string, cardId: string, manage: boolean) {
   const [list, today] = await Promise.all([readJobTasks(orgId, cardId), accountToday(orgId)]);
   /* the days booked since the work order that nobody checked in on */
-  const booked = await pastBookedDays(orgId, cardId, today).catch(() => []);
+  const [booked, quoted] = await Promise.all([pastBookedDays(orgId, cardId, today).catch(() => []), quotedHours(orgId, cardId).catch(() => null)]);
   /* whether Make the tasks is offered: only to a manager, on a job with an
      accepted quote and no tasks yet */
   const canMake = manage && list.tasks.length === 0 ? await canMakeTasks(orgId, cardId) : false;
-  return { ok: true as const, ...list, today, booked, canMake, manage };
+  return { ok: true as const, ...list, today, booked, quoted, canMake, manage };
 }
 
 export async function GET(req: Request) {

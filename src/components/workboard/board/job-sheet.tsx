@@ -2694,6 +2694,15 @@ export function JobSheet({
                   ahead={daysAhead}
                   workOrderDate={detail.workOrderDate}
                   onSiteWords={detail.timeOnSite ? `${fmtMinutesAsHours(detail.timeOnSite.minutes)} on site` : null}
+                  onSiteMinutes={detail.timeOnSite?.minutes ?? 0}
+                  onBook={
+                    bookings?.canBook && cardId
+                      ? () => {
+                          openPanel(null);
+                          document.getElementById("jcsec-visits")?.scrollIntoView?.({ block: "start" });
+                        }
+                      : undefined
+                  }
                   emptyWords={above.length > 0 || detail.queue ? "" : "Nobody's been on site yet, and nothing is booked."}
                 />
               ) : (

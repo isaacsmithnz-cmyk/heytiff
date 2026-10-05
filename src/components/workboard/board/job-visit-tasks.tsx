@@ -44,6 +44,8 @@ type Answer =
       today: string;
       /** days booked since the work order that nobody checked in on */
       booked?: { day: string; crew: string[] }[];
+      /** the accepted option's labour in person-hours, its crew and visits */
+      quoted?: { hours: number; people: number; visits: number } | null;
       canMake: boolean;
       manage: boolean;
       /** done, with something to say: the plate couldn't be read */
@@ -104,6 +106,8 @@ export function JobVisitTasks({
   ahead,
   workOrderDate,
   onSiteWords,
+  onSiteMinutes,
+  onBook,
   emptyWords,
 }: {
   job: string;
@@ -117,6 +121,11 @@ export function JobVisitTasks({
   workOrderDate: string | null;
   /** "44 h on site", when anyone has been */
   onSiteWords: string | null;
+  /** person-minutes on site so far, for the hours against the quote */
+  onSiteMinutes?: number | null;
+  /** opens the job's Book in, where the deployment books; a visit the
+      quote planned that isn't booked offers it */
+  onBook?: () => void;
   /** what to say when there's nothing at all (no visits, nothing booked, no
       tasks); empty when the face already says something */
   emptyWords: string;
@@ -281,6 +290,8 @@ export function JobVisitTasks({
         )}
       </div>
 
+      {data?.quoted && <HoursBar minutes={onSiteMinutes ?? 0} quoted={data.quoted} />}
+
       {tasks.length === 0 && data?.canMake && (
         <div className="jcl-tmake">
           {making ? (
@@ -338,6 +349,11 @@ export function JobVisitTasks({
                         ))}
                       </ul>
                     )}
+                    {slot.state === "planned" && onBook && (
+                      <div className="wb2-jqacts">
+                        <button type="button" className="pbtn ghost sm" onClick={onBook}>{`Book visit ${slot.n}`}</button>
+                      </div>
+                    )}
                     {/* the hours last: a day with nothing believable says no figure */}
                     {day && worked && day.length && <span className="jcl-vlen">{day.length}</span>}
                     {day && worked && <span className="jcl-vhrs">{day.hours ?? "—"}</span>}
@@ -374,6 +390,32 @@ export function JobVisitTasks({
       )}
       {manage && data && tasks.length > 0 && view === "all" && <AddTask slots={slots} saving={saving} onAdd={edit} />}
       {manage && data && tasks.length === 0 && !data.canMake && <AddTask slots={slots} saving={saving} onAdd={edit} />}
+    </div>
+  );
+}
+
+/** "18h 30m", the way the card writes hours on site. */
+const hoursWords = (minutes: number) => {
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return m ? `${h}h ${m}m` : `${h}h`;
+};
+
+/* THE HOURS AGAINST THE QUOTE (Isaac, 2026-10-03): "17.5 h on site of 32 h
+   quoted", green while under, amber up to 15% over, red past that. */
+function HoursBar({ minutes, quoted }: { minutes: number; quoted: { hours: number; people: number; visits: number } }) {
+  const ratio = quoted.hours > 0 ? minutes / 60 / quoted.hours : 0;
+  const tone = ratio <= 1 ? "ok" : ratio <= 1.15 ? "warn" : "bad";
+  return (
+    <div className="jcl-hbar">
+      <p className="jcl-hrs">
+        <b>{hoursWords(minutes)}</b>
+        <span>{`on site of ${hoursWords(quoted.hours * 60)} quoted`}</span>
+        <em>{`${quoted.people} ${quoted.people === 1 ? "person" : "people"}, ${quoted.visits} visit${quoted.visits === 1 ? "" : "s"}`}</em>
+      </p>
+      <div className="jcl-htrack" role="img" aria-label={`${Math.round(ratio * 100)}% of the hours quoted`}>
+        <i className={tone} style={{ width: `${Math.min(100, ratio * 100)}%` }} />
+      </div>
     </div>
   );
 }

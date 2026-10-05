@@ -184,7 +184,10 @@ export async function accountToday(orgId: string): Promise<string> {
 
 /** The accepted options and the visits their labour plans: an option's own
     labour, else the brief's, else none. */
-async function quotePlan(orgId: string, cardId: string): Promise<{ options: ProposalOption[]; labour: Visit[]; facts: string[] } | null> {
+async function quotePlan(
+  orgId: string,
+  cardId: string
+): Promise<{ options: ProposalOption[]; labour: Visit[]; own: boolean; dayHours: number | null; briefHours: number | null; facts: string[] } | null> {
   const [proposal, labour] = await Promise.all([readStoredProposal(orgId, cardId).catch(() => null), readQuoteLabour(orgId, cardId).catch(() => null)]);
   if (!proposal) return null;
   const options = acceptedOptions(proposal.draft);
@@ -197,7 +200,27 @@ async function quotePlan(orgId: string, cardId: string): Promise<{ options: Prop
     days: v.days ?? (v.hours != null ? (labour?.dayHours ? v.hours / labour.dayHours : 1) : 1),
   }));
   const facts = proposal.draft.checklist.filter((i) => i.state === "known" && i.answer.trim()).map((i) => `${CHECKLIST[i.key].label}: ${i.answer.trim()}`);
-  return { options, labour: own.length ? own : brief, facts };
+  return {
+    options,
+    labour: own.length ? own : brief,
+    own: own.length > 0,
+    dayHours: labour?.dayHours ?? null,
+    briefHours: labour?.brief?.personHours ?? null,
+    facts,
+  };
+}
+
+/** THE HOURS QUOTED (Isaac, 2026-10-03: "17.5 h on site of 32 h quoted"):
+    the accepted option's labour in person-hours — its own, at the
+    business's working day, else the brief's as it said them — with its
+    crew and its visits. Null when nothing gives the labour in hours. */
+export async function quotedHours(orgId: string, cardId: string): Promise<{ hours: number; people: number; visits: number } | null> {
+  const plan = await quotePlan(orgId, cardId).catch(() => null);
+  if (!plan || plan.labour.length === 0) return null;
+  const personDays = plan.labour.reduce((a, v) => a + v.people * v.days, 0);
+  const hours = plan.own ? (plan.dayHours ? personDays * plan.dayHours : null) : plan.briefHours;
+  if (hours == null || hours <= 0) return null;
+  return { hours: Math.round(hours * 10) / 10, people: Math.max(...plan.labour.map((v) => v.people)), visits: plannedVisits(plan.labour).length };
 }
 
 /** Whether the quote has an accepted option to make the tasks from. */

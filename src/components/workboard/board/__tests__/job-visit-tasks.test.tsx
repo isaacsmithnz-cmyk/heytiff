@@ -233,3 +233,30 @@ it("keeps a plate photo that couldn't be read, says so, and offers to type it", 
   fireEvent.click(screen.getByRole("button", { name: "Type the model and serial" }));
   expect(screen.getByLabelText("Serial")).toBeInTheDocument();
 });
+
+/* Isaac, 2026-10-03: "17.5 h on site of 32 h quoted", green under, amber up to 15% over, red past it */
+it("sets the hours on site against the hours quoted, in the colour of how far over", async () => {
+  fetchMock.mockImplementation(async () => ({ json: async () => answer({ quoted: { hours: 32, people: 2, visits: 2 } }) }));
+  const { container, rerender } = mount({ onSiteMinutes: 1050 });
+  expect(await screen.findByText("17h 30m")).toBeInTheDocument();
+  expect(screen.getByText("on site of 32h quoted")).toBeInTheDocument();
+  expect(screen.getByText("2 people, 2 visits")).toBeInTheDocument();
+  expect(container.querySelector(".jcl-htrack i")).toHaveClass("ok");
+  const at = (minutes: number) =>
+    rerender(
+      <JobVisitTasks job="job-1" visible onSite={[day("2026-10-06")]} ahead={[]} workOrderDate={null} onSiteWords={null} onSiteMinutes={minutes} emptyWords="" />
+    );
+  at(32 * 60 * 1.1);
+  expect(container.querySelector(".jcl-htrack i")).toHaveClass("warn");
+  at(32 * 60 * 1.3);
+  expect(container.querySelector(".jcl-htrack i")).toHaveClass("bad");
+  expect(container.querySelector(".jcl-htrack i")).toHaveStyle({ width: "100%" });
+});
+
+it("offers to book a visit the quote planned that isn't booked yet", async () => {
+  const onBook = jest.fn();
+  fetchMock.mockImplementation(async () => ({ json: async () => answer({ tasks: [task("comm", "Commission the system", { stage: "Commissioning", visit: 5 })], updates: [] }) }));
+  mount({ onBook });
+  fireEvent.click(await screen.findByRole("button", { name: "Book visit 5" }));
+  expect(onBook).toHaveBeenCalled();
+});

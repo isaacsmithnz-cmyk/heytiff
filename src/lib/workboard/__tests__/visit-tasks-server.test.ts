@@ -47,7 +47,7 @@ jest.mock("@/lib/images/for-claude", () => ({ imageForClaude: jest.fn() }));
 jest.mock("@/lib/documents/query", () => ({ DOCUMENTS_BUCKET: "documents", signMany: jest.fn(async () => new Map()) }));
 
 import { normaliseDraft } from "@/lib/quotes/proposal";
-import { applyTaskEdit, editOf, makeTasksFromQuote, serialsWith } from "../visit-tasks-server";
+import { applyTaskEdit, editOf, makeTasksFromQuote, quotedHours, serialsWith } from "../visit-tasks-server";
 
 const ID = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b";
 
@@ -207,5 +207,16 @@ describe("a plate read onto a task", () => {
     expect(serialsWith("A1", "B2", 2)).toBe("A1, B2");
     expect(serialsWith("A1, B2", "B2", 2)).toBe("A1, B2");
     expect(serialsWith("A1", "B2", 1)).toBe("B2");
+  });
+});
+
+describe("the hours quoted", () => {
+  it("is the accepted option's own labour at the business's day, with its crew and visits", async () => {
+    expect(await quotedHours("org-1", "job-1")).toEqual({ hours: 32, people: 2, visits: 2 });
+  });
+
+  it("is nothing on a quote with nothing accepted", async () => {
+    readStoredProposal.mockResolvedValue({ draft: { ...draft, accepted: [], options: [draft.options[0]!, draft.options[0]!] }, brief: "", changes: [], updatedAt: "x", cardId: "job-1" });
+    expect(await quotedHours("org-1", "job-1")).toBeNull();
   });
 });

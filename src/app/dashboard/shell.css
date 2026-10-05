@@ -6927,6 +6927,15 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-tghead b { font-weight:600; }
 .jcl-tghead em { font-style:normal; color:var(--q); }
 .jcl-tmake { margin:8px 0 16px; }
+/* the hours on site against the quote's: green while under, amber up to
+   15% over, red past that (Isaac, 2026-10-03) */
+.jcl-hbar { display:flex; flex-direction:column; gap:8px; margin:8px 0 16px; }
+.jcl-hbar .jcl-hrs em { margin-left:auto; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
+.jcl-htrack { height:8px; border-radius:var(--r-pill); background:var(--tint-2); overflow:hidden; }
+.jcl-htrack i { display:block; height:100%; border-radius:var(--r-pill); }
+.jcl-htrack i.ok { background:var(--ok-t); }
+.jcl-htrack i.warn { background:var(--warn); }
+.jcl-htrack i.bad { background:var(--bad); }
 .jcl-tadd { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:16px; }
 .jcl-tadd .wb2-fi { flex:1 1 220px; }
 .jcl-tchk { display:inline-flex; align-items:center; gap:8px; font-size:13px; }

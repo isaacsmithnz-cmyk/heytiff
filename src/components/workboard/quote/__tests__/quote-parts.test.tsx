@@ -110,3 +110,17 @@ it("draws the steps in their states, and offers Undo on the last one marked by h
   expect(onUndo).toHaveBeenCalledWith("approved");
   expect(screen.getByText("Sent").closest("li")).toHaveAttribute("aria-current", "step");
 });
+
+it("takes nothing back on the line once the client said yes: that's the option's own Accepted", () => {
+  render(
+    <QuoteStepsLine
+      onUndo={jest.fn()}
+      steps={[
+        { key: "approved", label: "Approved", state: "done", words: "Approved Tue 6 Oct" },
+        { key: "sent", label: "Sent", state: "todo", words: "Not marked" },
+        { key: "accepted", label: "Accepted", state: "done", words: "Option 1" },
+      ]}
+    />
+  );
+  expect(screen.queryByRole("button", { name: /^Undo/ })).toBeNull();
+});

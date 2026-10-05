@@ -209,6 +209,12 @@ export function JobQuoteFace({
   const [pick, setPick] = useState(0);
   const [on, setOn] = useState<{ key: ChecklistKey | null; chosen: boolean } | null>(null);
   const questionsAt = useRef<HTMLElement | null>(null);
+  /* a question asked for from anywhere is scrolled to once its face shows:
+     from the Proposal, the Build-up is still hidden when it's asked for */
+  const [toQuestions, setToQuestions] = useState(0);
+  useEffect(() => {
+    if (toQuestions) questionsAt.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  }, [toQuestions]);
   /* on the page, ServiceM8's quote sits beside the builder, not in it */
   const sm8Block = sm8Quoted && mode === "card" ? (
     <div className="wb2-jcsec">
@@ -504,9 +510,10 @@ export function JobQuoteFace({
   const names = draftNow ? draftNow.options.map((_, i) => optionHeading(draftNow, i)) : [];
   const at = draftNow && pick < draftNow.options.length ? pick : 0;
   const priced = price?.ok ? price.options[at] : undefined;
+  /* starting again leaves the quote where it is until the new draft lands */
   const { steps, next } = quoteSteps({
-    draft: draftNow,
-    drafted: draftNow && proposal ? { at: proposal.updatedAt, changed: proposal.changes.length > 0 } : null,
+    draft: proposal?.draft ?? null,
+    drafted: proposal ? { at: proposal.updatedAt, changed: proposal.changes.length > 0 } : null,
     price: priceState(price),
     when: whenOf,
   });
@@ -529,7 +536,7 @@ export function JobQuoteFace({
   const choose = (key: ChecklistKey) => {
     setOn({ key, chosen: true });
     setTab("build");
-    questionsAt.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+    setToQuestions((n) => n + 1);
   };
 
   const sm8Group = sm8Quoted ? (
@@ -999,7 +1006,7 @@ export function JobQuoteFace({
           <h2 className="hd-ls-grp today">
             Known <span className="hd-ls-n">{known.length}</span>
           </h2>
-          <p className="qp-known">{known.map((i) => CHECKLIST[i.key].label).join(", ")}</p>
+          <p className="qp-known">{knownWords(known.map((i) => CHECKLIST[i.key].label))}</p>
         </section>
       )}
       {draft.accepted.length > 0 && send}
@@ -1008,6 +1015,11 @@ export function JobQuoteFace({
 
   return frame(flow, paper, rail, actions);
 }
+
+/** The rail's Known: the first few topics by name, then how many more. */
+const KNOWN_NAMED = 6;
+const knownWords = (labels: string[]) =>
+  labels.length <= KNOWN_NAMED ? labels.join(", ") : `${labels.slice(0, KNOWN_NAMED).join(", ")} and ${labels.length - KNOWN_NAMED} more`;
 
 /** The brief in the person's own words: two lines until it's asked for. */
 function BriefWords({ text }: { text: string }) {
@@ -1102,6 +1114,8 @@ function SiteChecklist({
       {current && currentItem && (
         <div className="wb2-jqnow">
           <p className="wb2-jqask">{questionOf(currentItem)}</p>
+          {/* a topic opened to change it says what it holds now */}
+          {currentItem.state !== "ask" && currentItem.answer && <p className="wb2-jqhas">{currentItem.answer}</p>}
           {own === null ? (
             <div className="wb2-jqacts">
               {choicesOf(currentItem).map((c) => (

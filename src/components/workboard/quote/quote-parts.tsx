@@ -59,8 +59,10 @@ export function priceState(price: QuotePrice | null | undefined): PriceState {
 /* ── the progress line ── */
 
 export function QuoteStepsLine({ steps, onUndo }: { steps: QuoteStep[]; onUndo?: (key: StepKey) => void }) {
-  /* only the last thing marked by hand can be taken back */
-  const undoable = [...steps].reverse().find((s) => s.state === "done" && (s.key === "approved" || s.key === "sent"))?.key;
+  /* only the last thing marked by hand can be taken back; once accepted,
+     that's the option's own Accepted, on the Proposal */
+  const accepted = steps.some((s) => s.key === "accepted" && s.state === "done");
+  const undoable = accepted ? undefined : [...steps].reverse().find((s) => s.state === "done" && (s.key === "approved" || s.key === "sent"))?.key;
   return (
     <ol className="qp-steps" aria-label="Where the quote is">
       {steps.map((s) => (

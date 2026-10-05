@@ -10,18 +10,25 @@ import {
   parseMitsubishiLines,
   parseReeceCsv,
   previewRows,
+  dateInName,
+  searchWords,
+  todayInSydney,
   type Columns,
   type ParseResult,
   type PricingKind,
 } from "@/lib/quotes/price-book";
 import { excelDate, readSheet, sheetNames } from "@/lib/quotes/xlsx";
 import { isCategory } from "@/lib/quotes/categories";
-import { browseCategory, categoryCounts, findOffers, importPriceRows, readSuppliers, saveSupplierLayout } from "@/lib/quotes/price-book-server";
+import { countsOf, viewOf, type BookViewKey } from "@/lib/quotes/families";
+import { bookProducts } from "@/lib/quotes/book-view-server";
+import { importInvoiceRows, importPriceRows, readSuppliers, saveSupplierLayout } from "@/lib/quotes/price-book-server";
 
-/* The price book in Admin → Quoting: look a model up at every supplier
-   (GET ?q=), browse a shelf (GET ?category=&q=) or count the shelves
-   (GET ?counts=1), or take in a supplier's new file (POST, multipart:
-   supplier, file). A route, not a server action: the Mitsubishi trade book is a 3 MB
+/* The price book: a view of it (GET ?view=used|preferred|all|<shelf>&q=
+   — the most used, the preferred, a shelf, or a search of the whole book,
+   each sorted into families), or a supplier's new file taken in (POST,
+   multipart: supplier, file, kind). `kind` is "list", a price list that
+   replaces the last one, or "invoices", what was paid for the codes on them
+   and nothing else — the same supplier either way. A route, not a server action: the Mitsubishi trade book is a 3 MB
    PDF, past a server action's body limit, and reading it takes seconds.
 
    `financials`, like the rest of Quoting: these are the business's buying
@@ -44,13 +51,15 @@ export async function GET(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
   const params = new URL(req.url).searchParams;
-  if (params.get("counts")) return Response.json({ ok: true, categories: await categoryCounts(who.orgId) });
   const q = (params.get("q") ?? "").slice(0, 60);
-  const suppliers = await readSuppliers(who.orgId);
-  /* a shelf, narrowed by the words when there are any */
-  const category = params.get("category");
-  if (isCategory(category)) return Response.json({ ok: true, ...(await browseCategory(who.orgId, category, q, suppliers)) });
-  return Response.json({ ok: true, models: await findOffers(who.orgId, q, suppliers) });
+  const asked = params.get("view");
+  const view: BookViewKey = asked === "preferred" || asked === "all" || isCategory(asked) ? asked : "used";
+  /* a search reads only the items holding its words; the rail's counts
+     come with a view of the whole book */
+  const words = searchWords(q);
+  const whole = words.length === 0;
+  const products = await bookProducts(who.orgId, whole ? null : words);
+  return Response.json({ ok: true, ...viewOf(products, view, q), counts: whole ? countsOf(products) : null });
 }
 
 /** The columns a person matched, from the form: known fields, column
@@ -92,8 +101,24 @@ export async function POST(req: Request) {
   if (!supplier) return Response.json({ ok: false, reason: "No such supplier." }, { status: 400 });
 
   let parsed: ParseResult;
+  const invoices = form?.get("kind") === "invoices";
   try {
-    if (supplier.format === "aad_csv") {
+    if (invoices) {
+      /* invoices are a workbook or CSV of what was paid, read by heading
+         or by the columns a person matched just now; the layout isn't kept,
+         because it isn't the price list's */
+      const given = matchedColumns(form?.get("columns"));
+      const sheets = await sheetsOf(file);
+      parsed = { rows: [], conflicts: [], skipped: 0 };
+      for (const rows of sheets) {
+        parsed = parseHeadedRows(rows, excelDate, given);
+        if (parsed.rows.length > 0) break;
+      }
+      if (parsed.rows.length === 0 && !given) {
+        const first = sheets.find((rows) => rows.some((r) => r.size > 0));
+        if (first) return Response.json({ ok: false, needsColumns: true, reason: "Which column is which?", preview: previewRows(first) });
+      }
+    } else if (supplier.format === "aad_csv") {
       parsed = parseAadCsv(await file.text());
     } else if (supplier.format === "reece_csv") {
       parsed = parseReeceCsv(await file.text());
@@ -133,9 +158,15 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, reason: "That file couldn't be read. Is it the supplier's price list?" });
   }
   if (parsed.rows.length === 0) {
-    return Response.json({ ok: false, reason: "No prices found in that file. Is it the supplier's price list?" });
+    return Response.json({
+      ok: false,
+      reason: invoices ? "No prices found in that file. Does it have a code and a price column?" : "No prices found in that file. Is it the supplier's price list?",
+    });
   }
 
-  const summary = await importPriceRows(who.orgId, supplier, file.name, parsed.rows);
+  /* a price list's prices are from the date its name gives, else today */
+  const summary = invoices
+    ? await importInvoiceRows(who.orgId, supplier, file.name, parsed.rows)
+    : await importPriceRows(who.orgId, supplier, file.name, parsed.rows, dateInName(file.name) ?? todayInSydney());
   return Response.json({ ok: true, summary, conflicts: parsed.conflicts, skipped: parsed.skipped });
 }

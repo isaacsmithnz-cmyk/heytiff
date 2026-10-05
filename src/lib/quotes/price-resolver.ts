@@ -10,14 +10,21 @@ import type { PriceOf, Priced } from "./ducted-template";
    model (AAD's PUZ-ZM140YKA2 is Mitsubishi's PUZ-ZM140YKA2-A.TH) — is a
    candidate, at what the business pays (a net
    price as sent, a list price less the discount). The business's own choice
-   wins where there is one (Preferred items, a unit bought from a named
-   supplier); otherwise the lowest price that is a price: $0.00 is an item
-   nobody priced, never a free one.
+   wins where there is one (a unit bought from a named supplier, then an item
+   put forward in the price book); otherwise the lowest price that is a
+   price: $0.00 is an item nobody priced, never a free one.
 
    Pure, so the tests and the quote page read the same answer; the server
    side loads the book once and hands the closure to the template. */
 
-export type BookRow = { supplierKey: string; code: string; name: string; cents: number };
+export type BookRow = {
+  supplierKey: string;
+  code: string;
+  name: string;
+  cents: number;
+  /** already what was paid (an invoice's price): no discount comes off */
+  net?: boolean;
+};
 
 export type ResolverInput = {
   items: BookRow[];
@@ -26,6 +33,8 @@ export type ResolverInput = {
   confirmed: [string, string][];
   /** a code the business has chosen a supplier for */
   chosenSupplier?: Map<string, string>;
+  /** the items the business put forward in the price book, "supplier|code" */
+  preferred?: Set<string>;
 };
 
 /* Mitsubishi Electric's price list writes a model the way the factory does —
@@ -70,13 +79,16 @@ export function makePriceOf(input: ResolverInput): PriceOf {
     const offers = [...partners]
       .map((r) => {
         const s = sup.get(r.supplierKey);
-        return s ? { row: r, buyCents: netCents(s, r.code, r.cents) } : null;
+        return s ? { row: r, buyCents: netCents(s, r.code, r.cents, r.net) } : null;
       })
       .filter((o): o is { row: BookRow; buyCents: number } => o !== null && o.buyCents > 0)
       .sort((a, b) => a.buyCents - b.buyCents);
     if (offers.length === 0) return null;
     const want = input.chosenSupplier?.get(code);
-    const pick = (want && offers.find((o) => o.row.supplierKey === want)) || offers[0]!;
+    const pick =
+      (want && offers.find((o) => o.row.supplierKey === want)) ||
+      offers.find((o) => input.preferred?.has(refOf(o.row))) ||
+      offers[0]!;
     return { buyCents: pick.buyCents, supplierKey: pick.row.supplierKey, name: pick.row.name };
   };
 }

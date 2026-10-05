@@ -123,7 +123,7 @@ const RULES: Rule[] = [
   {
     key: "electrical",
     test: words(
-      /isolator|\bcable\b|\bTPS\b|core\s*&?\s*earth|conduit|circuit\s*breaker|\bMCB\b|\bRCD\b|\bRCBO\b|\brelay\b|gland|junction\s*box|\bJ-?BOX\b|\bCAT\s*\d|power\s*point|\bGPO\b|\bplug\b|switch\b|\bwire\b|terminal/i
+      /isolator|\bcable\b|\bTPS\b|core\s*&?\s*earth|flat\s*twin|twin\s*(and\s*|&\s*)?earth|\b\d\s*C\s*\+\s*E\b|conduit|circuit\s*breaker|\bMCB\b|\bRCD\b|\bRCBO\b|\brelay\b|gland|junction\s*box|\bJ-?BOX\b|\bCAT\s*\d|power\s*point|\bGPO\b|\bplug\b|switch\b|\bwire\b|terminal/i
     ),
   },
   {

@@ -64,7 +64,7 @@ function offersFor(codes: string[], items: BookItem[], suppliers: Awaited<Return
   for (const i of items) {
     const s = codes.includes(i.code) ? sup.get(i.supplierKey) : undefined;
     if (!s) continue;
-    const net = netCents(s, i.code, i.cents);
+    const net = netCents(s, i.code, i.cents, i.net);
     /* $0.00 is an item nobody priced, not a free one */
     if (net > 0) out.push({ supplierKey: s.key, supplierName: s.name, code: i.code, name: i.name, netCents: net, pricedOn: i.pricedOn });
   }

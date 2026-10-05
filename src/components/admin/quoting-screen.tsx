@@ -8,10 +8,6 @@ import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { saveQuoteSettings } from "@/app/actions/quote-settings";
 import { profitSharePct, sellCents, type ComponentKey } from "@/lib/quotes/components";
 import type { ComponentGroup, ComponentOffer, ComponentShortlist } from "@/lib/quotes/settings-query";
-import type { SupplierView } from "@/lib/quotes/price-book-server";
-import { PriceBook } from "./price-book-panel";
-import { LinksPanel } from "./links-panel";
-import { SameItemsPanel } from "./same-items-panel";
 import {
   ALLOWANCES,
   ALLOWANCE_KEYS,
@@ -65,12 +61,10 @@ const inRange = (s: string, lo: number, hi: number) => s.trim() === "" || (Numbe
 export function QuotingScreen({
   initial,
   components,
-  suppliers,
   calc,
 }: {
   initial: QuoteSettings;
   components: ComponentShortlist[];
-  suppliers: SupplierView[];
   /** what the business's Rate Calculator says, when it has one */
   calc: CalcDay | null;
 }) {
@@ -296,12 +290,6 @@ export function QuotingScreen({
               </div>
             </section>
 
-            <PriceBook suppliers={suppliers} onImported={() => router.refresh()} />
-
-            <LinksPanel />
-
-            <SameItemsPanel />
-
             <section className="qs-group">
               <h2 className="qs-h">Preferred items</h2>
               <p className="qs-sub">
@@ -458,7 +446,7 @@ function ComponentRow({
               {pick.group.name}
               <em>
                 {`${pick.offer.code}, ${pick.offer.supplierName}${pick.offer.pack ? `, ${pick.offer.pack}` : ""}, `}
-                <span className={pick.overridden ? "qs-state warn" : "qs-state"}>{pick.overridden ? "Override" : "Lowest price"}</span>
+                <span className={pick.overridden ? "qs-state warn" : "qs-state"}>{pick.overridden ? "Override" : pick.preferred ? "Preferred" : "Lowest price"}</span>
               </em>
             </>
           ) : (

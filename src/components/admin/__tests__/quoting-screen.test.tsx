@@ -2,9 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/app/actions/quote-settings", () => ({ saveQuoteSettings: jest.fn() }));
-jest.mock("../price-book-panel", () => ({ PriceBook: () => null }));
-jest.mock("../links-panel", () => ({ LinksPanel: () => null }));
-jest.mock("../same-items-panel", () => ({ SameItemsPanel: () => null }));
 
 import { QuotingScreen } from "../quoting-screen";
 import { DEFAULT_QUOTE_SETTINGS } from "@/lib/quotes/settings";
@@ -13,7 +10,7 @@ import { DEFAULT_QUOTE_SETTINGS } from "@/lib/quotes/settings";
    make sure that you can set the rate without completing the rate calc". */
 
 const screenWith = (calc: Parameters<typeof QuotingScreen>[0]["calc"]) =>
-  render(<QuotingScreen initial={DEFAULT_QUOTE_SETTINGS} components={[]} suppliers={[]} calc={calc} />);
+  render(<QuotingScreen initial={DEFAULT_QUOTE_SETTINGS} components={[]} calc={calc} />);
 
 it("blank here: says the Rate Calculator's figures, and the day they make", () => {
   screenWith({ chargedCents: 14000, recommendedCents: null, workingHours: 8 });

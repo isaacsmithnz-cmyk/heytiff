@@ -36,7 +36,7 @@ export async function sameItemProposals(orgId: string): Promise<SameItemsView> {
     return {
       ...x,
       supplierName: s?.name ?? x.supplierKey,
-      netCents: s && i ? netCents(s, i.code, i.cents) : 0,
+      netCents: s && i ? netCents(s, i.code, i.cents, i.net) : 0,
       uom: i?.uom ?? null,
     };
   };

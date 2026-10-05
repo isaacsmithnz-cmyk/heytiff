@@ -41,8 +41,8 @@ it("asks which column is which, then reads the file with the columns chosen", as
   }) as unknown as typeof fetch;
 
   const onImported = jest.fn();
-  const { container } = render(<PriceBook suppliers={[acme]} onImported={onImported} />);
-  const input = container.querySelector("input[type=file]") as HTMLInputElement;
+  render(<PriceBook suppliers={[acme]} onImported={onImported} />);
+  const input = screen.getByLabelText("Upload Acme price list");
   const file = new File(["x"], "acme.xlsx");
   await act(async () => {
     fireEvent.change(input, { target: { files: [file] } });
@@ -62,6 +62,7 @@ it("asks which column is which, then reads the file with the columns chosen", as
 
   expect(JSON.parse(String(sent[1]!.get("columns")))).toEqual({ code: "A", price: "C" });
   expect(sent[1]!.get("pricing")).toBe("net");
+  expect(sent[1]!.get("kind")).toBe("list");
   expect(screen.getByText("Acme price list in: 2 items read, no price changed, 2 new.")).toBeInTheDocument();
   expect(screen.queryByText("Which column is which in acme.xlsx?")).not.toBeInTheDocument();
   expect(onImported).toHaveBeenCalled();
@@ -96,4 +97,33 @@ it("doesn't offer a supplier the business already has", () => {
   render(<PriceBook suppliers={[{ ...acme, key: "aad", name: "AAD", format: "aad_csv", file: "csv" }]} onImported={jest.fn()} />);
   expect(screen.queryByRole("button", { name: "Add AAD" })).toBeNull();
   expect(screen.getByRole("button", { name: "Add Reece" })).toBeInTheDocument();
+});
+
+/* Isaac, 2026-10-05: invoices are the same supplier's prices, not another
+   supplier — "Mitsubishi as a supplier can be one header". */
+it("takes a supplier's invoices under the supplier, asking no discount for what was paid", async () => {
+  const sent: FormData[] = [];
+  global.fetch = jest.fn(async (_url: string, init?: RequestInit) => {
+    const form = init!.body as FormData;
+    sent.push(form);
+    return {
+      json: async () =>
+        form.get("columns")
+          ? { ok: true, summary: { read: 93, added: 43, changed: 50, gone: 0 }, conflicts: [], skipped: 0 }
+          : { ok: false, needsColumns: true, reason: "Which column is which?", preview: { letters: ["A", "B"], rows: [["Item", "Paid"], ["PEFY-P32VMX-E1", 871.52]] } },
+    } as Response;
+  }) as unknown as typeof fetch;
+  render(<PriceBook suppliers={[{ ...acme, name: "Mitsubishi Electric", pricing: "list_less", discountPct: 30 }]} onImported={jest.fn()} />);
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Add Mitsubishi Electric invoices"), { target: { files: [new File(["x"], "invoices.xlsx")] } });
+  });
+  expect(sent[0]!.get("kind")).toBe("invoices");
+  expect(screen.queryByRole("combobox", { name: "The prices are" })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole("combobox", { name: "Code" }), { target: { value: "A" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Price ex GST" }), { target: { value: "B" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Read the file" }));
+  });
+  expect(sent[1]!.get("kind")).toBe("invoices");
+  expect(screen.getByText("Mitsubishi Electric invoices in: 93 items read, 50 prices changed, 43 new.")).toBeInTheDocument();
 });

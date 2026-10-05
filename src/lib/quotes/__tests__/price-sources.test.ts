@@ -134,7 +134,7 @@ describe("invoices", () => {
   it("an older invoice never replaces a newer one's price, counts or words", () => {
     const before = book(
       stored("PAR-41MAAM", { paid_cents: 12530, paid_on: "2026-09-21", times_bought: 40, qty_bought: 181 }),
-      stored("PEFY-P32VMX-E1", { name: "3.6kW C/M Compact Ceiling Concealed 450mmD", on_list: false, paid_cents: 87152, paid_on: "2026-08-31", times_bought: 16 })
+      stored("PEFY-P32VMX-E1", { name: "3.6kW C/M Compact Ceiling Concealed 450mmD", cents: 87152, on_list: false, paid_cents: 87152, paid_on: "2026-08-31", times_bought: 16 })
     );
     const plan = planInvoices(
       before,
@@ -145,7 +145,7 @@ describe("invoices", () => {
       { ...ctx, today: "2026-10-05" }
     );
     expect(plan.upserts[0]).toMatchObject({ paid_cents: 12530, paid_on: "2026-09-21", times_bought: 40, qty_bought: 181 });
-    expect(plan.upserts[1]).toMatchObject({ name: "3.6kW C/M Compact Ceiling Concealed 450mmD", paid_cents: 87152, times_bought: 16 });
+    expect(plan.upserts[1]).toMatchObject({ name: "3.6kW C/M Compact Ceiling Concealed 450mmD", cents: 87152, paid_cents: 87152, times_bought: 16 });
     expect(plan.summary.changed).toBe(0);
   });
 });

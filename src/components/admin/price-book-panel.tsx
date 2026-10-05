@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { BUILT_IN_SUPPLIERS, COLUMN_FIELDS, MAX_DISCOUNT_PCT, pricingWords, type ColumnField, type Columns, type DiscountRule } from "@/lib/quotes/price-book";
 import type { SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
+import { MAX_INVOICE_BYTES, otherSupplierNamed, type ReadInvoice } from "@/lib/quotes/invoice-read";
+import { fileToUprightBase64 } from "@/lib/images/upright";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { InvoiceReview } from "./invoice-review";
 
 /* THE PRICE BOOK'S SUPPLIERS: the suppliers the business buys from, each
    with its price list and its invoices, and how it prices. One supplier is
@@ -16,6 +19,10 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    Mitsubishi Electric's PDF trade book of list prices (the business's own
    discount comes off as it's read, set here: one for everything and any
    range by its codes). What the file changed is said once it's in.
+
+   Invoices come as a spreadsheet of what was paid, or as the invoice
+   itself — a PDF or a photo — which Tiff reads and the person looks over
+   before its prices go in (invoice-review.tsx).
 
    A new business starts with no suppliers: it adds its own. The ones whose
    own files HeyTiff reads (AAD, Reece, the Mitsubishi trade book) are a press
@@ -46,6 +53,23 @@ type Kind = "list" | "invoices";
 
 type Matching = { supplier: SupplierView; file: File; kind: Kind; preview: Preview };
 
+/** An invoice Tiff has read, waiting to be looked over. */
+type Reading = { supplier: SupplierView; fileName: string; read: ReadInvoice };
+
+type ReadAnswer = { ok: true; read: ReadInvoice } | { ok: false; reason: string };
+type AddAnswer = { ok: true; summary: ImportSummary } | { ok: false; reason: string };
+
+/** An invoice Tiff reads, rather than a spreadsheet of one: a PDF or a photo. */
+const isInvoiceDocument = (f: File) => f.type === "application/pdf" || f.type.startsWith("image/") || /\.(pdf|jpe?g|png|webp)$/i.test(f.name);
+
+/** A photo the way every scan in the app goes to Tiff — upright, and no
+    bigger than small print needs (images/upright) — and a PDF as it is. */
+async function invoiceFileOf(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  const { data, mediaType } = await fileToUprightBase64(file);
+  return new File([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], file.name, { type: mediaType });
+}
+
 /* What each answer says, read OUT HERE rather than in the try/catch that
    asks for it: React Compiler 1.0 cannot lower a value block — a ternary,
    an `&&`, a `??` — inside a try, and gives up on the whole component when
@@ -55,20 +79,32 @@ type Matching = { supplier: SupplierView; file: File; kind: Kind; preview: Previ
 /** The file's first rows, when the refusal is that its headings aren't ones HeyTiff reads. */
 const columnsToMatch = (a: Extract<ImportAnswer, { ok: false }>) => (a.needsColumns ? a.preview : undefined);
 
-/** What a price list or invoices that went in changed, said once. */
-const importedNote = (name: string, kind: Kind, a: Extract<ImportAnswer, { ok: true }>) => {
-  const { read, changed, added, gone } = a.summary;
-  const parts = [
-    `${read.toLocaleString("en-AU")} items read`,
-    changed ? `${changed.toLocaleString("en-AU")} prices changed` : "no price changed",
+const counted = (v: number, one: string, many: string) => `${v.toLocaleString("en-AU")} ${v === 1 ? one : many}`;
+
+/** What a file that went in changed, in a few words. */
+const changesOf = ({ read, changed, added, gone }: ImportSummary) =>
+  [
+    counted(read, "item read", "items read"),
+    changed ? counted(changed, "price changed", "prices changed") : "no price changed",
     added ? `${added.toLocaleString("en-AU")} new` : null,
     gone ? `${gone.toLocaleString("en-AU")} no longer listed` : null,
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+/** What a price list or invoices that went in changed, said once. */
+const importedNote = (name: string, kind: Kind, a: Extract<ImportAnswer, { ok: true }>) => {
   const twice = a.conflicts.length
     ? `Listed twice at different prices, the first kept: ${[...new Set(a.conflicts.map((c) => c.code))].join(", ")}.`
     : undefined;
-  return { tone: "ok" as const, text: `${name} ${kind === "invoices" ? "invoices" : "price list"} in: ${parts.join(", ")}.`, detail: twice };
+  return { tone: "ok" as const, text: `${name} ${kind === "invoices" ? "invoices" : "price list"} in: ${changesOf(a.summary)}.`, detail: twice };
 };
+
+/** What an invoice Tiff read changed once its prices went in. */
+const invoiceNote = (r: Reading, summary: ImportSummary) => ({
+  tone: "ok" as const,
+  text: `${r.supplier.name} ${r.read.invoiceNo ? `invoice ${r.read.invoiceNo}` : r.fileName} in: ${changesOf(summary)}.`,
+});
 
 const addRefusal = (reason: string | undefined) => reason ?? "That supplier couldn't be added.";
 const discountRefusal = (reason: string | undefined) => reason ?? "The discount couldn't be saved.";
@@ -93,12 +129,69 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string; detail?: string } | null>(null);
   const [matching, setMatching] = useState<Matching | null>(null);
+  const [reading, setReading] = useState<Reading | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(null);
   /* a new business starts with the form open: it has nothing else to do here */
   const [adding, setAdding] = useState(suppliers.length === 0);
   const [newName, setNewName] = useState("");
 
+  /* an invoice itself, a PDF or a photo: Tiff reads its lines for the
+     person to look over, and nothing goes in until they add them */
+  const readInvoiceFile = async (s: SupplierView, file: File) => {
+    setBusy(`${s.key}:invoices`);
+    setNote(null);
+    setMatching(null);
+    setReading(null);
+    await withCleanup(async () => {
+      try {
+        const sending = await invoiceFileOf(file);
+        if (sending.size > MAX_INVOICE_BYTES) {
+          setNote({ tone: "bad", text: "That file is over 4 MB." });
+          return;
+        }
+        const form = new FormData();
+        form.set("supplier", s.key);
+        form.set("file", sending);
+        const a = (await (await fetch("/api/quoting/invoice-read", { method: "POST", body: form })).json()) as ReadAnswer;
+        if (!a.ok) {
+          setNote({ tone: "bad", text: a.reason });
+          return;
+        }
+        setReading({ supplier: s, fileName: file.name, read: a.read });
+      } catch {
+        setNote({ tone: "bad", text: "The invoice couldn't be sent. Try again." });
+      }
+    }, () => setBusy(null));
+  };
+
+  const addInvoice = async (r: Reading) => {
+    const body = JSON.stringify({
+      supplier: r.supplier.key,
+      invoiceNo: r.read.invoiceNo,
+      invoiceDate: r.read.invoiceDate,
+      fileName: r.fileName,
+      lines: r.read.lines.map((l) => ({ code: l.code, name: l.name, cents: l.cents })),
+    });
+    setBusy(`${r.supplier.key}:add`);
+    setNote(null);
+    await withCleanup(async () => {
+      try {
+        const a = (await (await fetch("/api/quoting/invoice-lines", { method: "POST", headers: { "content-type": "application/json" }, body })).json()) as AddAnswer;
+        if (!a.ok) {
+          setNote({ tone: "bad", text: a.reason });
+          return;
+        }
+        setReading(null);
+        setNote(invoiceNote(r, a.summary));
+        onImported();
+      } catch {
+        setNote({ tone: "bad", text: "The prices couldn't be sent. Try again." });
+      }
+    }, () => setBusy(null));
+  };
+
   const upload = async (s: SupplierView, file: File, kind: Kind, layout?: { columns: Columns; pricing: "net" | "list_less"; discountPct: number }) => {
+    if (kind === "invoices" && isInvoiceDocument(file)) return readInvoiceFile(s, file);
     setBusy(`${s.key}:${kind}`);
     setNote(null);
     await withCleanup(async () => {
@@ -192,9 +285,11 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
         className="qs-file"
         aria-label={kind === "invoices" ? `Add ${s.name} invoices` : `Upload ${s.name} price list`}
         accept={
-          kind === "invoices" || s.format === "headed"
-            ? ".csv,text/csv,.xlsx"
-            : s.file === "csv"
+          kind === "invoices"
+            ? ".csv,text/csv,.xlsx,.pdf,application/pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+            : s.format === "headed"
+              ? ".csv,text/csv,.xlsx"
+              : s.file === "csv"
               ? ".csv,text/csv"
               : s.file === "xlsx"
                 ? ".xlsx"
@@ -252,6 +347,21 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
                         busy={busy !== null}
                         onCancel={() => setMatching(null)}
                         onRead={(layout) => void upload(matching.supplier, matching.file, matching.kind, layout)}
+                      />
+                    )}
+                    {reading?.supplier.key === s.key && (
+                      <InvoiceReview
+                        read={reading.read}
+                        fileName={reading.fileName}
+                        supplierName={s.name}
+                        otherSupplier={otherSupplierNamed(
+                          reading.read.supplier,
+                          s.name,
+                          suppliers.map((o) => o.name)
+                        )}
+                        busy={busy !== null}
+                        onCancel={() => setReading(null)}
+                        onAdd={() => void addInvoice(reading)}
                       />
                     )}
                     {s.pricing === "list_less" && (

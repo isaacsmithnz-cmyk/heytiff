@@ -360,6 +360,7 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
                           suppliers.map((o) => o.name)
                         )}
                         busy={busy !== null}
+                        adding={busy === `${s.key}:add`}
                         onCancel={() => setReading(null)}
                         onAdd={() => void addInvoice(reading)}
                       />

@@ -264,3 +264,30 @@ it("doesn't send an invoice file over 4 MB, which the host would refuse", async 
   expect(screen.getByText("That file is over 4 MB.")).toBeInTheDocument();
   expect(global.fetch).not.toHaveBeenCalled();
 });
+
+it("says Adding only while this invoice's prices go in, not while another file is read", async () => {
+  const read = { supplier: "", invoiceNo: "12", invoiceDate: null, lines: [{ code: "AC-100", name: "Bracket", qty: 4, cents: 1000, now: null, after: 1000 }], skipped: [] };
+  let finish: (v: unknown) => void = () => {};
+  global.fetch = jest.fn(async (url: string) => {
+    if (url === "/api/quoting/invoice-read") return { json: async () => ({ ok: true, read }) } as Response;
+    /* the other file, and then the prices, take their time */
+    return { json: () => new Promise((resolve) => (finish = resolve)) } as unknown as Response;
+  }) as unknown as typeof fetch;
+  render(<PriceBook suppliers={[acme]} onImported={jest.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: /^Acme/ }));
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Add Acme invoices"), { target: { files: [new File(["%PDF"], "12.pdf", { type: "application/pdf" })] } });
+  });
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Upload Acme price list"), { target: { files: [new File(["x"], "list.xlsx")] } });
+  });
+  expect(screen.getByRole("button", { name: "Add 1 price" })).toBeDisabled();
+  await act(async () => finish({ ok: false, reason: "No prices found in that file." }));
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add 1 price" }));
+  });
+  expect(screen.getByRole("button", { name: "Adding" })).toBeDisabled();
+  await act(async () => finish({ ok: true, summary: { read: 1, added: 1, changed: 0, gone: 0 } }));
+  expect(screen.getByText("Acme invoice 12 in: 1 item read, no price changed, 1 new.")).toBeInTheDocument();
+});

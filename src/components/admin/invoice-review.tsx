@@ -26,6 +26,7 @@ export function InvoiceReview({
   supplierName,
   otherSupplier,
   busy,
+  adding,
   onCancel,
   onAdd,
 }: {
@@ -34,7 +35,10 @@ export function InvoiceReview({
   supplierName: string;
   /** another of the business's suppliers the invoice names */
   otherSupplier: string | null;
+  /** anything on the page under way: the buttons wait */
   busy: boolean;
+  /** this invoice's prices going in */
+  adding: boolean;
   onCancel: () => void;
   onAdd: () => void;
 }) {
@@ -84,7 +88,7 @@ export function InvoiceReview({
         </button>
         {n > 0 && (
           <button type="button" className="pbtn primary" disabled={busy} onClick={onAdd}>
-            {busy ? "Adding" : `Add ${n} price${n === 1 ? "" : "s"}`}
+            {adding ? "Adding" : `Add ${n} price${n === 1 ? "" : "s"}`}
           </button>
         )}
       </div>

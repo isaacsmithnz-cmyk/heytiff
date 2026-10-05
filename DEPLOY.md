@@ -858,9 +858,10 @@ docs/certificates-plan.md is the design.
    `certificates`).
 2. Nothing new in Vercel. Issuing prints the PDF through the same headless
    Chromium as the Studio's Send to job (`@sparticuz/chromium`, `APP_BASE_URL`,
-   `AUTH0_SECRET` for the print ticket), and reading a certifier's list uses
-   `ANTHROPIC_API_KEY`. Without that key everything works except the read,
-   which says Tiff isn't set up.
+   `AUTH0_SECRET` for the print ticket), and reading a certifier's list or an
+   older job's description uses `ANTHROPIC_API_KEY`. Without that key
+   everything works except the reads: the list says Tiff isn't set up, and a
+   description keeps the rule reader's draft.
 3. Apply `docs/migrations/certificate_wording.sql` before the deploy that
    writes it: one nullable column (`cert_template_approvals.wording`, the
    statements as the owner read them) and the one earlier approval back-filled.
@@ -880,6 +881,10 @@ docs/certificates-plan.md is the design.
    business has changed (`docs/migrations/org_templates.sql`). No row means
    the standard wording, so nothing needs seeding. **Applied to production
    2026-10-03** (migration `org_templates`).
+6. `docs/migrations/drop_unused_cert_tables.sql` drops `certifier_profiles`,
+   `fan_models` and `certificate_versions.certifier_profile_id`, which nothing
+   reads or writes. **Applied to production 2026-10-05** (migration
+   `drop_unused_cert_tables`).
 
 ---
 

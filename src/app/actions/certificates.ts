@@ -19,6 +19,7 @@ import { quoteHasEquipment, readingFromQuote } from "@/lib/certs/from-quote";
 import { acceptedOptions } from "@/lib/quotes/proposal";
 import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { CERT_EMAIL_PROMPT, CERT_LIST_PROMPT, CERT_LIST_SCHEMA, parseListReading, type ListReading } from "@/lib/certs/list-reader";
+import { CERT_DESCRIPTION_PROMPT, CERT_DESCRIPTION_SCHEMA, mergeDescriptionReading } from "@/lib/certs/description-reader";
 import {
   certApproval,
   listJobCerts,
@@ -359,6 +360,57 @@ async function askTiff(content: ListContent): Promise<ReadListResult> {
     return { ok: true, ...parseListReading(JSON.parse(block.text)) };
   } catch (err) {
     return { ok: false, error: reasonFor(err) };
+  }
+}
+
+/* ── the job's description, read by Tiff ───────────────────────────────── */
+
+export type ReadDescriptionResult = { ok: true; reading: QuoteReading } | { ok: false };
+
+/** The most of a description Tiff is handed: a quote's equipment is near the top. */
+const DESCRIPTION_MAX = 20_000;
+
+/** The equipment in the job's description, read by Tiff and laid beside the
+    rule reader's draft (lib/certs/description-reader). The wizard opens on
+    the rule reader's draft and swaps this in while nothing has been changed;
+    a failed read leaves that draft as it is, so it says nothing. */
+export async function readJobDescription(jobUuid: string): Promise<ReadDescriptionResult> {
+  let orgId: string;
+  try {
+    ({ orgId } = await requireOrg("workboard"));
+  } catch {
+    return { ok: false };
+  }
+  if (!process.env.ANTHROPIC_API_KEY) return { ok: false };
+  const job = await loadCertJob(orgId, trim(jobUuid)).catch(() => null);
+  const text = (job?.description ?? "").trim().slice(0, DESCRIPTION_MAX);
+  if (!text) return { ok: false };
+  try {
+    const client = new Anthropic();
+    const response = await client.beta.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      betas: ["server-side-fallback-2026-06-01"],
+      fallbacks: [{ model: FALLBACK_MODEL }],
+      /* medium, as compared: which outdoor runs which indoor, and what a
+         line settles, is reading, not copying */
+      output_config: { effort: "medium", format: { type: "json_schema", schema: CERT_DESCRIPTION_SCHEMA } },
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: `<description>\n${text.replace(/<\/?description>/gi, "")}\n</description>` },
+            { type: "text", text: CERT_DESCRIPTION_PROMPT },
+          ],
+        },
+      ],
+    });
+    if (response.stop_reason !== "end_turn") return { ok: false };
+    const block = [...response.content].reverse().find((b) => b.type === "text");
+    if (!block || block.type !== "text") return { ok: false };
+    return { ok: true, reading: mergeDescriptionReading(JSON.parse(block.text), readQuote(text)) };
+  } catch {
+    return { ok: false };
   }
 }
 

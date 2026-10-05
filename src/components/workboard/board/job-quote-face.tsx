@@ -1,7 +1,7 @@
 "use client";
 
 import { fmtAud } from "@/lib/workboard/project-money";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { NoteToken } from "@/components/notes/note-token";
 import { Waiting } from "@/components/ui/orb";
 import { Icon } from "@/components/shell/icon";
@@ -42,6 +42,8 @@ import {
   type PaymentStage,
 } from "@/lib/quotes/payment";
 import type { StoredProposal } from "@/lib/quotes/proposal-writer";
+import type { QuotePrice } from "@/lib/quotes/quote-price-server";
+import { stillToPrice } from "@/lib/quotes/job-price";
 import { STANDARD_NOTES, standardTemplates, type PaymentTerms, type QuoteNote } from "@/lib/templates/settings";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
@@ -78,7 +80,7 @@ const noteFor = (t: QuoteTemplates, key: string): QuoteNote | null =>
   t.notes.find((n) => n.key === key) ?? STANDARD_NOTES.find((n) => n.key === key) ?? null;
 
 type Answer =
-  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates }
+  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates; sm8Brief?: string | null; showLines?: boolean }
   /** `proposal` comes back when the draft moved on underneath the change */
   | { ok: false; reason: string; proposal?: StoredProposal | null };
 /** A person's edit, applied to the draft as it stands when its turn comes. */
@@ -116,6 +118,9 @@ export type Sm8Quote = {
   sentOn: string | null;
   /** Already worded, "$45,430 inc GST"; null without the money grant. */
   value: string | null;
+  /** The same, as money, on the basis ServiceM8 holds it; null without the
+      money grant. */
+  quoted?: { cents: number; basis: "ex" | "inc" } | null;
 };
 
 export function JobQuoteFace({
@@ -125,6 +130,8 @@ export function JobQuoteFace({
   onToast,
   sm8 = null,
   onOpenPaper,
+  onJobMaterials,
+  children,
 }: {
   /** The job card's uuid, or the row's until the record read lands. */
   job: string;
@@ -137,11 +144,23 @@ export function JobQuoteFace({
       page"). */
   sm8?: Sm8Quote | null;
   onOpenPaper?: (item: JobMediaItem) => void;
+  /** The builder's own sections (its labour and price), shown only while
+      the quote is open. */
+  children?: ReactNode;
+  /** The job's own materials list changed (an accepted option went on it). */
+  onJobMaterials?: () => void;
 }) {
-  /* A job quoted in ServiceM8 opens on THAT quote: a new version here is
-     asked for, never the first thing on the face */
+  /* THE QUOTE OPENS FROM ONE BUTTON (Isaac, 2026-10-05): "Create a quote"
+     when there is none, "Continue quote" on a draft, and on a job quoted in
+     ServiceM8 — whose quote shows first — "Update ServiceM8 quote", which
+     starts the builder from what that quote says. */
   const sm8Quoted = !!sm8 && (sm8.papers.length > 0 || !!sm8.sentOn);
-  const [startNew, setStartNew] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [sm8Brief, setSm8Brief] = useState<string | null>(null);
+  /* the business's own default for what the customer sees */
+  const [linesByDefault, setLinesByDefault] = useState(false);
+  /* each option's total, read again whenever the quote changes */
+  const [totals, setTotals] = useState<{ at: string; totals: OptionTotal[] | null } | null>(null);
   const sm8Block = sm8Quoted ? (
     <div className="wb2-jcsec">
       <div className="wb2-jcdhead">
@@ -186,12 +205,26 @@ export function JobQuoteFace({
         if (a.templates) setTpl(a.templates);
         latest.current = a.proposal;
         setLoaded(a.proposal);
+        setSm8Brief(a.sm8Brief ?? null);
+        setLinesByDefault(a.showLines === true);
         if (a.proposal) setBrief(a.proposal.brief);
       })
       /* NOT the draft box: drafting on a read that failed would pay for a
          new proposal over the one that couldn't be read */
       .catch(() => setReadFailed(true));
   }, [visible, job, reads]);
+
+  const version = loaded?.updatedAt ?? null;
+  useEffect(() => {
+    if (!open || !version) return;
+    let live = true;
+    optionTotals(job)
+      .then((t) => live && setTotals({ at: version, totals: t }))
+      .catch(() => live && setTotals({ at: version, totals: null }));
+    return () => {
+      live = false;
+    };
+  }, [open, version, job]);
 
   const write = async (kind: "draft" | "change" | "apply") => {
     const words = kind === "draft" ? brief : change;
@@ -261,6 +294,27 @@ export function JobQuoteFace({
     return next;
   };
 
+  /* Marking an option accepted puts its materials on the job's own list
+     (Isaac, 2026-10-05: "whichever one is accepted… will then turn into the
+     materials list for the job"). */
+  const accept = async (i: number) => {
+    const marking = !(latest.current?.draft.accepted ?? []).includes(i);
+    const ok = await save((d) => ({ ...d, accepted: toggleAccepted(d, i) }));
+    if (!ok || !marking) return;
+    /* the call alone inside the try: React Compiler 1.0 can't lower a
+       conditional or an optional call inside a try/catch */
+    let a: { ok: true; added: number; removed: number } | { ok: false; reason: string };
+    try {
+      const res = await fetch(ROUTE, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job, toJob: true }) });
+      a = (await res.json()) as typeof a;
+    } catch {
+      a = { ok: false, reason: "The job's materials couldn't be changed. Try again." };
+    }
+    if (!a.ok) return onToast(a.reason);
+    onJobMaterials?.();
+    onToast(a.added || a.removed ? "The accepted option's materials are on the job's list" : "The job's list already has the accepted option's materials");
+  };
+
   /** A block's own Save: closes that block's editor when it lands, and
       leaves any other editor open with its words in it. */
   const saveBlock = (block: Block, edit: Edit) =>
@@ -284,14 +338,29 @@ export function JobQuoteFace({
   if (loaded === undefined) return <Waiting note="Reading the proposal" />;
 
   const proposal = loaded;
-  if (!proposal && sm8Quoted && !startNew) {
+  if (!open) {
+    const start = () => {
+      /* ServiceM8's quote is the brief a new version starts from */
+      if (!proposal && sm8Quoted) setBrief((b) => b || sm8Brief || "");
+      setOpen(true);
+    };
     return (
       <>
         {sm8Block}
+        {proposal && (
+          <div className="wb2-jcsec">
+            <div className="wb2-jcdhead">
+              <b>Quote</b>
+              <em>
+                {proposal.changes.length ? "Changed" : "Drafted"} {whenOf(proposal.updatedAt)}
+              </em>
+            </div>
+          </div>
+        )}
         <div className="wb2-jqacts">
-          <button type="button" className="pbtn ghost" onClick={() => setStartNew(true)}>
-            <Icon name="plus" size={15} />
-            Start a new version
+          <button type="button" className={proposal ? "pbtn primary" : "pbtn ghost"} onClick={start}>
+            {!proposal && <Icon name="plus" size={15} />}
+            {proposal ? "Continue quote" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}
           </button>
         </div>
       </>
@@ -303,7 +372,7 @@ export function JobQuoteFace({
       {sm8Block}
       <div className="wb2-jcsec wb2-jq">
         <div className="wb2-jcdhead">
-          <b>{proposal ? "Start the proposal again" : sm8Quoted ? "A new version" : "Draft the proposal"}</b>
+          <b>{proposal ? "Start the proposal again" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}</b>
         </div>
         <NoteToken
           as="field"
@@ -329,8 +398,8 @@ export function JobQuoteFace({
                   Keep this draft
                 </button>
               )}
-              {!proposal && sm8Quoted && (
-                <button type="button" className="pbtn ghost" onClick={() => setStartNew(false)}>
+              {!proposal && (
+                <button type="button" className="pbtn ghost" onClick={() => setOpen(false)}>
                   Cancel
                 </button>
               )}
@@ -422,7 +491,7 @@ export function JobQuoteFace({
                 type="button"
                 className={`pbtn ghost sm wb2-jqacc${draft.accepted.includes(i) ? " on" : ""}`}
                 aria-pressed={draft.accepted.includes(i)}
-                onClick={() => void save((d) => ({ ...d, accepted: toggleAccepted(d, i) }))}
+                onClick={() => void accept(i)}
               >
                 {draft.accepted.includes(i) ? "Accepted" : "Mark accepted"}
               </button>
@@ -454,13 +523,13 @@ export function JobQuoteFace({
       <QuoteBlock title="Pricing" onEdit={() => setEditing("pricing")} editing={editing === "pricing"}>
         {editing === "pricing" ? (
           <PricingEdit
-            job={job}
             draft={draft}
+            linesByDefault={linesByDefault}
             onCancel={() => setEditing(null)}
             onSave={(pricing) => saveBlock("pricing", (d) => ({ ...d, ...pricing }))}
           />
         ) : (
-          <PricingBody draft={draft} />
+          <PricingBody draft={draft} totals={totals?.totals ?? null} quoted={sm8?.quoted ?? null} showLines={draft.showLines ?? linesByDefault} />
         )}
       </QuoteBlock>
 
@@ -523,6 +592,8 @@ export function JobQuoteFace({
           )}
         </div>
       </div>
+      {/* the builder's sections read the quote afresh each time it changes */}
+      <Fragment key={proposal.updatedAt}>{children}</Fragment>
     </>
   );
 }
@@ -773,10 +844,31 @@ function NamedRows({ label, rows }: { label: string; rows: readonly { name: stri
   );
 }
 
-function PricingBody({ draft }: { draft: ProposalDraft }) {
+/** The new total against what ServiceM8 quoted, on ServiceM8's own basis
+    (Isaac, 2026-10-05: "it can just show you a comparison of what was
+    already quoted versus the new quote"). */
+export function againstQuoted(t: OptionTotal, quoted: { cents: number; basis: "ex" | "inc" }): string {
+  const mine = quoted.basis === "ex" ? t.cents : t.incCents;
+  const gap = mine - quoted.cents;
+  const was = `ServiceM8 quoted ${fmtAud(quoted.cents)} ${quoted.basis} GST`;
+  return gap === 0 ? `${was}: the same` : `${was}: ${fmtAud(Math.abs(gap))} ${gap > 0 ? "more" : "less"}`;
+}
+
+function PricingBody({
+  draft,
+  totals,
+  quoted,
+  showLines,
+}: {
+  draft: ProposalDraft;
+  totals: OptionTotal[] | null;
+  quoted: { cents: number; basis: "ex" | "inc" } | null;
+  showLines: boolean;
+}) {
   return (
     <>
       <p className="wb2-jqmode">{PRICING_WORDS[draft.pricingMode]}</p>
+      <p className="wb2-jqmode">{showLines ? "The customer sees each option's line items and its total" : "The customer sees each option's total"}</p>
       <ul className="wb2-jqlines">
         {draft.pricingMode === "itemised"
           ? draft.items.map((it, i) => (
@@ -785,15 +877,21 @@ function PricingBody({ draft }: { draft: ProposalDraft }) {
                 <b>{it.name}</b>
               </li>
             ))
-          : draft.options.map((o, i) => (
-              <li key={i}>
-                <span>{o.priceCents != null ? `${fmtAud(o.priceCents)} + GST` : "Not priced yet"}</span>
-                <b>
-                  {optionHeading(draft, i)}
-                  {o.priceCents != null && <em>{`${fmtAud(Math.round(o.priceCents * 1.1))} inc GST`}</em>}
-                </b>
-              </li>
-            ))}
+          : draft.options.map((_, i) => {
+              /* its Price block's total, once nothing is left to price */
+              const t = totals?.[i];
+              const whole = t && t.left === 0 ? t.cents : null;
+              return (
+                <li key={i}>
+                  <span>{whole != null ? `${fmtAud(whole)} + GST` : t ? `${t.left} still to price` : "Not priced yet"}</span>
+                  <b>
+                    {optionHeading(draft, i)}
+                    {whole != null && t && <em>{`${fmtAud(t.incCents)} inc GST`}</em>}
+                    {whole != null && t && quoted && <em>{againstQuoted(t, quoted)}</em>}
+                  </b>
+                </li>
+              );
+            })}
       </ul>
       {draft.extras.length > 0 && (
         <div className="wb2-jqnote">
@@ -1178,45 +1276,36 @@ function OptionEdit({
   );
 }
 
-/** The Price block's total for the job, ex GST: what its own materials and
-    labour come to at the business's own prices. Null when it can't be read
-    or nothing is set to price it. */
-async function pricedTotal(job: string): Promise<number | null> {
-  const a = (await (await fetch(`/api/workboard/quote-price?job=${encodeURIComponent(job)}`)).json()) as {
-    ok: boolean;
-    price?: { ok: boolean; build?: { exGstCents: number } };
-  };
-  return a.ok && a.price?.ok && a.price.build ? a.price.build.exGstCents : null;
+/** Each option's total, ex GST, as its Price block works it out: whole,
+    or what's left to price. Null to a reader without money access. */
+export type OptionTotal = { cents: number; incCents: number; left: number };
+
+async function optionTotals(job: string): Promise<OptionTotal[] | null> {
+  const a = (await (await fetch(`/api/workboard/quote-price?job=${encodeURIComponent(job)}`)).json()) as { ok: boolean; price?: QuotePrice };
+  const p = a.ok ? a.price : null;
+  if (!p || !p.ok) return null;
+  return p.options.map((o) => ({
+    cents: o.build.exGstCents,
+    incCents: o.build.incGstCents,
+    left: stillToPrice({ unpriced: o.unpriced, labourFrom: p.labourFrom, labourCents: o.build.labour.sellCents }).length,
+  }));
 }
 
+/* An option's price is never typed (Isaac, 2026-10-05: "you should not
+   have to manually enter it in"): it is its Price block's total. */
 function PricingEdit({
-  job,
   draft,
+  linesByDefault,
   onCancel,
   onSave,
 }: {
-  job: string;
   draft: ProposalDraft;
+  linesByDefault: boolean;
   onCancel: () => void;
-  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances" | "options">) => Promise<boolean>;
+  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances" | "showLines">) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState(draft.pricingMode);
-  /* each option's price as typed, in dollars ex GST */
-  const [prices, setPrices] = useState<string[]>(draft.options.map((o) => (o.priceCents != null ? String(o.priceCents / 100) : "")));
-  const [taking, setTaking] = useState<number | null>(null);
-  const [priceNote, setPriceNote] = useState<string | null>(null);
-  const centsOf = (t: string) => {
-    const n = Number(t.replace(/[$,\s]/g, ""));
-    return t.trim() !== "" && Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
-  };
-  const take = async (i: number) => {
-    setTaking(i);
-    setPriceNote(null);
-    const total = await pricedTotal(job).catch(() => null);
-    if (total == null) setPriceNote("The Price block has no total yet: set what it asks for, then try again.");
-    else setPrices((cur) => cur.map((p, j) => (j === i ? String(total / 100) : p)));
-    setTaking(null);
-  };
+  const [lines, setLines] = useState(draft.showLines ?? linesByDefault);
   const [items, setItems] = useState(draft.items.map((it) => `${it.qty} × ${it.name}`).join("\n"));
   const [extras, setExtras] = useState(namedText(draft.extras));
   const [allowances, setAllowances] = useState(namedText(draft.allowances));
@@ -1229,30 +1318,16 @@ function PricingEdit({
       }),
       extras: namedOf(extras),
       allowances: namedOf(allowances),
-      options: draft.options.map((o, i) => ({ ...o, priceCents: centsOf(prices[i] ?? "") })),
+      /* the business's default stays the default until it's changed here */
+      showLines: lines === linesByDefault && draft.showLines == null ? null : lines,
     })
   );
   return (
     <div className="wb2-jqform">
-      {mode !== "itemised" &&
-        draft.options.map((o, i) => (
-          <div className="wb2-jqstage" key={`price-${i}`}>
-            <span className="wb2-jqpcts">{optionHeading(draft, i)}</span>
-            <input
-              className="wb2-fi wb2-jqpct"
-              inputMode="decimal"
-              aria-label={`${optionHeading(draft, i)} price, dollars ex GST`}
-              value={prices[i] ?? ""}
-              disabled={busy || taking !== null}
-              onChange={(e) => setPrices((cur) => cur.map((p, j) => (j === i ? e.target.value : p)))}
-            />
-            <span className="wb2-jqpcts">+ GST</span>
-            <button type="button" className="pbtn ghost sm" disabled={busy || taking !== null} onClick={() => void take(i)}>
-              {taking === i ? "Taking" : "Take the priced total"}
-            </button>
-          </div>
-        ))}
-      {priceNote && <p className="wb2-sherr">{priceNote}</p>}
+      <label className="wb2-jqcheck">
+        <input type="checkbox" checked={lines} onChange={(e) => setLines(e.target.checked)} disabled={busy} />
+        Show line items to the customer
+      </label>
       {(["multiple_choice", "optional", "itemised"] as const).map((m) => (
         <label className="wb2-jqcheck" key={m}>
           <input type="radio" name="jq-mode" checked={mode === m} onChange={() => setMode(m)} disabled={busy} />

@@ -7,13 +7,16 @@
 
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { CertListFile, CertWizardContext, ReadListResult } from "@/app/actions/certificates";
+import type { CertListFile, CertWizardContext, ReadDescriptionResult, ReadListResult } from "@/app/actions/certificates";
 import { readQuote, suggestBuilding } from "@/lib/certs/quote";
+import { mergeDescriptionReading } from "@/lib/certs/description-reader";
 import { JOB_1383, JOB_2933, JOB_3326 } from "@/lib/certs/__tests__/fixtures/jobs";
+import reads from "@/lib/certs/__tests__/fixtures/description-reads.json";
 
 const certWizardContext = jest.fn(async (): Promise<CertWizardContext | null> => null);
 const readCertifierList = jest.fn(async (..._a: unknown[]): Promise<ReadListResult> => ({ ok: false, error: "not in this test" }));
 const readCertifierEmail = jest.fn(async (..._a: unknown[]): Promise<ReadListResult> => ({ ok: false, error: "not in this test" }));
+const readJobDescription = jest.fn(async (..._a: unknown[]): Promise<ReadDescriptionResult> => ({ ok: false }));
 const certListFiles = jest.fn(async (..._a: unknown[]): Promise<CertListFile[] | null> => null);
 const cacheJobFiles = jest.fn(async (..._a: unknown[]) => ({ ok: true, cached: 1, remaining: 0, media: null, note: null }));
 jest.mock("@/app/actions/certificates", () => ({
@@ -22,6 +25,7 @@ jest.mock("@/app/actions/certificates", () => ({
   certificatePdfUrl: async () => "https://example.com/cert.pdf",
   readCertifierList: (...a: unknown[]) => readCertifierList(...a),
   readCertifierEmail: (...a: unknown[]) => readCertifierEmail(...a),
+  readJobDescription: (...a: unknown[]) => readJobDescription(...a),
   certListFiles: (...a: unknown[]) => certListFiles(...a),
   saveMySignature: async () => ({ ok: true, svg: "<svg/>" }),
 }));
@@ -68,6 +72,7 @@ const panel = (key: string) => within(document.getElementById(`czsec-${key}`) as
 beforeEach(() => {
   jest.clearAllMocks();
   certWizardContext.mockImplementation(async () => context());
+  readJobDescription.mockImplementation(async () => ({ ok: false }));
 });
 
 describe("what the job already says", () => {
@@ -125,6 +130,56 @@ describe("what the quote says about itself", () => {
 });
 
 describe("where the equipment came from", () => {
+  const job2933 = () => context({ job: { ...context().job, number: "2933", description: JOB_2933 }, reading: readQuote(JOB_2933) });
+  const tiffs2933: ReadDescriptionResult = { ok: true, reading: mergeDescriptionReading(reads.JOB_2933, readQuote(JOB_2933)) };
+
+  it("opens on the rule reader's draft and swaps in Tiff's reading of the description", async () => {
+    certWizardContext.mockImplementation(async () => job2933());
+    let answer: (r: ReadDescriptionResult) => void = () => {};
+    readJobDescription.mockImplementation(() => new Promise((r) => (answer = r)));
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    const eq = panel("equipment");
+    expect(eq.getByText("Tiff is reading the job's description…")).toBeInTheDocument();
+    expect(eq.queryByDisplayValue("RZQ250LY1")).toBeNull();
+    answer(tiffs2933);
+    expect(await eq.findByDisplayValue("RZQ250LY1")).toBeInTheDocument();
+    expect(eq.getByDisplayValue("FDYQN250LBV1")).toBeInTheDocument();
+    expect(eq.getByText("Filled in from the job's description. Check every row against what was installed.")).toBeInTheDocument();
+    expect(readJobDescription).toHaveBeenCalledWith("job-1");
+  });
+
+  it("leaves the equipment alone when it was changed before Tiff finished", async () => {
+    certWizardContext.mockImplementation(async () => job2933());
+    let answer: (r: ReadDescriptionResult) => void = () => {};
+    readJobDescription.mockImplementation(() => new Promise((r) => (answer = r)));
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    const eq = panel("equipment");
+    await userEvent.type(eq.getAllByLabelText("Model")[0], "MINE");
+    answer(tiffs2933);
+    await waitFor(() => expect(eq.queryByText("Tiff is reading the job's description…")).toBeNull());
+    expect(eq.getByDisplayValue("MINE")).toBeInTheDocument();
+    expect(eq.queryByDisplayValue("RZQ250LY1")).toBeNull();
+  });
+
+  it("keeps the rule reader's draft when Tiff can't read it", async () => {
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    await tab("Equipment");
+    expect(await panel("equipment").findByText("Filled in from the job's description. Check every row against what was installed.")).toBeInTheDocument();
+    expect(panel("equipment").getByDisplayValue("MUZ-AP42VGD2-A2")).toBeInTheDocument();
+  });
+
+  it("doesn't ask Tiff for a job whose equipment came from the accepted quote", async () => {
+    certWizardContext.mockImplementation(async () => context({ equipmentFrom: "quote" }));
+    open();
+    await screen.findByRole("tab", { name: "Equipment" });
+    expect(readJobDescription).not.toHaveBeenCalled();
+  });
+
   it("says it came from the accepted quote when it did", async () => {
     certWizardContext.mockImplementation(async () => context({ equipmentFrom: "quote" }));
     open();

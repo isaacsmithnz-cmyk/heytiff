@@ -13,6 +13,7 @@ import {
   certificatePdfUrl,
   readCertifierEmail,
   readCertifierList,
+  readJobDescription,
   saveMySignature,
   type CertListFile,
   type CertWizardContext,
@@ -286,6 +287,10 @@ export function CertWizard({
   const [error, setError] = useState<string | null>(null);
   const [issued, setIssued] = useState<Extract<IssueCertResult, { ok: true }> | null>(null);
   const [touched, setTouched] = useState(false);
+  /* Tiff reading the job's description; and whether the equipment has been
+     changed since the wizard opened, after which her reading isn't swapped in */
+  const [readingDescription, setReadingDescription] = useState(false);
+  const equipmentEdited = useRef(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
@@ -306,6 +311,24 @@ export function CertWizard({
           setA({ ...p.answers, equipmentConfirmed: false });
         } else {
           setA(startingAnswers(c));
+          /* A JOB QUOTED BEFORE THE QUOTE BUILDER: the rule reader's draft is
+             up at once, and Tiff's reading of the same words (about 5–10s)
+             replaces it while nothing in the equipment has been changed */
+          if (c.equipmentFrom === "description" && c.job.description?.trim()) {
+            equipmentEdited.current = false;
+            setReadingDescription(true);
+            void readJobDescription(jobUuid)
+              .catch(() => ({ ok: false as const }))
+              .then((res) => {
+                if (!live) return;
+                setReadingDescription(false);
+                if (!res.ok || equipmentEdited.current) return;
+                const read = { ...c, reading: res.reading };
+                const fresh = startingAnswers(read);
+                setCtx(read);
+                setA((cur) => ({ ...cur, covers: fresh.covers, systems: fresh.systems, fans: fresh.fans, installed: fresh.installed }));
+              });
+          }
         }
       })
       .catch(() => {
@@ -317,6 +340,7 @@ export function CertWizard({
   }, [jobUuid, reviseVersionId]);
 
   const set = (patch: Partial<CertAnswers>) => {
+    if ("covers" in patch || "systems" in patch || "fans" in patch || "installed" in patch) equipmentEdited.current = true;
     /* a change to a unit takes back "every unit is listed"; the refrigerant
        and charge, which ride on the same rows, don't */
     setA((cur) => {
@@ -582,7 +606,9 @@ export function CertWizard({
       {live && live.quoteToMark > 0 && (
         <p className="sw-state bad">{`This job's quote has ${live.quoteToMark} options and none is marked accepted. Mark the one the client took on the Quote face, then open the certificate again.`}</p>
       )}
-      {live?.reading.systems.length ? (
+      {readingDescription ? (
+        <p className="sw-note">Tiff is reading the job&apos;s description…</p>
+      ) : live?.reading.systems.length ? (
         <p className="sw-note">
           {live.equipmentFrom === "quote" ? "Filled in from the accepted quote. Check every row." : "Filled in from the job's description. Check every row against what was installed."}
         </p>

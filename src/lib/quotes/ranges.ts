@@ -138,6 +138,8 @@ function ductRun(figures: number[]): number[] | null {
     "Y 14-10-10", "BTO 250.200.150", Reece's "300 X 250 X 200 BTO", J&Z's
     "Bto 12- 8- 8- 8" and "Bto 14101010", a combo's "18/20-14-14". */
 export function fittingOf(name: string): { ins: number[]; outs: number[] } | null {
+  /* a fitting that takes a range of sizes at each end ("400-450, 300-350-400") is no one size */
+  if (/\d\s*-\s*\d+\s*,/.test(name)) return null;
   const combo = /\b(\d{1,2})\s*\/\s*(\d{1,2})\s*-\s*(\d{1,2})\s*-\s*(\d{1,2})\b/.exec(name);
   if (combo) {
     const ins = ductRun([Number(combo[1]), Number(combo[2])]);
@@ -266,7 +268,8 @@ export const RANGE_KINDS: Record<RangeKind, Kind> = {
     noun: "round diffusers",
     by: "by neck",
     match: [/diffuser/i],
-    not: [/square|slot|linear|swirl|plenum|bar|mdo|return|4\s*way/i],
+    /* a face is a square diffuser's, never a round one's */
+    not: [/square|slot|linear|swirl|plenum|bar|mdo|return|4\s*way|\d{2,4}\s*[xX×]\s*\d{2,4}/i],
     sizeOf: round,
   },
   square_diffuser: {
@@ -303,14 +306,14 @@ export const RANGE_KINDS: Record<RangeKind, Kind> = {
     noun: "slot diffusers",
     by: "by length",
     match: [/slot|linear/i],
-    not: [/return/i],
+    not: [/return|slotted|angle|strut|channel|batten|rail/i],
     sizeOf: (n) => faceOf(n),
   },
   return_grille: {
     label: "Return grilles",
     noun: "return grilles",
     by: "by size",
-    match: [/return|r\/a\b|eggcrate/i, /grille|grill|box|eggcrate/i],
+    match: [/return|r\/a\b|eggcrate/i, /grille|grill|box|eggcrate|chevron|filter/i],
     not: [/plenum|damper|bar\s*grille/i],
     sizeOf: (n) => {
       const face = faceOf(n);
@@ -323,7 +326,8 @@ export const RANGE_KINDS: Record<RangeKind, Kind> = {
     label: "Ys and BTOs",
     noun: "Ys and BTOs",
     by: "by their sizes",
-    match: [/\bbto\b|branch\s*take|\by\s*(?:piece|branch|junction)\b|\by\s+\d/i],
+    /* "BTO 250.200.150", AAD's "METAL BTO200.150.150" and "DBTO" doubles */
+    match: [/\bd?bto|branch\s*take|\by\s*(?:piece|branch|junction)\b|\by\s+\d/i],
     sizeOf: (n) => fittingOf(n),
   },
   plenum: {

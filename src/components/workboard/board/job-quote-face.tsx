@@ -301,15 +301,18 @@ export function JobQuoteFace({
     const marking = !(latest.current?.draft.accepted ?? []).includes(i);
     const ok = await save((d) => ({ ...d, accepted: toggleAccepted(d, i) }));
     if (!ok || !marking) return;
+    /* the call alone inside the try: React Compiler 1.0 can't lower a
+       conditional or an optional call inside a try/catch */
+    let a: { ok: true; added: number; removed: number } | { ok: false; reason: string };
     try {
       const res = await fetch(ROUTE, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job, toJob: true }) });
-      const a = (await res.json()) as { ok: true; added: number; removed: number } | { ok: false; reason: string };
-      if (!a.ok) return onToast(a.reason);
-      onJobMaterials?.();
-      onToast(a.added || a.removed ? "The accepted option's materials are on the job's list" : "The job's list already has the accepted option's materials");
+      a = (await res.json()) as typeof a;
     } catch {
-      onToast("The job's materials couldn't be changed. Try again.");
+      a = { ok: false, reason: "The job's materials couldn't be changed. Try again." };
     }
+    if (!a.ok) return onToast(a.reason);
+    onJobMaterials?.();
+    onToast(a.added || a.removed ? "The accepted option's materials are on the job's list" : "The job's list already has the accepted option's materials");
   };
 
   /** A block's own Save: closes that block's editor when it lands, and

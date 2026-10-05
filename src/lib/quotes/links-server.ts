@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
-import { codeFeatures, linkModels, type Decision, type ModelLink } from "./code-links";
+import { codeFeatures, linkModels, type Decision, type ModelLink, type Proposal } from "./code-links";
 import { compareOffers, netCents, type Offer } from "./price-book";
 import { currentItems, readSuppliers, type BookItem } from "./price-book-server";
 
@@ -36,24 +36,29 @@ export async function readDecisions(orgId: string): Promise<Map<string, Decision
   );
 }
 
-export async function decideLink(orgId: string, userId: string, model: string, code: string, decision: Decision) {
-  const { error } = await supabaseAdmin
-    .from("quote_code_links")
-    .upsert(
-      { org_id: orgId, model, code, decision, decided_by: userId, decided_at: new Date().toISOString() },
-      { onConflict: "org_id,model,code" }
-    );
+/** A person's answers on near matches, all at once: a unit's every code,
+    or a whole group of units. */
+export async function decideLinks(orgId: string, userId: string, answers: readonly { model: string; code: string; decision: Decision }[]) {
+  if (answers.length === 0) return true;
+  const now = new Date().toISOString();
+  const { error } = await supabaseAdmin.from("quote_code_links").upsert(
+    answers.map((a) => ({ org_id: orgId, model: a.model, code: a.code, decision: a.decision, decided_by: userId, decided_at: now })),
+    { onConflict: "org_id,model,code" }
+  );
   return !error;
 }
 
-export type PricedLink = ModelLink & PackModel & {
+/** A near unit with every supplier's price for it, so the person can see
+    what they're confirming. */
+export type ProposalView = Proposal & { offers: Offer[] };
+
+export type PricedLink = Omit<ModelLink, "proposals"> & PackModel & {
   /** every supplier's price through the linked codes, cheapest first */
   offers: Offer[];
   cheapest: Offer | null;
   savesCents: number | null;
-  /** for a near match: each proposed code's prices, so the person can see
-      what they're confirming */
-  proposedOffers: Record<string, Offer[]>;
+  /** the near units waiting for a person, one decision each */
+  proposals: ProposalView[];
   /** what the linked order code says about the unit, in a client's words */
   features: string[];
 };
@@ -95,7 +100,7 @@ export async function pricedLinks(
       ...models[n]!,
       ...l,
       ...cmp,
-      proposedOffers: Object.fromEntries(l.proposed.map((c) => [c, offersFor([c], items, suppliers)])),
+      proposals: l.proposals.map((p) => ({ ...p, offers: offersFor(p.codes, items, suppliers).sort((a, b) => a.netCents - b.netCents) })),
       features: l.codes[0] ? codeFeatures(l.codes[0]) : [],
     };
   });

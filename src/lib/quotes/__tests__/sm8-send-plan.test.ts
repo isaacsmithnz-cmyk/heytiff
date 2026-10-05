@@ -66,3 +66,13 @@ it("puts amounts ServiceM8's way, takes the business's usual tax rate, and check
   expect(checkBack([{ quantity: 1, unitPrice: 11500 }], 1150000)).toEqual({ sm8Cents: 1150000, gapCents: 0, matches: true });
   expect(checkBack([{ quantity: 1, unitPrice: 11000 }], 1150000).matches).toBe(false);
 });
+
+/* Isaac, 2026-10-05: "if it adds wifi, does it specify in the quote?" */
+it("says what a unit's order code gives it on the customer's line", () => {
+  const withWifi = priceBuildUp(
+    [{ key: "i", group: "Units", name: "MSZ-AP25VGD2", code: "MSZ-AP25VGKD2-A2", supplierKey: "aad", qty: 1, unitBuyCents: 40000, kind: "unit", features: ["Wi-Fi built in", "Demand response (DRED) ready"] }],
+    [{ stage: "Install", people: 1, days: 1 }],
+    settings
+  );
+  expect(optionLines(draft, 0, withWifi, true)[0]!.name).toBe("MSZ-AP25VGD2, Wi-Fi built in, Demand response (DRED) ready");
+});

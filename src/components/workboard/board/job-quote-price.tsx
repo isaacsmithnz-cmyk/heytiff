@@ -118,8 +118,13 @@ function OptionPriceBlock({ heading, option, labourFrom }: { heading: string; op
         g.lines.map((l) => (
           <div className="wb2-mline" key={l.key}>
             <b>{l.name}</b>
-            {/* a unit says who it's from: a system's indoor and outdoor come from one supplier */}
-            <em>{[`${qtyWords(l.qty)} at ${fmtAud(Math.round(l.unitBuyCents))} buy`, l.supplierName ? `from ${l.supplierName}` : null, l.because ?? null].filter(Boolean).join(", ")}</em>
+            {/* a unit says who it's from (a system's indoor and outdoor come
+                from one supplier) and what its order code gives it */}
+            <em>
+              {[`${qtyWords(l.qty)} at ${fmtAud(Math.round(l.unitBuyCents))} buy`, l.supplierName ? `from ${l.supplierName}` : null, ...(l.features ?? []), l.because ?? null]
+                .filter(Boolean)
+                .join(", ")}
+            </em>
             <span>{fmtAud(l.sellCents)}</span>
           </div>
         ))

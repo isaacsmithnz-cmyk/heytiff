@@ -63,7 +63,8 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   const priceOf = makePriceOf({ items: book, suppliers, confirmed: same.confirmed, chosenSupplier: choices, preferred });
 
   const byModel = new Map(links.map((l) => [l.model, l]));
-  const unitProposed = (model: string) => byModel.get(model)?.proposed ?? [];
+  /* a near unit by its newest code, once whatever its revisions */
+  const unitProposed = (model: string) => (byModel.get(model)?.proposals ?? []).map((p) => p.codes[0]!);
   const unitOffer = (model: string): UnitOffer | null => {
     const link = byModel.get(model);
     if (!link || link.offers.length === 0) return null;

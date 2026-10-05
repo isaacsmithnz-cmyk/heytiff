@@ -21,8 +21,17 @@ jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
       const q: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "in", "not", "order"]) q[m] = () => q;
-      q.limit = async () => ({ data: table === "sm8_attachments" ? attachments : [], error: null });
+      /* a query by uuid and its limit, as Postgres keeps them */
+      let uuids: string[] | null = null;
+      for (const m of ["select", "eq", "not", "order"]) q[m] = () => q;
+      q.in = (col: string, vals: string[]) => {
+        if (col === "uuid") uuids = vals;
+        return q;
+      };
+      q.limit = async (n: number) => ({
+        data: table === "sm8_attachments" ? attachments.filter((a) => !uuids || uuids.includes(a.uuid as string)).slice(0, n) : [],
+        error: null,
+      });
       q.or = async () => ({ data: table === "sm8_writes" ? writeRows : [], error: null });
       q.upsert = () => q;
       q.maybeSingle = async () => ({ data: { id: `doc-${uploads.length + 1}` }, error: null });
@@ -80,6 +89,21 @@ describe("cacheJobFiles", () => {
     writeRows = [{ remote_uuid: SENT, replaced_uuids: [] }];
     const res = await cacheJobFiles("job-1");
     expect(fetchFile.mock.calls.map((c) => c[1])).toEqual([THEIRS_1]);
+    expect(res).toMatchObject({ ok: true, cached: 1, remaining: 0 });
+  });
+
+  /* the quote page wants ServiceM8's quote PDF, not the six newest photos ahead of it */
+  it("brings across only the files named, when named", async () => {
+    attachments = [photo(THEIRS_1), photo(THEIRS_2)];
+    const res = await cacheJobFiles("job-1", [THEIRS_2]);
+    expect(fetchFile.mock.calls.map((c) => c[1])).toEqual([THEIRS_2]);
+    expect(res).toMatchObject({ ok: true, cached: 1, remaining: 0 });
+  });
+
+  it("finds a named file older than the newest 200", async () => {
+    attachments = [...Array.from({ length: 210 }, (_, i) => photo(`site-${i}`)), { ...photo("quote-pdf"), file_type: ".pdf" }];
+    const res = await cacheJobFiles("job-1", ["quote-pdf"]);
+    expect(fetchFile.mock.calls.map((c) => c[1])).toEqual(["quote-pdf"]);
     expect(res).toMatchObject({ ok: true, cached: 1, remaining: 0 });
   });
 

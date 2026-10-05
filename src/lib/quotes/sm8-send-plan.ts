@@ -111,6 +111,20 @@ export function sendPlan(input: {
   };
 }
 
+/** A plan's fingerprint: the send is refused unless the plan worked out
+    again at the press is the one that was on screen (the quote, its
+    prices or the job's lines can move between the two). FNV-1a over its
+    JSON; a check, not a secret. */
+export function planKey(plan: SendPlan): string {
+  const text = JSON.stringify(plan);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${text.length.toString(36)}-${h.toString(36)}`;
+}
+
 /** A unit price as ServiceM8 keeps it: dollars to four places. */
 export const sm8Amount = (cents: number) => (cents / 100).toFixed(4);
 

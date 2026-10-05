@@ -1,6 +1,6 @@
 import { priceBuildUp } from "../buildup";
 import { normaliseDraft } from "../proposal";
-import { checkBack, optionLines, sendPlan, sm8Amount, usualTaxRate } from "../sm8-send-plan";
+import { checkBack, optionLines, planKey, sendPlan, sm8Amount, usualTaxRate } from "../sm8-send-plan";
 
 /* Isaac, 2026-10-05: "if a quote is accepted, then it can turn that into the
    work order for service mate… copy the scope and line items" */
@@ -75,4 +75,13 @@ it("says what a unit's order code gives it on the customer's line", () => {
     settings
   );
   expect(optionLines(draft, 0, withWifi, true)[0]!.name).toBe("MSZ-AP25VGD2, Wi-Fi built in, Demand response (DRED) ready");
+});
+
+/* a send goes only as it was shown */
+describe("planKey", () => {
+  it("is the same for the same plan, and changes with any line", () => {
+    const plan = { ok: false as const, why: "There's no quote on this job." };
+    expect(planKey(plan)).toBe(planKey({ ...plan }));
+    expect(planKey(plan)).not.toBe(planKey({ ok: false, why: "There's no quote on this job!" }));
+  });
 });

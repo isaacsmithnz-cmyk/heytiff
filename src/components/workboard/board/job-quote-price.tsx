@@ -29,20 +29,23 @@ const qtyWords = (n: number) => String(Math.round(n * 100) / 100);
 const daysWords = (d: number) => `${Math.round(d * 100) / 100} person-day${d === 1 ? "" : "s"}`;
 const LABOUR_FROM = { brief: "from the brief", history: "your typical for the work", none: "" } as const;
 
-export function JobQuotePrice({ job, visible }: { job: string; visible: boolean }) {
-  const [price, setPrice] = useState<QuotePrice | null | undefined>(undefined);
+export function JobQuotePrice({ job, visible, version }: { job: string; visible: boolean; version?: string | null }) {
+  /* read again whenever the quote's version changes, the last price kept on
+     screen meanwhile, so the column beside the builder never blanks */
+  const [read, setRead] = useState<{ at: string | null | undefined; price: QuotePrice | null } | null>(null);
+  const price = read?.price;
 
   useEffect(() => {
-    if (!visible || price !== undefined) return;
+    if (!visible || (read && read.at === version)) return;
     let live = true;
     fetch(`${ROUTE}?job=${encodeURIComponent(job)}`)
       .then((r) => r.json() as Promise<Answer>)
-      .then((a) => live && setPrice(a.ok ? a.price : null))
-      .catch(() => live && setPrice(null));
+      .then((a) => live && setRead({ at: version, price: a.ok ? a.price : null }))
+      .catch(() => live && setRead({ at: version, price: null }));
     return () => {
       live = false;
     };
-  }, [job, visible, price]);
+  }, [job, visible, version, read]);
 
   if (!price) return null;
 

@@ -78,9 +78,9 @@ async function orgOf(): Promise<string | null> {
    prod walk, and the 503 said nothing about which constraint. The wrapper
    turns any throw into a result the caller can read and a log line naming
    the job. */
-export async function cacheJobFiles(jobUuid: string): Promise<CacheJobFilesResult> {
+export async function cacheJobFiles(jobUuid: string, only?: readonly string[]): Promise<CacheJobFilesResult> {
   try {
-    return await cacheJobFilesInner(jobUuid);
+    return await cacheJobFilesInner(jobUuid, only);
   } catch (e) {
     console.error(`[job-media] caching failed for ${jobUuid}:`, e);
     // ok:false, so the sheet's loop stops rather than retrying into it.
@@ -88,11 +88,17 @@ export async function cacheJobFiles(jobUuid: string): Promise<CacheJobFilesResul
   }
 }
 
-async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult> {
+async function cacheJobFilesInner(jobUuid: string, only?: readonly string[]): Promise<CacheJobFilesResult> {
   if (!(await can("workboard"))) return NOTHING;
   const orgId = await orgOf();
   const id = (jobUuid ?? "").trim().slice(0, 80);
   if (!orgId || !id) return NOTHING;
+  /* ONLY THESE FILES, when named (the quote page wants ServiceM8's quote
+     PDF, not the six newest site photos ahead of it). A choice the client
+     handed in: strings only, a handful, each still read inside this job. */
+  const named = Array.isArray(only)
+    ? new Set(only.filter((u): u is string => typeof u === "string").slice(0, 20).map((u) => u.trim().slice(0, 80)))
+    : null;
 
   const access = await sm8Access(orgId);
   if (!access) return { ...NOTHING, note: "ServiceM8 isn't connected." };
@@ -142,7 +148,9 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
     orgId,
     live.map((r) => r.uuid)
   );
-  const wanted = live.filter((r) => isCacheableMedia(r.file_type) && !have.has(r.uuid) && !ours.has(r.uuid));
+  const wanted = live.filter(
+    (r) => isCacheableMedia(r.file_type) && !have.has(r.uuid) && !ours.has(r.uuid) && (!named || named.has(r.uuid))
+  );
 
   if (wanted.length === 0) {
     return {

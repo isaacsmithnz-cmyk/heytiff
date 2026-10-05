@@ -626,6 +626,23 @@ describe("the page's search slots", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(readMirrorJob).toHaveBeenCalledWith("j-old");
   });
+
+  /* the quote page's way back to the job (Isaac, 2026-10-05) */
+  it("opens a job handed in on the face it names: Quote", async () => {
+    /* the Quote face reads its draft; held open here, unanswered */
+    const was = global.fetch;
+    global.fetch = jest.fn(() => new Promise<Response>(() => undefined));
+    try {
+      await mountWork({
+        openTarget: { kind: "job", job: mirrorJob({ remoteId: "j-old" }), face: "quote" },
+      });
+      const sheet = await screen.findByRole("dialog");
+      expect(within(sheet).getByRole("region", { name: "Quote" })).toBeInTheDocument();
+      expect(within(sheet).getByRole("tab", { name: "Summary" })).toHaveAttribute("aria-selected", "false");
+    } finally {
+      global.fetch = was;
+    }
+  });
 });
 
 describe("opening a row", () => {

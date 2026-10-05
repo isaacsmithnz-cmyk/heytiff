@@ -22,13 +22,15 @@ type Seen = { plan: SendPlan; editDate: string | null };
 
 const qtyWords = (n: number) => String(Math.round(n * 100) / 100);
 
-export function JobQuoteSend({ job, visible }: { job: string; visible: boolean }) {
+export function JobQuoteSend({ job, visible, version }: { job: string; visible: boolean; version?: string | null }) {
   const [seen, setSeen] = useState<Seen | null | undefined>(undefined);
   const [offer, setOffer] = useState<{ offered: boolean; trial: boolean }>({ offered: false, trial: false });
   const [sending, setSending] = useState(false);
   const [answer, setAnswer] = useState<QuoteSendAnswer | null>(null);
   const [reads, setReads] = useState(0);
 
+  /* a new version of the quote is read afresh; what was read stays on
+     screen until then */
   useEffect(() => {
     if (!visible) return;
     let live = true;
@@ -42,7 +44,7 @@ export function JobQuoteSend({ job, visible }: { job: string; visible: boolean }
     return () => {
       live = false;
     };
-  }, [job, visible, reads]);
+  }, [job, visible, reads, version]);
 
   const send = async () => {
     if (!seen) return;

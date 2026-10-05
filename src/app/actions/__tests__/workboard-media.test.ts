@@ -83,6 +83,14 @@ describe("cacheJobFiles", () => {
     expect(res).toMatchObject({ ok: true, cached: 1, remaining: 0 });
   });
 
+  /* the quote page wants ServiceM8's quote PDF, not the six newest photos ahead of it */
+  it("brings across only the files named, when named", async () => {
+    attachments = [photo(THEIRS_1), photo(THEIRS_2)];
+    const res = await cacheJobFiles("job-1", [THEIRS_2]);
+    expect(fetchFile.mock.calls.map((c) => c[1])).toEqual([THEIRS_2]);
+    expect(res).toMatchObject({ ok: true, cached: 1, remaining: 0 });
+  });
+
   it("downloads on lane `read`, counted against the connection's account", async () => {
     attachments = [photo(THEIRS_1)];
     await cacheJobFiles("job-1");

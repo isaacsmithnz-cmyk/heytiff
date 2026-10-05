@@ -101,6 +101,13 @@ jest.mock("@/lib/voice/transcribe", () => ({ isTranscriptionConfigured: () => fa
 jest.mock("@/lib/integrations/store", () => ({
   getConnectionView: jest.fn(async () => null),
 }));
+jest.mock("@/components/workboard/quote/quote-screen", () => ({ QuoteScreen: () => null }));
+jest.mock("@/lib/workboard/all-jobs-query", () => ({
+  resolveJobCard: jest.fn(async (_org: string, id: string) => ({ parentRemoteId: id, focusRemoteId: null })),
+}));
+jest.mock("@/app/actions/workboard", () => ({
+  readMirrorJob: jest.fn(async () => ({ detail: { jobNumber: "2905" }, focusRemoteId: null })),
+}));
 jest.mock("@/lib/auth0", () => ({
   auth0: { getSession: jest.fn(async () => ({ user: { sub: "auth0|me" }, orgId: "org-1" })) },
 }));
@@ -115,6 +122,7 @@ import DataLibraryPage from "../studio/data-library/page";
 import WorkboardPage from "../workboard/page";
 import WorkboardProjectsPage from "../workboard/projects/page";
 import WorkboardProjectPage from "../workboard/projects/[id]/page";
+import WorkboardQuotePage from "../workboard/quotes/[id]/page";
 
 const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/heat-load", HeatLoadPage, "toolbox"],
@@ -153,6 +161,7 @@ describe("held → the page renders", () => {
 describe("the dynamic leaves check the same door", () => {
   const DYNAMIC: [string, (p: { params: Promise<{ id: string }> }) => Promise<unknown>][] = [
     ["workboard/projects/[id]", WorkboardProjectPage],
+    ["workboard/quotes/[id]", WorkboardQuotePage],
   ];
   const props = { params: Promise.resolve({ id: "x-1" }) };
 
@@ -245,5 +254,14 @@ describe("the Data Library is admin+, by role and not by capability", () => {
   it("fails closed when there's no membership to read a role from", async () => {
     role = null;
     await expect(DataLibraryPage()).rejects.toThrow("REDIRECT:/dashboard");
+  });
+});
+
+/* Drafting a quote is running the board: the quote page sends anyone who
+   can't back to the job card (Isaac, 2026-10-05: the quote page). */
+describe("the quote page", () => {
+  it("sends someone without Workboard manage to the job card", async () => {
+    (can as jest.Mock).mockImplementation(async (cap: string) => cap !== "workboard_manage");
+    await expect(WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }) })).rejects.toThrow("REDIRECT:/dashboard/workboard?job=x-1");
   });
 });

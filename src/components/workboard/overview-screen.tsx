@@ -108,12 +108,15 @@ type SideKey = (typeof SIDES)[number]["key"];
 export function OverviewScreen({
   data,
   openJob = null,
+  openFace = null,
   openSearch = null,
   openVisit = null,
 }: {
   data: WorkboardData;
   /** A job named in the URL — the page resolved it; this screen lands on it. */
   openJob?: AllJobsMirrorJob | null;
+  /** The face that job's card opens on, when the URL names one (`&face=quote`). */
+  openFace?: "quote" | null;
   /** Words named in the URL (`?q=`) — the board lands searching for them. */
   openSearch?: { text: string } | null;
   /** A visit named in the URL (`?visit=`), one the maintenance board holds.
@@ -142,13 +145,13 @@ export function OverviewScreen({
   type Handoff =
     | { side: "maintenance"; kind: "visit" | "agreement"; id: string }
     | { side: "projects"; kind: "trip"; id: string }
-    | { side: "jobs"; kind: "job"; job: AllJobsMirrorJob };
+    | { side: "jobs"; kind: "job"; job: AllJobsMirrorJob; face?: "quote" };
   const [handoff, setHandoff] = useState<Handoff | null>(
     /* A job named in the URL arrives the way a search hit does: the jobs
        side, its sheet open on that job. A visit arrives on the Maintenance
        side, its sheet open. */
     openJob
-      ? { side: "jobs", kind: "job", job: openJob }
+      ? { side: "jobs", kind: "job", job: openJob, face: openFace ?? undefined }
       : openVisit
         ? { side: "maintenance", kind: "visit", id: openVisit.id }
         : null
@@ -163,7 +166,7 @@ export function OverviewScreen({
   if (openJob !== takenJob) {
     setTakenJob(openJob);
     if (openJob) {
-      setHandoff({ side: "jobs", kind: "job", job: openJob });
+      setHandoff({ side: "jobs", kind: "job", job: openJob, face: openFace ?? undefined });
       setTab("jobs");
     }
   }
@@ -186,7 +189,7 @@ export function OverviewScreen({
   useEffect(() => {
     if (!openJob && !openSearch && !openVisit) return;
     const url = new URL(window.location.href);
-    const named = ["job", "q", "visit"].filter((k) => url.searchParams.has(k));
+    const named = ["job", "face", "q", "visit"].filter((k) => url.searchParams.has(k));
     if (!named.length) return;
     for (const k of named) url.searchParams.delete(k);
     window.history.replaceState(null, "", url.toString());

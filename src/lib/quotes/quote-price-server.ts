@@ -9,8 +9,10 @@ import { recordQuoteItems } from "./book-view-server";
 import { makePriceOf } from "./price-resolver";
 import { readQuoteLabour } from "./quote-labour-server";
 import { componentShortlists, readQuoteSettings } from "./settings-query";
+import { rangeOffersFrom, readRanges } from "./ranges-server";
 import { rollMetresOf } from "./components";
 import { optionMaterials } from "./option-materials";
+import type { RangeKind } from "./ranges";
 import type { AllowanceKey } from "./settings";
 import { readStoredProposal } from "./proposal-writer";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
@@ -45,12 +47,13 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   const rows = lists.flatMap((l) => l.rows);
 
   /* the book read once, for the units, the parts and the codes alike */
-  const [suppliers, book, same, choices, preferred] = await Promise.all([
+  const [suppliers, book, same, choices, preferred, rangeRows] = await Promise.all([
     readSuppliers(orgId),
     rows.length ? currentItems(orgId) : Promise.resolve([]),
     readSameDecisions(orgId),
     readUnitChoices(orgId),
     readPreferred(orgId),
+    rows.length ? readRanges(orgId) : Promise.resolve([]),
   ]);
   const [links, shortlists, labour] = await Promise.all([
     rows.length ? pricedLinks(orgId, { items: book, suppliers }) : Promise.resolve([]),
@@ -85,7 +88,17 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
     };
   };
 
-  const deps = { priceOf, unitOffer, unitOffers, unitProposed, component, allowance: (k: AllowanceKey) => settings.allowances[k] };
+  /* the business's ranges that come in sizes, at today's prices */
+  const ranges = rangeOffersFrom(rangeRows, book, suppliers);
+  const deps = {
+    priceOf,
+    unitOffer,
+    unitOffers,
+    unitProposed,
+    component,
+    allowance: (k: AllowanceKey) => settings.allowances[k],
+    range: (kind: RangeKind) => ranges.get(kind) ?? [],
+  };
   /* the job's labour, on each option until an option carries its own */
   const { visits, from } = labour ? labourVisits(labour.advice, built.settings.dayHours) : { visits: [], from: "none" as const };
   const options = lists.map((l) => {

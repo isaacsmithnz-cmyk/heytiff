@@ -241,3 +241,59 @@ describe("a system's units", () => {
     ]);
   });
 });
+
+/* Isaac, 2026-10-04: a kit's parts at the size it needs, from the
+   business's own range of each (ranges.ts). */
+describe("a part that comes in sizes", () => {
+  const offer = (code: string, size: object, perUnitCents: number, name = code) => ({ code, size, perUnitCents, supplierKey: "reece", name });
+  const isolators = [offer("2P-20", { amps: 20, poles: 2 }, 1828), offer("2P-35", { amps: 35, poles: 2 }, 2828), offer("3P-20", { amps: 20, poles: 3 }, 4436)];
+  const flex = [offer("1311402-1", { mm: 250, lengthM: 6 }, 2070, "DUCT FLEXIBLE PLAIN CORE 250MM X 6M (EA)"), offer("VB350", { mm: 350, lengthM: null }, 4034, "VORTEX FLEXIBLE DUCT R1.0 350mm - 14\"")];
+  const preferredIsolator = { perUnitCents: 1455, supplierKey: "aad", code: "WPS135", name: "Isolator 35A weatherproof" };
+  const withRanges: JobPriceDeps = {
+    ...deps,
+    component: (key) => (key === "isolator" ? preferredIsolator : null),
+    range: (kind) => (kind === "isolator" ? isolators : kind === "flex_duct" ? flex : []),
+  };
+  const priced = (rows: { name: string; sub: string; qty: string }[], d = withRanges) => priceJobList(rows, d);
+
+  it("takes the isolator for the outdoor's current on its supply", () => {
+    const { lines, unpriced } = priced([
+      { name: "Isolator", sub: "for the outdoor's 16 A on single phase, Living", qty: "1" },
+      { name: "Isolator", sub: "for the outdoor's 28 A on single phase, the ducted system", qty: "1" },
+      { name: "Isolator", sub: "for the outdoor's 13 A on three phase, the VRF", qty: "1" },
+      { name: "Isolator", sub: "for the outdoor's 40 A on single phase, the VRF", qty: "1" },
+    ]);
+    expect(lines.map((l) => [l.code, l.unitBuyCents, l.duct])).toEqual([
+      ["2P-20", 1828, false],
+      ["2P-35", 2828, false],
+      ["3P-20", 4436, false],
+    ]);
+    expect(unpriced).toEqual([{ name: "Isolator", qty: "1", why: "No 40 A on single phase in your isolators" }]);
+  });
+
+  it("keeps the preferred isolator while there's no range, or no current to size it by", () => {
+    const none = priced([{ name: "Isolator", sub: "for the outdoor's 16 A on single phase, Living", qty: "1" }], { ...withRanges, range: () => [] });
+    expect(none.lines.map((l) => l.code)).toEqual(["WPS135"]);
+    const unsized = priced([{ name: "Isolator", sub: "Living", qty: "1" }]);
+    expect(unsized.lines.map((l) => l.code)).toEqual(["WPS135"]);
+  });
+
+  it("buys flexible duct by the bag when it's needed by the metre, and says when a bag's length isn't known", () => {
+    const { lines, unpriced } = priced([
+      { name: "Trunk Ø250", sub: "the ducted system", qty: "1" },
+      { name: "Flexible duct Ø250", sub: "the bedrooms", qty: "14 m" },
+      { name: "Flexible duct Ø350", sub: "the trunk", qty: "8 m" },
+      { name: "Zone damper Ø250", sub: "a zone", qty: "4" },
+      { name: "Zone damper", sub: "a zone", qty: "Size to ask" },
+    ]);
+    expect(lines.map((l) => [l.name, l.code, l.qty, l.duct])).toEqual([
+      ["Trunk Ø250", "1311402-1", 1, true],
+      ["Flexible duct Ø250", "1311402-1", 3, true],
+    ]);
+    expect(unpriced.map((u) => u.why)).toEqual([
+      "How long one VORTEX FLEXIBLE DUCT R1.0 350mm - 14\" is isn't in its name",
+      "Choose your zone dampers in Quoting",
+      "Size isn't in the brief: ask",
+    ]);
+  });
+});

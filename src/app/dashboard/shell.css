@@ -12125,3 +12125,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .pbi td { padding:8px; border-top:1px solid var(--line); vertical-align:top; }
 .pbi .pbi-num { text-align:right; white-space:nowrap; }
 .pbi-code { white-space:nowrap; }
+
+/* Quoting's ranges that come in sizes (quoting-ranges.tsx): a part, the
+   business's range of it, how many sizes; opened, its product lines and
+   the sizes of the one chosen, as a ledger */
+.qs-row.qsr-row { grid-template-columns:200px minmax(0, 1fr) 132px 132px; }
+.qsr-pick { display:flex; flex-direction:column; gap:12px; }
+.qs-list li.qsr-line { grid-template-columns:minmax(0, 1fr) 132px; }
+.qs-list li.qsr-line .pbtn { justify-self:end; }
+.qsr-proposal { margin-top:0; }
+.qsr-code { display:block; font-size:13px; font-weight:500; color:var(--q); }
+.qsr-width { width:96px; }

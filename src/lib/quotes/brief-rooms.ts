@@ -10,6 +10,7 @@ import {
 import { formFactorLabel } from "@/lib/studio/form-factors";
 import { proposeMultiIdus, proposeMultiOdus } from "@/lib/studio/multi";
 import type { DuctedRead } from "./brief-ducted";
+import { forTheOutdoorsCurrent, forTheOutdoorsSize } from "./ranges";
 
 /* ROOMS READ FROM THE BRIEF, SIZED (Isaac, 2026-10-04: "What if I said the
    room is 30m2?… API call should be able to gauge based on the size of the
@@ -99,6 +100,8 @@ export type PairOption = {
   outdoorWidthMm: number | null;
   outdoorWeightKg: number | null;
   outdoorAmps: number | null;
+  /** the outdoor's supply, from the pack: its isolator is sized on it */
+  outdoorPhase?: "1" | "3" | null;
 };
 
 export type SizedRoom = {
@@ -242,6 +245,7 @@ export function sizeRoom(
     outdoorWidthMm: odu.get(p.odu_model)?.width_mm ?? null,
     outdoorWeightKg: odu.get(p.odu_model)?.weight_kg ?? null,
     outdoorAmps: odu.get(p.odu_model)?.max_amps_a ?? null,
+    outdoorPhase: odu.get(p.odu_model)?.phase ?? null,
   });
   const fitAsked = () => [...(room.runM == null ? ["the pipe run"] : []), ...(room.outdoorAt == null ? ["where the outdoor sits"] : [])];
 
@@ -338,15 +342,14 @@ const MOUNT_NAME = { ground: KIT.groundMount, wall: KIT.wallBracket, roof: KIT.r
     brief says. What isn't known goes on asked, and the Price says so. */
 export function kitRows(room: Pick<SizedRoom, "name" | "drain" | "newCircuit">, o: PairOption, c: KitChoices): { name: string; sub: string; qty: string }[] {
   const run = c.runM != null ? `${c.runM} m` : RUN_TO_ASK;
-  const size = [o.outdoorWidthMm != null ? `${o.outdoorWidthMm} mm` : null, o.outdoorWeightKg != null ? `${o.outdoorWeightKg} kg` : null].filter(Boolean).join(", ");
   const rows = [
     { name: o.indoor, sub: `${o.style} indoor unit, ${room.name}`, qty: "1" },
     { name: o.outdoor, sub: `Outdoor unit, ${room.name}`, qty: "1" },
     { name: `ø${o.liquidMm} / ø${o.gasMm} pair coil`, sub: `liquid / gas mm, ${room.name}`, qty: run },
     c.outdoorAt
-      ? { name: MOUNT_NAME[c.outdoorAt], sub: `${size ? `for the outdoor's ${size}, ` : ""}${room.name}`, qty: "1" }
+      ? { name: MOUNT_NAME[c.outdoorAt], sub: `${forTheOutdoorsSize(o.outdoorWidthMm, o.outdoorWeightKg)}${room.name}`, qty: "1" }
       : { name: KIT.mount, sub: room.name, qty: WHERE_TO_ASK },
-    { name: KIT.isolator, sub: `${o.outdoorAmps != null ? `for the outdoor's ${o.outdoorAmps} A, ` : ""}${room.name}`, qty: "1" },
+    { name: KIT.isolator, sub: `${forTheOutdoorsCurrent(o.outdoorAmps, o.outdoorPhase ?? null)}${room.name}`, qty: "1" },
     { name: KIT.pipeCover, sub: `along the run, ${room.name}`, qty: run },
     { name: KIT.drainHose, sub: `along the run, ${room.name}`, qty: run },
   ];
@@ -372,6 +375,8 @@ export type MultiOption = {
   outdoorWidthMm: number | null;
   outdoorWeightKg: number | null;
   outdoorAmps: number | null;
+  /** the outdoor's supply, from the pack: its isolator is sized on it */
+  outdoorPhase?: "1" | "3" | null;
   heads: MultiHead[];
   /** the pack's limits on pipe, in metres */
   maxTotalM: number | null;
@@ -415,6 +420,7 @@ export function sizeMulti(rooms: readonly SizedRoom[], pack: DataPack): MultiPro
       outdoorWidthMm: pick.odu.width_mm ?? null,
       outdoorWeightKg: pick.odu.weight_kg ?? null,
       outdoorAmps: pick.odu.max_amps_a ?? null,
+      outdoorPhase: pick.odu.phase ?? null,
       heads: heads.map(({ room, idu }) => ({
         room: room.name,
         indoor: idu.model,
@@ -453,14 +459,13 @@ export function multiKitRows(
   rooms: readonly Pick<SizedRoom, "name" | "drain" | "newCircuit">[],
   c: { runs: Record<string, number | null>; outdoorAt: OutdoorAt | null }
 ): { name: string; sub: string; qty: string }[] {
-  const size = [m.outdoorWidthMm != null ? `${m.outdoorWidthMm} mm` : null, m.outdoorWeightKg != null ? `${m.outdoorWeightKg} kg` : null].filter(Boolean).join(", ");
   const system = `the multi`;
   const rows = [
     { name: m.outdoor, sub: `Multi outdoor unit, ${m.heads.length} heads`, qty: "1" },
     c.outdoorAt
-      ? { name: MOUNT_NAME[c.outdoorAt], sub: `${size ? `for the outdoor's ${size}, ` : ""}${system}`, qty: "1" }
+      ? { name: MOUNT_NAME[c.outdoorAt], sub: `${forTheOutdoorsSize(m.outdoorWidthMm, m.outdoorWeightKg)}${system}`, qty: "1" }
       : { name: KIT.mount, sub: system, qty: WHERE_TO_ASK },
-    { name: KIT.isolator, sub: `${m.outdoorAmps != null ? `for the outdoor's ${m.outdoorAmps} A, ` : ""}${system}`, qty: "1" },
+    { name: KIT.isolator, sub: `${forTheOutdoorsCurrent(m.outdoorAmps, m.outdoorPhase ?? null)}${system}`, qty: "1" },
   ];
   if (rooms.some((r) => r.newCircuit)) rows.push({ name: KIT.newCircuit, sub: system, qty: "1" });
   for (const h of m.heads) {

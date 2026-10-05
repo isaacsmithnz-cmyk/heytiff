@@ -397,6 +397,23 @@ const asBookItem = (r: FoundRow): BookItem => ({
   uom: r.uom,
 });
 
+/** The current items with these codes, priced as a quote takes them. */
+export async function currentItemsByCode(orgId: string, codes: readonly string[]): Promise<BookItem[]> {
+  const out: BookItem[] = [];
+  const unique = [...new Set(codes)];
+  for (let i = 0; i < unique.length; i += 200) {
+    const { data, error } = await supabaseAdmin
+      .from("quote_price_items")
+      .select(`supplier_key, code, name, times_bought, uom, ${PRICE_COLUMNS}`)
+      .eq("org_id", orgId)
+      .eq("current", true)
+      .in("code", unique.slice(i, i + 200));
+    if (error) throw new Error(error.message);
+    out.push(...((data ?? []) as FoundRow[]).map(asBookItem));
+  }
+  return out;
+}
+
 /** The current items whose code or name holds every word (searchWords),
     and the confirmed same-item partners of what's found, though their names
     differ. The database narrows by the longest word — the one fewest names

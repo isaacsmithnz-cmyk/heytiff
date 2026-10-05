@@ -1,6 +1,7 @@
 import type { DataPack, ZoningController } from "@/lib/studio/packs/schema";
 import type { SizedRoom } from "./brief-rooms";
 import { KIT, RUN_TO_ASK, WHERE_TO_ASK, type OutdoorAt } from "./brief-rooms";
+import { forTheOutdoorsCurrent, forTheOutdoorsSize } from "./ranges";
 
 /* A DUCTED SYSTEM READ FROM THE BRIEF (Isaac, 2026-10-04: "The brief will
    decide all of this. If I say we will connect all 3 outlets straight to
@@ -118,7 +119,7 @@ export function checkDucted(read: DuctedRead, brief: string): { read: DuctedRead
   };
 }
 
-export type DuctedPair = { indoor: string; outdoor: string; coolKw: number; heatKw: number; airflowLs: number | null; liquidMm: number; gasMm: number; outdoorWidthMm: number | null; outdoorWeightKg: number | null; outdoorAmps: number | null };
+export type DuctedPair = { indoor: string; outdoor: string; coolKw: number; heatKw: number; airflowLs: number | null; liquidMm: number; gasMm: number; outdoorWidthMm: number | null; outdoorWeightKg: number | null; outdoorAmps: number | null; outdoorPhase?: "1" | "3" | null };
 
 /** The pack's ducted pairs that cover the rooms' loads together, cooling
     and heating, at the smallest size that does, one per series. */
@@ -147,6 +148,7 @@ export function sizeDucted(rooms: readonly Pick<SizedRoom, "loadKw">[], pack: Pi
         outdoorWidthMm: odu.get(p.odu_model)?.width_mm ?? null,
         outdoorWeightKg: odu.get(p.odu_model)?.weight_kg ?? null,
         outdoorAmps: odu.get(p.odu_model)?.max_amps_a ?? null,
+        outdoorPhase: odu.get(p.odu_model)?.phase ?? null,
       })),
   };
 }
@@ -220,14 +222,13 @@ export function ductedKitRows(
 ): { name: string; sub: string; qty: string }[] {
   const sys = "the ducted system";
   const run = c.runM != null ? `${c.runM} m` : RUN_TO_ASK;
-  const size = [pair.outdoorWidthMm != null ? `${pair.outdoorWidthMm} mm` : null, pair.outdoorWeightKg != null ? `${pair.outdoorWeightKg} kg` : null].filter(Boolean).join(", ");
   const mount = c.outdoorAt ? ({ ground: KIT.groundMount, wall: KIT.wallBracket, roof: KIT.roofStand } as const)[c.outdoorAt] : null;
   const rows = [
     { name: pair.indoor, sub: `Ducted indoor unit, ${sys}`, qty: "1" },
     { name: pair.outdoor, sub: `Outdoor unit, ${sys}`, qty: "1" },
     { name: `ø${pair.liquidMm} / ø${pair.gasMm} pair coil`, sub: `liquid / gas mm, ${sys}`, qty: run },
-    mount ? { name: mount, sub: `${size ? `for the outdoor's ${size}, ` : ""}${sys}`, qty: "1" } : { name: KIT.mount, sub: sys, qty: WHERE_TO_ASK },
-    { name: KIT.isolator, sub: `${pair.outdoorAmps != null ? `for the outdoor's ${pair.outdoorAmps} A, ` : ""}${sys}`, qty: "1" },
+    mount ? { name: mount, sub: `${forTheOutdoorsSize(pair.outdoorWidthMm, pair.outdoorWeightKg)}${sys}`, qty: "1" } : { name: KIT.mount, sub: sys, qty: WHERE_TO_ASK },
+    { name: KIT.isolator, sub: `${forTheOutdoorsCurrent(pair.outdoorAmps, pair.outdoorPhase ?? null)}${sys}`, qty: "1" },
     { name: KIT.pipeCover, sub: `along the run, ${sys}`, qty: run },
   ];
   if (c.newCircuit) rows.push({ name: KIT.newCircuit, sub: sys, qty: "1" });

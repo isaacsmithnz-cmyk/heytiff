@@ -3,6 +3,7 @@ import { categoryOf } from "./categories";
 import { KIT, RUN_TO_ASK, WHERE_TO_ASK } from "./brief-rooms";
 import { COMPONENT_KEYS, QUOTE_COMPONENTS, matchesComponent, type ComponentKey } from "./components";
 import { ALLOWANCES, type AllowanceKey } from "./settings";
+import { RANGE_KINDS, needWords, pickFromRange, rangeNeedOf, type RangeKind, type RangeSize } from "./ranges";
 import type { Priced, PriceOf } from "./ducted-template";
 import type { LabourAdvice } from "./labour-history";
 
@@ -26,9 +27,13 @@ import type { LabourAdvice } from "./labour-history";
       supplier has them all is each its own, and the line says so;
    2. the code it was added with (the price-book search keeps "code,
       supplier" under the row);
-   3. pair coil by its sizes — the business's preferred coil for that pair;
-   4. a common part by its name (isolator, drain hose…) — its preferred item;
-   5. the row's name, as a code someone typed.
+   3. a part that comes in sizes — the size it needs from the business's
+      range for it (ranges.ts): an isolator for the outdoor's current, a
+      bracket that holds it, a Ø250 damper, a Y 14-10-10. An isolator or a
+      bracket with no range yet takes the preferred one, as before;
+   4. pair coil by its sizes — the business's preferred coil for that pair;
+   5. a common part by its name (isolator, drain hose…) — its preferred item;
+   6. the row's name, as a code someone typed.
    Pure: the server loads the book and hands in the lookups. */
 
 export type ListRow = {
@@ -60,6 +65,9 @@ export type ComponentPrice = {
   lengthM?: number | null;
 };
 
+/** An item in one of the business's ranges, at its size and its price. */
+export type RangeOffer = { size: RangeSize; perUnitCents: number; supplierKey: string; code: string; name: string };
+
 export type JobPriceDeps = {
   priceOf: PriceOf;
   /** a pack model's price through the codes it's linked to, or null */
@@ -73,7 +81,14 @@ export type JobPriceDeps = {
   component: (key: ComponentKey) => ComponentPrice | null;
   /** the business's own allowance, at cost; null when it hasn't set it */
   allowance?: (key: AllowanceKey) => number | null;
+  /** the business's range for a part that comes in sizes, each item at its
+      size and price; empty when it has none */
+  range?: (kind: RangeKind) => RangeOffer[];
 };
+
+/* an isolator or a bracket with no range yet is priced as it always was,
+   by the one preferred item */
+const PREFERRED_TILL_RANGED: ReadonlySet<RangeKind> = new Set(["isolator", "wall_bracket"]);
 
 /* A kit's rows by name: the part each is, priced by the business's own
    preferred item for it (Quoting), or its own allowance. */
@@ -89,10 +104,10 @@ const KIT_PART: Record<string, ComponentKey> = {
   "Zone cable": "zone_cable",
 };
 
-/* a ducted part that comes in sizes: priced from the business's range for it
-   once the price book holds its ranges (Isaac, 2026-10-04: the smart price
-   book, its own track) */
-const SIZED_RANGE = /^(MDO|Round diffuser|Square diffuser|Bar grille|Slot diffuser|Supply outlet|Return grille|Zone damper|Plenum|Fitting|Trunk|Flex|Takeoff)\b|^ø[\d.]+ \/ ø[\d.]+ copper$/;
+/* what no range prices yet: an outlet whose type the brief didn't give, and
+   straight copper */
+const UNTYPED_OUTLET = /^Supply outlets?\b/;
+const COPPER = /^ø[\d.]+ \/ ø[\d.]+ copper$/;
 const KIT_ALLOWANCE: Record<string, AllowanceKey> = Object.fromEntries(
   (Object.keys(ALLOWANCES) as AllowanceKey[]).map((k) => [ALLOWANCES[k].label, k])
 );
@@ -246,6 +261,38 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
     const byCode = code ? deps.priceOf(code) : null;
     if (code && byCode) return void lines.push(material(byCode, code));
 
+    /* a part that comes in sizes: the size it needs, from the business's range */
+    const ranged = rangeNeedOf(r);
+    if (ranged) {
+      const kind = RANGE_KINDS[ranged.kind];
+      const range = deps.range?.(ranged.kind) ?? [];
+      const keepsPreferred = PREFERRED_TILL_RANGED.has(ranged.kind) && (range.length === 0 || !ranged.need);
+      if (!keepsPreferred) {
+        if (range.length === 0) return void unpriced.push({ name: r.name, qty: r.qty, why: `Choose your ${kind.noun} in Quoting` });
+        if (!ranged.need) return void unpriced.push({ name: r.name, qty: r.qty, why: "Its size isn't known yet: ask" });
+        const pick = pickFromRange(ranged.kind, range, ranged.need);
+        if (!pick) return void unpriced.push({ name: r.name, qty: r.qty, why: `No ${needWords(ranged.kind, ranged.need)} in your ${kind.noun}` });
+        /* flexible duct is bought by the bag and needed by the metre */
+        let qty = count.n;
+        if (count.unit === "m" && ranged.kind === "flex_duct") {
+          if (!pick.size.lengthM) return void unpriced.push({ name: r.name, qty: r.qty, why: `How long one ${pick.name} is isn't in its name` });
+          qty = Math.ceil(count.n / pick.size.lengthM - 1e-9);
+        }
+        lines.push({
+          key,
+          group: "Materials",
+          name: r.name,
+          code: pick.code,
+          supplierKey: pick.supplierKey,
+          qty,
+          unitBuyCents: pick.perUnitCents,
+          kind: "material",
+          duct: isDuct(pick.name, pick.code),
+        });
+        return;
+      }
+    }
+
     const pair = PAIR_ROW.exec(r.name);
     const compKey = pair
       ? PAIR_MM[`${Number(pair[1])}+${Number(pair[2])}`]
@@ -264,7 +311,8 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
     }
     const byName = deps.priceOf(r.name.trim());
     if (byName) return void lines.push(material(byName, r.name.trim()));
-    if (SIZED_RANGE.test(r.name.trim())) return void unpriced.push({ name: r.name, qty: r.qty, why: "Priced from your range for it, once the price book has it" });
+    if (UNTYPED_OUTLET.test(r.name.trim())) return void unpriced.push({ name: r.name, qty: r.qty, why: "Its type isn't in the brief: ask" });
+    if (COPPER.test(r.name.trim())) return void unpriced.push({ name: r.name, qty: r.qty, why: "Straight copper is added by its code" });
     unpriced.push({ name: r.name, qty: r.qty, why: pair ? "No preferred coil for that size in Quoting" : "Not in your price book" });
   });
   return { lines, unpriced };

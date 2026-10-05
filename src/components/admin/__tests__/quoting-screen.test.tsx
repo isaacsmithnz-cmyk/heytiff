@@ -10,7 +10,7 @@ import { DEFAULT_QUOTE_SETTINGS } from "@/lib/quotes/settings";
    make sure that you can set the rate without completing the rate calc". */
 
 const screenWith = (calc: Parameters<typeof QuotingScreen>[0]["calc"]) =>
-  render(<QuotingScreen initial={DEFAULT_QUOTE_SETTINGS} components={[]} calc={calc} />);
+  render(<QuotingScreen initial={DEFAULT_QUOTE_SETTINGS} components={[]} ranges={[]} calc={calc} />);
 
 it("blank here: says the Rate Calculator's figures, and the day they make", () => {
   screenWith({ chargedCents: 14000, recommendedCents: null, workingHours: 8 });

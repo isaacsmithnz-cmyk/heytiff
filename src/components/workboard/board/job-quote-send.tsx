@@ -17,8 +17,9 @@ import { NONE_ACCEPTED, type SendPlan } from "@/lib/quotes/sm8-send-plan";
 
 const ROUTE = "/api/workboard/quote-send";
 
-type Answer = { ok: true; plan: SendPlan; editDate: string | null } | { ok: false; reason: string };
-type Seen = { plan: SendPlan; editDate: string | null };
+type Answer = { ok: true; plan: SendPlan; editDate: string | null; key: string } | { ok: false; reason: string };
+/** `at`: the quote's version it was read for. */
+type Seen = { plan: SendPlan; editDate: string | null; key: string; at: string | null | undefined };
 
 const qtyWords = (n: number) => String(Math.round(n * 100) / 100);
 
@@ -28,6 +29,12 @@ export function JobQuoteSend({ job, visible, version }: { job: string; visible: 
   const [sending, setSending] = useState(false);
   const [answer, setAnswer] = useState<QuoteSendAnswer | null>(null);
   const [reads, setReads] = useState(0);
+  /* what a send said belongs to the version it was sent from */
+  const [sentOn, setSentOn] = useState(version);
+  if (version !== sentOn) {
+    setSentOn(version);
+    setAnswer(null);
+  }
 
   /* a new version of the quote is read afresh; what was read stays on
      screen until then */
@@ -36,7 +43,7 @@ export function JobQuoteSend({ job, visible, version }: { job: string; visible: 
     let live = true;
     fetch(`${ROUTE}?job=${encodeURIComponent(job)}`)
       .then((r) => r.json() as Promise<Answer>)
-      .then((a) => live && setSeen(a.ok ? { plan: a.plan, editDate: a.editDate } : null))
+      .then((a) => live && setSeen(a.ok ? { plan: a.plan, editDate: a.editDate, key: a.key, at: version } : null))
       .catch(() => live && setSeen(null));
     quoteSendOffered()
       .then((o) => live && setOffer(o))
@@ -46,11 +53,13 @@ export function JobQuoteSend({ job, visible, version }: { job: string; visible: 
     };
   }, [job, visible, reads, version]);
 
+  /* read for this version of the quote: until then, nothing can be sent */
+  const fresh = !!seen && seen.at === version;
   const send = async () => {
-    if (!seen) return;
+    if (!seen || !fresh) return;
     setSending(true);
     setAnswer(null);
-    const a = await sendQuoteToSm8(job, crypto.randomUUID(), seen.editDate).catch((): QuoteSendAnswer => ({ ok: false, error: "HeyTiff couldn't send that. Nothing went; try again." }));
+    const a = await sendQuoteToSm8(job, crypto.randomUUID(), seen.editDate, seen.key).catch((): QuoteSendAnswer => ({ ok: false, error: "HeyTiff couldn't send that. Nothing went; try again." }));
     setAnswer(a);
     setSending(false);
     setReads((n) => n + 1);
@@ -98,7 +107,7 @@ export function JobQuoteSend({ job, visible, version }: { job: string; visible: 
       {answer && <SendResult answer={answer} />}
       {offer.offered && (
         <div className="wb2-jqacts">
-          <button type="button" className="pbtn primary" disabled={sending} onClick={() => void send()}>
+          <button type="button" className="pbtn primary" disabled={sending || !fresh} onClick={() => void send()}>
             {sending ? "Sending" : offer.trial ? "Trial send to ServiceM8" : "Send to ServiceM8 as a work order"}
           </button>
         </div>

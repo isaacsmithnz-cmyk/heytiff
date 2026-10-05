@@ -113,15 +113,16 @@ async function cacheJobFilesInner(jobUuid: string, only?: readonly string[]): Pr
   /* Live files on this job, and what we already hold. `active = 1` for the
      same reason the grid filters it: a deleted file must not be fetched back
      into existence. */
+  const attachments = supabaseAdmin
+    .from("sm8_attachments")
+    .select("uuid, attachment_name, file_type, related_object_uuid")
+    .eq("org_id", orgId)
+    .in("related_object_uuid", sourceIds)
+    .eq("active", 1);
+  /* named files are asked for by name: a quote PDF is one of a job's
+     oldest, and would fall outside the newest 200 */
   const [{ data: attachRows }, { data: haveRows }] = await Promise.all([
-    supabaseAdmin
-      .from("sm8_attachments")
-      .select("uuid, attachment_name, file_type, related_object_uuid")
-      .eq("org_id", orgId)
-      .in("related_object_uuid", sourceIds)
-      .eq("active", 1)
-      .order("timestamp", { ascending: false })
-      .limit(200),
+    (named ? attachments.in("uuid", [...named]) : attachments).order("timestamp", { ascending: false }).limit(200),
     supabaseAdmin
       .from("documents")
       .select("remote_ref")

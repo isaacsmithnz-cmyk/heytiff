@@ -29,6 +29,7 @@ import { readSm8Raw } from "@/lib/integrations/sm8-write";
 import { sameEditDate } from "@/lib/integrations/sm8-note-plan";
 import { QUOTE_WORDS, quoteRows } from "@/lib/integrations/sm8-quote-plan";
 import { readSm8SendView } from "@/lib/quotes/sm8-send-server";
+import { planKey } from "@/lib/quotes/sm8-send-plan";
 import { queueAcceptedQuote } from "./sm8-quote-queue";
 
 const SEND_BUDGET_MS = 12_000;
@@ -58,7 +59,12 @@ export type QuoteSendAnswer =
   | { ok: true; trial: boolean; sent: number; waiting: number; failed: string[] }
   | { ok: false; error: string };
 
-export async function sendQuoteToSm8(jobUuid: string, pressId: string, seenEditDate: string | null): Promise<QuoteSendAnswer> {
+export async function sendQuoteToSm8(
+  jobUuid: string,
+  pressId: string,
+  seenEditDate: string | null,
+  seenPlan: string | null
+): Promise<QuoteSendAnswer> {
   const startedAt = Date.now();
   const g = await gate();
   if ("error" in g) return { ok: false, error: g.error };
@@ -66,6 +72,8 @@ export async function sendQuoteToSm8(jobUuid: string, pressId: string, seenEditD
 
   const view = await readSm8SendView(g.orgId, jobUuid);
   if (!view.plan.ok) return { ok: false, error: view.plan.why };
+  /* the plan as it was on screen: never lines the person wasn't shown */
+  if (typeof seenPlan !== "string" || seenPlan !== planKey(view.plan)) return { ok: false, error: QUOTE_WORDS.press.quoteChanged };
   /* the mirror as the card saw it, and ServiceM8 as the mirror has it */
   if (!seenEditDate || !sameEditDate(view.editDate, seenEditDate)) return { ok: false, error: QUOTE_WORDS.press.changed };
   const access = await sm8AccessResult(g.orgId);

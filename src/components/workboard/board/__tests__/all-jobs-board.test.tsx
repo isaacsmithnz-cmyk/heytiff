@@ -639,6 +639,8 @@ describe("the page's search slots", () => {
       const sheet = await screen.findByRole("dialog");
       expect(within(sheet).getByRole("region", { name: "Quote" })).toBeInTheDocument();
       expect(within(sheet).getByRole("tab", { name: "Summary" })).toHaveAttribute("aria-selected", "false");
+      /* lit where the card's own Quoted step would light it */
+      expect(within(sheet).getByRole("button", { name: "Quoted" })).toHaveAttribute("aria-pressed", "true");
     } finally {
       global.fetch = was;
     }

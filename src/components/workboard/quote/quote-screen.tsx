@@ -38,6 +38,9 @@ import { sm8QuoteOf } from "./sm8-quote-of";
    job itself in, read on the server), so the two never tell different
    stories about it. */
 
+/** Enough rounds for any job's quote PDFs; a stop for one that never finishes. */
+const MAX_QUOTE_ROUNDS = 4;
+
 type Detail = NonNullable<Awaited<ReturnType<typeof readMirrorJob>>["detail"]>;
 
 export function QuoteScreen({
@@ -67,9 +70,11 @@ export function QuoteScreen({
         /* ServiceM8's quote PDFs with no bytes yet are brought across — those
            files by name, not the newest of the job's photos ahead of them */
         const missing = (m?.documents ?? []).filter((d) => d.origin === "Quote" && !d.url).map((d) => d.remoteId);
-        if (missing.length) {
+        /* a batch at a time, while each brings some across */
+        for (let round = 0; missing.length > 0 && round < MAX_QUOTE_ROUNDS && live; round++) {
           const res = await cacheJobFiles(job, missing).catch(() => null);
           if (live && res?.media) setMedia(res.media);
+          if (!res?.ok || res.cached === 0 || res.remaining === 0) break;
         }
       })
       .catch(() => undefined);

@@ -6680,6 +6680,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-qpage .wb2-inspb { padding-top:24px; }
 .wb2-qpage .wb2-insp .wb2-mline { grid-template-columns:minmax(0,1fr) auto; row-gap:2px; }
 .wb2-qpage .wb2-insp .wb2-mline > em { grid-column:1 / -1; grid-row:2; }
+.wb2-qpage .wb2-insp .wb2-jcdhead { flex-wrap:wrap; row-gap:2px; }
+.wb2-qpage .wb2-insp .wb2-jcdhead em { flex-basis:100%; margin-left:0; white-space:normal; }
 /* ── THE TABBED JOB CARD (slice 2) ────────────────────────────────────────
    The sheet became ONE CARD OF EIGHT FACES. `.jc` turns the grid modal into
    a column: a tinted band (identity + the folder tabs) up top, the white

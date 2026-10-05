@@ -416,8 +416,11 @@ export function JobSheet({
         : "summary"
   );
   /* THE STEP whose part is open below, when the progress line opened it;
-     null when the rail did. A door that came to book opens on Installation. */
-  const [step, setStep] = useState<StepKey | null>(() => (openBookIn || openClear ? "installation" : null));
+     null when the rail did. A door that came to book opens on Installation;
+     one that came back from the quote page, on Quoted. */
+  const [step, setStep] = useState<StepKey | null>(() =>
+    openBookIn || openClear ? "installation" : initialTab === "quote" && manage ? "quoted" : null
+  );
   const [naming, setNaming] = useState(false);
   /* the visit strip, opened at its newest end */
   const visitStrip = useRef<HTMLOListElement>(null);

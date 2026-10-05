@@ -123,11 +123,12 @@ async function unitSerials(orgId: string, jobUuid: string): Promise<UnitSerial[]
     .eq("kind", "unit")
     .not("serial", "is", null)
     .order("sort", { ascending: true });
-  type Row = { unit: { role?: string; system?: number; room?: string; model?: string } | null; serial: string | null; model_read: string | null };
+  type Row = { unit: { role?: string; option?: number; system?: number; room?: string; model?: string } | null; serial: string | null; model_read: string | null };
   return ((data ?? []) as Row[])
     .filter((r) => r.unit && r.serial)
     .map((r) => ({
       role: r.unit!.role === "outdoor" || r.unit!.role === "fan" ? r.unit!.role : "indoor",
+      option: typeof r.unit!.option === "number" ? r.unit!.option : null,
       system: typeof r.unit!.system === "number" ? r.unit!.system : null,
       room: r.unit!.room ?? "",
       model: r.unit!.model ?? "",
@@ -166,7 +167,7 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
   const fromQuote = quoteHasEquipment(accepted);
   /* and each unit's serial, read off its rating plate on the job's
      Installation */
-  const reading = fromQuote ? withSerials(readingFromQuote(accepted), await unitSerials(orgId, uuid)) : readQuote(job.description);
+  const reading = fromQuote ? withSerials(readingFromQuote(accepted), await unitSerials(orgId, uuid), accepted) : readQuote(job.description);
   return {
     job,
     reading,

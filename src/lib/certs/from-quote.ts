@@ -57,38 +57,52 @@ export function readingFromQuote(options: readonly ProposalOption[]): QuoteReadi
   };
 }
 
-/** A unit's serial, read off its rating plate on the job's Installation
-    (Isaac, 2026-10-06: "serial numbers etc. can be read from there using
-    photos"): the quote's unit it's for — its role, system, place and model
-    — and what the plate said. */
-export type UnitSerial = { role: "outdoor" | "indoor" | "fan"; system: number | null; room: string; model: string; modelRead: string | null; serial: string };
+/** A unit's serial, read off its rating plate on the job's Installation:
+    the quote's unit it's for — its option, role, system, place and model —
+    and what the plate said. */
+export type UnitSerial = {
+  role: "outdoor" | "indoor" | "fan";
+  option: number | null;
+  system: number | null;
+  room: string;
+  model: string;
+  modelRead: string | null;
+  serial: string;
+};
 
 /** The certificate's rows with the serials read on the job: each row takes
-    the serial of the quote's unit in the same system and place with the
-    same model, once; where the plate's model isn't the quote's, the row
+    the serial of the quote's unit in the same option, system and place with
+    the same model, once; where the plate's model isn't the quote's, the row
     takes the plate's — the certificate says what's on the wall. A row with
     no such unit, or nothing to match by, keeps what it had. */
-export function withSerials(reading: QuoteReading, serials: readonly UnitSerial[]): QuoteReading {
+export function withSerials(reading: QuoteReading, serials: readonly UnitSerial[], options: readonly ProposalOption[]): QuoteReading {
   const norm = (place: string, model: string) => `${place.trim().toLowerCase()}|${model.toUpperCase().replace(/\s/g, "")}`;
+  const same = (a: number | null, b: number | null) => a == null || b == null || a === b;
   const left = serials.filter((s) => s.serial.trim()).map((s) => ({ ...s, used: false }));
-  const take = <R extends { location: string; model: string; serial: string }>(row: R, role: UnitSerial["role"], system: number | null): R => {
+  const take = <R extends { location: string; model: string; serial: string }>(row: R, role: UnitSerial["role"], option: number | null, system: number | null): R => {
     if (row.serial || (!row.location.trim() && !row.model.trim())) return row;
-    const hit = left.find((s) => !s.used && s.role === role && (system == null || s.system == null || s.system === system) && norm(s.room, s.model) === norm(row.location, row.model));
+    const hit = left.find((s) => !s.used && s.role === role && same(s.option, option) && same(s.system, system) && norm(s.room, s.model) === norm(row.location, row.model));
     if (!hit) return row;
     hit.used = true;
     const model = hit.modelRead && !sameModel(hit.modelRead, hit.model) ? hit.modelRead : row.model;
     return { ...row, model, serial: hit.serial.trim() };
   };
-  /* the systems are the quote's outdoor units in order, numbered from 1; a
-     last system with no outdoor holds the indoor units no outdoor ran */
-  const outdoors = reading.systems.filter((s) => s.outdoor.location.trim() || s.outdoor.model.trim()).length;
+  /* the reading's systems as readingFromQuote lays them out: each option's
+     outdoor units in order, numbered from 1, then a system for its indoor
+     units no outdoor ran; its fans after */
+  const at = options.flatMap((o, option) => {
+    const outdoors = o.units.filter((u) => u.role === "outdoor");
+    const orphans = o.units.some((u) => u.role === "indoor" && !outdoors.some((x) => x.system === u.system));
+    return [...outdoors.map((x) => ({ option, system: x.system as number | null })), ...(orphans ? [{ option, system: null }] : [])];
+  });
+  const fanAt = options.flatMap((o, option) => o.units.filter((u) => u.role === "fan").map(() => option));
   return {
     ...reading,
     systems: reading.systems.map((s, i) => {
-      const system = i < outdoors ? i + 1 : null;
-      return { ...s, outdoor: take(s.outdoor, "outdoor", system), indoors: s.indoors.map((r) => take(r, "indoor", system)) };
+      const { option = null, system = null } = at[i] ?? {};
+      return { ...s, outdoor: take(s.outdoor, "outdoor", option, system), indoors: s.indoors.map((r) => take(r, "indoor", option, system)) };
     }),
-    fans: reading.fans.map((f) => take(f, "fan", null)),
+    fans: reading.fans.map((f, i) => take(f, "fan", fanAt[i] ?? null, null)),
   };
 }
 

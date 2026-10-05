@@ -1,4 +1,4 @@
-import { listWords, placeTasks, taskRows, visitOfDay, visitSlots, type JobTask, type TaskUpdate } from "../visit-tasks";
+import { placeTasks, taskRows, visitOfDay, visitSlots, type JobTask, type TaskUpdate } from "../visit-tasks";
 
 /* Isaac, 2026-10-06: "tasks can move across visits as they are not
    completed on that day" — 2905's rough-in, 50% on visit 1, 70% on visit 2,
@@ -13,8 +13,6 @@ const task = (id: string, name: string, over: Partial<JobTask> = {}): JobTask =>
   visit: 1,
   sort: 0,
   progress: 0,
-  doneAt: null,
-  doneBy: null,
   serial: null,
   modelRead: null,
   source: "quote",
@@ -30,18 +28,10 @@ const up = (taskId: string, day: string, from: number, to: number, note = "", by
   by,
   at: `${day}T15:00:00Z`,
 });
-const CREW = ["Callum Vrieze", "Alex Morozoff"];
 const slotsOn = (today: string, planned = 4) =>
   visitSlots({
-    onSite: [
-      { day: "2026-05-26", crew: ["Michael Diamond"] },
-      { day: "2026-10-06", crew: CREW },
-      { day: "2026-10-07", crew: CREW },
-    ].filter((d) => d.day <= today),
-    ahead: [
-      { day: "2026-10-08", crew: CREW },
-      { day: "2026-10-12", crew: CREW },
-    ].filter((d) => d.day >= today),
+    /* the days worked so far, and the days booked from today on */
+    days: [...["2026-05-26", "2026-10-06", "2026-10-07"].filter((d) => d <= today), ...["2026-10-08", "2026-10-12"].filter((d) => d >= today)],
     today,
     from: "2026-09-29 00:00:00",
     planned,
@@ -58,7 +48,6 @@ describe("the visits", () => {
       [5, null, "planned"],
       [6, null, "planned"],
     ]);
-    expect(slots[0]!.crew).toEqual(CREW);
   });
 
   it("puts a day's work on the visit that day, or the last one before it", () => {
@@ -150,7 +139,4 @@ describe("the whole list", () => {
     expect(groups[2]!.rows[0]).toMatchObject({ visits: null, status: null });
   });
 
-  it("says a list of visits the way a person would", () => {
-    expect([listWords([1]), listWords([1, 2]), listWords([1, 2, 3])]).toEqual(["1", "1 and 2", "1, 2 and 3"]);
-  });
 });

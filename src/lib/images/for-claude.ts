@@ -3,7 +3,7 @@ import { isSendableImage } from "@/lib/workboard/photo-reading";
 
 /* A PHOTO, READY FOR CLAUDE'S IMAGE BLOCK — shared by the photo bank's
    reader (actions/photo-readings) and the rating-plate reader
-   (workboard/plate-read-server). Server only: sharp is a native binary. */
+   (workboard/visit-tasks-server). Server only: sharp is a native binary. */
 
 /** The longest edge we send — the API's OWN ceiling, not a number we picked.
     Anything larger is downscaled server-side before the model sees it, so

@@ -70,7 +70,7 @@ describe("a business that has set up nothing", () => {
     };
     const facts = { today: "2026-10-04", approved: true, hasSignature: true, arcCurrent: true, contractorCurrent: true };
     /* no state on the address and none in its settings: asked, never assumed */
-    expect(certProblemList(answers, facts).map((p) => p.text)).toContain("Say which state the job is in.");
+    expect(certProblemList(answers, facts).map((p) => p.text)).toContain("Choose the state the job is in.");
     /* a Victorian job gets the plain wording, not NSW's */
     const content = buildCertificate({ ...answers, state: "VIC" });
     const html = renderToStaticMarkup(

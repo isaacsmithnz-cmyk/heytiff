@@ -127,19 +127,21 @@ describe("the statements", () => {
   it("state the pressure test and vacuum as passed, with no gauge figures, and the charge once or per outdoor unit", () => {
     const a = answersFor(JOB_1245, AC, "house");
     const one = statementsFor(a).statements[0].text;
-    expect(one).toBe("Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. Refrigerant R32, no additional charge.");
+    expect(one).toBe(
+      "Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. The systems use R32, and no refrigerant was added to the factory charge."
+    );
     expect(one).not.toMatch(/kPa|microns|minutes/);
     a.systems[1].test = { ...TESTED, addedKg: 0.4 };
     const two = statementsFor(a).statements[0].text;
-    expect(two).toContain("OUT-1: refrigerant R32, no additional charge.");
-    expect(two).toContain("OUT-2: refrigerant R32, 0.4 kg added.");
+    expect(two).toContain("OUT-1 uses R32, and no refrigerant was added to the factory charge.");
+    expect(two).toContain("OUT-2 uses R32, and 0.4 kg was added to the factory charge.");
   });
 
   it("claim the NCC minimum only when a wet area has a fan, and say when a figure was measured", () => {
     const a = answersFor(JOB_279, BOTH, "house");
     const plain = statementsFor(a).statements.find((s) => s.clause === "ventAirflow")!.text;
     expect(plain).not.toContain("NCC minimum");
-    a.fans = [{ location: "Ensuite", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 30, airflowKind: "measured", serial: "" }];
+    a.fans = [{ location: "Ensuite", make: "", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 30, airflowKind: "measured", serial: "" }];
     const wet = statementsFor(a).statements.find((s) => s.clause === "ventAirflow")!.text;
     expect(wet).toContain("NCC minimum");
     expect(wet).toContain("Figures marked as measured were read on site.");
@@ -176,7 +178,7 @@ describe("the statements", () => {
     /* asked for, but not true of every fan: answered, never certified */
     const asked = { ...base, exhaustTo: "not" as const, requirements: [{ text: "Exhaust to discharge outside", answer: "clause" as const, clause: "ventDischarge" as const, own: "", reason: "" }] };
     expect(certProblems(asked, FACTS)).toEqual([
-      "Requirement 1 asks for discharge to outdoor air, but not every exhaust fan is marked as discharging outdoors. Mark it not applicable with a reason, or add what's missing.",
+      "Requirement 1 asks for discharge to outdoor air, but not every exhaust fan is marked as discharging outdoors. Choose Doesn't apply and give a reason, or add what's missing.",
     ]);
     expect(normaliseCertAnswers({ ...base, exhaustTo: "roof" }).exhaustTo).toBeNull();
   });
@@ -214,7 +216,7 @@ describe("the paper's facts", () => {
     const { serialsGiven: _gone, ...old } = { ...a };
     expect(normaliseCertAnswers(old).serialsGiven).toBe(true);
     expect(normaliseCertAnswers({ ...old, systems: [{ ...old.systems[0], outdoor: { ...old.systems[0].outdoor, serial: "" } }] }).serialsGiven).toBe(false);
-    expect(buildCertificate({ ...a, building: "office" }).building).toEqual({ label: "Office", cls: "Class 5" });
+    expect(buildCertificate({ ...a, building: "office" }).building).toEqual({ label: "Class 5 office", cls: null });
   });
 
   it("format capacities the way paper prints them", () => {
@@ -234,14 +236,14 @@ describe("certProblemList", () => {
   it("asks only for the refrigerant and the charge: the pressure test and vacuum print as passed", () => {
     const a = answersFor(JOB_3326, AC, "office");
     a.systems[0].test = { refrigerant: "", addedKg: null };
-    expect(certProblems(a, FACTS)).toEqual(["Enter MUZ-AP42VGD2-A2's refrigerant.", "Enter the refrigerant added to MUZ-AP42VGD2-A2, or 0."]);
+    expect(certProblems(a, FACTS)).toEqual(["Choose the refrigerant for MUZ-AP42VGD2-A2.", "Enter the refrigerant added to MUZ-AP42VGD2-A2 (0 if none)."]);
   });
 
   it("asks for models a quote didn't give, and never for a capacity, which isn't printed", () => {
     const a = answersFor(JOB_1300, AC, "house");
     a.systems[0].outdoor.model = "";
     a.systems[0].indoors[0].capacityKw = null;
-    expect(certProblems(a, FACTS)).toEqual(["Give outdoor unit 1 its model."]);
+    expect(certProblems(a, FACTS)).toEqual(["Enter the model of outdoor unit 1."]);
   });
 
   it("refuses a brand or a series where a model number belongs", () => {
@@ -259,7 +261,7 @@ describe("certProblemList", () => {
 
   it("refuses a bathroom fan under the NCC minimum", () => {
     const a = answersFor(JOB_279, BOTH, "house");
-    a.fans = [{ location: "Bathroom", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 20, airflowKind: "rated", serial: "" }];
+    a.fans = [{ location: "Bathroom", make: "", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 20, airflowKind: "rated", serial: "" }];
     expect(certProblems(a, FACTS)).toEqual(["The Bathroom fan is 20 L/s, under the NCC minimum of 25 L/s."]);
   });
 
@@ -329,7 +331,7 @@ describe("normaliseCertAnswers", () => {
     expect(a.covers).toEqual({ ac: true, vent: false });
     expect(a.building).toBeNull();
     expect(a.completedOn).toBe("");
-    expect(a.systems[0].outdoor).toEqual({ location: "", model: "MUZ-1", qty: 1, capacityKw: 4.2, serial: "" });
+    expect(a.systems[0].outdoor).toEqual({ location: "", make: "", model: "MUZ-1", qty: 1, capacityKw: 4.2, serial: "" });
     expect(a.systems[0].indoors[0].capacityKw).toBeNull();
     expect(a.systems[0].test).toMatchObject({ refrigerant: "R32", addedKg: 0 });
     expect(a.fans[0].airflowKind).toBe("rated");
@@ -368,8 +370,8 @@ describe("what was asked against what was installed", () => {
       installed: { ductwork: false, fireRated: false, fireStopProduct: "" },
     });
     expect(certProblems(a, FACTS)).toEqual([
-      "Requirement 1 asks for discharge to outdoor air, but no ventilation is on this certificate. Mark it not applicable with a reason, or add what's missing.",
-      "Requirement 2 asks for ductwork, but no ductwork is ticked as installed. Mark it not applicable with a reason, or add what's missing.",
+      "Requirement 1 asks for discharge to outdoor air, but no ventilation is on this certificate. Choose Doesn't apply and give a reason, or add what's missing.",
+      "Requirement 2 asks for ductwork, but no ductwork is ticked as installed. Choose Doesn't apply and give a reason, or add what's missing.",
     ]);
   });
 
@@ -378,9 +380,9 @@ describe("what was asked against what was installed", () => {
       requirements: [ask("System commissioned and handed over"), ask("Complies with Section J"), ask("Outdoor unit noise to the approved plans")],
     });
     expect(certProblems(a, FACTS)).toEqual([
-      "Requirement 1 asks for commissioning and handover, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
-      "Requirement 2 asks for BCA Section J, air conditioning and ventilation, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
-      "Requirement 3 asks for outdoor unit location and noise, but no air conditioning is on this certificate. Mark it not applicable with a reason, or add what's missing.",
+      "Requirement 1 asks for commissioning and handover, but no air conditioning is on this certificate. Choose Doesn't apply and give a reason, or add what's missing.",
+      "Requirement 2 asks for BCA Section J, air conditioning and ventilation, but no air conditioning is on this certificate. Choose Doesn't apply and give a reason, or add what's missing.",
+      "Requirement 3 asks for outdoor unit location and noise, but no air conditioning is on this certificate. Choose Doesn't apply and give a reason, or add what's missing.",
     ]);
   });
 
@@ -467,7 +469,7 @@ describe("the wording the owner approves", () => {
 describe("every unit listed", () => {
   it("won't issue until the person confirms nothing installed is missing", () => {
     const a = answersFor(JOB_3326, AC, "office", { equipmentConfirmed: false });
-    expect(certProblems(a, FACTS)).toEqual(["Confirm every unit installed is listed, with its model off the plate."]);
+    expect(certProblems(a, FACTS)).toEqual(["Check every unit against its rating plate, then tick the box."]);
     expect(certProblems({ ...a, equipmentConfirmed: true }, FACTS)).toEqual([]);
   });
 });
@@ -495,7 +497,7 @@ describe("the state the job is in", () => {
   });
 
   it("asks for the state when the address didn't say", () => {
-    expect(certProblemList({ ...asked("NSW"), state: null }, FACTS).map((p) => p.text)).toContain("Say which state the job is in.");
+    expect(certProblemList({ ...asked("NSW"), state: null }, FACTS).map((p) => p.text)).toContain("Choose the state the job is in.");
   });
 
   it("names the form a state's certifier may also want, which the certificate goes alongside", () => {

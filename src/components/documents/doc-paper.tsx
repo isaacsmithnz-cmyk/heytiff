@@ -24,8 +24,10 @@ export function DocPaper({
   jobNumber,
   licences = [],
   figures,
+  plain = false,
   children,
 }: {
+  /** The small line over the heading; none when empty. */
   eyebrow: string;
   heading: string;
   brand: OrgBrand;
@@ -36,6 +38,8 @@ export function DocPaper({
   /** The business's licence lines, ahead of its contact details. */
   licences?: readonly string[];
   figures: readonly DocFigure[];
+  /** Labels in sentence case, not tracked capitals (the certificate). */
+  plain?: boolean;
   children: ReactNode;
 }) {
   const named = hasBrand(brand);
@@ -45,7 +49,7 @@ export function DocPaper({
   const figsStyle = { "--cer-n": figures.length } as React.CSSProperties;
 
   return (
-    <article className="dsd cer" style={themeVars(brand.color)}>
+    <article className={`dsd cer${plain ? " cer-plain" : ""}`} style={themeVars(brand.color)}>
       <div className="dsd-bband" aria-hidden="true" />
       <div className="dsd-bwell" aria-hidden="true" />
       {/* the design sheet's frame table: on paper it holds the frame's space
@@ -67,7 +71,7 @@ export function DocPaper({
               <div className="dsd-fr-w">
                 <div className="dsd-mast">
                   <div className="dsd-mast-job">
-                    <p className="dsd-eyebrow">{eyebrow}</p>
+                    {eyebrow && <p className="dsd-eyebrow">{eyebrow}</p>}
                     <h1>{heading}</h1>
                     <div className="dsd-prep">
                       <span className="dsd-lab">Prepared by</span>

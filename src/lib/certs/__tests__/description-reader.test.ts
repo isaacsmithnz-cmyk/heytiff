@@ -106,7 +106,7 @@ describe("laying the reading beside the rules", () => {
       { systems: [{ outdoor: { qty: -2, model: 7, capacityKw: "big", location: null }, indoors: "x" }], fans: [null], refrigerant: "freon" },
       readQuote(""),
     );
-    expect(q.systems).toEqual([{ outdoor: { location: "", model: "", qty: 1, capacityKw: null, serial: "" }, indoors: [], test: { refrigerant: "", addedKg: null } }]);
+    expect(q.systems).toEqual([{ outdoor: { location: "", make: "", model: "", qty: 1, capacityKw: null, serial: "" }, indoors: [], test: { refrigerant: "", addedKg: null } }]);
     expect(q.fans.map((f) => [f.qty, f.model])).toEqual([[1, ""]]);
     expect(mergeDescriptionReading(null, readQuote("")).systems).toEqual([]);
   });

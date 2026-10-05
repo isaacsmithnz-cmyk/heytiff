@@ -126,7 +126,7 @@ describe("suggestBuilding", () => {
     expect(suggestBuilding("12/25-35 Example Drive").building).toBe("apartment");
     expect(suggestBuilding("Lv 3 Suite 4/44-54 Example Road, Suburb, NSW, 2015")).toEqual({
       building: "office",
-      because: "The address has a level or suite.",
+      because: "from the level or suite in the address",
     });
     expect(suggestBuilding("Shop 2, 5 Example St").building).toBe("shop");
     expect(suggestBuilding("21b Example Street\nSuburb NSW 2026").building).toBe("house");

@@ -10,6 +10,18 @@
    what a certificate is read at anyway. */
 
 .cer-sec { margin-top: 32px; }
+/* THE LABELS ARE SENTENCE CASE, as the design laws ask of a label (law 10):
+   "Prepared by", "Job", "Building", not the design sheet's tracked caps */
+.cer-plain .dsd-lab,
+.cer-plain .dsd-job em,
+.cer-plain .dsd-figs dt {
+  font-size: 12px;
+  font-weight: 600;
+  font-style: normal;
+  color: var(--dsd-ink-3);
+}
+/* the document's name is the heading, on one line where it fits */
+.cer-plain .dsd-mast h1 { max-width: none; }
 /* as many columns as the certificate has facts (the building, when picked,
    and the completion date): the design sheet's row is built for six */
 .dsd-figs.cer-figs { grid-template-columns: repeat(var(--cer-n), minmax(0, 1fr)); }
@@ -23,8 +35,10 @@
 /* One hairline between rows and a heavier one under the head: the design
    sheet's table, at the certificate's two to four columns. */
 .cer-rt { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.cer-c-loc { width: 34%; }
-.cer-c-ser { width: 18%; }
+.cer-c-unit { width: 14%; }
+.cer-c-loc { width: 26%; }
+.cer-c-make { width: 20%; }
+.cer-c-ser { width: 16%; }
 .cer-c-num { width: 16%; }
 .cer-rt th {
   padding: 0 12px 8px 0;
@@ -47,6 +61,9 @@
 .cer-rt .num { text-align: right; }
 .cer-rt td.num { font-weight: 700; color: var(--dsd-ink); white-space: nowrap; }
 .cer-rt td.cer-loc { font-weight: 600; color: var(--dsd-ink); }
+.cer-rt td.cer-unit { color: var(--dsd-ink-3); }
+/* a second outdoor unit starts a new system */
+.cer-rt tr.cer-next td { border-top: 1px solid var(--dsd-rule-2); }
 .cer-rt tbody tr:last-child td { border-bottom: 0; }
 /* "rated" or "measured" under the figure: a fact about the number, so it sits
    with it, quieter */
@@ -97,10 +114,12 @@
    row and the rows tighten to the scale's small steps. */
 @media print {
   @page { size: A4; margin: 0; }
+  /* the addressee gets the room it needs: "Heuvel Construction" and its
+     street on one line each, not broken a word to a line */
   .cer .dsd-mast { grid-template-columns: minmax(0, 1fr) max-content; column-gap: 24px; }
   .cer .dsd-mast-job {
     display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     column-gap: 24px;
     align-items: start;
   }

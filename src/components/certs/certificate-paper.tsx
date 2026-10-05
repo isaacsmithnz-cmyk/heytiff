@@ -51,42 +51,55 @@ function modelCell(r: AcRow | FanRow): string {
   return r.qty > 1 ? `${r.qty} × ${model}` : model;
 }
 
-/* THE MODEL, NOT THE KILOWATTS. A model number fixes a unit's capacity and
-   is what an inspector reads off its plate; the certifier never checks kW.
-   Capacity is still typed, for checking the quote's own total, and kept on
-   the version; it just isn't printed. */
+/** A version issued before rows carried a make has none to print. */
+const makeOfRow = (r: AcRow | FanRow): string => (r.make ?? "").trim();
+
+/* THE MAKE AND THE MODEL, NOT THE KILOWATTS. A model number fixes a unit's
+   capacity and is what an inspector reads off its plate, and the make is
+   what tells a certifier whose plate it is ("PEFY-P63VMX-A" names nothing to
+   someone who doesn't know Mitsubishi's codes). Capacity is still typed, for
+   checking the quote's own total, and kept on the version; it isn't printed.
+
+   EACH ROW SAYS WHAT IT IS — outdoor unit or indoor unit — in a column of
+   its own, and the location prints as it was typed. An outdoor unit opens
+   each system, and a heavier rule sets a second system apart. */
 function AcTable({ content }: { content: CertContent }) {
   const serials = content.showSerials;
+  const makes = content.systems.some((s) => [s.outdoor, ...s.indoors].some((r) => makeOfRow(r) !== ""));
   return (
     <section className="cer-sec">
       <h2 className="cer-h">Air conditioning</h2>
       <table className="cer-rt">
         <colgroup>
+          <col className="cer-c-unit" />
           <col className="cer-c-loc" />
+          {makes && <col className="cer-c-make" />}
           <col />
           {serials && <col className="cer-c-ser" />}
         </colgroup>
         <thead>
           <tr>
+            <th>Unit</th>
             <th>Location</th>
+            {makes && <th>Make</th>}
             <th>Model</th>
             {serials && <th>Serial</th>}
           </tr>
         </thead>
         <tbody>
           {content.systems.flatMap((s, i) => [
-            <tr key={`o${i}`}>
-              <td className="cer-loc">
-                {s.outdoor.location ? `Outdoor unit, ${s.outdoor.location.toLowerCase()}` : "Outdoor unit"}
-              </td>
+            <tr key={`o${i}`} className={i > 0 ? "cer-next" : undefined}>
+              <td className="cer-unit">Outdoor unit</td>
+              <td className="cer-loc">{s.outdoor.location}</td>
+              {makes && <td>{makeOfRow(s.outdoor)}</td>}
               <td>{modelCell(s.outdoor)}</td>
               {serials && <td>{s.outdoor.serial}</td>}
             </tr>,
             ...s.indoors.map((r, j) => (
               <tr key={`i${i}-${j}`}>
-                <td className="cer-loc">
-                  {r.location}
-                </td>
+                <td className="cer-unit">{r.qty > 1 ? "Indoor units" : "Indoor unit"}</td>
+                <td className="cer-loc">{r.location}</td>
+                {makes && <td>{makeOfRow(r)}</td>}
                 <td>{modelCell(r)}</td>
                 {serials && <td>{r.serial}</td>}
               </tr>
@@ -102,12 +115,14 @@ function FanTable({ content }: { content: CertContent }) {
   const serials = content.showSerials;
   /* airflow is printed only for the fans someone gave a figure */
   const airflow = content.fans.some((f) => f.airflowLps !== null);
+  const makes = content.fans.some((f) => makeOfRow(f) !== "");
   return (
     <section className="cer-sec">
       <h2 className="cer-h">Ventilation</h2>
       <table className="cer-rt">
         <colgroup>
           <col className="cer-c-loc" />
+          {makes && <col className="cer-c-make" />}
           <col />
           {serials && <col className="cer-c-ser" />}
           {airflow && <col className="cer-c-num" />}
@@ -115,6 +130,7 @@ function FanTable({ content }: { content: CertContent }) {
         <thead>
           <tr>
             <th>Location</th>
+            {makes && <th>Make</th>}
             <th>Model</th>
             {serials && <th>Serial</th>}
             {airflow && <th className="num">Airflow</th>}
@@ -123,9 +139,8 @@ function FanTable({ content }: { content: CertContent }) {
         <tbody>
           {content.fans.map((f, i) => (
             <tr key={i}>
-              <td className="cer-loc">
-                {f.location}
-              </td>
+              <td className="cer-loc">{f.location}</td>
+              {makes && <td>{makeOfRow(f)}</td>}
               <td>{modelCell(f)}</td>
               {serials && <td>{f.serial}</td>}
               {airflow && (
@@ -169,8 +184,9 @@ export function CertificatePaper({
   blank?: CertificateBlank;
 }) {
   const address = addressLines(job.address);
-  const site = address[0] ?? "";
 
+  /* the class leads the building ("Class 1a dwelling"); a version issued
+     before it did printed the wizard's own choice, with the class after */
   const figures: { label: string; value: string }[] = [
     ...(content.building
       ? [{ label: "Building", value: content.building.cls ? `${content.building.label} (${content.building.cls})` : content.building.label }]
@@ -179,9 +195,12 @@ export function CertificatePaper({
   ];
 
   return (
+    /* THE DOCUMENT IS THE HEADING, the site is under the client: the street
+       was the heading and then printed again in the address below it */
     <DocPaper
-      eyebrow={content.title}
-      heading={site || CERT_TITLE}
+      eyebrow=""
+      heading={content.title || CERT_TITLE}
+      plain
       brand={brand}
       toName={job.builder}
       toLines={address}

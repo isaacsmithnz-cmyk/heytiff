@@ -15,12 +15,12 @@ const ANSWERS: CertAnswers = {
   completedOn: "2026-09-25",
   systems: [
     {
-      outdoor: { location: "Roof", model: "MUZ-AP42VGD2-A2", qty: 1, capacityKw: 4.2, serial: "" },
-      indoors: [{ location: "Office", model: "MSZ-AP42VGKD2-A2", qty: 1, capacityKw: 4.2, serial: "" }],
+      outdoor: { location: "Roof", make: "Mitsubishi Electric", model: "MUZ-AP42VGD2-A2", qty: 1, capacityKw: 4.2, serial: "" },
+      indoors: [{ location: "Office", make: "Mitsubishi Electric", model: "MSZ-AP42VGKD2-A2", qty: 1, capacityKw: 4.2, serial: "" }],
       test: TEST,
     },
   ],
-  fans: [{ location: "Bathroom", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 40, airflowKind: "rated", serial: "" }],
+  fans: [{ location: "Bathroom", make: "", model: "XF100", qty: 1, airflowGiven: true, airflowLps: 40, airflowKind: "rated", serial: "" }],
 };
 const brand = { name: "Diamond Air Solutions", logoUrl: null, color: "#436cad", abn: "14603285409", phone: null, email: "service@example.com", website: null };
 
@@ -44,10 +44,13 @@ function render(a: CertAnswers = ANSWERS) {
 }
 
 describe("CertificatePaper", () => {
-  it("titles itself after the street and addresses the builder, with no attention line or counts", () => {
+  it("titles itself as the certificate and addresses the builder at the site, with no attention line or counts", () => {
     const html = render();
-    expect(html).toContain("Mechanical Compliance Certificate");
-    expect(html).toContain("<h1>Lv 3 Suite 4/44-54 Botany Road</h1>");
+    expect(html).toContain("<h1>Mechanical Compliance Certificate</h1>");
+    /* the street once, under the builder, not again as the heading */
+    expect(html.match(/Lv 3 Suite 4\/44-54 Botany Road/g)).toHaveLength(1);
+    expect(html).not.toContain("dsd-eyebrow");
+    expect(html).toContain("cer-plain");
     expect(html).not.toContain("Attention");
     expect(html).not.toMatch(/Certifying|<dt>Fans<\/dt>/);
     expect(html).toContain("ARC authorisation AU12345");
@@ -55,7 +58,8 @@ describe("CertificatePaper", () => {
 
   it("prints the tables, the statements and the sign-off, and no Not covered line nobody typed", () => {
     const html = render();
-    expect(html).toContain("Outdoor unit, roof");
+    expect(html).toContain('<td class="cer-unit">Outdoor unit</td><td class="cer-loc">Roof</td><td>Mitsubishi Electric</td><td>MUZ-AP42VGD2-A2</td>');
+    expect(html).toContain('<td class="cer-unit">Indoor unit</td><td class="cer-loc">Office</td>');
     expect(html).toContain("MSZ-AP42VGKD2-A2");
     expect(html).toContain("40 L/s");
     expect(html).toContain("rated");
@@ -65,7 +69,7 @@ describe("CertificatePaper", () => {
     expect(html).toContain("L118650");
     expect(html).toContain("315890C");
     expect(html).toContain('alt="Signature of Isaac Smith"');
-    expect(html).toContain("Office (Class 5)");
+    expect(html).toContain("Class 5 office");
   });
 
   it("leaves out a serial column until serials are added, and the class when none was picked", () => {
@@ -79,6 +83,24 @@ describe("CertificatePaper", () => {
     const html = render(a);
     expect(html).toContain("<th>Serial</th>");
     expect(html).not.toContain("Building");
+  });
+});
+
+describe("the make", () => {
+  it("prints a Make column when a row has one, and none for a version issued before rows carried it", () => {
+    expect(render()).toContain("<th>Make</th>");
+    const a: CertAnswers = JSON.parse(JSON.stringify(ANSWERS));
+    for (const s of a.systems) for (const r of [s.outdoor, ...s.indoors]) delete (r as { make?: string }).make;
+    const old = render(a);
+    expect(old).not.toContain("<th>Make</th>");
+    expect(old).toContain("MUZ-AP42VGD2-A2");
+  });
+
+  it("says Indoor units for a row of several", () => {
+    const a: CertAnswers = JSON.parse(JSON.stringify(ANSWERS));
+    a.systems[0].indoors[0].qty = 3;
+    expect(render(a)).toContain('<td class="cer-unit">Indoor units</td>');
+    expect(render(a)).toContain("3 × MSZ-AP42VGKD2-A2");
   });
 });
 

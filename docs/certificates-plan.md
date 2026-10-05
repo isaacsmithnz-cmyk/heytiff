@@ -226,6 +226,19 @@ was tidied (title case for the document's name, "air conditioning" without a
 hyphen, "1,000 L/s", "Refrigerant R32, no additional charge.", and a "Not
 applicable" line that reads as two sentences instead of three colons).
 
+Library mech-2026.10.3 (2026-10-05, after job 2905's first issue) is approved
+again: the charge is a sentence ("The system uses R410A, and no refrigerant
+was added to the factory charge."), not a fragment, and the manufacturer's
+statement reads "installed in accordance with the manufacturer's
+instructions". The same pass gave every row a **make**, read off the model
+code (`lib/certs/make.ts`, the price book's `brandOf`) or from the job's
+words when they name one maker, editable in the wizard and printed beside the
+model, because 2905's certificate was all PEFY and PUMY codes with Mitsubishi
+nowhere on it. The paper now heads itself with the document's name, prints
+the site once (under the builder), says "Class 1a dwelling" rather than the
+wizard's menu choice, and lists each row as an outdoor or indoor unit with
+its location as typed. Its labels are sentence case, not tracked caps.
+
 **Every air conditioning certificate:**
 
 1. **Refrigerant circuit:** installed, strength and tightness tested with
@@ -663,8 +676,8 @@ from the plan above:
   item 9.1, and the person can change any match. The read uses
   `claude-opus-5-5`, falling back to `claude-opus-4-8` on a refusal, as the
   proposal writer does.
-- **The wizard's steps** are What it covers (with the completion date),
-  Equipment, Certifier's list, Checks, Sign.
+- **The wizard's steps** are The job (what it covers, the state, the
+  building and the completion date), Equipment, Requirements, Checks, Sign.
 - **The SWMS's controls are shared.** `Seg`, `Choice` and `SignaturePad`
   moved to `components/swms/controls.tsx`, and the SWMS wizard and sign-on
   import them from there.

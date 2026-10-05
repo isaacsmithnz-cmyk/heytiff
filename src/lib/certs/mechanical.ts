@@ -23,8 +23,11 @@ import { STATE_NAME, type AuState } from "@/lib/swms/library";
 
 /* .1 (2026-10-03): the wording page now shows every statement that can
    print, condensate, commissioning and Section J with ductwork among them,
-   so it is approved again with all of them in view. */
-export const CERT_LIBRARY_VERSION = "mech-2026.10.2";
+   so it is approved again with all of them in view.
+   .3 (2026-10-05): the refrigerant statement says the charge in a sentence
+   rather than a fragment, and the manufacturer's statement stops saying
+   "installed to the installation instructions". */
+export const CERT_LIBRARY_VERSION = "mech-2026.10.3";
 
 /* ── what the certificate covers, and where ────────────────────────────── */
 
@@ -73,11 +76,11 @@ export function certFileName(site: string, jobNumber: string | null): string {
    statement and ticks nothing: it only offers a reason when something asked
    for doesn't apply. */
 export const BUILDINGS = [
-  { key: "house", label: "House, townhouse or duplex", cls: "Class 1a" },
-  { key: "apartment", label: "Apartment building", cls: "Class 2" },
-  { key: "office", label: "Office", cls: "Class 5" },
-  { key: "shop", label: "Shop, café or restaurant", cls: "Class 6" },
-  { key: "other", label: "Other or not sure", cls: null },
+  { key: "house", label: "House, townhouse or duplex", cls: "Class 1a", paper: "Class 1a dwelling" },
+  { key: "apartment", label: "Apartment building", cls: "Class 2", paper: "Class 2 apartment building" },
+  { key: "office", label: "Office", cls: "Class 5", paper: "Class 5 office" },
+  { key: "shop", label: "Shop, café or restaurant", cls: "Class 6", paper: "Class 6 shop or restaurant" },
+  { key: "other", label: "Other or not sure", cls: null, paper: null },
 ] as const;
 export type Building = (typeof BUILDINGS)[number]["key"];
 
@@ -101,6 +104,9 @@ export type CircuitTest = {
 
 export type AcRow = {
   location: string;
+  /** Who made it, "Mitsubishi Electric": read off the model when it can be,
+      and the person's to change. Printed beside the model. */
+  make: string;
   model: string;
   /** Identical units in neighbouring rooms share a row. */
   qty: number;
@@ -122,6 +128,7 @@ export type AcSystem = {
    about how much air it moves. There is no fan list to look figures up in. */
 export type FanRow = {
   location: string;
+  make: string;
   model: string;
   qty: number;
   /** The person ticked "Add its airflow". */
@@ -264,8 +271,8 @@ export type CertAnswers = {
 
 export const EMPTY_TEST: CircuitTest = { refrigerant: "", addedKg: null };
 
-export const EMPTY_ROW: AcRow = { location: "", model: "", qty: 1, capacityKw: null, serial: "" };
-export const EMPTY_FAN: FanRow = { location: "", model: "", qty: 1, airflowGiven: false, airflowLps: null, airflowKind: "rated", serial: "" };
+export const EMPTY_ROW: AcRow = { location: "", make: "", model: "", qty: 1, capacityKw: null, serial: "" };
+export const EMPTY_FAN: FanRow = { location: "", make: "", model: "", qty: 1, airflowGiven: false, airflowLps: null, airflowKind: "rated", serial: "" };
 
 export const DEFAULT_CERT_ANSWERS: CertAnswers = {
   covers: { ac: true, vent: false },
@@ -399,19 +406,21 @@ export type Statement = {
   requirement: string | null;
 };
 
-function testLine(t: CircuitTest): string {
-  return (t.addedKg ?? 0) === 0 ? `refrigerant ${t.refrigerant}, no additional charge.` : `refrigerant ${t.refrigerant}, ${fmtNum(t.addedKg ?? 0)} kg added.`;
+/** The charge beyond what the unit left the factory with. */
+function chargeOf(t: CircuitTest): string {
+  return (t.addedKg ?? 0) === 0 ? "no refrigerant was added to the factory charge" : `${fmtNum(t.addedKg ?? 0)} kg was added to the factory charge`;
 }
 
 /** The refrigerant and charge, once when every circuit had the same
-    ("Refrigerant R32, no additional charge."), per outdoor unit when they
-    differ ("MUZ-AP42VGD2-A2: refrigerant R32, 0.4 kg added."). */
+    ("The system uses R32, and no refrigerant was added to the factory
+    charge."), per outdoor unit when they differ ("MUZ-AP42VGD2-A2 uses R32,
+    and 0.4 kg was added to the factory charge."). */
 function testLines(systems: readonly AcSystem[]): string {
   if (systems.length === 0) return "";
-  const lines = systems.map((s) => testLine(s.test));
-  if (lines.every((l) => l === lines[0])) return lines[0].charAt(0).toUpperCase() + lines[0].slice(1);
+  const same = systems.every((s) => s.test.refrigerant === systems[0].test.refrigerant && (s.test.addedKg ?? 0) === (systems[0].test.addedKg ?? 0));
+  if (same) return `The ${systems.length > 1 ? "systems use" : "system uses"} ${systems[0].test.refrigerant}, and ${chargeOf(systems[0].test)}.`;
   return systems
-    .map((s, i) => `${s.outdoor.model || s.outdoor.location || `Outdoor unit ${i + 1}`}: ${lines[i]}`)
+    .map((s, i) => `${s.outdoor.model || s.outdoor.location || `Outdoor unit ${i + 1}`} uses ${s.test.refrigerant}, and ${chargeOf(s.test)}.`)
     .join(" ");
 }
 
@@ -422,7 +431,7 @@ function clauseText(k: ClauseKey, a: CertAnswers): string {
         `Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. ${testLines(a.systems)}`
       ).trim();
     case "manufacturer":
-      return "The equipment is installed to the manufacturer's installation instructions.";
+      return "The equipment is installed in accordance with the manufacturer's instructions.";
     case "condensate":
       return "Condensate is drained to a suitable point without damage or nuisance.";
     case "commissioned":
@@ -551,7 +560,7 @@ export function buildCertificate(a: CertAnswers): CertContent {
     libraryVersion: CERT_LIBRARY_VERSION,
     title: CERT_TITLE,
     covers: a.covers,
-    building: b && b.key !== "other" ? { label: b.label, cls: b.cls } : null,
+    building: b && b.paper ? { label: b.paper, cls: null } : null,
     completedOn: a.completedOn,
     systems,
     fans,
@@ -650,26 +659,26 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
   if (!a.covers.ac && !a.covers.vent) add("covers", "Choose what you're certifying.");
   /* asked every time, never taken from the address: the guess is a hint the
      person confirms, because the building decides which statements apply */
-  if (a.state === null) add("building", "Say which state the job is in.");
+  if (a.state === null) add("building", "Choose the state the job is in.");
   if (a.building === null) add("building", "Choose what kind of building it is.");
 
   if (a.covers.ac) {
     if (a.systems.length === 0) add("equipment", "Add the outdoor unit and the indoor units it runs.");
     a.systems.forEach((s, i) => {
       const name = s.outdoor.model.trim() || `outdoor unit ${i + 1}`;
-      if (missing(s.outdoor.model)) add("equipment", `Give outdoor unit ${i + 1} its model.`);
+      if (missing(s.outdoor.model)) add("equipment", `Enter the model of outdoor unit ${i + 1}.`);
       else if (!looksLikeModel(s.outdoor.model)) add("equipment", `"${s.outdoor.model.trim()}" isn't a model number. Enter the one on the outdoor unit's plate.`);
-      if (missing(s.outdoor.location)) add("equipment", `Say where ${name} is.`);
+      if (missing(s.outdoor.location)) add("equipment", `Enter where ${name} is installed.`);
       if (s.indoors.length === 0) add("equipment", `Add the indoor units ${name} runs.`);
       s.indoors.forEach((r, j) => {
         const row = r.location.trim() || `indoor unit ${j + 1} on ${name}`;
-        if (missing(r.location)) add("equipment", `Say where indoor unit ${j + 1} on ${name} is.`);
-        if (missing(r.model)) add("equipment", `Give ${row} its model.`);
+        if (missing(r.location)) add("equipment", `Enter the room for indoor unit ${j + 1} on ${name}.`);
+        if (missing(r.model)) add("equipment", `Enter the model for ${row}.`);
         else if (!looksLikeModel(r.model)) add("equipment", `"${r.model.trim()}" on ${row} isn't a model number. Enter the one on the unit's plate.`);
       });
       const t = s.test;
-      if (missing(t.refrigerant)) add("tests", `Enter ${name}'s refrigerant.`);
-      if (t.addedKg === null || t.addedKg < 0) add("tests", `Enter the refrigerant added to ${name}, or 0.`);
+      if (missing(t.refrigerant)) add("tests", `Choose the refrigerant for ${name}.`);
+      if (t.addedKg === null || t.addedKg < 0) add("tests", `Enter the refrigerant added to ${name} (0 if none).`);
     });
   }
 
@@ -677,9 +686,9 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
     if (a.fans.length === 0) add("fans", "Add the fans.");
     a.fans.forEach((fan, i) => {
       const row = fan.location.trim() || `fan ${i + 1}`;
-      if (missing(fan.location)) add("fans", `Say where fan ${i + 1} is.`);
-      if (missing(fan.model)) add("fans", `Give the ${row} fan its model.`);
-      if (fan.airflowGiven && (fan.airflowLps === null || fan.airflowLps <= 0)) add("fans", `Give the ${row} fan its airflow, or untick it.`);
+      if (missing(fan.location)) add("fans", `Enter the room for fan ${i + 1}.`);
+      if (missing(fan.model)) add("fans", `Enter the model for the ${row} fan.`);
+      if (fan.airflowGiven && (fan.airflowLps === null || fan.airflowLps <= 0)) add("fans", `Enter the airflow for the ${row} fan, or untick Show its airflow.`);
       const min = wetMinimum(fan.location);
       if (fan.airflowGiven && min !== null && fan.airflowLps !== null && fan.airflowLps > 0 && fan.airflowLps < min) {
         add("fans", `The ${row} fan is ${fmtNum(fan.airflowLps)} L/s, under the NCC minimum of ${min} L/s.`);
@@ -692,7 +701,7 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
      the certificate is checked, but a unit that isn't a row can't be. So the
      person says, once the rows are right, that nothing is missing. */
   if ((a.covers.ac || a.covers.vent) && !a.equipmentConfirmed) {
-    add("equipment", "Confirm every unit installed is listed, with its model off the plate.");
+    add("equipment", "Check every unit against its rating plate, then tick the box.");
   }
 
   if (a.installed.fireRated && missing(a.installed.fireStopProduct)) {
@@ -707,7 +716,7 @@ export function certProblemList(a: CertAnswers, f: CertFacts): CertProblem[] {
     if (r.answer === "na" && missing(r.reason)) add("requirements", `Say why ${which} doesn't apply.`);
     if (r.answer === "clause" && r.clause) {
       const gap = notInstalled(r.clause, a);
-      if (gap) add("requirements", `${Which} asks for ${gap}. Mark it not applicable with a reason, or add what's missing.`);
+      if (gap) add("requirements", `${Which} asks for ${gap}. Choose Doesn't apply and give a reason, or add what's missing.`);
     }
   });
 
@@ -757,9 +766,10 @@ export function certProblems(a: CertAnswers, f: CertFacts): string[] {
 export const SHOWN: Record<ClauseKey, readonly string[]> = {
   approved: [APPROVED_NSW, APPROVED_ELSEWHERE],
   refrigerant: [
-    "Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. [The refrigerant and the charge added, per outdoor unit when they differ].",
+    "Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. The {system uses|systems use} [the refrigerant], and [no refrigerant, or the kg] was added to the factory charge.",
+    "Refrigerant circuits were pressure tested, evacuated, charged and commissioned to AS/NZS 5149.2. [Each outdoor unit's model, its refrigerant and its charge, when they differ].",
   ],
-  manufacturer: ["The equipment is installed to the manufacturer's installation instructions."],
+  manufacturer: ["The equipment is installed in accordance with the manufacturer's instructions."],
   condensate: ["Condensate is drained to a suitable point without damage or nuisance."],
   commissioned: [
     "The system was commissioned and checked in heating and cooling, and the operating instructions and maintenance schedule were handed over.",

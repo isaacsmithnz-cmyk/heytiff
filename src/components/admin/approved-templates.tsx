@@ -76,9 +76,13 @@ function blankContent(clauses: readonly ClauseKey[]): CertContent {
     building: { label: "[Class of building]", cls: null },
     completedOn: "",
     systems: [
-      { outdoor: { ...EMPTY_ROW, model: "[Model]" }, indoors: [{ ...EMPTY_ROW, location: "[Room]", model: "[Model]" }], test: EMPTY_TEST },
+      {
+        outdoor: { ...EMPTY_ROW, location: "[Location]", make: "[Make]", model: "[Model]" },
+        indoors: [{ ...EMPTY_ROW, location: "[Room]", make: "[Make]", model: "[Model]" }],
+        test: EMPTY_TEST,
+      },
     ],
-    fans: [{ ...EMPTY_FAN, location: "[Room]", model: "[Model]" }],
+    fans: [{ ...EMPTY_FAN, location: "[Room]", make: "[Make]", model: "[Model]" }],
     showSerials: false,
     statements: clauses.map((clause): Statement => ({ clause, text: CLAUSE_NAME[clause], requirement: null })),
     notApplicable: [{ clause: null, text: "[What was asked for, and why it doesn't apply.]", requirement: null }],

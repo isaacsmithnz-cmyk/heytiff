@@ -17,11 +17,13 @@
 }
 .cz-sys:last-of-type { border-bottom: 1px solid var(--line); }
 
-/* a row of labelled fields: wide ones share the room, narrow ones keep theirs */
+/* a row of labelled fields: wide ones share the room, narrow ones keep
+   theirs. Room, make, model, kW and qty fit one line of the panel; a
+   serial, when asked for, takes the next */
 .cz-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
-.cz-f { display: flex; flex-direction: column; gap: 4px; flex: 1 1 160px; min-width: 0; }
-.cz-f.m { flex: 0 1 160px; }
-.cz-f.s { flex: 0 0 96px; }
+.cz-f { display: flex; flex-direction: column; gap: 4px; flex: 1 1 128px; min-width: 0; }
+.cz-f.m { flex: 0 1 144px; }
+.cz-f.s { flex: 0 0 64px; }
 .cz-f > span { font-size: 12px; font-weight: 500; color: var(--q); }
 .cz-row.out .cz-f > span { font-weight: 600; color: var(--ink); }
 .cz-row.test .cz-f { flex: 1 1 120px; }

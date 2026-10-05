@@ -24,6 +24,7 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import { thrownWords } from "@/lib/stale-deploy";
 import { MAX_REASON, MAX_REQUIREMENT_TEXT, MAX_REQUIREMENTS } from "@/lib/certs/input";
+import { makeOf, withMakes } from "@/lib/certs/make";
 import type { IssueCertResult } from "@/app/api/certificates/issue/route";
 import {
   BUILDINGS,
@@ -71,7 +72,7 @@ import "./cert-wizard.css";
 
 type Tab = "covers" | "equipment" | "list" | "checks" | "sign";
 const TABS: { key: Tab; label: string }[] = [
-  { key: "covers", label: "What it covers" },
+  { key: "covers", label: "The job" },
   { key: "equipment", label: "Equipment" },
   { key: "list", label: "Requirements" },
   { key: "checks", label: "Checks" },
@@ -163,7 +164,8 @@ async function fileOnJob(file: File, jobUuid: string): Promise<{ ok: true; docum
 
 /** The first draft, from the job. */
 function startingAnswers(ctx: CertWizardContext): CertAnswers {
-  const r = ctx.reading;
+  /* the make beside each model, read off its code or the job's own words */
+  const r = withMakes(ctx.reading, ctx.job.description ?? "");
   const ac = r.systems.length > 0 || !r.ventilation;
   return {
     ...DEFAULT_CERT_ANSWERS,
@@ -390,15 +392,23 @@ export function CertWizard({
 
   /* ── editing the equipment ───────────────────────────────────────────── */
 
+  /* A NEW MODEL BRINGS ITS MAKE, unless the person typed a make of their
+     own: one read off the old model, or none, follows the new one */
+  const words = live?.job.description ?? "";
+  const remade = <R extends { make: string; model: string }>(row: R, patch: Partial<R>): R => {
+    const next = { ...row, ...patch };
+    if (patch.model === undefined || (row.make.trim() && row.make !== makeOf(row.model, words))) return next;
+    return { ...next, make: makeOf(next.model, words) };
+  };
   const setSystem = (i: number, next: AcSystem) => set({ systems: a.systems.map((s, j) => (j === i ? next : s)) });
-  const setOutdoor = (i: number, patch: Partial<AcRow>) => setSystem(i, { ...a.systems[i], outdoor: { ...a.systems[i].outdoor, ...patch } });
+  const setOutdoor = (i: number, patch: Partial<AcRow>) => setSystem(i, { ...a.systems[i], outdoor: remade(a.systems[i].outdoor, patch) });
   const setIndoor = (i: number, j: number, patch: Partial<AcRow>) =>
-    setSystem(i, { ...a.systems[i], indoors: a.systems[i].indoors.map((r, k) => (k === j ? { ...r, ...patch } : r)) });
+    setSystem(i, { ...a.systems[i], indoors: a.systems[i].indoors.map((r, k) => (k === j ? remade(r, patch) : r)) });
   const setTest = (i: number, patch: Partial<CircuitTest>) => {
     if (sameTests) set({ systems: a.systems.map((s) => ({ ...s, test: { ...s.test, ...patch } })) });
     else setSystem(i, { ...a.systems[i], test: { ...a.systems[i].test, ...patch } });
   };
-  const setFan = (i: number, patch: Partial<FanRow>) => set({ fans: a.fans.map((f, j) => (j === i ? { ...f, ...patch } : f)) });
+  const setFan = (i: number, patch: Partial<FanRow>) => set({ fans: a.fans.map((f, j) => (j === i ? remade(f, patch) : f)) });
 
   /* ── the requirements: whatever says what the certificate must cover ──── */
 
@@ -546,7 +556,7 @@ export function CertWizard({
       <div className="sw-grp">
         <div className="sw-gh">
           <b>Which state is the job in?</b>
-          {a.state === null && <span>{"Neither the address nor your company settings say. Pick one."}</span>}
+          {a.state === null && <span>{"The address doesn't name one, and your company settings don't either."}</span>}
         </div>
         <div className="sw-qas">
           <div className="sw-qa">
@@ -569,8 +579,8 @@ export function CertWizard({
       </div>
       <div className="sw-grp">
         <div className="sw-gh">
-          <b>What kind of building?</b>
-          {a.building === null && <span>{`${live.building.because} Pick one to confirm.`}</span>}
+          <b>What kind of building is it?</b>
+          {a.building === null && <span>Choose one to confirm.</span>}
         </div>
         <div className="sw-opts row cz-big">
           {BUILDINGS.map((b) => (
@@ -580,7 +590,7 @@ export function CertWizard({
               checked={a.building === b.key}
               onChange={() => set({ building: b.key })}
               title={b.label}
-              sub={[b.cls, a.building === null && live.building.building === b.key ? "The address suggests this" : null].filter(Boolean).join(", ") || null}
+              sub={a.building === null && live.building.building === b.key ? `${b.cls}, suggested ${live.building.because}` : b.cls}
             />
           ))}
         </div>
@@ -588,10 +598,10 @@ export function CertWizard({
       <div className="sw-qas">
         <div className="sw-qa">
           <span>
-            <label htmlFor="cz-done">Works completed</label>
+            <label htmlFor="cz-done">Date the works were completed</label>
             {live.job.completedOn && a.completedOn === live.job.completedOn && <em>From ServiceM8</em>}
           </span>
-          <DateField id="cz-done" className="wb2-fi cz-date" aria-label="Works completed" max={live.today} today={live.today} value={a.completedOn || null} onChange={(iso) => set({ completedOn: iso ?? "" })} />
+          <DateField id="cz-done" className="wb2-fi cz-date" aria-label="Date the works were completed" max={live.today} today={live.today} value={a.completedOn || null} onChange={(iso) => set({ completedOn: iso ?? "" })} />
         </div>
       </div>
     </>
@@ -623,7 +633,8 @@ export function CertWizard({
       {a.systems.map((s, i) => (
         <div key={i} className="cz-sys">
           <div className="cz-row out">
-            <Field label="Outdoor unit, where" value={s.outdoor.location} onChange={(v) => setOutdoor(i, { location: v })} />
+            <Field label="Outdoor unit location" value={s.outdoor.location} onChange={(v) => setOutdoor(i, { location: v })} />
+            <Field label="Make" width="m" value={s.outdoor.make} onChange={(v) => setOutdoor(i, { make: v })} />
             <Field label="Model" value={s.outdoor.model} onChange={(v) => setOutdoor(i, { model: v })} />
             <NumField label="kW" width="s" value={s.outdoor.capacityKw} onChange={(n) => setOutdoor(i, { capacityKw: n })} />
             {a.serialsGiven && <Field label="Serial" width="m" value={s.outdoor.serial} onChange={(v) => setOutdoor(i, { serial: v })} />}
@@ -634,9 +645,10 @@ export function CertWizard({
           {s.indoors.map((r, j) => (
             <div key={j} className="cz-row">
               <Field label="Room" value={r.location} onChange={(v) => setIndoor(i, j, { location: v })} />
+              <Field label="Make" width="m" value={r.make} onChange={(v) => setIndoor(i, j, { make: v })} />
               <Field label="Model" value={r.model} onChange={(v) => setIndoor(i, j, { model: v })} />
-              <NumField label="kW each" width="s" value={r.capacityKw} onChange={(n) => setIndoor(i, j, { capacityKw: n })} />
-              <Field label="How many" width="s" inputMode="numeric" value={String(r.qty)} onChange={(v) => setIndoor(i, j, { qty: Math.max(1, Math.floor(readNum(v) ?? 1)) })} />
+              <NumField label="kW" width="s" value={r.capacityKw} onChange={(n) => setIndoor(i, j, { capacityKw: n })} />
+              <Field label="Qty" width="s" inputMode="numeric" value={String(r.qty)} onChange={(v) => setIndoor(i, j, { qty: Math.max(1, Math.floor(readNum(v) ?? 1)) })} />
               {a.serialsGiven && <Field label={r.qty > 1 ? "Serials, comma between" : "Serial"} width="m" value={r.serial} onChange={(v) => setIndoor(i, j, { serial: v })} />}
               <button
                 type="button"
@@ -654,7 +666,7 @@ export function CertWizard({
         </div>
       ))}
       <button type="button" className="pbtn ghost sm cz-add" onClick={() => set({ systems: [...a.systems, blankSystem(a.systems[0]?.test.refrigerant ?? "")] })}>
-        Add an outdoor unit
+        Add equipment
       </button>
     </div>
   );
@@ -668,6 +680,7 @@ export function CertWizard({
         <div key={i} className="cz-sys">
           <div className="cz-row fan">
             <Field label="Room" value={f.location} onChange={(v) => setFan(i, { location: v })} />
+            <Field label="Make" width="m" value={f.make} onChange={(v) => setFan(i, { make: v })} />
             <Field label="Model" value={f.model} onChange={(v) => setFan(i, { model: v })} />
             {a.serialsGiven && <Field label="Serial" width="m" value={f.serial} onChange={(v) => setFan(i, { serial: v })} />}
             <button type="button" className="wb2-ico cz-x" aria-label={`Clear the ${f.location || `fan ${i + 1}`} fan`} onClick={() => set({ fans: a.fans.filter((_, j) => j !== i) })}>
@@ -678,7 +691,7 @@ export function CertWizard({
           <div className="cz-fanfoot">
             <label className="cz-tick">
               <input type="checkbox" checked={f.airflowGiven} onChange={(e) => setFan(i, { airflowGiven: e.target.checked })} />
-              Add its airflow
+              Show its airflow
             </label>
             {f.airflowGiven && (
               <>
@@ -710,30 +723,27 @@ export function CertWizard({
 
   const equipmentScreen = (
     <>
-      {(a.covers.ac || a.covers.vent) && (
-        /* serials are optional: off, the certificate prints no serial column */
-        <label className="cz-tick">
-          <input type="checkbox" checked={a.serialsGiven} onChange={(e) => set({ serialsGiven: e.target.checked })} />
-          Add serial numbers
-        </label>
-      )}
       {a.covers.ac && acEditor}
       {a.covers.vent && fanEditor}
       {(a.covers.ac || a.covers.vent) && (
         <div className="sw-grp">
+          {/* serials are optional: off, the certificate prints no serial column */}
+          <label className="cz-tick">
+            <input type="checkbox" checked={a.serialsGiven} onChange={(e) => set({ serialsGiven: e.target.checked })} />
+            Show serial numbers on the certificate
+          </label>
           <Choice
             kind="checkbox"
             name="confirmed"
             checked={a.equipmentConfirmed}
             onChange={(on) => set({ equipmentConfirmed: on })}
-            title="Every unit installed is listed, with its model off the plate"
-            sub="Changing a unit takes this off again"
+            title="I've checked every unit against its rating plate"
           />
         </div>
       )}
       <div className="sw-grp">
         <div className="sw-gh">
-          <b>What else was installed</b>
+          <b>What else was installed?</b>
         </div>
         <div className="sw-opts">
           <Choice kind="checkbox" name="duct" checked={a.installed.ductwork} onChange={(on) => set({ installed: { ...a.installed, ductwork: on } })} title="Ductwork, plenums or flexible duct" />
@@ -766,7 +776,7 @@ export function CertWizard({
       <div className="sw-grp">
         <div className="sw-gh">
           <b>
-            <label htmlFor="cz-asked">What you&apos;ve been asked to cover</label>
+            <label htmlFor="cz-asked">What the certificate must cover</label>
           </b>
           <span>Optional</span>
         </div>
@@ -774,7 +784,7 @@ export function CertWizard({
           id="cz-asked"
           className="wb2-notes"
           rows={6}
-          placeholder="Paste an email or a list, or type a few lines"
+          placeholder="Paste the email or list from the certifier, builder or architect"
           value={asked}
           onChange={(e) => setAsked(e.target.value)}
         />
@@ -802,25 +812,25 @@ export function CertWizard({
           />
         </div>
         <p className="sw-note">
-          Files emailed onto this job in ServiceM8 are in the list.{" "}
+          Files emailed to this job in ServiceM8 are listed.{" "}
           <button type="button" className="sw-more cz-inline" disabled={looking} onClick={() => void lookAgain()}>
             {looking ? "Looking…" : "Look again"}
           </button>
         </p>
         <button type="button" className="pbtn cz-read" disabled={!unread || listBusy || uploading} onClick={() => void readAsked()}>
-          {listBusy ? "Reading…" : "Read it"}
+          {listBusy ? "Reading…" : "Read the requirements"}
         </button>
         {listError && <p className="sw-state bad">{listError}</p>}
-        {!listError && unread && !listBusy && <p className="sw-note">Not read yet. Read it, and Tiff takes out each thing asked for.</p>}
-        {lastRead?.found === 0 && !unread && <p className="sw-note">Tiff found nothing in it for this certificate to cover.</p>}
-        {a.requirements.length === 0 && !asked.trim() && !listDoc && <p className="sw-note">Nothing asked for? Continue, and the certificate makes the standard statements.</p>}
+        {!listError && unread && !listBusy && <p className="sw-note">Not read yet.</p>}
+        {lastRead?.found === 0 && !unread && <p className="sw-note">Tiff found no requirements in it for this certificate.</p>}
+        {a.requirements.length === 0 && !asked.trim() && !listDoc && <p className="sw-note">No requirements? Continue, and the certificate uses the standard statements.</p>}
       </div>
 
       {a.requirements.length > 0 && (
         <div className="sw-grp">
           <div className="sw-gh">
-            <b>What Tiff took out</b>
-            <span>Check each line</span>
+            <b>Requirements found</b>
+            <span>{`${a.requirements.length} to check`}</span>
           </div>
           {a.requirements.map((r, i) => (
             <div key={i} className="cz-req">
@@ -882,7 +892,7 @@ export function CertWizard({
             ))}
           </select>
         </label>
-        <NumField label="Added, kg" value={s.test.addedKg} onChange={(n) => setTest(i, { addedKg: n })} />
+        <NumField label="Refrigerant added (kg)" value={s.test.addedKg} onChange={(n) => setTest(i, { addedKg: n })} />
       </div>
     </div>
   );
@@ -893,7 +903,6 @@ export function CertWizard({
         <div className="sw-grp">
           <div className="sw-gh">
             <b>Refrigerant</b>
-            <span>The pressure test and vacuum print as passed. 0 kg when nothing was added.</span>
           </div>
           {a.systems.length > 1 && (
             <Choice
@@ -915,7 +924,7 @@ export function CertWizard({
         <div className="sw-grp">
           <div className="sw-gh">
             <b>Fire mode</b>
-            <span>Asked for: Specification 21</span>
+            <span>Asked for by the certifier (Specification 21)</span>
           </div>
           <div className="sw-opts">
             <Choice name="fire" checked={a.fireMode === "individual"} onChange={() => set({ fireMode: "individual" })} title="Individual room units, each 1,000 L/s or less" sub="Not part of a smoke control system, so no shutdown is needed" />
@@ -925,7 +934,7 @@ export function CertWizard({
             <Choice name="fire" checked={a.fireMode === "shutdown"} onChange={() => set({ fireMode: "shutdown" })} title="It shuts down on a fire signal" />
             {a.fireMode === "shutdown" && (
               <div className="cz-row cert">
-                <Field label="The fire signal interface" value={a.fireModeInterface} onChange={(v) => set({ fireModeInterface: v })} />
+                <Field label="Fire signal from" value={a.fireModeInterface} onChange={(v) => set({ fireModeInterface: v })} />
                 <label className="cz-f">
                   <span>Tested on</span>
                   <DateField className="wb2-fi" aria-label="Tested on" max={live?.today} today={live?.today} value={a.fireModeTestedOn || null} onChange={(iso) => set({ fireModeTestedOn: iso ?? "" })} />
@@ -940,10 +949,10 @@ export function CertWizard({
       {clauses.includes("airBalance") && (
         <div className="sw-grp">
           <div className="sw-gh">
-            <b>The air balance report</b>
+            <b>Air balance report</b>
           </div>
           <div className="sw-opts row">
-            <Choice name="balance" checked={a.airBalance === "attached"} onChange={() => set({ airBalance: "attached" })} title="Sent with the certificate" />
+            <Choice name="balance" checked={a.airBalance === "attached"} onChange={() => set({ airBalance: "attached" })} title="Attached to this certificate" />
             <Choice name="balance" checked={a.airBalance === "others"} onChange={() => set({ airBalance: "others" })} title="Provided by others" />
           </div>
         </div>
@@ -952,10 +961,9 @@ export function CertWizard({
       <div className="sw-qas">
         <div className="sw-qa">
           <span>
-            <label htmlFor="cz-notcov">Not covered</label>
-            <em>Optional. Printed only when filled in</em>
+            <label htmlFor="cz-notcov">Not covered (optional)</label>
           </span>
-          <input id="cz-notcov" className="wb2-fi" placeholder="Like the building's outdoor-air ventilation" value={a.notCoveredExtra} onChange={(e) => set({ notCoveredExtra: e.target.value })} />
+          <input id="cz-notcov" className="wb2-fi" placeholder="For example, the building's outdoor-air ventilation" value={a.notCoveredExtra} onChange={(e) => set({ notCoveredExtra: e.target.value })} />
         </div>
       </div>
     </>
@@ -1015,7 +1023,7 @@ export function CertWizard({
       )}
       {!licensed && (
         <p className="sw-state bad">
-          Anyone with their own current ARC licence and contractor licence can sign a certificate. Yours aren&apos;t both current on your staff card, so this one can be read but not issued.
+          To issue a certificate you need a current ARC licence and contractor licence on your staff card. This one can be read, but not issued.
         </p>
       )}
       {!live.approved &&
@@ -1064,7 +1072,7 @@ export function CertWizard({
     title = issued.version > 1 ? `Version ${issued.version} is on the job` : "The certificate is on the job";
     body = (
       <div className="sw-grp">
-        <p className="sw-text">{`${issued.fileName} is filed under Documents. Nothing has been sent yet.`}</p>
+        <p className="sw-text">{`Saved to the job's Documents as ${issued.fileName}. It hasn't been sent to anyone yet.`}</p>
         <div className="cz-after">
           {canSend && (
             <>

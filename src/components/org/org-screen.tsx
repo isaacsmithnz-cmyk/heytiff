@@ -7,7 +7,6 @@ import { flushSync } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import { AddressField } from "@/components/address/address-field";
-import { IdCard } from "@/components/cards/id-card";
 import { CredentialCard } from "@/components/cards/credential-card";
 import { SectionCard } from "@/components/profile/section-card";
 import { Field, SelectInput, Seg, TextInput } from "@/components/profile/fields";
@@ -33,49 +32,40 @@ import { CredentialModal } from "./credential-modal";
 import { TransferOwnerModal } from "./transfer-owner-modal";
 import { LogoUploader } from "./logo-uploader";
 import { BrandColorPicker } from "./brand-color";
-import { OverviewTab } from "./overview-tab";
 import { ORG_TABS, orgTabFromParam, type OrgTabKey } from "./tabs";
 import type { OrgActions, TransferResult } from "./types";
 
 /* The Organisation screen — the company profile, on the Workboard's card.
 
-   WHAT IT IS NOW. One row of tabs joined to ONE persistent white card, exactly
-   the shape the Workboard and the staff card already wear: `.wb2-vtabs` above
-   `.wb2-card`, with the thumb that IS the card's top edge for the width of the
-   live tab. Switching tabs swaps the information; the surface stays put.
+   One row of tabs joined to ONE persistent white card, the shape the Workboard
+   and the staff card wear: `.wb2-vtabs` above `.wb2-card`, with the strip, the
+   measured thumb, the keyboard walk and the view transition all
+   `shell/view-tabs` and `.wb2-card` — borrowed, not copied.
 
-   It was five stacked `.card2`s — the whole company down one scroll, each
-   section wearing its own frame, its own icon and its own headline. Nothing was
-   wrong with any single card; there was just no altitude anywhere on the page.
-   You could not glance at the business, and you could not get to the one field
-   you came for without reading past four sections that were not it.
+   FOUR TABS. Company opens first and is the screen's own summary: titled
+   groups stacked down it, each one rows of label and value — Brand (the logo
+   and colour, which save on pick), Trading details and Contact (each its own
+   Edit). Preferences is the knobs. Licences & insurance and Account are as
+   they were. There is no Overview: it restated five tabs and the first tab
+   is now the thing it summarised.
 
-   SO OVERVIEW LEADS AND READS. It is the whole company at a glance and the only
-   tab with nothing to save — one panel per tab below it, each one the tab's own
-   name with the jump into it. Every tab after Overview edits exactly one thing.
-
-   The strip, the measured thumb, the keyboard walk and the view transition are
-   all `shell/view-tabs` and `.wb2-card` — borrowed, not copied. The staff card
-   made the same borrow and its comment says why: fixing either one twice was
-   the alternative.
+   WHAT A DOCUMENT LOOKS LIKE IS NOT ON THIS SCREEN. The templates draw every
+   document with the letterhead on it, which is where a logo is checked against
+   a white page and a dark bar; Brand links there rather than carrying a second,
+   drifting copy.
 
    `?sec=` is written back with history.replaceState (not a router push) so a
    refresh or a shared link lands on the same tab without a navigation, and the
    server reads it from its own searchParams — no useSearchParams, so no
-   Suspense boundary around the page.
+   Suspense boundary around the page. The four tabs that merged into Company
+   still resolve to it (see tabs.ts).
 
-   WHAT DID NOT CHANGE. The sections themselves: the same SectionCards saving
-   the same two allowlisted groups, the same credential modal, the same logo
-   uploader writing on drop. They wear `variant="section"` now — no frame, no
-   repeated title, because the TAB is the title (see section-card).
+   The compliance COLUMNS are gone from this screen: the ARC authorisation, the
+   contractor licence and the insurance policy are rows in org_credentials
+   (docs/migrations/org_credentials.sql).
 
-   The compliance COLUMNS are still gone from this screen: the ARC
-   authorisation, the contractor licence and the insurance policy are rows in
-   org_credentials (docs/migrations/org_credentials.sql).
-
-   The hints are still gone too. Two lines are allowed to exist and both say
-   something their control does not: the State field picks your holiday
-   calendar, and the logo goes to customers. */
+   The hints are gone too. One line is allowed to exist and it says something
+   its control does not: the State field picks your holiday calendar. */
 
 function identityValues(o: OrgSettings): Record<string, string> {
   return {
@@ -84,11 +74,6 @@ function identityValues(o: OrgSettings): Record<string, string> {
     abn: o.abn ?? "",
     acn: o.acn ?? "",
     gst_registered: o.gst_registered === true ? "Yes" : o.gst_registered === false ? "No" : "",
-    payment_terms_days:
-      o.payment_terms_days === null ? "" : String(o.payment_terms_days),
-    expiry_warn_days: String(o.expiry_warn_days),
-    expiry_email: o.expiry_email ? "Yes" : "No",
-    website: o.website ?? "",
   };
 }
 
@@ -96,21 +81,12 @@ function contactValues(o: OrgSettings): Record<string, string> {
   return {
     email: o.email ?? "",
     phone: o.phone ?? "",
+    website: o.website ?? "",
     address: o.address ?? "",
     suburb: o.suburb ?? "",
     state: o.state ?? "",
     postcode: o.postcode ?? "",
   };
-}
-
-/** Two letters off the trading name, for the card with no logo yet. */
-function orgInitials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "—";
-  return words
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join("");
 }
 
 export function OrgScreen({
@@ -161,7 +137,7 @@ export function OrgScreen({
 
   const [tab, setTab] = useState<OrgTabKey>(() => {
     const wanted = orgTabFromParam(initialSec);
-    return wanted && available.some((t) => t.key === wanted) ? wanted : "overview";
+    return wanted && available.some((t) => t.key === wanted) ? wanted : "company";
   });
 
   /* The board's switch: the information swaps, the surface stays. `.wb2-card`
@@ -196,78 +172,76 @@ export function OrgScreen({
        the grey: the point of the frame is the screen. */
     <div className="page in full">
       <div className="wrap">
-        <div className="stg">
-          <div className="orgcard2">
-            <div className="wb2-crumbline">
-              <Link href="/dashboard/admin" className="int-back">
-                <Icon name="chevL" size={15} />
-                Admin
-              </Link>
-            </div>
-            <ViewTabs
-              lead={<h1 className="wb2-h1">Organisation</h1>}
-              ariaLabel="Organisation sections"
-              idPrefix="orgtab"
-              panelPrefix="orgsec"
-              active={tab}
-              onGo={(k) => go(k as OrgTabKey)}
-              items={available.map((t) => ({ key: t.key, label: t.label }))}
-            />
+        {/* `orgcard2` rides the stage itself, as `pcard2` does on the staff
+            card: the full frame scrolls the PANEL, which only works if every
+            box between `.stg` and `.wb2-card` is in its flex column. A block
+            wrapper here let the card grow past the screen, and the outlet,
+            which no longer scrolls, clipped everything under the fold. */}
+        <div className="stg orgcard2">
+          <div className="wb2-crumbline">
+            <Link href="/dashboard/admin" className="int-back">
+              <Icon name="chevL" size={15} />
+              Admin
+            </Link>
+          </div>
+          <ViewTabs
+            lead={<h1 className="wb2-h1">Organisation</h1>}
+            ariaLabel="Organisation sections"
+            idPrefix="orgtab"
+            panelPrefix="orgsec"
+            active={tab}
+            onGo={(k) => go(k as OrgTabKey)}
+            items={available.map((t) => ({ key: t.key, label: t.label }))}
+          />
 
-            <div className="wb2-card">
-              <div className="wb2-panel"><div className="ppanel2">
-                {/* Keyed for `fallbackSwap`, the recovery remount — NOT for an
-                    animation any more. `.psec2` used to fade the panel in on
-                    every switch; it stopped when Isaac asked for this card to
-                    match Team's, which just changes its children. The remount
-                    itself is invisible: React swaps it in one commit. */}
-                <section
-                  key={`${tab}#${fallbackSwap}`}
-                  id={`orgsec-${tab}`}
-                  role="tabpanel"
-                  aria-labelledby={`orgtab-${tab}`}
-                  tabIndex={-1}
-                  className="psec2"
-                  data-sec={tab}
-                >
-                  {tab === "overview" && (
-                    <OverviewTab
-                      org={org}
-                      credentials={credentials}
-                      account={account}
-                      logoUrl={logoUrl}
-                      today={today}
-                      warnDays={warnDays}
-                      onGo={go}
-                    />
-                  )}
-                  {tab === "brand" && (
+          <div className="wb2-card">
+            <div className="wb2-panel"><div className="ppanel2">
+              {/* Keyed for `fallbackSwap`, the recovery remount — NOT for an
+                  animation any more. `.psec2` used to fade the panel in on
+                  every switch; it stopped when Isaac asked for this card to
+                  match Team's, which just changes its children. The remount
+                  itself is invisible: React swaps it in one commit. */}
+              <section
+                key={`${tab}#${fallbackSwap}`}
+                id={`orgsec-${tab}`}
+                role="tabpanel"
+                aria-labelledby={`orgtab-${tab}`}
+                tabIndex={-1}
+                className="psec2"
+                data-sec={tab}
+              >
+                {tab === "company" && (
+                  <div className="orgco">
                     <BrandSection org={org} logoUrl={logoUrl} actions={actions} />
-                  )}
-                  {tab === "identity" && <IdentitySection org={org} actions={actions} />}
-                  {tab === "contact" && (
+                    <TradingSection org={org} actions={actions} />
                     <ContactSection org={org} addressLookup={addressLookup} actions={actions} />
-                  )}
-                  {tab === "credentials" && (
-                    <CredentialsSection
-                      credentials={credentials}
-                      records={credentialRecords}
-                      documents={credentialDocuments}
-                      today={today}
-                      warnDays={warnDays}
-                      actions={actions}
-                    />
-                  )}
-                  {tab === "account" && account && (
-                    <AccountSection
-                      account={account}
-                      candidates={ownerCandidates}
-                      onTransfer={actions.onTransferOwnership}
-                    />
-                  )}
-                </section>
-              </div></div>
-            </div>
+                  </div>
+                )}
+                {tab === "preferences" && (
+                  <div className="orgco">
+                    <PaymentsSection org={org} actions={actions} />
+                    <ExpirySection org={org} actions={actions} />
+                  </div>
+                )}
+                {tab === "credentials" && (
+                  <CredentialsSection
+                    credentials={credentials}
+                    records={credentialRecords}
+                    documents={credentialDocuments}
+                    today={today}
+                    warnDays={warnDays}
+                    actions={actions}
+                  />
+                )}
+                {tab === "account" && account && (
+                  <AccountSection
+                    account={account}
+                    candidates={ownerCandidates}
+                    onTransfer={actions.onTransferOwnership}
+                  />
+                )}
+              </section>
+            </div></div>
           </div>
         </div>
       </div>
@@ -275,16 +249,13 @@ export function OrgScreen({
   );
 }
 
-/* Your business — the logo, and the thing the logo lands on.
+/* Brand — the logo and the document colour: the two things on this screen
+   that change what a customer is sent.
 
-   The two halves are one subject: the tile is the only control on the screen
-   that changes what a customer sees, and the card beside it is what they see.
-   Uploading and then hunting for the result on another tab was the arrangement
-   this replaces.
-
-   No Edit button, because there is nothing here to hold in a draft — the logo
-   writes on drop, and the names it prints are edited on Company identity. Same
-   bargain the credentials tab makes. */
+   No Edit button, because there is nothing here to hold in a draft — each
+   control writes on pick, and a row of two in a card with an Edit would
+   promise a Save that neither needs. The way to SEE what they do is the
+   templates, one link away. */
 function BrandSection({
   org,
   logoUrl,
@@ -294,72 +265,44 @@ function BrandSection({
   logoUrl: string | null;
   actions: OrgActions;
 }) {
-  const trading = org.trading_name ?? "";
-  const gst = org.gst_registered;
-
   return (
-    <div className="psec-body">
-      <div className="psechd">
-        <em>How the company appears to a customer</em>
+    <div className="pdlcard">
+      <div className="pdlh jump">
+        <span>Brand</span>
+        <Link href="/dashboard/admin/templates" className="jumpb">
+          View on templates
+        </Link>
       </div>
-
-      <div className="orgbrand">
-        <LogoUploader logoUrl={logoUrl} onSet={actions.onSetLogo} onClear={actions.onClearLogo} />
-
-        {/* LIGHT plastic, where a staff card is dark: same object, other side
-            of the relationship — the business that issues the cards. And the
-            one card with NO issuer line: unset it read "HeyTiff", which on a
-            card meant to show a customer whose business this is named the
-            platform instead; set to the trading name it printed that name
-            twice, once in 10px caps directly above itself in 21px. */}
-        <IdCard
-          variant="light"
-          showIssuer={false}
-          badge={{ label: "Company", color: "#2E68FF" }}
-          photoUrl={logoUrl}
-          initials={orgInitials(trading || org.legal_name || "")}
-          name={trading || "Name your business"}
-          sub={org.legal_name || "Legal name not set"}
-          facts={[
-            { em: "ABN", b: formatAbn(org.abn) || "—" },
-            { em: "ACN", b: formatAcn(org.acn) || "—" },
-            {
-              em: "GST",
-              b: gst === true ? "Registered" : gst === false ? "Not registered" : "—",
-              tone: gst === true ? "ok" : undefined,
-            },
-          ]}
-        />
-      </div>
-
-      {/* Its own row rather than a third cell: `.orgbrand` is a pair — the
-          artwork and the card it lands on — and the colour is about neither of
-          them. It is about the documents, which is what its preview shows. */}
-      <div className="orgcolrow">
-        <em>Document colour</em>
-        <BrandColorPicker
-          value={org.brand_color}
-          onSet={actions.onSetBrandColor}
-          onClear={actions.onClearBrandColor}
-        />
-      </div>
+      <dl className="pdl split orgbrand">
+        <div className="pdrow">
+          <dt>Logo</dt>
+          <dd>
+            <LogoUploader logoUrl={logoUrl} onSet={actions.onSetLogo} onClear={actions.onClearLogo} />
+          </dd>
+        </div>
+        <div className="pdrow">
+          <dt>Document colour</dt>
+          <dd>
+            <BrandColorPicker
+              value={org.brand_color}
+              onSet={actions.onSetBrandColor}
+              onClear={actions.onClearBrandColor}
+            />
+          </dd>
+        </div>
+      </dl>
     </div>
   );
 }
 
-/* Company identity — who the business is on paper.
+/* Trading details — who the business is on paper: the names it trades and is
+   registered under, and the numbers that go beside them on an invoice.
 
-   PAYMENT TERMS SIT HERE beside GST for the reason GST sits here at all: this
-   card already carries the money policy a customer meets on a document, and
-   the alternative was a seventh tab holding one number. It is the business's
-   own answer, not ServiceM8's — ServiceM8 mirrors no invoice terms — and it
-   is what lets a raised claim on the job card say when it is DUE.
-
-   Read and edit name the same seven things in the same order, which is what
-   they did not do before: the read view was a piece of plastic and the edit view was
-   these boxes, so pressing Edit moved everything. The plastic is on Your
-   business now, where the logo that changes it is. */
-function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActions }) {
+   Read and edit name the same five things in the same order, which is what a
+   card has to do or pressing Edit moves everything. Payment terms and the
+   expiry window used to sit here; they are the business's settings rather than
+   its registration, and live on Preferences. */
+function TradingSection({ org, actions }: { org: OrgSettings; actions: OrgActions }) {
   const values = identityValues(org);
 
   const read = (
@@ -378,34 +321,13 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
               : ""
         }
       />
-      <Row label="Payment terms" value={paymentTermsLabel(org.payment_terms_days)} />
-      <Row label="Expiry warnings" value={expiryWarnLabel(org.expiry_warn_days)} />
-      <Row label="Morning email" value={expiryEmailLabel(org.expiry_email)} />
-      <Row
-        label="Website"
-        value={
-          values.website ? (
-            <a
-              className="ro-link"
-              href={values.website.startsWith("http") ? values.website : `https://${values.website}`}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              {values.website}
-            </a>
-          ) : (
-            ""
-          )
-        }
-        small
-      />
     </dl>
   );
 
   return (
     <SectionCard
-      variant="section"
-      title="Company identity"
+      variant="group"
+      title="Trading details"
       values={values}
       onSave={(fields) => actions.onSave("identity", fields)}
       validate={(fields) => preValidateOrg("identity", fields)}
@@ -462,58 +384,6 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
                 onChange={(v) => set("gst_registered", v)}
               />
             </Field>
-            {/* The unit is IN THE LABEL, not under the box: a caption
-                explaining a field is a field that didn't explain itself.
-                "0" is a real answer and the placeholder says so. */}
-            <Field
-              label="Payment terms (days)"
-              error={invalid("payment_terms_days") ? PAYMENT_TERMS_ERROR : null}
-            >
-              <TextInput
-                name="payment_terms_days"
-                placeholder="e.g. 14 — or 0 for on receipt"
-                value={draft.payment_terms_days}
-                invalid={invalid("payment_terms_days")}
-                onChange={(v) => set("payment_terms_days", v)}
-              />
-            </Field>
-          </div>
-          {/* ONE NUMBER FOR EVERYTHING THAT EXPIRES — staff tickets, visas, the
-              business's own papers, rego, vehicle insurance, green slip, a
-              service by date. It replaced six hard-coded 30s and the per-card
-              Remind me buttons (issue #640). The unit is in the label, as it is
-              for payment terms above. */}
-          <div className="frow c2">
-            <Field
-              label="Warn before an expiry (days)"
-              error={invalid("expiry_warn_days") ? EXPIRY_WARN_ERROR : null}
-            >
-              <TextInput
-                name="expiry_warn_days"
-                placeholder="e.g. 30"
-                value={draft.expiry_warn_days}
-                invalid={invalid("expiry_warn_days")}
-                onChange={(v) => set("expiry_warn_days", v)}
-              />
-            </Field>
-            <Field label="Email the morning list">
-              <Seg
-                value={draft.expiry_email}
-                greenValue="Yes"
-                options={["Yes", "No"]}
-                onChange={(v) => set("expiry_email", v)}
-              />
-            </Field>
-          </div>
-          <div className="frow c2">
-            <Field label="Website">
-              <TextInput
-                name="website"
-                placeholder="e.g. smithair.com.au"
-                value={draft.website}
-                onChange={(v) => set("website", v)}
-              />
-            </Field>
           </div>
         </>
       )}
@@ -521,6 +391,10 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
   );
 }
 
+/* Contact — how to reach the business, and where it is. The website is here
+   with the email and phone because it prints on the same line of the
+   letterhead, and the state is here because it is part of the address it picks
+   the public-holiday calendar from. */
 function ContactSection({
   org,
   addressLookup,
@@ -532,6 +406,8 @@ function ContactSection({
 }) {
   const values = contactValues(org);
   const place = [values.suburb, values.state, values.postcode].filter(Boolean).join(" ");
+  // one row: the street and the place read as the single address they are
+  const where = [values.address, place].filter(Boolean).join(", ");
 
   const read = (
     <dl className="pdl split">
@@ -560,15 +436,32 @@ function ContactSection({
           )
         }
       />
-      <Row label="Address" value={values.address} small />
-      <Row label="Suburb, state & postcode" value={place} small />
+      <Row
+        label="Website"
+        value={
+          values.website ? (
+            <a
+              className="ro-link"
+              href={values.website.startsWith("http") ? values.website : `https://${values.website}`}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {values.website}
+            </a>
+          ) : (
+            ""
+          )
+        }
+        small
+      />
+      <Row label="Address" value={where} small />
     </dl>
   );
 
   return (
     <SectionCard
-      variant="section"
-      title="Contact & address"
+      variant="group"
+      title="Contact"
       values={values}
       onSave={(fields) => actions.onSave("contact", fields)}
       read={read}
@@ -591,6 +484,16 @@ function ContactSection({
                 placeholder="e.g. (03) 9000 0000"
                 value={draft.phone}
                 onChange={(v) => set("phone", v)}
+              />
+            </Field>
+          </div>
+          <div className="frow c2">
+            <Field label="Website">
+              <TextInput
+                name="website"
+                placeholder="e.g. smithair.com.au"
+                value={draft.website}
+                onChange={(v) => set("website", v)}
               />
             </Field>
           </div>
@@ -653,6 +556,101 @@ function ContactSection({
             </Field>
           </div>
         </>
+      )}
+    />
+  );
+}
+
+/* Payments — the business's own answer to "when is an invoice due", and the
+   one number that answers it. It is what lets a raised claim on the job card
+   say when it is DUE; ServiceM8 mirrors no invoice terms, so this is the only
+   place it can come from. */
+function PaymentsSection({ org, actions }: { org: OrgSettings; actions: OrgActions }) {
+  const values = {
+    payment_terms_days: org.payment_terms_days === null ? "" : String(org.payment_terms_days),
+  };
+
+  return (
+    <SectionCard
+      variant="group"
+      title="Payments"
+      values={values}
+      onSave={(fields) => actions.onSave("preferences", fields)}
+      validate={(fields) => preValidateOrg("preferences", fields)}
+      read={
+        <dl className="pdl split">
+          <Row label="Payment terms" value={paymentTermsLabel(org.payment_terms_days)} />
+        </dl>
+      }
+      edit={({ draft, set, invalid }) => (
+        <div className="frow c2">
+          {/* The unit is IN THE LABEL, not under the box: a caption explaining
+              a field is a field that didn't explain itself. "0" is a real
+              answer and the placeholder says so. */}
+          <Field
+            label="Payment terms (days)"
+            error={invalid("payment_terms_days") ? PAYMENT_TERMS_ERROR : null}
+          >
+            <TextInput
+              name="payment_terms_days"
+              placeholder="e.g. 14 — or 0 for on receipt"
+              value={draft.payment_terms_days}
+              invalid={invalid("payment_terms_days")}
+              onChange={(v) => set("payment_terms_days", v)}
+            />
+          </Field>
+        </div>
+      )}
+    />
+  );
+}
+
+/* Expiry warnings — ONE NUMBER FOR EVERYTHING THAT EXPIRES: staff tickets,
+   visas, the business's own papers, rego, vehicle insurance, green slip, a
+   service-by date. It replaced six hard-coded 30s and the per-card Remind me
+   buttons (issue #640). The unit is in the label, as it is for payment terms. */
+function ExpirySection({ org, actions }: { org: OrgSettings; actions: OrgActions }) {
+  const values = {
+    expiry_warn_days: String(org.expiry_warn_days),
+    expiry_email: org.expiry_email ? "Yes" : "No",
+  };
+
+  return (
+    <SectionCard
+      variant="group"
+      title="Expiry warnings"
+      values={values}
+      onSave={(fields) => actions.onSave("preferences", fields)}
+      validate={(fields) => preValidateOrg("preferences", fields)}
+      read={
+        <dl className="pdl split">
+          <Row label="Warn before" value={expiryWarnLabel(org.expiry_warn_days)} />
+          <Row label="Morning email" value={expiryEmailLabel(org.expiry_email)} />
+        </dl>
+      }
+      edit={({ draft, set, invalid }) => (
+        <div className="frow c2">
+          <Field
+            label="Warn before an expiry (days)"
+            error={invalid("expiry_warn_days") ? EXPIRY_WARN_ERROR : null}
+          >
+            <TextInput
+              name="expiry_warn_days"
+              placeholder="e.g. 30"
+              value={draft.expiry_warn_days}
+              invalid={invalid("expiry_warn_days")}
+              onChange={(v) => set("expiry_warn_days", v)}
+            />
+          </Field>
+          <Field label="Email the morning list">
+            <Seg
+              value={draft.expiry_email}
+              greenValue="Yes"
+              options={["Yes", "No"]}
+              onChange={(v) => set("expiry_email", v)}
+            />
+          </Field>
+        </div>
       )}
     />
   );

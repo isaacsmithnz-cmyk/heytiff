@@ -58,7 +58,7 @@ export const SECTIONS: AdminGroup[] = [
     rows: [
       {
         title: "Organisation",
-        sub: "Company identity, licences & insurance",
+        sub: "Company details, licences & insurance",
         icon: "hexagon",
         accent: "#8A2BE2",
         href: "/dashboard/admin/organization",

@@ -100,7 +100,8 @@ export async function saveOrgSection(
   }
 
   /* The expiry window: one number for everything that expires, and whether the
-     morning email carries it. Both ride the identity card. The number is NOT
+     morning email carries it. Both ride the Preferences tab, as does payment
+     terms above. The number is NOT
      NULL in the table, so a cleared box is refused rather than written. */
   if (warnRaw !== undefined) {
     const days = readExpiryWarnDays(warnRaw ?? "");
@@ -161,11 +162,33 @@ export async function setOrgLogo(documentId: string): Promise<SaveResult> {
     return { ok: false, error: "That file doesn't belong to this organisation." };
   }
 
+  /* What it pointed at before, because Replace is the same act as Remove for
+     the old file: nothing points at it afterwards, so it is invisible and
+     still billable. Replace never took it, and prod had collected two. */
+  const { data: before } = await supabaseAdmin
+    .from("organizations")
+    .select("logo_url")
+    .eq("id", orgId)
+    .maybeSingle();
+  const previous = (before?.logo_url as string | null) ?? null;
+
   const { error } = await supabaseAdmin
     .from("organizations")
     .update({ logo_url: ref, updated_at: new Date().toISOString() })
     .eq("id", orgId);
   if (error) return { ok: false, error: "Couldn't save that logo." };
+
+  // after the column moved, as clearOrgLogo does: a failed delete leaves
+  // rubbish, never a broken image
+  if (previous && previous !== ref) {
+    const { data: old } = await supabaseAdmin
+      .from("documents")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("storage_ref", previous)
+      .maybeSingle();
+    if (old?.id && String(old.id) !== documentId) await deleteDocument(String(old.id));
+  }
 
   revalidatePath("/dashboard/admin/organization");
   revalidatePath("/dashboard", "layout");

@@ -63,20 +63,18 @@ export type OrgSettings = {
 export const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"] as const;
 
 /* gst_registered is boolean in the DB but a Yes/No segmented control in the
-   form — it travels through the patch as text and the action converts it. */
+   form — it travels through the patch as text and the action converts it.
+
+   THREE GROUPS, one per card on the Organisation screen: Trading details (who
+   the business is on paper), Contact (how to reach it, and where — the state
+   picks the holiday calendar, so it stays with the address it is part of), and
+   Preferences (the knobs: payment terms, and the one expiry window). Website
+   moved from the first to the second when the tab split, because it prints on
+   the letterhead's contact line and is not a registration. */
 export const ORG_EDITABLE_SECTIONS = {
-  identity: [
-    "trading_name",
-    "legal_name",
-    "abn",
-    "acn",
-    "gst_registered",
-    "payment_terms_days",
-    "expiry_warn_days",
-    "expiry_email",
-    "website",
-  ],
-  contact: ["email", "phone", "address", "suburb", "state", "postcode"],
+  identity: ["trading_name", "legal_name", "abn", "acn", "gst_registered"],
+  contact: ["email", "phone", "website", "address", "suburb", "state", "postcode"],
+  preferences: ["payment_terms_days", "expiry_warn_days", "expiry_email"],
 } as const;
 
 export type OrgSection = keyof typeof ORG_EDITABLE_SECTIONS;
@@ -185,28 +183,34 @@ export function preValidateOrg(
   section: string,
   fields: Record<string, string>
 ): PreValidation | null {
-  if (section !== "identity") return null;
-
-  const abn = (fields.abn ?? "").trim();
-  if (abn && !isValidAbn(abn)) {
-    return { error: "That ABN doesn't check out — it should be 11 digits.", fields: ["abn"] };
+  if (section === "identity") {
+    const abn = (fields.abn ?? "").trim();
+    if (abn && !isValidAbn(abn)) {
+      return { error: "That ABN doesn't check out — it should be 11 digits.", fields: ["abn"] };
+    }
+    const acn = (fields.acn ?? "").trim();
+    if (acn && !isValidAcn(acn)) {
+      return { error: "An ACN is 9 digits.", fields: ["acn"] };
+    }
+    return null;
   }
-  const acn = (fields.acn ?? "").trim();
-  if (acn && !isValidAcn(acn)) {
-    return { error: "An ACN is 9 digits.", fields: ["acn"] };
-  }
-  if (readPaymentTerms(fields.payment_terms_days ?? "") === "invalid") {
-    return { error: PAYMENT_TERMS_ERROR, fields: ["payment_terms_days"] };
-  }
-  // present in every identity save the form makes; a patch from elsewhere may omit it
-  if (fields.expiry_warn_days !== undefined && readExpiryWarnDays(fields.expiry_warn_days) === "invalid") {
-    return { error: EXPIRY_WARN_ERROR, fields: ["expiry_warn_days"] };
+  if (section === "preferences") {
+    // a card saves only its own rows, so each field is checked when it is sent
+    if (
+      fields.payment_terms_days !== undefined &&
+      readPaymentTerms(fields.payment_terms_days) === "invalid"
+    ) {
+      return { error: PAYMENT_TERMS_ERROR, fields: ["payment_terms_days"] };
+    }
+    if (fields.expiry_warn_days !== undefined && readExpiryWarnDays(fields.expiry_warn_days) === "invalid") {
+      return { error: EXPIRY_WARN_ERROR, fields: ["expiry_warn_days"] };
+    }
   }
   return null;
 }
 
-/** The two read-only rows on the Organisation card — one per edit field, so
-    the read and edit faces of the identity card stay row-for-row. */
+/** The two read-only rows on the Preferences tab — one per edit field, so the
+    read and edit faces of the card stay row-for-row. */
 export function expiryWarnLabel(days: number): string {
   return `${days} day${days === 1 ? "" : "s"} before`;
 }

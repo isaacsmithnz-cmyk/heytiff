@@ -793,7 +793,6 @@ infinite loop into a strobe.
 | `dsSweep` | the Studio's skeleton blocks | a skeleton sweep |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
 | `vmShimmer` | the reading bar while a scanned document is read | a skeleton sweep for a scan in progress |
-| `orgLogoSweep` | the logo tile while a new logo uploads | a sweep across the subject, rather than an icon landing on it |
 | `tkShim` ×2 | the ask bar while a question is out; a library shelf while it is searched | a sweep on the thing being searched |
 | `tkSpin` | the ask bar's send glyph while a question is out | a spinner in the control you pressed |
 | `tkSlide` | the library's progress bar when it cannot say how far | a spinner, drawn as a bar |

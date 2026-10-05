@@ -37,7 +37,11 @@ import type { SaveResult } from "./types";
    `variant="card"` keeps the old frame for the one case that still needs it: a
    tab holding TWO sections (Compliance carries the licence wall and
    Qualifications), where the second genuinely has a name of its own to say.
-   `icon` and `title` are only read in that variant — a section IS its tab. */
+   `icon` and `title` are only read in that variant — a section IS its tab.
+
+   `variant="group"` is the third: several titled sections on ONE tab, each with
+   its own Edit (the Organisation screen's Company and Preferences tabs). The
+   title is read there, because the tab no longer names a single section. */
 
 export type CardEditContext = {
   draft: Record<string, string>;
@@ -62,7 +66,7 @@ export type SectionBodyContext = CardEditContext & {
   errorFor: (key: string, message: string) => string | null;
 };
 
-export type SectionVariant = "section" | "card";
+export type SectionVariant = "section" | "card" | "group";
 
 /* WHERE A FORM GOES WHEN IT IS FINISHED WITH. The staff card has no tabs any
    more (2026-09-29): its sections open from the Overview's cards, straight
@@ -208,6 +212,55 @@ export function SectionCard({
      the same one the card header ran — only the frame around it changed, and
      `data-edit`/`data-cancel`/`data-save` are still on the same three buttons
      so nothing that drives this card by attribute had to move. */
+  /* "group" is a titled block on a tab that holds several: the title on the
+     hairline, its one Edit at the right end, the rows underneath — the same
+     shape as a group on a read-only panel (`.pdlcard`), so a tab of them reads
+     as one page rather than as a stack of cards. The Edit is the panel's own
+     text door; while editing it becomes Cancel and Save in the same place, so
+     nothing under the title moves to make room. */
+  if (variant === "group") {
+    return (
+      <div
+        ref={root}
+        className={["pdlcard", "psec-group", saving ? "saving" : "", className ?? ""].filter(Boolean).join(" ")}
+      >
+        <div className="pdlh jump">
+          <span>{title}</span>
+          {editable && (
+            <span className="acts">
+              {editing ? (
+                <>
+                  <button className="pbtn ghost" type="button" data-cancel onClick={cancel}>
+                    Cancel
+                  </button>
+                  <button
+                    className="pbtn primary"
+                    type="button"
+                    data-save
+                    disabled={saving}
+                    onClick={save}
+                  >
+                    <Icon name="check" size={14} />
+                    {saving ? "Saving…" : "Save changes"}
+                  </button>
+                </>
+              ) : (
+                <button className="jumpb" type="button" data-edit onClick={startEdit}>
+                  Edit
+                  <span className="sr-only"> {title}</span>
+                </button>
+              )}
+            </span>
+          )}
+        </div>
+
+        {rendered}
+
+        {editing && error && <div className="carderr">{error}</div>}
+      </div>
+    );
+  }
+
   if (variant === "section") {
     return (
       <div ref={root} className={["psec-body", saving ? "saving" : "", className ?? ""].filter(Boolean).join(" ")}>

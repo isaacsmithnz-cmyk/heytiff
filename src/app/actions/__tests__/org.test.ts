@@ -8,6 +8,10 @@ const update = jest.fn();
    well as an update one. `docRow`/`orgRow` are what those selects return; the
    tests that only write ignore them. */
 let docRow: Record<string, unknown> | null = null;
+/* a documents read filtered by `storage_ref` gets the row filed under that
+   ref here, when there is one — how a test tells the logo being replaced
+   apart from the one replacing it */
+let docByRef: Record<string, Record<string, unknown>> = {};
 let orgRow: Record<string, unknown> | null = null;
 let updateError: { message: string } | null = null;
 
@@ -15,10 +19,17 @@ const deleteDocument = jest.fn().mockResolvedValue({ ok: true });
 
 const from = jest.fn((table: string) => {
   const chain: Record<string, unknown> = {};
-  chain.eq = () => chain;
+  const filters: Record<string, unknown> = {};
+  chain.eq = (k: string, v: unknown) => {
+    filters[k] = v;
+    return chain;
+  };
   chain.select = () => chain;
   chain.maybeSingle = async () => ({
-    data: table === "documents" ? docRow : orgRow,
+    data:
+      table === "documents"
+        ? (docByRef[filters.storage_ref as string] ?? docRow)
+        : orgRow,
     error: null,
   });
   chain.update = (patch: Record<string, unknown>) => {
@@ -72,6 +83,7 @@ beforeEach(() => {
   update.mockClear();
   from.mockClear();
   deleteDocument.mockClear();
+  docByRef = {};
   dbRole = "owner";
   studioAllowed = true;
   updateError = null;
@@ -117,24 +129,24 @@ describe("saveOrgSection", () => {
      it — so the conversion is the feature, and a string "14" reaching the
      column would be the database's problem to refuse instead of ours. */
   it("stores payment terms as a NUMBER, not the text the form sent", async () => {
-    await saveOrgSection("identity", { payment_terms_days: "14" });
+    await saveOrgSection("preferences", { payment_terms_days: "14" });
     expect(update.mock.calls[0][0]).toMatchObject({ payment_terms_days: 14 });
   });
 
   it("keeps 0 — due on receipt is an answer, not an empty box", async () => {
-    await saveOrgSection("identity", { payment_terms_days: "0" });
+    await saveOrgSection("preferences", { payment_terms_days: "0" });
     expect(update.mock.calls[0][0]).toMatchObject({ payment_terms_days: 0 });
   });
 
   it("clears the terms on empty", async () => {
-    await saveOrgSection("identity", { payment_terms_days: "" });
+    await saveOrgSection("preferences", { payment_terms_days: "" });
     expect(update.mock.calls[0][0]).toMatchObject({ payment_terms_days: null });
   });
 
   it("refuses terms that are not whole days, before writing", async () => {
     for (const junk of ["two weeks", "7.5", "-3", "3000"]) {
       update.mockClear();
-      const res = await saveOrgSection("identity", { payment_terms_days: junk });
+      const res = await saveOrgSection("preferences", { payment_terms_days: junk });
       expect(res).toMatchObject({ ok: false, fields: ["payment_terms_days"] });
       expect(update).not.toHaveBeenCalled();
     }
@@ -194,6 +206,36 @@ describe("setOrgLogo", () => {
       expect.objectContaining({ logo_url: LOGO_REF }),
       "organizations"
     );
+  });
+
+  /* Replace used to repoint the column and leave the old file where it was:
+     nothing pointed at it, so it was invisible everywhere and still billed. */
+  it("takes the replaced logo's file with it", async () => {
+    const OLD = LOGO_REF.replace(/[^/]+$/, "old.png");
+    orgRow = { logo_url: OLD };
+    docRow = good;
+    docByRef = { [OLD]: { id: "doc-old" } };
+    expect(await setOrgLogo("doc-1")).toEqual({ ok: true });
+    expect(deleteDocument).toHaveBeenCalledWith("doc-old");
+  });
+
+  it("deletes nothing when there was no logo before, or the same one is set again", async () => {
+    docRow = good;
+    orgRow = { logo_url: null };
+    await setOrgLogo("doc-1");
+    orgRow = { logo_url: LOGO_REF };
+    await setOrgLogo("doc-1");
+    expect(deleteDocument).not.toHaveBeenCalled();
+  });
+
+  it("keeps the old file when the column couldn't be moved", async () => {
+    const OLD = LOGO_REF.replace(/[^/]+$/, "old.png");
+    orgRow = { logo_url: OLD };
+    docRow = good;
+    docByRef = { [OLD]: { id: "doc-old" } };
+    updateError = { message: "nope" };
+    expect(await setOrgLogo("doc-1")).toEqual({ ok: false, error: "Couldn't save that logo." });
+    expect(deleteDocument).not.toHaveBeenCalled();
   });
 
   it("refuses a non-owner", async () => {
@@ -316,24 +358,24 @@ describe("getOrgBrand", () => {
    "we don't know". */
 describe("the expiry window", () => {
   it("stores the window as a NUMBER, not the text the form sent", async () => {
-    await saveOrgSection("identity", { expiry_warn_days: "14" });
+    await saveOrgSection("preferences", { expiry_warn_days: "14" });
     expect(update.mock.calls[0][0]).toMatchObject({ expiry_warn_days: 14 });
   });
 
   it("refuses a window the CHECK would refuse, before writing — blank included", async () => {
     for (const junk of ["", "0", "366", "-14", "1.5", "thirty"]) {
       update.mockClear();
-      const res = await saveOrgSection("identity", { expiry_warn_days: junk });
+      const res = await saveOrgSection("preferences", { expiry_warn_days: junk });
       expect(res).toMatchObject({ ok: false, fields: ["expiry_warn_days"] });
       expect(update).not.toHaveBeenCalled();
     }
   });
 
   it("converts the email switch to a boolean", async () => {
-    await saveOrgSection("identity", { expiry_email: "No" });
+    await saveOrgSection("preferences", { expiry_email: "No" });
     expect(update.mock.calls[0][0]).toMatchObject({ expiry_email: false });
     update.mockClear();
-    await saveOrgSection("identity", { expiry_email: "Yes" });
+    await saveOrgSection("preferences", { expiry_email: "Yes" });
     expect(update.mock.calls[0][0]).toMatchObject({ expiry_email: true });
   });
 });

@@ -19,8 +19,8 @@ import {
 } from "../settings";
 
 describe("section guard", () => {
-  it("accepts the two org sections", () => {
-    for (const s of ["identity", "contact"]) expect(isOrgSection(s)).toBe(true);
+  it("accepts the three org sections", () => {
+    for (const s of ["identity", "contact", "preferences"]) expect(isOrgSection(s)).toBe(true);
   });
 
   /* `compliance` was the third card — five flat columns holding one ARC
@@ -214,9 +214,9 @@ describe("paymentTermsLabel", () => {
   });
 });
 
-describe("the identity card's pre-flight", () => {
+describe("the preferences card's pre-flight", () => {
   it("answers a bad terms value on the field", () => {
-    expect(preValidateOrg("identity", { payment_terms_days: "two weeks" })).toEqual({
+    expect(preValidateOrg("preferences", { payment_terms_days: "two weeks" })).toEqual({
       error: PAYMENT_TERMS_ERROR,
       fields: ["payment_terms_days"],
     });
@@ -224,34 +224,44 @@ describe("the identity card's pre-flight", () => {
 
   it("passes a good one, an empty one and a zero", () => {
     for (const v of ["14", "", "0"]) {
-      expect(preValidateOrg("identity", { payment_terms_days: v })).toBeNull();
+      expect(preValidateOrg("preferences", { payment_terms_days: v })).toBeNull();
     }
   });
 });
 
-describe("the terms column is writable from the identity card", () => {
+describe("the terms column is writable from the preferences card", () => {
   it("travels as text and clears on empty", () => {
-    expect(buildOrgPatch("identity", [["payment_terms_days", "14"]]).patch).toEqual({
+    expect(buildOrgPatch("preferences", [["payment_terms_days", "14"]]).patch).toEqual({
       payment_terms_days: "14",
     });
-    expect(buildOrgPatch("identity", [["payment_terms_days", ""]]).patch).toEqual({
+    expect(buildOrgPatch("preferences", [["payment_terms_days", ""]]).patch).toEqual({
       payment_terms_days: null,
     });
   });
 
-  it("is not reachable from the contact card", () => {
+  /* The columns moved when the tab split: a stale client posting terms to the
+     card they used to ride gets nothing written, rather than a surprise. */
+  it("is not reachable from the identity or contact cards", () => {
+    expect(buildOrgPatch("identity", [["payment_terms_days", "14"]]).patch).toEqual({});
     expect(buildOrgPatch("contact", [["payment_terms_days", "14"]]).patch).toEqual({});
+  });
+
+  it("keeps the website with the contact details", () => {
+    expect(buildOrgPatch("contact", [["website", "smithair.com.au"]]).patch).toEqual({
+      website: "smithair.com.au",
+    });
+    expect(buildOrgPatch("identity", [["website", "smithair.com.au"]]).patch).toEqual({});
   });
 });
 
 
-/* THE EXPIRY WINDOW rides the identity card beside payment terms, and is the
+/* THE EXPIRY WINDOW rides the preferences card beside payment terms, and is the
    one setting that replaced six hard-coded 30s and every per-card Remind me
    (issue #640). NOT NULL in the table, so a cleared box is refused — unlike
    terms, where blank is the honest "unset". */
 describe("the expiry window", () => {
-  it("is in the identity section, both halves", () => {
-    expect(buildOrgPatch("identity", [["expiry_warn_days", "14"], ["expiry_email", "No"]]).patch).toEqual({
+  it("is in the preferences section, both halves", () => {
+    expect(buildOrgPatch("preferences", [["expiry_warn_days", "14"], ["expiry_email", "No"]]).patch).toEqual({
       expiry_warn_days: "14",
       expiry_email: "No",
     });
@@ -259,7 +269,7 @@ describe("the expiry window", () => {
 
   it("refuses a window the column's CHECK would refuse, with the action's own wording", () => {
     for (const bad of ["", "0", "366", "-14", "1.5", "thirty"]) {
-      expect(preValidateOrg("identity", { expiry_warn_days: bad })).toEqual({
+      expect(preValidateOrg("preferences", { expiry_warn_days: bad })).toEqual({
         error: EXPIRY_WARN_ERROR,
         fields: ["expiry_warn_days"],
       });
@@ -267,8 +277,9 @@ describe("the expiry window", () => {
   });
 
   it("passes a whole number of days, and a patch that leaves the window alone", () => {
-    expect(preValidateOrg("identity", { expiry_warn_days: "14" })).toBeNull();
-    expect(preValidateOrg("identity", { expiry_warn_days: "365" })).toBeNull();
+    expect(preValidateOrg("preferences", { expiry_warn_days: "14" })).toBeNull();
+    expect(preValidateOrg("preferences", { expiry_warn_days: "365" })).toBeNull();
+    expect(preValidateOrg("preferences", { payment_terms_days: "14" })).toBeNull();
     expect(preValidateOrg("identity", { trading_name: "Smith Air" })).toBeNull();
   });
 

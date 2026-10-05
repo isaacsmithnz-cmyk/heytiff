@@ -160,7 +160,7 @@ describe("missing scopes are judged per provider", () => {
    exactly which writes exist, and that none is asked for unless the owner
    has switched sending on. */
 describe("the write ask", () => {
-  it("is seven scopes, each with its feature: files on a job, notes, bookings (two), leave (one of theirs), and new jobs (three of their own)", () => {
+  it("is eight scopes, each with its feature: files on a job, notes, bookings (two), leave (one of theirs), new jobs (three of their own), and an accepted quote's lines", () => {
     expect(SM8_WRITE_SCOPE_LIST).toEqual([
       "manage_attachments",
       "publish_job_notes",
@@ -169,6 +169,7 @@ describe("the write ask", () => {
       "create_jobs",
       "manage_customers",
       "manage_job_contacts",
+      "manage_job_materials",
     ]);
     expect(SM8_WRITE_KIND_SCOPES).toEqual({
       attachment: ["manage_attachments"],
@@ -177,6 +178,7 @@ describe("the write ask", () => {
       leave: ["manage_schedule"],
       job: ["create_jobs", "manage_customers", "manage_job_contacts"],
       customer: ["manage_job_contacts", "manage_customers", "manage_jobs"],
+      quote: ["manage_jobs", "manage_job_materials"],
     });
   });
 

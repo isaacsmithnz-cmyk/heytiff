@@ -77,6 +77,7 @@ describe("toView", () => {
       "create_jobs",
       "manage_customers",
       "manage_job_contacts",
+      "manage_job_materials",
     ]);
   });
 

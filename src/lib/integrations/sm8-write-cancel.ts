@@ -28,7 +28,7 @@ const waitingAt = (iso: string) => `status.eq.queued,and(status.eq.sending,lease
 export type CancelledWrite = { id: string; name: string | null; kind: Sm8WriteKind };
 
 const kindOf = (v: unknown): Sm8WriteKind =>
-  v === "note" ? "note" : v === "booking" ? "booking" : v === "leave" ? "leave" : v === "job" ? "job" : v === "customer" ? "customer" : "attachment";
+  v === "note" ? "note" : v === "booking" ? "booking" : v === "leave" ? "leave" : v === "job" ? "job" : v === "customer" ? "customer" : v === "quote" ? "quote" : "attachment";
 
 function payloadName(payload: unknown): string | null {
   const p = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
@@ -96,7 +96,7 @@ export async function countWaitingSm8Writes(orgId: string, now: number = Date.no
 export async function countWaitingSm8WritesByKind(
   orgId: string,
   now: number = Date.now()
-): Promise<{ attachment: number; note: number; booking: number; leave: number; job?: number; customer?: number }> {
+): Promise<{ attachment: number; note: number; booking: number; leave: number; job?: number; customer?: number; quote?: number }> {
   const kinds = sm8WriteKindsEnabled();
   const bookings = kinds.includes("booking");
   const leaves = kinds.includes("leave");
@@ -104,7 +104,8 @@ export async function countWaitingSm8WritesByKind(
      then is `job` there at all */
   const jobs = kinds.includes("job");
   const customers = kinds.includes("customer");
-  if (!kinds.includes("note") && !bookings && !leaves && !jobs && !customers) {
+  const quotes = kinds.includes("quote");
+  if (!kinds.includes("note") && !bookings && !leaves && !jobs && !customers && !quotes) {
     return { attachment: await countWaitingSm8Writes(orgId, now), note: 0, booking: 0, leave: 0 };
   }
   const iso = new Date(now).toISOString();
@@ -117,15 +118,16 @@ export async function countWaitingSm8WritesByKind(
       .or(waitingAt(iso));
     return error ? 0 : count ?? 0;
   };
-  const [attachment, note, booking, leave, job, customer] = await Promise.all([
+  const [attachment, note, booking, leave, job, customer, quote] = await Promise.all([
     one("attachment"),
     one("note"),
     bookings ? one("booking") : Promise.resolve(0),
     leaves ? one("leave") : Promise.resolve(0),
     jobs ? one("job") : Promise.resolve(0),
     customers ? one("customer") : Promise.resolve(0),
+    quotes ? one("quote") : Promise.resolve(0),
   ]);
-  return { attachment, note, booking, leave, ...(jobs ? { job } : {}), ...(customers ? { customer } : {}) };
+  return { attachment, note, booking, leave, ...(jobs ? { job } : {}), ...(customers ? { customer } : {}), ...(quotes ? { quote } : {}) };
 }
 
 /* ── a note's words leave the queue ──

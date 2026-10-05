@@ -26,6 +26,7 @@ import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
 import { LEAVE_WORDS } from "@/lib/integrations/sm8-leave-words";
 import { JOB_WORDS } from "@/lib/integrations/sm8-job-words";
 import { CUSTOMER_WORDS } from "@/lib/integrations/sm8-customer-words";
+import { QUOTE_WORDS } from "@/lib/integrations/sm8-quote-words";
 import { sm8DisconnectNote, sm8KindOffNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
 
 /* The two things you can do to an existing connection from the screen.
@@ -103,7 +104,8 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
   const leave = cancelled.filter((c) => c.kind === "leave").length;
   const jobs = cancelled.filter((c) => c.kind === "job").length;
   const customers = cancelled.filter((c) => c.kind === "customer").length;
-  const files = cancelled.filter((c) => c.kind !== "note" && c.kind !== "booking" && c.kind !== "leave" && c.kind !== "job" && c.kind !== "customer");
+  const quotes = cancelled.filter((c) => c.kind === "quote").length;
+  const files = cancelled.filter((c) => c.kind !== "note" && c.kind !== "booking" && c.kind !== "leave" && c.kind !== "job" && c.kind !== "customer" && c.kind !== "quote");
   const names = files.map((c) => c.name).filter((n): n is string => n !== null);
   return {
     ok: true,
@@ -116,6 +118,7 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
       leave,
       ...(jobs > 0 ? { jobs } : {}),
       ...(customers > 0 ? { customers } : {}),
+      ...(quotes > 0 ? { quotes } : {}),
     }),
   };
 }
@@ -179,8 +182,11 @@ export async function setServiceM8WriteModeAction(mode: string): Promise<Integra
   const leave = changed.cancelled.filter((c) => c.kind === "leave").length;
   const jobs = changed.cancelled.filter((c) => c.kind === "job").length;
   const customers = changed.cancelled.filter((c) => c.kind === "customer").length;
+  const quotes = changed.cancelled.filter((c) => c.kind === "quote").length;
   const note =
-    want === "off" ? sm8OffNote(changed.cancelled.length - notes - bookings - leave - jobs - customers, notes, bookings, leave, jobs, customers) : null;
+    want === "off"
+      ? sm8OffNote(changed.cancelled.length - notes - bookings - leave - jobs - customers - quotes, notes, bookings, leave, jobs, customers, quotes)
+      : null;
   return note ? { ok: true, note } : { ok: true };
 }
 
@@ -197,7 +203,7 @@ export async function setServiceM8WriteKindAction(kind: string, on: boolean): Pr
   const startedAt = Date.now();
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
-  if (kind !== "attachment" && kind !== "note" && kind !== "booking" && kind !== "leave" && kind !== "job" && kind !== "customer") return { ok: false, error: NOTE_WORDS.card.notAKind };
+  if (kind !== "attachment" && kind !== "note" && kind !== "booking" && kind !== "leave" && kind !== "job" && kind !== "customer" && kind !== "quote") return { ok: false, error: NOTE_WORDS.card.notAKind };
   const allowed = sm8WriteKindsEnabled();
   if (!allowed.includes(kind)) {
     return {
@@ -213,7 +219,9 @@ export async function setServiceM8WriteKindAction(kind: string, on: boolean): Pr
                 ? JOB_WORDS.card.jobsUnavailable
                 : kind === "customer"
                   ? CUSTOMER_WORDS.card.customersUnavailable
-                  : "Sending to ServiceM8 isn't available yet.",
+                  : kind === "quote"
+                    ? QUOTE_WORDS.card.quotesUnavailable
+                    : "Sending to ServiceM8 isn't available yet.",
     };
   }
   if (typeof on !== "boolean") return { ok: false, error: "That isn't a setting." };

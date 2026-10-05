@@ -1,7 +1,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
-import { readSm8SendPlan } from "@/lib/quotes/sm8-send-server";
+import { readSm8SendView } from "@/lib/quotes/sm8-send-server";
 
 /* The job card's Quote section: what one press would send to ServiceM8 for
    the accepted quote, before anything is sent (Isaac, 2026-10-05). A read:
@@ -20,5 +20,6 @@ export async function GET(req: Request) {
   const job = (new URL(req.url).searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(orgId, job);
-  return Response.json({ ok: true, plan: await readSm8SendPlan(orgId, target.parentRemoteId) });
+  const view = await readSm8SendView(orgId, target.parentRemoteId);
+  return Response.json({ ok: true, plan: view.plan, editDate: view.editDate });
 }

@@ -84,6 +84,11 @@ const customerEditOffered = jest.fn(async () => false);
 const readCustomerForEdit = jest.fn();
 const saveCustomer = jest.fn();
 jest.mock("@/app/actions/job-deposit", () => ({ setNoDeposit: jest.fn(async (_j: string, on: boolean) => ({ ok: true, noDeposit: on })) }));
+/* the Quote section's send to ServiceM8: offered nowhere here */
+jest.mock("@/app/actions/quote-sm8", () => ({
+  quoteSendOffered: jest.fn(async () => ({ offered: false, trial: false })),
+  sendQuoteToSm8: jest.fn(),
+}));
 jest.mock("@/app/actions/job-customer", () => ({
   customerEditOffered: () => customerEditOffered(),
   readCustomerForEdit: (...a: unknown[]) => readCustomerForEdit(...a),

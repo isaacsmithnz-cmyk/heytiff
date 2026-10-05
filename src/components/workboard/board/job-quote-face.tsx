@@ -1,7 +1,7 @@
 "use client";
 
 import { fmtAud } from "@/lib/workboard/project-money";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NoteToken } from "@/components/notes/note-token";
 import { Waiting } from "@/components/ui/orb";
 import { Icon } from "@/components/shell/icon";
@@ -80,7 +80,7 @@ const noteFor = (t: QuoteTemplates, key: string): QuoteNote | null =>
   t.notes.find((n) => n.key === key) ?? STANDARD_NOTES.find((n) => n.key === key) ?? null;
 
 type Answer =
-  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates }
+  | { ok: true; proposal: StoredProposal | null; templates?: QuoteTemplates; sm8Brief?: string | null }
   /** `proposal` comes back when the draft moved on underneath the change */
   | { ok: false; reason: string; proposal?: StoredProposal | null };
 /** A person's edit, applied to the draft as it stands when its turn comes. */
@@ -127,6 +127,7 @@ export function JobQuoteFace({
   onToast,
   sm8 = null,
   onOpenPaper,
+  children,
 }: {
   /** The job card's uuid, or the row's until the record read lands. */
   job: string;
@@ -139,11 +140,17 @@ export function JobQuoteFace({
       page"). */
   sm8?: Sm8Quote | null;
   onOpenPaper?: (item: JobMediaItem) => void;
+  /** The builder's own sections (its labour and price), shown only while
+      the quote is open. */
+  children?: ReactNode;
 }) {
-  /* A job quoted in ServiceM8 opens on THAT quote: a new version here is
-     asked for, never the first thing on the face */
+  /* THE QUOTE OPENS FROM ONE BUTTON (Isaac, 2026-10-05): "Create a quote"
+     when there is none, "Continue quote" on a draft, and on a job quoted in
+     ServiceM8 — whose quote shows first — "Update ServiceM8 quote", which
+     starts the builder from what that quote says. */
   const sm8Quoted = !!sm8 && (sm8.papers.length > 0 || !!sm8.sentOn);
-  const [startNew, setStartNew] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [sm8Brief, setSm8Brief] = useState<string | null>(null);
   const sm8Block = sm8Quoted ? (
     <div className="wb2-jcsec">
       <div className="wb2-jcdhead">
@@ -188,6 +195,7 @@ export function JobQuoteFace({
         if (a.templates) setTpl(a.templates);
         latest.current = a.proposal;
         setLoaded(a.proposal);
+        setSm8Brief(a.sm8Brief ?? null);
         if (a.proposal) setBrief(a.proposal.brief);
       })
       /* NOT the draft box: drafting on a read that failed would pay for a
@@ -286,14 +294,29 @@ export function JobQuoteFace({
   if (loaded === undefined) return <Waiting note="Reading the proposal" />;
 
   const proposal = loaded;
-  if (!proposal && sm8Quoted && !startNew) {
+  if (!open) {
+    const start = () => {
+      /* ServiceM8's quote is the brief a new version starts from */
+      if (!proposal && sm8Quoted) setBrief((b) => b || sm8Brief || "");
+      setOpen(true);
+    };
     return (
       <>
         {sm8Block}
+        {proposal && (
+          <div className="wb2-jcsec">
+            <div className="wb2-jcdhead">
+              <b>Quote</b>
+              <em>
+                {proposal.changes.length ? "Changed" : "Drafted"} {whenOf(proposal.updatedAt)}
+              </em>
+            </div>
+          </div>
+        )}
         <div className="wb2-jqacts">
-          <button type="button" className="pbtn ghost" onClick={() => setStartNew(true)}>
-            <Icon name="plus" size={15} />
-            Start a new version
+          <button type="button" className={proposal ? "pbtn primary" : "pbtn ghost"} onClick={start}>
+            {!proposal && <Icon name="plus" size={15} />}
+            {proposal ? "Continue quote" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}
           </button>
         </div>
       </>
@@ -305,7 +328,7 @@ export function JobQuoteFace({
       {sm8Block}
       <div className="wb2-jcsec wb2-jq">
         <div className="wb2-jcdhead">
-          <b>{proposal ? "Start the proposal again" : sm8Quoted ? "A new version" : "Draft the proposal"}</b>
+          <b>{proposal ? "Start the proposal again" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}</b>
         </div>
         <NoteToken
           as="field"
@@ -331,8 +354,8 @@ export function JobQuoteFace({
                   Keep this draft
                 </button>
               )}
-              {!proposal && sm8Quoted && (
-                <button type="button" className="pbtn ghost" onClick={() => setStartNew(false)}>
+              {!proposal && (
+                <button type="button" className="pbtn ghost" onClick={() => setOpen(false)}>
                   Cancel
                 </button>
               )}
@@ -525,6 +548,7 @@ export function JobQuoteFace({
           )}
         </div>
       </div>
+      {children}
     </>
   );
 }

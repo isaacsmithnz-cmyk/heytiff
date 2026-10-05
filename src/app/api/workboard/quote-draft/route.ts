@@ -3,6 +3,7 @@ import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { normaliseDraft } from "@/lib/quotes/proposal";
 import { orgTemplates } from "@/lib/templates/query";
+import { readSm8QuoteBrief } from "@/lib/quotes/sm8-quote-brief-server";
 import {
   CHANGED_MEANWHILE,
   SAVE_FAILED,
@@ -52,8 +53,14 @@ export async function GET(req: Request) {
   const job = jobOf(new URL(req.url).searchParams.get("job"));
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(who.orgId, job);
-  const [proposal, t] = await Promise.all([readStoredProposal(who.orgId, target.parentRemoteId), orgTemplates(who.orgId)]);
-  return Response.json({ ok: true, proposal, templates: { notes: t.quoteNotes, terms: t.paymentTerms } });
+  /* sm8Brief: what ServiceM8's own quote says, for "Update ServiceM8 quote"
+     to start from — read from the mirror, never from ServiceM8 */
+  const [proposal, t, sm8Brief] = await Promise.all([
+    readStoredProposal(who.orgId, target.parentRemoteId),
+    orgTemplates(who.orgId),
+    readSm8QuoteBrief(who.orgId, target.parentRemoteId).catch(() => null),
+  ]);
+  return Response.json({ ok: true, proposal, templates: { notes: t.quoteNotes, terms: t.paymentTerms }, sm8Brief });
 }
 
 export async function POST(req: Request) {

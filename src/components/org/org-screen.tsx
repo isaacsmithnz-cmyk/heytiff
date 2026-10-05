@@ -277,7 +277,12 @@ function BrandSection({
         <div className="pdrow">
           <dt>Logo</dt>
           <dd>
-            <LogoUploader logoUrl={logoUrl} onSet={actions.onSetLogo} onClear={actions.onClearLogo} />
+            <LogoUploader
+              logoUrl={logoUrl}
+              tone={org.logo_tone ?? null}
+              onSet={actions.onSetLogo}
+              onClear={actions.onClearLogo}
+            />
           </dd>
         </div>
         <div className="pdrow">

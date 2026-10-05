@@ -1044,7 +1044,7 @@ describe("the logo", () => {
     await user.upload(screen.getByLabelText("Company logo"), file());
 
     expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "org_logo");
-    expect(actions.onSetLogo).toHaveBeenCalledWith("doc-9");
+    expect(actions.onSetLogo).toHaveBeenCalledWith("doc-9", null);
   });
 
   it("says what went wrong instead of pretending it saved", async () => {
@@ -1058,6 +1058,21 @@ describe("the logo", () => {
       await screen.findByText("That file is too big — 10 MB is the limit.")
     ).toBeInTheDocument();
     expect(actions.onSetLogo).not.toHaveBeenCalled();
+  });
+
+  /* A pale logo on a white thumbnail is not there. The thumbnail sits on the dark
+     the logo would get on a document, so what you are looking at is what prints. */
+  it("sits a pale logo's thumbnail on a dark ground", () => {
+    const { container } = setup({
+      logoUrl: "https://signed.example/logo.png",
+      org: { logo_tone: "light" },
+    });
+    expect(container.querySelector(".orglogo-thumb")).toHaveClass("dark");
+  });
+
+  it("leaves a dark or unmeasured logo's thumbnail on paper", () => {
+    const { container } = setup({ logoUrl: "https://signed.example/logo.png", org: { logo_tone: "dark" } });
+    expect(container.querySelector(".orglogo-thumb")).not.toHaveClass("dark");
   });
 
   it("offers Remove only once there is a logo", async () => {
@@ -1091,7 +1106,7 @@ describe("the logo", () => {
 
     fireEvent.drop(tile, { dataTransfer: { files: [file()] } });
 
-    await waitFor(() => expect(actions.onSetLogo).toHaveBeenCalledWith("doc-4"));
+    await waitFor(() => expect(actions.onSetLogo).toHaveBeenCalledWith("doc-4", null));
     expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "org_logo");
   });
 });

@@ -91,22 +91,36 @@ describe("BrandMark", () => {
     expect(screen.queryByText("HeyTiff")).not.toBeInTheDocument();
   });
 
-  /* THE PLATE IS NOT DECORATION — it is the only reason a customer can see
-     this logo at all. Every surface asking for this mark is a dark bar
-     (#0b0d12 on the share link), and plenty of businesses ink their logo in
-     black or navy: unplated, Diamond Air's real 3780x1064 artwork is simply
-     not there. It used to be a rule in studio.css scoped to `.ds-live-brand`,
-     which meant any new dark surface adopting BrandMark silently got no plate.
-     The component carries it now, so this asserts the class rather than
-     trusting a stylesheet nobody will read.
+  /* THE PLATE IS NOT DECORATION — it is the only reason a customer can see a
+     dark logo on this bar at all. Every surface asking for this mark is a dark
+     bar (#0b0d12 on the share link), and plenty of businesses ink their logo in
+     black or navy: unplated, Diamond Air's real 3780x1064 artwork is simply not
+     there. It used to be a rule in studio.css scoped to `.ds-live-brand`, which
+     meant any new dark surface adopting BrandMark silently got no plate; the
+     component decides it now, from the logo's measured ink.
 
      `:not(.org-initials)` in the CSS is why the initials case is checked too —
      that stand-in brings its own background and must not be double-plated. */
-  it("plates the logo, because every surface that asks for this mark is dark", () => {
+  it.each([
+    ["a dark logo", "dark"],
+    ["a mid-tone logo", "mixed"],
+    ["a logo nobody has measured", null],
+  ] as const)("plates %s with the light plate, because the bar is dark", (_n, tone) => {
     const { container } = render(
-      <BrandMark brand={{ ...NO_BRAND, logoUrl: "https://x/y.png" }} fallback="HeyTiff" />
+      <BrandMark brand={{ ...NO_BRAND, logoUrl: "https://x/y.png", logoTone: tone }} fallback="HeyTiff" />
     );
-    expect(container.querySelector("img")).toHaveClass("org-mark-logo", "org-plate");
+    expect(container.querySelector("img")).toHaveClass("org-mark-logo", "org-plate-light");
+  });
+
+  /* A white logo is the right logo for a dark bar. It used to be plated white
+     whatever it was, which made it invisible on the one surface that suits it. */
+  it("draws a pale logo bare on the dark bar", () => {
+    const { container } = render(
+      <BrandMark brand={{ ...NO_BRAND, logoUrl: "https://x/y.png", logoTone: "light" }} fallback="HeyTiff" />
+    );
+    const img = container.querySelector("img")!;
+    expect(img).toHaveClass("org-mark-logo");
+    expect(img.className).not.toMatch(/org-plate/);
   });
 
   it("still plates by class when the logo is initials, which opt out in CSS", () => {
@@ -115,5 +129,22 @@ describe("BrandMark", () => {
     );
     expect(container.querySelector(".org-initials")).toBeInTheDocument();
     expect(container.querySelector("img")).toBeNull();
+  });
+});
+
+/* THE LETTERHEAD IS PAPER. A white logo on it is not there — the blank corner on
+   the quote — so a pale logo gets a dark plate, and everything else is drawn
+   bare, which is what every document did before logos were measured. */
+describe("Letterhead on paper", () => {
+  const WITH = (logoTone: OrgBrand["logoTone"]) => ({ ...FULL, logoTone });
+
+  it("puts a dark plate behind a pale logo", () => {
+    const { container } = render(<Letterhead brand={WITH("light")} />);
+    expect(container.querySelector("img")).toHaveClass("org-lh-logo", "org-plate-dark");
+  });
+
+  it.each(["dark", "mixed", null] as const)("draws a %s logo bare", (tone) => {
+    const { container } = render(<Letterhead brand={WITH(tone)} />);
+    expect(container.querySelector("img")!.className).toBe("org-lh-logo");
   });
 });

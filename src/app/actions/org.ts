@@ -11,6 +11,7 @@ import { deleteDocument } from "./documents";
 import { orgBrand } from "@/lib/org/query";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 import { parseHex } from "@/lib/org/theme";
+import { isLogoTone, type LogoTone } from "@/lib/org/logo-fit";
 import {
   buildOrgPatch,
   isOrgSection,
@@ -142,10 +143,22 @@ export async function saveOrgSection(
    a control. Wrong org, wrong kind or an unconfirmed upload are all refused.
    --------------------------------------------------------------------------- */
 
-export async function setOrgLogo(documentId: string): Promise<SaveResult> {
+export async function setOrgLogo(
+  documentId: string,
+  tone: LogoTone | null = null
+): Promise<SaveResult> {
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
   const { orgId } = ctx;
+
+  /* The tone is measured in the browser and so is as trustworthy as anything
+     else the browser sends: it can only make a document draw a plate or not,
+     but it goes into a column with a CHECK behind it, so a value that is not
+     one of the three is refused here, with a sentence, rather than by the
+     constraint with a code. */
+  if (tone !== null && !isLogoTone(tone)) {
+    return { ok: false, error: "That logo couldn't be read." };
+  }
 
   const { data } = await supabaseAdmin
     .from("documents")
@@ -174,7 +187,7 @@ export async function setOrgLogo(documentId: string): Promise<SaveResult> {
 
   const { error } = await supabaseAdmin
     .from("organizations")
-    .update({ logo_url: ref, updated_at: new Date().toISOString() })
+    .update({ logo_url: ref, logo_tone: tone, updated_at: new Date().toISOString() })
     .eq("id", orgId);
   if (error) return { ok: false, error: "Couldn't save that logo." };
 
@@ -214,7 +227,7 @@ export async function clearOrgLogo(): Promise<SaveResult> {
 
   const { error } = await supabaseAdmin
     .from("organizations")
-    .update({ logo_url: null, updated_at: new Date().toISOString() })
+    .update({ logo_url: null, logo_tone: null, updated_at: new Date().toISOString() })
     .eq("id", orgId);
   if (error) return { ok: false, error: "Couldn't remove that logo." };
 

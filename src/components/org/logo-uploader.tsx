@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { uploadFile } from "@/lib/documents/upload-client";
+import { prepareLogo } from "@/lib/org/logo-prepare";
+import type { LogoTone } from "@/lib/org/logo-fit";
 import type { SaveResult } from "./types";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
@@ -23,6 +25,12 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    slot, PUTs the file straight to storage and confirms it; all this component
    then does is hand the resulting document id to setOrgLogo, which re-checks
    that the document is this org's, is an org_logo, and finished uploading.
+
+   THE FILE IS FITTED BEFORE IT GOES (lib/org/logo-prepare.ts): its empty margin
+   and any white box are cut away, and what its ink is — pale or dark — is
+   measured and saved with it, so every document can put a plate behind a logo
+   that would otherwise vanish. Fail-soft: if the browser can't, the original
+   goes up exactly as before.
 
    IT SAVES ITSELF. Picking a file writes it immediately, because the row
    changing IS the confirmation — there is no card draft to keep in step.
@@ -45,12 +53,15 @@ const IMAGE = /^image\/(png|jpeg|jpg|webp)$/;
 
 export function LogoUploader({
   logoUrl,
+  tone = null,
   onSet,
   onClear,
 }: {
   /** signed, minted at render; null when there is no logo */
   logoUrl: string | null;
-  onSet: (documentId: string) => Promise<SaveResult>;
+  /** what its ink is, so the thumbnail sits on a ground it survives */
+  tone?: LogoTone | null;
+  onSet: (documentId: string, tone: LogoTone | null) => Promise<SaveResult>;
   onClear: () => Promise<SaveResult>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -63,12 +74,13 @@ export function LogoUploader({
     setError(null);
     setBusy(true);
     await withCleanup(async () => {
-      const up = await uploadFile(file, "org_logo");
+      const prepared = await prepareLogo(file);
+      const up = await uploadFile(prepared.file, "org_logo");
       if (!up.ok) {
         setError(up.error);
         return;
       }
-      const res = await onSet(up.file.documentId);
+      const res = await onSet(up.file.documentId, prepared.tone);
       if (!res.ok) setError(res.error);
     }, () => {
       setBusy(false);
@@ -112,7 +124,7 @@ export function LogoUploader({
       onDrop={drop}
     >
       {logoUrl ? (
-        <span className="orglogo-thumb">
+        <span className={`orglogo-thumb${tone === "light" ? " dark" : ""}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoUrl} alt="Company logo" />
         </span>

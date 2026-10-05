@@ -1,4 +1,5 @@
-import { brandContact, brandInitials, hasBrand, NO_BRAND, type OrgBrand } from "../brand";
+import {
+  plateFor, brandContact, brandInitials, hasBrand, NO_BRAND, type OrgBrand } from "../brand";
 
 /* The letterhead's rules — see lib/org/brand.ts.
 
@@ -70,5 +71,29 @@ describe("brandInitials", () => {
   it("is empty for a nameless business", () => {
     expect(brandInitials("")).toBe("");
     expect(brandInitials("   ")).toBe("");
+  });
+});
+
+/* The one place a logo's ink meets a surface's ground. Every row here is a
+   decision a stylesheet used to make alone. */
+describe("plateFor", () => {
+  it("puts a dark plate behind a pale logo on paper — the blank corner on the quote", () => {
+    expect(plateFor("light", "light")).toBe("dark");
+  });
+
+  it("draws everything else bare on paper, and an unmeasured logo exactly as it always was", () => {
+    for (const tone of ["dark", "mixed", null, undefined] as const) {
+      expect(plateFor(tone, "light")).toBeNull();
+    }
+  });
+
+  it("puts a light plate behind a dark, mixed or unmeasured logo on a dark bar", () => {
+    for (const tone of ["dark", "mixed", null, undefined] as const) {
+      expect(plateFor(tone, "dark")).toBe("light");
+    }
+  });
+
+  it("draws a pale logo bare on a dark bar, where it was always the right logo", () => {
+    expect(plateFor("light", "dark")).toBeNull();
   });
 });

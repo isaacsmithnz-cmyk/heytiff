@@ -28,6 +28,7 @@ const ROW = {
   email: "office@smithair.com.au",
   website: "smithair.com.au",
   logo_url: "org/org-1/org_logo/doc-1.png",
+  logo_tone: "light",
   brand_color: "#004885",
 };
 
@@ -81,6 +82,7 @@ it("returns an empty brand for a missing row instead of throwing", async () => {
   expect(brand).toEqual({
     name: "",
     logoUrl: null,
+    logoTone: null,
     abn: null,
     phone: null,
     email: null,
@@ -109,4 +111,18 @@ it("carries the brand colour through untouched", async () => {
 it("reads an unset brand colour as no theme, not as a colour", async () => {
   maybeSingle.mockResolvedValue({ data: { ...ROW, brand_color: null } });
   expect((await orgBrand("org-1")).color).toBeNull();
+});
+
+/* The tone rides along with the logo, so a document can decide for itself whether
+   the logo needs a plate. A column is only a string, so anything that is not one
+   of the three is read as "never measured" rather than trusted into a class name. */
+it("carries the logo's measured tone", async () => {
+  expect((await orgBrand("org-1")).logoTone).toBe("light");
+});
+
+it("reads a tone it does not recognise as unmeasured", async () => {
+  maybeSingle.mockResolvedValue({ data: { ...ROW, logo_tone: "purple" } });
+  expect((await orgBrand("org-1")).logoTone).toBeNull();
+  maybeSingle.mockResolvedValue({ data: { ...ROW, logo_tone: null } });
+  expect((await orgBrand("org-1")).logoTone).toBeNull();
 });

@@ -1,4 +1,5 @@
 import type { OrgCredentialInput } from "@/lib/org/credentials";
+import type { LogoTone } from "@/lib/org/logo-fit";
 import type { CredentialRecordInput, CredentialScanDetails } from "@/lib/org/credential-records";
 
 /* Prop shapes for the Organisation screen, in their own module so the server
@@ -44,7 +45,7 @@ export type OrgActions = {
   onRemoveTerm: (recordId: string) => Promise<CredResult>;
   /** The viewer's own reminder for this card, `lead` days before the expiry. */
   /** points the org at an already-uploaded org_logo document */
-  onSetLogo: (documentId: string) => Promise<SaveResult>;
+  onSetLogo: (documentId: string, tone: LogoTone | null) => Promise<SaveResult>;
   onClearLogo: () => Promise<SaveResult>;
   /** the one seed colour; the document roles are derived from it at render */
   onSetBrandColor: (hex: string) => Promise<SaveResult>;

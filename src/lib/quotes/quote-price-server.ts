@@ -10,6 +10,7 @@ import { makePriceOf } from "./price-resolver";
 import { readQuoteLabour } from "./quote-labour-server";
 import { componentShortlists, readQuoteSettings } from "./settings-query";
 import { rangeOffersFrom, readRanges } from "./ranges-server";
+import { readLetterRules } from "./code-letters-server";
 import { rollMetresOf } from "./components";
 import { optionMaterials } from "./option-materials";
 import type { RangeKind } from "./ranges";
@@ -49,13 +50,14 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   const rows = lists.flatMap((l) => l.rows);
 
   /* the book read once, for the units, the parts and the codes alike */
-  const [suppliers, book, same, choices, preferred, rangeRows] = await Promise.all([
+  const [suppliers, book, same, choices, preferred, rangeRows, codeLetters] = await Promise.all([
     readSuppliers(orgId),
     rows.length ? currentItems(orgId) : Promise.resolve([]),
     readSameDecisions(orgId),
     readUnitChoices(orgId),
     readPreferred(orgId),
     rows.length ? readRanges(orgId) : Promise.resolve([]),
+    rows.length ? readLetterRules(orgId) : Promise.resolve([]),
   ]);
   const [links, shortlists, labour] = await Promise.all([
     rows.length ? pricedLinks(orgId, { items: book, suppliers }) : Promise.resolve([]),
@@ -101,6 +103,7 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
     component,
     allowance: (k: AllowanceKey) => settings.allowances[k],
     range: (kind: RangeKind) => ranges.get(kind) ?? [],
+    codeLetters,
   };
   /* each option's own labour, else the brief's (Isaac, 2026-10-05) */
   const brief = briefVisits(labour?.brief ?? null, built.settings.dayHours);

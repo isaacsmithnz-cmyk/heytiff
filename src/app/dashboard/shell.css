@@ -6550,8 +6550,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-sheet .pbtn:active:not(:disabled),
 .wb2-daymodal .pbtn:active:not(:disabled),
 .wb2-capcard .pbtn:active:not(:disabled),
+.wb2-qpage .pbtn:active:not(:disabled),
 .swz .pbtn:active:not(:disabled) { transform:translateY(1px); }
-.wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-capcard .pbtn:focus-visible, .swz .pbtn:focus-visible {
+.wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-capcard .pbtn:focus-visible, .wb2-qpage .pbtn:focus-visible, .swz .pbtn:focus-visible {
   outline:none; box-shadow:var(--ring); }
 /* the shared look for a disabled button lives with the fills it overrides —
    see `.wb2 .pbtn:disabled` up in the accent block */
@@ -6671,6 +6672,16 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-mline > span { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .wb2-mline.total { border-top:1.5px solid rgba(5,5,5,.16); margin-top:2px; }
 .wb2-mline.total > b { font-size:12px; font-weight:500; color:var(--gray500); }
+/* THE QUOTE PAGE'S COLUMN (quote/quote-screen.tsx): the price and what goes
+   to ServiceM8, at 400px. A line's middle words take their own row under
+   the name, or the name is squeezed to a letter a line beside them. The
+   column has no title of its own (the band names the job; each section
+   heads itself), so its body starts where the title would. */
+.wb2-qpage .wb2-inspb { padding-top:24px; }
+.wb2-qpage .wb2-insp .wb2-mline { grid-template-columns:minmax(0,1fr) auto; row-gap:2px; }
+.wb2-qpage .wb2-insp .wb2-mline > em { grid-column:1 / -1; grid-row:2; }
+.wb2-qpage .wb2-insp .wb2-jcdhead { flex-wrap:wrap; row-gap:2px; }
+.wb2-qpage .wb2-insp .wb2-jcdhead em { flex-basis:100%; margin-left:0; white-space:normal; }
 /* ── THE TABBED JOB CARD (slice 2) ────────────────────────────────────────
    The sheet became ONE CARD OF EIGHT FACES. `.jc` turns the grid modal into
    a column: a tinted band (identity + the folder tabs) up top, the white

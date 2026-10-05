@@ -12,7 +12,7 @@ import { CapacityView } from "./capacity-view";
 import { ShowcaseView } from "./showcase-view";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 import type { CapacityPayload } from "@/lib/workboard/capacity-query";
-import { JobSheet } from "./job-sheet";
+import { JobSheet, type JobSheetTab } from "./job-sheet";
 import { NewAgreementModal } from "./new-agreement-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
 import { Sm8HealthContext, type Sm8Health } from "./sm8-chip";
@@ -122,7 +122,9 @@ export function AllJobsBoard({
   /* A ServiceM8 job named from outside this board. It arrives as the JOB, not
      as an id: the row a search found may be older than this board's loaded
      window, so there would be nothing here to look the id up in. */
-  openTarget?: { kind: "job"; job: AllJobsMirrorJob } | null;
+  /** …and the face it opens on, when the way in named one (the quote
+      page's way back opens the card on Quote). */
+  openTarget?: { kind: "job"; job: AllJobsMirrorJob; face?: "quote" } | null;
 }) {
   /* Lands on Schedule — the first tab is the landing tab on every board
      (Maintenance opens on Urgent the same way). The diary's fetch-on-open
@@ -133,6 +135,8 @@ export function AllJobsBoard({
   /** The diary's reading of the sheet's job — set only when a schedule block
       opened it, cleared with the row. */
   const [sheetState, setSheetState] = useState<ScheduleJobState | null>(null);
+  /** The face the sheet opens on, when whoever opened it named one. */
+  const [sheetTab, setSheetTab] = useState<JobSheetTab | undefined>(undefined);
   const [agreementFrom, setAgreementFrom] = useState<AllJobRow | null>(null);
   /* ── the diary's two tabs share their reads ──
      Schedule and Capacity ask the same server for the same days at two
@@ -247,10 +251,11 @@ export function AllJobsBoard({
   /* A schedule block — or a search result — opens THE SAME SHEET the list rows
      open, on the same row shape: one job, one law. Both arrive already in the
      mirror shape, so the row builder that feeds the list feeds them too. */
-  const openJob = (job: AllJobsMirrorJob, state: ScheduleJobState | null = null) => {
+  const openJob = (job: AllJobsMirrorJob, state: ScheduleJobState | null = null, face?: JobSheetTab) => {
     const row = sheetRowOf(job, today, trackedByJob.get(job.remoteId) ?? null);
     if (!row) return;
     setSheetState(state);
+    setSheetTab(face);
     setSheetRow(row);
   };
 
@@ -263,7 +268,7 @@ export function AllJobsBoard({
   const [taken, setTaken] = useState<typeof openTarget>(null);
   if (openTarget && openTarget !== taken) {
     setTaken(openTarget);
-    openJob(openTarget.job);
+    openJob(openTarget.job, null, openTarget.face);
   }
 
   /* ── the sliding tab thumb — measured, like both boards ── */
@@ -309,8 +314,10 @@ export function AllJobsBoard({
       // Only ServiceM8 rows have a sheet to open. A native row already has a
       // home on another board, so it goes there instead of into a second
       // viewer that would only say less.
-      if (row.kind === "sm8") setSheetRow(row);
-      else onOpenTracked({ kind: row.kind === "visit" ? "visit" : "project", id: row.id });
+      if (row.kind === "sm8") {
+        setSheetTab(undefined);
+        setSheetRow(row);
+      } else onOpenTracked({ kind: row.kind === "visit" ? "visit" : "project", id: row.id });
     },
   };
 
@@ -394,6 +401,7 @@ export function AllJobsBoard({
         <JobSheet
           key={sheetRow.id}
           row={sheetRow}
+          initialTab={sheetTab}
           manage={manage}
           moneyVisible={moneyVisible}
           sm8={sm8}

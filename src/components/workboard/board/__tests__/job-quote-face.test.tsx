@@ -52,14 +52,10 @@ beforeEach(() => {
   (global as unknown as { fetch: unknown }).fetch = fetchMock;
 });
 
+/** The quote page's builder, open from the start. */
 const face = (onToast = jest.fn()) =>
-  render(<JobQuoteFace job="j-1" address={"12 Smith St\nMosman NSW 2088"} visible onToast={onToast} />);
-/** A job with a draft opens on "Continue quote"; pressing it opens the quote. */
-const openFace = async (onToast = jest.fn()) => {
-  const r = face(onToast);
-  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
-  return r;
-};
+  render(<JobQuoteFace mode="page" job="j-1" address={"12 Smith St\nMosman NSW 2088"} visible onToast={onToast} />);
+const openFace = async (onToast = jest.fn()) => face(onToast);
 
 it("stands the checklist first and the blocks in the skeleton's order, with nothing to copy", async () => {
   const { container } = await openFace();
@@ -82,20 +78,31 @@ it("stands the checklist first and the blocks in the skeleton's order, with noth
   expect(screen.getByText("Wi-Fi adaptor")).toBeInTheDocument();
 });
 
-/* Isaac, 2026-10-05: "jobs with a HeyTiff draft should just say continue quote" */
-it("shows a draft as Continue quote, and the builder's own sections only once it's open", async () => {
+/* Isaac, 2026-10-05: "it should have opened up the proper quote screen not a
+   section below" — the card's face is the way into the page, never the builder */
+it("shows a draft on the card as Continue quote, a link to the quote page, with what's left to ask", async () => {
   render(
     <JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()}>
       <p>Price block</p>
     </JobQuoteFace>
   );
-  expect(await screen.findByRole("button", { name: "Continue quote" })).toBeInTheDocument();
-  expect(screen.getByText("Quote")).toBeInTheDocument();
+  const link = await screen.findByRole("link", { name: "Continue quote" });
+  expect(link).toHaveAttribute("href", "/dashboard/workboard/quotes/j-1");
+  expect(screen.getByText(/Drafted .*, 1 to ask/)).toBeInTheDocument();
   expect(screen.queryByText("Site checklist")).toBeNull();
   expect(screen.queryByText("Price block")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Continue quote" }));
+});
+
+it("opens the page's builder at once, with its own sections and the quote's version", async () => {
+  const onVersion = jest.fn();
+  render(
+    <JobQuoteFace mode="page" job="j-1" address={null} visible onToast={jest.fn()} onVersion={onVersion}>
+      <p>Labour block</p>
+    </JobQuoteFace>
+  );
   expect(await screen.findByText("Site checklist")).toBeInTheDocument();
-  expect(screen.getByText("Price block")).toBeInTheDocument();
+  expect(screen.getByText("Labour block")).toBeInTheDocument();
+  expect(onVersion).toHaveBeenLastCalledWith("2026-09-29T08:00:00Z");
 });
 
 it("asks the first open question with its usual answers, and saves an answer with no model call", async () => {
@@ -170,11 +177,10 @@ it("switches the payment terms by the kind of job", async () => {
   expect(sent.draft.payment).toEqual({ preset: "domestic_construction", stages: PAYMENT_PRESETS.domestic_construction.stages });
 });
 
-it("opens on Create a quote when the job has none, and drafts from its box", async () => {
+it("opens the page on the box that drafts one when the job has none, and drafts from it", async () => {
   fetchMock.mockImplementationOnce(() => respond({ ok: true, proposal: null }));
   face();
-  fireEvent.click(await screen.findByRole("button", { name: "Create a quote" }));
-  expect(screen.getByText("Create a quote")).toBeInTheDocument();
+  expect(await screen.findByText("Create a quote")).toBeInTheDocument();
   const draft = screen.getByRole("button", { name: "Draft proposal" });
   expect(draft).toBeDisabled();
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "Own 6 kW split, parapet wall" } });
@@ -194,7 +200,6 @@ it("a read that fails offers Try again, never the box that would draft over it",
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   });
-  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
   await screen.findByText("Site checklist");
 });
 
@@ -291,29 +296,64 @@ describe("a quote ServiceM8 generated", () => {
     fetchMock.mockImplementation(() => respond({ ok: true, proposal: null }));
   });
 
-  it("opens on ServiceM8's quote, its PDF opening in the card, and Update ServiceM8 quote starts from it", async () => {
-    fetchMock.mockImplementation(() =>
-      respond({ ok: true, proposal: null, sm8Brief: "As quoted in ServiceM8:\n1 x MXZ-5F100 outdoor\n\nIts line items:\n- Condensate pump" })
-    );
+  it("shows ServiceM8's quote on the card, its PDF opening there, with Update ServiceM8 quote into the page", async () => {
     const onOpenPaper = jest.fn();
     render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={sm8} onOpenPaper={onOpenPaper} />);
     expect(await screen.findByText("Quote from ServiceM8")).toBeInTheDocument();
     expect(screen.getByText("Sent Thu 1 Oct, $45,430 inc GST")).toBeInTheDocument();
-    expect(screen.queryByText("Create a quote")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Diamond Air Solutions Pty LTD Quote #3386/ }));
     expect(onOpenPaper).toHaveBeenCalledWith(paper);
-    fireEvent.click(screen.getByRole("button", { name: "Update ServiceM8 quote" }));
-    /* the builder opens on what ServiceM8's quote says, to change before drafting */
-    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
-      "As quoted in ServiceM8:\n1 x MXZ-5F100 outdoor\n\nIts line items:\n- Condensate pump"
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByRole("button", { name: "Update ServiceM8 quote" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Update ServiceM8 quote" })).toHaveAttribute("href", "/dashboard/workboard/quotes/j-1");
   });
 
-  it("a job ServiceM8 never quoted opens on Create a quote", async () => {
+  it("opens the page on the box that drafts one, from what ServiceM8's quote says; Cancel goes back", async () => {
+    fetchMock.mockImplementation(() =>
+      respond({ ok: true, proposal: null, sm8Brief: "As quoted in ServiceM8:\n1 x MXZ-5F100 outdoor\n\nIts line items:\n- Condensate pump" })
+    );
+    const onCancel = jest.fn();
+    render(<JobQuoteFace mode="page" job="j-1" address={null} visible onToast={jest.fn()} sm8={sm8} onCancel={onCancel} />);
+    expect(await screen.findByText("Update ServiceM8 quote")).toBeInTheDocument();
+    /* ServiceM8's quote sits beside the builder on the page, not in it */
+    expect(screen.queryByText("Quote from ServiceM8")).toBeNull();
+    /* filled once the draft read says there's no draft */
+    await waitFor(() =>
+      expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
+        "As quoted in ServiceM8:\n1 x MXZ-5F100 outdoor\n\nIts line items:\n- Condensate pump"
+      )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("fills the box from ServiceM8's quote when the quote's PDF lands after the draft read, never over words typed", async () => {
+    const BRIEF = "As quoted in ServiceM8:\n1 x MXZ-5F100 outdoor";
+    fetchMock.mockImplementation(() => respond({ ok: true, proposal: null, sm8Brief: BRIEF }));
+    const none = { papers: [], sentOn: null, value: null };
+    const { rerender } = render(<JobQuoteFace mode="page" job="j-1" address={null} visible onToast={jest.fn()} sm8={none} />);
+    expect(await screen.findByText("Create a quote")).toBeInTheDocument();
+    const box = screen.getByRole("textbox") as HTMLTextAreaElement;
+    expect(box.value).toBe("");
+    rerender(<JobQuoteFace mode="page" job="j-1" address={null} visible onToast={jest.fn()} sm8={sm8} />);
+    expect(await screen.findByText("Update ServiceM8 quote")).toBeInTheDocument();
+    await waitFor(() => expect(box.value).toBe(BRIEF));
+
+  });
+
+  it("keeps words typed before ServiceM8's quote is known", async () => {
+    fetchMock.mockImplementation(() => respond({ ok: true, proposal: null, sm8Brief: "As quoted in ServiceM8:\n1 x MXZ-5F100 outdoor" }));
+    const none = { papers: [], sentOn: null, value: null };
+    const { rerender } = render(<JobQuoteFace mode="page" job="j-1" address={null} visible onToast={jest.fn()} sm8={none} />);
+    expect(await screen.findByText("Create a quote")).toBeInTheDocument();
+    const box = screen.getByRole("textbox") as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "Ducted for the whole house" } });
+    rerender(<JobQuoteFace mode="page" job="j-1" address={null} visible onToast={jest.fn()} sm8={sm8} />);
+    expect(await screen.findByText("Update ServiceM8 quote")).toBeInTheDocument();
+    expect(box.value).toBe("Ducted for the whole house");
+  });
+
+  it("a job ServiceM8 never quoted shows Create a quote on the card", async () => {
     render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
-    expect(await screen.findByRole("button", { name: "Create a quote" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Create a quote" })).toBeInTheDocument();
     expect(screen.queryByText("Quote from ServiceM8")).toBeNull();
   });
 });
@@ -359,6 +399,7 @@ it("stands each option's total beside what ServiceM8 quoted, on ServiceM8's basi
   pricedAs([{ cents: 1_200_000, labour: 224_000, unpriced: [] }]);
   render(
     <JobQuoteFace
+      mode="page"
       job="j-1"
       address={null}
       visible
@@ -366,7 +407,6 @@ it("stands each option's total beside what ServiceM8 quoted, on ServiceM8's basi
       sm8={{ papers: [], sentOn: "2026-09-22", value: "$12,650 inc GST", quoted: { cents: 1_265_000, basis: "inc" } }}
     />
   );
-  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
   /* $12,000 ex is $13,200 inc: $550 more than the $12,650 inc quoted */
   expect(await screen.findByText("ServiceM8 quoted $12,650 inc GST: $550 more")).toBeInTheDocument();
 });
@@ -394,8 +434,8 @@ it("puts an option's materials on the job's list when it's marked accepted", asy
   );
   const onToast = jest.fn();
   const onJobMaterials = jest.fn();
-  render(<JobQuoteFace job="j-1" address={null} visible onToast={onToast} onJobMaterials={onJobMaterials} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
+  render(<JobQuoteFace mode="page" job="j-1" address={null} visible onToast={onToast} onJobMaterials={onJobMaterials} />);
+  await screen.findByText("Site checklist");
   await act(async () => {
     fireEvent.click(await screen.findByRole("button", { name: "Mark accepted" }));
   });

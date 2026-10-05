@@ -34,6 +34,7 @@ export const QUOTE_WORDS = {
     unreadable: "HeyTiff couldn't read the ServiceM8 settings. Nothing was sent.",
     unqueued: "HeyTiff couldn't send that. Nothing went; try again.",
     changed: "The job has changed in ServiceM8 since you looked. Look at what goes again, then send.",
+    quoteChanged: "The quote has changed since this was shown. Look at what goes again, then send.",
     scope: "ServiceM8 hasn't given HeyTiff permission to change a job's lines yet. An owner can change that in Integrations, ServiceM8.",
     noManage: "Only someone who runs the Workboard and sees money can send a quote to ServiceM8.",
   },

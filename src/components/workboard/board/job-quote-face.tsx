@@ -1,6 +1,7 @@
 "use client";
 
 import { fmtAud } from "@/lib/workboard/project-money";
+import Link from "next/link";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { NoteToken } from "@/components/notes/note-token";
 import { Waiting } from "@/components/ui/orb";
@@ -133,6 +134,9 @@ export function JobQuoteFace({
   onOpenPaper,
   onJobMaterials,
   children,
+  mode = "card",
+  onVersion,
+  onCancel,
 }: {
   /** The job card's uuid, or the row's until the record read lands. */
   job: string;
@@ -150,19 +154,30 @@ export function JobQuoteFace({
   children?: ReactNode;
   /** The job's own materials list changed (an accepted option went on it). */
   onJobMaterials?: () => void;
+  /** "card": the job card's small face — ServiceM8's quote, where HeyTiff's
+      stands, and the button into the quote page. "page": the quote page's
+      builder, open from the start (Isaac, 2026-10-05: "it should have
+      opened up the proper quote screen not a section below"). */
+  mode?: "card" | "page";
+  /** The page: the quote's version each time it changes, for the sections
+      beside the builder to read it afresh. */
+  onVersion?: (version: string | null) => void;
+  /** The page: leaving the box that drafts one, with nothing drafted. */
+  onCancel?: () => void;
 }) {
   /* THE QUOTE OPENS FROM ONE BUTTON (Isaac, 2026-10-05): "Create a quote"
      when there is none, "Continue quote" on a draft, and on a job quoted in
      ServiceM8 — whose quote shows first — "Update ServiceM8 quote", which
      starts the builder from what that quote says. */
   const sm8Quoted = !!sm8 && (sm8.papers.length > 0 || !!sm8.sentOn);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(mode === "page");
   const [sm8Brief, setSm8Brief] = useState<string | null>(null);
   /* the business's own default for what the customer sees */
   const [linesByDefault, setLinesByDefault] = useState(false);
   /* each option's total, read again whenever the quote changes */
   const [totals, setTotals] = useState<{ at: string; totals: OptionTotal[] | null } | null>(null);
-  const sm8Block = sm8Quoted ? (
+  /* on the page, ServiceM8's quote sits beside the builder, not in it */
+  const sm8Block = sm8Quoted && mode === "card" ? (
     <div className="wb2-jcsec">
       <div className="wb2-jcdhead">
         <b>Quote from ServiceM8</b>
@@ -215,7 +230,21 @@ export function JobQuoteFace({
       .catch(() => setReadFailed(true));
   }, [visible, job, reads]);
 
+  /* The page opens on the box that drafts one, and ServiceM8's quote is
+     what a new version starts from. Filled once both are known — the draft
+     read and whether ServiceM8 quoted the job land in either order — and
+     never over words already typed. */
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (seeded.current || mode !== "page" || loaded !== null || !sm8Quoted || !sm8Brief) return;
+    seeded.current = true;
+    setBrief((b) => b || sm8Brief);
+  }, [mode, loaded, sm8Quoted, sm8Brief]);
+
   const version = loaded?.updatedAt ?? null;
+  useEffect(() => {
+    onVersion?.(version);
+  }, [version, onVersion]);
   useEffect(() => {
     if (!open || !version) return;
     let live = true;
@@ -339,6 +368,32 @@ export function JobQuoteFace({
   if (loaded === undefined) return <Waiting note="Reading the proposal" />;
 
   const proposal = loaded;
+  /* the card's face: the way into the page, never the builder itself */
+  if (mode === "card") {
+    const asks = proposal ? asksByImpact(proposal.draft.checklist).length : 0;
+    return (
+      <>
+        {sm8Block}
+        {proposal && (
+          <div className="wb2-jcsec">
+            <div className="wb2-jcdhead">
+              <b>Quote</b>
+              <em>
+                {proposal.changes.length ? "Changed" : "Drafted"} {whenOf(proposal.updatedAt)}
+                {asks ? `, ${asks} to ask` : ""}
+              </em>
+            </div>
+          </div>
+        )}
+        <div className="wb2-jqacts">
+          <Link className={proposal ? "pbtn primary" : "pbtn ghost"} href={`/dashboard/workboard/quotes/${encodeURIComponent(job)}`}>
+            {!proposal && <Icon name="plus" size={15} />}
+            {proposal ? "Continue quote" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}
+          </Link>
+        </div>
+      </>
+    );
+  }
   if (!open) {
     const start = () => {
       /* ServiceM8's quote is the brief a new version starts from */
@@ -400,7 +455,7 @@ export function JobQuoteFace({
                 </button>
               )}
               {!proposal && (
-                <button type="button" className="pbtn ghost" onClick={() => setOpen(false)}>
+                <button type="button" className="pbtn ghost" onClick={() => (onCancel ? onCancel() : setOpen(false))}>
                   Cancel
                 </button>
               )}

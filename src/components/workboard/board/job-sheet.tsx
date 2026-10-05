@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { MONEY_BASIS } from "@/lib/workboard/job-money";
 import {
   createProjectFromJob,
   readJobFiles,
@@ -40,10 +39,8 @@ import {
 import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
-import { JobQuoteLabour } from "./job-quote-labour";
-import { JobQuotePrice } from "./job-quote-price";
 import { JobQuoteFace } from "./job-quote-face";
-import { JobQuoteSend } from "./job-quote-send";
+import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
 import { JobCustomerDialog } from "./job-customer-dialog";
@@ -419,8 +416,11 @@ export function JobSheet({
         : "summary"
   );
   /* THE STEP whose part is open below, when the progress line opened it;
-     null when the rail did. A door that came to book opens on Installation. */
-  const [step, setStep] = useState<StepKey | null>(() => (openBookIn || openClear ? "installation" : null));
+     null when the rail did. A door that came to book opens on Installation;
+     one that came back from the quote page, on Quoted. */
+  const [step, setStep] = useState<StepKey | null>(() =>
+    openBookIn || openClear ? "installation" : initialTab === "quote" && manage ? "quoted" : null
+  );
   const [naming, setNaming] = useState(false);
   /* the visit strip, opened at its newest end */
   const visitStrip = useRef<HTMLOListElement>(null);
@@ -2730,42 +2730,24 @@ export function JobSheet({
           {manage &&
             panel(
               "quote",
+              /* the card keeps a small Quote face: ServiceM8's quote, where
+                 HeyTiff's stands, and the way into the quote page (Isaac,
+                 2026-10-05: "it should have opened up the proper quote
+                 screen not a section below") */
               <JobQuoteFace
                 job={cardId ?? row.id}
                 address={detail ? detail.address ?? detail.geoLine : null}
                 visible={tab === "quote"}
                 onToast={onToast}
-                sm8={{
-                  papers: (media?.documents ?? []).filter((d) => d.origin === "Quote"),
+                sm8={sm8QuoteOf({
+                  documents: media?.documents ?? null,
                   sentOn: detail?.quoteSentOn ?? null,
-                  /* the FAMILY's value where it bills in claims: the row's own
-                     total is netted by each claim ServiceM8 raises */
-                  value: (() => {
-                    if (!moneyVisible) return null;
-                    const cents = family ? family.valueCents : (money?.valueCents ?? null);
-                    const basis = family ? (family.basis === "ex" ? "ex GST" : "inc GST") : MONEY_BASIS;
-                    return cents != null ? `${fmtAud(cents)} ${basis}` : null;
-                  })(),
-                  /* the same figure as money, for the new quote to stand beside */
-                  quoted: (() => {
-                    if (!moneyVisible) return null;
-                    const cents = family ? family.valueCents : (money?.valueCents ?? null);
-                    const basis: "ex" | "inc" = family ? (family.basis === "ex" ? "ex" : "inc") : MONEY_BASIS === "inc GST" ? "inc" : "ex";
-                    return cents != null ? { cents, basis } : null;
-                  })(),
-                }}
+                  moneyVisible,
+                  family,
+                  rowValueCents: money?.valueCents ?? null,
+                })}
                 onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
-                onJobMaterials={() => {
-                  if (!cardId) return;
-                  void listJobPicklist(cardId)
-                    .then(setPicklist)
-                    .catch(() => undefined);
-                }}
-              >
-                <JobQuoteLabour key={cardId ?? row.id} job={cardId ?? row.id} visible={tab === "quote"} />
-                <JobQuotePrice key={`price-${cardId ?? row.id}`} job={cardId ?? row.id} visible={tab === "quote"} />
-                <JobQuoteSend key={`send-${cardId ?? row.id}`} job={cardId ?? row.id} visible={tab === "quote"} />
-              </JobQuoteFace>
+              />
             )}
 
           {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,

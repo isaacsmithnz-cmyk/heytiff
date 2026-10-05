@@ -1,6 +1,6 @@
 import { priceBuildUp } from "../buildup";
 import { normaliseDraft } from "../proposal";
-import { checkBack, optionLines, sendPlan, sm8Amount, usualTaxRate } from "../sm8-send-plan";
+import { checkBack, optionLines, planKey, sendPlan, sm8Amount, usualTaxRate } from "../sm8-send-plan";
 
 /* Isaac, 2026-10-05: "if a quote is accepted, then it can turn that into the
    work order for service mate… copy the scope and line items" */
@@ -65,4 +65,13 @@ it("puts amounts ServiceM8's way, takes the business's usual tax rate, and check
   expect(usualTaxRate([])).toBeNull();
   expect(checkBack([{ quantity: 1, unitPrice: 11500 }], 1150000)).toEqual({ sm8Cents: 1150000, gapCents: 0, matches: true });
   expect(checkBack([{ quantity: 1, unitPrice: 11000 }], 1150000).matches).toBe(false);
+});
+
+/* a send goes only as it was shown */
+describe("planKey", () => {
+  it("is the same for the same plan, and changes with any line", () => {
+    const plan = { ok: false as const, why: "There's no quote on this job." };
+    expect(planKey(plan)).toBe(planKey({ ...plan }));
+    expect(planKey(plan)).not.toBe(planKey({ ok: false, why: "There's no quote on this job!" }));
+  });
 });

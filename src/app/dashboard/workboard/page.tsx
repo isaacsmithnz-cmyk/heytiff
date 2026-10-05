@@ -14,6 +14,7 @@ export default async function WorkboardPage({
 }: {
   searchParams: Promise<{
     job?: string | string[];
+    face?: string | string[];
     q?: string | string[];
     visit?: string | string[];
   }>;
@@ -32,6 +33,9 @@ export default async function WorkboardPage({
   const params = await searchParams;
   const wanted = params.job;
   const openJob = typeof wanted === "string" && wanted ? await loadLinkedJob(data, wanted) : null;
+  /* `&face=quote` opens that card on its Quote face — the quote page's way
+     back to the job. */
+  const openFace = openJob && params.face === "quote" ? ("quote" as const) : null;
 
   /* `?q=` lands on the board already searching — how ⌘K hands over a
      client. There is no page for a client; the board's own search, run on
@@ -52,6 +56,7 @@ export default async function WorkboardPage({
     <OverviewScreen
       data={data}
       openJob={openJob}
+      openFace={openFace}
       openSearch={openSearch}
       openVisit={openVisit}
     />

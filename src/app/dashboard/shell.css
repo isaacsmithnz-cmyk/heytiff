@@ -6704,7 +6704,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    page scrolls sideways, so a trackpad's sideways swipe must not reach the
    browser's Back (Isaac, 2026-10-06: "it will just jump back to the
    workboard"). */
-.fg .qp .hd-face, .fg .qp .hd-list { overscroll-behavior-x:none; }
+.fg .hd-face.qp-face, .fg .hd-list.qp-rail { overscroll-behavior-x:none; }
 .fg .qp-face { padding:0 24px 32px; }
 .fg .qp-sec { display:flex; flex-direction:column; gap:12px; padding:24px 0; border-top:1px solid var(--hd-rule); }
 .fg .qp-sec:first-child { border-top:0; padding-top:8px; }
@@ -6713,7 +6713,6 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qp-h { display:flex; align-items:baseline; gap:8px; margin:0; font-size:20px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
 .fg .qp-h.due { color:var(--warn-t); }
 .fg .qp-h.done { color:var(--hd-today); }
-.fg .qp-h .hd-ls-n { font-weight:500; }
 .fg .qp-sub { margin:0; font-size:16px; font-weight:600; color:var(--hd-ink); }
 .fg .qp-none { margin:0; font-size:14px; color:var(--q); }
 /* the brief, in the person's own words, two lines until it's asked for */
@@ -6766,8 +6765,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qp-kv dd { margin:0; font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
 .fg .qp-kv dd.late { color:var(--hd-late); }
 .fg .qp-kv > div.q dt, .fg .qp-kv > div.q dd { font-size:13px; font-weight:500; color:var(--q); }
-.fg .qp-rail .hd-ls-dot[data-dot="due"] { background:var(--warn-t); }
-.fg .qp-rail .hd-ls-sub.late { color:var(--hd-late); }
+.fg .hd-list.qp-rail .hd-ls-dot[data-dot="due"] { background:var(--warn-t); }
 .fg .qp-known { margin:0; padding:12px 0; font-size:14px; line-height:1.5; color:var(--hd-body); }
 .fg .qp-sm8 { margin:0; padding:8px 0 4px; font-size:14px; color:var(--hd-body); }
 /* ── THE TABBED JOB CARD (slice 2) ────────────────────────────────────────

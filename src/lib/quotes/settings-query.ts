@@ -12,6 +12,7 @@ import {
 import { netCents } from "./price-book";
 import { currentItems, readSameDecisions, readSuppliers, type BookItem, type SupplierView } from "./price-book-server";
 import { productsOf, refOf } from "./same-items";
+import { readPreferred } from "./book-view-server";
 import { normaliseQuoteSettings, type QuoteSettings } from "./settings";
 
 /* The Quoting page's reads: the business's settings, and for each component
@@ -58,7 +59,13 @@ export type ComponentGroup = {
 
 /** The item that prices a component: the lowest by default, or the one a
     person chose over it. */
-export type ComponentChoice = { group: ComponentGroup; offer: ComponentOffer; overridden: boolean };
+export type ComponentChoice = {
+  group: ComponentGroup;
+  offer: ComponentOffer;
+  overridden: boolean;
+  /** not chosen here, but put forward in the price book */
+  preferred?: boolean;
+};
 
 export type ComponentShortlist = {
   key: ComponentKey;
@@ -120,13 +127,14 @@ export async function componentShortlists(
   orgId: string,
   settings: QuoteSettings,
   suppliers?: SupplierView[],
-  /** the book and its same-item decisions, when the caller has read them */
-  pre?: { book: BookItem[]; same: Awaited<ReturnType<typeof readSameDecisions>> }
+  /** the book, its same-item decisions and preferred items, when the caller has read them */
+  pre?: { book: BookItem[]; same: Awaited<ReturnType<typeof readSameDecisions>>; preferred: Set<string> }
 ): Promise<ComponentShortlist[]> {
-  const [book, sups, same] = await Promise.all([
+  const [book, sups, same, preferred] = await Promise.all([
     pre ? Promise.resolve(pre.book) : currentItems(orgId),
     suppliers ? Promise.resolve(suppliers) : readSuppliers(orgId),
     pre ? Promise.resolve(pre.same) : readSameDecisions(orgId),
+    pre ? Promise.resolve(pre.preferred) : readPreferred(orgId),
   ]);
   /* a part a person confirmed is one item at two suppliers under their own
      codes (AAD's PC1412 and Reece's 9800006-1) */
@@ -168,7 +176,7 @@ export async function componentShortlists(
           .map((m): ComponentOffer | null => {
             const s = supplierOf.get(m.supplierKey);
             if (!s) return null;
-            const buyCents = netCents(s, m.code, m.cents);
+            const buyCents = netCents(s, m.code, m.cents, m.net);
             const rollM = rollOf(m);
             return {
               supplierKey: s.key,
@@ -192,13 +200,20 @@ export async function componentShortlists(
         };
       })
     );
-    /* a person's choice, while that item is still in the book; otherwise
-       the lowest priced item that can be priced */
+    /* a person's choice for this component, while that item is still in
+       the book; then an item put forward in the price book; otherwise the
+       lowest priced item that can be priced */
     let pick: ComponentChoice | null = null;
     if (chosen) {
       const group = groups.find((g) => g.offers.some((o) => o.code === chosen.code && o.supplierKey === chosen.supplierKey));
       const offer = group?.offers.find((o) => o.code === chosen.code && o.supplierKey === chosen.supplierKey);
       if (group && offer) pick = { group, offer, overridden: true };
+    }
+    if (!pick) {
+      const put = (o: ComponentOffer) => preferred.has(`${o.supplierKey}|${o.code}`) && rankPrice(o.perUnitCents) < Infinity;
+      const group = groups.find((g) => g.offers.some(put));
+      const offer = group?.offers.find(put);
+      if (group && offer) pick = { group, offer, overridden: false, preferred: true };
     }
     if (!pick) {
       const group = groups.find((g) => rankPrice(g.offers[0]?.perUnitCents ?? null) < Infinity);

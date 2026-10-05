@@ -21,5 +21,5 @@ export default async function QuotingPage() {
 
   const [settings, suppliers, calc] = await Promise.all([readQuoteSettings(orgId), readSuppliers(orgId), readCalcDay(orgId)]);
   const components = await componentShortlists(orgId, settings, suppliers);
-  return <QuotingScreen initial={settings} components={components} suppliers={suppliers} calc={calc} />;
+  return <QuotingScreen initial={settings} components={components} calc={calc} />;
 }

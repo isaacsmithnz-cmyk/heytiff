@@ -149,10 +149,19 @@ export const SECTIONS: AdminGroup[] = [
            business's money. Its own place, not the calculator's — that one
            works out the labour rate and nothing else. */
         title: "Quoting",
-        sub: "Markup and preferred items",
+        sub: "Rate, markup and allowances",
         icon: "tag",
         accent: "#2E68FF",
         href: "/dashboard/admin/quoting",
+        show: (v) => v.canFinancials,
+      },
+      {
+        /* `financials`, like Quoting: the business's buying prices */
+        title: "Price book",
+        sub: "Suppliers, prices and preferred items",
+        icon: "box",
+        accent: "#2E68FF",
+        href: "/dashboard/admin/price-book",
         show: (v) => v.canFinancials,
       },
       {

@@ -23,7 +23,7 @@ export async function GET(req: Request) {
   const [suppliers, money] = await Promise.all([readSuppliers(orgId), can("financials")]);
   const found = await findOffers(orgId, q, suppliers);
   const hits: MaterialHit[] = found.slice(0, MAX_HITS).map((m) => {
-    const o = m.cheapest ?? m.offers[0] ?? null;
+    const o = m.preferred ?? m.cheapest ?? m.offers[0] ?? null;
     return {
       code: o?.code ?? m.code,
       name: o?.name ?? m.name,

@@ -7,6 +7,7 @@ import { pricedLinks, readUnitChoices } from "./links-server";
 import { readOrgDay } from "./org-day-server";
 import { currentItems, readSameDecisions, readSuppliers } from "./price-book-server";
 import { makePriceOf } from "./price-resolver";
+import { readPreferred } from "./book-view-server";
 import { readQuoteLabour } from "./quote-labour-server";
 import { componentShortlists, readQuoteSettings } from "./settings-query";
 import { rollMetresOf } from "./components";
@@ -36,18 +37,19 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   const rows = (data ?? []) as ListRow[];
 
   /* the book read once, for the units, the parts and the codes alike */
-  const [suppliers, book, same, choices] = await Promise.all([
+  const [suppliers, book, same, choices, preferred] = await Promise.all([
     readSuppliers(orgId),
     rows.length ? currentItems(orgId) : Promise.resolve([]),
     readSameDecisions(orgId),
     readUnitChoices(orgId),
+    readPreferred(orgId),
   ]);
   const [links, shortlists, labour] = await Promise.all([
     rows.length ? pricedLinks(orgId, { items: book, suppliers }) : Promise.resolve([]),
-    rows.length ? componentShortlists(orgId, settings, suppliers, { book, same }) : Promise.resolve([]),
+    rows.length ? componentShortlists(orgId, settings, suppliers, { book, same, preferred }) : Promise.resolve([]),
     readQuoteLabour(orgId, jobUuid, { money: true }),
   ]);
-  const priceOf = makePriceOf({ items: book, suppliers, confirmed: same.confirmed, chosenSupplier: choices });
+  const priceOf = makePriceOf({ items: book, suppliers, confirmed: same.confirmed, chosenSupplier: choices, preferred });
 
   const byModel = new Map(links.map((l) => [l.model, l]));
   const unitProposed = (model: string) => byModel.get(model)?.proposed ?? [];
@@ -55,7 +57,10 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
     const link = byModel.get(model);
     if (!link || link.offers.length === 0) return null;
     const want = choices.get(model);
-    const o = (want && link.offers.find((x) => x.supplierKey === want)) || link.cheapest;
+    const o =
+      (want && link.offers.find((x) => x.supplierKey === want)) ||
+      link.offers.find((x) => preferred.has(`${x.supplierKey}|${x.code}`)) ||
+      link.cheapest;
     return o ? { buyCents: o.netCents, supplierKey: o.supplierKey, name: o.name, code: o.code } : null;
   };
   const chosen = new Map(shortlists.map((c) => [c.key, c.chosen]));

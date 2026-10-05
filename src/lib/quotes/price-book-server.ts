@@ -3,16 +3,22 @@ import {
   BUILT_IN_SUPPLIERS,
   MAX_DISCOUNT_PCT,
   compareOffers,
+  effectivePrice,
   netCents,
   COLUMN_FIELDS,
   type Columns,
   type DiscountRule,
   type Offer,
+  type ImportSummary,
   type PriceRow,
+  type PricePoint,
+  type StoredItem,
+  planInvoices,
+  planPriceList,
   type PricingKind,
   type Supplier,
+  todayInSydney,
 } from "./price-book";
-import { CATEGORIES, categoryOf, type CategoryKey } from "./categories";
 import { decidedKey, productsOf } from "./same-items";
 
 /* The price book's database side: the suppliers as stored (over the ones
@@ -31,9 +37,23 @@ type SupplierRow = {
   item_count: number | null;
   format: string | null;
   columns: unknown;
+  list_on: string | null;
+  invoice_file_name: string | null;
+  invoiced_at: string | null;
+  invoice_items: number | null;
 };
 
-export type SupplierView = Supplier & { fileName: string | null; importedAt: string | null; itemCount: number | null };
+export type SupplierView = Supplier & {
+  /** its price list: the file, when it came in, how many items, and the date its prices are from */
+  fileName: string | null;
+  importedAt: string | null;
+  itemCount: number | null;
+  listOn?: string | null;
+  /** its latest invoices taken in */
+  invoiceFileName?: string | null;
+  invoicedAt?: string | null;
+  invoiceItems?: number | null;
+};
 
 const rulesOf = (raw: unknown): DiscountRule[] =>
   Array.isArray(raw)
@@ -57,7 +77,7 @@ const columnsOf = (raw: unknown): Columns | null => {
 export async function readSuppliers(orgId: string): Promise<SupplierView[]> {
   const { data } = await supabaseAdmin
     .from("quote_suppliers")
-    .select("key, name, pricing, discount_pct, rules, file_name, imported_at, item_count, format, columns")
+    .select("key, name, pricing, discount_pct, rules, file_name, imported_at, item_count, format, columns, list_on, invoice_file_name, invoiced_at, invoice_items")
     .eq("org_id", orgId);
   const rows = (data ?? []) as SupplierRow[];
   const stored = new Map(rows.map((r) => [r.key, r]));
@@ -73,6 +93,10 @@ export async function readSuppliers(orgId: string): Promise<SupplierView[]> {
     fileName: r.file_name,
     importedAt: r.imported_at,
     itemCount: r.item_count,
+    listOn: r.list_on,
+    invoiceFileName: r.invoice_file_name,
+    invoicedAt: r.invoiced_at,
+    invoiceItems: r.invoice_items,
   });
   /* a supplier whose files HeyTiff reads is the business's only once it
      adds it: a new business starts with none, never with another's */
@@ -161,82 +185,40 @@ export async function saveSupplierLayout(orgId: string, supplier: Supplier, colu
     );
 }
 
-export type ImportSummary = {
-  read: number;
-  added: number;
-  changed: number;
-  /** in the book before, not in this file */
-  gone: number;
-};
+export type { ImportSummary } from "./price-book";
 
 const CHUNK = 500;
 
-/** A supplier's new file: every row in (a changed price keeps the one it
-    replaced), anything the file no longer lists marked not current, and the
-    supplier's row stamped with the file. */
+/** A supplier's new PRICE LIST in (price-book.ts, planPriceList, says what
+    changes), and the supplier stamped with the file and its date. */
 export async function importPriceRows(
   orgId: string,
   supplier: Supplier,
   fileName: string,
-  rows: PriceRow[]
+  rows: PriceRow[],
+  listOn: string = todayInSydney()
 ): Promise<ImportSummary> {
   const now = new Date().toISOString();
-  const before = new Map<string, { cents: number; previous_cents: number | null; price_changed_at: string | null; first_seen_at: string }>();
-  for (let from = 0; ; from += 1000) {
-    const { data } = await supabaseAdmin
-      .from("quote_price_items")
-      .select("code, cents, previous_cents, price_changed_at, first_seen_at")
-      .eq("org_id", orgId)
-      .eq("supplier_key", supplier.key)
-      .order("code")
-      .range(from, from + 999);
-    const page = (data ?? []) as { code: string; cents: number; previous_cents: number | null; price_changed_at: string | null; first_seen_at: string }[];
-    for (const r of page) before.set(r.code, r);
-    if (page.length < 1000) break;
-  }
-
-  let added = 0;
-  let changed = 0;
-  const upserts = rows.map((r) => {
-    const had = before.get(r.code);
-    if (!had) added++;
-    const moved = had && had.cents !== r.cents;
-    if (moved) changed++;
-    return {
-      org_id: orgId,
-      supplier_key: supplier.key,
-      code: r.code,
-      name: r.name,
-      cents: r.cents,
-      previous_cents: moved ? had.cents : (had?.previous_cents ?? null),
-      price_changed_at: moved ? now : (had?.price_changed_at ?? null),
-      first_seen_at: had?.first_seen_at ?? now,
-      last_import_at: now,
-      current: true,
-      priced_on: r.pricedOn ?? null,
-      times_bought: r.timesBought ?? null,
-      qty_bought: r.qtyBought ?? null,
-      uom: r.uom ?? null,
-    };
-  });
-  for (let i = 0; i < upserts.length; i += CHUNK) {
+  const plan = planPriceList(await storedOf(orgId, supplier.key), rows, { orgId, supplierKey: supplier.key, now, listOn });
+  for (let i = 0; i < plan.upserts.length; i += CHUNK) {
     const { error } = await supabaseAdmin
       .from("quote_price_items")
-      .upsert(upserts.slice(i, i + CHUNK), { onConflict: "org_id,supplier_key,code" });
+      .upsert(plan.upserts.slice(i, i + CHUNK), { onConflict: "org_id,supplier_key,code" });
     if (error) throw new Error(error.message);
   }
-
-  const inFile = new Set(rows.map((r) => r.code));
-  const goneCodes = [...before.keys()].filter((c) => !inFile.has(c));
-  for (let i = 0; i < goneCodes.length; i += CHUNK) {
-    await supabaseAdmin
-      .from("quote_price_items")
-      .update({ current: false })
-      .eq("org_id", orgId)
-      .eq("supplier_key", supplier.key)
-      .in("code", goneCodes.slice(i, i + CHUNK));
+  for (const [codes, change] of [
+    [plan.offList, { on_list: false }],
+    [plan.gone, { current: false }],
+  ] as const) {
+    for (let i = 0; i < codes.length; i += CHUNK) {
+      await supabaseAdmin
+        .from("quote_price_items")
+        .update(change)
+        .eq("org_id", orgId)
+        .eq("supplier_key", supplier.key)
+        .in("code", codes.slice(i, i + CHUNK));
+    }
   }
-
   await supabaseAdmin.from("quote_suppliers").upsert(
     {
       org_id: orgId,
@@ -247,25 +229,96 @@ export async function importPriceRows(
       rules: supplier.rules.map((r) => ({ prefix: r.prefix, discount_pct: r.discountPct })),
       file_name: fileName.slice(0, 200),
       imported_at: now,
+      list_on: listOn,
       item_count: rows.length,
       updated_at: now,
     },
     { onConflict: "org_id,key" }
   );
+  return plan.summary;
+}
 
-  return { read: rows.length, added, changed, gone: goneCodes.length };
+/** A supplier's INVOICES in (price-book.ts, planInvoices): only the codes
+    on them change. */
+export async function importInvoiceRows(orgId: string, supplier: Supplier, fileName: string, rows: PriceRow[]): Promise<ImportSummary> {
+  const now = new Date().toISOString();
+  const plan = planInvoices(await storedOf(orgId, supplier.key), rows, { orgId, supplierKey: supplier.key, now, today: todayInSydney() });
+  for (let i = 0; i < plan.upserts.length; i += CHUNK) {
+    const { error } = await supabaseAdmin
+      .from("quote_price_items")
+      .upsert(plan.upserts.slice(i, i + CHUNK), { onConflict: "org_id,supplier_key,code" });
+    if (error) throw new Error(error.message);
+  }
+  await supabaseAdmin
+    .from("quote_suppliers")
+    .update({ invoice_file_name: fileName.slice(0, 200), invoiced_at: now, invoice_items: rows.length, updated_at: now })
+    .eq("org_id", orgId)
+    .eq("key", supplier.key);
+  return plan.summary;
+}
+
+/** Every item a supplier has had in the book, by code. */
+async function storedOf(orgId: string, supplierKey: string): Promise<Map<string, StoredItem>> {
+  const out = new Map<string, StoredItem>();
+  for (let from = 0; ; from += 1000) {
+    const { data } = await supabaseAdmin
+      .from("quote_price_items")
+      .select("code, name, cents, previous_cents, price_changed_at, first_seen_at, last_import_at, current, on_list, paid_cents, paid_on, times_bought, qty_bought")
+      .eq("org_id", orgId)
+      .eq("supplier_key", supplierKey)
+      .order("code")
+      .range(from, from + 999);
+    const page = (data ?? []) as StoredItem[];
+    for (const r of page) out.set(r.code, r);
+    if (page.length < 1000) break;
+  }
+  return out;
 }
 
 export type BookItem = {
   supplierKey: string;
   code: string;
   name: string;
+  /** the price a quote takes: the newer of the price list's and the latest invoice's */
   cents: number;
+  /** `cents` is already what was paid (an invoice's): no discount comes off */
+  net: boolean;
+  /** the date of the price taken, when it has one */
   pricedOn: string | null;
+  /** the price not taken, when the item has both */
+  other: PricePoint | null;
   timesBought: number | null;
   /** the unit it's sold by, when the file says (Reece: EA, MTR, COIL…) */
   uom: string | null;
 };
+
+/** The columns an item's prices are read from. */
+const PRICE_COLUMNS = "cents, on_list, listed_on, last_import_at, priced_on, paid_cents, paid_on";
+
+type StoredRow = {
+  cents: number;
+  on_list: boolean | null;
+  listed_on: string | null;
+  last_import_at: string | null;
+  priced_on: string | null;
+  paid_cents: number | null;
+  paid_on: string | null;
+};
+
+/** An item's price as a quote takes it, from its stored prices. */
+export function priceOfRow(r: StoredRow): { cents: number; net: boolean; pricedOn: string | null; other: PricePoint | null } {
+  const { price, other } = effectivePrice({
+    cents: r.cents,
+    onList: r.on_list !== false,
+    listedOn: r.listed_on,
+    importedAt: r.last_import_at,
+    pricedOn: r.priced_on,
+    paidCents: r.paid_cents,
+    paidOn: r.paid_on,
+  });
+  /* a plain price list's price has no date to show; an invoiced one does */
+  return { cents: price.cents, net: price.net, pricedOn: price.from === "invoice" ? price.on : r.priced_on, other };
+}
 
 /** Every current item in the book, a page at a time. */
 export async function currentItems(orgId: string): Promise<BookItem[]> {
@@ -273,20 +326,19 @@ export async function currentItems(orgId: string): Promise<BookItem[]> {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabaseAdmin
       .from("quote_price_items")
-      .select("supplier_key, code, name, cents, priced_on, times_bought, uom")
+      .select(`supplier_key, code, name, times_bought, uom, ${PRICE_COLUMNS}`)
       .eq("org_id", orgId)
       .eq("current", true)
       .order("supplier_key")
       .order("code")
       .range(from, from + 999);
     if (error || !data) break;
-    for (const r of data as { supplier_key: string; code: string; name: string; cents: number; priced_on: string | null; times_bought: number | null; uom: string | null }[]) {
+    for (const r of data as unknown as ({ supplier_key: string; code: string; name: string; times_bought: number | null; uom: string | null } & StoredRow)[]) {
       out.push({
         supplierKey: r.supplier_key,
         code: r.code,
         name: r.name,
-        cents: r.cents,
-        pricedOn: r.priced_on,
+        ...priceOfRow(r),
         timesBought: r.times_bought,
         uom: r.uom,
       });
@@ -302,6 +354,8 @@ export type ModelOffers = {
   offers: Offer[];
   cheapest: Offer | null;
   savesCents: number | null;
+  /** the supplier's item the business put forward, when it has */
+  preferred?: Offer | null;
 };
 
 export type SameDecisions = {
@@ -321,10 +375,11 @@ export async function readSameDecisions(orgId: string): Promise<SameDecisions> {
   };
 }
 
-type FoundRow = { supplier_key: string; code: string; name: string; cents: number; priced_on: string | null };
+type FoundRow = { supplier_key: string; code: string; name: string; times_bought: number | null } & StoredRow;
 
 /** A model (or a few words of its name) at every supplier that has it,
-    cheapest first. The same code at two suppliers is one model, and so is
+    cheapest first; the business's preferred items first, then its most
+    bought. The same code at two suppliers is one model, and so is
     a pair a person confirmed as one part under two codes: finding AAD's
     PC1412 finds Reece's 9800006-1 beside it. */
 export async function findOffers(orgId: string, query: string, suppliers: Supplier[]): Promise<ModelOffers[]> {
@@ -335,13 +390,13 @@ export async function findOffers(orgId: string, query: string, suppliers: Suppli
   const words = q.toLowerCase().split(/\s+/).slice(0, 4);
   const { data: found } = await supabaseAdmin
     .from("quote_price_items")
-    .select("supplier_key, code, name, cents, priced_on")
+    .select(`supplier_key, code, name, times_bought, ${PRICE_COLUMNS}`)
     .eq("org_id", orgId)
     .eq("current", true)
     .or(`code.ilike.%${words[0]}%,name.ilike.%${words[0]}%`)
     .order("code")
     .limit(400);
-  const data = ((found ?? []) as FoundRow[]).filter((r) => words.every((w) => `${r.code} ${r.name}`.toLowerCase().includes(w)));
+  const data = ((found ?? []) as unknown as FoundRow[]).filter((r) => words.every((w) => `${r.code} ${r.name}`.toLowerCase().includes(w)));
 
   /* the confirmed partners of what was found, though their names differ */
   const { confirmed } = await readSameDecisions(orgId);
@@ -355,11 +410,11 @@ export async function findOffers(orgId: string, query: string, suppliers: Suppli
     const codes = [...partners].map((r) => r.slice(r.indexOf("|") + 1));
     const { data: more } = await supabaseAdmin
       .from("quote_price_items")
-      .select("supplier_key, code, name, cents, priced_on")
+      .select(`supplier_key, code, name, times_bought, ${PRICE_COLUMNS}`)
       .eq("org_id", orgId)
       .eq("current", true)
       .in("code", codes.slice(0, 200));
-    for (const r of (more ?? []) as FoundRow[]) if (partners.has(`${r.supplier_key}|${r.code}`)) data.push(r);
+    for (const r of (more ?? []) as unknown as FoundRow[]) if (partners.has(`${r.supplier_key}|${r.code}`)) data.push(r);
   }
   const products = productsOf(
     data.map((r) => ({ supplierKey: r.supplier_key, code: r.code })),
@@ -373,69 +428,29 @@ export async function findOffers(orgId: string, query: string, suppliers: Suppli
     if (!s) continue;
     const key = products.get(`${r.supplier_key}|${r.code}`) ?? r.code;
     const entry = byCode.get(key) ?? { name: r.name, offers: [] };
+    const p = priceOfRow(r);
     entry.offers.push({
       supplierKey: s.key,
       supplierName: s.name,
       code: r.code,
       name: r.name,
-      netCents: netCents(s, r.code, r.cents),
-      pricedOn: r.priced_on,
+      netCents: netCents(s, r.code, p.cents, p.net),
+      pricedOn: p.pricedOn,
     });
     byCode.set(key, entry);
   }
+  /* what the business put forward comes first, then what it has bought most */
+  const { data: put } = await supabaseAdmin.from("quote_preferred_items").select("supplier_key, code").eq("org_id", orgId);
+  const preferred = new Set(((put ?? []) as { supplier_key: string; code: string }[]).map((r) => `${r.supplier_key}|${r.code}`));
+  const bought = new Map(data.map((r) => [`${r.supplier_key}|${r.code}`, r.times_bought ?? 0]));
   return [...byCode.values()]
-    .slice(0, 40)
     .map((e) => {
       const cmp = compareOffers(e.offers);
-      return { code: cmp.cheapest?.code ?? "", name: e.name, ...cmp };
-    });
-}
-
-export type CategoryCount = { key: CategoryKey; label: string; count: number };
-
-/** How many products are on each shelf (a part at two suppliers is one). */
-export async function categoryCounts(orgId: string): Promise<CategoryCount[]> {
-  const [items, { confirmed }] = await Promise.all([currentItems(orgId), readSameDecisions(orgId)]);
-  const products = productsOf(items, confirmed);
-  const seen = new Map<CategoryKey, Set<string>>();
-  for (const i of items) {
-    const key = categoryOf(i.name, i.code);
-    const ref = `${i.supplierKey}|${i.code}`;
-    seen.set(key, (seen.get(key) ?? new Set()).add(products.get(ref) ?? ref));
-  }
-  return CATEGORIES.map((c) => ({ ...c, count: seen.get(c.key)?.size ?? 0 })).filter((c) => c.count > 0);
-}
-
-export type ShelfView = { total: number; models: ModelOffers[] };
-
-const SHELF = 100;
-
-/** One shelf's products, every supplier's price for each, cheapest first,
-    in name order — narrowed by a few words when given. */
-export async function browseCategory(orgId: string, category: CategoryKey, query: string, suppliers: Supplier[]): Promise<ShelfView> {
-  const [items, { confirmed }] = await Promise.all([currentItems(orgId), readSameDecisions(orgId)]);
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 4);
-  const onShelf = items.filter(
-    (i) => categoryOf(i.name, i.code) === category && words.every((w) => `${i.code} ${i.name}`.toLowerCase().includes(w))
-  );
-  const products = productsOf(onShelf, confirmed);
-  const sup = new Map(suppliers.map((s) => [s.key, s]));
-  const byProduct = new Map<string, { name: string; offers: Offer[] }>();
-  for (const i of onShelf) {
-    const s = sup.get(i.supplierKey);
-    if (!s) continue;
-    const ref = `${i.supplierKey}|${i.code}`;
-    const key = products.get(ref) ?? ref;
-    const entry = byProduct.get(key) ?? { name: i.name, offers: [] };
-    entry.offers.push({ supplierKey: s.key, supplierName: s.name, code: i.code, name: i.name, netCents: netCents(s, i.code, i.cents), pricedOn: i.pricedOn });
-    byProduct.set(key, entry);
-  }
-  const all = [...byProduct.values()].sort((a, b) => a.name.localeCompare(b.name));
-  return {
-    total: all.length,
-    models: all.slice(0, SHELF).map((e) => {
-      const cmp = compareOffers(e.offers);
-      return { code: cmp.cheapest?.code ?? "", name: e.name, ...cmp };
-    }),
-  };
+      const pick = e.offers.find((o) => preferred.has(`${o.supplierKey}|${o.code}`)) ?? null;
+      const uses = e.offers.reduce((n, o) => n + (bought.get(`${o.supplierKey}|${o.code}`) ?? 0), 0);
+      return { model: { code: cmp.cheapest?.code ?? "", name: e.name, ...cmp, preferred: pick }, uses };
+    })
+    .sort((a, b) => (a.model.preferred ? 0 : 1) - (b.model.preferred ? 0 : 1) || b.uses - a.uses)
+    .slice(0, 40)
+    .map((m) => m.model);
 }

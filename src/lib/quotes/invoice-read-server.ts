@@ -3,13 +3,16 @@ import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { INVOICE_LINES_PROMPT, INVOICE_LINES_SCHEMA, parseInvoiceRead, withBookPrices, type HeldItem, type InvoiceRead, type ReadInvoice } from "./invoice-read";
 import { todayInSydney, type Supplier } from "./price-book";
-import { MODEL } from "./proposal-writer";
 
 /* A supplier's invoice read by Tiff (invoice-read.ts says what's asked and
    what's believed), each line beside what a quote pays for that code now
    and would once it's in. Reads only: the lines are saved when the person
    adds them. Service role; the route gates on `financials`. */
 
+/* Sonnet, not Opus (Isaac, 2026-10-05: "yes switch the invoice reader to
+   sonnet"): copying an invoice's lines off a page is well within it, at
+   half the price a read. */
+const MODEL = "claude-sonnet-5-5";
 /* If the model declines on policy grounds, the API re-runs the same request
    on this one inside the same call, as the proposal writer does. */
 const FALLBACK_MODEL = "claude-opus-4-8";

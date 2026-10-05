@@ -57,7 +57,7 @@ beforeEach(() => {
   asked.length = 0;
 });
 
-it("sends the PDF before the ask, at medium effort with the invoice schema, and reads every product line", async () => {
+it("sends the PDF before the ask, to Sonnet at medium effort with the invoice schema, and reads every product line", async () => {
   HELD = [
     {
       org_id: "org-1",
@@ -84,7 +84,7 @@ it("sends the PDF before the ask, at medium effort with the invoice schema, and 
     output_config: { effort: string; format: { type: string } };
     messages: { content: { type: string; source?: { media_type: string } }[] }[];
   };
-  expect(req.model).toBe("claude-opus-5-5");
+  expect(req.model).toBe("claude-sonnet-5-5");
   expect(req.output_config.effort).toBe("medium");
   expect(req.output_config.format.type).toBe("json_schema");
   expect(req.messages[0]!.content.map((b) => b.type)).toEqual(["document", "text"]);

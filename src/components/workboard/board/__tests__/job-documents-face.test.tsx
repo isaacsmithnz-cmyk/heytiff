@@ -512,6 +512,7 @@ const cert = {
   title: "Mechanical Compliance Certificate",
   issuedAt: "2026-10-01T03:00:00Z",
   issuedBy: "Isaac Smith",
+  issuedById: "staff-1",
   documentId: "d-9",
 };
 
@@ -543,6 +544,38 @@ it("files a certificate under Compliance with who signed it, its PDF's tick, and
   expect(onPick).toHaveBeenCalledWith("d:d-9", true);
   await userEvent.click(within(row).getByRole("button", { name: "Reissue" }));
   expect(onReissueCertificate).toHaveBeenCalledWith("cv-1");
+});
+
+it("deletes a certificate only for someone who may, after a second press that says what goes", async () => {
+  const onDeleteCertificate = jest.fn(async () => null as string | null);
+  const { unmount } = face({ certificates: [cert], onCreateCertificate: () => {}, onDeleteCertificate });
+  /* not a manager and not its signer: no Delete */
+  expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+  unmount();
+
+  face({ certificates: [{ ...cert, version: 2, mayDelete: true }], onCreateCertificate: () => {}, onReissueCertificate: () => {}, onDeleteCertificate });
+  await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(screen.getByText(/All 2 versions and their PDFs come off the job/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Reissue" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Keep" }));
+  expect(onDeleteCertificate).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Reissue" })).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+  await userEvent.click(screen.getByRole("button", { name: "Delete certificate" }));
+  expect(onDeleteCertificate).toHaveBeenCalledWith(expect.objectContaining({ certificateId: "c-1" }));
+});
+
+it("says why a certificate wasn't deleted, and keeps its row", async () => {
+  face({
+    certificates: [{ ...cert, mayDelete: true }],
+    onCreateCertificate: () => {},
+    onDeleteCertificate: async () => "Only a manager, or whoever signed it, can delete this certificate.",
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+  await userEvent.click(screen.getByRole("button", { name: "Delete certificate" }));
+  expect(await screen.findByText("Only a manager, or whoever signed it, can delete this certificate.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Mechanical Compliance Certificate/ })).toBeInTheDocument();
 });
 
 it("says so when the certificates can't be read, rather than offering a second one", () => {

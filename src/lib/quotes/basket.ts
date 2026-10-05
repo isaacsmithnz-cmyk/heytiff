@@ -7,7 +7,12 @@
    most: every line at its lowest, whoever sells it; and everything from one
    supplier, for each supplier that stocks every line — with what that costs
    over the lowest. Kept simple on purpose: no mixing rules, no thresholds.
-   Pure; the Studio's unit browser and the quote's build-up both read it. */
+
+   A PAIR IS BOUGHT TOGETHER (Isaac, 2026-10-05: "Anything that's a pair
+   should come from one supplier, not mix and match"): asked `together`, the
+   options are only the suppliers that have every line, cheapest first —
+   "Lowest each" only when no one supplier has them all. Pure; the Studio's
+   unit browser reads it. */
 
 export type BasketOffer = { supplierKey: string; supplierName: string; cents: number };
 
@@ -28,7 +33,7 @@ export type BasketOption = {
 
 const MAX_OPTIONS = 3;
 
-export function basketOptions(lines: BasketLine[]): BasketOption[] {
+export function basketOptions(lines: BasketLine[], { together = false }: { together?: boolean } = {}): BasketOption[] {
   const priced = lines.filter((l) => l.offers.some((o) => o.cents > 0));
   if (priced.length === 0) return [];
 
@@ -76,6 +81,11 @@ export function basketOptions(lines: BasketLine[]): BasketOption[] {
       }
     }
     singles.sort((a, b) => a.totalCents - b.totalCents);
+    /* bought together: one supplier for the lot, what each costs over the cheapest of them */
+    if (together && singles.length > 0) {
+      const base = singles[0]!.totalCents;
+      return singles.slice(0, MAX_OPTIONS).map((o) => ({ ...o, overCents: o.totalCents - base }));
+    }
     options.push(...singles);
   }
   return options.slice(0, MAX_OPTIONS);

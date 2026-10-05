@@ -17,7 +17,13 @@ import type { LabourAdvice } from "./labour-history";
 
    How a row finds its price, first match wins:
    1. a unit — a model the data pack links to the business's order codes
-      (a near code waits for the business to confirm it, and says so);
+      (a near code waits for the business to confirm it, and says so). The
+      units of one system — an indoor on its outdoor, a multi and its
+      heads — come from ONE supplier (Isaac, 2026-10-05: "Anything that's a
+      pair should come from one supplier, not mix and match"): the
+      business's own pick for any of them when that supplier has them all,
+      else the supplier with them all at the lowest total. Only when no one
+      supplier has them all is each its own, and the line says so;
    2. the code it was added with (the price-book search keeps "code,
       supplier" under the row);
    3. pair coil by its sizes — the business's preferred coil for that pair;
@@ -25,9 +31,25 @@ import type { LabourAdvice } from "./labour-history";
    5. the row's name, as a code someone typed.
    Pure: the server loads the book and hands in the lookups. */
 
-export type ListRow = { name: string; sub: string; qty: string };
+export type ListRow = {
+  name: string;
+  sub: string;
+  qty: string;
+  /** the system a unit is part of — an indoor on its outdoor, a multi and
+      its heads — so the system's units come from one supplier */
+  system?: number;
+};
 
-export type UnitOffer = { buyCents: number; supplierKey: string; name: string; code: string };
+export type UnitOffer = {
+  buyCents: number;
+  supplierKey: string;
+  name: string;
+  code: string;
+  supplierName?: string;
+  /** the business's own pick — a supplier it chose for the model, or its
+      preferred item — not merely the cheapest */
+  chosen?: boolean;
+};
 export type ComponentPrice = {
   perUnitCents: number;
   supplierKey: string;
@@ -44,6 +66,9 @@ export type JobPriceDeps = {
   unitOffer: (model: string) => UnitOffer | null;
   /** a pack model's near order codes, waiting for the business to confirm */
   unitProposed?: (model: string) => string[];
+  /** every supplier's price for a pack model, so a system's units can come
+      from one of them */
+  unitOffers?: (model: string) => UnitOffer[];
   /** the business's chosen item for a common part, per metre or each */
   component: (key: ComponentKey) => ComponentPrice | null;
   /** the business's own allowance, at cost; null when it hasn't set it */
@@ -116,9 +141,46 @@ const isDuct = (name: string, code: string | null) => {
   return c === "ducting" || c === "grilles";
 };
 
+/** The line a system's units say when no one supplier has them all. */
+export const MIXED_SYSTEM = "no one supplier has the whole system";
+
+/** Each system's one supplier — the business's own pick for any of its
+    units when that supplier has them all, else the one with them all at the
+    lowest total — or null when no one supplier has them all. A system of
+    one unit is left to that unit's own price. */
+export function systemSuppliers(rows: readonly ListRow[], deps: JobPriceDeps): Map<number, string | null> {
+  const out = new Map<number, string | null>();
+  if (!deps.unitOffers) return out;
+  const bySystem = new Map<number, { model: string; n: number }[]>();
+  for (const r of rows) {
+    if (r.system == null) continue;
+    const model = r.name.trim();
+    if (!deps.unitOffer(model)) continue;
+    const n = countOf(r.qty)?.n ?? 1;
+    bySystem.set(r.system, [...(bySystem.get(r.system) ?? []), { model, n }]);
+  }
+  for (const [system, units] of bySystem) {
+    if (units.length < 2) continue;
+    const offers = units.map((u) => (deps.unitOffers!(u.model) ?? []).filter((o) => o.buyCents > 0));
+    const common = [...new Set(offers[0]!.map((o) => o.supplierKey))].filter((k) => offers.every((list) => list.some((o) => o.supplierKey === k)));
+    if (common.length === 0) {
+      out.set(system, null);
+      continue;
+    }
+    const totalAt = (k: string) => units.reduce((sum, u, i) => sum + Math.min(...offers[i]!.filter((o) => o.supplierKey === k).map((o) => o.buyCents)) * u.n, 0);
+    /* the business's own pick for a unit (a supplier it chose, its preferred item), when that supplier has them all */
+    const picked = units
+      .map((u) => deps.unitOffer(u.model))
+      .find((o): o is UnitOffer => !!o?.chosen && common.includes(o.supplierKey))?.supplierKey;
+    out.set(system, picked ?? [...common].sort((a, b) => totalAt(a) - totalAt(b))[0]!);
+  }
+  return out;
+}
+
 export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { lines: BuildLine[]; unpriced: Unpriced[] } {
   const lines: BuildLine[] = [];
   const unpriced: Unpriced[] = [];
+  const oneSupplier = systemSuppliers(rows, deps);
   rows.forEach((r, i) => {
     const key = `row-${i}`;
     const count = countOf(r.qty);
@@ -160,7 +222,24 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
       return;
     }
     if (unit) {
-      lines.push({ key, group: "Units", name: r.name, code: unit.code, supplierKey: unit.supplierKey, qty: count.n, unitBuyCents: unit.buyCents, kind: "unit" });
+      /* the system's one supplier, at its lowest price for this model */
+      const system = r.system != null && oneSupplier.has(r.system) ? oneSupplier.get(r.system)! : undefined;
+      const from =
+        system != null
+          ? ((deps.unitOffers?.(r.name.trim()) ?? []).filter((o) => o.supplierKey === system && o.buyCents > 0).sort((a, b) => a.buyCents - b.buyCents)[0] ?? unit)
+          : unit;
+      lines.push({
+        key,
+        group: "Units",
+        name: r.name,
+        code: from.code,
+        supplierKey: from.supplierKey,
+        ...(from.supplierName ? { supplierName: from.supplierName } : {}),
+        qty: count.n,
+        unitBuyCents: from.buyCents,
+        kind: "unit",
+        ...(system === null ? { because: MIXED_SYSTEM } : {}),
+      });
       return;
     }
     const code = codeIn(r.sub);

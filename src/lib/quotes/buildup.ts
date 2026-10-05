@@ -27,6 +27,8 @@ export type BuildLine = {
   /** the price-book code it's priced from; null for an allowance */
   code: string | null;
   supplierKey: string | null;
+  /** the supplier's name, where the line says who it's bought from (a unit) */
+  supplierName?: string;
   qty: number;
   /** what one costs to buy */
   unitBuyCents: number;

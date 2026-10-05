@@ -126,3 +126,118 @@ describe("a kit's rows", () => {
     ]);
   });
 });
+
+/* Isaac, 2026-10-05: "Anything that's a pair should come from one
+   supplier, not mix and match" — a system's indoor and outdoor are bought
+   together, never the head from one wholesaler and the outdoor from another. */
+describe("a system's units", () => {
+  type Offers = Record<string, { supplierKey: string; supplierName: string; buyCents: number; code: string }[]>;
+  const depsFor = (offers: Offers, pick: Record<string, string> = {}): JobPriceDeps => ({
+    priceOf: () => null,
+    component: () => null,
+    unitOffers: (model) => (offers[model] ?? []).map((o) => ({ ...o, name: model })),
+    /* the business's own pick for a model, else its cheapest */
+    unitOffer: (model) => {
+      const list = (offers[model] ?? []).map((o) => ({ ...o, name: model })).sort((a, b) => a.buyCents - b.buyCents);
+      const own = list.find((o) => o.supplierKey === pick[model]);
+      return own ? { ...own, chosen: true } : (list[0] ?? null);
+    },
+  });
+  const pair = [
+    { name: "MSZ-AP50VGD", sub: "wall indoor unit, Lounge", qty: "1", system: 1 },
+    { name: "MUZ-AP50VG", sub: "Outdoor unit, Lounge", qty: "1", system: 1 },
+  ];
+  const fromOf = (lines: ReturnType<typeof priceJobList>["lines"]) => lines.map((l) => [l.name, l.supplierKey, l.unitBuyCents, l.because ?? null]);
+
+  it("come from the one supplier with them all at the lowest total, though another is cheaper for one", () => {
+    const { lines } = priceJobList(
+      pair,
+      depsFor({
+        /* AAD's head is cheaper, Mitsubishi's outdoor is: together Mitsubishi's pair is $1,410, AAD's $1,450 */
+        "MSZ-AP50VGD": [
+          { supplierKey: "aad", supplierName: "AAD", buyCents: 50000, code: "MSZ-AP50VGD" },
+          { supplierKey: "mitsubishi", supplierName: "Mitsubishi Electric", buyCents: 52000, code: "MSZ-AP50VGD-A1" },
+        ],
+        "MUZ-AP50VG": [
+          { supplierKey: "aad", supplierName: "AAD", buyCents: 95000, code: "MUZ-AP50VG" },
+          { supplierKey: "mitsubishi", supplierName: "Mitsubishi Electric", buyCents: 89000, code: "MUZ-AP50VG-A1" },
+        ],
+      })
+    );
+    expect(fromOf(lines)).toEqual([
+      ["MSZ-AP50VGD", "mitsubishi", 52000, null],
+      ["MUZ-AP50VG", "mitsubishi", 89000, null],
+    ]);
+    expect(lines[0]!.supplierName).toBe("Mitsubishi Electric");
+  });
+
+  it("follow the business's own pick for one of them when that supplier has both", () => {
+    const offers: Offers = {
+      "MSZ-AP50VGD": [
+        { supplierKey: "aad", supplierName: "AAD", buyCents: 50000, code: "A1" },
+        { supplierKey: "reece", supplierName: "Reece", buyCents: 60000, code: "R1" },
+      ],
+      "MUZ-AP50VG": [
+        { supplierKey: "aad", supplierName: "AAD", buyCents: 90000, code: "A2" },
+        { supplierKey: "reece", supplierName: "Reece", buyCents: 99000, code: "R2" },
+      ],
+    };
+    const { lines } = priceJobList(pair, depsFor(offers, { "MUZ-AP50VG": "reece" }));
+    expect(fromOf(lines)).toEqual([
+      ["MSZ-AP50VGD", "reece", 60000, null],
+      ["MUZ-AP50VG", "reece", 99000, null],
+    ]);
+  });
+
+  it("come from the supplier that has them all, never one that has only the head", () => {
+    const { lines } = priceJobList(
+      pair,
+      depsFor({
+        "MSZ-AP50VGD": [
+          { supplierKey: "reece", supplierName: "Reece", buyCents: 40000, code: "R1" },
+          { supplierKey: "aad", supplierName: "AAD", buyCents: 50000, code: "A1" },
+        ],
+        "MUZ-AP50VG": [{ supplierKey: "aad", supplierName: "AAD", buyCents: 90000, code: "A2" }],
+      })
+    );
+    expect(fromOf(lines)).toEqual([
+      ["MSZ-AP50VGD", "aad", 50000, null],
+      ["MUZ-AP50VG", "aad", 90000, null],
+    ]);
+  });
+
+  it("say so when no one supplier has them all, each then at its own price", () => {
+    const { lines } = priceJobList(
+      pair,
+      depsFor({
+        "MSZ-AP50VGD": [{ supplierKey: "reece", supplierName: "Reece", buyCents: 40000, code: "R1" }],
+        "MUZ-AP50VG": [{ supplierKey: "aad", supplierName: "AAD", buyCents: 90000, code: "A2" }],
+      })
+    );
+    expect(fromOf(lines)).toEqual([
+      ["MSZ-AP50VGD", "reece", 40000, "no one supplier has the whole system"],
+      ["MUZ-AP50VG", "aad", 90000, "no one supplier has the whole system"],
+    ]);
+  });
+
+  it("are two systems' own: each system has its own one supplier", () => {
+    const offers: Offers = {
+      A: [{ supplierKey: "aad", supplierName: "AAD", buyCents: 100, code: "A" }],
+      B: [{ supplierKey: "aad", supplierName: "AAD", buyCents: 100, code: "B" }],
+      C: [{ supplierKey: "reece", supplierName: "Reece", buyCents: 100, code: "C" }],
+      D: [{ supplierKey: "reece", supplierName: "Reece", buyCents: 100, code: "D" }],
+    };
+    const rows = [
+      { name: "A", sub: "wall indoor unit, Bed 1", qty: "1", system: 1 },
+      { name: "B", sub: "Outdoor unit, Bed 1", qty: "1", system: 1 },
+      { name: "C", sub: "wall indoor unit, Bed 2", qty: "1", system: 2 },
+      { name: "D", sub: "Outdoor unit, Bed 2", qty: "1", system: 2 },
+    ];
+    expect(priceJobList(rows, depsFor(offers)).lines.map((l) => [l.name, l.supplierKey, l.because ?? null])).toEqual([
+      ["A", "aad", null],
+      ["B", "aad", null],
+      ["C", "reece", null],
+      ["D", "reece", null],
+    ]);
+  });
+});

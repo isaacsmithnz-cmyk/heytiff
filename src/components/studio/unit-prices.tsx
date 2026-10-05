@@ -85,7 +85,25 @@ export function pairFromCents(prices: UnitPrices, models: string[]): number | nu
     if (c == null) return null;
     sum += c;
   }
-  return sum;
+  if (models.length < 2) return sum;
+  /* a pair comes from one supplier (Isaac, 2026-10-05): the one chosen for
+     a unit when it has them all, else the cheapest that has them all; each
+     unit's own only when no one supplier has them all */
+  const totalAt = (key: string): number | null => {
+    let t = 0;
+    for (const m of models) {
+      const o = prices.get(m)?.offers.find((x) => x.supplierKey === key && x.netCents > 0);
+      if (!o) return null;
+      t += o.netCents;
+    }
+    return t;
+  };
+  const chosen = models.map((m) => prices.get(m)).find((p) => p?.overridden)?.chosen?.supplierKey;
+  const atChosen = chosen ? totalAt(chosen) : null;
+  if (atChosen != null) return atChosen;
+  const keys = new Set(models.flatMap((m) => prices.get(m)?.offers.map((o) => o.supplierKey) ?? []));
+  const totals = [...keys].map(totalAt).filter((t): t is number => t != null);
+  return totals.length > 0 ? Math.min(...totals) : sum;
 }
 
 /** The selected unit's buy prices: each model at every supplier, grouped
@@ -99,8 +117,9 @@ export function BuyPrices({
   models: { model: string; role: string }[];
   onChoose?: (model: string, supplierKey: string | null) => void;
 }) {
-  /* the pair as a couple of whole-order options: each at its lowest, or
-     both from one supplier (one pickup), with what that costs over */
+  /* the pair bought together: from one supplier that has both, cheapest
+     first, with what each costs over it; each at its lowest only when no one
+     supplier has both */
   const options =
     models.length > 1
       ? basketOptions(
@@ -112,7 +131,8 @@ export function BuyPrices({
               supplierName: o.supplierName,
               cents: o.netCents,
             })),
-          }))
+          })),
+          { together: true }
         )
       : [];
   const pickOption = (picks: Record<string, string>) => {
@@ -131,7 +151,8 @@ export function BuyPrices({
   return (
     <section className="ds-ub-buy" aria-label="Buy prices">
       <h4>Buy price</h4>
-      {options.length > 1 && (
+      {/* one supplier for the pair is worth a press even when it's the only one */}
+      {(options.length > 1 || options[0]?.kind === "supplier") && (
         <div className="ds-ub-basket" role="group" aria-label="Buy the pair">
           {options.map((o) => {
             const on = current(o.picks);

@@ -65,12 +65,13 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
     const link = byModel.get(model);
     if (!link || link.offers.length === 0) return null;
     const want = choices.get(model);
-    const o =
-      (want && link.offers.find((x) => x.supplierKey === want)) ||
-      link.offers.find((x) => preferred.has(`${x.supplierKey}|${x.code}`)) ||
-      link.cheapest;
-    return o ? { buyCents: o.netCents, supplierKey: o.supplierKey, name: o.name, code: o.code } : null;
+    const own = (want && link.offers.find((x) => x.supplierKey === want)) || link.offers.find((x) => preferred.has(`${x.supplierKey}|${x.code}`));
+    const o = own || link.cheapest;
+    return o ? { buyCents: o.netCents, supplierKey: o.supplierKey, supplierName: o.supplierName, name: o.name, code: o.code, chosen: !!own } : null;
   };
+  /* every supplier's price for a model, so a system's units come from one */
+  const unitOffers = (model: string): UnitOffer[] =>
+    (byModel.get(model)?.offers ?? []).map((o) => ({ buyCents: o.netCents, supplierKey: o.supplierKey, supplierName: o.supplierName, name: o.name, code: o.code }));
   const chosen = new Map(shortlists.map((c) => [c.key, c.chosen]));
   const component = (key: Parameters<typeof chosen.get>[0]): ComponentPrice | null => {
     const c = chosen.get(key);
@@ -84,7 +85,7 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
     };
   };
 
-  const deps = { priceOf, unitOffer, unitProposed, component, allowance: (k: AllowanceKey) => settings.allowances[k] };
+  const deps = { priceOf, unitOffer, unitOffers, unitProposed, component, allowance: (k: AllowanceKey) => settings.allowances[k] };
   /* the job's labour, on each option until an option carries its own */
   const { visits, from } = labour ? labourVisits(labour.advice, built.settings.dayHours) : { visits: [], from: "none" as const };
   const options = lists.map((l) => {

@@ -130,6 +130,7 @@ export function JobQuoteFace({
   onToast,
   sm8 = null,
   onOpenPaper,
+  onJobMaterials,
   children,
 }: {
   /** The job card's uuid, or the row's until the record read lands. */
@@ -146,6 +147,8 @@ export function JobQuoteFace({
   /** The builder's own sections (its labour and price), shown only while
       the quote is open. */
   children?: ReactNode;
+  /** The job's own materials list changed (an accepted option went on it). */
+  onJobMaterials?: () => void;
 }) {
   /* THE QUOTE OPENS FROM ONE BUTTON (Isaac, 2026-10-05): "Create a quote"
      when there is none, "Continue quote" on a draft, and on a job quoted in
@@ -289,6 +292,24 @@ export function JobQuoteFace({
     const next = queue.current.then(run, run);
     queue.current = next;
     return next;
+  };
+
+  /* Marking an option accepted puts its materials on the job's own list
+     (Isaac, 2026-10-05: "whichever one is accepted… will then turn into the
+     materials list for the job"). */
+  const accept = async (i: number) => {
+    const marking = !(latest.current?.draft.accepted ?? []).includes(i);
+    const ok = await save((d) => ({ ...d, accepted: toggleAccepted(d, i) }));
+    if (!ok || !marking) return;
+    try {
+      const res = await fetch(ROUTE, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job, toJob: true }) });
+      const a = (await res.json()) as { ok: true; added: number; removed: number } | { ok: false; reason: string };
+      if (!a.ok) return onToast(a.reason);
+      onJobMaterials?.();
+      onToast(a.added || a.removed ? "The accepted option's materials are on the job's list" : "The job's list already has the accepted option's materials");
+    } catch {
+      onToast("The job's materials couldn't be changed. Try again.");
+    }
   };
 
   /** A block's own Save: closes that block's editor when it lands, and
@@ -467,7 +488,7 @@ export function JobQuoteFace({
                 type="button"
                 className={`pbtn ghost sm wb2-jqacc${draft.accepted.includes(i) ? " on" : ""}`}
                 aria-pressed={draft.accepted.includes(i)}
-                onClick={() => void save((d) => ({ ...d, accepted: toggleAccepted(d, i) }))}
+                onClick={() => void accept(i)}
               >
                 {draft.accepted.includes(i) ? "Accepted" : "Mark accepted"}
               </button>

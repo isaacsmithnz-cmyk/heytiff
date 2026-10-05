@@ -348,3 +348,19 @@ it("says what the customer sees, the business's default until the quote says oth
   const put = (fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === "PUT").at(-1)!;
   expect(JSON.parse(put[1]!.body!).draft.showLines).toBe(true);
 });
+
+it("puts an option's materials on the job's list when it's marked accepted", async () => {
+  const route = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
+    init?.method === "POST" && JSON.parse(init.body!).toJob === true ? respond({ ok: true, added: 9, removed: 0 }) : route(url, init)
+  );
+  const onToast = jest.fn();
+  const onJobMaterials = jest.fn();
+  render(<JobQuoteFace job="j-1" address={null} visible onToast={onToast} onJobMaterials={onJobMaterials} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
+  await act(async () => {
+    fireEvent.click(await screen.findByRole("button", { name: "Mark accepted" }));
+  });
+  await waitFor(() => expect(onJobMaterials).toHaveBeenCalled());
+  expect(onToast).toHaveBeenCalledWith("The accepted option's materials are on the job's list");
+});

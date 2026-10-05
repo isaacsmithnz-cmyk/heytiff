@@ -2754,6 +2754,12 @@ export function JobSheet({
                   })(),
                 }}
                 onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+                onJobMaterials={() => {
+                  if (!cardId) return;
+                  void listJobPicklist(cardId)
+                    .then(setPicklist)
+                    .catch(() => undefined);
+                }}
               >
                 <JobQuoteLabour key={cardId ?? row.id} job={cardId ?? row.id} visible={tab === "quote"} />
                 <JobQuotePrice key={`price-${cardId ?? row.id}`} job={cardId ?? row.id} visible={tab === "quote"} />

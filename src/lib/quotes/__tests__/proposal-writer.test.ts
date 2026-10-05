@@ -291,6 +291,18 @@ describe("writeProposal", () => {
     expect(lastRow()?.draft.options.map((o: { priceCents: number | null }) => o.priceCents)).toEqual([812_500]);
   });
 
+  /* Isaac, 2026-10-06: "You should still be able to manually approve" — an
+     approval is of the version it was given to */
+  it("a change takes an approval back and keeps the day it was sent", async () => {
+    const marked = { ...draft, status: { approvedAt: "2026-10-06T01:00:00Z", sentAt: "2026-10-06T02:00:00Z" } };
+    maybeSingle.mockResolvedValue({
+      data: { sm8_job_uuid: "j-1", draft: marked, brief: "the brief", changes: [], updated_at: "2026-09-29T07:00:00Z" },
+    });
+    const { client } = clientSaying(answer);
+    await writeProposal("org", "user", "j-1", { kind: "change", change: "Mention the parapet" }, client);
+    expect(lastRow()?.draft.status).toEqual({ approvedAt: null, sentAt: "2026-10-06T02:00:00Z" });
+  });
+
   it("a change to another preset takes that preset's stages", async () => {
     maybeSingle.mockResolvedValue({
       data: { sm8_job_uuid: "j-1", draft, brief: "the brief", changes: [], updated_at: "2026-09-29T07:00:00Z" },

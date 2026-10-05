@@ -189,7 +189,32 @@ export type ProposalDraft = {
   /** Whether the customer sees each option's line items, or only its total;
       null: the business's own default (Quoting). */
   showLines: boolean | null;
+  /** Approved and sent, each a person's say-so; null until either is. */
+  status?: QuoteStatus | null;
 };
+
+/* WHERE THE QUOTE STANDS, BY HAND (Isaac, 2026-10-06: "You should still be
+   able to manually approve"). Approved is someone saying this version is
+   right to go; any change to the quote after that takes it back, so an
+   approval is always of what's on screen. Sent is the day it went to the
+   client, from ServiceM8 for now. Accepted is the options marked, above. */
+export type QuoteStatus = { approvedAt: string | null; sentAt: string | null };
+
+const whenOf = (v: unknown): string | null =>
+  typeof v === "string" && v.length <= 40 && Number.isFinite(Date.parse(v)) ? v : null;
+
+function statusOf(raw: unknown): QuoteStatus | null {
+  const r = obj(raw);
+  if (!r) return null;
+  const s = { approvedAt: whenOf(r.approvedAt), sentAt: whenOf(r.sentAt) };
+  return s.approvedAt || s.sentAt ? s : null;
+}
+
+/** The status after the quote itself changed: approval is of a version, so
+    it goes; the day it was sent stays. */
+export function statusAfterChange(status: QuoteStatus | null | undefined): QuoteStatus | null {
+  return status?.sentAt ? { approvedAt: null, sentAt: status.sentAt } : null;
+}
 
 /* ── the clamps ── */
 
@@ -420,6 +445,7 @@ export function normaliseDraft(raw: unknown): ProposalDraft | null {
     checklist: checklist(r.checklist),
     accepted: acceptedOf(r.accepted, options.length, mode === "optional"),
     showLines: ((v: unknown) => (typeof v === "boolean" ? v : null))(r.showLines ?? r.show_lines),
+    status: statusOf(r.status),
   };
 }
 

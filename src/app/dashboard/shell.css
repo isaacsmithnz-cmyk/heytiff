@@ -6672,16 +6672,104 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-mline > span { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .wb2-mline.total { border-top:1.5px solid rgba(5,5,5,.16); margin-top:2px; }
 .wb2-mline.total > b { font-size:12px; font-weight:500; color:var(--gray500); }
-/* THE QUOTE PAGE'S COLUMN (quote/quote-screen.tsx): the price and what goes
-   to ServiceM8, at 400px. A line's middle words take their own row under
-   the name, or the name is squeezed to a letter a line beside them. The
-   column has no title of its own (the band names the job; each section
-   heads itself), so its body starts where the title would. */
-.wb2-qpage .wb2-inspb { padding-top:24px; }
-.wb2-qpage .wb2-insp .wb2-mline { grid-template-columns:minmax(0,1fr) auto; row-gap:2px; }
-.wb2-qpage .wb2-insp .wb2-mline > em { grid-column:1 / -1; grid-row:2; }
-.wb2-qpage .wb2-insp .wb2-jcdhead { flex-wrap:wrap; row-gap:2px; }
-.wb2-qpage .wb2-insp .wb2-jcdhead em { flex-basis:100%; margin-left:0; white-space:normal; }
+/* THE QUOTE PAGE (quote/quote-screen.tsx, and board/job-quote-face.tsx on the
+   page; Isaac, 2026-10-06, the mock-up he called "much cleaner"): HOME'S
+   FRAME. The progress line stands where Home has "Your day", then the
+   Build-up and Proposal tabs, one column that reads down the page, and
+   Home's list on the right with the price at its top. Home's own rules do
+   the frame (`hd-day`, `hd-body`, `hd-tabs`, `hd-fx`, `hd-main`, `hd-col`,
+   `hd-face`, `hd-list`, `hd-ls-*`) on Home's tokens (`.hd-page`); these are
+   the parts Home hasn't got. `.fg .qp-*`, two classes deep, for Home's
+   reason: `.fg button` is (0,1,1). */
+.fg .qp-acts { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
+/* THE PROGRESS LINE: a dot and a step, joined; done in Home's teal, due in
+   the warn colour, the next one a ring in ink, the rest Home's quiet dot. */
+.fg .qp-steps { margin:0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); }
+.fg .qp-steps > li { position:relative; display:flex; flex-direction:column; gap:2px; min-width:0; padding:24px 16px 0 0; }
+.fg .qp-steps > li > i { position:absolute; top:4px; left:0; box-sizing:border-box; width:12px; height:12px;
+  border-radius:50%; background:var(--hd-dot); }
+.fg .qp-steps > li::after { content:""; position:absolute; top:9px; left:20px; right:8px; height:2px; background:var(--hd-rule); }
+.fg .qp-steps > li:last-child::after { display:none; }
+.fg .qp-steps b { font-size:14px; font-weight:600; color:var(--hd-ink); }
+.fg .qp-steps span { display:flex; align-items:baseline; gap:8px; min-width:0; font-size:13px; font-weight:500; color:var(--q); }
+.fg .qp-steps > li.done > i, .fg .qp-steps > li.done::after { background:var(--hd-today); }
+.fg .qp-steps > li.done span { color:var(--hd-today); }
+.fg .qp-steps > li.due > i { background:var(--warn-t); }
+.fg .qp-steps > li.due span { color:var(--warn-t); }
+.fg .qp-steps > li.next > i { background:var(--paper); border:2px solid var(--hd-ink); }
+.fg .qp-undo { padding:0; border:0; background:none; font:inherit; font-weight:600; color:var(--hd-ink);
+  text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.fg .qp-undo:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+/* THE COLUMN. A face scrolls on its own (Home's `hd-face`); nothing on the
+   page scrolls sideways, so a trackpad's sideways swipe must not reach the
+   browser's Back (Isaac, 2026-10-06: "it will just jump back to the
+   workboard"). */
+.fg .qp .hd-face, .fg .qp .hd-list { overscroll-behavior-x:none; }
+.fg .qp-face { padding:0 24px 32px; }
+.fg .qp-sec { display:flex; flex-direction:column; gap:12px; padding:24px 0; border-top:1px solid var(--hd-rule); }
+.fg .qp-sec:first-child { border-top:0; padding-top:8px; }
+.fg .qp-sh { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.fg .qp-sh > .pbtn { margin-left:auto; }
+.fg .qp-h { display:flex; align-items:baseline; gap:8px; margin:0; font-size:20px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
+.fg .qp-h.due { color:var(--warn-t); }
+.fg .qp-h.done { color:var(--hd-today); }
+.fg .qp-h .hd-ls-n { font-weight:500; }
+.fg .qp-sub { margin:0; font-size:16px; font-weight:600; color:var(--hd-ink); }
+.fg .qp-none { margin:0; font-size:14px; color:var(--q); }
+/* the brief, in the person's own words, two lines until it's asked for */
+.fg .qp-brief { display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin:0; padding:12px 16px;
+  border-radius:var(--r-button); background:var(--tint); font-size:14px; line-height:1.55; color:var(--hd-ink); }
+.fg .qp-brief > span { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:pre-wrap; }
+.fg .qp-brief.open > span { display:block; }
+/* what Tiff took from it: a label, the answer, and its Change */
+.fg .qp-read { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.fg .qp-read > li { display:grid; grid-template-columns:128px minmax(0, 1fr) auto; gap:12px; align-items:baseline;
+  padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:14px; line-height:1.45; color:var(--hd-ink); }
+.fg .qp-read > li:first-child { border-top:0; }
+.fg .qp-read > li > span:first-child { font-size:13px; font-weight:500; color:var(--q); }
+.fg .qp-read > li.na > span:nth-child(2) { color:var(--q); }
+/* the questions still open, under the one being asked */
+.fg .qp-asks { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.fg .qp-asks > li { display:grid; grid-template-columns:128px minmax(0, 1fr) auto; gap:12px; align-items:baseline;
+  padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:14px; line-height:1.45; color:var(--hd-ink); }
+.fg .qp-asks > li > span:first-child { font-size:13px; font-weight:500; color:var(--warn-t); }
+/* WHAT'S IN IT: one option's lines by group, the group's total on its row,
+   what's still to price at the foot in the late red */
+.fg .qp-bu { width:100%; border-collapse:collapse; font-size:14px; color:var(--hd-ink); }
+.fg .qp-bu td { padding:8px 0; vertical-align:baseline; border-top:1px solid var(--hd-rule2); }
+.fg .qp-bu td small { display:block; font-size:13px; font-weight:500; color:var(--q); }
+.fg .qp-bu td.q { width:72px; padding-left:12px; text-align:right; font-size:13px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .qp-bu td.a { width:112px; padding-left:12px; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.fg .qp-bu .qp-gr td { padding-top:16px; border-top-color:var(--hd-rule); font-weight:600; }
+.fg .qp-bu .qp-gr:first-child td { padding-top:4px; border-top:0; }
+.fg .qp-bu .qp-gr td small { font-weight:500; }
+.fg .qp-bu .qp-li td:first-child { padding-left:16px; }
+.fg .qp-bu .qp-left td, .fg .qp-bu .qp-left td small { color:var(--hd-late); }
+/* THE PROPOSAL, as the client reads it: the blocks on a sheet of paper */
+.fg .qp-desk { display:flex; justify-content:center; padding:24px; border-radius:var(--r-card); background:var(--bg); }
+.fg .qp-paper { width:100%; max-width:720px; display:flex; flex-direction:column; gap:16px; padding:32px 48px;
+  border:1px solid var(--hd-edge); background:var(--paper); }
+/* THE LIST'S TOP: the option being read, its price, and what it's made of */
+.fg .qp-seg { display:flex; gap:2px; margin-top:16px; padding:2px; border-radius:var(--r-button); background:var(--tint-2); }
+.fg .qp-seg > button { flex:1 1 0; min-width:0; height:32px; padding:0 12px; border:0; border-radius:calc(10px - 2px);
+  background:none; font:inherit; font-size:13px; font-weight:500; color:var(--q); cursor:pointer;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .qp-seg > button[aria-pressed="true"] { background:var(--paper); color:var(--hd-ink); font-weight:600; }
+.fg .qp-seg > button:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .qp-price { display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:16px 0 8px; }
+.fg .qp-l { font-size:13px; font-weight:500; color:var(--q); }
+.fg .qp-big { font-size:32px; font-weight:700; line-height:1.15; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
+.fg .qp-unset { font-size:16px; font-weight:600; color:var(--warn-t); }
+.fg .qp-kv { align-self:stretch; display:flex; flex-direction:column; margin:8px 0 0; }
+.fg .qp-kv > div { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:14px; }
+.fg .qp-kv dt { color:var(--hd-body); }
+.fg .qp-kv dd { margin:0; font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
+.fg .qp-kv dd.late { color:var(--hd-late); }
+.fg .qp-kv > div.q dt, .fg .qp-kv > div.q dd { font-size:13px; font-weight:500; color:var(--q); }
+.fg .qp-rail .hd-ls-dot[data-dot="due"] { background:var(--warn-t); }
+.fg .qp-rail .hd-ls-sub.late { color:var(--hd-late); }
+.fg .qp-known { margin:0; padding:12px 0; font-size:14px; line-height:1.5; color:var(--hd-body); }
+.fg .qp-sm8 { margin:0; padding:8px 0 4px; font-size:14px; color:var(--hd-body); }
 /* ── THE TABBED JOB CARD (slice 2) ────────────────────────────────────────
    The sheet became ONE CARD OF EIGHT FACES. `.jc` turns the grid modal into
    a column: a tinted band (identity + the folder tabs) up top, the white

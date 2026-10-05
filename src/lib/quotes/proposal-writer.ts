@@ -13,6 +13,7 @@ import { readOurJobNotes } from "@/lib/workboard/job-notes-query";
 import {
   MAX_OPTIONS,
   normaliseDraft,
+  statusAfterChange,
   type ProposalDraft,
   type ProposalOption,
 } from "./proposal";
@@ -674,6 +675,8 @@ export async function writeProposal(
   written.draft.checklist = capAsks(written.draft.checklist);
   /* and what the customer sees: a person's choice, never Tiff's */
   written.draft.showLines = current.draft.showLines;
+  /* the day it was sent stays; an approval was of the version just changed */
+  written.draft.status = statusAfterChange(current.draft.status);
   /* and every price and labour a person set: Tiff sets neither, so an
      option keeps them by its name — the one option of that name, even when
      it had none — or by its place when no name matches and the options

@@ -96,8 +96,19 @@ export async function proxy(request: NextRequest) {
   const hinted = hintedLoginUrl(request);
   if (hinted) return NextResponse.redirect(hinted);
 
+  /* A SERVER ACTION ISN'T A VISIT. Next reads any cookie the proxy sets on
+     an action as the action changing it, answers "revalidated", and the
+     page is drawn again on the server and every link on it fetched again.
+     The session's rolling cookie is set on every request, so the bell's two
+     reads a minute redrew whatever page was open, every minute, and a quote
+     page whose redraw failed a check was sent back to the Workboard
+     (Isaac, 2026-10-06: "it keeps reloading and going back to Workboard").
+     The session still rolls on every page and every fetch; an action only
+     reads it. */
+  const isAction = request.method === "POST" && request.headers.has("next-action");
+
   // Auth0 handles /auth/* routes and maintains rolling sessions on all routes
-  const authResponse = await auth0.middleware(request);
+  const authResponse = isAction && !path.startsWith("/auth/") ? NextResponse.next() : await auth0.middleware(request);
 
   if (path.startsWith("/auth/")) {
     // one sign-in has now completed; the hint was for that one only

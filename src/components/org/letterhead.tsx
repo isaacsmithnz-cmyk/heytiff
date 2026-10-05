@@ -1,4 +1,4 @@
-import { brandContact, brandInitials, hasBrand, type OrgBrand } from "@/lib/org/brand";
+import { brandContact, brandInitials, hasBrand, plateFor, type LogoGround, type OrgBrand } from "@/lib/org/brand";
 import "./letterhead.css";
 
 /* WHO SENT THIS — the two shapes the company's face takes on a surface a
@@ -48,9 +48,11 @@ export function Letterhead({ brand }: { brand: OrgBrand }) {
     the business has told us nothing, `fallback` is what the surface says
     instead (every caller passes its own platform wording).
 
-    Always plated: every surface that asks for this mark is a DARK bar, and an
-    unplated logo on one is a coin toss on the ink the business happens to draw
-    in. See `.org-plate`. */
+    A DARK GROUND, always: every surface that asks for this mark is a dark bar.
+    It used to be plated white whatever the logo was, which made a white logo
+    invisible on the one surface that suits it best. Now the plate follows the
+    logo's measured ink (`plateFor`): a pale logo sits on the bar bare, and a
+    dark or unmeasured one gets the white plate it always had. */
 export function BrandMark({
   brand,
   fallback,
@@ -62,7 +64,7 @@ export function BrandMark({
 
   return (
     <span className="org-mark">
-      <BrandLogo brand={brand} className="org-mark-logo org-plate" />
+      <BrandLogo brand={brand} className="org-mark-logo" ground="dark" />
       {brand.name && <b>{brand.name}</b>}
     </span>
   );
@@ -82,13 +84,19 @@ export function BrandMark({
 export function BrandLogo({
   brand,
   className,
+  ground = "light",
 }: {
   brand: OrgBrand;
   className: string;
+  /** what the logo is drawn ON. Paper by default, because that is nearly every
+      surface; the share link's bar says "dark". The logo's own ink then decides
+      whether it needs a plate — see `plateFor`. */
+  ground?: LogoGround;
 }) {
   if (brand.logoUrl) {
+    const plate = plateFor(brand.logoTone, ground);
     // eslint-disable-next-line @next/next/no-img-element
-    return <img className={className} src={brand.logoUrl} alt="" />;
+    return <img className={plate ? `${className} org-plate-${plate}` : className} src={brand.logoUrl} alt="" />;
   }
   const initials = brandInitials(brand.name);
   if (!initials) return null;

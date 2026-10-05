@@ -323,6 +323,18 @@
   object-fit: contain;
   object-position: left center;
 }
+/* A PLATE WRAPS THE MARK. Unplated, the logo fills the column and its own
+   margin is the page's; on a plate the box IS the plate, and a plate stretched
+   across the whole 290px column behind a mark that fills a third of it reads as
+   a banner. So it shrinks to the mark and hangs off the right margin, the same
+   edge the initials stand-in hangs on. */
+.dsd-idlogo.org-plate-dark {
+  width: auto;
+  max-width: 100%;
+  align-self: flex-end;
+  padding: 8px;
+  border-radius: 8px;
+}
 /* the initials stand-in is not an image and has no ratio to keep — it is the
    square the logo box would have been at its narrowest, so it states BOTH
    axes rather than inheriting a width that would stretch it across the column */

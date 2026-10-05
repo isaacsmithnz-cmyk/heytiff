@@ -238,6 +238,30 @@ describe("setOrgLogo", () => {
     expect(deleteDocument).not.toHaveBeenCalled();
   });
 
+  /* The tone is what lets a document put a plate behind a logo that would
+     vanish on it, so it is stored with the logo it describes. */
+  it("stores the measured tone with the logo", async () => {
+    docRow = good;
+    expect(await setOrgLogo("doc-1", "light")).toEqual({ ok: true });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ logo_url: LOGO_REF, logo_tone: "light" }),
+      "organizations"
+    );
+  });
+
+  it("stores no tone for a logo the browser could not measure", async () => {
+    docRow = good;
+    await setOrgLogo("doc-1");
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ logo_tone: null }), "organizations");
+  });
+
+  it("refuses a tone that is not one of the three, with a sentence rather than a constraint code", async () => {
+    docRow = good;
+    const res = await setOrgLogo("doc-1", "purple" as never);
+    expect(res).toEqual({ ok: false, error: "That logo couldn't be read." });
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it("refuses a non-owner", async () => {
     dbRole = "admin";
     docRow = good;
@@ -289,7 +313,7 @@ describe("clearOrgLogo", () => {
     const res = await clearOrgLogo();
     expect(res).toEqual({ ok: true });
     expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ logo_url: null }),
+      expect.objectContaining({ logo_url: null, logo_tone: null }),
       "organizations"
     );
     // an object nothing points at is invisible and still billable
@@ -339,6 +363,7 @@ describe("getOrgBrand", () => {
     expect(await getOrgBrand()).toEqual({
       name: "",
       logoUrl: null,
+      logoTone: null,
       abn: null,
       phone: null,
       email: null,

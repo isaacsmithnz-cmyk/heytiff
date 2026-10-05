@@ -15,6 +15,7 @@
    Organisation page. */
 
 import { formatAbn } from "./settings";
+import type { LogoTone } from "./logo-fit";
 
 export type OrgBrand = {
   /** trading name, falling back to the legal one; "" when neither is set */
@@ -22,6 +23,11 @@ export type OrgBrand = {
   /** SIGNED at render and short-lived — never a stored URL. Null when there
       is no logo, or when the link could not be minted. */
   logoUrl: string | null;
+  /** What the logo's ink is, measured once at upload (logo-fit.ts). Null for a
+      logo uploaded before it was measured, which every surface treats as it
+      always did: no plate on paper, the white plate on a dark bar. Optional so
+      a brand built by hand — a test, a stand-in — need not say. */
+  logoTone?: LogoTone | null;
   /** The ONE seed colour, lowercase #rrggbb, or null for no theme. Never
       painted: `documentTheme` in theme.ts derives what a document may use.
       Deliberately not part of `hasBrand` — a colour with no name and no logo
@@ -56,12 +62,37 @@ export const BRAND_STALE_MS = 3_600_000;
 export const NO_BRAND: OrgBrand = {
   name: "",
   logoUrl: null,
+  logoTone: null,
   color: null,
   abn: null,
   phone: null,
   email: null,
   website: null,
 };
+
+/* WHAT A SURFACE PUTS BEHIND THE LOGO.
+
+   Each surface knows its own ground and the logo knows its own ink, and this is
+   the one place the two meet — so a surface says only "I am a dark bar" and the
+   decision about a plate is not re-made, differently, in five stylesheets.
+
+   A plate is a last resort, not a style: a logo that already survives its ground
+   is drawn bare, because a box around somebody's mark is a thing they did not
+   design. The cases that earn one are exactly the ones where the ink and the
+   ground are the same colour:
+
+   - LIGHT ink on a LIGHT ground (a white wordmark on a document) gets a DARK plate.
+   - DARK or MIXED ink on a DARK ground (a navy mark on the share link's bar) gets
+     a LIGHT plate. An unmeasured logo counts here too: the bar was always plated.
+   - Everything else is bare. In particular an unmeasured logo on paper is bare,
+     which is what every document did before logos were measured. */
+export type LogoGround = "light" | "dark";
+export type LogoPlate = "light" | "dark" | null;
+
+export function plateFor(tone: LogoTone | null | undefined, ground: LogoGround): LogoPlate {
+  if (ground === "light") return tone === "light" ? "dark" : null;
+  return tone === "light" ? null : "light";
+}
 
 /** Is there anything to show? A brand with no name and no logo must not
     displace the wording a surface would otherwise use. */

@@ -190,6 +190,9 @@ export const MAX_WHY_CHARS = 900;
 export const MAX_NAME_CHARS = 80;
 export const MAX_LINE_CHARS = 240;
 export const MAX_SHORT_CHARS = 120;
+export const MAX_QUESTION_CHARS = 200;
+export const MAX_CHOICES = 4;
+export const MAX_CHOICE_CHARS = 40;
 
 const clean = (s: unknown, max: number): string =>
   typeof s === "string" ? s.replace(/[ \t]+\n/g, "\n").trim().slice(0, max) : "";
@@ -275,16 +278,40 @@ function payment(raw: unknown): ProposalDraft["payment"] {
   return { preset, stages: own.length ? own : PAYMENT_PRESETS[preset].stages.map((s) => ({ ...s })) };
 }
 
+/** An ask's own words: its question for this job, its answers to tap, its
+    rank. A rank that isn't Tiff's (missing, 0, out of range) is left off, so
+    the ask sorts after every ranked one. */
+function askOf(o: Record<string, unknown>): Pick<CheckItem, "question" | "choices" | "rank"> {
+  const question = clean(o.question, MAX_QUESTION_CHARS + 20).replace(/\s+/g, " ").slice(0, MAX_QUESTION_CHARS);
+  const choices: string[] = [];
+  for (const c of Array.isArray(o.choices) ? o.choices : []) {
+    const words = cleanLine(c, MAX_CHOICE_CHARS);
+    if (words && !choices.some((x) => x.toLowerCase() === words.toLowerCase())) choices.push(words);
+  }
+  choices.splice(MAX_CHOICES);
+  const ranked = typeof o.rank === "number" && Number.isInteger(o.rank) && o.rank >= 1 && o.rank <= CHECKLIST_KEYS.length;
+  return { question, choices, ...(ranked ? { rank: o.rank as number } : {}) };
+}
+
 function checklist(raw: unknown): CheckItem[] {
   const seen = new Set<string>();
   const items = pairs(raw, CHECKLIST_KEYS.length, (o): CheckItem | null => {
     const key = o.key as ChecklistKey;
     if (!CHECKLIST_KEYS.includes(key) || seen.has(key)) return null;
     seen.add(key);
-    const state: CheckState = o.state === "known" || o.state === "na" ? o.state : "ask";
+    const said: CheckState = o.state === "known" || o.state === "na" ? o.state : "ask";
     const answer = short(o.answer);
     /* "known" with nothing known is an ask, whatever it was called */
-    const item: CheckItem = { key, state: state === "known" && !answer ? "ask" : state, answer };
+    const state: CheckState = said === "known" && !answer ? "ask" : said;
+    /* an ask's answer is empty: what Tiff put there was a hint, not a fact */
+    /* crew and time are the business's own call, never a question */
+    if (state === "ask" && key === "labour") return null;
+    /* a settled topic keeps the question it was asked with (for its Change), never a rank */
+    const { question, choices, rank } = askOf(o);
+    const item: CheckItem =
+      state === "ask"
+        ? { key, state, answer: "", question, choices, ...(rank ? { rank } : {}) }
+        : { key, state, answer, ...(question ? { question, choices } : {}) };
     if (o.fresh === true && item.state === "known") item.fresh = true;
     return item;
   });

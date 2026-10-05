@@ -22,7 +22,8 @@ export async function readSm8QuoteBrief(orgId: string, jobUuid: string): Promise
     .filter((l) => l.active !== 0 && l.active !== false)
     .map((l) => {
       const n = Number(l.quantity);
-      return { name: l.name ?? "", quantity: Number.isFinite(n) && n > 0 ? n : null };
+      /* the sign kept: a negative line is billing (dropped) or something taken off */
+      return { name: l.name ?? "", quantity: Number.isFinite(n) && n !== 0 ? n : null };
     });
   return sm8QuoteBrief({ scope, lines: live });
 }

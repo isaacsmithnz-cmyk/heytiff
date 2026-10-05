@@ -65,23 +65,36 @@
   object-fit: contain;
 }
 .org-mark-logo.org-initials { width: 26px; }
-/* THE LIGHT PLATE, and the reason every dark bar needs one: a logo inked in
-   black or navy on a #0b0d12 bar would simply not be there, and which ink a
-   business draws in is not something this app gets to choose. The plate is how
-   any dark site header carries a customer's mark.
+/* THE PLATES. A logo is drawn bare unless its ink would be the same colour as
+   the ground it lands on, and then it gets a plate of the opposite tone — which
+   one is decided in brand.ts::plateFor from the logo's measured ink, never here.
 
-   Lives here rather than beside the bar that needed it first (it was in
-   studio.css, scoped to `.ds-live-brand`) because the Organisation page now
-   PREVIEWS that bar — and a preview drawn from a second copy of the rule is a
-   preview that can quietly stop telling the truth.
+   `light` is the white plate a dark bar has always given a navy mark: a logo
+   inked in black or navy on a #0b0d12 bar would simply not be there. `dark` is
+   its mirror, new with the measuring: a white wordmark on a document would be
+   just as absent, and was — a quote's masthead came out with a blank corner.
+   The plate is how any dark site header carries a customer's mark, and how any
+   white page can carry a white one.
 
-   The initials stand-in already carries its own background and its own radius,
-   so the plate only reaches a real image. */
-.org-mark-logo.org-plate:not(.org-initials) {
-  background: #fff;
+   Lives here rather than beside the surface that needed it first (it was in
+   studio.css, scoped to `.ds-live-brand`) because the Organisation page once
+   PREVIEWED that bar, and a preview drawn from a second copy of the rule is one
+   that quietly stops telling the truth.
+
+   The initials stand-in carries its own background and its own radius, so a
+   plate only reaches a real image. `box-sizing` so the plate is padding INSIDE
+   the logo's own box, never a box that grows past the band it sits in. */
+.org-plate-light:not(.org-initials),
+.org-plate-dark:not(.org-initials) {
+  box-sizing: border-box;
   border-radius: 7px;
   padding: 3px;
 }
+.org-plate-light:not(.org-initials) { background: #fff; }
+.org-plate-dark:not(.org-initials) { background: #16181d; }
+/* the letterhead's own band is 52px tall: a plate there wants more air than the
+   26px mark on a bar does */
+.org-lh-logo.org-plate-dark:not(.org-initials) { padding: 6px; }
 .org-mark b {
   font-size: 13px;
   font-weight: 800;
@@ -111,6 +124,8 @@
    from this business. */
 @media print {
   .org-lh-logo,
+  .org-plate-light,
+  .org-plate-dark,
   .org-initials {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

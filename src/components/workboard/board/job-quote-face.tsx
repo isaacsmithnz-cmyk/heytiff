@@ -30,6 +30,7 @@ import {
 import {
   CHECKLIST,
   GROUP_ORDER,
+  asksByImpact,
   checklistCounts,
   type CheckItem,
   type ChecklistKey,
@@ -425,7 +426,14 @@ export function JobQuoteFace({
         onAnswer={(key, answer) =>
           save((d) => ({
             ...d,
-            checklist: d.checklist.map((i) => (i.key === key ? { key, state: "known", answer, fresh: true } : i)),
+            /* keeps the question it was asked with, for its Change */
+            checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "known", answer, fresh: true, rank: undefined } : i)),
+          }))
+        }
+        onSkip={(key) =>
+          save((d) => ({
+            ...d,
+            checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "na", answer: "Not needed on this job", rank: undefined } : i)),
           }))
         }
         onApply={() => void write("apply")}
@@ -605,15 +613,19 @@ function SiteChecklist({
   busy,
   applying,
   onAnswer,
+  onSkip,
   onApply,
 }: {
   items: CheckItem[];
   busy: boolean;
   applying: boolean;
   onAnswer: (key: ChecklistKey, answer: string) => Promise<boolean>;
+  /** "Doesn't apply": the topic is marked not needed on this job */
+  onSkip: (key: ChecklistKey) => Promise<boolean>;
   onApply: () => void;
 }) {
-  const asks = items.filter((i) => i.state === "ask");
+  /* the question that changes the most first (Isaac's 2905, 2026-10-05) */
+  const asks = asksByImpact(items);
   /* What the card is on. `chosen` is a topic the person opened themselves,
      which stays open even when it's known; a topic the card moved on to by
      itself gives way to the first open question once it's settled, so a
@@ -636,10 +648,14 @@ function SiteChecklist({
   const current = asking ? CHECKLIST[asking] : null;
   const currentItem = asking ? items.find((i) => i.key === asking) : undefined;
 
-  const answer = async (words: string) => {
-    if (!asking || !words.trim()) return;
+  /* Tiff's question for this job, else (an old draft) the topic's own */
+  const questionOf = (i: CheckItem) => i.question || CHECKLIST[i.key].question;
+  const choicesOf = (i: CheckItem) => (i.choices?.length ? i.choices : CHECKLIST[i.key].choices);
+
+  const answer = async (words: string | null) => {
+    if (!asking || (words !== null && !words.trim())) return;
     setSaving(true);
-    const ok = await onAnswer(asking, words.trim());
+    const ok = words === null ? await onSkip(asking) : await onAnswer(asking, words.trim());
     setSaving(false);
     if (!ok) return;
     setOwn(null);
@@ -658,17 +674,27 @@ function SiteChecklist({
 
       {current && currentItem && (
         <div className="wb2-jqnow">
-          <p className="wb2-jqask">{current.question}</p>
+          <p className="wb2-jqask">{questionOf(currentItem)}</p>
           {own === null ? (
             <div className="wb2-jqacts">
-              {current.choices.map((c) => (
+              {choicesOf(currentItem).map((c) => (
                 <button key={c} type="button" className="pbtn ghost" disabled={saving || busy} onClick={() => void answer(c)}>
                   {c}
                 </button>
               ))}
-              <button type="button" className="pbtn ghost" disabled={saving || busy} onClick={() => setOwn(currentItem.answer)}>
-                {current.choices.length ? "Something else" : "Type the answer"}
+              <button
+                type="button"
+                className="pbtn ghost"
+                disabled={saving || busy}
+                onClick={() => setOwn(currentItem.state === "known" ? currentItem.answer : "")}
+              >
+                {choicesOf(currentItem).length ? "Something else" : "Type the answer"}
               </button>
+              {currentItem.state === "ask" && (
+                <button type="button" className="pbtn ghost" disabled={saving || busy} onClick={() => void answer(null)}>
+                  Doesn&rsquo;t apply
+                </button>
+              )}
               <button type="button" className="pbtn ghost sm wb2-jqlead-r" disabled={saving} onClick={() => setAsking(null)}>
                 Not now
               </button>
@@ -722,7 +748,7 @@ function SiteChecklist({
                 {rows.map((i) => (
                   <li key={i.key} className={asking === i.key ? "on" : undefined}>
                     <span className="wb2-jqct">{CHECKLIST[i.key].label}</span>
-                    <span className="wb2-jqca">{i.state === "ask" ? CHECKLIST[i.key].question : i.answer}</span>
+                    <span className="wb2-jqca">{i.state === "ask" ? questionOf(i) : i.answer}</span>
                     <span className={`wb2-jqcs ${i.state === "known" ? "ok" : i.state === "ask" ? "warn" : "q"}`}>
                       {i.state === "known" ? "Known" : i.state === "ask" ? "Ask" : "Not needed"}
                     </span>

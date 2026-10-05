@@ -108,7 +108,7 @@ it("asks the first open question with its usual answers, and saves an answer wit
   const put = (fetchMock.mock.calls as Call[]).find(([, init]) => init?.method === "PUT");
   expect(put).toBeTruthy();
   const sent = JSON.parse(put![1]!.body!) as { draft: StoredProposal["draft"] };
-  expect(sent.draft.checklist.find((i) => i.key === "pipe_covering")).toEqual({
+  expect(sent.draft.checklist.find((i) => i.key === "pipe_covering")).toMatchObject({
     key: "pipe_covering",
     state: "known",
     answer: "Colorbond trunking",
@@ -117,6 +117,44 @@ it("asks the first open question with its usual answers, and saves an answer wit
   expect((fetchMock.mock.calls as Call[]).some(([, init]) => init?.method === "POST")).toBe(false);
   await screen.findByText("1 answer isn't in the proposal yet");
   expect(screen.getByRole("button", { name: "Put them in" })).toBeInTheDocument();
+});
+
+/* Isaac's 2905, 2026-10-05: "questions are very vague, hard to understand" */
+it("asks Tiff's own question for this job with its answers, the biggest first, and takes Doesn't apply", async () => {
+  const asked = stored();
+  asked.draft.checklist = [
+    { key: "pipe_covering", state: "ask", answer: "", question: "What covers the pipes on the rear wall?", choices: ["Colorbond trunking", "Smart duct"], rank: 2 },
+    { key: "pipe_route", state: "ask", answer: "", question: "How do the pipes get from the garage up to Level 3?", choices: ["Riser cupboard", "Inside the walls"], rank: 1 },
+  ];
+  fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) => {
+    if (init?.method === "PUT") {
+      const { draft } = JSON.parse(init.body!) as { draft: StoredProposal["draft"] };
+      return respond({ ok: true, proposal: { ...asked, draft: normaliseDraft(draft) } });
+    }
+    return respond({ ok: true, proposal: asked });
+  });
+  await openFace();
+  /* rank 1 first, in its own words, with its own answers */
+  const first = await screen.findAllByText("How do the pipes get from the garage up to Level 3?");
+  expect(first[0]).toHaveClass("wb2-jqask");
+  expect(screen.getByRole("button", { name: "Riser cupboard" })).toBeInTheDocument();
+  /* typing an answer starts empty */
+  fireEvent.click(screen.getByRole("button", { name: "Something else" }));
+  expect((screen.getByRole("textbox", { name: "Route" }) as HTMLInputElement).value).toBe("");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Doesn’t apply" }));
+  });
+  const put = (fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === "PUT").at(-1)!;
+  const sent = JSON.parse(put[1]!.body!) as { draft: StoredProposal["draft"] };
+  /* settled, it keeps the question it was asked with, for its Change */
+  expect(sent.draft.checklist.find((i) => i.key === "pipe_route")).toEqual({
+    key: "pipe_route",
+    state: "na",
+    answer: "Not needed on this job",
+    question: "How do the pipes get from the garage up to Level 3?",
+    choices: ["Riser cupboard", "Inside the walls"],
+  });
 });
 
 it("switches the payment terms by the kind of job", async () => {

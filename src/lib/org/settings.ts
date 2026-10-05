@@ -21,6 +21,7 @@
      charge-out rates    the Rate Calculator owns those */
 
 import { EXPIRY_WARN_ERROR, readExpiryWarnDays } from "@/lib/expiry";
+import type { LogoTone } from "./logo-fit";
 import type { PreValidation } from "@/lib/staff/pre-validate";
 import { buildSectionPatch, isSectionOf, type SectionConfig } from "../section-patch";
 
@@ -53,6 +54,8 @@ export type OrgSettings = {
   postcode: string | null;
   /** a storage ref (org/<id>/org_logo/<uuid>.png), signed at render */
   logo_url: string | null;
+  /** what the logo's ink is — see logo-fit.ts. Optional: set only by setOrgLogo. */
+  logo_tone?: LogoTone | null;
   /** the ONE colour a business picks; lowercase #rrggbb or null. Never
       painted raw — lib/org/theme.ts derives the legible roles from it. Not in
       ORG_EDITABLE_SECTIONS: it has its own control and saves itself, the way

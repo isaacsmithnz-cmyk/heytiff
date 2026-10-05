@@ -45,7 +45,7 @@ import type { OrgSettings } from "@/lib/org/settings";
 
 const COLUMNS =
   "id, trading_name, legal_name, abn, acn, gst_registered, payment_terms_days, expiry_warn_days, expiry_email, " +
-  "email, phone, website, address, suburb, state, postcode, logo_url, brand_color";
+  "email, phone, website, address, suburb, state, postcode, logo_url, logo_tone, brand_color";
 // primary_owner_user_id and the legacy `name` are deliberately not selected —
 // this screen edits the company profile, not ownership or the signup seed.
 

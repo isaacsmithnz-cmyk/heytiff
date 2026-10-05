@@ -172,6 +172,15 @@ export type CheckItem = {
   state: CheckState;
   /** What is known, in a few words. Empty when it has to be asked. */
   answer: string;
+  /** An ask only: the question as Tiff writes it for THIS job — the rooms,
+      units or levels it's about, and what the answer changes (Isaac's 2905,
+      2026-10-05: "questions are very vague, hard to understand"). Empty on
+      an old draft, which then shows the topic's own question. */
+  question?: string;
+  /** An ask only: two to four short answers to tap. */
+  choices?: string[];
+  /** An ask only: 1 is the one that changes the price or the install most. */
+  rank?: number;
   /** Set when a person answered it on the card, and the scope hasn't been
       rewritten with it yet. */
   fresh?: boolean;
@@ -180,6 +189,27 @@ export type CheckItem = {
 /** The checklist in the catalogue's order, so every draft reads the same. */
 export function orderChecklist(items: readonly CheckItem[]): CheckItem[] {
   return CHECKLIST_KEYS.map((k) => items.find((i) => i.key === k)).filter((i): i is CheckItem => !!i);
+}
+
+/** The asks, the one that matters most first: by Tiff's rank, then the
+    catalogue's order. */
+export function asksByImpact(items: readonly CheckItem[]): CheckItem[] {
+  const at = (i: CheckItem) => CHECKLIST_KEYS.indexOf(i.key);
+  return items
+    .filter((i) => i.state === "ask")
+    .sort((a, b) => (a.rank ?? 100 + at(a)) - (b.rank ?? 100 + at(b)) || at(a) - at(b));
+}
+
+/** The most questions a fresh draft asks: the ones that change the price,
+    the scope or the install, and no more (Isaac's 2905: 17 of them). */
+export const MAX_ASKS = 8;
+
+/** Tiff's asks cut to the ones that matter most. Only ever on Tiff's fresh
+    reply, after a person's settled answers are back in place: never on a
+    read or a person's save, so an older draft keeps every question. */
+export function capAsks(items: readonly CheckItem[]): CheckItem[] {
+  const keep = new Set(asksByImpact(items).slice(0, MAX_ASKS).map((i) => i.key));
+  return items.filter((i) => i.state !== "ask" || keep.has(i.key));
 }
 
 export function checklistCounts(items: readonly CheckItem[]) {
@@ -194,8 +224,11 @@ export function checklistCounts(items: readonly CheckItem[]) {
     stays that way when Tiff drops it or turns it back into an ask; its
     answer is in the scope now, so it is no longer fresh. */
 export function keepSettled(before: readonly CheckItem[], after: readonly CheckItem[]): CheckItem[] {
+  /* a settled topic keeps the question it was asked with, for its Change */
   const settled = new Map(
-    before.filter((i) => i.state !== "ask").map((i) => [i.key, { key: i.key, state: i.state, answer: i.answer }] as const)
+    before
+      .filter((i) => i.state !== "ask")
+      .map((i) => [i.key, { key: i.key, state: i.state, answer: i.answer, ...(i.question ? { question: i.question, choices: i.choices ?? [] } : {}) }] as const)
   );
   const kept = after.map((i) => (i.state === "ask" && settled.has(i.key) ? settled.get(i.key)! : i));
   const dropped = [...settled.values()].filter((s) => !after.some((i) => i.key === s.key));

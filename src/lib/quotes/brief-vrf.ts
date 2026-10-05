@@ -3,7 +3,7 @@ import { formFactorLabel } from "@/lib/studio/form-factors";
 import { isBoxHead } from "@/lib/studio/multi";
 import { isVrfHead, joinsVrf, vrfOutdoorsListing } from "@/lib/studio/vrf";
 import { provisionalVrfTree, sizeVrfTree } from "@/lib/studio/vrf-tree";
-import { KIT, RUN_TO_ASK, WHERE_TO_ASK, type OutdoorAt, type SizedRoom } from "./brief-rooms";
+import { KIT, RUN_TO_ASK, STYLE_OF, WHERE_TO_ASK, type OutdoorAt, type SizedRoom } from "./brief-rooms";
 import { forTheOutdoorsCurrent, forTheOutdoorsSize } from "./ranges";
 
 /* THE ROOMS ON A VRF OR PUMY — switched on in the Rooms block (Isaac,
@@ -43,17 +43,6 @@ export type VrfProposal = { ok: true; vrf: VrfOption } | { ok: false; why: strin
 export type VrfMethod = "box" | "joint";
 export const VRF_METHOD_WORDS: Record<VrfMethod, string> = { box: "on branch boxes", joint: "City Multi heads on joints" };
 
-const STYLE_OF: Record<string, SizedRoom["style"]> = {
-  wall: "wall",
-  ducted: "ducted",
-  bulkhead: "bulkhead",
-  "cassette-4way": "cassette",
-  "cassette-1way": "cassette",
-  "floor-console": "floor",
-  "floor-concealed": "floor",
-  "under-ceiling": "under-ceiling",
-};
-
 export function sizeVrf(rooms: readonly SizedRoom[], pack: DataPack, method: VrfMethod): VrfProposal | null {
   if (rooms.length < 2) return null;
   const heads: { room: SizedRoom; idu: DataPack["indoor_units"][number] }[] = [];
@@ -70,32 +59,39 @@ export function sizeVrf(rooms: readonly SizedRoom[], pack: DataPack, method: Vrf
   const load = rooms.reduce((n, r) => n + r.loadKw, 0);
   const odu = vrfOutdoorsListing(pack, heads.map((h) => h.idu), { load: { kw: load, basis: "worst-of-both" } })[0];
   if (!odu) return { ok: false, why: `No VRF outdoor in the data pack takes these heads ${VRF_METHOD_WORDS[method]} together` };
+  return { ok: true, vrf: vrfOptionOf(pack, odu, heads.map((h) => ({ room: h.room.name, idu: h.idu }))) };
+}
+
+/** A VRF on a known outdoor and heads: its pipe tree, joints and branch
+    boxes from Studio's own sizer. */
+export function vrfOptionOf(
+  pack: DataPack,
+  odu: DataPack["outdoor_units"][number],
+  heads: readonly { room: string; idu: DataPack["indoor_units"][number] }[]
+): VrfOption {
   /* the tree, as Studio sizes it: City Multi heads on joints, the others on
      the outdoor's branch boxes */
-  const ids = heads.map((h, i) => ({ id: `h:${i + 1}`, model: h.idu.model, room: h.room.name }));
+  const ids = heads.map((h, i) => ({ id: `h:${i + 1}`, model: h.idu.model, room: h.room }));
   const boxed = new Set(ids.filter((_, i) => !isVrfHead(pack, heads[i]!.idu) && isBoxHead(pack, odu, heads[i]!.idu)).map((h) => h.id));
   const ports = Math.max(1, ...pack.parts.filter((p) => p.part_type === "branch-box").map((p) => p.ports ?? 0));
   const sized = sizeVrfTree(pack, odu, provisionalVrfTree("odu", ids, boxed, ports));
   return {
-    ok: true,
-    vrf: {
-      outdoor: odu.model,
-      coolKw: odu.capacity_cool_kw,
-      heatKw: odu.capacity_heat_kw,
-      outdoorWidthMm: odu.width_mm ?? null,
-      outdoorWeightKg: odu.weight_kg ?? null,
-      outdoorAmps: odu.max_amps_a ?? null,
-      outdoorPhase: odu.phase ?? null,
-      heads: heads.map(({ room, idu }) => ({
-        room: room.name,
-        indoor: idu.model,
-        style: formFactorLabel(idu.form_factor) ?? "Indoor",
-        coolKw: idu.capacity_cool_kw,
-        heatKw: idu.capacity_heat_kw,
-      })),
-      fittings: sized.fittings.map((f) => ({ kind: f.kind, part: f.part, branches: f.branches })),
-      sections: sized.sections.map((x) => ({ liquidMm: x.liquidMm, gasMm: x.gasMm, role: x.role, room: ids.find((h) => h.id === x.to)?.room ?? null })),
-    },
+    outdoor: odu.model,
+    coolKw: odu.capacity_cool_kw,
+    heatKw: odu.capacity_heat_kw,
+    outdoorWidthMm: odu.width_mm ?? null,
+    outdoorWeightKg: odu.weight_kg ?? null,
+    outdoorAmps: odu.max_amps_a ?? null,
+    outdoorPhase: odu.phase ?? null,
+    heads: heads.map(({ room, idu }) => ({
+      room,
+      indoor: idu.model,
+      style: formFactorLabel(idu.form_factor) ?? "Indoor",
+      coolKw: idu.capacity_cool_kw,
+      heatKw: idu.capacity_heat_kw,
+    })),
+    fittings: sized.fittings.map((f) => ({ kind: f.kind, part: f.part, branches: f.branches })),
+    sections: sized.sections.map((x) => ({ liquidMm: x.liquidMm, gasMm: x.gasMm, role: x.role, room: ids.find((h) => h.id === x.to)?.room ?? null })),
   };
 }
 

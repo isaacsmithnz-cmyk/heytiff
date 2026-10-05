@@ -3,6 +3,7 @@ import { requireHqPage } from "@/lib/hq/guard";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { joinMembersToProfiles } from "@/lib/hq/overview";
 import { formatDate, formatTenure } from "@/lib/hq/format";
+import { DeleteWorkspace } from "@/components/hq/delete-workspace";
 
 /* Org drill-down — the member list for one organisation. A nested route (not
    client-side expansion) so it's server-rendered, shareable and keeps the
@@ -21,7 +22,7 @@ export default async function OrgDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireHqPage();
+  const me = await requireHqPage();
   const { id } = await params;
 
   const { data: org } = await supabaseAdmin
@@ -45,6 +46,15 @@ export default async function OrgDetailPage({
     : { data: [] };
 
   const rows = joinMembersToProfiles(members ?? [], profiles ?? []);
+
+  /* Delete is offered only on a workspace you don't belong to that holds
+     nothing but setup — a test sign-up. The function re-decides at delete
+     time; this read only decides whether to draw the button. */
+  const own = rows.some((r) => r.userId === me.userId);
+  const { data: records } = own
+    ? { data: null }
+    : await supabaseAdmin.rpc("hq_workspace_records", { p_org: id });
+  const deletable = Array.isArray(records) && records.length === 0;
 
   return (
     <main className="hq-main">
@@ -103,6 +113,13 @@ export default async function OrgDetailPage({
           </table>
         </div>
       )}
+
+      {deletable ? (
+        <>
+          <h2 className="hq-section-h hq-del-h">Delete workspace</h2>
+          <DeleteWorkspace orgId={org.id} name={org.name} />
+        </>
+      ) : null}
     </main>
   );
 }

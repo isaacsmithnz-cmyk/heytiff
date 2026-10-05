@@ -7573,7 +7573,7 @@ html[data-ds-display] .dstudio.editing {
   white-space: nowrap;
 }
 /* The logo's light plate on this bar USED TO LIVE HERE. It moved to
-   `components/org/letterhead.css` as `.org-plate`, which `BrandMark` now
+   `components/org/letterhead.css` as `.org-plate-light` (and its mirror), which `BrandMark` now
    applies itself — the Organisation page previews this bar, and two copies of
    the rule is how a preview starts lying. */
 /* the mark brings its own weight and size; the bar keeps the colour */

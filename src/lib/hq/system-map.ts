@@ -330,7 +330,7 @@ export const NODES: MapNode[] = [
     group: "HQ portal",
     blurb: "Org-first KPIs: signups, activity, catalog readiness, env health.",
     detail:
-      "The HQ landing page. The whole /hq surface sits behind the HQ_EMAILS allowlist — signed-out → login, non-staff → 404 so the route stays invisible.",
+      "The HQ landing page. The whole /hq surface sits behind the HQ_USER_IDS allowlist of Auth0 account ids — signed-out → login, non-staff → 404 so the route stays invisible.",
     href: "/hq",
     paths: ["src/app/hq/page.tsx", "src/lib/hq/overview.ts"],
   },
@@ -804,7 +804,7 @@ export const EDGES: MapEdge[] = [
   { from: "tiff", to: "voyage", label: "chunk & question embeddings — skipped without a key" },
 
   /* HQ portal */
-  { from: "hq-overview", to: "eng-auth", label: "HQ_EMAILS allowlist guards all of /hq" },
+  { from: "hq-overview", to: "eng-auth", label: "HQ_USER_IDS allowlist guards all of /hq" },
   { from: "hq-overview", to: "db-accounts", label: "live org / user / invite counts" },
   { from: "hq-overview", to: "db-designs", label: "designs per org, last activity" },
   { from: "hq-overview", to: "eng-packs", label: "catalog size + engine-ready share" },

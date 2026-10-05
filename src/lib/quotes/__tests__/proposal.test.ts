@@ -7,7 +7,7 @@
    the payment presets add up to 100% at the suggested 10% deposit, and any
    other deposit is the business's to set. */
 
-import { CHECKLIST, CHECKLIST_KEYS, orderChecklist } from "../checklist";
+import { CHECKLIST, CHECKLIST_KEYS, capAsks, orderChecklist } from "../checklist";
 import { PAYMENT_PRESETS, SUGGESTED_DEPOSIT_PCT, paymentProblems, suggestedDeposit } from "../payment";
 import {
   MAX_OPTIONS,
@@ -94,10 +94,50 @@ describe("normaliseDraft", () => {
       })
     )!;
     expect(d.checklist).toEqual([
-      { key: "model", state: "ask", answer: "" },
+      { key: "model", state: "ask", answer: "", question: "", choices: [] },
       { key: "drain_to", state: "known", answer: "Downpipe" },
       { key: "approval", state: "na", answer: "Freestanding house" },
     ]);
+  });
+
+  /* Isaac's 2905, 2026-10-05: "questions are very vague, hard to understand" */
+  it("keeps an ask's own question and answers, clears its fragment, and never asks crew and time", () => {
+    const d = normaliseDraft(
+      base({
+        checklist: [
+          {
+            key: "pipe_route",
+            state: "ask",
+            answer: "Riser route between levels",
+            question: `How do the pipes get from the garage up to Level 3? ${"x".repeat(300)}`,
+            choices: ["Riser cupboard", "riser cupboard", "Inside the walls", "Outside in trunking", "Ceiling space", "Under the floor"],
+            rank: 2,
+          },
+          { key: "model", state: "known", answer: "PUMY-P200YKMD2-A", question: "Confirm?", choices: ["a"], rank: 1 },
+          { key: "labour", state: "ask", answer: "", question: "How many people?", choices: [], rank: 1 },
+        ],
+      })
+    )!;
+    const route = d.checklist.find((i) => i.key === "pipe_route")!;
+    expect(route.answer).toBe("");
+    expect(route.question?.length).toBe(200);
+    expect(route.choices).toEqual(["Riser cupboard", "Inside the walls", "Outside in trunking", "Ceiling space"]);
+    expect(route.rank).toBe(2);
+    /* a settled topic keeps its question for its Change, never a rank; crew and time are never asked */
+    expect(d.checklist.find((i) => i.key === "model")).toEqual({ key: "model", state: "known", answer: "PUMY-P200YKMD2-A", question: "Confirm?", choices: ["a"] });
+    expect(d.checklist.find((i) => i.key === "labour")).toBeUndefined();
+    /* a read or a person's save keeps every question: only Tiff's fresh reply is cut */
+    const many = normaliseDraft(base({ checklist: CHECKLIST_KEYS.filter((k) => k !== "labour").map((key) => ({ key, state: "ask", answer: "" })) }))!;
+    expect(many.checklist.filter((i) => i.state === "ask")).toHaveLength(CHECKLIST_KEYS.length - 1);
+    /* a rank that isn't Tiff's is left off */
+    expect(many.checklist.every((i) => i.rank === undefined)).toBe(true);
+  });
+
+  it("cuts Tiff's asks to the eight that matter most, unranked last", () => {
+    const items = CHECKLIST_KEYS.filter((k) => k !== "labour").map((key, n) => ({ key, state: "ask" as const, answer: "", rank: n < 9 ? 9 - n : undefined }));
+    const kept = capAsks(items).filter((i) => i.state === "ask");
+    expect(kept).toHaveLength(8);
+    expect(kept.map((i) => i.rank).sort((a, b) => a! - b!)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   it("keeps a person's answer marked fresh until the scope is rewritten with it", () => {

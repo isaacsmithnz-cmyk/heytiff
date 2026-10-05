@@ -2,6 +2,7 @@ import type { BuildLine, Visit } from "./buildup";
 import { categoryOf } from "./categories";
 import { KIT, RUN_TO_ASK, WHERE_TO_ASK } from "./brief-rooms";
 import { unitFeatures } from "./features";
+import type { LetterRule } from "./code-letters";
 import { COMPONENT_KEYS, QUOTE_COMPONENTS, matchesComponent, type ComponentKey } from "./components";
 import { ALLOWANCES, type AllowanceKey } from "./settings";
 import { RANGE_KINDS, needWords, pickFromRange, rangeNeedOf, type RangeKind, type RangeSize } from "./ranges";
@@ -86,6 +87,8 @@ export type JobPriceDeps = {
   /** the business's range for a part that comes in sizes, each item at its
       size and price; empty when it has none */
   range?: (kind: RangeKind) => RangeOffer[];
+  /** what letters in its makers' codes mean, read from their documents */
+  codeLetters?: readonly LetterRule[];
 };
 
 /* an isolator or a bracket with no range yet is priced as it always was,
@@ -247,7 +250,7 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
           : unit;
       /* what the unit has, in its supplier's words, then its code's
          (Isaac, 2026-10-05: "if it adds wifi, does it specify in the quote?") */
-      const features = unitFeatures(from.name, from.code);
+      const features = unitFeatures(from.name, from.code, deps.codeLetters ?? []);
       lines.push({
         key,
         group: "Units",

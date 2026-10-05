@@ -319,3 +319,13 @@ it("says what any maker's unit has, from its supplier's description", () => {
   const { lines } = priceJobList([{ name: "RZQ71LV1", sub: "Outdoor unit", qty: "1" }], daikin);
   expect(lines[0]!.features).toEqual(["Demand response (DRED) ready"]);
 });
+
+it("says what a business's kept code letters give a unit", () => {
+  const withLetters: JobPriceDeps = {
+    ...deps,
+    unitOffer: (model) => (model === "PUMY-P250YKMQ3-A" ? { buyCents: 500000, supplierKey: "mitsubishi", name: "Twin Fan Heat Pump VRF O/U 3 Phase", code: "PUMY-P250YKMQ3-A" } : null),
+    codeLetters: [{ family: "PUMY", letter: "Q", meaning: "Quiet mode", example: { with: "PUMY-P200YKMQ3", without: "PUMY-P200YKM3" } }],
+  };
+  const { lines } = priceJobList([{ name: "PUMY-P250YKMQ3-A", sub: "VRF outdoor unit", qty: "1" }], withLetters);
+  expect(lines[0]!.features).toEqual(["Quiet mode"]);
+});

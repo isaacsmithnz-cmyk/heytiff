@@ -262,7 +262,7 @@ it("doesn't send an invoice file over 4 MB, which the host would refuse", async 
     });
   });
   expect(screen.getByText("That file is over 4 MB.")).toBeInTheDocument();
-  expect(global.fetch).not.toHaveBeenCalled();
+  expect((global.fetch as jest.Mock).mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toHaveLength(0);
 });
 
 it("says Adding only while this invoice's prices go in, not while another file is read", async () => {

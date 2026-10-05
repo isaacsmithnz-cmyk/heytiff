@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
 import { linkModels, type Decision, type ModelLink, type Proposal } from "./code-links";
 import { unitFeatures } from "./features";
+import { readLetterRules } from "./code-letters-server";
 import { compareOffers, netCents, type Offer } from "./price-book";
 import { currentItems, readSuppliers, type BookItem } from "./price-book-server";
 
@@ -83,11 +84,12 @@ export async function pricedLinks(
   /** the book and suppliers, when the caller has read them */
   pre?: { items: BookItem[]; suppliers: Awaited<ReturnType<typeof readSuppliers>> }
 ): Promise<PricedLink[]> {
-  const [models, items, suppliers, decisions] = await Promise.all([
+  const [models, items, suppliers, decisions, letters] = await Promise.all([
     packModels(),
     pre ? Promise.resolve(pre.items) : currentItems(orgId),
     pre ? Promise.resolve(pre.suppliers) : readSuppliers(orgId),
     readDecisions(orgId),
+    readLetterRules(orgId),
   ]);
   const links = linkModels(
     models.map((m) => m.model),
@@ -102,7 +104,7 @@ export async function pricedLinks(
       ...l,
       ...cmp,
       proposals: l.proposals.map((p) => ({ ...p, offers: offersFor(p.codes, items, suppliers).sort((a, b) => a.netCents - b.netCents) })),
-      features: l.codes[0] ? unitFeatures(items.find((i) => i.code === l.codes[0])?.name ?? "", l.codes[0]) : [],
+      features: l.codes[0] ? unitFeatures(items.find((i) => i.code === l.codes[0])?.name ?? "", l.codes[0], letters) : [],
     };
   });
 }

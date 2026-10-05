@@ -1,4 +1,5 @@
 import { codeFeatures } from "./code-links";
+import { letterFeatures, type LetterRule } from "./code-letters";
 
 /* WHAT A UNIT HAS, IN ITS SUPPLIER'S OWN WORDS (Isaac, 2026-10-05: "I gave
    you those docs directly, not in the app upload" — the Mitsubishi letters
@@ -52,10 +53,17 @@ export function descriptionFeatures(name: string): string[] {
 }
 
 /** A unit's features: what its description says, then what its maker's
-    code letters say that the description doesn't. */
-export function unitFeatures(name: string, code: string): string[] {
+    code letters say that the description doesn't — the business's own
+    rules read from the maker's document (code-letters.ts), and the
+    Mitsubishi letters written in by hand. */
+export function unitFeatures(name: string, code: string, rules: readonly LetterRule[] = []): string[] {
   const said = descriptionFeatures(name);
   const wifiSaid = said.includes(FEATURE_WORDS.wifi) || said.includes(FEATURE_WORDS.wifiAdaptor);
-  const fromCode = codeFeatures(code).filter((w) => !said.includes(w) && !(wifiSaid && w === FEATURE_WORDS.wifi));
-  return [...said, ...fromCode];
+  const same = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]/g, "") === b.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const out = [...said];
+  for (const w of [...letterFeatures(code, rules), ...codeFeatures(code)]) {
+    if (out.some((x) => same(x, w)) || (wifiSaid && /wi-?fi/i.test(w))) continue;
+    out.push(w);
+  }
+  return out;
 }

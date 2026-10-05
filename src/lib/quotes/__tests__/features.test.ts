@@ -47,3 +47,13 @@ describe("a unit's features, its description first", () => {
     expect(unitFeatures("SPLIT SYSTEM 2.5KW + WIFI ADAPTOR", "MSZ-AP25VGKD2-A2")).toEqual([FEATURE_WORDS.wifiAdaptor, FEATURE_WORDS.dred]);
   });
 });
+
+describe("a maker's letters a business kept from its document", () => {
+  it("say what a code has when its description doesn't, once whatever else says it", () => {
+    const quiet = { family: "PUMY", letter: "Q", meaning: "Quiet mode", example: { with: "PUMY-P200YKMQ3", without: "PUMY-P200YKM3" } };
+    const wifi = { family: "MSZ", letter: "K", meaning: "Wi-Fi built in", example: { with: "MSZ-AP25VGKD2", without: "MSZ-AP25VGD2" } };
+    expect(unitFeatures("Twin Fan Heat Pump VRF O/U 3 Phase", "PUMY-P250YKMQ3-A", [quiet])).toEqual(["Quiet mode"]);
+    /* the kept K and the hand-written K are one Wi-Fi */
+    expect(unitFeatures("R32 indoor", "MSZ-AP25VGKD2-A2", [wifi])).toEqual([FEATURE_WORDS.wifi, FEATURE_WORDS.dred]);
+  });
+});

@@ -62,6 +62,14 @@ export async function fileToUprightBase64(file: File): Promise<UprightImage> {
   return { data: await rawBase64(file), mediaType: file.type };
 }
 
+/** A file to send to Tiff: a photo upright and no bigger than small print
+    needs, as a file again; a PDF as it is. */
+export async function uprightFile(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  const { data, mediaType } = await fileToUprightBase64(file);
+  return new File([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], file.name, { type: mediaType });
+}
+
 /** The original bytes, base64, no re-encode. The fallback, and the whole story
     for PDFs. */
 export function rawBase64(file: File): Promise<string> {

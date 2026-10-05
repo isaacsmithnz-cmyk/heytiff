@@ -4,9 +4,10 @@ import { useState } from "react";
 import { BUILT_IN_SUPPLIERS, COLUMN_FIELDS, MAX_DISCOUNT_PCT, pricingWords, type ColumnField, type Columns, type DiscountRule } from "@/lib/quotes/price-book";
 import type { SupplierView, ImportSummary } from "@/lib/quotes/price-book-server";
 import { MAX_INVOICE_BYTES, otherSupplierNamed, type ReadInvoice } from "@/lib/quotes/invoice-read";
-import { fileToUprightBase64 } from "@/lib/images/upright";
+import { uprightFile } from "@/lib/images/upright";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 import { InvoiceReview } from "./invoice-review";
+import { CodeLetters } from "./code-letters";
 
 /* THE PRICE BOOK'S SUPPLIERS: the suppliers the business buys from, each
    with its price list and its invoices, and how it prices. One supplier is
@@ -62,13 +63,6 @@ type AddAnswer = { ok: true; summary: ImportSummary } | { ok: false; reason: str
 /** An invoice Tiff reads, rather than a spreadsheet of one: a PDF or a photo. */
 const isInvoiceDocument = (f: File) => f.type === "application/pdf" || f.type.startsWith("image/") || /\.(pdf|jpe?g|png|webp)$/i.test(f.name);
 
-/** A photo the way every scan in the app goes to Tiff — upright, and no
-    bigger than small print needs (images/upright) — and a PDF as it is. */
-async function invoiceFileOf(file: File): Promise<File> {
-  if (!file.type.startsWith("image/")) return file;
-  const { data, mediaType } = await fileToUprightBase64(file);
-  return new File([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], file.name, { type: mediaType });
-}
 
 /* What each answer says, read OUT HERE rather than in the try/catch that
    asks for it: React Compiler 1.0 cannot lower a value block — a ternary,
@@ -144,7 +138,7 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
     setReading(null);
     await withCleanup(async () => {
       try {
-        const sending = await invoiceFileOf(file);
+        const sending = await uprightFile(file);
         if (sending.size > MAX_INVOICE_BYTES) {
           setNote({ tone: "bad", text: "That file is over 4 MB." });
           return;
@@ -373,6 +367,7 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
                         onSave={(discountPct, rules) => void saveDiscount(s, discountPct, rules)}
                       />
                     )}
+                    <CodeLetters supplierKey={s.key} supplierName={s.name} />
                   </div>
                 )}
               </div>

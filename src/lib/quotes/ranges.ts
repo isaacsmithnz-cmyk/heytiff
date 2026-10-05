@@ -139,7 +139,7 @@ function ductRun(figures: number[]): number[] | null {
     "Bto 12- 8- 8- 8" and "Bto 14101010", a combo's "18/20-14-14". */
 export function fittingOf(name: string): { ins: number[]; outs: number[] } | null {
   /* a fitting that takes a range of sizes at each end ("400-450, 300-350-400") is no one size */
-  if (/\d\s*-\s*\d+\s*,/.test(name)) return null;
+  if (/\d\s*-\s*\d+\s*,\s*\d+\s*-\s*\d/.test(name)) return null;
   const combo = /\b(\d{1,2})\s*\/\s*(\d{1,2})\s*-\s*(\d{1,2})\s*-\s*(\d{1,2})\b/.exec(name);
   if (combo) {
     const ins = ductRun([Number(combo[1]), Number(combo[2])]);

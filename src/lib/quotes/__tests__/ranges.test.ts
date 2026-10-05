@@ -239,6 +239,9 @@ describe("the rest of the book's names", () => {
     expect(fittingOf("METAL BTO200.150.150 NSW")).toEqual({ ins: [200], outs: [150, 150] });
     expect(fittingOf("QUIETFLO FLEXI Y 400 350 300")).toEqual({ ins: [400], outs: [350, 300] });
     expect(fittingOf("DBTO 400-450, 300-350-400, 200-250, 200-250 INS")).toBeNull();
+    /* a comma after one fitting's sizes is only a comma */
+    expect(fittingOf("Y 14-10-10, insulated")).toEqual({ ins: [350], outs: [250, 250] });
+    expect(fittingOf("Bto 12- 8- 8- 8, plain")).toEqual({ ins: [300], outs: [200, 200, 200] });
   });
 
   it("never reads a square face as a round diffuser's size", () => {

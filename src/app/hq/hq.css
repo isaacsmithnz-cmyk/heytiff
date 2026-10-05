@@ -477,9 +477,41 @@
 .hq-btn.ghost:hover {
   color: var(--hq-ink);
 }
+.hq-btn.danger {
+  background: var(--hq-block);
+  color: var(--hq-bg);
+}
 .hq-btn:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+/* ── delete a test workspace (/hq/orgs/[id]) ── */
+.hq-del-h {
+  margin-top: 32px;
+}
+.hq-del {
+  padding: 16px;
+}
+.hq-del-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--hq-mut);
+}
+.hq-del-label b {
+  color: var(--hq-ink);
+  font-weight: 600;
+}
+.hq-del-row {
+  display: flex;
+  gap: 8px;
+  max-width: 560px;
+}
+.hq-del-done {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 /* ── change log ── */

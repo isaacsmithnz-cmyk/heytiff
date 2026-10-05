@@ -32,8 +32,15 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    that it sits outside the edit cycle. */
 
 /** Same set the server accepts; the picker filters on it and the drop handler
-    re-checks it, because a drop bypasses `accept` entirely. */
-const IMAGE = /^image\/(png|jpeg|jpg|webp|svg\+xml)$/;
+    re-checks it, because a drop bypasses `accept` entirely.
+
+    NO SVG. The tile offered it from the start, and it could never be stored:
+    `checkUpload` (lib/documents/files) and the `documents` bucket's own MIME
+    allowlist both refuse image/svg+xml, so an SVG got as far as "photos and
+    PDFs only" and stopped. Offering it here is a promise the storage layer
+    breaks — and opening the bucket to SVG is not a picker change: an SVG is a
+    document that can carry script. */
+const IMAGE = /^image\/(png|jpeg|jpg|webp)$/;
 
 export function LogoUploader({
   logoUrl,
@@ -89,7 +96,7 @@ export function LogoUploader({
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     if (!IMAGE.test(file.type)) {
-      setError("That's not an image — PNG, JPG, WEBP or SVG.");
+      setError("That's not an image — PNG, JPG or WEBP.");
       return;
     }
     void pick(file);
@@ -116,7 +123,7 @@ export function LogoUploader({
           <span className="orglogo-empty">
             <Icon name="upload" size={22} />
             <b>Drop an image</b>
-            <em>PNG, JPG, WEBP or SVG</em>
+            <em>PNG, JPG or WEBP</em>
           </span>
         )}
         {busy && <span className="orglogo-busy" aria-hidden="true" />}
@@ -174,7 +181,7 @@ export function LogoUploader({
       <input
         ref={fileRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        accept="image/png,image/jpeg,image/webp"
         aria-label="Company logo"
         style={{ display: "none" }}
         onChange={(e) => pick(e.target.files?.[0])}

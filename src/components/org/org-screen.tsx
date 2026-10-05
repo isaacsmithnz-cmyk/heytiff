@@ -7,10 +7,10 @@ import { flushSync } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import { AddressField } from "@/components/address/address-field";
-import { IdCard } from "@/components/cards/id-card";
 import { CredentialCard } from "@/components/cards/credential-card";
 import { SectionCard } from "@/components/profile/section-card";
 import { Field, SelectInput, Seg, TextInput } from "@/components/profile/fields";
+import { DetailPanel } from "@/components/profile/detail";
 import { auDayOf, formatAuDate } from "@/lib/au-dates";
 import { licenceStatus } from "@/lib/staff/licence";
 import { ORG_CRED_KINDS, orgCredBadge, type OrgCredential } from "@/lib/org/credentials";
@@ -103,16 +103,6 @@ function contactValues(o: OrgSettings): Record<string, string> {
   };
 }
 
-/** Two letters off the trading name, for the card with no logo yet. */
-function orgInitials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "—";
-  return words
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join("");
-}
-
 export function OrgScreen({
   org,
   credentials,
@@ -196,78 +186,81 @@ export function OrgScreen({
        the grey: the point of the frame is the screen. */
     <div className="page in full">
       <div className="wrap">
-        <div className="stg">
-          <div className="orgcard2">
-            <div className="wb2-crumbline">
-              <Link href="/dashboard/admin" className="int-back">
-                <Icon name="chevL" size={15} />
-                Admin
-              </Link>
-            </div>
-            <ViewTabs
-              lead={<h1 className="wb2-h1">Organisation</h1>}
-              ariaLabel="Organisation sections"
-              idPrefix="orgtab"
-              panelPrefix="orgsec"
-              active={tab}
-              onGo={(k) => go(k as OrgTabKey)}
-              items={available.map((t) => ({ key: t.key, label: t.label }))}
-            />
+        {/* `orgcard2` rides the stage itself, as `pcard2` does on the staff
+            card: the full frame scrolls the PANEL, which only works if every
+            box between `.stg` and `.wb2-card` is in its flex column. A block
+            wrapper here let the card grow past the screen, and the outlet,
+            which no longer scrolls, clipped everything under the fold. */}
+        <div className="stg orgcard2">
+          <div className="wb2-crumbline">
+            <Link href="/dashboard/admin" className="int-back">
+              <Icon name="chevL" size={15} />
+              Admin
+            </Link>
+          </div>
+          <ViewTabs
+            lead={<h1 className="wb2-h1">Organisation</h1>}
+            ariaLabel="Organisation sections"
+            idPrefix="orgtab"
+            panelPrefix="orgsec"
+            active={tab}
+            onGo={(k) => go(k as OrgTabKey)}
+            items={available.map((t) => ({ key: t.key, label: t.label }))}
+          />
 
-            <div className="wb2-card">
-              <div className="wb2-panel"><div className="ppanel2">
-                {/* Keyed for `fallbackSwap`, the recovery remount — NOT for an
-                    animation any more. `.psec2` used to fade the panel in on
-                    every switch; it stopped when Isaac asked for this card to
-                    match Team's, which just changes its children. The remount
-                    itself is invisible: React swaps it in one commit. */}
-                <section
-                  key={`${tab}#${fallbackSwap}`}
-                  id={`orgsec-${tab}`}
-                  role="tabpanel"
-                  aria-labelledby={`orgtab-${tab}`}
-                  tabIndex={-1}
-                  className="psec2"
-                  data-sec={tab}
-                >
-                  {tab === "overview" && (
-                    <OverviewTab
-                      org={org}
-                      credentials={credentials}
-                      account={account}
-                      logoUrl={logoUrl}
-                      today={today}
-                      warnDays={warnDays}
-                      onGo={go}
-                    />
-                  )}
-                  {tab === "brand" && (
-                    <BrandSection org={org} logoUrl={logoUrl} actions={actions} />
-                  )}
-                  {tab === "identity" && <IdentitySection org={org} actions={actions} />}
-                  {tab === "contact" && (
-                    <ContactSection org={org} addressLookup={addressLookup} actions={actions} />
-                  )}
-                  {tab === "credentials" && (
-                    <CredentialsSection
-                      credentials={credentials}
-                      records={credentialRecords}
-                      documents={credentialDocuments}
-                      today={today}
-                      warnDays={warnDays}
-                      actions={actions}
-                    />
-                  )}
-                  {tab === "account" && account && (
-                    <AccountSection
-                      account={account}
-                      candidates={ownerCandidates}
-                      onTransfer={actions.onTransferOwnership}
-                    />
-                  )}
-                </section>
-              </div></div>
-            </div>
+          <div className="wb2-card">
+            <div className="wb2-panel"><div className="ppanel2">
+              {/* Keyed for `fallbackSwap`, the recovery remount — NOT for an
+                  animation any more. `.psec2` used to fade the panel in on
+                  every switch; it stopped when Isaac asked for this card to
+                  match Team's, which just changes its children. The remount
+                  itself is invisible: React swaps it in one commit. */}
+              <section
+                key={`${tab}#${fallbackSwap}`}
+                id={`orgsec-${tab}`}
+                role="tabpanel"
+                aria-labelledby={`orgtab-${tab}`}
+                tabIndex={-1}
+                className="psec2"
+                data-sec={tab}
+              >
+                {tab === "overview" && (
+                  <OverviewTab
+                    org={org}
+                    credentials={credentials}
+                    account={account}
+                    logoUrl={logoUrl}
+                    today={today}
+                    warnDays={warnDays}
+                    onGo={go}
+                  />
+                )}
+                {tab === "brand" && (
+                  <BrandSection org={org} logoUrl={logoUrl} actions={actions} />
+                )}
+                {tab === "identity" && <IdentitySection org={org} actions={actions} />}
+                {tab === "contact" && (
+                  <ContactSection org={org} addressLookup={addressLookup} actions={actions} />
+                )}
+                {tab === "credentials" && (
+                  <CredentialsSection
+                    credentials={credentials}
+                    records={credentialRecords}
+                    documents={credentialDocuments}
+                    today={today}
+                    warnDays={warnDays}
+                    actions={actions}
+                  />
+                )}
+                {tab === "account" && account && (
+                  <AccountSection
+                    account={account}
+                    candidates={ownerCandidates}
+                    onTransfer={actions.onTransferOwnership}
+                  />
+                )}
+              </section>
+            </div></div>
           </div>
         </div>
       </div>
@@ -275,12 +268,8 @@ export function OrgScreen({
   );
 }
 
-/* Your business — the logo, and the thing the logo lands on.
-
-   The two halves are one subject: the tile is the only control on the screen
-   that changes what a customer sees, and the card beside it is what they see.
-   Uploading and then hunting for the result on another tab was the arrangement
-   this replaces.
+/* Your business — the logo and the document colour: the two things on this
+   screen that change what a customer is sent.
 
    No Edit button, because there is nothing here to hold in a draft — the logo
    writes on drop, and the names it prints are edited on Company identity. Same
@@ -295,53 +284,33 @@ function BrandSection({
   actions: OrgActions;
 }) {
   const trading = org.trading_name ?? "";
-  const gst = org.gst_registered;
 
   return (
+    /* TWO GROUPS ACROSS, the way Overview lays out its panels: each one a
+       title on a hairline with its thing under it. It was a 260px tile and a
+       460px ID card pinned to the left of a 1,170px panel, a caption
+       explaining the tab above them, and the colour on a row of its own
+       underneath — so half the screen was empty and the colour sat below the
+       fold. The card went with the caption (Isaac, 2026-10-05): it previewed a
+       surface no customer is ever shown. */
     <div className="psec-body">
-      <div className="psechd">
-        <em>How the company appears to a customer</em>
-      </div>
-
       <div className="orgbrand">
-        <LogoUploader logoUrl={logoUrl} onSet={actions.onSetLogo} onClear={actions.onClearLogo} />
+        <DetailPanel title="Logo" plain>
+          <LogoUploader logoUrl={logoUrl} onSet={actions.onSetLogo} onClear={actions.onClearLogo} />
+        </DetailPanel>
 
-        {/* LIGHT plastic, where a staff card is dark: same object, other side
-            of the relationship — the business that issues the cards. And the
-            one card with NO issuer line: unset it read "HeyTiff", which on a
-            card meant to show a customer whose business this is named the
-            platform instead; set to the trading name it printed that name
-            twice, once in 10px caps directly above itself in 21px. */}
-        <IdCard
-          variant="light"
-          showIssuer={false}
-          badge={{ label: "Company", color: "#2E68FF" }}
-          photoUrl={logoUrl}
-          initials={orgInitials(trading || org.legal_name || "")}
-          name={trading || "Name your business"}
-          sub={org.legal_name || "Legal name not set"}
-          facts={[
-            { em: "ABN", b: formatAbn(org.abn) || "—" },
-            { em: "ACN", b: formatAcn(org.acn) || "—" },
-            {
-              em: "GST",
-              b: gst === true ? "Registered" : gst === false ? "Not registered" : "—",
-              tone: gst === true ? "ok" : undefined,
-            },
-          ]}
-        />
-      </div>
-
-      {/* Its own row rather than a third cell: `.orgbrand` is a pair — the
-          artwork and the card it lands on — and the colour is about neither of
-          them. It is about the documents, which is what its preview shows. */}
-      <div className="orgcolrow">
-        <em>Document colour</em>
-        <BrandColorPicker
-          value={org.brand_color}
-          onSet={actions.onSetBrandColor}
-          onClear={actions.onClearBrandColor}
-        />
+        {/* The colour is about the documents, not the artwork or the card, so
+            its preview is a document — printed with this business's own name,
+            where it used to say "Smith Air Conditioning" to everyone. */}
+        <DetailPanel title="Document colour" plain>
+          <BrandColorPicker
+            value={org.brand_color}
+            name={trading || org.legal_name || "Name your business"}
+            abn={formatAbn(org.abn) || undefined}
+            onSet={actions.onSetBrandColor}
+            onClear={actions.onClearBrandColor}
+          />
+        </DetailPanel>
       </div>
     </div>
   );

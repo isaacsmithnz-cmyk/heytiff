@@ -211,7 +211,7 @@ describe("the card switcher", () => {
 
     await user.click(screen.getByRole("tab", { name: "Account" }));
     expect(screen.getByText("Who holds this HeyTiff account")).toBeInTheDocument();
-    expect(screen.queryByText("How the company appears to a customer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Document colour")).not.toBeInTheDocument();
   });
 
   it("opens on the tab a link names, and writes the one you choose back to the URL", async () => {
@@ -287,32 +287,30 @@ describe("overview", () => {
 });
 
 describe("your business", () => {
-  it("reads as a card, not a form — name, ABN and GST on the plastic", () => {
-    const { container } = setup({ sec: "brand" });
-    expect(screen.getByRole("heading", { name: "Organisation" })).toBeInTheDocument();
-
-    const card = container.querySelector(".idc.light")!;
-    expect(card).toBeInTheDocument();
-    expect(within(card as HTMLElement).getByText("Smith Air Conditioning")).toBeInTheDocument();
-    expect(within(card as HTMLElement).getByText("Smith Air Pty Ltd")).toBeInTheDocument();
-    // grouped the way it is printed on an invoice
-    expect(within(card as HTMLElement).getByText("51 824 753 556")).toBeInTheDocument();
-    expect(within(card as HTMLElement).getByText("123 456 789")).toBeInTheDocument();
-    expect(within(card as HTMLElement).getByText("Registered")).toBeInTheDocument();
+  /* The miniature handover sheet printed "Smith Air Conditioning" for every
+     business on the platform. It is a preview of THIS business's document. */
+  it("prints the business's own name and ABN on the colour's sample sheet", () => {
+    const { container } = setup({ sec: "brand", org: { trading_name: "Blue Sky Air" } });
+    const sheet = container.querySelector(".orgcol-page") as HTMLElement;
+    expect(within(sheet).getByText("Blue Sky Air")).toBeInTheDocument();
+    expect(within(sheet).getByText("ABN 51 824 753 556")).toBeInTheDocument();
   });
 
-  /* The card used to carry an issuer line reading "HeyTiff" — IdCard's default,
-     left unset. On a card whose job is to show a customer whose business this
-     is, that named the platform. There is no third party to name here. */
-  it("carries no issuer line, and never says HeyTiff", () => {
+  /* Two groups, each titled — the tab used to open on a caption explaining
+     itself, with an ID card no customer is shown beside the logo and the
+     colour on its own row under the fold. */
+  it("lays the tab out as two titled groups", () => {
     const { container } = setup({ sec: "brand" });
-    expect(container.querySelector(".idc.light .idc-org")).toBeNull();
-    expect(within(container.querySelector(".idc.light")!).queryByText(/HeyTiff/)).toBeNull();
+    const titles = Array.from(container.querySelectorAll(".orgbrand > .pdlcard > .pdlh")).map(
+      (h) => h.textContent
+    );
+    expect(titles).toEqual(["Logo", "Document colour"]);
   });
 
-  it("falls back to initials when there is no logo, and shows the logo when there is", () => {
+  it("offers the drop target when there is no logo, and shows the logo when there is", () => {
     const { container, rerender } = setup({ sec: "brand" });
-    expect(container.querySelector(".idc-photo .inn")).toHaveTextContent("SA");
+    expect(container.querySelector(".orglogo-tile img")).toBeNull();
+    expect(screen.getByText("Drop an image")).toBeInTheDocument();
 
     rerender(
       <OrgScreen
@@ -337,7 +335,7 @@ describe("your business", () => {
         }}
       />
     );
-    expect(container.querySelector(".idc-photo img")).toHaveAttribute(
+    expect(container.querySelector(".orglogo-tile img")).toHaveAttribute(
       "src",
       "https://signed.example/logo.png"
     );
@@ -1122,7 +1120,7 @@ describe("the logo", () => {
 
     fireEvent.drop(tile, { dataTransfer: { files: [pdf] } });
 
-    expect(screen.getByText("That's not an image — PNG, JPG, WEBP or SVG.")).toBeInTheDocument();
+    expect(screen.getByText("That's not an image — PNG, JPG or WEBP.")).toBeInTheDocument();
     expect(uploadFile).not.toHaveBeenCalled();
   });
 

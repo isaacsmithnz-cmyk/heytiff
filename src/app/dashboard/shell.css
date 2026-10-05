@@ -4779,25 +4779,24 @@ button.fl-btn { font-size:14px; font-weight:700; }
    carries the gap above it */
 .fg .pdlbody > .credgrid { margin-top:0; }
 
-/* Your business: the logo tile, and the card the logo lands on.
+/* Your business: two groups across — the logo, and the document colour —
+   each one Overview's group (`.pdlcard`), a 20/600 title with its thing under
+   it and no frame of its own. Its own grid rather than `.pdlgrid`, whose
+   first-row rules assume equal columns.
 
-   The preview column is sized to `.idc`'s own max-width rather than a fraction,
-   so the card is never stretched past the aspect ratio it is drawn at; the tile
-   column takes what is left. They swap to one column early — at 780 the pair
-   would each be under 300px and the card's facts row starts wrapping. */
-/* Left, not spread: `space-between` was right when the stage was 920 and the
-   pair nearly filled it. At 1040 it would push 300px of nothing between the
-   tile and the card it is a preview of, and two halves of one subject have to
-   read as a pair. */
-.fg .orgbrand { display:grid; grid-template-columns:260px minmax(0,460px); justify-content:start; gap:32px; align-items:start; }
-/* 1040, not 900, and the 224px sidebar is the whole reason. `.idc` is drawn at
-   a fixed 856/540 with overflow:hidden, so a narrow card does not reflow — it
-   loses its own bottom row. Measured in the real shell it reads down to ~360px
-   wide and clips the ABN/ACN/GST line below that, and the card column here is
-   `viewport − 658` once the sidebar, the page padding and the card padding are
-   taken out. 1040 is the first round number that keeps it above 360. */
-@media (max-width:1040px){
+   The tracks are the objects' own sizes, not fractions: the tile stops at its
+   260px, and the colour at the 460px its controls and sheet want — never
+   under the 288px the swatch, hex and Remove need on one line (they measure
+   282). Both sit in ONE row, so neither draws the group's top rule — the tab
+   band's hairline is right above them. */
+.fg .orgbrand { display:grid; grid-template-columns:minmax(200px,260px) minmax(288px,460px);
+  justify-content:start; gap:32px 48px; align-items:start; }
+.fg .orgbrand > .pdlcard { border-top:0; padding-top:0; }
+.fg .orgbrand .pdlbody { margin-top:16px; }
+/* One column, and the stacked groups each keep their rule. */
+@media (max-width:900px){
   .fg .orgbrand { grid-template-columns:minmax(0,1fr); justify-content:stretch; gap:24px; }
+  .fg .orgbrand > .pdlcard:nth-child(n+2) { border-top:1px solid var(--line); padding-top:16px; }
   /* Stacked, the tile has nothing beside it, so a 260px square left half a row
      empty. It lays out against its OWN controls instead — the tile is smaller
      because it no longer has to hold its end of a two-up. */
@@ -4888,10 +4887,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
    preview that cannot fail. What is drawn here are the DERIVED roles
    (lib/org/theme.ts), painted inline by the component, so the only colours
    this sheet owns are the unthemed fallbacks. */
-.fg .orgcolrow { margin-top:32px; padding-top:24px; border-top:1px solid var(--line); }
-.fg .orgcolrow > em { display:block; font-style:normal; margin-bottom:12px; font-size:12px;
-  font-weight:500; color:var(--q); }
-.fg .orgcol { display:flex; align-items:flex-start; gap:24px; flex-wrap:wrap; }
+/* The controls lead and the sheet they repaint sits under them — a column,
+   so the preview is never pushed beside the field onto a line of its own. */
+.fg .orgcol { display:flex; flex-direction:column; align-items:flex-start; gap:16px; }
 /* The miniature document. Fixed width so the preview does not restyle itself
    as the card resizes — a preview that reflows is telling you about the card,
    not about the document. Aspect-locked to A4 so the band sits where it will
@@ -4918,7 +4916,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orgcol-page span { font-size:12px; font-weight:600; color:var(--ink); }
 .fg .orgcol-page i { display:block; height:3px; border-radius:999px; background:var(--tint-2); margin-top:4px; }
 .fg .orgcol-page i.short { width:58%; }
-.fg .orgcol-pick { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-top:2px; }
+.fg .orgcol-pick { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 /* A native colour input is a button with a swatch in it and no two browsers
    dress it alike; the padding/border reset is what makes the swatch fill the
    control instead of floating in chrome-drawn inset. */
@@ -4928,7 +4926,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orgcol-swatch::-webkit-color-swatch { border:none; border-radius:var(--r-control); }
 .fg .orgcol-swatch::-moz-color-swatch { border:none; border-radius:var(--r-control); }
 .fg .orgcol-hex { width:130px; height:46px; }
-.fg .orgcol .carderr { flex:1 0 100%; }
+.fg .orgcol .carderr { align-self:stretch; margin:0; }
 
 /* Account — four read-only facts about the account itself, two up. */
 .fg .orgacct { display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; }

@@ -25,11 +25,17 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
 
 export function BrandColorPicker({
   value,
+  name,
+  abn,
   onSet,
   onClear,
 }: {
   /** lowercase #rrggbb, or null for no theme */
   value: string | null;
+  /** what the miniature sheet prints: the business's own name, and its ABN
+      formatted — each on its own line, so a number never breaks in half */
+  name: string;
+  abn?: string;
   onSet: (hex: string) => Promise<SaveResult>;
   onClear: () => Promise<SaveResult>;
 }) {
@@ -48,7 +54,11 @@ export function BrandColorPicker({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const theme = documentTheme(draft);
+  /* What the sheet is drawn from: the draft while the picker is in hand, the
+     SAVED colour otherwise. Reading the draft whichever way `touched` fell is
+     how Remove left the old frame on the sheet — the draft still held it. */
+  const seed = touched ? draft : value;
+  const theme = seed ? documentTheme(seed) : null;
   /* TRANSPARENT, not a grey stand-in and not a house colour: no colour means
      no frame, which is what an unthemed document actually does. This drew the
      documents' old default near-black instead, and once that default went the
@@ -57,7 +67,7 @@ export function BrandColorPicker({
      `--doc-*` like the sheets do is unchanged: it has to draw for a colour
      that has not been saved, which is exactly when those variables are
      absent. */
-  const ink = theme && (value || touched) ? theme.ink : "transparent";
+  const ink = theme ? theme.ink : "transparent";
 
   const commit = async (hex: string) => {
     setError(null);
@@ -81,37 +91,19 @@ export function BrandColorPicker({
     await withCleanup(async () => {
       const res = await onClear();
       if (!res.ok) setError(res.error);
-      else setTyped("");
+      else {
+        /* back to untouched, not just an empty field: with `touched` still
+           set the sheet kept drawing the removed colour's band, and the
+           swatch kept showing it, beside a hex box that said nothing */
+        setTyped("");
+        setDraft(DEFAULT_SEED);
+        setTouched(false);
+      }
     }, () => setBusy(false));
   };
 
   return (
     <div className="orgcol">
-      {/* THE DOCUMENT, and it shows the BAND because the band is what the
-          colour does. This preview and the real sheets are the same shape and
-          the same two numbers — 4mm gutter, 7.94mm radius (the app shell's own
-          30px, converted at 96dpi) — scaled down together. Nothing chosen
-          draws no frame, because that is what an unthemed sheet does.
-
-          Inert: no role, no labels, nothing to tab to. It is a picture of an
-          outcome, and a screen reader announcing a coloured rectangle would be
-          reading out something that is not there.
-
-          What is drawn is never the colour that was picked. `documentTheme`
-          darkens it only as far as it must to stay visible on white, so a
-          business choosing pale yellow sees the gold its band will actually be
-          at the moment it chooses. */}
-      <div className="orgcol-doc" aria-hidden="true">
-        <div className="orgcol-band" style={{ background: ink }} />
-        <div className="orgcol-well" />
-        <div className="orgcol-page">
-          <b>Handover sheet</b>
-          <span>Smith Air Conditioning, ABN 51 824 753 556</span>
-          <i />
-          <i className="short" />
-        </div>
-      </div>
-
       <div className="orgcol-pick">
         {/* `input` repaints, `change` saves. Both are needed: without the
             first the preview is dead while you drag, and with only the first
@@ -155,7 +147,34 @@ export function BrandColorPicker({
         )}
       </div>
 
+      {/* under the field it is about, not under the sheet */}
       {error && <div className="carderr">{error}</div>}
+
+      {/* THE DOCUMENT, and it shows the BAND because the band is what the
+          colour does. This preview and the real sheets are the same shape and
+          the same two numbers — 4mm gutter, 7.94mm radius (the app shell's own
+          30px, converted at 96dpi) — scaled down together. Nothing chosen
+          draws no frame, because that is what an unthemed sheet does.
+
+          Inert: no role, no labels, nothing to tab to. It is a picture of an
+          outcome, and a screen reader announcing a coloured rectangle would be
+          reading out something that is not there.
+
+          What is drawn is never the colour that was picked. `documentTheme`
+          darkens it only as far as it must to stay visible on white, so a
+          business choosing pale yellow sees the gold its band will actually be
+          at the moment it chooses. */}
+      <div className="orgcol-doc" aria-hidden="true">
+        <div className="orgcol-band" style={{ background: ink }} />
+        <div className="orgcol-well" />
+        <div className="orgcol-page">
+          <b>Handover sheet</b>
+          <span>{name}</span>
+          {abn && <span>ABN {abn}</span>}
+          <i />
+          <i className="short" />
+        </div>
+      </div>
     </div>
   );
 }

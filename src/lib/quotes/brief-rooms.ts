@@ -187,7 +187,7 @@ export function checkRooms(read: ReadBrief, brief: string): { rooms: ReadRoom[];
   return { rooms, dropped };
 }
 
-const STYLE_OF: Record<string, IndoorStyle> = {
+export const STYLE_OF: Record<string, IndoorStyle> = {
   wall: "wall",
   ducted: "ducted",
   bulkhead: "bulkhead",

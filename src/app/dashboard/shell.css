@@ -12059,8 +12059,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .qs-offer em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 .qs-offer.ok { color:var(--ok-t); font-weight:600; }
 .qs-saves { font-size:13px; font-weight:500; color:var(--q); text-align:right; }
-/* the pack's links: a near match per row with its prices and the answer */
-.qs-linkrow { grid-template-columns:240px 220px minmax(0, 1fr) 240px; }
+/* the pack's links: near units in groups by what differs, each row ticked
+   into its group's press, with its prices and its own "not the same" */
+.lk-group { margin-top:16px; }
+.lk-group .qs-table { margin-top:8px; }
+.qs-row.lk-row { grid-template-columns:32px 220px 280px minmax(0, 1fr) 132px; }
 .qs-acts2 { gap:8px; }
 .qs-unpriced li { grid-template-columns:minmax(0, 1fr); }
 /* one part at two suppliers: each side with its price, what they share,

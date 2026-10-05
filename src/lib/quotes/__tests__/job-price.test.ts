@@ -305,3 +305,8 @@ describe("a part that comes in sizes", () => {
     ]);
   });
 });
+
+it("says what a unit's order code gives it: the K is Wi-Fi built in", () => {
+  const { lines } = priceJobList([{ name: "MSZ-AP71VGD2", sub: "Wall split, 7.1 kW", qty: "1" }], deps);
+  expect(lines[0]).toMatchObject({ code: "MSZ-AP71VGKD2-A2", features: ["Wi-Fi built in", "Demand response (DRED) ready"] });
+});

@@ -1,10 +1,12 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
-import { decideLink, pricedLinks } from "@/lib/quotes/links-server";
+import { decideLinks, pricedLinks } from "@/lib/quotes/links-server";
 
 /* The equipment pack's models and the order codes they're priced by: the
-   list (GET), and a person's answer on a near match (POST {model, code,
-   decision}). `financials`, like the rest of Quoting. */
+   list (GET), and a person's answers on near matches (POST {decisions:
+   [{model, code, decision}]} — a unit's every code, or a whole group at
+   once — or one {model, code, decision}). `financials`, like the rest of
+   Quoting. */
 
 async function gate(): Promise<{ orgId: string; userId: string } | Response> {
   const session = await auth0.getSession();
@@ -22,14 +24,24 @@ export async function GET() {
   return Response.json({ ok: true, links: await pricedLinks(who.orgId) });
 }
 
+const MAX_ANSWERS = 500;
+
+/** An answer as the page sent it, only when it holds up. */
+function answerOf(v: unknown): { model: string; code: string; decision: "confirmed" | "rejected" } | null {
+  if (!v || typeof v !== "object") return null;
+  const r = v as Record<string, unknown>;
+  const model = typeof r.model === "string" ? r.model.trim().slice(0, 80) : "";
+  const code = typeof r.code === "string" ? r.code.trim().slice(0, 80) : "";
+  const decision = r.decision === "confirmed" || r.decision === "rejected" ? r.decision : null;
+  return model && code && decision ? { model, code, decision } : null;
+}
+
 export async function POST(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
-  const body = (await req.json().catch(() => ({}))) as { model?: unknown; code?: unknown; decision?: unknown };
-  const model = typeof body.model === "string" ? body.model.trim().slice(0, 80) : "";
-  const code = typeof body.code === "string" ? body.code.trim().slice(0, 80) : "";
-  const decision = body.decision === "confirmed" || body.decision === "rejected" ? body.decision : null;
-  if (!model || !code || !decision) return Response.json({ ok: false, reason: "Nothing to decide." }, { status: 400 });
-  const ok = await decideLink(who.orgId, who.userId, model, code, decision);
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const answers = (Array.isArray(body.decisions) ? body.decisions.slice(0, MAX_ANSWERS) : [body]).map(answerOf).filter((a): a is NonNullable<typeof a> => a !== null);
+  if (answers.length === 0) return Response.json({ ok: false, reason: "Nothing to decide." }, { status: 400 });
+  const ok = await decideLinks(who.orgId, who.userId, answers);
   return Response.json(ok ? { ok: true } : { ok: false, reason: "That couldn't be saved. Try again." });
 }

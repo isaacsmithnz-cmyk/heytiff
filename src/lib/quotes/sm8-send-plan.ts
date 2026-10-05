@@ -56,7 +56,8 @@ export function optionLines(draft: ProposalDraft, i: number, build: BuildUp, sho
   }
   const out: SendLine[] = build.groups.flatMap((g) =>
     g.lines.map((l) => ({
-      name: l.name,
+      /* a unit says what its order code gives it: "MSZ-AP25VGD2, Wi-Fi built in" */
+      name: l.features?.length ? `${l.name}, ${l.features.join(", ")}` : l.name,
       quantity: l.qty,
       unitPriceCents: l.qty > 0 ? l.sellCents / l.qty : l.sellCents,
       unitCostCents: l.unitBuyCents,

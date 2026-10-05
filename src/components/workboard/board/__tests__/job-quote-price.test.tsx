@@ -107,7 +107,7 @@ it("prices each option on its own", async () => {
 it("says which supplier a unit is from, and when no one supplier has the whole system", async () => {
   const build = priceBuildUp(
     [
-      { key: "row-0", group: "Units", name: "MSZ-AP50VGD", code: "MSZ-AP50VGD-A1", supplierKey: "mitsubishi", supplierName: "Mitsubishi Electric", qty: 1, unitBuyCents: 52000, kind: "unit" },
+      { key: "row-0", group: "Units", name: "MSZ-AP50VGD", code: "MSZ-AP50VGKD2-A2", supplierKey: "mitsubishi", supplierName: "Mitsubishi Electric", qty: 1, unitBuyCents: 52000, kind: "unit", features: ["Wi-Fi built in"] },
       { key: "row-1", group: "Units", name: "AOTH24KBCA3", code: "AOTH24KBCA3", supplierKey: "aad", supplierName: "AAD", qty: 1, unitBuyCents: 90000, kind: "unit", because: "no one supplier has the whole system" },
     ],
     [{ stage: "Install", people: 1, days: 1 }],
@@ -115,6 +115,7 @@ it("says which supplier a unit is from, and when no one supplier has the whole s
   );
   answer({ ok: true, options: [{ name: "Split", build, unpriced: [], rows: 2, labourFrom: "brief" }] });
   render(<JobQuotePrice job="j-1" visible />);
-  expect(await screen.findByText("1 at $520 buy, from Mitsubishi Electric")).toBeInTheDocument();
+  /* and what its order code gives it */
+  expect(await screen.findByText("1 at $520 buy, from Mitsubishi Electric, Wi-Fi built in")).toBeInTheDocument();
   expect(screen.getByText("1 at $900 buy, from AAD, no one supplier has the whole system")).toBeInTheDocument();
 });

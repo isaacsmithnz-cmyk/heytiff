@@ -41,6 +41,8 @@ export type BuildLine = {
   swap?: string | null;
   /** why it's here, when another choice put it here */
   because?: string | null;
+  /** what a unit's order code says it has, in a client's words: "Wi-Fi built in" */
+  features?: string[];
 };
 
 export type VisitStage = "Site measure" | "Rough-in" | "Install" | "Fit-off" | "Commissioning" | "Return";

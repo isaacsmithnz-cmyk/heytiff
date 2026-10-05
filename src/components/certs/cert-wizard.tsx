@@ -666,7 +666,7 @@ export function CertWizard({
         </div>
       ))}
       <button type="button" className="pbtn ghost sm cz-add" onClick={() => set({ systems: [...a.systems, blankSystem(a.systems[0]?.test.refrigerant ?? "")] })}>
-        Add an outdoor unit
+        Add equipment
       </button>
     </div>
   );

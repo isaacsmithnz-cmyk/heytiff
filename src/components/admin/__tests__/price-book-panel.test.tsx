@@ -151,3 +151,143 @@ it("takes a supplier's invoices under the supplier, asking no discount for what 
   expect(sent[1]!.get("kind")).toBe("invoices");
   expect(screen.getByText("Mitsubishi Electric invoices in: 93 items read, 50 prices changed, 43 new.")).toBeInTheDocument();
 });
+
+/* Isaac, 2026-10-05: the price book takes in invoices — the invoice itself,
+   a PDF or a photo, as well as a spreadsheet of them. Tiff reads it; the
+   person sees every line and what it does to the book before any goes in. */
+it("reads an invoice PDF, shows each line against the book, and adds the lot on one press", async () => {
+  const posts: { url: string; body: FormData | string }[] = [];
+  global.fetch = jest.fn(async (url: string, init?: RequestInit) => {
+    posts.push({ url, body: init!.body as FormData | string });
+    if (url === "/api/quoting/invoice-read") {
+      return {
+        json: async () => ({
+          ok: true,
+          read: {
+            supplier: "Reece Australia Pty Ltd",
+            invoiceNo: "7781203",
+            invoiceDate: "2026-09-29",
+            lines: [
+              { code: "PC1412", name: "Pair coil 1/4 1/2 15m", qty: 2, cents: 11850, now: 12400, after: 11850 },
+              { code: "CMADJ", name: "Pipe clamp", qty: 20, cents: 115, now: null, after: 115 },
+              { code: "PC1438", name: "Pair coil 1/4 3/8 15m", qty: 1, cents: 9900, now: 9500, after: 9500 },
+            ],
+            skipped: [{ name: "Freight", why: "not a product" }],
+          },
+        }),
+      } as Response;
+    }
+    return { json: async () => ({ ok: true, summary: { read: 3, added: 1, changed: 1, gone: 0 } }) } as Response;
+  }) as unknown as typeof fetch;
+  const onImported = jest.fn();
+  const aad = { ...acme, key: "aad", name: "AAD", format: "aad_csv" as const, file: "csv" as const };
+  const reece = { ...acme, key: "reece", name: "Reece", format: "reece_csv" as const, file: "csv" as const };
+  render(<PriceBook suppliers={[aad, reece]} onImported={onImported} />);
+  fireEvent.click(screen.getByRole("button", { name: /^AAD/ }));
+  const input = screen.getByLabelText("Add AAD invoices");
+  expect(input.getAttribute("accept")).toContain("application/pdf");
+  expect(input.getAttribute("accept")).toContain("image/jpeg");
+  await act(async () => {
+    fireEvent.change(input, { target: { files: [new File(["%PDF"], "INV-7781203.pdf", { type: "application/pdf" })] } });
+  });
+
+  expect(posts[0]!.url).toBe("/api/quoting/invoice-read");
+  expect((posts[0]!.body as FormData).get("supplier")).toBe("aad");
+  expect(screen.getByRole("heading", { name: /^Invoice 7781203 from Reece Australia Pty Ltd, 29 Sept? 2026$/ })).toBeInTheDocument();
+  /* the invoice is another supplier's: said, not refused */
+  expect(screen.getByText("This invoice names Reece, not AAD.")).toBeInTheDocument();
+  const rows = screen.getAllByRole("row").slice(1).map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
+  expect(rows).toEqual([
+    ["PC1412", "Pair coil 1/4 1/2 15m", "2", "$118.50", "Was $124.00"],
+    ["CMADJ", "Pipe clamp", "20", "$1.15", "New"],
+    ["PC1438", "Pair coil 1/4 3/8 15m", "1", "$99.00", "Keeps $95.00, a newer price"],
+  ]);
+  expect(screen.getByText("Not taken: Freight, not a product.")).toBeInTheDocument();
+  /* nothing has gone in yet */
+  expect(onImported).not.toHaveBeenCalled();
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add 3 prices" }));
+  });
+  expect(posts[1]!.url).toBe("/api/quoting/invoice-lines");
+  expect(JSON.parse(posts[1]!.body as string)).toEqual({
+    supplier: "aad",
+    invoiceNo: "7781203",
+    invoiceDate: "2026-09-29",
+    fileName: "INV-7781203.pdf",
+    lines: [
+      { code: "PC1412", name: "Pair coil 1/4 1/2 15m", cents: 11850 },
+      { code: "CMADJ", name: "Pipe clamp", cents: 115 },
+      { code: "PC1438", name: "Pair coil 1/4 3/8 15m", cents: 9900 },
+    ],
+  });
+  expect(screen.getByText("AAD invoice 7781203 in: 3 items read, 1 price changed, 1 new.")).toBeInTheDocument();
+  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  expect(onImported).toHaveBeenCalled();
+});
+
+it("cancels an invoice read without adding anything, and says what went wrong reading one", async () => {
+  global.fetch = jest.fn(async () => ({ json: async () => ({ ok: false, reason: "That's 14 pages. Tiff reads an invoice of up to 10." }) })) as unknown as typeof fetch;
+  render(<PriceBook suppliers={[acme]} onImported={jest.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: /^Acme/ }));
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Add Acme invoices"), { target: { files: [new File(["%PDF"], "statement.pdf", { type: "application/pdf" })] } });
+  });
+  expect(screen.getByText("That's 14 pages. Tiff reads an invoice of up to 10.")).toBeInTheDocument();
+  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+  global.fetch = jest.fn(async () => ({
+    json: async () => ({ ok: true, read: { supplier: "", invoiceNo: "", invoiceDate: null, lines: [{ code: "AC-100", name: "Bracket", qty: 4, cents: 1000, now: null, after: 1000 }], skipped: [] } }),
+  })) as unknown as typeof fetch;
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Add Acme invoices"), { target: { files: [new File(["jpeg"], "invoice.jpg", { type: "image/jpeg" })] } });
+  });
+  /* a photo goes as a photo, read off the disk first; with no number on it
+     the file names it */
+  expect(await screen.findByRole("heading", { name: "invoice.jpg" })).toBeInTheDocument();
+  const sent = ((global.fetch as jest.Mock).mock.calls[0]![1] as RequestInit).body as FormData;
+  expect((sent.get("file") as File).type).toBe("image/jpeg");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+});
+
+it("doesn't send an invoice file over 4 MB, which the host would refuse", async () => {
+  global.fetch = jest.fn() as unknown as typeof fetch;
+  render(<PriceBook suppliers={[acme]} onImported={jest.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: /^Acme/ }));
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Add Acme invoices"), {
+      target: { files: [new File([new Uint8Array(5 * 1024 * 1024)], "scan.pdf", { type: "application/pdf" })] },
+    });
+  });
+  expect(screen.getByText("That file is over 4 MB.")).toBeInTheDocument();
+  expect(global.fetch).not.toHaveBeenCalled();
+});
+
+it("says Adding only while this invoice's prices go in, not while another file is read", async () => {
+  const read = { supplier: "", invoiceNo: "12", invoiceDate: null, lines: [{ code: "AC-100", name: "Bracket", qty: 4, cents: 1000, now: null, after: 1000 }], skipped: [] };
+  let finish: (v: unknown) => void = () => {};
+  global.fetch = jest.fn(async (url: string) => {
+    if (url === "/api/quoting/invoice-read") return { json: async () => ({ ok: true, read }) } as Response;
+    /* the other file, and then the prices, take their time */
+    return { json: () => new Promise((resolve) => (finish = resolve)) } as unknown as Response;
+  }) as unknown as typeof fetch;
+  render(<PriceBook suppliers={[acme]} onImported={jest.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: /^Acme/ }));
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Add Acme invoices"), { target: { files: [new File(["%PDF"], "12.pdf", { type: "application/pdf" })] } });
+  });
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Upload Acme price list"), { target: { files: [new File(["x"], "list.xlsx")] } });
+  });
+  expect(screen.getByRole("button", { name: "Add 1 price" })).toBeDisabled();
+  await act(async () => finish({ ok: false, reason: "No prices found in that file." }));
+
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add 1 price" }));
+  });
+  expect(screen.getByRole("button", { name: "Adding" })).toBeDisabled();
+  await act(async () => finish({ ok: true, summary: { read: 1, added: 1, changed: 0, gone: 0 } }));
+  expect(screen.getByText("Acme invoice 12 in: 1 item read, no price changed, 1 new.")).toBeInTheDocument();
+});

@@ -250,9 +250,18 @@ export async function importInvoiceRows(orgId: string, supplier: Supplier, fileN
       .upsert(plan.upserts.slice(i, i + CHUNK), { onConflict: "org_id,supplier_key,code" });
     if (error) throw new Error(error.message);
   }
+  /* how many of its items invoices price, not how many were on this one:
+     invoices add up, one at a time */
+  const { count } = await supabaseAdmin
+    .from("quote_price_items")
+    .select("code", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("supplier_key", supplier.key)
+    .eq("current", true)
+    .not("paid_cents", "is", null);
   await supabaseAdmin
     .from("quote_suppliers")
-    .update({ invoice_file_name: fileName.slice(0, 200), invoiced_at: now, invoice_items: rows.length, updated_at: now })
+    .update({ invoice_file_name: fileName.slice(0, 200), invoiced_at: now, invoice_items: count ?? rows.length, updated_at: now })
     .eq("org_id", orgId)
     .eq("key", supplier.key);
   return plan.summary;

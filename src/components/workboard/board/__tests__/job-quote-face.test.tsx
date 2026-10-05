@@ -54,9 +54,15 @@ beforeEach(() => {
 
 const face = (onToast = jest.fn()) =>
   render(<JobQuoteFace job="j-1" address={"12 Smith St\nMosman NSW 2088"} visible onToast={onToast} />);
+/** A job with a draft opens on "Continue quote"; pressing it opens the quote. */
+const openFace = async (onToast = jest.fn()) => {
+  const r = face(onToast);
+  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
+  return r;
+};
 
 it("stands the checklist first and the blocks in the skeleton's order, with nothing to copy", async () => {
-  const { container } = face();
+  const { container } = await openFace();
   await screen.findByText("Site checklist");
   const heads = [...container.querySelectorAll(".wb2-jcdhead b")].map((b) => b.textContent);
   expect(heads).toEqual([
@@ -76,8 +82,24 @@ it("stands the checklist first and the blocks in the skeleton's order, with noth
   expect(screen.getByText("Wi-Fi adaptor")).toBeInTheDocument();
 });
 
+/* Isaac, 2026-10-05: "jobs with a HeyTiff draft should just say continue quote" */
+it("shows a draft as Continue quote, and the builder's own sections only once it's open", async () => {
+  render(
+    <JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()}>
+      <p>Price block</p>
+    </JobQuoteFace>
+  );
+  expect(await screen.findByRole("button", { name: "Continue quote" })).toBeInTheDocument();
+  expect(screen.getByText("Quote")).toBeInTheDocument();
+  expect(screen.queryByText("Site checklist")).toBeNull();
+  expect(screen.queryByText("Price block")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Continue quote" }));
+  expect(await screen.findByText("Site checklist")).toBeInTheDocument();
+  expect(screen.getByText("Price block")).toBeInTheDocument();
+});
+
 it("asks the first open question with its usual answers, and saves an answer with no model call", async () => {
-  face();
+  await openFace();
   const asked = await screen.findAllByText("What covers the pipes where they're seen?");
   expect(asked[0]).toHaveClass("wb2-jqask");
   await act(async () => {
@@ -98,7 +120,7 @@ it("asks the first open question with its usual answers, and saves an answer wit
 });
 
 it("switches the payment terms by the kind of job", async () => {
-  face();
+  await openFace();
   await screen.findByText("Site checklist");
   const terms = screen.getByRole("radiogroup", { name: "Payment terms" });
   expect(within(terms).getByRole("radio", { name: "Home, small job" })).toHaveAttribute("aria-checked", "true");
@@ -110,10 +132,11 @@ it("switches the payment terms by the kind of job", async () => {
   expect(sent.draft.payment).toEqual({ preset: "domestic_construction", stages: PAYMENT_PRESETS.domestic_construction.stages });
 });
 
-it("opens on the box that drafts one when the job has none, and drafts from it", async () => {
+it("opens on Create a quote when the job has none, and drafts from its box", async () => {
   fetchMock.mockImplementationOnce(() => respond({ ok: true, proposal: null }));
   face();
-  await screen.findByText("Draft the proposal");
+  fireEvent.click(await screen.findByRole("button", { name: "Create a quote" }));
+  expect(screen.getByText("Create a quote")).toBeInTheDocument();
   const draft = screen.getByRole("button", { name: "Draft proposal" });
   expect(draft).toBeDisabled();
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "Own 6 kW split, parapet wall" } });
@@ -133,11 +156,12 @@ it("a read that fails offers Try again, never the box that would draft over it",
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   });
+  fireEvent.click(await screen.findByRole("button", { name: "Continue quote" }));
   await screen.findByText("Site checklist");
 });
 
 it("saves on the copy it was made from, and an answer leaves an open editor open", async () => {
-  face();
+  await openFace();
   await screen.findByText("Site checklist");
   fireEvent.click(screen.getByRole("button", { name: "Edit Intro" }));
   fireEvent.change(screen.getByDisplayValue(/Here is the scope/), { target: { value: "Hi Jane, half typed" } });
@@ -151,7 +175,7 @@ it("saves on the copy it was made from, and an answer leaves an open editor open
 
 it("shows the proposal as it stands when someone else saved first", async () => {
   const onToast = jest.fn();
-  face(onToast);
+  await openFace(onToast);
   await screen.findByText("Site checklist");
   const newer = { ...stored(), updatedAt: "2026-09-29T09:00:00Z", draft: normaliseDraft({ ...stored().draft, intro: "Hi Jane,\nNewer words." })! };
   fetchMock.mockImplementationOnce(() => respond({ ok: false, reason: "Someone else changed this proposal", proposal: newer }));
@@ -163,7 +187,7 @@ it("shows the proposal as it stands when someone else saved first", async () => 
 });
 
 it("the payment editor opens on the stages the draft holds now", async () => {
-  face();
+  await openFace();
   await screen.findByText("Site checklist");
   const terms = screen.getByRole("radiogroup", { name: "Payment terms" });
   await act(async () => {
@@ -174,7 +198,7 @@ it("the payment editor opens on the stages the draft holds now", async () => {
 });
 
 it("marks an option accepted, the job's equipment for its certificate", async () => {
-  face();
+  await openFace();
   const mark = await screen.findByRole("button", { name: "Mark accepted" });
   expect(mark).toHaveAttribute("aria-pressed", "false");
   await act(async () => {
@@ -186,7 +210,7 @@ it("marks an option accepted, the job's equipment for its certificate", async ()
 });
 
 it("shows a unit with no model as not given yet, and edits the equipment row by row", async () => {
-  face();
+  await openFace();
   await screen.findByText("Living room");
   expect(screen.getByText("Model not given yet")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Edit Option 1: Install client-supplied 6 kW split" }));
@@ -229,23 +253,29 @@ describe("a quote ServiceM8 generated", () => {
     fetchMock.mockImplementation(() => respond({ ok: true, proposal: null }));
   });
 
-  it("opens on ServiceM8's quote, its PDF opening in the card, and a new version is asked for", async () => {
+  it("opens on ServiceM8's quote, its PDF opening in the card, and Update ServiceM8 quote starts from it", async () => {
+    fetchMock.mockImplementation(() =>
+      respond({ ok: true, proposal: null, sm8Brief: "As quoted in ServiceM8:\n1 x MXZ-5F100 outdoor\n\nIts line items:\n- Condensate pump" })
+    );
     const onOpenPaper = jest.fn();
     render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={sm8} onOpenPaper={onOpenPaper} />);
     expect(await screen.findByText("Quote from ServiceM8")).toBeInTheDocument();
     expect(screen.getByText("Sent Thu 1 Oct, $45,430 inc GST")).toBeInTheDocument();
-    expect(screen.queryByText("Draft the proposal")).toBeNull();
+    expect(screen.queryByText("Create a quote")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Diamond Air Solutions Pty LTD Quote #3386/ }));
     expect(onOpenPaper).toHaveBeenCalledWith(paper);
-    fireEvent.click(screen.getByRole("button", { name: "Start a new version" }));
-    expect(screen.getByText("A new version")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Update ServiceM8 quote" }));
+    /* the builder opens on what ServiceM8's quote says, to change before drafting */
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
+      "As quoted in ServiceM8:\n1 x MXZ-5F100 outdoor\n\nIts line items:\n- Condensate pump"
+    );
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByRole("button", { name: "Start a new version" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Update ServiceM8 quote" })).toBeInTheDocument();
   });
 
-  it("a job ServiceM8 never quoted still opens on the box that drafts one", async () => {
+  it("a job ServiceM8 never quoted opens on Create a quote", async () => {
     render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
-    expect(await screen.findByText("Draft the proposal")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Create a quote" })).toBeInTheDocument();
     expect(screen.queryByText("Quote from ServiceM8")).toBeNull();
   });
 });
@@ -260,7 +290,7 @@ it("prices an option from the Price block's total, and shows it ex and inc GST",
           price: { ok: true, build: { exGstCents: 812_500, labour: { sellCents: 224_000 } }, unpriced: [], labourFrom: "brief", rows: 4 },
         }) : route(url, init)
   );
-  face();
+  await openFace();
   await screen.findByText("Site checklist");
   expect(screen.getByText("Not priced yet")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
@@ -282,7 +312,7 @@ it("says when the Price block has nothing to take yet", async () => {
   fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) =>
     url.startsWith("/api/workboard/quote-price") ? respond({ ok: true, price: { ok: false, unset: ["rate"] } }) : route(url, init)
   );
-  face();
+  await openFace();
   await screen.findByText("Site checklist");
   fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
   await act(async () => {
@@ -309,7 +339,7 @@ it("won't take a total so far, and says what's left to price", async () => {
         })
       : route(url, init)
   );
-  face();
+  await openFace();
   await screen.findByText("Site checklist");
   fireEvent.click(screen.getByRole("button", { name: "Edit Pricing" }));
   await act(async () => {

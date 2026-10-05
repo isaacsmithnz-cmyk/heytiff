@@ -106,6 +106,7 @@ jest.mock('@/app/actions/certificates', () => ({
   mySignature: jest.fn(async () => null),
   saveMySignature: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
   revalidateCertificates: jest.fn(async () => {}),
+  deleteCertificate: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
 }))
 
 /* Filing a document on a job, for the same reason: the job card imports it

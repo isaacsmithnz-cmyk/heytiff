@@ -3,7 +3,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { getDbRole, requireOrg } from "@/lib/permissions-server";
+import { can, getDbRole, requireOrg } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles-shared";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import { todayInAu } from "@/lib/au-dates";
@@ -40,6 +40,8 @@ import {
                                and contractor licence (checked at issue)
      approving the wording     the owner, as for the SWMS library
      your own signature        being a signed-in member: it is your own mark
+     deleting a certificate    `workboard_manage`, or whoever signed its
+                               latest version
 
    Server Functions are reachable by direct POST, so every one re-checks for
    itself, and every id from a browser is re-resolved in this org. Nothing here
@@ -175,11 +177,13 @@ export async function certPrevious(
   }
 }
 
-/** The job's certificates at their latest versions, for the Documents face. */
+/** The job's certificates at their latest versions, for the Documents face,
+    each saying whether this viewer may delete it. */
 export async function listCertificatesForJob(jobUuid: string): Promise<CertSummary[] | null> {
   try {
-    const { orgId } = await requireOrg("workboard");
-    return await listJobCerts(orgId, trim(jobUuid));
+    const { orgId, userId } = await requireOrg("workboard");
+    const [list, manage, staffId] = await Promise.all([listJobCerts(orgId, trim(jobUuid)), can("workboard_manage"), staffIdFor(orgId, userId)]);
+    return list.map((c) => ({ ...c, mayDelete: manage || (!!staffId && c.issuedById === staffId) }));
   } catch {
     return null;
   }
@@ -439,4 +443,59 @@ export async function certificatePdfUrl(versionId: string): Promise<string | nul
   } catch {
     return null;
   }
+}
+
+/* DELETING A CERTIFICATE — every version, and every PDF it filed on the job
+   (Isaac, 2026-10-05: "need to be able to delete certs too"). A certificate
+   is signed paper, so not everyone who can open the card may take it back:
+   a manager (`workboard_manage`), or whoever signed its latest version.
+
+   The certifier's list it was read from is left on the job: that file was
+   put there by somebody, not made by the certificate. A copy already sent to
+   ServiceM8 or emailed stays where it went; nothing here can reach it. */
+export async function deleteCertificate(certificateId: string): Promise<CertResult> {
+  let orgId: string;
+  let userId: string;
+  try {
+    ({ orgId, userId } = await requireOrg("workboard"));
+  } catch {
+    return { ok: false, error: "You can't delete certificates." };
+  }
+  const id = trim(certificateId);
+  if (!id) return { ok: false, error: "That certificate is already gone." };
+
+  const { data: cert } = await supabaseAdmin.from("certificates").select("id").eq("org_id", orgId).eq("id", id).maybeSingle();
+  if (!cert) return { ok: false, error: "That certificate is already gone." };
+  const { data } = await supabaseAdmin
+    .from("certificate_versions")
+    .select("version, document_id, issued_by_staff_id")
+    .eq("org_id", orgId)
+    .eq("certificate_id", id)
+    .order("version", { ascending: false });
+  const versions = (data ?? []) as { version: number; document_id: string | null; issued_by_staff_id: string }[];
+
+  const [manage, staffId] = await Promise.all([can("workboard_manage"), staffIdFor(orgId, userId)]);
+  const signedLatest = !!staffId && versions[0]?.issued_by_staff_id === staffId;
+  if (!manage && !signedLatest) return { ok: false, error: "Only a manager, or whoever signed it, can delete this certificate." };
+
+  /* the PDFs it filed, as they are now: only our own job documents */
+  const docIds = versions.map((v) => v.document_id).filter((d): d is string => !!d);
+  const { data: docs } = docIds.length
+    ? await supabaseAdmin.from("documents").select("id, kind, storage_ref").eq("org_id", orgId).in("id", docIds)
+    : { data: [] };
+  const files = ((docs ?? []) as { id: string; kind: string; storage_ref: string }[]).filter(
+    (d) => d.kind === "job_document" && refIsOrgs(String(d.storage_ref), orgId)
+  );
+
+  /* the certificate first (its versions go with it): a PDF left behind by a
+     failed clean-up is a file on the job someone can remove, where a
+     certificate whose PDF went first would point at nothing */
+  const { error } = await supabaseAdmin.from("certificates").delete().eq("org_id", orgId).eq("id", id);
+  if (error) return { ok: false, error: "Couldn't delete the certificate. Try again." };
+  if (files.length > 0) {
+    await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).remove(files.map((f) => String(f.storage_ref)));
+    const { error: gone } = await supabaseAdmin.from("documents").delete().eq("org_id", orgId).in("id", files.map((f) => f.id));
+    if (gone) return { ok: false, error: "The certificate is deleted, but its PDF is still on the job. Remove it from Files." };
+  }
+  return { ok: true };
 }

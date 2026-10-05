@@ -570,6 +570,10 @@ so the `documents` kind check is unchanged.
 - **Read the paper:** `workboard`.
 - **Email and Send to ServiceM8:** the footer's existing gates
   (`workboard_manage`).
+- **Delete** (2026-10-05): a manager (`workboard_manage`), or whoever signed
+  the latest version. It takes every version and every PDF the certificate
+  filed on the job, after a second press that says so. The certifier's list
+  stays, and a copy already sent to ServiceM8 or emailed stays where it went.
 
 ## Build order
 

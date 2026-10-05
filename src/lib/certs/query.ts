@@ -190,7 +190,12 @@ export type CertSummary = {
   title: string;
   issuedAt: string;
   issuedBy: string;
+  /** The staff card that signed the latest version. */
+  issuedById: string;
   documentId: string | null;
+  /** Whether this viewer may delete it: a manager, or whoever signed the
+      latest version. Set by the action that lists them. */
+  mayDelete?: boolean;
 };
 
 /** The job's certificates at their latest versions, newest first. */
@@ -229,6 +234,7 @@ export async function listJobCerts(orgId: string, jobUuid: string): Promise<Cert
       title: r.title || CERT_TITLE,
       issuedAt: r.issued_at,
       issuedBy: names.get(r.issued_by_staff_id) ?? "Unnamed",
+      issuedById: r.issued_by_staff_id,
       documentId: r.document_id,
     }));
 }

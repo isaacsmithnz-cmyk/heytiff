@@ -50,7 +50,7 @@ import { checkIn, checkOut, readMyCheckIn, type MyCheckIn } from "@/app/actions/
 import { jobSteps, type StepKey } from "@/lib/workboard/job-steps";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { CertWizard } from "@/components/certs/cert-wizard";
-import { listCertificatesForJob } from "@/app/actions/certificates";
+import { deleteCertificate, listCertificatesForJob } from "@/app/actions/certificates";
 import type { CertSummary } from "@/lib/certs/query";
 import { CERT_TITLE } from "@/lib/certs/mechanical";
 import { listSwmsForJob } from "@/app/actions/swms";
@@ -734,6 +734,25 @@ export function JobSheet({
     } catch (e) {
       return thrownWords(e, "Couldn't remove that file.");
     }
+  };
+
+  /* A CERTIFICATE DELETED takes its PDFs off the job with it: both lists
+     drop it now, and a tick on its PDF goes too */
+  const removeCertificate = async (c: CertSummary): Promise<string | null> => {
+    /* no try: React Compiler can't lower the branches below inside one */
+    const res = await deleteCertificate(c.certificateId).catch((e: unknown) => ({
+      ok: false as const,
+      error: thrownWords(e, "Couldn't delete the certificate."),
+    }));
+    if (!res.ok) return res.error;
+    if (!alive.current) return null;
+    setCerts((list) => (list ? list.filter((x) => x.certificateId !== c.certificateId) : list));
+    if (c.documentId) tick(ourDocumentSendKey(c.documentId), false);
+    if (cardId) {
+      const fresh = await readJobFiles(cardId).catch(() => null);
+      if (fresh && alive.current) setMedia(fresh);
+    }
+    return null;
   };
 
   const reloadSwms = () => {
@@ -2782,6 +2801,7 @@ export function JobSheet({
                   onCreateCertificate={cardId ? () => setCertWizard({ reissue: null }) : undefined}
                   onOpenCertificate={(c) => setViewer({ kind: "page", item: certPaper(c.versionId) })}
                   onReissueCertificate={(versionId) => setCertWizard({ reissue: versionId })}
+                  onDeleteCertificate={removeCertificate}
                   papers={papers ? papers.papers : null}
                   papersFailed={papersFailed}
                   mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}

@@ -318,6 +318,89 @@ function PaperRow({
   );
 }
 
+/** A certificate on the job: opened, reissued, or deleted with every
+    version and its PDFs. Two presses, and the second names what goes. */
+function CertRow({
+  cert,
+  pick,
+  sub,
+  onOpen,
+  onReissue,
+  onDelete,
+}: {
+  cert: CertSummary;
+  pick?: React.ReactNode;
+  sub: string;
+  onOpen?: (cert: CertSummary) => void;
+  onReissue?: (versionId: string) => void;
+  onDelete?: (cert: CertSummary) => Promise<string | null>;
+}) {
+  const [asking, setAsking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const del = async () => {
+    if (!onDelete) return;
+    setDeleting(true);
+    setErr(null);
+    const why = await onDelete(cert).catch(() => "That didn't work. Try again.");
+    /* a deleted certificate leaves the list; one that wasn't stays, and says why */
+    setDeleting(false);
+    setAsking(false);
+    if (why) setErr(why);
+  };
+  const deletable = !!onDelete && !!cert.mayDelete;
+  return (
+    <>
+      <div className="wb2-docrow">
+        {pick}
+        <button type="button" className="wb2-doc" onClick={() => onOpen?.(cert)}>
+          <span className="wb2-doc-ic">
+            <Icon name="file" size={15} />
+          </span>
+          <span className="wb2-doc-b">
+            <b>{cert.title}</b>
+            <em>{sub}</em>
+          </span>
+          <span className="wb2-doc-go">
+            <Icon name="chevR" size={15} />
+          </span>
+        </button>
+        {asking ? (
+          <>
+            <button type="button" className="pbtn ghost sm" disabled={deleting} onClick={() => setAsking(false)}>
+              Keep
+            </button>
+            <button type="button" className="pbtn ghost sm dan" disabled={deleting} onClick={() => void del()}>
+              {deleting ? "Deleting…" : "Delete certificate"}
+            </button>
+          </>
+        ) : (
+          <>
+            {onReissue && (
+              <button type="button" className="pbtn ghost sm" onClick={() => onReissue(cert.versionId)}>
+                Reissue
+              </button>
+            )}
+            {deletable && (
+              <button type="button" className="pbtn ghost sm" onClick={() => setAsking(true)}>
+                Delete
+              </button>
+            )}
+          </>
+        )}
+      </div>
+      {asking && (
+        <p className="wb2-sherr">
+          {cert.version > 1
+            ? `All ${cert.version} versions and their PDFs come off the job. A copy already sent to ServiceM8 or emailed stays where it went.`
+            : "Its PDF comes off the job. A copy already sent to ServiceM8 or emailed stays where it went."}
+        </p>
+      )}
+      {err && <p className="wb2-sherr">{err}</p>}
+    </>
+  );
+}
+
 const GROUPS: { key: "money" | "client" | "files"; label: string }[] = [
   { key: "money", label: "Money" },
   { key: "client", label: "From the client" },
@@ -363,6 +446,7 @@ export function JobDocumentsFace({
   onCreateCertificate,
   onOpenCertificate,
   onReissueCertificate,
+  onDeleteCertificate,
   papers = null,
   papersFailed = false,
   mayAdd = { company: false, staff: false },
@@ -416,6 +500,9 @@ export function JobDocumentsFace({
   onCreateCertificate?: () => void;
   onOpenCertificate?: (cert: CertSummary) => void;
   onReissueCertificate?: (versionId: string) => void;
+  /** Delete a certificate with every version and its PDFs; the error in
+      words, or null when it went. */
+  onDeleteCertificate?: (cert: CertSummary) => Promise<string | null>;
   /** The business's papers on this job; null until the read lands. */
   papers?: readonly JobPaper[] | null;
   /** The read failed — said, rather than an empty group that looks true. */
@@ -704,26 +791,15 @@ export function JobDocumentsFace({
             </div>
           ))}
           {certs.map((c) => (
-            <div key={c.certificateId} className="wb2-docrow">
-              {pickOf(c.documentId ? ourDocumentSendKey(c.documentId) : null, c.title)}
-              <button type="button" className="wb2-doc" onClick={() => onOpenCertificate?.(c)}>
-                <span className="wb2-doc-ic">
-                  <Icon name="file" size={15} />
-                </span>
-                <span className="wb2-doc-b">
-                  <b>{c.title}</b>
-                  <em>{`${c.version > 1 ? "Reissued" : "Issued"} ${editedOn(c.issuedAt)}, signed by ${c.issuedBy}`}</em>
-                </span>
-                <span className="wb2-doc-go">
-                  <Icon name="chevR" size={15} />
-                </span>
-              </button>
-              {onReissueCertificate && (
-                <button type="button" className="pbtn ghost sm" onClick={() => onReissueCertificate(c.versionId)}>
-                  Reissue
-                </button>
-              )}
-            </div>
+            <CertRow
+              key={c.certificateId}
+              cert={c}
+              pick={pickOf(c.documentId ? ourDocumentSendKey(c.documentId) : null, c.title)}
+              sub={`${c.version > 1 ? "Reissued" : "Issued"} ${editedOn(c.issuedAt)}, signed by ${c.issuedBy}`}
+              onOpen={onOpenCertificate}
+              onReissue={onReissueCertificate}
+              onDelete={onDeleteCertificate}
+            />
           ))}
           {ours.map((p) => (
             <PaperRow

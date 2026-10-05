@@ -25,7 +25,17 @@ export const TASK_KINDS = ["tick", "progress", "unit"] as const;
 export type TaskKind = (typeof TASK_KINDS)[number];
 
 /** The quote's unit a unit task is for, as it stood when the task was made. */
-export type TaskUnit = { role: "outdoor" | "indoor" | "fan"; room: string; model: string; capacity: string; type: string };
+export type TaskUnit = {
+  role: "outdoor" | "indoor" | "fan";
+  room: string;
+  model: string;
+  capacity: string;
+  type: string;
+  /** the outdoor unit it runs from (its own number, for an outdoor); 0 for a fan */
+  system?: number;
+  /** identical units in the same place: each has its own serial */
+  qty?: number;
+};
 
 export type JobTask = {
   id: string;
@@ -44,6 +54,10 @@ export type JobTask = {
   modelRead: string | null;
   source: "quote" | "person";
 };
+
+/** A photo taken on a task: the unit in place, its rating plate, or other. */
+export type TaskPhoto = { id: string; taskId: string; role: "unit" | "plate" | "other"; url: string | null; at: string };
+export const PHOTO_ROLES: readonly TaskPhoto["role"][] = ["unit", "plate", "other"];
 
 /** One day's work on a task. `day` is the account's own date, YYYY-MM-DD. */
 export type TaskUpdate = { id: string; taskId: string; day: string; from: number; to: number; note: string; by: string | null; at: string };

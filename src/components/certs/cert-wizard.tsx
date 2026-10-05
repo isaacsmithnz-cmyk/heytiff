@@ -25,6 +25,7 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
 import { thrownWords } from "@/lib/stale-deploy";
 import { MAX_REASON, MAX_REQUIREMENT_TEXT, MAX_REQUIREMENTS } from "@/lib/certs/input";
 import { makeOf, withMakes } from "@/lib/certs/make";
+import { hasSerials } from "@/lib/certs/from-quote";
 import type { IssueCertResult } from "@/app/api/certificates/issue/route";
 import {
   BUILDINGS,
@@ -179,6 +180,8 @@ function startingAnswers(ctx: CertWizardContext): CertAnswers {
     systems: r.systems.length > 0 ? r.systems.map((x) => ({ ...x, indoors: x.indoors.length ? x.indoors : [{ ...EMPTY_ROW }] })) : ac ? [blankSystem(r.refrigerant)] : [],
     fans: r.fans,
     installed: { ductwork: r.ductwork, fireRated: r.fireRated, fireStopProduct: "" },
+    /* serials read off the units' plates on the job are printed */
+    serialsGiven: hasSerials(r),
   };
 }
 

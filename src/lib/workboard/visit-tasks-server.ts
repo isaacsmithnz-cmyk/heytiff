@@ -1,6 +1,8 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { DOCUMENTS_BUCKET, signMany } from "@/lib/documents/query";
+import { imageForClaude } from "@/lib/images/for-claude";
 import { VISIT_STAGES, type Visit, type VisitStage } from "@/lib/quotes/buildup";
 import { CHECKLIST } from "@/lib/quotes/checklist";
 import { acceptedOptions, type ProposalOption } from "@/lib/quotes/proposal";
@@ -9,7 +11,19 @@ import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";
 import { getSm8Timezone } from "./query";
 import { todayInZone } from "./dates";
 import { TASKS_SCHEMA, TASKS_SYSTEM, parseTasks, plannedVisits, tasksPrompt, unitsOf } from "./task-plan";
-import { MAX_NOTE, MAX_TASK_NAME, MAX_TASKS, TASK_KINDS, type JobTask, type TaskKind, type TaskUnit, type TaskUpdate } from "./visit-tasks";
+import { PLATE_PROMPT, PLATE_SCHEMA, parsePlate, plateCode } from "./plate-read";
+import {
+  MAX_NOTE,
+  MAX_TASK_NAME,
+  MAX_TASKS,
+  PHOTO_ROLES,
+  TASK_KINDS,
+  type JobTask,
+  type TaskKind,
+  type TaskPhoto,
+  type TaskUnit,
+  type TaskUpdate,
+} from "./visit-tasks";
 
 /* A JOB'S TASKS, READ AND WRITTEN (visit-tasks.ts says what a task and an
    update are). Every read and write is this org's, by the job's own card
@@ -54,7 +68,7 @@ const taskOf = (r: TaskRow): JobTask => ({
 });
 const updateOf = (r: UpdateRow): TaskUpdate => ({ id: r.id, taskId: r.task_id, day: r.day, from: r.pct_from, to: r.pct_to, note: r.note, by: r.by_name, at: r.created_at });
 
-export type JobTasks = { tasks: JobTask[]; updates: TaskUpdate[] };
+export type JobTasks = { tasks: JobTask[]; updates: TaskUpdate[]; photos: TaskPhoto[] };
 
 export async function readJobTasks(orgId: string, cardId: string): Promise<JobTasks> {
   const [{ data: tasks }, { data: updates }] = await Promise.all([
@@ -66,7 +80,68 @@ export async function readJobTasks(orgId: string, cardId: string): Promise<JobTa
       .eq("sm8_job_uuid", cardId)
       .order("created_at", { ascending: true }),
   ]);
-  return { tasks: ((tasks ?? []) as TaskRow[]).map(taskOf), updates: ((updates ?? []) as UpdateRow[]).map(updateOf) };
+  const list = ((tasks ?? []) as TaskRow[]).map(taskOf);
+  return { tasks: list, updates: ((updates ?? []) as UpdateRow[]).map(updateOf), photos: await readTaskPhotos(orgId, list.map((t) => t.id)) };
+}
+
+/** The tasks' photos, each with a link that lasts the page's view. */
+async function readTaskPhotos(orgId: string, taskIds: readonly string[]): Promise<TaskPhoto[]> {
+  if (taskIds.length === 0) return [];
+  const { data: links } = await supabaseAdmin
+    .from("job_task_photos")
+    .select("id, task_id, document_id, role, created_at")
+    .eq("org_id", orgId)
+    .in("task_id", [...taskIds])
+    .order("created_at", { ascending: true });
+  const rows = (links ?? []) as { id: string; task_id: string; document_id: string; role: string; created_at: string }[];
+  if (rows.length === 0) return [];
+  const { data: docs } = await supabaseAdmin.from("documents").select("id, storage_ref").eq("org_id", orgId).in("id", rows.map((r) => r.document_id));
+  const refOf = new Map(((docs ?? []) as { id: string; storage_ref: string }[]).map((d) => [d.id, d.storage_ref]));
+  const urls = await signMany([...refOf.values()]);
+  return rows.map((r) => {
+    const ref = refOf.get(r.document_id);
+    return {
+      id: r.id,
+      taskId: r.task_id,
+      role: (PHOTO_ROLES as readonly string[]).includes(r.role) ? (r.role as TaskPhoto["role"]) : "other",
+      url: ref ? (urls.get(ref) ?? null) : null,
+      at: r.created_at,
+    };
+  });
+}
+
+/** A rating plate's model and serial, read from its photo; null when the
+    photo can't be read or holds neither. */
+export async function readPlate(storageRef: string, mime: string | null, client?: Anthropic): Promise<{ model: string; serial: string } | null> {
+  const { data: blob } = await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).download(storageRef);
+  if (!blob) return null;
+  const image = await imageForClaude(Buffer.from(await blob.arrayBuffer()), mime);
+  if (!image) return null;
+  if (!client && !process.env.ANTHROPIC_API_KEY) return null;
+  try {
+    const response = await (client ?? new Anthropic()).beta.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      betas: ["server-side-fallback-2026-06-01"],
+      fallbacks: [{ model: FALLBACK_MODEL }],
+      output_config: { effort: "low", format: { type: "json_schema", schema: PLATE_SCHEMA as unknown as Record<string, unknown> } },
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: image.mime, data: image.bytes.toString("base64") } },
+            { type: "text", text: PLATE_PROMPT },
+          ],
+        },
+      ],
+    });
+    if (response.stop_reason === "refusal" || response.stop_reason === "max_tokens") return null;
+    const block = [...response.content].reverse().find((b) => b.type === "text");
+    return block && block.type === "text" ? parsePlate(JSON.parse(block.text)) : null;
+  } catch (err) {
+    console.error("[visit-tasks] couldn't read a rating plate:", err);
+    return null;
+  }
 }
 
 /** The days booked on the job since its work order and before today, with
@@ -187,7 +262,13 @@ export type TaskEdit =
   | { kind: "visit"; id: string; visit: number | null }
   | { kind: "add"; name: string; stage: VisitStage; taskKind: TaskKind; visit: number | null }
   | { kind: "rename"; id: string; name: string }
-  | { kind: "remove"; id: string };
+  | { kind: "remove"; id: string }
+  /** a photo uploaded onto the job, taken on this task; a plate's is read */
+  | { kind: "photo"; id: string; documentId: string; role: TaskPhoto["role"] }
+  /** a person's own model and serial, over what was read */
+  | { kind: "plate"; id: string; model: string; serial: string }
+  /** a photo off the task (it stays on the job) */
+  | { kind: "unphoto"; id: string; photoId: string };
 
 /** Edits that change the list itself, not the work done on it. */
 export const LIST_EDITS: ReadonlySet<TaskEdit["kind"]> = new Set(["visit", "add", "rename", "remove"]);
@@ -195,6 +276,15 @@ export const LIST_EDITS: ReadonlySet<TaskEdit["kind"]> = new Set(["visit", "add"
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const visitIn = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 99 ? v : null);
 const nameIn = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, MAX_TASK_NAME) : "");
+
+/** A task's serials with one more read: a row of several identical units
+    collects one each, comma between, never twice; a single unit's is the
+    newest. */
+export function serialsWith(have: string | null, read: string, qty: number): string {
+  if (qty <= 1 || !have) return read;
+  const list = have.split(",").map((s) => s.trim()).filter(Boolean);
+  return list.includes(read) ? list.join(", ") : [...list, read].slice(0, qty).join(", ");
+}
 
 /** An edit as the browser sent it, checked; null when it isn't one. */
 export function editOf(raw: unknown): TaskEdit | null {
@@ -221,16 +311,42 @@ export function editOf(raw: unknown): TaskEdit | null {
     }
     case "remove":
       return id ? { kind: "remove", id } : null;
+    case "photo": {
+      const documentId = typeof o.documentId === "string" && UUID.test(o.documentId) ? o.documentId : null;
+      const role = PHOTO_ROLES.includes(o.role as TaskPhoto["role"]) ? (o.role as TaskPhoto["role"]) : "other";
+      return id && documentId ? { kind: "photo", id, documentId, role } : null;
+    }
+    case "plate":
+      return id
+        ? {
+            kind: "plate",
+            id,
+            model: plateCode(o.model),
+            serial: (typeof o.serial === "string" ? o.serial : "").split(",").map(plateCode).filter(Boolean).join(", "),
+          }
+        : null;
+    case "unphoto": {
+      const photoId = typeof o.photoId === "string" && UUID.test(o.photoId) ? o.photoId : null;
+      return id && photoId ? { kind: "unphoto", id, photoId } : null;
+    }
     default:
       return null;
   }
 }
 
-export type EditResult = { ok: true } | { ok: false; reason: string };
+/** `note`: done, with something to say (the photo's kept, the plate
+    couldn't be read). */
+export type EditResult = { ok: true; note?: string } | { ok: false; reason: string };
 
 /** One edit, on this job's own task. `who` names the person for the
     update's line. */
-export async function applyTaskEdit(orgId: string, cardId: string, who: { userId: string; name: string | null }, edit: TaskEdit): Promise<EditResult> {
+export async function applyTaskEdit(
+  orgId: string,
+  cardId: string,
+  who: { userId: string; name: string | null },
+  edit: TaskEdit,
+  read: typeof readPlate = readPlate
+): Promise<EditResult> {
   if (edit.kind === "add") {
     const { count } = await supabaseAdmin.from("job_tasks").select("id", { count: "exact", head: true }).eq("org_id", orgId).eq("sm8_job_uuid", cardId);
     if ((count ?? 0) >= MAX_TASKS) return { ok: false, reason: `A job holds ${MAX_TASKS} tasks at most.` };
@@ -248,8 +364,14 @@ export async function applyTaskEdit(orgId: string, cardId: string, who: { userId
     return error ? { ok: false, reason: "The task couldn't be added. Try again." } : { ok: true };
   }
 
-  const { data } = await supabaseAdmin.from("job_tasks").select("id, progress").eq("org_id", orgId).eq("sm8_job_uuid", cardId).eq("id", edit.id).maybeSingle();
-  const row = data as { id: string; progress: number } | null;
+  const { data } = await supabaseAdmin
+    .from("job_tasks")
+    .select("id, progress, unit, serial, model_read")
+    .eq("org_id", orgId)
+    .eq("sm8_job_uuid", cardId)
+    .eq("id", edit.id)
+    .maybeSingle();
+  const row = data as { id: string; progress: number; unit?: TaskUnit | null; serial?: string | null; model_read?: string | null } | null;
   if (!row) return { ok: false, reason: "That task isn't on this job any more." };
   const now = new Date().toISOString();
 
@@ -297,6 +419,45 @@ export async function applyTaskEdit(orgId: string, cardId: string, who: { userId
     case "remove": {
       const { error } = await supabaseAdmin.from("job_tasks").delete().eq("org_id", orgId).eq("sm8_job_uuid", cardId).eq("id", edit.id);
       return error ? { ok: false, reason: "That couldn't be taken off. Try again." } : { ok: true };
+    }
+    case "photo": {
+      /* the photo is a landed job document on THIS job: the id is a choice
+         the browser handed in */
+      const { data: doc } = await supabaseAdmin
+        .from("documents")
+        .select("id, kind, sm8_job_uuid, uploaded_at, storage_ref, mime_type")
+        .eq("org_id", orgId)
+        .eq("id", edit.documentId)
+        .maybeSingle();
+      const d = doc as { kind: string; sm8_job_uuid: string | null; uploaded_at: string | null; storage_ref: string; mime_type: string | null } | null;
+      if (!d || d.kind !== "job_document" || !d.uploaded_at || d.sm8_job_uuid !== cardId) return { ok: false, reason: "That photo didn't land on this job." };
+      const { error } = await supabaseAdmin
+        .from("job_task_photos")
+        .upsert({ org_id: orgId, task_id: edit.id, document_id: edit.documentId, role: edit.role, created_by: who.userId }, { onConflict: "task_id,document_id" });
+      if (error) return { ok: false, reason: "That photo couldn't be kept. Try again." };
+      if (edit.role === "plate") {
+        const plate = await read(d.storage_ref, d.mime_type);
+        /* the photo stays on the task either way; a plate that can't be read
+           is typed in instead */
+        if (!plate) return { ok: true, note: "The plate couldn't be read from that photo. Type the model and serial instead." };
+        const update: Record<string, string> = { updated_at: now };
+        if (plate.model) update.model_read = plate.model;
+        if (plate.serial) update.serial = serialsWith(row.serial ?? null, plate.serial, row.unit?.qty ?? 1);
+        await supabaseAdmin.from("job_tasks").update(update).eq("org_id", orgId).eq("id", edit.id);
+      }
+      return { ok: true };
+    }
+    case "plate": {
+      const { error } = await supabaseAdmin
+        .from("job_tasks")
+        .update({ model_read: edit.model || null, serial: edit.serial || null, updated_at: now })
+        .eq("org_id", orgId)
+        .eq("id", edit.id);
+      return error ? { ok: false, reason: "That couldn't be saved. Try again." } : { ok: true };
+    }
+    case "unphoto": {
+      const { error } = await supabaseAdmin.from("job_task_photos").delete().eq("org_id", orgId).eq("task_id", edit.id).eq("id", edit.photoId);
+      return error ? { ok: false, reason: "That photo couldn't be taken off. Try again." } : { ok: true };
     }
   }
 }

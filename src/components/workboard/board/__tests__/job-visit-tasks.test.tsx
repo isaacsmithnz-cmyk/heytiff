@@ -1,4 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+const uploadFile = jest.fn();
+const attachJobDocument = jest.fn();
+jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a) }));
+jest.mock("@/app/actions/job-documents", () => ({ attachJobDocument: (...a: unknown[]) => attachJobDocument(...a) }));
+
 import { JobVisitTasks, type VisitDay } from "../job-visit-tasks";
 import type { JobTask, TaskUpdate } from "@/lib/workboard/visit-tasks";
 
@@ -33,7 +38,7 @@ const UPDATES = [up("pen", "2026-10-06", 0, 100), up("rough", "2026-10-06", 0, 5
 
 let fetchMock: jest.Mock;
 const sent = (method: string) => (fetchMock.mock.calls as [string, { method?: string; body?: string }?][]).filter(([, i]) => i?.method === method).map(([, i]) => JSON.parse(i!.body!));
-const answer = (over: Record<string, unknown> = {}) => ({ ok: true, tasks: TASKS, updates: UPDATES, today: "2026-10-07", canMake: false, manage: true, ...over });
+const answer = (over: Record<string, unknown> = {}) => ({ ok: true, tasks: TASKS, updates: UPDATES, photos: [], today: "2026-10-07", canMake: false, manage: true, ...over });
 
 beforeEach(() => {
   fetchMock = jest.fn(async (_url: string, init?: { method?: string }) => ({ json: async () => (init?.method ? answer() : answer()) }));
@@ -166,4 +171,65 @@ it("still reads the tasks when the face was left before the first read landed", 
   });
   rerender(<JobVisitTasks job="job-1" visible onSite={[day("2026-10-06")]} ahead={[]} workOrderDate={null} onSiteWords={null} emptyWords="" />);
   expect(await screen.findByText("Garage penetrations")).toBeInTheDocument();
+});
+
+/* Isaac, 2026-10-06: "snap the photo of that particular unit, and serial
+   numbers etc. can be read from there using photos" */
+it("takes a unit's plate photo onto the job and shows what was read off it against the quote", async () => {
+  const hang = task("hang", "Hang the Level 2 Bedroom 3 unit", {
+    stage: "Install",
+    kind: "unit",
+    visit: 2,
+    unit: { role: "indoor", room: "Level 2 Bedroom 3", model: "PEFY-P25VMX-A", capacity: "2.8 kW", type: "Ducted" },
+  });
+  const read = { ...hang, modelRead: "PEFY-P25VMX-A", serial: "52X04417" };
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({
+    json: async () =>
+      init?.method === "PUT"
+        ? answer({ tasks: [read], updates: [], photos: [{ id: "p1", taskId: "hang", role: "plate", url: "https://files.example/p.jpg", at: "2026-10-07T01:00:00Z" }] })
+        : answer({ tasks: [hang], updates: [] }),
+  }));
+  uploadFile.mockResolvedValue({ ok: true, file: { documentId: "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c", fileName: "p.jpg", mimeType: "image/jpeg", sizeBytes: 1, previewUrl: null } });
+  attachJobDocument.mockResolvedValue({ ok: true });
+  mount();
+  expect(await screen.findByText("Unit and plate photos")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Hang the Level 2 Bedroom 3 unit" }));
+  const file = new File(["x"], "plate.jpg", { type: "image/jpeg" });
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Photo of the plate"), { target: { files: [file] } });
+  });
+  expect(uploadFile).toHaveBeenCalledWith(file, "job_document");
+  expect(attachJobDocument).toHaveBeenCalledWith("7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c", "job-1");
+  expect(sent("PUT")).toEqual([{ job: "job-1", edit: { kind: "photo", id: "hang", documentId: "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c", role: "plate" } }]);
+  expect(await screen.findByText("Matches the quote")).toBeInTheDocument();
+  expect(screen.getByText("52X04417")).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "The rating plate" })).toHaveAttribute("src", "https://files.example/p.jpg");
+  fireEvent.click(screen.getByRole("button", { name: "Change what was read" }));
+  fireEvent.change(screen.getByLabelText("Serial"), { target: { value: "52X04418" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  });
+  expect(sent("PUT")[1]).toEqual({ job: "job-1", edit: { kind: "plate", id: "hang", model: "PEFY-P25VMX-A", serial: "52X04418" } });
+});
+
+it("keeps a plate photo that couldn't be read, says so, and offers to type it", async () => {
+  const hang = task("hang", "Hang the Study unit", { stage: "Install", kind: "unit", visit: 2, unit: { role: "indoor", room: "Study", model: "MSZ-AP35VG", capacity: "3.5 kW", type: "High wall" } });
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({
+    json: async () =>
+      init?.method === "PUT"
+        ? answer({ tasks: [hang], updates: [], photos: [{ id: "p1", taskId: "hang", role: "plate", url: "https://files.example/p.jpg", at: "x" }], note: "The plate couldn't be read from that photo. Type the model and serial instead." })
+        : answer({ tasks: [hang], updates: [] }),
+  }));
+  uploadFile.mockResolvedValue({ ok: true, file: { documentId: "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c", fileName: "p.jpg", mimeType: "image/jpeg", sizeBytes: 1, previewUrl: null } });
+  attachJobDocument.mockResolvedValue({ ok: true });
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Hang the Study unit" }));
+  expect(screen.getByLabelText("Photo of the plate")).toHaveAttribute("accept", "image/jpeg,image/png,image/webp");
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Photo of the plate"), { target: { files: [new File(["x"], "p.jpg", { type: "image/jpeg" })] } });
+  });
+  expect(await screen.findByText("The plate couldn't be read from that photo. Type the model and serial instead.")).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "The rating plate" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Type the model and serial" }));
+  expect(screen.getByLabelText("Serial")).toBeInTheDocument();
 });

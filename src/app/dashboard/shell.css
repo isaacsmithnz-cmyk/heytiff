@@ -6953,6 +6953,27 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-tmanage { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-top:12px; border-top:1px solid var(--line); }
 .jcl-trename { display:flex; align-items:center; gap:8px; flex:1; }
 .jcl-trename .wb2-fi { flex:1; }
+/* a unit's photos, and what its plate says */
+.jcl-tcam { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--q); }
+.jcl-tunit { display:flex; flex-direction:column; gap:12px; }
+.jcl-tshots { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px; }
+.jcl-tshots:empty { display:none; }
+.jcl-tshots figure { margin:0; display:flex; flex-direction:column; gap:4px; }
+.jcl-tshots img { display:block; width:100%; aspect-ratio:4 / 3; object-fit:cover; border-radius:var(--r-button); border:1px solid var(--line); }
+.jcl-tshots figcaption { font-size:12px; font-weight:500; }
+.jcl-tshot-gone { display:grid; place-items:center; aspect-ratio:4 / 3; border-radius:var(--r-button); background:var(--tint); font-size:12px; color:var(--q); }
+.jcl-tfile { cursor:pointer; }
+.jcl-tfile:focus-within { box-shadow:var(--ring); }
+.jcl-tread { display:flex; flex-direction:column; gap:8px; }
+.jcl-tkv { margin:0; display:grid; grid-template-columns:96px minmax(0,1fr); }
+.jcl-tkv dt, .jcl-tkv dd { margin:0; padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
+.jcl-tkv dt:first-of-type, .jcl-tkv dt:first-of-type + dd { border-top:0; }
+.jcl-tkv dt { color:var(--q); font-weight:500; }
+.jcl-tkv dd { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; }
+.jcl-tkv dd b { font-weight:600; }
+.jcl-tkv dd em { font-style:normal; color:var(--q); }
+.jcl-tkv dd em.ok { color:var(--ok-t); font-weight:600; }
+.jcl-tkv dd em.warn { color:var(--warn-t); font-weight:600; }
 /* check in / check out, at the head of Installation */
 .jcl-check { display:flex; align-items:center; gap:12px; margin-bottom:16px; padding:12px 16px; border-radius:var(--r-button); background:var(--tint); font-size:14px; }
 .jcl-check.on { background:var(--ok-tint); }

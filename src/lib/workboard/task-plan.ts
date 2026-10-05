@@ -40,7 +40,15 @@ export function unitsOf(options: readonly ProposalOption[]): UnitLine[] {
 }
 
 /** What a unit task is for, kept on the task. */
-export const taskUnitOf = (u: UnitLine): TaskUnit => ({ role: u.role, room: u.room, model: u.model, capacity: u.capacity, type: u.type });
+export const taskUnitOf = (u: UnitLine): TaskUnit => ({
+  role: u.role,
+  room: u.room,
+  model: u.model,
+  capacity: u.capacity,
+  type: u.type,
+  system: u.system,
+  qty: u.qty,
+});
 
 /** A unit's task, worded the way the crew says it. */
 export function unitTaskName(u: UnitLine): string {

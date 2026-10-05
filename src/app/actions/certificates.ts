@@ -15,7 +15,7 @@ import { CERT_LIBRARY_VERSION, SHOWN, type CertAnswers } from "@/lib/certs/mecha
 import { stateFromGeo, type AuState } from "@/lib/swms/library";
 import { normaliseCertAnswers } from "@/lib/certs/input";
 import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } from "@/lib/certs/quote";
-import { quoteHasEquipment, readingFromQuote } from "@/lib/certs/from-quote";
+import { quoteHasEquipment, readingFromQuote, withSerials, type UnitSerial } from "@/lib/certs/from-quote";
 import { acceptedOptions } from "@/lib/quotes/proposal";
 import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { CERT_EMAIL_PROMPT, CERT_LIST_PROMPT, CERT_LIST_SCHEMA, parseListReading, type ListReading } from "@/lib/certs/list-reader";
@@ -112,6 +112,30 @@ export async function certListFiles(jobUuid: string): Promise<CertListFile[] | n
   }
 }
 
+/** The serials read off the job's units' rating plates, with the unit each
+    is for (job_tasks). */
+async function unitSerials(orgId: string, jobUuid: string): Promise<UnitSerial[]> {
+  const { data } = await supabaseAdmin
+    .from("job_tasks")
+    .select("unit, serial, model_read")
+    .eq("org_id", orgId)
+    .eq("sm8_job_uuid", jobUuid)
+    .eq("kind", "unit")
+    .not("serial", "is", null)
+    .order("sort", { ascending: true });
+  type Row = { unit: { role?: string; system?: number; room?: string; model?: string } | null; serial: string | null; model_read: string | null };
+  return ((data ?? []) as Row[])
+    .filter((r) => r.unit && r.serial)
+    .map((r) => ({
+      role: r.unit!.role === "outdoor" || r.unit!.role === "fan" ? r.unit!.role : "indoor",
+      system: typeof r.unit!.system === "number" ? r.unit!.system : null,
+      room: r.unit!.room ?? "",
+      model: r.unit!.model ?? "",
+      modelRead: r.model_read,
+      serial: r.serial!,
+    }));
+}
+
 /** Everything the wizard opens on. Null for a job this workspace doesn't hold. */
 export async function certWizardContext(jobUuid: string): Promise<CertWizardContext | null> {
   let orgId: string;
@@ -140,9 +164,12 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
      description, read as well as free text allows. */
   const accepted = quote ? acceptedOptions(quote.draft) : [];
   const fromQuote = quoteHasEquipment(accepted);
+  /* and each unit's serial, read off its rating plate on the job's
+     Installation */
+  const reading = fromQuote ? withSerials(readingFromQuote(accepted), await unitSerials(orgId, uuid)) : readQuote(job.description);
   return {
     job,
-    reading: fromQuote ? readingFromQuote(accepted) : readQuote(job.description),
+    reading,
     equipmentFrom: fromQuote ? "quote" : "description",
     quoteToMark: quote && accepted.length === 0 && quote.draft.options.length > 1 ? quote.draft.options.length : 0,
     building: suggestBuilding(job.address),

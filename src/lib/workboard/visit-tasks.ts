@@ -1,0 +1,291 @@
+import { VISIT_STAGES, type VisitStage } from "@/lib/quotes/buildup";
+
+/* A JOB'S TASKS, BY VISIT (Isaac, 2026-10-06: "create a task list from the
+   TIFF quote, which can then be allocated to visits, or they can just be
+   viewed as a whole list… on day one or visit one… they can view the list
+   of tasks… pipe work complete can be marked as percentages with a note,
+   and they can carry through to the following day… tasks can move across
+   visits as they are not completed on that day").
+
+   A VISIT is a day on site, counted from 1 from the day the job became a
+   work order: the days already worked, today, then the days booked ahead,
+   then the visits the quote planned that aren't booked yet. A day on site
+   before the work order (a site measure) is a site visit, not counted.
+
+   A TASK is planned for a visit, or for none yet. Each day's work on it is
+   an update: how far it went, and a note. A visit's card is the record of
+   what was done that day — its updates — and the work still to do on it:
+   the open tasks planned for it, and any not finished on an earlier visit,
+   which carry to the first visit still to come. Nothing is rewritten to
+   move a task; where it shows is worked out here, from what happened. Pure. */
+
+export const TASK_KINDS = ["tick", "progress", "unit"] as const;
+/** tick: done or not. progress: how far, with a note, over visits. unit: a
+    unit to put in, with its photos and its plate read. */
+export type TaskKind = (typeof TASK_KINDS)[number];
+
+/** The quote's unit a unit task is for, as it stood when the task was made. */
+export type TaskUnit = { role: "outdoor" | "indoor" | "fan"; room: string; model: string; capacity: string; type: string };
+
+export type JobTask = {
+  id: string;
+  name: string;
+  stage: VisitStage;
+  kind: TaskKind;
+  unit: TaskUnit | null;
+  /** The visit it's planned for, counted from 1; null: not on a visit yet. */
+  visit: number | null;
+  sort: number;
+  /** 0–100; 100 is done. */
+  progress: number;
+  doneAt: string | null;
+  doneBy: string | null;
+  serial: string | null;
+  modelRead: string | null;
+  source: "quote" | "person";
+};
+
+/** One day's work on a task. `day` is the account's own date, YYYY-MM-DD. */
+export type TaskUpdate = { id: string; taskId: string; day: string; from: number; to: number; note: string; by: string | null; at: string };
+
+export type VisitState = "done" | "today" | "booked" | "planned";
+/** A visit: a day on site (done, today, booked) or one the quote planned
+    that isn't booked yet (no day). */
+export type VisitSlot = { n: number; day: string | null; state: VisitState; crew: string[] };
+
+export const MAX_TASKS = 40;
+export const MAX_TASK_NAME = 200;
+export const MAX_NOTE = 500;
+
+/** The job's visits, numbered: days on site and booked from the work
+    order's day on, then the quote's planned visits beyond them. */
+export function visitSlots(input: {
+  onSite: readonly { day: string; crew: readonly string[] }[];
+  ahead: readonly { day: string; crew: readonly string[] }[];
+  today: string;
+  /** The work order's day; days before it are site visits, not counted. */
+  from: string | null;
+  /** How many visits the tasks are planned over. */
+  planned: number;
+}): VisitSlot[] {
+  const from = input.from ? input.from.slice(0, 10) : null;
+  const crewOf = new Map<string, Set<string>>();
+  for (const d of [...input.onSite, ...input.ahead]) {
+    const day = d.day.slice(0, 10);
+    if (from && day < from) continue;
+    const s = crewOf.get(day) ?? new Set<string>();
+    for (const c of d.crew) if (c) s.add(c);
+    crewOf.set(day, s);
+  }
+  const days = [...crewOf.keys()].sort();
+  const slots: VisitSlot[] = days.map((day, i) => ({
+    n: i + 1,
+    day,
+    state: day < input.today ? "done" : day === input.today ? "today" : "booked",
+    crew: [...(crewOf.get(day) ?? [])],
+  }));
+  for (let n = slots.length + 1; n <= input.planned; n++) slots.push({ n, day: null, state: "planned", crew: [] });
+  return slots;
+}
+
+/** The visit a day's work belongs to: the visit on that day, else the last
+    one before it (work logged from the office the day after). */
+export function visitOfDay(slots: readonly VisitSlot[], day: string): number | null {
+  let best: VisitSlot | null = null;
+  for (const s of slots) if (s.day && s.day <= day && (!best || s.day > best.day!)) best = s;
+  return best?.n ?? null;
+}
+
+const still = (s: VisitSlot | undefined) => !!s && s.state !== "done";
+
+/** "1", "1 and 2", "1, 2 and 3". */
+export function listWords(ns: readonly number[]): string {
+  if (ns.length <= 1) return ns.join("");
+  return `${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}`;
+}
+
+type Facts = {
+  task: JobTask;
+  ups: TaskUpdate[];
+  /** the visits its updates belong to, in order, once each */
+  worked: number[];
+  /** where it shows now, while it's open; null: not on a visit */
+  shownOn: number | null;
+  /** the visit it carries from, when it shows on a later one */
+  from: number | null;
+};
+
+function factsOf(task: JobTask, ups: TaskUpdate[], slots: readonly VisitSlot[]): Facts {
+  const worked: number[] = [];
+  for (const u of ups) {
+    const v = visitOfDay(slots, u.day);
+    if (v != null && !worked.includes(v)) worked.push(v);
+  }
+  /* a visit whose work cancels out — ticked, then unticked, no note — did
+     nothing to the task */
+  for (const v of [...worked]) {
+    const mine = ups.filter((u) => visitOfDay(slots, u.day) === v);
+    if (mine[0]!.from === mine[mine.length - 1]!.to && !mine.some((u) => u.note.trim())) worked.splice(worked.indexOf(v), 1);
+  }
+  if (task.progress >= 100) return { task, ups, worked, shownOn: null, from: null };
+  const last = worked.length ? worked[worked.length - 1]! : null;
+  const planned = task.visit;
+  const byN = (n: number | null) => (n == null ? undefined : slots.find((s) => s.n === n));
+  /* planned for a visit still to come, and not carried past it */
+  if (planned != null && still(byN(planned)) && (last == null || planned >= last)) {
+    return { task, ups, worked, shownOn: planned, from: last != null && last < planned ? last : null };
+  }
+  if (planned == null && last == null) return { task, ups, worked, shownOn: null, from: null };
+  /* its visit has gone, or it was worked on later: the first visit to come */
+  const fromN = last ?? planned!;
+  const next = slots.find((s) => still(s) && s.n >= fromN);
+  return { task, ups, worked, shownOn: next?.n ?? null, from: next && next.n === fromN ? null : fromN };
+}
+
+export type TaskMark = "done" | "part" | "open";
+export type TaskLine = {
+  task: JobTask;
+  mark: TaskMark;
+  pct: number;
+  /** "50%" and where it went or came from; null for a plain open task */
+  pctWords: string | null;
+  meta: string | null;
+  note: { by: string | null; text: string } | null;
+  /** the day of the last work this line shows; null for work still to do */
+  lastDay: string | null;
+};
+
+const markOf = (pct: number): TaskMark => (pct >= 100 ? "done" : pct > 0 ? "part" : "open");
+
+/** Each visit's card — what was done on it, and what's still to do on it —
+    and the tasks on no visit. */
+export function placeTasks(
+  tasks: readonly JobTask[],
+  updates: readonly TaskUpdate[],
+  slots: readonly VisitSlot[]
+): { visits: { slot: VisitSlot; lines: TaskLine[] }[]; unplaced: TaskLine[] } {
+  const ordered = [...tasks].sort((a, b) => a.sort - b.sort);
+  const upsOf = new Map<string, TaskUpdate[]>();
+  for (const u of [...updates].sort((a, b) => a.at.localeCompare(b.at))) {
+    const l = upsOf.get(u.taskId) ?? [];
+    l.push(u);
+    upsOf.set(u.taskId, l);
+  }
+  const facts = ordered.map((t) => factsOf(t, upsOf.get(t.id) ?? [], slots));
+  const visits = slots.map((slot) => ({ slot, lines: [] as TaskLine[] }));
+  const at = (n: number) => visits.find((v) => v.slot.n === n);
+  const unplaced: TaskLine[] = [];
+
+  for (const f of facts) {
+    const { task, ups, worked, shownOn, from } = f;
+    /* what each visit did to it */
+    for (const n of worked) {
+      const mine = ups.filter((u) => visitOfDay(slots, u.day) === n);
+      const first = mine[0]!;
+      const last = mine[mine.length - 1]!;
+      const noted = [...mine].reverse().find((u) => u.note.trim());
+      const idx = worked.indexOf(n);
+      const before = idx > 0 ? worked[idx - 1]! : null;
+      const after = idx < worked.length - 1 ? worked[idx + 1]! : shownOn != null && shownOn > n ? shownOn : null;
+      const up = last.to - first.from;
+      const words: string[] = [];
+      if (before != null && first.from > 0 && up > 0) words.push(`Up ${up}% from visit ${before}`);
+      if (last.to < 100 && after != null) words.push(`carried to visit ${after}`);
+      else if (last.to < 100 && n === shownOn) {
+        /* worked on today and still going: it stays on this visit */
+      } else if (last.to < 100) words.push("carries to the next visit");
+      const joined = words.join(", ");
+      const meta = joined ? joined[0]!.toUpperCase() + joined.slice(1) : null;
+      at(n)?.lines.push({
+        task,
+        mark: markOf(last.to),
+        pct: last.to,
+        pctWords: last.to > 0 && last.to < 100 ? `${last.to}%` : null,
+        meta,
+        note: noted ? { by: noted.by, text: noted.note.trim() } : null,
+        lastDay: last.day,
+      });
+    }
+    /* still to do: on the visit it shows on, unless that visit already
+       drew it from the day's own work */
+    if (task.progress < 100) {
+      const line: TaskLine = {
+        task,
+        mark: markOf(task.progress),
+        pct: task.progress,
+        pctWords: task.progress > 0 ? `${task.progress}%` : null,
+        meta: from != null ? `From visit ${from}` : null,
+        note: null,
+        lastDay: null,
+      };
+      if (shownOn == null) unplaced.push(line);
+      else if (!worked.includes(shownOn)) at(shownOn)?.lines.push(line);
+    } else if (worked.length === 0) {
+      /* done with no day's work on record (ticked before any visit) */
+      const line: TaskLine = { task, mark: "done", pct: 100, pctWords: null, meta: null, note: null, lastDay: null };
+      const v = task.visit != null ? at(task.visit) : undefined;
+      if (v) v.lines.push(line);
+      else unplaced.push(line);
+    }
+  }
+  return { visits, unplaced };
+}
+
+/* ── the whole list ── */
+
+export type TaskRow = {
+  task: JobTask;
+  mark: TaskMark;
+  pct: number;
+  /** "Visit 2", "Visits 1, 2 and 3"; null: not on a visit */
+  visits: string | null;
+  status: { text: string; tone: "ok" | "info" | "quiet" | "ink" } | null;
+  note: { by: string | null; text: string } | null;
+};
+
+export const STAGE_ORDER: readonly VisitStage[] = VISIT_STAGES;
+
+/** Every task, in the quote's order of work, each with the visits it's on
+    and where it stands. `dayWords` turns a booked day into "Mon 12 Oct". */
+export function taskRows(
+  tasks: readonly JobTask[],
+  updates: readonly TaskUpdate[],
+  slots: readonly VisitSlot[],
+  dayWords: (day: string) => string
+): { stage: VisitStage; rows: TaskRow[] }[] {
+  const ordered = [...tasks].sort((a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage) || a.sort - b.sort);
+  const upsOf = (id: string) => updates.filter((u) => u.taskId === id).sort((a, b) => a.at.localeCompare(b.at));
+  const groups: { stage: VisitStage; rows: TaskRow[] }[] = [];
+  for (const task of ordered) {
+    const ups = upsOf(task.id);
+    const f = factsOf(task, ups, slots);
+    const ns = [...f.worked];
+    if (f.shownOn != null && !ns.includes(f.shownOn)) ns.push(f.shownOn);
+    if (task.progress >= 100 && ns.length === 0 && task.visit != null) ns.push(task.visit);
+    const visits = ns.length === 0 ? null : ns.length === 1 ? `Visit ${ns[0]}` : `Visits ${listWords(ns)}`;
+    const slot = f.shownOn != null ? slots.find((s) => s.n === f.shownOn) : undefined;
+    const status: TaskRow["status"] =
+      task.progress >= 100
+        ? { text: "Done", tone: "ok" }
+        : task.progress > 0
+          ? { text: `${task.progress}%`, tone: "ink" }
+          : slot?.state === "today"
+            ? { text: "Today", tone: "info" }
+            : slot?.state === "booked" && slot.day
+              ? { text: dayWords(slot.day), tone: "quiet" }
+              : slot?.state === "planned"
+                ? { text: "Not booked", tone: "quiet" }
+                : null;
+    const noted = [...ups].reverse().find((u) => u.note.trim());
+    const row: TaskRow = { task, mark: markOf(task.progress), pct: task.progress, visits, status, note: noted ? { by: noted.by, text: noted.note.trim() } : null };
+    const g = groups.find((x) => x.stage === task.stage);
+    if (g) g.rows.push(row);
+    else groups.push({ stage: task.stage, rows: [row] });
+  }
+  return groups;
+}
+
+/** How many are done, of how many. */
+export function doneCount(tasks: readonly JobTask[]): { done: number; of: number } {
+  return { done: tasks.filter((t) => t.progress >= 100).length, of: tasks.length };
+}

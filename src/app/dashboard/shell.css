@@ -6872,13 +6872,87 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 /* INSTALLATION: a card per visit, oldest on the left, scrolling sideways */
 .jcl-visits { margin:0; padding:0 0 8px; list-style:none; display:grid; grid-auto-flow:column; grid-auto-columns:240px; gap:12px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; }
 .jcl-visit { display:flex; flex-direction:column; gap:4px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); scroll-snap-align:end; }
-.jcl-vn { font-size:12px; font-weight:500; color:var(--q); }
-.jcl-visit > b { font-size:16px; font-weight:600; }
 .jcl-visit > em { font-style:normal; font-size:13px; line-height:1.45; color:var(--ink); }
 .jcl-vlen { margin-top:auto; padding-top:8px; font-size:12px; font-weight:500; color:var(--q); }
 .jcl-vhrs { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
 .jcl-vlen + .jcl-vhrs { margin-top:0; padding-top:0; }
 .jcl-visit > em + .jcl-vhrs { margin-top:auto; padding-top:8px; }
+/* VISITS AND THEIR TASKS (board/job-visit-tasks.tsx, Isaac 2026-10-06): a
+   card a visit with its tasks under it — what was done on it, what's still
+   to do on it — wider once there are tasks to read; the same tasks as one
+   list by the quote's stages; one task opened, with how far it's got. Its buttons are scoped under `.fg`
+   to out-rank the shell's button reset, which is (0,1,1) */
+.jcl-visits.tasks { grid-auto-columns:316px; align-items:start; }
+.jcl-visit.now { border-color:var(--ink); }
+.jcl-visit.plan { border-style:dashed; }
+.jcl-vh { display:flex; align-items:baseline; gap:8px; }
+.jcl-vh b { font-size:16px; font-weight:600; }
+.jcl-vword { margin-left:auto; font-size:14px; font-weight:500; }
+.jcl-vword.ok { color:var(--ok-t); }
+.jcl-vword.info { color:var(--info-t); }
+.jcl-vword.quiet { color:var(--q); }
+.jcl-vday { font-size:13px; color:var(--q); }
+.jcl-visits.tasks .jcl-vlen { padding-top:12px; }
+.jcl-tasks { margin:8px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; }
+.jcl-task { display:grid; grid-template-columns:16px minmax(0,1fr); gap:8px; align-items:start; padding:8px 0; border-top:1px solid var(--line); }
+.jcl-task:first-child { border-top:0; }
+.jcl-tasks.cols { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:24px; }
+.jcl-tasks.cols .jcl-task:nth-child(2) { border-top:0; }
+.jcl-tasks.rows .jcl-task { grid-template-columns:16px minmax(0,1fr) 180px 100px; padding:8px 0; }
+.fg .jcl-tbox { width:16px; height:16px; margin-top:2px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+  border:1.5px solid var(--q); border-radius:var(--r-control); background:var(--paper); color:var(--paper); cursor:pointer;
+  position:relative; overflow:hidden; }
+.fg .jcl-tbox.done { background:var(--ink); border-color:var(--ink); }
+.fg .jcl-tbox.part { border-color:var(--ink); }
+.fg .jcl-tbox.part > i { position:absolute; inset:0 auto 0 0; width:var(--p); background:var(--ink); }
+.fg .jcl-tbox:disabled { cursor:default; }
+.fg .jcl-tbox:focus-visible { outline:none; box-shadow:var(--ring); }
+.jcl-ttx { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.fg .jcl-tname { padding:0; border:0; background:none; font:inherit; font-size:13px; text-align:left; color:var(--ink); cursor:pointer; }
+.fg .jcl-tname:hover { text-decoration:underline; text-underline-offset:2px; }
+.fg .jcl-tname:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.jcl-tmeta { font-size:12px; font-weight:500; color:var(--q); }
+.jcl-tmeta b { margin-right:4px; font-weight:700; color:var(--ink); }
+.jcl-tnote { font-size:12px; color:var(--q); }
+.jcl-tnote q { color:var(--ink); }
+.jcl-tvis { font-size:13px; color:var(--q); }
+.jcl-tstat { font-size:14px; font-weight:500; text-align:right; }
+.jcl-tstat.ok { color:var(--ok-t); }
+.jcl-tstat.info { color:var(--info-t); }
+.jcl-tstat.quiet { color:var(--q); }
+.jcl-tsel { max-width:100%; }
+.jcl-tloose, .jcl-tall { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+.jcl-tall { gap:16px; }
+.jcl-tghead { display:flex; align-items:baseline; gap:8px; font-size:13px; }
+.jcl-tghead b { font-weight:600; }
+.jcl-tghead em { font-style:normal; color:var(--q); }
+.jcl-tmake { margin:8px 0 16px; }
+.jcl-tadd { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:16px; }
+.jcl-tadd .wb2-fi { flex:1 1 220px; }
+.jcl-tchk { display:inline-flex; align-items:center; gap:8px; font-size:13px; }
+.jcl-tdetail { display:flex; flex-direction:column; gap:16px; }
+.fg .jcl-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; padding:0; border:0; background:none;
+  font:inherit; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; }
+.fg .jcl-back:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.jcl-tprog { display:flex; flex-direction:column; gap:8px; }
+.jcl-tbar { height:8px; border-radius:var(--r-pill); background:var(--tint-2); overflow:hidden; }
+.jcl-tbar > i { display:block; height:100%; border-radius:var(--r-pill); background:var(--ink); }
+.jcl-tupd { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); }
+.jcl-tform { display:grid; grid-template-columns:auto minmax(0,1fr); gap:12px; }
+.jcl-tform label { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:var(--q); }
+.jcl-tpin { display:flex; align-items:center; gap:8px; }
+.jcl-tpin .wb2-fi { width:72px; }
+.jcl-tpin i { font-style:normal; font-size:14px; font-weight:600; color:var(--ink); }
+.jcl-thist ul { margin:0; padding:0; list-style:none; }
+.jcl-thist li { display:grid; grid-template-columns:96px minmax(0,1fr) auto; column-gap:12px; row-gap:2px; padding:12px 0; border-top:1px solid var(--line); font-size:13px; }
+.jcl-thist li:first-child { border-top:0; }
+.jcl-thist li b { font-weight:600; }
+.jcl-thist li span { color:var(--q); }
+.jcl-thist li strong { font-weight:600; font-variant-numeric:tabular-nums; }
+.jcl-thist li p { grid-column:2 / -1; margin:0; }
+.jcl-tmanage { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-top:12px; border-top:1px solid var(--line); }
+.jcl-trename { display:flex; align-items:center; gap:8px; flex:1; }
+.jcl-trename .wb2-fi { flex:1; }
 /* check in / check out, at the head of Installation */
 .jcl-check { display:flex; align-items:center; gap:12px; margin-bottom:16px; padding:12px 16px; border-radius:var(--r-button); background:var(--tint); font-size:14px; }
 .jcl-check.on { background:var(--ok-tint); }

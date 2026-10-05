@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -40,6 +40,7 @@ import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobQuoteFace } from "./job-quote-face";
+import { JobVisitTasks, type VisitDay } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
 import { JobCustomer } from "./job-customer";
@@ -422,8 +423,6 @@ export function JobSheet({
     openBookIn || openClear ? "installation" : initialTab === "quote" && manage ? "quoted" : null
   );
   const [naming, setNaming] = useState(false);
-  /* the visit strip, opened at its newest end */
-  const visitStrip = useRef<HTMLOListElement>(null);
   /* EDIT CUSTOMER (customer details to ServiceM8): offered only where the
      deployment saves them, the reader runs the board and the owner has them
      on — asked once, for a manager, and never anywhere else */
@@ -600,12 +599,6 @@ export function JobSheet({
       live = false;
     };
   }, []);
-
-  /* The visit strip opens on its newest end — the day the reader came for. */
-  useEffect(() => {
-    const el = visitStrip.current;
-    if (tab === "visits" && el) el.scrollLeft = el.scrollWidth;
-  }, [tab, detail]);
 
   /* THE COMPANION READS FOLLOW THE CARD, not the row that was clicked. A
      clone's row opens its parent, so asking for the clone's files, ledger or
@@ -1653,6 +1646,44 @@ export function JobSheet({
         {b.staffName && b.staffTitle && <i className="wb2-jcrole">{`, ${b.staffTitle}`}</i>}
       </Fragment>
     ));
+  /* A day on site's crew, as the visit cards have always drawn it. A comma
+     separates two bare names; once a title (or a check-in left open) is in
+     the line a comma cannot say where one person ends, so the pair takes a
+     dash instead. The separators are REAL TEXT, not CSS — jest never loads
+     the stylesheet, so a separator that lives only in CSS is one nothing
+     here can see fail. */
+  const visitCrew = (v: NonNullable<typeof detail>["visits"][number]): ReactNode =>
+    v.crew.length === 0
+      ? "Nobody named"
+      : v.crew.map((c, i) => (
+          <span key={c.name}>
+            {i > 0 ? (v.crew.some((m) => m.title || m.leftOpen) ? " — " : ", ") : ""}
+            {c.name}
+            {c.title && <i className="wb2-jcrole">{`, ${c.title}`}</i>}
+            {/* on site, time unknown: the hours leave this person out, so the line says why */}
+            {c.leftOpen && <i className="wb2-jcrole">, check-in left open</i>}
+            {c.onSite && <i className="wb2-jcrole">, on site now</i>}
+          </span>
+        ));
+  /* the days booked ahead; who's booked is said once, in the bookings
+     above the visits, so their cards don't repeat it */
+  const bookedByDay = new Map<string, BookedEntry[]>();
+  for (const b of standing ?? []) {
+    const day = b.start.slice(0, 10);
+    bookedByDay.set(day, [...(bookedByDay.get(day) ?? []), b]);
+  }
+  const daysAhead: VisitDay[] = [...bookedByDay.entries()].map(([day, crew]) => ({
+    day,
+    crew: crew.map((b) => b.staffName ?? "").filter(Boolean),
+    crewNode: null,
+    length: null,
+    hours: null,
+    onSite: false,
+  }));
+  if (!standing && detail?.nextBooking) {
+    const nb = detail.nextBooking;
+    daysAhead.push({ day: nb.start.slice(0, 10), crew: nb.staffName ? [nb.staffName] : [], crewNode: null, length: null, hours: null, onSite: false });
+  }
   const listed = new Set((standing ?? []).map((b) => b.uuid.trim().toLowerCase()));
   const above = bkVerbs
     .map((v) => ({ ...v, bookings: v.bookings.filter((b) => !(listed.has(b.uuid) && bkLines[b.uuid])) }))
@@ -2645,73 +2676,28 @@ export function JobSheet({
                   </p>
                 </div>
               )}
-              {detail && detail.visits.length > 0 ? (
-                <div className="wb2-jcsec">
-                  {/* Every single-list face wears the same head — a real
-                      title with its fact at the right. Visits was the one
-                      still dressed as a small-caps eyebrow. */}
-                  <div className="wb2-jcdhead">
-                    <b>Visits</b>
-                    <em>
-                      {`${detail.visits.length} visit${detail.visits.length === 1 ? "" : "s"}`}
-                      {detail.timeOnSite
-                        ? `, ${fmtMinutesAsHours(detail.timeOnSite.minutes)} on site`
-                        : ""}
-                    </em>
-                  </div>
-                  {/* A CARD PER VISIT, oldest on the left, scrolling sideways
-                      (Isaac, 2026-10-02: "day one card, day two card… day
-                      three might just be a 20-minute pop-in"). The strip
-                      opens on its newest end. */}
-                  <ol className="jcl-visits" ref={visitStrip} aria-label="Visits, oldest first">
-                    {[...detail.visits].reverse().map((v, i) => (
-                      <li className="jcl-visit" key={v.day}>
-                        <span className="jcl-vn">{`Day ${i + 1}`}</span>
-                        <b>{fmtAuWeekdayDayMonth(v.day)}</b>
-                        <em>
-                          {v.crew.length === 0
-                            ? "Nobody named"
-                            : v.crew.map((c, i) => (
-                                <span key={c.name}>
-                                  {/* A comma separates two bare names; once a
-                                      title (or a check-in left open) is in the
-                                      line a comma cannot say where one person
-                                      ends, so the pair takes a dash instead.
-                                      The dot before a title is REAL TEXT, not
-                                      a CSS ::before — jest never loads the
-                                      stylesheet, so a separator that lives
-                                      only in CSS is one nothing here can see
-                                      fail. */}
-                                  {i > 0 ? (v.crew.some((m) => m.title || m.leftOpen) ? " — " : ", ") : ""}
-                                  {c.name}
-                                  {c.title && (
-                                    <i className="wb2-jcrole">{`, ${c.title}`}</i>
-                                  )}
-                                  {/* On site, time unknown: the hours at the
-                                      right leave this person out, so the
-                                      line says why. */}
-                                  {c.leftOpen && (
-                                    <i className="wb2-jcrole">, check-in left open</i>
-                                  )}
-                                  {c.onSite && <i className="wb2-jcrole">, on site now</i>}
-                                </span>
-                              ))}
-                        </em>
-                        {visitLength(v) && <span className="jcl-vlen">{visitLength(v)}</span>}
-                        <span className="jcl-vhrs">{v.minutes > 0 ? fmtMinutesAsHours(v.minutes) : "—"}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
+              {/* VISITS AND THEIR TASKS (Isaac, 2026-10-06): a card a visit,
+                  the days worked, today and the days booked, each with its
+                  tasks from the quote; or the tasks as one list. */}
+              {detail ? (
+                <JobVisitTasks
+                  job={cardId ?? row.id}
+                  visible={tab === "visits"}
+                  onSite={detail.visits.map((v) => ({
+                    day: v.day,
+                    crew: v.crew.map((c) => c.name),
+                    crewNode: visitCrew(v),
+                    length: visitLength(v),
+                    hours: v.minutes > 0 ? fmtMinutesAsHours(v.minutes) : null,
+                    onSite: v.crew.some((c) => c.onSite),
+                  }))}
+                  ahead={daysAhead}
+                  workOrderDate={detail.workOrderDate}
+                  onSiteWords={detail.timeOnSite ? `${fmtMinutesAsHours(detail.timeOnSite.minutes)} on site` : null}
+                  emptyWords={above.length > 0 || detail.queue ? "" : "Nobody's been on site yet, and nothing is booked."}
+                />
               ) : (
-                !(standing ? standing.length > 0 || above.length > 0 : detail?.nextBooking) &&
-                !detail?.queue && (
-                  <p className="int-hint">
-                    {loading && !detail
-                      ? "Reading it from the mirror…"
-                      : "Nobody's been on site yet, and nothing is booked."}
-                  </p>
-                )
+                <p className="int-hint">{loading ? "Reading it from the mirror…" : "Nobody's been on site yet, and nothing is booked."}</p>
               )}
             </>
           )}

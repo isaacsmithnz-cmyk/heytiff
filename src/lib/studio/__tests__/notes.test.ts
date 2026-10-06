@@ -91,7 +91,7 @@ function arcs(d: string): { from: Point; to: Point; r: number }[] {
 }
 
 const mkNote = (rect: NoteRect, leader: Point, text = "Check on site"): NoteObject =>
-  createNote({ floorId: "flr", rect, leader, text, id: "note_1" }) as NoteObject;
+  createNote({ floorId: "flr", rect, leader, text, fontW: 12, id: "note_1" }) as NoteObject;
 
 describe("the revision cloud", () => {
   it("closes, and starts at the box's top-left corner", () => {
@@ -245,7 +245,7 @@ describe("a note as an object", () => {
 
   it("claims room for its words, not just its cloud", () => {
     const n = mkNote(RECT, { x: 900, y: 60 });
-    const b = noteBounds(n, 12);
+    const b = noteBounds(n);
     expect(b.x).toBeLessThanOrEqual(0);
     expect(b.x + b.w).toBeGreaterThan(900); // the text is past the leader
   });
@@ -433,27 +433,27 @@ describe("what a note catches", () => {
   const n = mkNote(RECT, { x: 500, y: 60 });
 
   it("is grabbed by its outline", () => {
-    expect(noteHit(n, { x: 0, y: 60 }, 6, 12)).toBe("cloud");
-    expect(noteHit(n, { x: 200, y: 60 }, 6, 12)).toBe("cloud");
+    expect(noteHit(n, { x: 0, y: 60 }, 6)).toBe("cloud");
+    expect(noteHit(n, { x: 200, y: 60 }, 6)).toBe("cloud");
   });
 
   /* the point of the whole hit-test: the middle of a cloud belongs to the
      plan underneath it */
   it("lets a click through its middle to the drawing beneath", () => {
-    expect(noteHit(n, { x: 100, y: 60 }, 6, 12)).toBeNull();
+    expect(noteHit(n, { x: 100, y: 60 }, 6)).toBeNull();
   });
 
   it("is grabbed by its words", () => {
     const lay = noteTextLayout(RECT, { x: 500, y: 60 }, noteText(n), 12);
-    expect(noteHit(n, { x: lay.box.x + 2, y: 60 }, 6, 12)).toBe("text");
+    expect(noteHit(n, { x: lay.box.x + 2, y: 60 }, 6)).toBe("text");
   });
 
   it("is grabbed by its leader", () => {
-    expect(noteHit(n, { x: 350, y: 60 }, 6, 12)).toBe("leader");
+    expect(noteHit(n, { x: 350, y: 60 }, 6)).toBe("leader");
   });
 
   it("misses everything else", () => {
-    expect(noteHit(n, { x: -400, y: -400 }, 6, 12)).toBeNull();
+    expect(noteHit(n, { x: -400, y: -400 }, 6)).toBeNull();
   });
 });
 
@@ -488,45 +488,45 @@ describe("a note's own measure and size", () => {
   /* the whole point of `noteLayoutOf`: ONE door, so the canvas and the print
      figure cannot disagree about how wide or how big a note is */
   it("lays a note out at its own measure and size", () => {
-    const narrow = noteLayoutOf(sized({ wrap: 10 }), 12);
-    const wide = noteLayoutOf(sized({ wrap: 40 }), 12);
+    const narrow = noteLayoutOf(sized({ wrap: 10 }));
+    const wide = noteLayoutOf(sized({ wrap: 40 }));
     expect(narrow.lines.length).toBeGreaterThan(wide.lines.length);
     expect(narrow.fontSize).toBe(12);
 
-    const big = noteLayoutOf(sized({ textScale: 2 }), 12);
+    const big = noteLayoutOf(sized({ textScale: 2 }));
     expect(big.fontSize).toBe(24);
     // the type scaled, the wrap did NOT — same words, same lines
-    expect(big.lines).toEqual(noteLayoutOf(sized({}), 12).lines);
-    expect(big.box.h).toBeCloseTo(noteLayoutOf(sized({}), 12).box.h * 2, 6);
+    expect(big.lines).toEqual(noteLayoutOf(sized({})).lines);
+    expect(big.box.h).toBeCloseTo(noteLayoutOf(sized({})).box.h * 2, 6);
   });
 
   /* the "fit" pass reads these bounds, and it is the one thing that reliably
      leaves a note's words off the screen when they are not counted */
   it("carries both onto the bounds a fit has to leave room for", () => {
-    const plain = noteBounds(sized({}), 12);
-    const big = noteBounds(sized({ textScale: 2 }), 12);
+    const plain = noteBounds(sized({}));
+    const big = noteBounds(sized({ textScale: 2 }));
     expect(big.w).toBeGreaterThan(plain.w);
     // tall enough to break out of the cloud's own 120 before the height moves
-    const narrowAndBig = noteBounds(sized({ textScale: 2, wrap: NOTE_WRAP_MIN }), 12);
+    const narrowAndBig = noteBounds(sized({ textScale: 2, wrap: NOTE_WRAP_MIN }));
     expect(narrowAndBig.h).toBeGreaterThan(plain.h);
   });
 
   it("carries both into what the words CATCH", () => {
     const big = sized({ textScale: 2.5 });
-    const lay = noteLayoutOf(big, 12);
+    const lay = noteLayoutOf(big);
     // a point well below the un-scaled block still lands on the scaled one
     const low = { x: lay.box.x + 2, y: lay.box.y + lay.box.h - 1 };
-    expect(noteHit(big, low, 1, 12)).toBe("text");
-    expect(noteHit(sized({}), low, 1, 12)).toBeNull();
+    expect(noteHit(big, low, 1)).toBe("text");
+    expect(noteHit(sized({}), low, 1)).toBeNull();
   });
 });
 
 describe("the grips on a selected note's words", () => {
   const n = sized({});
-  const lay = noteLayoutOf(n, 12);
+  const lay = noteLayoutOf(n);
 
   it("sit on the OUTER edge — the inner one already means 'move me'", () => {
-    const g = noteGrips(n, 12);
+    const g = noteGrips(n);
     expect(g.measure.x).toBeCloseTo(lay.box.x + lay.box.w, 6);
     // the measure grip rides the leader's own height: the block is centred on
     // it, so it is the one point that does not move as lines are added
@@ -536,20 +536,20 @@ describe("the grips on a selected note's words", () => {
 
   it("flips with the words when the margin is on the other side", () => {
     const left = mkNote(RECT, { x: -400, y: 60 }, "one two three four five six");
-    const l = noteLayoutOf(left, 12);
-    expect(noteGrips(left, 12).measure.x).toBeCloseTo(l.box.x, 6);
+    const l = noteLayoutOf(left);
+    expect(noteGrips(left).measure.x).toBeCloseTo(l.box.x, 6);
   });
 
   it("hands the pointer the NEARER grip, and nothing at a distance", () => {
-    const g = noteGrips(n, 12);
-    expect(noteGripAt(n, g.measure, 4, 12)).toBe("measure");
-    expect(noteGripAt(n, g.size, 4, 12)).toBe("size");
-    expect(noteGripAt(n, { x: g.size.x, y: g.size.y + 500 }, 4, 12)).toBeNull();
+    const g = noteGrips(n);
+    expect(noteGripAt(n, g.measure, 4)).toBe("measure");
+    expect(noteGripAt(n, g.size, 4)).toBe("size");
+    expect(noteGripAt(n, { x: g.size.x, y: g.size.y + 500 }, 4)).toBeNull();
   });
 });
 
 describe("what a grip drag works out", () => {
-  const lay = noteLayoutOf(sized({}), 12);
+  const lay = noteLayoutOf(sized({}));
 
   it("reads the measure off the edge the pointer is on", () => {
     // 20 characters' worth of width past the text's anchored edge

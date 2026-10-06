@@ -150,6 +150,9 @@ export function createNote(opts: {
   text?: string;
   /** the armed ink; omitted = the default */
   ink?: string;
+  /** the words' size in WORLD units — the size they were on screen when the
+      note was written (see `noteFontOf`); omitted = the pre-lock default */
+  fontW?: number;
   id?: string;
 }): DesignObject {
   return {
@@ -166,6 +169,9 @@ export function createNote(opts: {
       text: opts.text ?? "",
       leader: { x: opts.leader.x, y: opts.leader.y },
       ink: opts.ink && HEX6.test(opts.ink) ? opts.ink : DEFAULT_NOTE_INK,
+      ...(opts.fontW != null && Number.isFinite(opts.fontW) && opts.fontW > 0
+        ? { fontW: opts.fontW }
+        : {}),
     },
   };
 }
@@ -303,7 +309,7 @@ export const NOTE_WRAP_CHARS = 28;
 /** the narrowest and widest measure a note's words may be set to */
 export const NOTE_WRAP_MIN = 8;
 export const NOTE_WRAP_MAX = 96;
-/** how far a note's type may be scaled off the sheet's own size */
+/** how far a note's type may be scaled off the size it was written at */
 export const NOTE_SCALE_MIN = 0.6;
 export const NOTE_SCALE_MAX = 3;
 
@@ -315,11 +321,33 @@ export function noteWrapOf(o: DesignObject): number {
   return Number.isFinite(v) ? clamp(Math.round(v), NOTE_WRAP_MIN, NOTE_WRAP_MAX) : NOTE_WRAP_CHARS;
 }
 
-/** A note's type size, as a multiple of the surface's own note size. A
-    MULTIPLE and never a px value, because the two surfaces size their notes
-    differently — the canvas holds a constant screen size through the zoom,
-    paper sizes off the fitted figure — and a stored px would be right on one
-    of them and wrong on the other. */
+/* ── the size the words were written at ──────────────────────────────────
+   A note's words are LOCKED to the drawing at the size they were on screen
+   when it was written: the canvas stores that size in world units on the note
+   (`fontW`), and from then on the words zoom with the plan and print at it.
+   A note is composed against the drawing — "this one by the bath, that one
+   under the kitchen" — and words that changed size relative to the plan
+   afterwards ran across each other: on job 3375 they printed four times the
+   size they were written at, straight over one another (2026-10-06).
+
+   World units, so it is the same number on the canvas and on paper; nothing
+   about a surface changes it. */
+
+/** A note written before its size was stored: the size the canvas drew it at
+    at any zoom of 1:1 or below — the whole-plan view, where a note's place in
+    the margin gets chosen. */
+export const NOTE_LEGACY_FONT_W = 13;
+
+/** A note's words' base size in world units; the note's own scale rides on
+    top. Read through a check rather than validated on the way in, like the
+    ink: a document is data from somewhere else. */
+export function noteFontOf(o: DesignObject): number {
+  const v = Number(o.props.fontW);
+  return Number.isFinite(v) && v > 0 ? v : NOTE_LEGACY_FONT_W;
+}
+
+/** A note's type size, as a multiple of the size it was written at — what
+    the corner grip sets. */
 export function noteScaleOf(o: DesignObject): number {
   const v = Number(o.props.textScale);
   return Number.isFinite(v) && v > 0 ? clamp(v, NOTE_SCALE_MIN, NOTE_SCALE_MAX) : 1;
@@ -377,9 +405,7 @@ export interface NoteTextLayout {
   box: NoteRect;
 }
 
-/** Lay the margin text out around the leader end. `fontSize` is in the same
-    units the caller draws in (world units on the canvas, sheet units on
-    paper), so both surfaces get the same shape at their own scale. */
+/** Lay the margin text out around the leader end, at `fontSize` world units. */
 export function noteTextLayout(
   rect: NoteRect,
   leader: Point,
@@ -418,29 +444,26 @@ export function noteTextLayout(
   };
 }
 
-/** A note laid out AS STORED: its own measure and its own size applied to
-    the surface's base font. Every surface that draws, measures or hit-tests a
-    note goes through this one door — the canvas, the print figure, the bounds
-    the "fit" pass needs and the hit test — so a note cannot be one shape on
-    screen and another on paper.
-
-    `baseFont` is the surface's own note size, in the units it draws in. */
-export function noteLayoutOf(o: NoteObject, baseFont: number): NoteTextLayout {
+/** A note laid out AS STORED: its own size, measure and scale. Every surface
+    that draws, measures or hit-tests a note goes through this one door — the
+    canvas, the print figure, the bounds the "fit" pass needs and the hit test
+    — so a note cannot be one shape on screen and another on paper. */
+export function noteLayoutOf(o: NoteObject): NoteTextLayout {
   return noteTextLayout(
     noteRect(o),
     noteLeader(o),
     noteText(o),
-    baseFont * noteScaleOf(o),
+    noteFontOf(o) * noteScaleOf(o),
     noteWrapOf(o)
   );
 }
 
 /** Everything a note occupies, cloud + leader + margin text — what the print
     figure has to leave room for, or the words fall off the sheet. */
-export function noteBounds(o: NoteObject, fontSize: number): NoteRect {
+export function noteBounds(o: NoteObject): NoteRect {
   const rect = noteRect(o);
   const leader = noteLeader(o);
-  const lay = noteLayoutOf(o, fontSize);
+  const lay = noteLayoutOf(o);
   const x0 = Math.min(rect.x, lay.box.x, leader.x);
   const y0 = Math.min(rect.y, lay.box.y, leader.y);
   const x1 = Math.max(rect.x + rect.w, lay.box.x + lay.box.w, leader.x);
@@ -464,8 +487,8 @@ export type NoteGrip = "measure" | "size";
 /** How far below the block the size grip hangs, in ems of the note's type. */
 const GRIP_DROP_EM = 0.75;
 
-export function noteGrips(o: NoteObject, baseFont: number): Record<NoteGrip, Point> {
-  const lay = noteLayoutOf(o, baseFont);
+export function noteGrips(o: NoteObject): Record<NoteGrip, Point> {
+  const lay = noteLayoutOf(o);
   const outerX = lay.side === 1 ? lay.box.x + lay.box.w : lay.box.x;
   return {
     /* the measure grip rides the leader's own height: the block is centred on
@@ -477,13 +500,8 @@ export function noteGrips(o: NoteObject, baseFont: number): Record<NoteGrip, Poi
 
 /** Which grip the pointer is on, nearest first — they can sit within a line
     of each other on a one-line note, and the closer one has to win. */
-export function noteGripAt(
-  o: NoteObject,
-  p: Point,
-  tol: number,
-  baseFont: number
-): NoteGrip | null {
-  const g = noteGrips(o, baseFont);
+export function noteGripAt(o: NoteObject, p: Point, tol: number): NoteGrip | null {
+  const g = noteGrips(o);
   const d = (q: Point) => Math.hypot(p.x - q.x, p.y - q.y);
   const dm = d(g.measure);
   const ds = d(g.size);
@@ -549,12 +567,11 @@ const inRect = (p: Point, r: NoteRect, tol: number): boolean =>
 export function noteHit(
   o: NoteObject,
   p: Point,
-  tol: number,
-  fontSize: number
+  tol: number
 ): "cloud" | "text" | "leader" | null {
   const rect = noteRect(o);
   const leader = noteLeader(o);
-  const lay = noteLayoutOf(o, fontSize);
+  const lay = noteLayoutOf(o);
   if (inRect(p, lay.box, tol) || nearSegment(p, lay.elbow, lay.shoulder, tol)) return "text";
   if (inRect(p, rect, tol) && !inRect(p, rect, -tol)) return "cloud";
   if (nearSegment(p, leaderStart(rect, leader), lay.elbow, tol)) return "leader";

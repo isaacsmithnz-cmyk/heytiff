@@ -24,7 +24,6 @@ import {
 import { calloutContent, calloutLayout, calloutOf } from "@/lib/studio/callouts";
 import {
   CALLOUT_FONT_REF,
-  NOTE_FONT_REF,
   northRadius,
   planFigureBounds,
   sheetUnitOf,
@@ -50,8 +49,7 @@ import type { UnitMark } from "@/lib/studio/export";
    serializes. All ids are prefixed per-floor so several figures can share
    one print document. */
 
-/* the frame and the type scale live in lib, because the canvas sizes a
-   note's words by the same rule (figure-bounds.ts) */
+/* the frame and the type scale live in lib (figure-bounds.ts) */
 export { planFigureBounds };
 
 /** nice scale-bar length (m) for a plan that is `metres` across */
@@ -88,7 +86,7 @@ export function PlanFigure({
   if (!bounds || unit == null) return null;
   const { x, y, w, h } = bounds;
   /* "screen pixel" at reference width — off the DRAWING, not the finished
-     figure, so a note's words print the size the canvas showed them at */
+     figure, so markup in the margin can't shrink the labels */
   const u = unit;
   const scale = floor.scaleMmPerUnit;
   const pid = `pf-${floor.id}`;
@@ -179,7 +177,6 @@ export function PlanFigure({
      layer switches turn off DERIVED annotation (room names, run lengths), not
      what somebody chose to write on the drawing */
   const notes = onFloor.filter((o): o is NoteObject => isNote(o));
-  const noteFont = NOTE_FONT_REF * u;
   const calloutFont = CALLOUT_FONT_REF * u;
 
   /* legend rows: fixed symbol key + the systems present on this floor */
@@ -487,10 +484,10 @@ export function PlanFigure({
         {notes.map((n) => {
           const rect = noteRect(n);
           const leader = noteLeader(n);
-          /* through the SAME door the canvas uses, so a note set wide or set
-             large on screen prints wide and large — `noteFont` is the sheet's
-             base size and the note's own measure and scale ride on top */
-          const lay = noteLayoutOf(n, noteFont);
+          /* through the SAME door the canvas uses, at the world size the note
+             was written at — so it prints exactly where and as big as it sat
+             on the plan, with its own measure and scale on top */
+          const lay = noteLayoutOf(n);
           const start = leaderStart(rect, leader);
           return (
             <g key={n.id} className="ds-note" style={{ color: noteInkOf(n) }}>

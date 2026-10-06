@@ -16,6 +16,7 @@ import {
   createNote,
   isNote,
   noteGrips,
+  noteFontOf,
   noteLayoutOf,
   noteLeader,
   noteRect,
@@ -26,18 +27,15 @@ import {
   noteWrapOf,
   DEFAULT_NOTE_INK,
   NOTE_INKS,
+  NOTE_LEGACY_FONT_W,
   NOTE_WRAP_CHARS,
   type NoteObject,
 } from "@/lib/studio/notes";
-import { noteSheetFont } from "@/lib/studio/figure-bounds";
 
-/* the margin text's world size on these fixtures' floors. A note's words are
-   the size the sheet prints them — but these floors carry nothing but markup,
-   so there is no drawing to size against and the canvas holds them at its
-   screen size (13px), whose divisor it clamps to 1 below 1:1. So at every zoom
-   in this file a note's font is 13 world units — except in the test that puts
-   a drawing under one on purpose. */
-const NOTE_FONT_W = 13;
+/* the margin text's world size for the notes these fixtures build directly
+   (createNote with no size): a note from before the lock, which reads as the
+   size the canvas drew those at. */
+const NOTE_FONT_W = NOTE_LEGACY_FONT_W;
 
 const floor: Floor = {
   id: "flr",
@@ -240,42 +238,31 @@ describe("a note on the drawing", () => {
     return d;
   };
 
-  /* THE WORDS ARE THE SHEET'S SIZE, AND THEY ZOOM WITH THE PLAN. They held 13px
-     on screen at any zoom while paper sized them off the sheet, so on a wide
-     plan they printed four times the size they were composed at, straight
-     across each other (job 3375, 2026-10-06). One number now, the sheet's, in
-     world units: what you arrange is what prints. */
-  it("draws its words at the size the sheet prints them, and zooms them with the plan", () => {
-    const d = withNote();
-    d.objects.unshift({
-      id: "room1",
-      type: "room",
-      systemId: "sys1",
-      floorId: "flr",
-      geometry: {
-        kind: "polygon",
-        points: [
-          { x: -2000, y: -1500 },
-          { x: 2000, y: -1500 },
-          { x: 2000, y: 1500 },
-          { x: -2000, y: 1500 },
-        ],
-      },
-      plane: "room",
-      props: { name: "Lounge" },
-    });
-    const v = renderCanvas({ tool: "select", doc: d });
-    const size = () =>
-      Number(v.container.querySelector(".ds-note-text")!.getAttribute("font-size"));
+  /* THE LOCK (job 3375, 2026-10-06). The words are written at 13px on screen
+     and KEEP that size against the drawing: it is stored on the note in world
+     units, so a zoom scales them with the plan instead of holding them at 13px
+     while the plan shrinks under them. Held at 13px they changed size against
+     the plan with every zoom, printed four times bigger than written, and ran
+     across each other. */
+  it("keeps the size its words were written at, and zooms them with the plan", () => {
+    const v = renderCanvas();
     const zoom = () =>
       Number(/scale\(([-\d.e]+)\)/.exec(v.svg.querySelector("g[transform]")!.getAttribute("transform")!)![1]);
-    const printed = noteSheetFont(d, d.floors[0])!;
+    const size = () =>
+      Number(v.container.querySelector(".ds-note-text")!.getAttribute("font-size"));
+    dragCloud(v.svg);
+    const writtenAt = zoom();
+    placeWords(v.svg);
 
-    expect(size()).toBeCloseTo(printed, 6);
-    const before = zoom();
+    // stored in world units: 13px at the zoom it was written at
+    expect(noteFontOf(v.notes[0])).toBeCloseTo(13 / writtenAt, 6);
+    expect(size() * writtenAt).toBeCloseTo(13, 6);
+
     fireEvent.wheel(v.svg, { deltaY: -100, deltaMode: 0, ctrlKey: true, clientX: 400, clientY: 300 });
-    expect(zoom()).toBeGreaterThan(before * 1.05);
-    expect(size()).toBeCloseTo(printed, 6);
+    expect(zoom()).toBeGreaterThan(writtenAt * 1.05);
+    // same size against the plan — so bigger on screen, like the plan
+    expect(size()).toBeCloseTo(13 / writtenAt, 6);
+    expect(noteFontOf(v.notes[0])).toBeCloseTo(13 / writtenAt, 6);
   });
 
   /* markup belongs to the DRAWING: switching the canvas to another system —
@@ -337,7 +324,7 @@ describe("a note on the drawing", () => {
      quietly eating the drag that re-places its margin. */
   describe("its words are a text frame once it is selected", () => {
     const gripAt = (v: ReturnType<typeof renderCanvas>, which: "measure" | "size") =>
-      noteGrips(v.notes[0] as NoteObject, NOTE_FONT_W)[which];
+      noteGrips(v.notes[0] as NoteObject)[which];
 
     it("shows no frame at all until it is selected", () => {
       const off = renderCanvas({ tool: "select", doc: withNote() });
@@ -351,7 +338,7 @@ describe("a note on the drawing", () => {
     it("sets the measure when the side grip is pulled out", () => {
       const v = renderCanvas({ tool: "select", doc: withNote(), selectedId: "note_1" });
       const g = gripAt(v, "measure");
-      const lay = noteLayoutOf(v.notes[0] as NoteObject, NOTE_FONT_W);
+      const lay = noteLayoutOf(v.notes[0] as NoteObject);
       // pull the edge out to exactly 12 characters' worth of width
       const to = lay.textX + lay.side * (12 * lay.fontSize * 0.56);
       fireEvent.pointerDown(v.svg, world(v.svg, g.x, g.y));

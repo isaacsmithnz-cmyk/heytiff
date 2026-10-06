@@ -183,7 +183,6 @@ import {
   type NoteObject,
   type NoteRect,
 } from "@/lib/studio/notes";
-import { noteSheetFont } from "@/lib/studio/figure-bounds";
 import { type WheelMode } from "@/lib/studio/wheel";
 import {
   readCanvasWheel,
@@ -323,12 +322,12 @@ export interface ArmedComponent {
 }
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
-/** A note's words, on screen, only when the floor has nothing to size them
-    against. Everywhere else they are the size the SHEET prints them
-    (`noteSheetFont`) and zoom with the plan: a note is composed against the
-    drawing, so its words have to stay the size they were drawn at — held at a
-    constant 13px they printed four times bigger than the canvas ever showed
-    them on a wide sheet, straight across each other (job 3375, 2026-10-06). */
+/** A note's words, on screen, at the moment they are written. That size is
+    then LOCKED to the drawing — stored on the note in world units (`fontW`) —
+    so from there they zoom with the plan and print at it. Held at a constant
+    13px instead, they changed size against the plan with every zoom and
+    printed four times bigger than written, straight across each other (job
+    3375, 2026-10-06). */
 const NOTE_FONT_PX = 13;
 /* A callout's type, one step below a note's. It holds a constant SCREEN size
    on the canvas and the sheet's own size on paper, and the gap between them is
@@ -763,9 +762,7 @@ function defaultViewport(
   w: number,
   h: number,
   grid: number,
-  notes: NoteObject[] = [],
-  /** the words' world size — the sheet's; null falls back to the screen size */
-  noteFont: number | null = null
+  notes: NoteObject[] = []
 ): Viewport {
   const b = boundsOfPoints(points);
   if (!b) {
@@ -774,14 +771,11 @@ function defaultViewport(
     return { zoom, x: -w / (2 * zoom), y: -h / (2 * zoom) };
   }
   if (notes.length === 0) return fitBounds(b, w, h, 60);
-  /* The words go in at their world size — the sheet's, so it is known before
-     any zoom is. Without them the margin text is the one thing "fit" reliably
-     leaves off the screen. Only a floor with nothing to size against still
-     derives it from the zoom the fit is working out, in one extra pass. */
-  const font = noteFont ?? NOTE_FONT_PX / Math.max(fitZoom(b, w, h, 60), 1);
+  /* The words go in too, at the world size each note carries — without them
+     the margin text is the one thing "fit" reliably leaves off the screen. */
   const pts = [...points];
   for (const n of notes) {
-    const nb = noteBounds(n, font);
+    const nb = noteBounds(n);
     pts.push({ x: nb.x, y: nb.y }, { x: nb.x + nb.w, y: nb.y + nb.h });
   }
   return fitBounds(boundsOfPoints(pts) ?? b, w, h, 60);
@@ -1251,9 +1245,6 @@ export function StudioCanvas({
       ),
     [doc.objects, floor.id]
   );
-  /* the size the sheet prints a note's words at, in world units — one number
-     for the whole floor, so the canvas and the paper set every note alike */
-  const noteSheet = useMemo(() => noteSheetFont(doc, floor), [doc, floor]);
 
   /** live position for point objects (units/risers) while dragging */
   const [livePoint, setLivePoint] = useState<{ id: string; at: Point } | null>(null);
@@ -1531,8 +1522,7 @@ export function StudioCanvas({
     /* Notes count as content, and they are the one object type that has to:
        a note lives in the MARGIN on purpose, so a fit that framed only the
        plan would hide the very words the note exists to say. The cloud and
-       the leader end go in here; the words join them in defaultViewport,
-       which is handed their size. */
+       the leader end go in here; the words join them in defaultViewport. */
     for (const n of notes) {
       pts.push(...n.geometry.points, noteLeader(n));
     }
@@ -1567,9 +1557,9 @@ export function StudioCanvas({
   }, [rooms, roomPoints, notes, doc.objects, floor.id, floor.plans, sheetSize, sheetPos]);
 
   const [vp, setVp] = useState<Viewport>(() =>
-    defaultViewport(contentPoints(), size.w, size.h, grid, notes, noteSheet)
+    defaultViewport(contentPoints(), size.w, size.h, grid, notes)
   );
-  const mountContent = useRef({ points: contentPoints(), grid, notes, noteSheet });
+  const mountContent = useRef({ points: contentPoints(), grid, notes });
   const measured = useRef(false);
   /* Has the user framed the view themselves (pan, zoom, a drag that moves the
      canvas)? Until they have, the view belongs to the CONTENT: the canvas
@@ -1616,10 +1606,10 @@ export function StudioCanvas({
   }, [contentPoints]);
   /* Fit frames the notes' words too — pressing Fit and losing the margin text
      is exactly the trap defaultViewport exists to avoid */
-  const fitExtrasRef = useRef({ grid, notes, noteSheet });
+  const fitExtrasRef = useRef({ grid, notes });
   useEffect(() => {
-    fitExtrasRef.current = { grid, notes, noteSheet };
-  }, [grid, notes, noteSheet]);
+    fitExtrasRef.current = { grid, notes };
+  }, [grid, notes]);
 
   /* ── where the view is allowed to go ──
      Zoom has had a floor since the beginning: you cannot zoom out past roughly
@@ -1700,8 +1690,7 @@ export function StudioCanvas({
           sizeRef.current.w,
           sizeRef.current.h,
           fitExtrasRef.current.grid,
-          fitExtrasRef.current.notes,
-          fitExtrasRef.current.noteSheet
+          fitExtrasRef.current.notes
         )
       );
     userFramed.current = false;
@@ -2015,8 +2004,7 @@ export function StudioCanvas({
           r.width,
           r.height,
           mountContent.current.grid,
-          mountContent.current.notes,
-          mountContent.current.noteSheet
+          mountContent.current.notes
         ),
         { w: r.width, h: r.height }
       );
@@ -2043,8 +2031,7 @@ export function StudioCanvas({
           sizeRef.current.w,
           sizeRef.current.h,
           fitExtrasRef.current.grid,
-          fitExtrasRef.current.notes,
-          fitExtrasRef.current.noteSheet
+          fitExtrasRef.current.notes
         )
       );
   }, [sheetDims, commitVp]);
@@ -2496,10 +2483,8 @@ export function StudioCanvas({
 
   /* ── notes (the markup layer) ────────────────────────────────────────────
      Every measurement of a note — where its words sit, what you can click,
-     what has to fit on paper — goes through ONE font size, so the text you
-     click is always the text you can see. It is the SHEET's, in world units,
-     so the words zoom with the plan and print the size they were drawn. ── */
-  const noteFontW = noteSheet ?? NOTE_FONT_PX / Math.max(vp.zoom, 1);
+     what has to fit on paper — goes through the note's OWN size, in world
+     units, so the text you click is always the text you can see. ── */
 
   /** a note as it stands RIGHT NOW: mid-drag that is the live position, at
       rest it is the document's */
@@ -2522,7 +2507,7 @@ export function StudioCanvas({
     if (!selectedId) return null;
     const sel = notes.find((x) => x.id === selectedId);
     if (!sel) return null;
-    const grip = noteGripAt(noteAt(sel), w, tolPx / vp.zoom, noteFontW);
+    const grip = noteGripAt(noteAt(sel), w, tolPx / vp.zoom);
     return grip ? { id: sel.id, grip } : null;
   };
 
@@ -2531,14 +2516,22 @@ export function StudioCanvas({
   const hitNote = (w: Point, tolPx = HIT_EDGE_PX) => {
     const tol = tolPx / vp.zoom;
     for (let i = notes.length - 1; i >= 0; i--) {
-      const part = noteHit(noteAt(notes[i]), w, tol, noteFontW);
+      const part = noteHit(noteAt(notes[i]), w, tol);
       if (part) return { id: notes[i].id, part };
     }
     return null;
   };
 
   const commitNote = (rect: NoteRect, leader: Point) => {
-    const note = createNote({ floorId: floor.id, rect, leader, ink: armedInk });
+    /* the words are written at 13px on screen, and that is the size they
+       keep: stored in world units, so they zoom with the plan from here on */
+    const note = createNote({
+      floorId: floor.id,
+      rect,
+      leader,
+      ink: armedInk,
+      fontW: NOTE_FONT_PX / vp.zoom,
+    });
     onMutate((d) => ({ ...d, objects: [...d.objects, note] }));
     onSelect(note.id);
     // straight into the words: a cloud with nothing to say is not a note
@@ -3011,7 +3004,7 @@ export function StudioCanvas({
                   kind: "note-size",
                   id: gh.id,
                   from: noteScaleOf(held),
-                  startY: noteGrips(held, noteFontW).size.y,
+                  startY: noteGrips(held).size.y,
                   leaderY: noteLeader(held).y,
                 }
           );
@@ -3489,7 +3482,7 @@ export function StudioCanvas({
         if (stored) {
           setLiveNote({
             id: drag.id,
-            wrap: wrapForEdgeX(noteLayoutOf(stored, noteFontW), w.x),
+            wrap: wrapForEdgeX(noteLayoutOf(stored), w.x),
           });
         }
         break;
@@ -5813,14 +5806,14 @@ export function StudioCanvas({
             const n = noteAt(stored);
             const rect = noteRect(n);
             const leader = noteLeader(n);
-            const lay = noteLayoutOf(n, noteFontW);
+            const lay = noteLayoutOf(n);
             const start = leaderStart(rect, leader);
             const on = stored.id === selectedId || noteEdit?.id === stored.id;
             /* the words become a TEXT FRAME once the note is selected: the
                block outlined, a grip on its outer side for the measure and
                one at its outer corner for the size. Screen-constant, like the
                leader dot, so they stay grabbable at any zoom. */
-            const grips = on ? noteGrips(n, noteFontW) : null;
+            const grips = on ? noteGrips(n) : null;
             const gr = 3.4 / vp.zoom;
             return (
               <g

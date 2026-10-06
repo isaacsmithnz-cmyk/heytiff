@@ -1,13 +1,7 @@
 /* The printed plan's frame and its type scale — what the sheet draws, and how
-   big its words are against the drawing.
-
-   Pure, and out of plan-figure.tsx on purpose: the CANVAS needs the same
-   number. A note's words are sized to the sheet, and the canvas shows them at
-   exactly that size, zooming with the plan like everything else drawn on it —
-   so a note composed on screen is the note that prints. Two copies of this
-   rule would let the screen and the paper drift apart again, which is the
-   very thing that made job 3375's notes print four times the size they were
-   drawn (2026-10-06). */
+   big its derived labels are against the drawing. Pure, so it can be tested
+   without rendering a figure. A note's words are NOT sized here: each note
+   carries the size it was written at, in world units (notes.ts). */
 
 import type { DesignDocument, Floor } from "./document";
 import { isNote, noteBounds, type NoteObject } from "./notes";
@@ -15,16 +9,8 @@ import { calloutBounds, calloutContent, calloutLayout, calloutOf } from "./callo
 
 export const REF_W = 900; // reference width: text sized as if on a 900px-wide sheet
 
-/** The markup text's size at reference width.
-
-    Matches the ROOM NAME (13), not the room's area line (11), and that is the
-    point: a note is a written instruction to whoever builds the job, so it has
-    no business being quieter on paper than a derived measurement. It printed
-    at 11 until a real sheet showed it losing to the labels around it
-    (2026-08-26). */
-export const NOTE_FONT_REF = 13;
-/* one step below a written note, the same gap the canvas keeps: an instruction
-   somebody typed must not be quieter than the machine's own data */
+/* a unit callout's type at reference width: the area line's size, the one
+   the rest of the derived text on a plan uses */
 export const CALLOUT_FONT_REF = 11;
 
 /** same formula as the canvas: the arrow holds the size it was placed at */
@@ -116,31 +102,15 @@ const unitOf = (e: Extent): number => {
 /** One "screen pixel" of the sheet, in world units: the drawing's padded
     width over the reference width. Every word on paper is a multiple of it.
 
-    Taken from the DRAWING, never from the finished figure. Words in the
-    margin widen the figure, and a type size read off the figure would make
-    every note on the floor grow when one of them was pulled further out —
-    on paper a few percent, but on the canvas, where the words now zoom with
-    the plan, it would read as the notes refusing to stay the size they were
-    drawn. The drawing's own extent is the one thing a note can't move.
+    Taken from the DRAWING, never from the finished figure: markup in the
+    margin widens the figure, and labels sized off it would shrink on the
+    page whenever a note was pulled further out.
 
     A floor that is nothing but markup has no drawing to size against; its
     clouds stand in on paper, so the sheet still has a scale. */
 export function sheetUnitOf(doc: DesignDocument, floor: Floor): number | null {
   const e = drawingExtent(doc, floor) ?? cloudExtent(doc, floor);
   return e ? unitOf(e) : null;
-}
-
-/** A note's base size in world units — what the sheet prints it at, and so
-    what the canvas draws it at. The note's own scale rides on top
-    (`noteLayoutOf`).
-
-    Null when the floor has no DRAWING: markup alone is nothing to compose
-    against, and words sized off a lone cloud on a blank floor come out too
-    small to read while they are being written. The canvas holds those at
-    its screen size instead. */
-export function noteSheetFont(doc: DesignDocument, floor: Floor): number | null {
-  const e = drawingExtent(doc, floor);
-  return e ? NOTE_FONT_REF * unitOf(e) : null;
 }
 
 export function planFigureBounds(
@@ -157,15 +127,13 @@ export function planFigureBounds(
     if (y > e.maxY) e.maxY = y;
   };
 
-  /* The markup goes in once the drawing's extent exists, at the size the
-     sheet will print it: the unit comes from the drawing alone, so this is
-     the size it is drawn at, not an estimate of it. A note's bounds are its
-     cloud, its leader and its words. */
+  /* The markup goes in once the drawing's extent exists. A note's bounds are
+     its cloud, its leader and its words, at the world size it carries. */
   const notes = doc.objects.filter(
     (o): o is NoteObject => o.floorId === floor.id && isNote(o)
   );
   for (const n of notes) {
-    const b = noteBounds(n, NOTE_FONT_REF * u);
+    const b = noteBounds(n);
     eat(b.x, b.y);
     eat(b.x + b.w, b.y + b.h);
   }

@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
-import { createNote } from "@/lib/studio/notes";
+import { createNote, noteLayoutOf, type NoteObject } from "@/lib/studio/notes";
+import { noteSheetFont } from "@/lib/studio/figure-bounds";
 import { PlanFigure, planFigureBounds } from "../summary/plan-figure";
 
 /* The static print/export plan figure — a self-contained SVG mirror of the
@@ -225,6 +226,33 @@ describe("PlanFigure", () => {
       const b = planFigureBounds(d, d.floors[0])!;
       expect(b.x + b.w).toBeGreaterThan(bare.x + bare.w);
       expect(b.x + b.w).toBeGreaterThan(2400); // past the leader, not just to it
+    });
+
+    /* THE LOCK (job 3375, 2026-10-06). The words print at one size for the
+       floor, read off the DRAWING — not off the finished figure, which the
+       words themselves widen. Read off the figure, pulling a note further into
+       the margin grew every note on the sheet; and the canvas, which now draws
+       the words at this same number, would have shown them jump. */
+    it("prints its words the same size wherever they sit, and inside the figure", () => {
+      const printAt = (leader: { x: number; y: number }) => {
+        const d = withNote(leader);
+        const { container, unmount } = render(
+          <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+        );
+        const size = Number(container.querySelector(".ds-note-text")!.getAttribute("font-size"));
+        unmount();
+        return { size, d };
+      };
+      const near = printAt({ x: 900, y: 200 });
+      const far = printAt({ x: 6000, y: 200 });
+      expect(far.size).toBeCloseTo(near.size, 6);
+      expect(near.size).toBeCloseTo(noteSheetFont(near.d, near.d.floors[0])!, 6);
+
+      // and the frame is measured at the size the words are drawn, not a guess
+      const note = far.d.objects.find((o) => o.id === "note_1") as NoteObject;
+      const box = noteLayoutOf(note, far.size).box;
+      const b = planFigureBounds(far.d, far.d.floors[0])!;
+      expect(b.x + b.w).toBeGreaterThanOrEqual(box.x + box.w);
     });
 
     /* a note prints in the ink it was DRAWN in — the whole reason the hex is

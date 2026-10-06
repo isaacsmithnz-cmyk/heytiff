@@ -29,10 +29,14 @@ import {
   NOTE_WRAP_CHARS,
   type NoteObject,
 } from "@/lib/studio/notes";
+import { noteSheetFont } from "@/lib/studio/figure-bounds";
 
-/* the margin text's world size at these fixtures' zoom. Notes hold a constant
-   SCREEN size (13px), and below 1:1 the canvas clamps that divisor to 1 — so
-   at every zoom in this file a note's font is 13 world units. */
+/* the margin text's world size on these fixtures' floors. A note's words are
+   the size the sheet prints them — but these floors carry nothing but markup,
+   so there is no drawing to size against and the canvas holds them at its
+   screen size (13px), whose divisor it clamps to 1 below 1:1. So at every zoom
+   in this file a note's font is 13 world units — except in the test that puts
+   a drawing under one on purpose. */
 const NOTE_FONT_W = 13;
 
 const floor: Floor = {
@@ -235,6 +239,44 @@ describe("a note on the drawing", () => {
     ];
     return d;
   };
+
+  /* THE WORDS ARE THE SHEET'S SIZE, AND THEY ZOOM WITH THE PLAN. They held 13px
+     on screen at any zoom while paper sized them off the sheet, so on a wide
+     plan they printed four times the size they were composed at, straight
+     across each other (job 3375, 2026-10-06). One number now, the sheet's, in
+     world units: what you arrange is what prints. */
+  it("draws its words at the size the sheet prints them, and zooms them with the plan", () => {
+    const d = withNote();
+    d.objects.unshift({
+      id: "room1",
+      type: "room",
+      systemId: "sys1",
+      floorId: "flr",
+      geometry: {
+        kind: "polygon",
+        points: [
+          { x: -2000, y: -1500 },
+          { x: 2000, y: -1500 },
+          { x: 2000, y: 1500 },
+          { x: -2000, y: 1500 },
+        ],
+      },
+      plane: "room",
+      props: { name: "Lounge" },
+    });
+    const v = renderCanvas({ tool: "select", doc: d });
+    const size = () =>
+      Number(v.container.querySelector(".ds-note-text")!.getAttribute("font-size"));
+    const zoom = () =>
+      Number(/scale\(([-\d.e]+)\)/.exec(v.svg.querySelector("g[transform]")!.getAttribute("transform")!)![1]);
+    const printed = noteSheetFont(d, d.floors[0])!;
+
+    expect(size()).toBeCloseTo(printed, 6);
+    const before = zoom();
+    fireEvent.wheel(v.svg, { deltaY: -100, deltaMode: 0, ctrlKey: true, clientX: 400, clientY: 300 });
+    expect(zoom()).toBeGreaterThan(before * 1.05);
+    expect(size()).toBeCloseTo(printed, 6);
+  });
 
   /* markup belongs to the DRAWING: switching the canvas to another system —
      or to none — must never take somebody's note off the plan */

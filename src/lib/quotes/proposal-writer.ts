@@ -18,7 +18,7 @@ import {
   type ProposalOption,
 } from "./proposal";
 import { VISIT_STAGES } from "./buildup";
-import { CHECKLIST, CHECKLIST_KEYS, capAsks, keepSettled } from "./checklist";
+import { CHECKLIST, CHECKLIST_KEYS, capAsks, keepSettled, orderChecklist } from "./checklist";
 import { PAYMENT_PRESET_KEYS } from "./payment";
 import { orgTemplates } from "@/lib/templates/query";
 import type { PaymentTerms, QuoteNote } from "@/lib/templates/settings";
@@ -611,6 +611,38 @@ export async function storeProposal(
 }
 
 export const SAVE_FAILED = "The proposal couldn't be saved. Try again.";
+
+/** The options marked accepted, carried onto Tiff's rewrite: by name when
+    one option has it before and after, else by place when the options
+    stayed as many. Pure. */
+export function keptAccepted(before: ProposalDraft, after: ProposalDraft): number[] {
+  const one = (list: readonly ProposalOption[], name: string) => list.filter((o) => o.name === name).length === 1;
+  return before.accepted
+    .map((i) => {
+      const name = before.options[i]?.name;
+      if (name != null && one(before.options, name) && one(after.options, name)) return after.options.findIndex((o) => o.name === name);
+      return before.options.length === after.options.length && i < after.options.length ? i : -1;
+    })
+    .filter((i, at, all) => i >= 0 && all.indexOf(i) === at);
+}
+
+/** Whether all that changed between two copies of a draft is its checklist
+    and what that takes back (an approval). Pure. */
+export function onlyAnswersMoved(was: ProposalDraft, now: ProposalDraft): boolean {
+  const rest = (d: ProposalDraft) => JSON.stringify({ ...d, checklist: null, status: null });
+  return rest(was) === rest(now);
+}
+
+/** Tiff's rewrite with the answers given while it was writing on top,
+    still to be put in (the ones it was handed are in it now); and an
+    approval given meanwhile is of a version this one replaces. Pure. */
+export function withAnswersSince(written: ProposalDraft, handed: ProposalDraft, latest: ProposalDraft): ProposalDraft {
+  const inIt = (i: ProposalDraft["checklist"][number]) =>
+    handed.checklist.some((h) => h.key === i.key && h.fresh && h.state === i.state && h.answer === i.answer);
+  const since = latest.checklist.filter((i) => i.fresh && !inIt(i));
+  const checklist = orderChecklist([...written.checklist.filter((i) => !since.some((s) => s.key === i.key)), ...since]);
+  return { ...written, checklist, status: statusAfterChange(latest.status) };
+}
 export const CHANGED_MEANWHILE = "Someone else changed this proposal while you were working. Here it is as it stands now.";
 
 /* ── the whole write, for the route ── */
@@ -692,17 +724,22 @@ export async function writeProposal(
     return was?.[k] ?? null;
   };
   written.draft.options = written.draft.options.map((o, i) => ({ ...o, priceCents: kept(o, i, "priceCents"), labour: kept(o, i, "labour") }));
-  const stored = await storeProposal(
-    orgId,
-    userId,
-    job.cardId,
-    written.draft,
-    current.brief,
-    [...current.changes, req.change.trim() || "Put the checklist answers in"],
-    current.updatedAt
-  );
+  /* and the options the client said yes to, the same way: Tiff never marks one */
+  written.draft.accepted = keptAccepted(current.draft, written.draft);
+  const said = req.change.trim() || "Put the checklist answers in";
+  const stored = await storeProposal(orgId, userId, job.cardId, written.draft, current.brief, [...current.changes, said], current.updatedAt);
   if (stored.ok) return stored;
   if (!stored.conflict) return { ok: false, reason: SAVE_FAILED };
+  /* ANSWERS KEEP COMING WHILE TIFF WRITES (Isaac, 2026-10-06: answers go in
+     by themselves, no button). When all that moved meanwhile is the
+     checklist, the answers given since go on top of what Tiff wrote, still
+     to be put in; anything else moved is a person's edit, and wins. */
+  const latest = await readStoredProposal(orgId, job.cardId);
+  if (latest && onlyAnswersMoved(current.draft, latest.draft)) {
+    const merged = withAnswersSince(written.draft, current.draft, latest.draft);
+    const again = await storeProposal(orgId, userId, job.cardId, merged, latest.brief, [...latest.changes, said], latest.updatedAt);
+    if (again.ok) return again;
+  }
   return {
     ok: false,
     reason: "The proposal was edited while Tiff was writing, so the change wasn't put in. Try it again.",

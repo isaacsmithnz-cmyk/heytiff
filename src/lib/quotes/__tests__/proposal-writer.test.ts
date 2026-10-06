@@ -73,6 +73,7 @@ import {
   labourPrompt,
   readProposalJob,
   runProposalWrite,
+  keptAccepted,
   suggestLabour,
   writeProposal,
   type ProposalJob,
@@ -472,5 +473,62 @@ describe("the review's fixes", () => {
     const lost = await writeProposal("org", "user", "j-1", { kind: "change", change: "shorter" }, client);
     expect(lost).toMatchObject({ ok: false, reason: expect.stringMatching(/edited while Tiff was writing/) });
   });
+
+  /* Isaac, 2026-10-06: "Put them in shouldn't be a button" — the answers go
+     in by themselves while the person goes on answering */
+  it("puts answers given while Tiff wrote on top of what it wrote, still to be put in", async () => {
+    const meanwhile = {
+      data: {
+        ...stored().data,
+        draft: { ...draft, checklist: [...draft.checklist, { key: "power_phase" as const, state: "known" as const, answer: "Single phase", fresh: true }] },
+        updated_at: "2026-09-29T07:00:05Z",
+      },
+    };
+    maybeSingle.mockResolvedValueOnce(stored()).mockResolvedValueOnce(meanwhile);
+    updated.mockResolvedValueOnce({ data: null, error: null });
+    const { client, create } = clientSaying(answer);
+    const res = await writeProposal("org", "user", "j-1", { kind: "change", change: "" }, client);
+    expect(res.ok).toBe(true);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(base).toHaveBeenLastCalledWith("2026-09-29T07:00:05Z");
+    const checklist = lastRow()!.draft.checklist;
+    /* Tiff's rewrite took the colour in; the phase came after, and waits */
+    expect(checklist.find((i) => i.key === "pipe_colour")?.fresh).toBeUndefined();
+    expect(checklist.find((i) => i.key === "power_phase")).toEqual({ key: "power_phase", state: "known", answer: "Single phase", fresh: true });
+    expect(checklist.find((i) => i.key === "drain_to")).toMatchObject({ state: "known", answer: "Downpipe" });
+  });
+
+  it("leaves a person's own edit made while Tiff wrote standing", async () => {
+    maybeSingle.mockResolvedValueOnce(stored()).mockResolvedValueOnce({ data: { ...stored({ intro: "Hi Jane, as discussed." }).data, updated_at: "2026-09-29T07:00:05Z" } });
+    updated.mockResolvedValueOnce({ data: null, error: null });
+    const { client } = clientSaying(answer);
+    const lost = await writeProposal("org", "user", "j-1", { kind: "change", change: "" }, client);
+    expect(lost).toMatchObject({ ok: false, reason: expect.stringMatching(/edited while Tiff was writing/) });
+    expect(base).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the option the client accepted through Tiff's rewrite", async () => {
+    maybeSingle.mockResolvedValue(stored({ accepted: [0] }));
+    const { client } = clientSaying(answer);
+    await writeProposal("org", "user", "j-1", { kind: "change", change: "shorter" }, client);
+    expect(lastRow()?.draft.accepted).toEqual([0]);
+  });
 });
 
+
+describe("the accepted options through a rewrite", () => {
+  const opt = (name: string) => ({ ...draft.options[0]!, name });
+  const d = (names: string[], accepted: number[] = []) => ({ ...draft, options: names.map(opt), accepted });
+
+  it("follows an option by its name when Tiff reorders them", () => {
+    expect(keptAccepted(d(["Multi", "Three splits"], [1]), d(["Three splits", "Multi"]))).toEqual([0]);
+  });
+
+  it("keeps its place when the names changed and the options stayed as many", () => {
+    expect(keptAccepted(d(["Multi"], [0]), d(["Option 1: Multi"]))).toEqual([0]);
+  });
+
+  it("lets go of one that's gone", () => {
+    expect(keptAccepted(d(["Multi", "Three splits"], [1]), d(["Multi"]))).toEqual([]);
+  });
+});

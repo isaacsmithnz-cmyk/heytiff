@@ -135,8 +135,104 @@ it("asks the first open question with its usual answers, and saves an answer wit
     fresh: true,
   });
   expect((fetchMock.mock.calls as Call[]).some(([, init]) => init?.method === "POST")).toBe(false);
-  await screen.findByText("1 answer isn't in the proposal yet");
-  expect(screen.getByRole("button", { name: "Put them in" })).toBeInTheDocument();
+});
+
+/* Isaac, 2026-10-06: "Put them in shouldn't be a button. It's supposed to
+   dynamically add in the costs" — an answer moves the price as it's saved,
+   and Tiff writes it into the scope by itself at the next pause */
+describe("the answers go in by themselves", () => {
+  const posts = () => (fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === "POST");
+  const twoAsks = () => {
+    const asked = stored();
+    asked.draft.checklist = [
+      { key: "pipe_covering", state: "ask", answer: "", question: "What covers the pipes on the rear wall?", choices: ["Colorbond trunking"], rank: 1 },
+      { key: "drain_to", state: "ask", answer: "", question: "Where does the drain go?", choices: ["Downpipe"], rank: 2 },
+    ];
+    return asked;
+  };
+  const answering = (proposal: StoredProposal, post: () => Promise<unknown> = () => respond({ ok: true, proposal: stored() })) =>
+    fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) => {
+      if (init?.method === "PUT") {
+        const { draft } = JSON.parse(init.body!) as { draft: StoredProposal["draft"] };
+        return respond({ ok: true, proposal: { ...proposal, draft: normaliseDraft(draft) } });
+      }
+      if (init?.method === "POST") return post();
+      return respond({ ok: true, proposal });
+    });
+
+  it("with nothing left to ask, puts them in at once, with no button", async () => {
+    await openFace();
+    await screen.findByText("What Tiff read");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
+    });
+    expect(screen.queryByRole("button", { name: "Put them in" })).toBeNull();
+    await waitFor(() => expect(posts()).toHaveLength(1), { timeout: 3000 });
+    expect(JSON.parse(posts()[0]![1]!.body!)).toEqual({ job: "j-1", apply: true });
+  });
+
+  it("waits for a pause while questions are still being answered, and answering goes on while Tiff writes", async () => {
+    answering(twoAsks(), () => new Promise(() => undefined));
+    const { container } = face();
+    await screen.findByText("What Tiff read");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
+    });
+    /* on to the drain: still answering, so nothing is written yet */
+    expect(document.querySelector(".wb2-jqask")).toHaveTextContent("Where does the drain go?");
+    await act(() => new Promise((r) => setTimeout(r, 1500)));
+    expect(posts()).toHaveLength(0);
+    /* stepping away from the questions is the pause */
+    fireEvent.click(screen.getByRole("button", { name: "Not now" }));
+    await waitFor(() => expect(posts()).toHaveLength(1), { timeout: 3000 });
+    expect(await screen.findByText("Putting the answers in")).toBeInTheDocument();
+    fireEvent.click(within(container.querySelector(".qp-rail") as HTMLElement).getByRole("button", { name: "Answer Where to" }));
+    expect(screen.getByRole("button", { name: "Downpipe" })).toBeEnabled();
+  });
+
+  it("makes an answer again on the copy that moved on while it was saved", async () => {
+    const moved = { ...stored(), updatedAt: "2026-09-29T09:00:00Z" };
+    let first = true;
+    fetchMock.mockImplementation((url: string, init?: { method?: string; body?: string }) => {
+      if (init?.method === "PUT" && first) {
+        first = false;
+        return respond({ ok: false, reason: "Someone else changed this proposal while you were working.", proposal: moved });
+      }
+      if (init?.method === "PUT") {
+        const { draft } = JSON.parse(init.body!) as { draft: StoredProposal["draft"] };
+        return respond({ ok: true, proposal: { ...moved, draft: normaliseDraft(draft) } });
+      }
+      return respond({ ok: true, proposal: stored() });
+    });
+    const onToast = jest.fn();
+    await openFace(onToast);
+    await screen.findByText("What Tiff read");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
+    });
+    const puts = (fetchMock.mock.calls as Call[]).filter(([, init]) => init?.method === "PUT");
+    expect(puts).toHaveLength(2);
+    const again = JSON.parse(puts[1]![1]!.body!) as { base: string; draft: StoredProposal["draft"] };
+    expect(again.base).toBe("2026-09-29T09:00:00Z");
+    expect(again.draft.checklist.find((i) => i.key === "pipe_covering")).toMatchObject({ answer: "Colorbond trunking", fresh: true });
+    expect(onToast).not.toHaveBeenCalled();
+  });
+
+  it("says when they couldn't be put in, tries no more by itself, and tries again when asked", async () => {
+    answering(stored(), () => respond({ ok: false, reason: "Tiff is busy. Try again in a minute." }));
+    await openFace();
+    await screen.findByText("What Tiff read");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
+    });
+    expect(await screen.findByText("The answers aren't in the proposal yet. Tiff is busy. Try again in a minute.", {}, { timeout: 3000 })).toBeInTheDocument();
+    await act(() => new Promise((r) => setTimeout(r, 1500)));
+    expect(posts()).toHaveLength(1);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    });
+    expect(posts()).toHaveLength(2);
+  });
 });
 
 /* Isaac's 2905, 2026-10-05: "questions are very vague, hard to understand" */
@@ -238,8 +334,10 @@ it("shows the proposal as it stands when someone else saved first", async () => 
   await screen.findByText("What Tiff read");
   const newer = { ...stored(), updatedAt: "2026-09-29T09:00:00Z", draft: normaliseDraft({ ...stored().draft, intro: "Hi Jane,\nNewer words." })! };
   fetchMock.mockImplementationOnce(() => respond({ ok: false, reason: "Someone else changed this proposal", proposal: newer }));
+  /* an edit of a person's own, not an answer: an answer is made again on the newer copy */
+  toProposal();
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Payment terms" })).getByRole("radio", { name: "Home, construction" }));
   });
   expect(onToast).toHaveBeenCalledWith("Someone else changed this proposal");
   expect(screen.getByText(/Newer words/)).toBeInTheDocument();
@@ -637,6 +735,15 @@ describe("the quote's next step, by hand", () => {
       fireEvent.click(screen.getByRole("button", { name: "Undo sent" }));
     });
     expect(lastPut().draft.status).toEqual({ approvedAt: expect.any(String), sentAt: null });
+  });
+
+  it("waits to approve until the answers are in the proposal", async () => {
+    page();
+    await screen.findByText("What Tiff read");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
+    });
+    expect(within(corner).getByRole("button", { name: "Approve" })).toBeDisabled();
   });
 
   it("takes an approval back when the quote changes after it", async () => {

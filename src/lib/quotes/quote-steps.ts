@@ -77,7 +77,7 @@ export function quoteSteps(input: {
     counts.ask > 0
       ? step("questions", "due", `${counts.ask} to answer`)
       : fresh > 0
-        ? step("questions", "due", fresh === 1 ? "1 answer to put in" : `${fresh} answers to put in`)
+        ? step("questions", "due", "Putting the answers in")
         : step("questions", "done", "Answered");
 
   const buildup =

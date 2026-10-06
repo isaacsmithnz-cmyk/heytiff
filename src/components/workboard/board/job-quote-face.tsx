@@ -2,7 +2,7 @@
 
 import { fmtAud } from "@/lib/workboard/project-money";
 import Link from "next/link";
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { NoteToken } from "@/components/notes/note-token";
 import { Waiting } from "@/components/ui/orb";
@@ -62,8 +62,9 @@ import { withCleanup } from "@/lib/ui/with-cleanup";
    proposal can go out: the drain, the covering and its colour, the power,
    the height, home or business. Tiff asks one question at a time with the
    usual answers as one press each; an answer is saved on the spot, with no
-   model call, and "Put them in" folds the answers into the scope in one
-   change. The topics and their questions are fixed (lib/quotes/checklist),
+   model call, and Tiff folds the answers into the scope by itself at the
+   next pause (Isaac, 2026-10-06: "Put them in shouldn't be a button"); the
+   price follows each answer at once. The topics and their questions are fixed (lib/quotes/checklist),
    so every job is asked the same way.
 
    THE BLOCKS FOLLOW THE SKELETON (lib/quotes/proposal): title, intro, why
@@ -104,6 +105,11 @@ type Answer =
 type Edit = (draft: ProposalDraft) => ProposalDraft;
 
 const ROUTE = "/api/workboard/quote-draft";
+/* how long after the last answer Tiff puts the answers in: at once when
+   nothing is left to ask or the person stepped away from the questions,
+   after a pause while they're still answering */
+const APPLY_SOON_MS = 1200;
+const APPLY_WHILE_ASKING_MS = 8000;
 
 /** The labour an answer carries: a call, so a write's try/catch holds no
     value block React Compiler 1.0 can't lower. */
@@ -239,6 +245,8 @@ export function JobQuoteFace({
   /* the option whose Suggest labour was pressed: its row waits and says why */
   const [labourAt, setLabourAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* why Tiff couldn't put the answers in, and on which version */
+  const [applyFailed, setApplyFailed] = useState<{ at: string | null; reason: string } | null>(null);
   const [editing, setEditing] = useState<Block | null>(null);
   const [reads, setReads] = useState(0);
   const [tpl, setTpl] = useState<QuoteTemplates>(STANDARD_QUOTE);
@@ -250,6 +258,10 @@ export function JobQuoteFace({
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
   const land = (p: StoredProposal | null) => {
+    /* a reply that comes back after a newer save landed is behind it: Tiff
+       putting answers in while the next one was saved */
+    const held = latest.current;
+    if (p && held && p.cardId === held.cardId && Date.parse(p.updatedAt) < Date.parse(held.updatedAt)) return;
     latest.current = p;
     setLoaded(p);
   };
@@ -333,63 +345,106 @@ export function JobQuoteFace({
           ? { job, change: words }
           : { job, apply: true };
     await withCleanup(async () => {
+      /* the call alone inside the try: the compiler can't lower a logical
+         expression inside a try/catch either */
+      let a: Answer | null;
       try {
         const res = await fetch(ROUTE, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(ask),
         });
-        const a = (await res.json()) as Answer;
-        if (!a.ok) {
-          setError(a.reason);
-          if (a.proposal) {
-            land(a.proposal);
-            setRedraft(false);
-          }
-          return;
-        }
-        land(a.proposal);
-        /* a new brief can give labour, or stop giving it: read with the draft */
-        setLabourFacts(labourIn(a));
-        setLabourError(null);
-        setRedraft(false);
-        setEditing(null);
-        /* a new draft asks its own questions: none held open from the last */
-        if (kind === "draft") setOn(null);
-        if (kind === "change") setChange("");
+        a = (await res.json()) as Answer;
       } catch {
-        setError("Tiff couldn't be reached. Try again.");
+        a = null;
       }
+      if (!a) {
+        if (kind === "apply") setApplyFailed({ at: version, reason: "Tiff couldn't be reached." });
+        else setError("Tiff couldn't be reached. Try again.");
+        return;
+      }
+      if (!a.ok && kind === "apply") {
+        /* moved on underneath (a person's edit): the next pause tries again
+           on what's there now; anything else waits for the next answer */
+        if (a.proposal) land(a.proposal);
+        else setApplyFailed({ at: version, reason: a.reason });
+        return;
+      }
+      if (!a.ok) {
+        setError(a.reason);
+        if (a.proposal) {
+          land(a.proposal);
+          setRedraft(false);
+        }
+        return;
+      }
+      land(a.proposal);
+      setApplyFailed(null);
+      /* a new brief can give labour, or stop giving it: read with the draft */
+      setLabourFacts(labourIn(a));
+      setLabourError(null);
+      if (kind === "apply") return;
+      setRedraft(false);
+      setEditing(null);
+      /* a new draft asks its own questions: none held open from the last */
+      if (kind === "draft") setOn(null);
+      if (kind === "change") setChange("");
     }, () => setWorking(null));
   };
 
+  /* THE ANSWERS GO IN BY THEMSELVES (Isaac, 2026-10-06: "Put them in
+     shouldn't be a button. It's supposed to dynamically add in the costs").
+     An answer moves the price the moment it's saved; Tiff writes it into
+     the scope at the next pause, and answering goes on while it writes. Not
+     under an open editor, and not again on a version it already failed on. */
+  const fresh = loaded ? loaded.draft.checklist.filter((i) => i.fresh).length : 0;
+  const openAsks = loaded ? asksByImpact(loaded.draft.checklist).length : 0;
+  const putAnswersIn = useEffectEvent(() => void write("apply"));
+  useEffect(() => {
+    if (mode !== "page" || redraft || fresh === 0 || working !== null || editing !== null) return;
+    if (applyFailed && applyFailed.at === version) return;
+    const answering = openAsks > 0 && on?.key !== null;
+    const t = setTimeout(putAnswersIn, answering ? APPLY_WHILE_ASKING_MS : APPLY_SOON_MS);
+    return () => clearTimeout(t);
+  }, [mode, redraft, fresh, working, editing, applyFailed, version, openAsks, on]);
+
   /** An edit to the draft. Any edit but the quote's own status takes an
       approval back: an approval is of the version on screen. */
-  const save = (edit: Edit, keepStatus = false): Promise<boolean> => {
-    const run = async () => {
+  const save = (edit: Edit, keepStatus = false, rebase = false): Promise<boolean> => {
+    /* `rebase`: an answer is the same answer on a copy that moved on under
+       it (Tiff putting the last ones in), so it's made again there once */
+    const attempt = async (again: boolean): Promise<boolean> => {
       const base = latest.current;
       if (!base) return false;
       const edited = edit(base.draft);
       const next = !keepStatus && edited.status?.approvedAt ? { ...edited, status: statusAfterChange(edited.status) } : edited;
+      /* the call alone inside the try: React Compiler 1.0 can't lower a
+         conditional call inside a try/catch */
+      let a: Answer | null;
       try {
         const res = await fetch(ROUTE, {
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ job, draft: next, base: base.updatedAt }),
         });
-        const a = (await res.json()) as Answer;
-        if (!a.ok) {
-          if (a.proposal) land(a.proposal);
-          onToast(a.reason);
-          return false;
-        }
-        land(a.proposal);
-        return true;
+        a = (await res.json()) as Answer;
       } catch {
+        a = null;
+      }
+      if (!a) {
         onToast("The edit couldn't be saved. Try again.");
         return false;
       }
+      if (a.ok) {
+        land(a.proposal);
+        return true;
+      }
+      if (a.proposal) land(a.proposal);
+      if (again && a.proposal) return attempt(false);
+      onToast(a.reason);
+      return false;
     };
+    const run = () => attempt(rebase);
     const next = queue.current.then(run, run);
     queue.current = next;
     return next;
@@ -520,6 +575,8 @@ export function JobQuoteFace({
     when: whenOf,
   });
   const busy = working !== null;
+  /* Tiff putting answers in never stops the questions */
+  const asking = working !== null && working !== "apply";
 
   /* approved and sent, by hand; Undo takes back the last one marked */
   const mark = (step: "approve" | "sent") =>
@@ -670,12 +727,12 @@ export function JobQuoteFace({
         </button>
       )}
       {next === "approve" && (
-        <button type="button" className="pbtn primary" disabled={busy} onClick={() => void mark("approve")}>
+        <button type="button" className="pbtn primary" disabled={busy || fresh > 0} onClick={() => void mark("approve")}>
           Approve
         </button>
       )}
       {next === "sent" && (
-        <button type="button" className="pbtn primary" disabled={busy} onClick={() => void mark("sent")}>
+        <button type="button" className="pbtn primary" disabled={busy || fresh > 0} onClick={() => void mark("sent")}>
           Mark sent
         </button>
       )}
@@ -704,7 +761,7 @@ export function JobQuoteFace({
                   type="button"
                   className="pbtn ghost sm"
                   aria-label={`Change ${CHECKLIST[i.key].label}`}
-                  disabled={busy}
+                  disabled={asking}
                   onClick={() => choose(i.key)}
                 >
                   Change
@@ -720,22 +777,31 @@ export function JobQuoteFace({
           items={draft.checklist}
           on={on}
           setOn={setOn}
-          busy={busy}
+          busy={asking}
           applying={working === "apply"}
+          failed={applyFailed?.reason ?? null}
           onAnswer={(key, answer) =>
-            save((d) => ({
-              ...d,
-              /* keeps the question it was asked with, for its Change */
-              checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "known", answer, fresh: true, rank: undefined } : i)),
-            }))
+            save(
+              (d) => ({
+                ...d,
+                /* keeps the question it was asked with, for its Change */
+                checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "known", answer, fresh: true, rank: undefined } : i)),
+              }),
+              false,
+              true
+            )
           }
           onSkip={(key) =>
-            save((d) => ({
-              ...d,
-              checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "na", answer: "Not needed on this job", rank: undefined } : i)),
-            }))
+            save(
+              (d) => ({
+                ...d,
+                checklist: d.checklist.map((i) => (i.key === key ? { ...i, state: "na", answer: "Not needed on this job", rank: undefined } : i)),
+              }),
+              false,
+              true
+            )
           }
-          onApply={() => void write("apply")}
+          onRetry={() => void write("apply")}
         />
       </section>
 
@@ -1045,9 +1111,10 @@ function SiteChecklist({
   setOn,
   busy,
   applying,
+  failed,
   onAnswer,
   onSkip,
-  onApply,
+  onRetry,
 }: {
   items: CheckItem[];
   /** The topic being asked, held by the page so What Tiff read and the list
@@ -1055,11 +1122,14 @@ function SiteChecklist({
   on: { key: ChecklistKey | null; chosen: boolean } | null;
   setOn: (next: { key: ChecklistKey | null; chosen: boolean }) => void;
   busy: boolean;
+  /** Tiff writing the answers into the proposal */
   applying: boolean;
+  /** why the answers couldn't be put in, until the next answer */
+  failed: string | null;
   onAnswer: (key: ChecklistKey, answer: string) => Promise<boolean>;
   /** "Doesn't apply": the topic is marked not needed on this job */
   onSkip: (key: ChecklistKey) => Promise<boolean>;
-  onApply: () => void;
+  onRetry: () => void;
 }) {
   /* the question that changes the most first (Isaac's 2905, 2026-10-05) */
   const asks = asksByImpact(items);
@@ -1167,17 +1237,20 @@ function SiteChecklist({
         </div>
       )}
 
-      {fresh > 0 && (
+      {applying ? (
         <div className="wb2-jqfresh">
-          <span>{fresh === 1 ? "1 answer isn't in the proposal yet" : `${fresh} answers aren't in the proposal yet`}</span>
-          {applying ? (
-            <Waiting note="Putting them in" />
-          ) : (
-            <button type="button" className="pbtn primary sm" disabled={busy} onClick={onApply}>
-              Put them in
-            </button>
-          )}
+          <Waiting note="Putting the answers in" />
         </div>
+      ) : (
+        fresh > 0 &&
+        failed && (
+          <div className="wb2-jqfresh">
+            <span>{`The answers aren't in the proposal yet. ${failed}`}</span>
+            <button type="button" className="pbtn ghost sm" onClick={onRetry}>
+              Try again
+            </button>
+          </div>
+        )
       )}
 
       {others.length > 0 && (

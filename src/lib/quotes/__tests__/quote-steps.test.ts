@@ -66,7 +66,7 @@ it("takes a yes by phone at any point, the steps before it left unmarked", () =>
 
 it("says the questions are answered, or that answers wait to be put in", () => {
   const answered = draft({ checklist: [{ key: "drain_to", state: "known", answer: "Downpipe", fresh: true }] });
-  expect(words(answered).steps[1]).toMatchObject({ state: "due", words: "1 answer to put in" });
+  expect(words(answered).steps[1]).toMatchObject({ state: "due", words: "Putting the answers in" });
   const done = draft({ checklist: [{ key: "drain_to", state: "known", answer: "Downpipe" }] });
   expect(words(done).steps[1]).toMatchObject({ state: "done", words: "Answered" });
 });

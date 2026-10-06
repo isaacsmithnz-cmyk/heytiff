@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
-import { createNote } from "@/lib/studio/notes";
+import { createNote, noteLayoutOf, NOTE_LEGACY_FONT_W, type NoteObject } from "@/lib/studio/notes";
 import { PlanFigure, planFigureBounds } from "../summary/plan-figure";
 
 /* The static print/export plan figure — a self-contained SVG mirror of the
@@ -227,6 +227,30 @@ describe("PlanFigure", () => {
       expect(b.x + b.w).toBeGreaterThan(2400); // past the leader, not just to it
     });
 
+    /* the words are the note's, not the figure's: pulling them further into
+       the margin widens the figure, and must not grow them with it */
+    it("prints its words the same size wherever they sit, and inside the figure", () => {
+      const printAt = (leader: { x: number; y: number }) => {
+        const d = withNote(leader);
+        const { container, unmount } = render(
+          <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+        );
+        const size = Number(container.querySelector(".ds-note-text")!.getAttribute("font-size"));
+        unmount();
+        return { size, d };
+      };
+      const near = printAt({ x: 900, y: 200 });
+      const far = printAt({ x: 6000, y: 200 });
+      expect(far.size).toBeCloseTo(near.size, 6);
+      expect(near.size).toBeCloseTo(NOTE_LEGACY_FONT_W, 6);
+
+      // and the frame is measured at the size the words are drawn, not a guess
+      const note = far.d.objects.find((o) => o.id === "note_1") as NoteObject;
+      const box = noteLayoutOf(note).box;
+      const b = planFigureBounds(far.d, far.d.floors[0])!;
+      expect(b.x + b.w).toBeGreaterThanOrEqual(box.x + box.w);
+    });
+
     /* a note prints in the ink it was DRAWN in — the whole reason the hex is
        stored on the document rather than a palette id */
     it("prints each note in its own ink", () => {
@@ -247,52 +271,31 @@ describe("PlanFigure", () => {
       expect(inks).toEqual(["rgb(157, 23, 77)", "rgb(20, 83, 45)"]);
     });
 
-    /* A note is a written instruction to whoever builds the job, so on paper it
-       has no business being quieter than the labels around it. It printed at 11
-       — the size of the derived area line — until a real exported sheet showed
-       it losing to them (2026-08-26). Asserted against the ROOM NAME rather
-       than against 13, so the rule survives a type-scale change. */
-    it("prints its words as loud as a room's name", () => {
-      const d = withNote();
-      const { container } = render(
-        <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
-      );
-      const size = (sel: string) =>
-        Number(container.querySelector(sel)!.getAttribute("fontSize") ??
-               container.querySelector(sel)!.getAttribute("font-size"));
-      expect(size(".ds-note-text")).toBeCloseTo(size(".ds-room-name"), 6);
-      expect(size(".ds-note-text")).toBeGreaterThan(size(".ds-room-area"));
-    });
-
-    /* The measure and the size are set on the CANVAS, and a note that only
-       looked right there would be the whole reason both surfaces lay a note
-       out through one function. The sheet's own size is the BASE; the note's
-       scale rides on top of it, so the rule above (as loud as a room's name)
-       still fixes what a default note prints at. */
-    it("prints a note at the measure and the size it was set to", () => {
-      const set = (props: Record<string, unknown>) => {
+    /* THE LOCK (job 3375, 2026-10-06): a note prints at the size it was
+       WRITTEN at — the world size the canvas stored on it — so it sits on the
+       sheet exactly as it sat on the plan. It used to print at the sheet's own
+       size, which on a wide plan was four times the size it was written at,
+       and its words ran straight across the next note's. */
+    it("prints its words at the size they were written", () => {
+      const printed = (props: Record<string, unknown>) => {
         const d = withNote();
         const i = d.objects.findIndex((o) => o.id === "note_1");
         d.objects[i] = { ...d.objects[i], props: { ...d.objects[i].props, ...props } };
-        return render(
+        const { container, unmount } = render(
           <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
-        ).container;
+        );
+        const size = Number(container.querySelector(".ds-note-text")!.getAttribute("font-size"));
+        const lines = container.querySelectorAll(".ds-note-text tspan").length;
+        unmount();
+        return { size, lines };
       };
-      /* against the ROOM NAME, not against a number: a bigger note widens the
-         figure, which changes the zoom the sheet's base size is derived from
-         (the two-pass fit). Both labels ride that same base, so their ratio is
-         the note's scale and nothing else. */
-      const rel = (c: HTMLElement) =>
-        Number(c.querySelector(".ds-note-text")!.getAttribute("font-size")) /
-        Number(c.querySelector(".ds-room-name")!.getAttribute("font-size"));
-      const lines = (c: HTMLElement) => c.querySelectorAll(".ds-note-text tspan").length;
-
-      const plain = set({});
-      expect(rel(plain)).toBeCloseTo(1, 6);
-      expect(rel(set({ textScale: 2 }))).toBeCloseTo(2, 6);
-      // the measure reflows the words and leaves the type alone
-      expect(lines(set({ wrap: 10 }))).toBeGreaterThan(lines(plain));
-      expect(rel(set({ wrap: 10 }))).toBeCloseTo(1, 6);
+      expect(printed({ fontW: 40 }).size).toBeCloseTo(40, 6);
+      // a note from before the lock prints at the size the canvas drew it
+      expect(printed({}).size).toBeCloseTo(NOTE_LEGACY_FONT_W, 6);
+      // the corner grip's scale rides on top; the measure reflows, never scales
+      expect(printed({ fontW: 40, textScale: 2 }).size).toBeCloseTo(80, 6);
+      expect(printed({ fontW: 40, wrap: 10 }).lines).toBeGreaterThan(printed({ fontW: 40 }).lines);
+      expect(printed({ fontW: 40, wrap: 10 }).size).toBeCloseTo(40, 6);
     });
 
     it("is not counted as a room", () => {

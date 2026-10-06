@@ -16,6 +16,7 @@ import {
   createNote,
   isNote,
   noteGrips,
+  noteFontOf,
   noteLayoutOf,
   noteLeader,
   noteRect,
@@ -26,14 +27,15 @@ import {
   noteWrapOf,
   DEFAULT_NOTE_INK,
   NOTE_INKS,
+  NOTE_LEGACY_FONT_W,
   NOTE_WRAP_CHARS,
   type NoteObject,
 } from "@/lib/studio/notes";
 
-/* the margin text's world size at these fixtures' zoom. Notes hold a constant
-   SCREEN size (13px), and below 1:1 the canvas clamps that divisor to 1 — so
-   at every zoom in this file a note's font is 13 world units. */
-const NOTE_FONT_W = 13;
+/* the margin text's world size for the notes these fixtures build directly
+   (createNote with no size): a note from before the lock, which reads as the
+   size the canvas drew those at. */
+const NOTE_FONT_W = NOTE_LEGACY_FONT_W;
 
 const floor: Floor = {
   id: "flr",
@@ -236,6 +238,33 @@ describe("a note on the drawing", () => {
     return d;
   };
 
+  /* THE LOCK (job 3375, 2026-10-06). The words are written at 13px on screen
+     and KEEP that size against the drawing: it is stored on the note in world
+     units, so a zoom scales them with the plan instead of holding them at 13px
+     while the plan shrinks under them. Held at 13px they changed size against
+     the plan with every zoom, printed four times bigger than written, and ran
+     across each other. */
+  it("keeps the size its words were written at, and zooms them with the plan", () => {
+    const v = renderCanvas();
+    const zoom = () =>
+      Number(/scale\(([-\d.e]+)\)/.exec(v.svg.querySelector("g[transform]")!.getAttribute("transform")!)![1]);
+    const size = () =>
+      Number(v.container.querySelector(".ds-note-text")!.getAttribute("font-size"));
+    dragCloud(v.svg);
+    const writtenAt = zoom();
+    placeWords(v.svg);
+
+    // stored in world units: 13px at the zoom it was written at
+    expect(noteFontOf(v.notes[0])).toBeCloseTo(13 / writtenAt, 6);
+    expect(size() * writtenAt).toBeCloseTo(13, 6);
+
+    fireEvent.wheel(v.svg, { deltaY: -100, deltaMode: 0, ctrlKey: true, clientX: 400, clientY: 300 });
+    expect(zoom()).toBeGreaterThan(writtenAt * 1.05);
+    // same size against the plan — so bigger on screen, like the plan
+    expect(size()).toBeCloseTo(13 / writtenAt, 6);
+    expect(noteFontOf(v.notes[0])).toBeCloseTo(13 / writtenAt, 6);
+  });
+
   /* markup belongs to the DRAWING: switching the canvas to another system —
      or to none — must never take somebody's note off the plan */
   it("shows whatever system the canvas is on", () => {
@@ -295,7 +324,7 @@ describe("a note on the drawing", () => {
      quietly eating the drag that re-places its margin. */
   describe("its words are a text frame once it is selected", () => {
     const gripAt = (v: ReturnType<typeof renderCanvas>, which: "measure" | "size") =>
-      noteGrips(v.notes[0] as NoteObject, NOTE_FONT_W)[which];
+      noteGrips(v.notes[0] as NoteObject)[which];
 
     it("shows no frame at all until it is selected", () => {
       const off = renderCanvas({ tool: "select", doc: withNote() });
@@ -309,7 +338,7 @@ describe("a note on the drawing", () => {
     it("sets the measure when the side grip is pulled out", () => {
       const v = renderCanvas({ tool: "select", doc: withNote(), selectedId: "note_1" });
       const g = gripAt(v, "measure");
-      const lay = noteLayoutOf(v.notes[0] as NoteObject, NOTE_FONT_W);
+      const lay = noteLayoutOf(v.notes[0] as NoteObject);
       // pull the edge out to exactly 12 characters' worth of width
       const to = lay.textX + lay.side * (12 * lay.fontSize * 0.56);
       fireEvent.pointerDown(v.svg, world(v.svg, g.x, g.y));

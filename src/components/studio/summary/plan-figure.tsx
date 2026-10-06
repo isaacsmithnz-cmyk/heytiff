@@ -15,19 +15,19 @@ import {
   cloudPath,
   isNote,
   leaderStart,
-  noteBounds,
   noteInkOf,
   noteLeader,
   noteRect,
   noteLayoutOf,
   type NoteObject,
 } from "@/lib/studio/notes";
+import { calloutContent, calloutLayout, calloutOf } from "@/lib/studio/callouts";
 import {
-  calloutBounds,
-  calloutContent,
-  calloutLayout,
-  calloutOf,
-} from "@/lib/studio/callouts";
+  CALLOUT_FONT_REF,
+  northRadius,
+  planFigureBounds,
+  sheetUnitOf,
+} from "@/lib/studio/figure-bounds";
 import { unitGlyph, type LayerFlags } from "../canvas";
 import { footprintBox, layoutPlanLabels, roomLabelFixed } from "@/lib/studio/plan-labels";
 import type { UnitMark } from "@/lib/studio/export";
@@ -49,128 +49,8 @@ import type { UnitMark } from "@/lib/studio/export";
    serializes. All ids are prefixed per-floor so several figures can share
    one print document. */
 
-const REF_W = 900; // reference width: text sized as if on a 900px-wide sheet
-/** The markup text's size at reference width — the print twin of NOTE_FONT_PX.
-
-    Matches the ROOM NAME (13), not the room's area line (11), and that is the
-    point: a note is a written instruction to whoever builds the job, so it has
-    no business being quieter on paper than a derived measurement. It printed
-    at 11 until a real sheet showed it losing to the labels around it
-    (2026-08-26). The canvas always used 13; this is paper catching up. */
-const NOTE_FONT_REF = 13;
-/* one step below a written note, the same gap the canvas keeps: an instruction
-   somebody typed must not be quieter than the machine's own data */
-const CALLOUT_FONT_REF = 11;
-
-export function planFigureBounds(
-  doc: DesignDocument,
-  floor: Floor
-): { x: number; y: number; w: number; h: number } | null {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  const eat = (x: number, y: number) => {
-    if (x < minX) minX = x;
-    if (y < minY) minY = y;
-    if (x > maxX) maxX = x;
-    if (y > maxY) maxY = y;
-  };
-
-  for (const s of floor.plans) {
-    if (!s.width || !s.height) continue; // legacy sheet without stored dims
-    if (s.crop) {
-      eat(s.x + s.crop.x, s.y + s.crop.y);
-      eat(s.x + s.crop.x + s.crop.w, s.y + s.crop.y + s.crop.h);
-    } else {
-      eat(s.x, s.y);
-      eat(s.x + s.width, s.y + s.height);
-    }
-  }
-  const scale = floor.scaleMmPerUnit;
-  for (const o of doc.objects) {
-    if (o.floorId !== floor.id) continue;
-    if (o.geometry.kind === "polygon" || o.geometry.kind === "polyline")
-      for (const p of o.geometry.points) eat(p.x, p.y);
-    if (o.geometry.kind === "point") {
-      const at = o.geometry.at;
-      const w = scale ? Number(o.props.widthMm ?? 800) / scale : 40;
-      const h = scale ? Number(o.props.depthMm ?? 300) / scale : 20;
-      eat(at.x - w, at.y - h);
-      eat(at.x + w, at.y + h);
-      /* A callout's leader END is an ordinary world point — it is the BUBBLE
-         that is sized to the sheet — so it belongs in pass one beside the
-         footprint. Placed clear of the plan on purpose, exactly like a note's
-         margin text, and a figure that framed only the plan would crop the
-         label somebody put where it could be read. */
-      const c = calloutOf(o);
-      if (c) eat(at.x + c.x, at.y + c.y);
-    }
-  }
-  if (floor.northPos) {
-    const r = northRadius(floor) * 1.8;
-    eat(floor.northPos.x - r, floor.northPos.y - r);
-    eat(floor.northPos.x + r, floor.northPos.y + r);
-  }
-  if (!Number.isFinite(minX)) return null;
-
-  /* Notes are measured in a SECOND pass, because their words are sized to the
-     sheet: the font is a fraction of the figure's own width, so the width has
-     to exist before the text that widens it can be measured. One extra pass
-     settles it — the text grows by well under the 5% pad the figure already
-     carries, so a third would move nothing. (Pass one has already eaten the
-     cloud itself; its points are ordinary polygon geometry.) */
-  const notes = doc.objects.filter(
-    (o): o is NoteObject => o.floorId === floor.id && isNote(o)
-  );
-  if (notes.length > 0) {
-    const font = (NOTE_FONT_REF * Math.max(maxX - minX, 1)) / REF_W;
-    for (const n of notes) {
-      const b = noteBounds(n, font);
-      eat(b.x, b.y);
-      eat(b.x + b.w, b.y + b.h);
-    }
-  }
-  /* Callout BUBBLES ride the same second pass and for the same reason: their
-     type is a fraction of the figure's width, so the width has to exist before
-     the box that widens it can be measured. */
-  for (const o of doc.objects) {
-    if (o.floorId !== floor.id || o.type !== "unit" || o.geometry.kind !== "point") continue;
-    const off = calloutOf(o);
-    if (!off) continue;
-    const at = o.geometry.at;
-    const font = (CALLOUT_FONT_REF * Math.max(maxX - minX, 1)) / REF_W;
-    const fp = scale
-      ? { w: Number(o.props.widthMm ?? 800) / scale, h: Number(o.props.depthMm ?? 300) / scale }
-      : { w: 40, h: 20 };
-    const b = calloutBounds(
-      calloutLayout({
-        at,
-        footprint: fp,
-        offset: off,
-        content: calloutContent(o, null),
-        fontSize: font,
-      })
-    );
-    eat(b.x, b.y);
-    eat(b.x + b.w, b.y + b.h);
-  }
-
-  const w = Math.max(maxX - minX, 1);
-  const h = Math.max(maxY - minY, 1);
-  const pad = Math.max(w, h) * 0.05;
-  return { x: minX - pad, y: minY - pad, w: w + pad * 2, h: h + pad * 2 };
-}
-
-/** same formula as the canvas: the arrow holds the size it was placed at */
-const northRadius = (floor: Floor): number => {
-  const grid = floor.scaleMmPerUnit
-    ? 1000 / floor.scaleMmPerUnit
-    : floor.plans.length > 0
-      ? 100
-      : 50;
-  return grid * 0.7;
-};
+/* the frame and the type scale live in lib (figure-bounds.ts) */
+export { planFigureBounds };
 
 /** nice scale-bar length (m) for a plan that is `metres` across */
 const barMetres = (metres: number): number => {
@@ -202,9 +82,12 @@ export function PlanFigure({
   markOf?: (model: string) => UnitMark | undefined;
 }) {
   const bounds = planFigureBounds(doc, floor);
-  if (!bounds) return null;
+  const unit = sheetUnitOf(doc, floor);
+  if (!bounds || unit == null) return null;
   const { x, y, w, h } = bounds;
-  const u = w / REF_W; // "screen pixel" at reference width
+  /* "screen pixel" at reference width — off the DRAWING, not the finished
+     figure, so markup in the margin can't shrink the labels */
+  const u = unit;
   const scale = floor.scaleMmPerUnit;
   const pid = `pf-${floor.id}`;
 
@@ -294,7 +177,6 @@ export function PlanFigure({
      layer switches turn off DERIVED annotation (room names, run lengths), not
      what somebody chose to write on the drawing */
   const notes = onFloor.filter((o): o is NoteObject => isNote(o));
-  const noteFont = NOTE_FONT_REF * u;
   const calloutFont = CALLOUT_FONT_REF * u;
 
   /* legend rows: fixed symbol key + the systems present on this floor */
@@ -602,10 +484,10 @@ export function PlanFigure({
         {notes.map((n) => {
           const rect = noteRect(n);
           const leader = noteLeader(n);
-          /* through the SAME door the canvas uses, so a note set wide or set
-             large on screen prints wide and large — `noteFont` is the sheet's
-             base size and the note's own measure and scale ride on top */
-          const lay = noteLayoutOf(n, noteFont);
+          /* through the SAME door the canvas uses, at the world size the note
+             was written at — so it prints exactly where and as big as it sat
+             on the plan, with its own measure and scale on top */
+          const lay = noteLayoutOf(n);
           const start = leaderStart(rect, leader);
           return (
             <g key={n.id} className="ds-note" style={{ color: noteInkOf(n) }}>

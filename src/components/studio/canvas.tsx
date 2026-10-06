@@ -322,10 +322,14 @@ export interface ArmedComponent {
 }
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
-/** the margin text's size on SCREEN. Notes hold a constant screen size the way
-    every other label on this canvas does; the world-space size is derived. */
+/** A note's words, on screen, at the moment they are written. That size is
+    then LOCKED to the drawing — stored on the note in world units (`fontW`) —
+    so from there they zoom with the plan and print at it. Held at a constant
+    13px instead, they changed size against the plan with every zoom and
+    printed four times bigger than written, straight across each other (job
+    3375, 2026-10-06). */
 const NOTE_FONT_PX = 13;
-/* A callout's type, one step below a note's. Both hold a constant SCREEN size
+/* A callout's type, one step below a note's. It holds a constant SCREEN size
    on the canvas and the sheet's own size on paper, and the gap between them is
    the hierarchy: a written instruction must not be quieter than machine data.
    11 is the area line's size, which is what the rest of the derived text on a
@@ -767,15 +771,11 @@ function defaultViewport(
     return { zoom, x: -w / (2 * zoom), y: -h / (2 * zoom) };
   }
   if (notes.length === 0) return fitBounds(b, w, h, 60);
-  /* A note's words hold a constant SCREEN size, so how much WORLD they cover
-     depends on the very zoom the fit is working out. One extra pass settles
-     it — fit the drawing, size the words to that zoom, fit again — which is
-     the same two-pass the print figure runs for the same reason. Without it
+  /* The words go in too, at the world size each note carries — without them
      the margin text is the one thing "fit" reliably leaves off the screen. */
-  const font = NOTE_FONT_PX / Math.max(fitZoom(b, w, h, 60), 1);
   const pts = [...points];
   for (const n of notes) {
-    const nb = noteBounds(n, font);
+    const nb = noteBounds(n);
     pts.push({ x: nb.x, y: nb.y }, { x: nb.x + nb.w, y: nb.y + nb.h });
   }
   return fitBounds(boundsOfPoints(pts) ?? b, w, h, 60);
@@ -1522,9 +1522,7 @@ export function StudioCanvas({
     /* Notes count as content, and they are the one object type that has to:
        a note lives in the MARGIN on purpose, so a fit that framed only the
        plan would hide the very words the note exists to say. The cloud and
-       the leader end go in; the text itself cannot, because it holds a
-       constant SCREEN size and so has no world extent until a zoom exists —
-       the fit's own 60px margin is what carries the first line of it. */
+       the leader end go in here; the words join them in defaultViewport. */
     for (const n of notes) {
       pts.push(...n.geometry.points, noteLeader(n));
     }
@@ -1606,8 +1604,8 @@ export function StudioCanvas({
   useEffect(() => {
     contentPointsRef.current = contentPoints;
   }, [contentPoints]);
-  /* Fit frames the notes too, second pass and all — pressing Fit and losing
-     the margin text is exactly the trap defaultViewport exists to avoid */
+  /* Fit frames the notes' words too — pressing Fit and losing the margin text
+     is exactly the trap defaultViewport exists to avoid */
   const fitExtrasRef = useRef({ grid, notes });
   useEffect(() => {
     fitExtrasRef.current = { grid, notes };
@@ -2485,9 +2483,8 @@ export function StudioCanvas({
 
   /* ── notes (the markup layer) ────────────────────────────────────────────
      Every measurement of a note — where its words sit, what you can click,
-     what has to fit on paper — goes through ONE font size, so the text you
-     click is always the text you can see. ── */
-  const noteFontW = NOTE_FONT_PX / Math.max(vp.zoom, 1);
+     what has to fit on paper — goes through the note's OWN size, in world
+     units, so the text you click is always the text you can see. ── */
 
   /** a note as it stands RIGHT NOW: mid-drag that is the live position, at
       rest it is the document's */
@@ -2510,7 +2507,7 @@ export function StudioCanvas({
     if (!selectedId) return null;
     const sel = notes.find((x) => x.id === selectedId);
     if (!sel) return null;
-    const grip = noteGripAt(noteAt(sel), w, tolPx / vp.zoom, noteFontW);
+    const grip = noteGripAt(noteAt(sel), w, tolPx / vp.zoom);
     return grip ? { id: sel.id, grip } : null;
   };
 
@@ -2519,14 +2516,22 @@ export function StudioCanvas({
   const hitNote = (w: Point, tolPx = HIT_EDGE_PX) => {
     const tol = tolPx / vp.zoom;
     for (let i = notes.length - 1; i >= 0; i--) {
-      const part = noteHit(noteAt(notes[i]), w, tol, noteFontW);
+      const part = noteHit(noteAt(notes[i]), w, tol);
       if (part) return { id: notes[i].id, part };
     }
     return null;
   };
 
   const commitNote = (rect: NoteRect, leader: Point) => {
-    const note = createNote({ floorId: floor.id, rect, leader, ink: armedInk });
+    /* the words are written at 13px on screen, and that is the size they
+       keep: stored in world units, so they zoom with the plan from here on */
+    const note = createNote({
+      floorId: floor.id,
+      rect,
+      leader,
+      ink: armedInk,
+      fontW: NOTE_FONT_PX / vp.zoom,
+    });
     onMutate((d) => ({ ...d, objects: [...d.objects, note] }));
     onSelect(note.id);
     // straight into the words: a cloud with nothing to say is not a note
@@ -2999,7 +3004,7 @@ export function StudioCanvas({
                   kind: "note-size",
                   id: gh.id,
                   from: noteScaleOf(held),
-                  startY: noteGrips(held, noteFontW).size.y,
+                  startY: noteGrips(held).size.y,
                   leaderY: noteLeader(held).y,
                 }
           );
@@ -3477,7 +3482,7 @@ export function StudioCanvas({
         if (stored) {
           setLiveNote({
             id: drag.id,
-            wrap: wrapForEdgeX(noteLayoutOf(stored, noteFontW), w.x),
+            wrap: wrapForEdgeX(noteLayoutOf(stored), w.x),
           });
         }
         break;
@@ -5801,14 +5806,14 @@ export function StudioCanvas({
             const n = noteAt(stored);
             const rect = noteRect(n);
             const leader = noteLeader(n);
-            const lay = noteLayoutOf(n, noteFontW);
+            const lay = noteLayoutOf(n);
             const start = leaderStart(rect, leader);
             const on = stored.id === selectedId || noteEdit?.id === stored.id;
             /* the words become a TEXT FRAME once the note is selected: the
                block outlined, a grip on its outer side for the measure and
                one at its outer corner for the size. Screen-constant, like the
                leader dot, so they stay grabbable at any zoom. */
-            const grips = on ? noteGrips(n, noteFontW) : null;
+            const grips = on ? noteGrips(n) : null;
             const gr = 3.4 / vp.zoom;
             return (
               <g

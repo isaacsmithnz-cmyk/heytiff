@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { decideJob } from "@/app/actions/analytics-decide";
-import { ANSWERS, QUESTIONS, QUESTION_WORDS, answerLabel, answerSaid, kindLabel, type Question } from "@/lib/analytics/decisions";
+import { makeWorkOrder } from "@/app/actions/booking-sm8";
+import { ANSWERS, QUESTIONS, QUESTION_WORDS, answerLabel, answerSaid, cleanupFor, kindLabel, type Question } from "@/lib/analytics/decisions";
+import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { longDay, money, type Ask } from "@/lib/analytics/job-analytics";
 
 /* TO DECIDE — what the figures can't place on their own (Isaac, 2026-10-07:
@@ -14,7 +16,23 @@ import { longDay, money, type Ask } from "@/lib/analytics/job-analytics";
    and put back, with the action's words, if it is refused; an answer kept,
    the page is asked again so every figure takes it. A row answered on this
    visit stays where it was, with Undo; the ones answered before are a press
-   away. A suggestion is said beside the choices, never chosen for you. */
+   away. A suggestion is said beside the choices, never chosen for you.
+
+   THE CLEAN-UP IN SERVICEM8 (Isaac: "They can clean up in servicem8 too with
+   an extra button"). An answer ServiceM8 disagrees with offers the change
+   that would make it agree, and never makes it on its own. A won Quote is
+   made a Work Order by the job card's own press (makeWorkOrder), where this
+   viewer may make one; anything else opens the job in ServiceM8. Once a
+   change has gone, the answer keeps no Undo: it is ServiceM8's now. */
+
+/** Where a row's change to ServiceM8 stands on this visit. */
+type Sm8Step = { busy: true } | { state: "sent" | "waiting" | "trial" } | { error: string };
+
+const SM8_SAID = {
+  sent: "A work order in ServiceM8 now.",
+  waiting: "On its way to ServiceM8.",
+  trial: "Trial run: checked, and nothing sent.",
+} as const;
 
 const FIRST = 20;
 
@@ -26,7 +44,18 @@ function without<T>(m: Record<string, T>, k: string): Record<string, T> {
   return out;
 }
 
-export function ToDecide({ asks, names, canDecide }: { asks: Ask[]; names: Record<string, string>; canDecide: boolean }) {
+export function ToDecide({
+  asks,
+  names,
+  canDecide,
+  workOrders = null,
+}: {
+  asks: Ask[];
+  names: Record<string, string>;
+  canDecide: boolean;
+  /** a Quote can be made a Work Order in ServiceM8 from here */
+  workOrders?: "on" | "trial" | null;
+}) {
   const router = useRouter();
   const [, startRefresh] = useTransition();
   /* answers given on this visit, ahead of the page catching up: undefined is
@@ -37,6 +66,7 @@ export function ToDecide({ asks, names, canDecide }: { asks: Ask[]; names: Recor
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [showDecided, setShowDecided] = useState(false);
   const [more, setMore] = useState<ReadonlySet<Question>>(new Set());
+  const [sm8, setSm8] = useState<Record<string, Sm8Step>>({});
 
   const answerOf = (a: Ask): string | null => (keyOf(a) in local ? local[keyOf(a)] : a.answer);
 
@@ -57,9 +87,32 @@ export function ToDecide({ asks, names, canDecide }: { asks: Ask[]; names: Recor
     startRefresh(() => router.refresh());
   }
 
+  /* one press is one job's change: the card's door, with a fresh press id */
+  async function toWorkOrder(a: Ask) {
+    const k = keyOf(a);
+    setSm8((m) => ({ ...m, [k]: { busy: true } }));
+    const r = await makeWorkOrder({ jobUuid: a.job.id, pressId: crypto.randomUUID() });
+    setSm8((m) => ({ ...m, [k]: r.ok ? { state: r.state } : { error: r.error } }));
+    if (r.ok && r.state === "sent") startRefresh(() => router.refresh());
+  }
+
+  /* the won Quotes still waiting on their change, one after another */
+  const waitingWorkOrders = workOrders
+    ? asks.filter((a) => {
+        const ans = answerOf(a);
+        const step = sm8[keyOf(a)];
+        return ans !== null && cleanupFor(a.question, ans, a.job.status) === "work_order" && (!step || "error" in step);
+      })
+    : [];
+  async function allToWorkOrder() {
+    for (const a of waitingWorkOrders) await toWorkOrder(a);
+  }
+
   const open = asks.filter((a) => answerOf(a) === null);
   const openJobs = new Set(open.map((a) => a.job.id)).size;
-  const decidedBefore = asks.filter((a) => a.answer !== null && !touched.has(keyOf(a))).length;
+  const decidedBefore = asks.filter(
+    (a) => a.answer !== null && !touched.has(keyOf(a)) && cleanupFor(a.question, a.answer, a.job.status) === null,
+  ).length;
 
   return (
     <div className="an">
@@ -69,6 +122,11 @@ export function ToDecide({ asks, names, canDecide }: { asks: Ask[]; names: Recor
             ? "Nothing to decide. Every job is in the figures."
             : `${openJobs.toLocaleString("en-AU")} ${openJobs === 1 ? "job" : "jobs"} to decide.`}
         </p>
+        {waitingWorkOrders.length > 1 && (
+          <button type="button" className="an-choice" onClick={allToWorkOrder}>
+            Make {waitingWorkOrders.length} work orders in ServiceM8
+          </button>
+        )}
         {decidedBefore > 0 && (
           <button type="button" className="an-more" onClick={() => setShowDecided((s) => !s)} aria-expanded={showDecided}>
             {showDecided ? "Hide what was decided" : `Show what was decided, ${decidedBefore.toLocaleString("en-AU")}`}
@@ -79,7 +137,11 @@ export function ToDecide({ asks, names, canDecide }: { asks: Ask[]; names: Recor
 
       {QUESTIONS.map((q) => {
         const all = asks.filter((a) => a.question === q);
-        const rows = all.filter((a) => answerOf(a) === null || touched.has(keyOf(a)) || showDecided);
+        /* an answer ServiceM8 still disagrees with stays in view: its change is still to make */
+        const rows = all.filter((a) => {
+          const ans = answerOf(a);
+          return ans === null || touched.has(keyOf(a)) || showDecided || cleanupFor(a.question, ans, a.job.status) !== null;
+        });
         if (rows.length === 0) return null;
         const waiting = all.filter((a) => answerOf(a) === null).length;
         const shown = more.has(q) ? rows : rows.slice(0, FIRST);
@@ -103,6 +165,9 @@ export function ToDecide({ asks, names, canDecide }: { asks: Ask[]; names: Recor
                   error={errors[keyOf(a)] ?? null}
                   canDecide={canDecide}
                   onAnswer={(ans) => give(a, ans)}
+                  workOrders={workOrders}
+                  sm8={sm8[keyOf(a)] ?? null}
+                  onWorkOrder={() => toWorkOrder(a)}
                 />
               ))}
             </div>
@@ -126,6 +191,9 @@ function Row({
   error,
   canDecide,
   onAnswer,
+  workOrders,
+  sm8,
+  onWorkOrder,
 }: {
   ask: Ask;
   client: string | null;
@@ -134,6 +202,9 @@ function Row({
   error: string | null;
   canDecide: boolean;
   onAnswer: (answer: string | null) => void;
+  workOrders: "on" | "trial" | null;
+  sm8: Sm8Step | null;
+  onWorkOrder: () => void;
 }) {
   const j = ask.job;
   const facts = [
@@ -146,6 +217,8 @@ function Row({
     .join(", ");
   const { label, said, hint } = evidence(ask);
   const choices = ANSWERS[ask.question];
+  /* a change that has gone, or is going, to ServiceM8 can't be undone here */
+  const gone = !!sm8 && "state" in sm8 && sm8.state !== "trial";
 
   return (
     <div className="an-qrow">
@@ -174,9 +247,12 @@ function Row({
               <i aria-hidden="true" />
               {answerSaid(ask.question, answer)}
             </span>
-            <button type="button" className="an-undo" disabled={busy} onClick={() => onAnswer(null)}>
-              Undo
-            </button>
+            {!gone && (
+              <button type="button" className="an-undo" disabled={busy} onClick={() => onAnswer(null)}>
+                Undo
+              </button>
+            )}
+            <Cleanup ask={ask} answer={answer} workOrders={workOrders} sm8={sm8} onWorkOrder={onWorkOrder} />
           </>
         )}
         {error && (
@@ -186,6 +262,51 @@ function Row({
         )}
       </div>
     </div>
+  );
+}
+
+/** The change ServiceM8 needs for this answer: the press that makes it, its
+    result, or the job opened in ServiceM8 to change it there. */
+function Cleanup({
+  ask,
+  answer,
+  workOrders,
+  sm8,
+  onWorkOrder,
+}: {
+  ask: Ask;
+  answer: string;
+  workOrders: "on" | "trial" | null;
+  sm8: Sm8Step | null;
+  onWorkOrder: () => void;
+}) {
+  const need = cleanupFor(ask.question, answer, ask.job.status);
+  if (!need) return null;
+  const url = sm8JobUrl(ask.job.id);
+  if (need === "work_order" && workOrders) {
+    if (sm8 && "state" in sm8) return <span className="an-note">{SM8_SAID[sm8.state]}</span>;
+    const busy = !!sm8 && "busy" in sm8;
+    return (
+      <>
+        <button type="button" className="an-choice" disabled={busy} onClick={onWorkOrder}>
+          {busy ? "Making it a work order" : "Make it a work order in ServiceM8"}
+        </button>
+        {sm8 && "error" in sm8 && (
+          <p className="an-err" role="alert">
+            {sm8.error}
+          </p>
+        )}
+      </>
+    );
+  }
+  if (!url) return null;
+  return (
+    <span className="an-note">
+      ServiceM8 still says {(ask.job.status ?? "").trim()}.{" "}
+      <a className="an-out" href={url} target="_blank" rel="noreferrer">
+        Open in ServiceM8
+      </a>
+    </span>
   );
 }
 

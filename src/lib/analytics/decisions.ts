@@ -92,3 +92,18 @@ export function answerSaid(question: Question, answer: string): string {
     }[answer] ?? ""
   );
 }
+
+/* ── the clean-up in ServiceM8 ── */
+
+/** What ServiceM8 should change for an answer to agree with it: a Quote made
+    a Work Order (the one write HeyTiff has for it), something else to change
+    there by hand, or nothing. Only "Won or lost?" disagrees with ServiceM8:
+    the other answers are HeyTiff's own reading. */
+export function cleanupFor(question: Question, answer: string, status: string | null): "work_order" | "by_hand" | null {
+  if (question !== "outcome") return null;
+  const s = (status ?? "").trim().toLowerCase();
+  if (answer === "won" && s === "quote") return "work_order";
+  if (answer === "won" && s === "unsuccessful") return "by_hand";
+  if (answer === "lost" && s === "quote") return "by_hand";
+  return null;
+}

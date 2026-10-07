@@ -5,6 +5,8 @@ const refresh = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 const decideJob = jest.fn();
 jest.mock("@/app/actions/analytics-decide", () => ({ decideJob: (...a: unknown[]) => decideJob(...a) }));
+const makeWorkOrder = jest.fn();
+jest.mock("@/app/actions/booking-sm8", () => ({ makeWorkOrder: (...a: unknown[]) => makeWorkOrder(...a) }));
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { Ask } from "@/lib/analytics/job-analytics";
@@ -36,6 +38,7 @@ const names = { "co-1": "Greenway Builders", "co-2": "K. Ahmed" };
 
 beforeEach(() => {
   decideJob.mockReset();
+  makeWorkOrder.mockReset();
   refresh.mockReset();
 });
 
@@ -93,4 +96,63 @@ it("offers no answers while they can't be kept, and says why", () => {
 it("says so when there is nothing to decide", () => {
   render(<ToDecide asks={[]} names={{}} canDecide />);
   expect(screen.getByText("Nothing to decide. Every job is in the figures.")).toBeInTheDocument();
+});
+
+describe("the clean-up in ServiceM8", () => {
+  const JOB = "3f6c0a2e-1b4d-4e8a-9c7f-2d5e8b1a0c93";
+  const accepted: Ask = {
+    question: "outcome",
+    job: job(JOB, { status: "Quote", acceptedInHeyTiff: true, number: "3008", clientId: "co-1" }),
+    answer: null,
+    kind: "split",
+  };
+
+  it("offers the job card's Make it a work order once a Quote is answered won, and the change stands with no Undo", async () => {
+    decideJob.mockResolvedValue({ ok: true });
+    makeWorkOrder.mockResolvedValue({ ok: true, state: "sent", rowId: "row-1" });
+    render(<ToDecide asks={[accepted]} names={names} canDecide workOrders="on" />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Won" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Make it a work order in ServiceM8" }));
+    });
+    expect(makeWorkOrder).toHaveBeenCalledWith({ jobUuid: JOB, pressId: expect.stringMatching(/^[0-9a-f-]{36}$/) });
+    expect(screen.getByText("A work order in ServiceM8 now.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
+  });
+
+  it("says what ServiceM8 refused, and keeps the press", async () => {
+    makeWorkOrder.mockResolvedValue({ ok: false, error: "Sending bookings to ServiceM8 is paused." });
+    render(<ToDecide asks={[{ ...accepted, answer: "won" }]} names={names} canDecide workOrders="on" />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Make it a work order in ServiceM8" }));
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("Sending bookings to ServiceM8 is paused.");
+    expect(screen.getByRole("button", { name: "Make it a work order in ServiceM8" })).toBeEnabled();
+  });
+
+  it("keeps an earlier answer ServiceM8 still disagrees with in view, and opens the job there where HeyTiff can't write it", () => {
+    render(<ToDecide asks={[{ ...accepted, answer: "lost" }]} names={names} canDecide workOrders="on" />);
+    expect(screen.getByText(/ServiceM8 still says Quote/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open in ServiceM8" })).toHaveAttribute("href", `https://go.servicem8.com/OpenJob/${JOB}`);
+    expect(screen.queryByRole("button", { name: "Make it a work order in ServiceM8" })).not.toBeInTheDocument();
+  });
+
+  it("opens the job in ServiceM8 instead when this viewer can't make work orders from here", () => {
+    render(<ToDecide asks={[{ ...accepted, answer: "won" }]} names={names} canDecide workOrders={null} />);
+    expect(screen.getByRole("link", { name: "Open in ServiceM8" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Make it a work order in ServiceM8" })).not.toBeInTheDocument();
+  });
+
+  it("makes every waiting work order with one press", async () => {
+    const second: Ask = { ...accepted, job: { ...accepted.job, id: "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d" }, answer: "won" };
+    makeWorkOrder.mockResolvedValue({ ok: true, state: "waiting", rowId: "r" });
+    render(<ToDecide asks={[{ ...accepted, answer: "won" }, second]} names={names} canDecide workOrders="on" />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Make 2 work orders in ServiceM8" }));
+    });
+    expect(makeWorkOrder).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText("On its way to ServiceM8.")).toHaveLength(2);
+  });
 });

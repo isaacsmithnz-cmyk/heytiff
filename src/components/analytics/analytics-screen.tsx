@@ -35,6 +35,8 @@ export type AnalyticsState =
       names?: Record<string, string>;
       /** answers can be kept: the decisions table is there */
       canDecide?: boolean;
+      /** a Quote can be made a Work Order in ServiceM8 from here (cleanup-offer) */
+      workOrders?: "on" | "trial" | null;
     };
 
 type Tab = "overview" | "quotes" | "decide";
@@ -87,7 +89,12 @@ export function AnalyticsScreen({ state, period }: { state: AnalyticsState; peri
                 )}
                 {state.kind === "ready" && tab === "quotes" && <Quotes a={state.data} />}
                 {state.kind === "ready" && tab === "decide" && (
-                  <ToDecide asks={state.data.toDecide.asks} names={state.names ?? {}} canDecide={state.canDecide ?? false} />
+                  <ToDecide
+                    asks={state.data.toDecide.asks}
+                    names={state.names ?? {}}
+                    canDecide={state.canDecide ?? false}
+                    workOrders={state.workOrders ?? null}
+                  />
                 )}
               </section>
             </div>

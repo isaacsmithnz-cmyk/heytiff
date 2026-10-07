@@ -147,3 +147,4 @@
   color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; transition: background-color var(--t-fast) var(--ease); }
 .fg .an-undo:hover { background: var(--tint); }
 .fg .an-undo:focus-visible { outline: none; box-shadow: var(--ring); }
+.an-out { font-weight: 600; color: var(--link); text-decoration: underline; text-underline-offset: 3px; }

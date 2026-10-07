@@ -4,6 +4,7 @@
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 jest.mock("@/app/actions/analytics-decide", () => ({ decideJob: jest.fn() }));
+jest.mock("@/app/actions/booking-sm8", () => ({ makeWorkOrder: jest.fn() }));
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { analyse, type AnalyticsJob } from "@/lib/analytics/job-analytics";

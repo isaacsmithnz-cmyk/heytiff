@@ -6,6 +6,7 @@ import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { analyse, DEFAULT_PERIOD, isPeriodKey, periodSpan, spanBefore } from "@/lib/analytics/job-analytics";
 import { readAnalyticsJobs, readClientNames, readDecisions } from "@/lib/analytics/analytics-query";
+import { workOrderOffer } from "@/lib/analytics/cleanup-offer";
 import { AnalyticsScreen } from "@/components/analytics/analytics-screen";
 
 /* Analytics — what the business's own jobs say about its quoting: win rate,
@@ -35,7 +36,11 @@ export default async function AnalyticsPage({
   }
 
   const today = todayInZone(await getSm8Timezone(orgId));
-  const [read, kept] = await Promise.all([readAnalyticsJobs(orgId, spanBefore(periodSpan(period, today)).from), readDecisions(orgId)]);
+  const [read, kept, workOrders] = await Promise.all([
+    readAnalyticsJobs(orgId, spanBefore(periodSpan(period, today)).from),
+    readDecisions(orgId),
+    workOrderOffer(orgId),
+  ]);
   if (!read) return <AnalyticsScreen state={{ kind: "unread" }} period={period} />;
   const data = analyse(read.jobs, today, period, kept.decisions);
   /* the client names the To decide rows show, and only theirs */
@@ -45,7 +50,7 @@ export default async function AnalyticsPage({
   );
   return (
     <AnalyticsScreen
-      state={{ kind: "ready", data, truncated: read.truncated, names, canDecide: kept.ready }}
+      state={{ kind: "ready", data, truncated: read.truncated, names, canDecide: kept.ready, workOrders }}
       period={period}
     />
   );

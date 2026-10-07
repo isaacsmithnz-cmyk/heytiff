@@ -4,7 +4,7 @@ Isaac, 2026-10-07:
 
 > "need an analytics page for jobs. Quotes, brands used, win rate, average price of job types etc. Make a list of all things you think are useful"
 
-Status: **built: Overview, Quotes and To decide** at `/dashboard/analytics` (see "Built" below). The ServiceM8 clean-up buttons are next. Its table, `job_analytics_decisions`, was applied to production on 2026-10-07 (DEPLOY.md, 3f). This is the list of what the page could show, and what each figure stands on. The mock-up is three screens, Overview, Quotes and To decide, on the canvas at https://claude.ai/artifact/Daf2AbjZ7ekgA7TJrpqFg7, drawn with sample figures.
+Status: **built: Overview, Quotes, To decide and the work-order clean-up** at `/dashboard/analytics` (see "Built" below). Mark Unsuccessful in ServiceM8 is the one clean-up still to build. Its table, `job_analytics_decisions`, was applied to production on 2026-10-07 (DEPLOY.md, 3f). This is the list of what the page could show, and what each figure stands on. The mock-up is three screens, Overview, Quotes and To decide, on the canvas at https://claude.ai/artifact/Daf2AbjZ7ekgA7TJrpqFg7, drawn with sample figures.
 
 ## Built
 
@@ -45,8 +45,12 @@ Settled while building:
   - The Overview says how many jobs wait, and what they keep out of the figures, with a press that opens the tab.
   - Rows answered before this visit are folded away behind "Show what was decided". A group shows 20 rows, then "Show N more".
   - The code: `src/lib/analytics/decisions.ts` (the questions and their answers), the placement in `job-analytics.ts`, `src/app/actions/analytics-decide.ts`, `src/components/analytics/analytics-decide.tsx`.
+- **The clean-up in ServiceM8**, the third part (Isaac, 2026-10-07: "Apply the migration and keep going with the clean-up buttons"):
+  - **Won on a job ServiceM8 still calls a Quote:** "Make it a work order in ServiceM8". This is the job card's own press (`makeWorkOrder`), offered on the card's terms (`src/lib/analytics/cleanup-offer.ts`): the deployment writes bookings, the owner's Bookings switch is on, and the viewer manages the Workboard and, while bookings are the owner's, is the owner. On Trial run it's checked and nothing is sent. "Make N work orders in ServiceM8" does every waiting one in turn.
+  - **Any other disagreement** (lost on a Quote, won on an Unsuccessful job), and a work order where this viewer can't make one: "ServiceM8 still says Quote." with **Open in ServiceM8**, to change it there.
+  - An answer ServiceM8 still disagrees with stays in view on later visits, because its change is still to make. Once a change has gone, the answer has no Undo.
 - **Not yet:**
-  - The ServiceM8 clean-up buttons (Make it a work order, Mark Unsuccessful).
+  - **Mark Unsuccessful in ServiceM8**, for a lost answer and for the 180-day quotes. HeyTiff has no write for it: the live write queue's shape check (`sm8_writes`) allows one status change, Quote to Work Order, and the sender's status path assumes Work Order throughout (its live re-read, the edit-time guard, the read-back, the fields guard that switches Bookings off). Adding it means a migration that widens that check on production, a second target in the sender, and a choice of which owner switch governs it, then a Trial run walk. Until then, Open in ServiceM8.
   - The first look at real data: how many "Is it a quote?" questions the account raises depends on how often ServiceM8 records the day a quote was sent. If it's most installs, the tab wants an "answer all of these" press.
   - Brands, which need the job's material lines read.
   - Labour, quoted against actual.

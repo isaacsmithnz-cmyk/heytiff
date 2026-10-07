@@ -1,6 +1,6 @@
 /* The To decide questions: which answers each takes, and the stored rows
    made one map. */
-import { answerLabel, answerSaid, decisionsFrom, isAnswer, isQuestion } from "../decisions";
+import { answerLabel, answerSaid, cleanupFor, decisionsFrom, isAnswer, isQuestion } from "../decisions";
 
 describe("the questions and their answers", () => {
   it("takes only the answers each question knows", () => {
@@ -30,5 +30,18 @@ describe("the questions and their answers", () => {
     expect(answerSaid("kind", "ducted")).toBe("Counted as ducted.");
     expect(answerSaid("kind", "vrf")).toBe("Counted as VRF.");
     expect(answerSaid("quote", "not_quote")).toBe("Not a quote. Left out of the win rate.");
+  });
+});
+
+describe("the clean-up in ServiceM8", () => {
+  it("makes a won Quote a work order, and sends the rest of a disagreement to ServiceM8 by hand", () => {
+    expect(cleanupFor("outcome", "won", "Quote")).toBe("work_order");
+    expect(cleanupFor("outcome", "won", "Unsuccessful")).toBe("by_hand");
+    expect(cleanupFor("outcome", "lost", "Quote")).toBe("by_hand");
+    // ServiceM8 already agrees
+    expect(cleanupFor("outcome", "lost", "Unsuccessful")).toBeNull();
+    // HeyTiff's own reading: nothing in ServiceM8 to change
+    expect(cleanupFor("kind", "ducted", "Completed")).toBeNull();
+    expect(cleanupFor("quote", "quote", "Completed")).toBeNull();
   });
 });

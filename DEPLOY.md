@@ -932,8 +932,8 @@ docs/job-analytics-plan.md is the design.
    that writes it**. It is additive (one new table nothing reads yet), so
    applying it early is safe. Without it, the To decide tab still asks its
    questions but offers no answers and says they can't be kept yet, and the
-   figures read as if nothing had been decided. **Not yet applied to
-   production.**
+   figures read as if nothing had been decided. **Applied to production
+   2026-10-07** (migration `job_analytics_decisions`).
 
 ---
 

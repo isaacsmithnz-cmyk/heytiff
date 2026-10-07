@@ -4,7 +4,7 @@ Isaac, 2026-10-07:
 
 > "need an analytics page for jobs. Quotes, brands used, win rate, average price of job types etc. Make a list of all things you think are useful"
 
-Status: **built: Overview, Quotes and To decide** at `/dashboard/analytics` (see "Built" below). The ServiceM8 clean-up buttons are next. To decide needs `docs/migrations/job_analytics_decisions.sql` applied (DEPLOY.md, 3f). This is the list of what the page could show, and what each figure stands on. The mock-up is three screens, Overview, Quotes and To decide, on the canvas at https://claude.ai/artifact/Daf2AbjZ7ekgA7TJrpqFg7, drawn with sample figures.
+Status: **built: Overview, Quotes and To decide** at `/dashboard/analytics` (see "Built" below). The ServiceM8 clean-up buttons are next. Its table, `job_analytics_decisions`, was applied to production on 2026-10-07 (DEPLOY.md, 3f). This is the list of what the page could show, and what each figure stands on. The mock-up is three screens, Overview, Quotes and To decide, on the canvas at https://claude.ai/artifact/Daf2AbjZ7ekgA7TJrpqFg7, drawn with sample figures.
 
 ## Built
 

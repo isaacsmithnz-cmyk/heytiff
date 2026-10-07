@@ -25,6 +25,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
+import { PLAN_BOX_MM } from "@/lib/studio/export";
 
 /* comments stripped: the fixes' own comments NAME the things being asserted
    against, so a substring match would pass on reverted code */
@@ -44,6 +45,33 @@ const selectors = css
   .filter(Boolean);
 
 describe("Summary sheet cascade", () => {
+  /* THE PLAN BOX HAS A HEIGHT FOR EVERY PAPER AND WAY UP. Its classes are
+     built at runtime — `paper-${paper}` on the document, the orientation on
+     each page — so a dead-CSS sweep (#681) read three of the four rows as
+     unused and deleted them: from then on every plan box was 217mm, taller
+     than a landscape A4 page. They are also the twin of PLAN_BOX_MM, which
+     decides when a plan page turns, so the two must say the same numbers. */
+  it("sizes the plan box for every paper and every way up, as PLAN_BOX_MM says", () => {
+    const heightOf = (sel: string): number | null => {
+      const esc = sel.replace(/[.#]/g, (c) => `\\${c}`).replace(/ /g, "\\s+");
+      const m = new RegExp(`${esc}\\s*\\{[^}]*height:\\s*(\\d+)mm`).exec(css);
+      return m ? Number(m[1]) : null;
+    };
+    expect(heightOf("#ds-printdoc .ds-print-plan")).toBe(PLAN_BOX_MM.A4.portrait.h);
+    expect(heightOf("#ds-printdoc.paper-a4 .ds-print-page.landscape .ds-print-plan")).toBe(PLAN_BOX_MM.A4.landscape.h);
+    expect(heightOf("#ds-printdoc.paper-a3 .ds-print-page.portrait .ds-print-plan")).toBe(PLAN_BOX_MM.A3.portrait.h);
+    expect(heightOf("#ds-printdoc.paper-a3 .ds-print-page.landscape .ds-print-plan")).toBe(PLAN_BOX_MM.A3.landscape.h);
+  });
+
+  /* a turned plan page is the named page the print document injects, and it
+     is the whole sheet of paper, so the frame stamped at the first page's
+     size is covered rather than cutting across the plan */
+  it("puts a turned plan page on its own named page, opaque", () => {
+    const rule = /#ds-printdoc \.ds-print-page\.turned\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toMatch(/page:\s*ds-turned/);
+    expect(rule).toMatch(/background:\s*var\(--paper\)/);
+  });
+
   it("no rule targets a bare .ds-job — the sheet must not inherit a pill", () => {
     /* `.ds-job-form` and friends are fine; a BARE `.ds-job` is the collision.
        Matched on the selector list rather than the raw text so that

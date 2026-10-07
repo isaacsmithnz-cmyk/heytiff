@@ -3975,6 +3975,14 @@ html[data-ds-display] .dstudio.editing {
   background: #f4f5f7;
   color: #0a0b10;
 }
+/* OVER THE SEND DIALOG it opens from: the dialog's own layer, and later in
+   the document, so it paints on top */
+.ds-lightbox.ds-lb-over { z-index: 1000; }
+/* the PDF itself, in the browser's own viewer */
+.ds-lightbox .ds-lb-pdf { flex: 1; width: 100%; border: 0; background: var(--bg); }
+/* the customer's page, at the size it opens at */
+.ds-lightbox .ds-lb-sheet { flex: 1; overflow: auto; background: var(--bg); }
+.ds-lightbox .ds-lb-wait { margin: auto; font-size: 14px; color: var(--q); }
 .ds-lightbox .ds-lb-img {
   flex: 1;
   overflow: auto;
@@ -6110,6 +6118,18 @@ html[data-ds-display] .dstudio.editing {
    the print block), and the figure gives that back rather than running off
    the sheet. */
 #ds-printdoc .ds-print-plan { height: 217mm; }
+/* EVERY PAPER AND WAY UP, read off the PAGE: a plan page can turn on its own
+   (print-doc.tsx, `planPageOrientation`), so the box follows the page it is
+   on, not the document. Twin of `PLAN_BOX_MM` in lib/studio/export.ts.
+
+   THESE CLASSES ARE BUILT AT RUNTIME — `paper-${paper}` on the document and
+   the orientation on each page — and that is how a dead-CSS sweep (#681)
+   deleted the landscape and A3 rows as unused: from then on every plan box
+   was 217mm, taller than a landscape A4 page. Guarded by name in
+   summary-cascade.test.ts. */
+#ds-printdoc.paper-a4 .ds-print-page.landscape .ds-print-plan { height: 136mm; }
+#ds-printdoc.paper-a3 .ds-print-page.portrait .ds-print-plan { height: 346mm; }
+#ds-printdoc.paper-a3 .ds-print-page.landscape .ds-print-plan { height: 224mm; }
 
 /* print: reveal only the print document. The studio grid children are
    display:none'd outright — visibility:hidden alone keeps their layout and
@@ -6228,6 +6248,41 @@ html[data-ds-display] .dstudio.editing {
     padding: 20mm;
   }
   #ds-printdoc .ds-print-variant-block:last-child .ds-print-page:last-child { break-after: auto; }
+  /* a plan that prints bigger the other way round goes on the turned page
+     (the named @page print-doc.tsx injects), and the page is the whole sheet
+     of paper: opaque, so the frame stamped at the first page's size is
+     covered, and its own band and well drawn the other way up */
+  #ds-printdoc .ds-print-page.turned {
+    page: ds-turned;
+    box-sizing: border-box;
+    background: var(--paper);
+  }
+  #ds-printdoc.paper-a4.portrait .ds-print-page.turned { height: 210mm; }
+  #ds-printdoc.paper-a4.landscape .ds-print-page.turned { height: 297mm; }
+  #ds-printdoc.paper-a3.portrait .ds-print-page.turned { height: 297mm; }
+  #ds-printdoc.paper-a3.landscape .ds-print-page.turned { height: 420mm; }
+  /* the sheet's frame, `.dsd-bband` and `.dsd-bwell`, at the sheet's 10mm
+     edge — off the same `--doc-*` theme, so it is the same band */
+  #ds-printdoc .ds-print-tband,
+  #ds-printdoc .ds-print-twell {
+    position: absolute;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #ds-printdoc .ds-print-tband {
+    inset: 10mm;
+    background: var(--doc-ink, transparent);
+    /* concentric with the well: its radius plus the gutter */
+    --tband-r: calc(var(--doc-radius, 0px) + var(--doc-gutter, 0px));
+    border-radius: var(--tband-r);
+  }
+  #ds-printdoc .ds-print-twell {
+    inset: calc(10mm + var(--doc-gutter, 0px));
+    background: var(--doc-well, transparent);
+    border-radius: var(--doc-radius, 0px);
+  }
+  #ds-printdoc .ds-print-page.turned > .ds-print-cap,
+  #ds-printdoc .ds-print-page.turned > .ds-print-plan { position: relative; }
   /* the document keeps its own page-break rules (sheet-doc.css); what is
      left here is the print document's own page structure */
 }
@@ -6539,6 +6594,22 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-send-plan-in { padding: 48px; }
 .dstudio .ds-send-plan-in svg { display: block; width: 100%; height: auto; }
 .dstudio .ds-send-plan > span { font-size: 12px; font-weight: 600; color: var(--gray500); }
+/* EACH PREVIEW IS A DOOR to its page full size (send-viewer.tsx). Named
+   through the list, (0,3,0), so it wins the button reset and the plan
+   block's own display; the hover is one change, the picture's edge. */
+.dstudio .ds-send-pv .ds-send-pvbtn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: zoom-in;
+}
+.dstudio .ds-send-pv .ds-send-pvbtn:hover .ds-send-mini { border-color: var(--ink); }
+.dstudio .ds-send-pv .ds-send-pvbtn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .dstudio .ds-send-empty {
   margin: 0;
   padding: 24px 12px;

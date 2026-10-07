@@ -6,6 +6,7 @@ import { pointInPolygon } from "./geometry";
 import { moduleFor } from "./modules";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { zoneIdsOf } from "./zones";
+import { coverPct, coversLoad } from "./fit";
 
 /* Room coverage (plan step: units → spaces) — pure derivations only.
    Attribution model:
@@ -319,9 +320,10 @@ export function roomCoverage(
     }
   }
 
-  const pct = loadKw != null && loadKw > 0 ? Math.round((coveredKw / loadKw) * 100) : null;
+  /* judged and counted on the figures as shown (fit.ts) */
+  const pct = loadKw != null ? coverPct(coveredKw, loadKw) : null;
   const status: CoverageStatus =
-    loadKw == null ? "unknown" : pct != null && pct >= 100 ? "covered" : "under";
+    loadKw == null ? "unknown" : pct != null && coversLoad(coveredKw, loadKw) ? "covered" : "under";
   const oversized = pct != null && pct > 150;
 
   return {
@@ -391,6 +393,6 @@ export function systemCover(
   const loads = rooms.filter((r) => r.loadKw != null);
   const loadKw = loads.length ? loads.reduce((a, r) => a + (r.loadKw ?? 0), 0) : null;
   const coverKw = rooms.reduce((a, r) => a + r.coverKw, 0);
-  const pct = loadKw != null && loadKw > 0 ? Math.round((coverKw / loadKw) * 100) : null;
+  const pct = loadKw != null ? coverPct(coverKw, loadKw) : null;
   return { rooms, loadKw, coverKw, pct };
 }

@@ -38,6 +38,7 @@ import { pushOutcome } from "./picklist-push";
 import { PlanFigure } from "./plan-figure";
 import { PrintDoc } from "./print-doc";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
+import { PdfPages, SendViewer, pageOfPart } from "./send-viewer";
 import { SheetPlans } from "./sheet-plans";
 import { SummaryModal } from "./summary-modal";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
@@ -366,6 +367,12 @@ export function SendCard({
   const [preparing, setPreparing] = useState(false);
   const [pnging, setPnging] = useState(false);
   const [making, setMaking] = useState(false);
+  /* a preview opened full size, and where in the file it landed */
+  const [viewing, setViewing] = useState<{ kind: "sheet" } | { kind: "plan"; index: number } | null>(null);
+  const [viewSub, setViewSub] = useState<string | null>(null);
+  /* THE FILE, KEPT: a page opened full size and the Download after it are the
+     same PDF, made once for the same ticks */
+  const pdfMade = useRef<{ key: string; blob: Blob } | null>(null);
   const [madeError, setMadeError] = useState(false);
   const cleanupArmed = useRef(false);
 
@@ -499,21 +506,35 @@ export function SendCard({
   /* THE FILE, made on the server from the same print page (api/studio/
      design-pdf, lib/studio/pdf-render.ts) — the ticks ride along as the
      print options. No `finally` (React Compiler 1.0), so both paths clear. */
+  const pdfFor = async (): Promise<Blob> => {
+    const body = {
+      designId: doc.id,
+      name: doc.meta.name,
+      options: {
+        ...opts,
+        sections,
+        floorIds: floorsOn.map((f) => f.id),
+        variantIds: othersOn.map((v) => v.id),
+      },
+    };
+    const key = `${doc.meta.updatedAt} ${JSON.stringify(body)}`;
+    const held = pdfMade.current;
+    if (held && held.key === key) return held.blob;
+    const blob = await designPdf(body);
+    pdfMade.current = { key, blob };
+    return blob;
+  };
+  const closeView = () => {
+    setViewing(null);
+    setViewSub(null);
+  };
+
   const downloadPdf = async () => {
     if (making) return;
     setMaking(true);
     setMadeError(false);
     try {
-      const blob = await designPdf({
-        designId: doc.id,
-        name: doc.meta.name,
-        options: {
-          ...opts,
-          sections,
-          floorIds: floorsOn.map((f) => f.id),
-          variantIds: othersOn.map((v) => v.id),
-        },
-      });
+      const blob = await pdfFor();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -703,6 +724,23 @@ export function SendCard({
   const eyebrow = doc.meta.variantLabel
     ? `Design summary, ${doc.meta.variantLabel.toLowerCase()}`
     : "Design summary";
+
+  /* the sheet as sent — the preview shrinks it, the full view does not */
+  const sheet = (
+    <SheetDoc
+      doc={doc}
+      model={model}
+      snapshot={snapshot}
+      basis={basis}
+      brand={brand}
+      eyebrow={eyebrow}
+      preparedOn={preparedOn}
+      sections={sections}
+    >
+      {sections.picklist && paper && <PicklistSection rows={model.picklist} />}
+      {dest === "link" && <SheetPlans doc={doc} floors={floorsOn} urls={previewUrls} marks={unitMarks([doc], pack)} />}
+    </SheetDoc>
+  );
 
   return (
     <>
@@ -993,41 +1031,44 @@ export function SendCard({
             {nothing ? (
               <p className="ds-send-empty">Nothing ticked yet.</p>
             ) : (
-              <div className="ds-send-pv" inert aria-hidden="true">
+              <div className="ds-send-pv">
+                {/* each picture is a DOOR to its page full size; the picture
+                    itself stays inert, so nothing in it can take the press */}
                 {(hasSheet(sections) || dest === "link") && (
-                  <Shrunk>
-                    <SheetDoc
-                      doc={doc}
-                      model={model}
-                      snapshot={snapshot}
-                      basis={basis}
-                      brand={brand}
-                      eyebrow={eyebrow}
-                      preparedOn={preparedOn}
-                      sections={sections}
-                    >
-                      {sections.picklist && paper && <PicklistSection rows={model.picklist} />}
-                      {dest === "link" && <SheetPlans doc={doc} floors={floorsOn} urls={previewUrls} marks={unitMarks([doc], pack)} />}
-                    </SheetDoc>
-                  </Shrunk>
+                  <button
+                    className="ds-send-pvbtn"
+                    onClick={() => setViewing({ kind: "sheet" })}
+                    aria-label={dest === "link" ? "Open the customer's page full size" : "Open the sheet full size"}
+                  >
+                    <div inert aria-hidden="true">
+                      <Shrunk>{sheet}</Shrunk>
+                    </div>
+                  </button>
                 )}
                 {paper &&
-                  floorsOn.map((f) => (
-                    <div key={f.id} className="ds-send-plan">
-                      <Shrunk>
-                        <div className="ds-send-plan-in">
-                          <PlanFigure
-                            doc={doc}
-                            floor={f}
-                            layers={opts.layers}
-                            grayscale={opts.grayscale}
-                            legend={opts.legend}
-                            urls={previewUrls}
-                          />
-                        </div>
-                      </Shrunk>
+                  floorsOn.map((f, i) => (
+                    <button
+                      key={f.id}
+                      className="ds-send-pvbtn ds-send-plan"
+                      onClick={() => setViewing({ kind: "plan", index: i })}
+                      aria-label={`Open ${floorDisplayName(f)} full size`}
+                    >
+                      <div inert aria-hidden="true">
+                        <Shrunk>
+                          <div className="ds-send-plan-in">
+                            <PlanFigure
+                              doc={doc}
+                              floor={f}
+                              layers={opts.layers}
+                              grayscale={opts.grayscale}
+                              legend={opts.legend}
+                              urls={previewUrls}
+                            />
+                          </div>
+                        </Shrunk>
+                      </div>
                       <span>{floorDisplayName(f)}</span>
-                    </div>
+                    </button>
                   ))}
                 {othersOn.map((v) => (
                   <span key={v.id} className="ds-act-s">
@@ -1057,6 +1098,32 @@ export function SendCard({
           )}
         </div>
       </SummaryModal>
+
+      {viewing && (
+        <SendViewer
+          title={
+            viewing.kind === "plan" && floorsOn[viewing.index]
+              ? floorDisplayName(floorsOn[viewing.index])
+              : doc.meta.name || "Design"
+          }
+          sub={viewSub}
+          onClose={closeView}
+        >
+          {dest === "link" ? (
+            <div className="ds-lb-sheet" inert>
+              {sheet}
+            </div>
+          ) : (
+            <PdfPages
+              make={pdfFor}
+              pageOf={(total) =>
+                pageOfPart(viewing, { total, floors: floorsOn.length, copies: 1 + othersOn.length })
+              }
+              onTotal={(total, page) => setViewSub(total ? `Page ${page} of ${total}` : null)}
+            />
+          )}
+        </SendViewer>
+      )}
 
       {/* portals to <body> itself and is never on screen — a sibling here so
           it lives and dies with the dialog without being inside it */}

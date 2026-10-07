@@ -17,6 +17,14 @@ import { PrintDoc } from "../print-doc";
    own, so the test decides when each src completes and can therefore prove
    onReady is still waiting. */
 
+/* the print document also reads each raster for its empty margins
+   (print-doc-trim.test.tsx); here only the WAIT is under test, so that read
+   finds nothing and adds no Image of its own */
+jest.mock("@/lib/studio/plans", () => ({
+  ...jest.requireActual("@/lib/studio/plans"),
+  trimOfImageUrl: jest.fn(() => Promise.resolve(null)),
+}));
+
 const LOGO = "https://signed.example/logo.png";
 
 /** Every Image constructed, so a test can complete them one at a time. */

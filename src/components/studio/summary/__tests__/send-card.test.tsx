@@ -456,3 +456,63 @@ describe("ServiceM8", () => {
     expect(screen.getByRole("radio", { name: "ServiceM8" })).toBeDisabled();
   });
 });
+
+/* EACH PREVIEW OPENS ITS PAGE FULL SIZE (Isaac, 2026-10-07: "click into each
+   preview to show you how it's going to come up, rather than just show you
+   some small window"). For paper that is the PDF itself — the shrunk picture
+   is laid out as a web page, and only the file shows where a page breaks. */
+describe("a preview opens its page full size", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  it("opens the PDF itself at the plan's page, and Download sends that same file", async () => {
+    const user = userEvent.setup();
+    const pdf = new Blob(["%PDF-1.4 1 0 obj << /Type /Pages /Kids [] /Count 3 >> endobj"]);
+    /* jsdom's Blob has no arrayBuffer(); every browser the dialog runs in does */
+    Object.defineProperty(pdf, "arrayBuffer", {
+      value: () => new Promise<ArrayBuffer>((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as ArrayBuffer);
+        r.readAsArrayBuffer(pdf);
+      }),
+    });
+    const fetchMock = jest.fn(async () => ({ ok: true, status: 200, blob: async () => pdf }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: jest.fn(() => "blob:pdf") });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: jest.fn() });
+    const click = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const { onClose } = renderCard();
+
+    await user.click(screen.getByRole("button", { name: "Open Level 1 full size" }));
+    const page = await screen.findByRole("dialog", { name: "Level 1" });
+    // the sheet is page 1, Ground is 2, Level 1 is the last of three
+    const frame = await within(page).findByTitle("The pages as they print");
+    expect(frame.getAttribute("src")).toBe("blob:pdf#page=3&view=Fit");
+    expect(within(page).getByText("Page 3 of 3")).toBeInTheDocument();
+
+    // Escape closes the page and leaves the dialog it opened from
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Level 1" })).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(within(foot()).getByRole("button", { name: /Download PDF/ }));
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    click.mockRestore();
+  });
+
+  it("opens the customer's page as the page they open, not as a file", async () => {
+    const user = userEvent.setup();
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    renderCard();
+    await toLink(user);
+
+    await user.click(screen.getByRole("button", { name: "Open the customer's page full size" }));
+    const page = await screen.findByRole("dialog", { name: "85 West St" });
+    expect(page.querySelector(".ds-lb-sheet .dsd")).not.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

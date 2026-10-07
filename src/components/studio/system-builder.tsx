@@ -8,6 +8,7 @@ import { Icon } from "@/components/shell/icon";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack, FormFactor, IndoorUnit, OutdoorUnit } from "@/lib/studio/packs/schema";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
+import { coverPct, coversLoad, shortKw } from "@/lib/studio/fit";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { systemCover, systemPairKw } from "@/lib/studio/coverage";
 import { multiCapableIdus, multiFormFactorSummary, poolOf } from "@/lib/studio/multi";
@@ -86,7 +87,8 @@ const FAMILIES: SystemFamily[] = ["split", "multi", "vrf"];
 
 const kwText = (kw: number | null | undefined): string => (kw == null ? "—" : `${kw.toFixed(1)} kW`);
 const zoneName = (z: RoomObj): string => String(z.props.name ?? "Zone");
-const pct = (cover: number, load: number): number => Math.round((cover / load) * 100);
+/* of the figures as shown, like every other cover percent (fit.ts) */
+const pct = (cover: number, load: number): number => coverPct(cover, load) ?? 0;
 const iduRowOf = (pack: DataPack, model: string): IndoorUnit | null =>
   pack.indoor_units.find((u) => u.model === model) ?? null;
 const oduRowOf = (pack: DataPack, model: string): OutdoorUnit | null =>
@@ -194,13 +196,15 @@ function zoneWord(args: {
   verdict: RoomVerdict;
 }): { word: Word; short: boolean } {
   const { cant, oduModel, bandKw, zonesLoadKw, loadKw, lines, verdict } = args;
-  const shortBy = (need: number, cover: number): string => `${Math.max(0, need - cover).toFixed(1)} kW short`;
+  /* short, judged and measured on the figures as shown (fit.ts) — so a zone
+     can never read "0.0 kW short" */
+  const shortBy = (need: number, cover: number): string => `${shortKw(need, cover).toFixed(1)} kW short`;
   if (cant) return { word: { text: `Can't join ${oduModel}`, tone: "bad" }, short: false };
   /* a unit on the band serves every zone: each zone reads the unit against
      the load of all of them together */
   if (bandKw != null) {
     if (zonesLoadKw == null || zonesLoadKw <= 0) return { word: { text: kwText(bandKw), tone: "quiet" }, short: false };
-    return bandKw >= zonesLoadKw
+    return coversLoad(bandKw, zonesLoadKw)
       ? { word: { text: "Covered", tone: "ok" }, short: false }
       : { word: { text: shortBy(zonesLoadKw, bandKw), tone: "bad" }, short: true };
   }
@@ -942,9 +946,9 @@ export function SystemBuilder({
                 addNote={(kw) => {
                   const need = addTarget?.loadKw;
                   if (!addTarget || need == null) return null;
-                  return kw >= need
+                  return coversLoad(kw, need)
                     ? `Covers ${addTarget.name} (needs ${need.toFixed(1)} kW)`
-                    : `${(need - kw).toFixed(1)} kW short for ${addTarget.name}`;
+                    : `${shortKw(need, kw).toFixed(1)} kW short for ${addTarget.name}`;
                 }}
                 /* the spec sheet goes in the right-hand column, full height,
                    unless a unit on the system is open there */

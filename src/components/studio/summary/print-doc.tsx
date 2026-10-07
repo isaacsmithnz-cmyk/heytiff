@@ -1,12 +1,25 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { hasSheet, type PrintModel, type PrintVariant, type SheetSections } from "@/lib/studio/export";
-import { floorDisplayName } from "@/lib/studio/plans";
+import { useEffect, useRef, useState } from "react";
+import { createPortal, flushSync } from "react-dom";
+import {
+  hasSheet,
+  planPageOrientation,
+  type PrintModel,
+  type PrintVariant,
+  type SheetSections,
+} from "@/lib/studio/export";
+import { planFigureBounds } from "@/lib/studio/figure-bounds";
+import {
+  floorDisplayName,
+  trimOfImageUrl,
+  withPrintTrims,
+  type PixelTrim,
+} from "@/lib/studio/plans";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PlanFigure } from "./plan-figure";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
+import { themeVars } from "@/lib/org/theme";
 
 /* The print document — mounted ON DEMAND by the Export card with a built
    PrintModel and resolved sheet URLs, never rendered on screen. The print
@@ -119,14 +132,21 @@ export function PrintDoc({
      of padding (studio.css). Both are inside the printed area, so neither can
      be mistaken for somewhere to stamp a URL.
 
-     No named page and no brand branch left: `@page cover` existed only to
-     strip the margin from a full-bleed frame, and the frame does not bleed any
-     more — it is a rounded band inset from the paper, the same shape the
-     Summary screen shows. */
+     No brand branch: `@page cover` existed only to strip the margin from a
+     full-bleed frame, and the frame does not bleed any more — it is a rounded
+     band inset from the paper, the same shape the Summary screen shows.
+
+     ONE NAMED PAGE, `ds-turned`: the same paper the other way round, for a
+     plan that prints bigger turned (`planPageOrientation` — a wide plan was a
+     strip across a portrait page). It needs the print document IN FLOW, which
+     it is now; a named page silently did nothing while `.fg` held it out. */
   useEffect(() => {
     const el = document.createElement("style");
     el.id = "ds-print-page-size";
-    el.textContent = `@page { size: ${options.paper} ${options.orientation}; margin: 0; }`;
+    const turned = options.orientation === "portrait" ? "landscape" : "portrait";
+    el.textContent =
+      `@page { size: ${options.paper} ${options.orientation}; margin: 0; }\n` +
+      `@page ds-turned { size: ${options.paper} ${turned}; margin: 0; }`;
     document.head.appendChild(el);
     return () => el.remove();
   }, [options.paper, options.orientation]);
@@ -139,7 +159,17 @@ export function PrintDoc({
      moment this resolves, and an <img> that has not decoded yet prints as
      nothing. It would come out with a hole where the letterhead is —
      intermittently, and only for people whose logo was slow. */
+  /* AND EACH SHEET'S EMPTY MARGINS are read off its raster in the same wait,
+     so a sheet nobody cropped prints framed on its drawing rather than on the
+     viewer chrome it was screenshotted in (job 3375, 2026-10-07: a 3,680-wide
+     lightbox capture printed as a small plan in a wide dark band, its labels
+     sized to the band). Pages are trimmed at import now; this is for every
+     sheet placed before that, and it writes nothing back. A raster whose
+     pixels can't be read simply prints as it is. Ready waits for the trims
+     to be DRAWN, not just found: they are committed synchronously before the
+     paint that fires it. */
   const logoUrl = brand.logoUrl;
+  const [trims, setTrims] = useState<Record<string, PixelTrim> | null>(null);
   useEffect(() => {
     if (readyFired.current) return;
     const jobs = [...Object.values(urls), ...(logoUrl ? [logoUrl] : [])].map(
@@ -151,13 +181,20 @@ export function PrintDoc({
           img.src = u;
         })
     );
+    const trimming = Promise.all(
+      Object.entries(urls).map(async ([ref, u]) => [ref, await trimOfImageUrl(u)] as const)
+    );
     const fire = () => {
       if (alive.current && !readyFired.current) {
         readyFired.current = true;
         onReadyRef.current();
       }
     };
-    void Promise.all(jobs).then(() => {
+    void Promise.all([Promise.all(jobs), trimming]).then(([, found]) => {
+      if (!alive.current) return;
+      const next: Record<string, PixelTrim> = {};
+      for (const [ref, t] of found) if (t) next[ref] = t;
+      flushSync(() => setTrims(next));
       const t = window.setTimeout(fire, 150);
       requestAnimationFrame(() => {
         window.clearTimeout(t);
@@ -181,28 +218,54 @@ export function PrintDoc({
               sections={options.sections}
             />
           )}
-          {v.floors.map((floor) => (
-            <section key={floor.id} className="ds-print-page">
-              <div className="ds-print-cap">
-                <b>{v.doc.meta.name || "Design"}</b>
-                <span>
-                  {floorDisplayName(floor)}
-                  {v.label ? `, ${v.label}` : ""}
-                </span>
-              </div>
-              <div className="ds-print-plan">
-                <PlanFigure
-                  doc={v.doc}
-                  floor={floor}
-                  layers={options.layers}
-                  grayscale={options.grayscale}
-                  legend={options.legend}
-                  urls={urls}
-                  markOf={(m) => model.marks?.[m]}
-                />
-              </div>
-            </section>
-          ))}
+          {v.floors.map((floor) => {
+            const printed = trims ? withPrintTrims(floor, trims) : floor;
+            /* which way up this plan's page goes: the frame it prints in,
+               measured the way the figure measures itself */
+            const frame = planFigureBounds(v.doc, printed);
+            const way = frame
+              ? planPageOrientation(frame, options.paper, options.orientation)
+              : options.orientation;
+            const turned = way !== options.orientation;
+            /* A TURNED PAGE DRAWS ITS OWN FRAME. The sheet's is `position:
+               fixed`, which the print engine stamps on every page at the
+               FIRST page's size — so on a turned page it came out the wrong
+               way round, cutting across the plan. This page covers it and
+               draws the same band, the other way up; only where a sheet (and
+               so a frame) is in the document at all. */
+            return (
+              <section
+                key={floor.id}
+                className={`ds-print-page ${way}${turned ? " turned" : ""}`}
+                style={turned && hasSheet(options.sections) ? themeVars(brand.color) : undefined}
+              >
+                {turned && (
+                  <>
+                    <div className="ds-print-tband" aria-hidden="true" />
+                    <div className="ds-print-twell" aria-hidden="true" />
+                  </>
+                )}
+                <div className="ds-print-cap">
+                  <b>{v.doc.meta.name || "Design"}</b>
+                  <span>
+                    {floorDisplayName(floor)}
+                    {v.label ? `, ${v.label}` : ""}
+                  </span>
+                </div>
+                <div className="ds-print-plan">
+                  <PlanFigure
+                    doc={v.doc}
+                    floor={printed}
+                    layers={options.layers}
+                    grayscale={options.grayscale}
+                    legend={options.legend}
+                    urls={urls}
+                    markOf={(m) => model.marks?.[m]}
+                  />
+                </div>
+              </section>
+            );
+          })}
         </div>
       ))}
     </div>,

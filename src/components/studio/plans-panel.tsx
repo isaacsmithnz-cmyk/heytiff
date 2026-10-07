@@ -336,6 +336,7 @@ export function PlansPanel({
             pageNumber: p.pageNumber,
             width: p.width,
             height: p.height,
+            ...(p.trim ? { crop: p.trim } : {}),
           });
         }
         // compute once (fresh floor ids) so we can commit AND land on one

@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState } from "react";
+import { createPortal, flushSync } from "react-dom";
 import { hasSheet, type PrintModel, type PrintVariant, type SheetSections } from "@/lib/studio/export";
-import { floorDisplayName } from "@/lib/studio/plans";
+import {
+  floorDisplayName,
+  trimOfImageUrl,
+  withPrintTrims,
+  type PixelTrim,
+} from "@/lib/studio/plans";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PlanFigure } from "./plan-figure";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
@@ -139,7 +144,17 @@ export function PrintDoc({
      moment this resolves, and an <img> that has not decoded yet prints as
      nothing. It would come out with a hole where the letterhead is —
      intermittently, and only for people whose logo was slow. */
+  /* AND EACH SHEET'S EMPTY MARGINS are read off its raster in the same wait,
+     so a sheet nobody cropped prints framed on its drawing rather than on the
+     viewer chrome it was screenshotted in (job 3375, 2026-10-07: a 3,680-wide
+     lightbox capture printed as a small plan in a wide dark band, its labels
+     sized to the band). Pages are trimmed at import now; this is for every
+     sheet placed before that, and it writes nothing back. A raster whose
+     pixels can't be read simply prints as it is. Ready waits for the trims
+     to be DRAWN, not just found: they are committed synchronously before the
+     paint that fires it. */
   const logoUrl = brand.logoUrl;
+  const [trims, setTrims] = useState<Record<string, PixelTrim> | null>(null);
   useEffect(() => {
     if (readyFired.current) return;
     const jobs = [...Object.values(urls), ...(logoUrl ? [logoUrl] : [])].map(
@@ -151,13 +166,20 @@ export function PrintDoc({
           img.src = u;
         })
     );
+    const trimming = Promise.all(
+      Object.entries(urls).map(async ([ref, u]) => [ref, await trimOfImageUrl(u)] as const)
+    );
     const fire = () => {
       if (alive.current && !readyFired.current) {
         readyFired.current = true;
         onReadyRef.current();
       }
     };
-    void Promise.all(jobs).then(() => {
+    void Promise.all([Promise.all(jobs), trimming]).then(([, found]) => {
+      if (!alive.current) return;
+      const next: Record<string, PixelTrim> = {};
+      for (const [ref, t] of found) if (t) next[ref] = t;
+      flushSync(() => setTrims(next));
       const t = window.setTimeout(fire, 150);
       requestAnimationFrame(() => {
         window.clearTimeout(t);
@@ -193,7 +215,7 @@ export function PrintDoc({
               <div className="ds-print-plan">
                 <PlanFigure
                   doc={v.doc}
-                  floor={floor}
+                  floor={trims ? withPrintTrims(floor, trims) : floor}
                   layers={options.layers}
                   grayscale={options.grayscale}
                   legend={options.legend}

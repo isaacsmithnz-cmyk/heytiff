@@ -1,6 +1,8 @@
 import "server-only";
 import { priceBuildUp, type BuildUp } from "./buildup";
 import { profitOf, type Profit } from "./profit";
+import { readEngine, readLines } from "./lines-server";
+import { buildLineOf, priceLines, stillUnknown } from "./lines-price";
 import { buildSettingsOf, type BuildUnset } from "./build-settings";
 import { briefVisits, optionLabour, priceJobList, type LabourFrom, type ComponentPrice, type ListRow, type Unpriced, type UnitOffer } from "./job-price";
 import { pricedLinks, readUnitChoices } from "./links-server";
@@ -42,6 +44,16 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   const [settings, day] = await Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]);
   const built = buildSettingsOf(settings, day);
   if (!built.ok) return { ok: false, unset: built.unset };
+
+  /* a quote switched to the rebuild prices from its own kept lines */
+  if ((await readEngine(orgId, jobUuid)) === "lines") {
+    const [lines, stored] = await Promise.all([readLines(orgId, jobUuid), readStoredProposal(orgId, jobUuid).catch(() => null)]);
+    const names = (stored?.draft.options ?? []).map((o) => o.name);
+    const options = priceLines(lines, names, built.settings, { pct: settings.profitTargetPct, labourCostCents: settings.labourCostCents });
+    const parts = lines.filter((l) => l.kind !== "labour" && !stillUnknown(l)).map(buildLineOf);
+    if (parts.length > 0) await recordQuoteItems(orgId, jobUuid, parts);
+    return { ok: true, options };
+  }
 
   const [proposal, ref] = await Promise.all([readStoredProposal(orgId, jobUuid).catch(() => null), latestInstalledPack(PACK_BRAND)]);
   const pack = ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;

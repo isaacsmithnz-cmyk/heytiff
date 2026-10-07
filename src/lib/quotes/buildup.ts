@@ -32,6 +32,9 @@ export type BuildLine = {
   qty: number;
   /** what one costs to buy */
   unitBuyCents: number;
+  /** what one sells for, when a person set it on the quote; absent: the buy
+      price at the business's markup (the engine rebuild's lines, lines.ts) */
+  unitSellCents?: number | null;
   kind: LineKind;
   /** a figure Tiff assumed, to be confirmed ("15 m", "6 m per zone") */
   assumed?: string | null;
@@ -48,8 +51,10 @@ export type BuildLine = {
 export type VisitStage = "Site measure" | "Rough-in" | "Install" | "Fit-off" | "Commissioning" | "Return";
 export const VISIT_STAGES: VisitStage[] = ["Site measure", "Rough-in", "Install", "Fit-off", "Commissioning", "Return"];
 
-/** A trip to site: how many people, for how many days (halves allowed). */
-export type Visit = { stage: VisitStage; people: number; days: number };
+/** A trip to site: how many people, for how many days (halves allowed).
+    `rateCents`: an hour sold at a rate a person set on the quote; absent,
+    the business's charge-out rate. */
+export type Visit = { stage: VisitStage; people: number; days: number; rateCents?: number };
 
 export type BuildSettings = {
   unitMarkupPct: number;
@@ -113,7 +118,8 @@ export function priceBuildUp(
   let ductBuy = 0;
   for (const l of lines) {
     const buyCents = Math.round(l.unitBuyCents * l.qty);
-    const sellCents = markup(buyCents, l.kind === "unit" ? s.unitMarkupPct : s.materialMarkupPct);
+    const sellCents =
+      l.unitSellCents != null ? Math.round(l.unitSellCents * l.qty) : markup(buyCents, l.kind === "unit" ? s.unitMarkupPct : s.materialMarkupPct);
     let g = groups.find((x) => x.name === l.group);
     if (!g) groups.push((g = { name: l.group, lines: [], buyCents: 0, sellCents: 0 }));
     g.lines.push({ ...l, buyCents, sellCents });
@@ -135,7 +141,7 @@ export function priceBuildUp(
 
   const visitRows = visits.map((v) => {
     const personDays = Math.max(0, v.people) * Math.max(0, v.days);
-    return { ...v, personDays, sellCents: Math.round(personDays * s.dayHours * s.chargeOutCents) };
+    return { ...v, personDays, sellCents: Math.round(personDays * s.dayHours * (v.rateCents ?? s.chargeOutCents)) };
   });
   const personDays = visitRows.reduce((a, v) => a + v.personDays, 0);
   const hours = contingency?.hours ?? 0;

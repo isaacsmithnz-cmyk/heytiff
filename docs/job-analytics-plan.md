@@ -4,7 +4,28 @@ Isaac, 2026-10-07:
 
 > "need an analytics page for jobs. Quotes, brands used, win rate, average price of job types etc. Make a list of all things you think are useful"
 
-Status: **listed, not built.** This is the list of what the page could show, and what each figure stands on.
+Status: **listed and mocked up, not built.** This is the list of what the page could show, and what each figure stands on. The mock-up is three screens, Overview, Quotes and To decide, on the canvas at https://claude.ai/artifact/Daf2AbjZ7ekgA7TJrpqFg7, drawn with sample figures.
+
+## Decided
+
+Isaac, 2026-10-07:
+
+> "jobs not converted to work order after 180 days can be marked as lost, anything unknown or questionable should be manually decided"
+
+- **A quote with no answer 180 days after it was sent counts as lost.**
+  - It's counted that way in every figure, whatever ServiceM8 says.
+  - A quote that becomes a work order after that counts as won again, because the rule is applied when the figures are read, not stored.
+  - Writing Unsuccessful back to ServiceM8 is a separate press, "Mark 98 lost in ServiceM8", which the owner makes. It never happens on its own.
+- **Anything unknown or questionable is decided by hand, on a To decide tab.**
+  - Until it's decided, the job is left out of the figures it affects, and the page says how many jobs and how much work that is.
+  - Each answer is kept in HeyTiff, in a new table: job, question, answer, who, when. It overrides what was read from the text. Undo takes it back.
+  - The questions in the mock-up:
+    - **Is it a quote?** A work order with no quote sent.
+    - **Which brand?** No brand could be read, or only a guess from a model code. "Customer's own" is one of the answers.
+    - **What kind of job?** It couldn't be read, or the options span two kinds.
+    - **Does this price belong?** Far from the median for its kind. "Leave it out of prices" keeps it counted as won.
+    - **Won or lost?** ServiceM8 and the money disagree. For example, Unsuccessful but paid, or accepted on the proposal but still a Quote in ServiceM8.
+  - A suggestion, where there is one ("Looks like Daikin, from the model code"), is shown beside the choices but never chosen for you.
 
 ## What the numbers stand on
 
@@ -39,7 +60,7 @@ Each item below carries one of three tags:
 
 - ★ **Win rate, defined once.** Won is `Work Order` or `Completed`; lost is `Unsuccessful`.
   - Many quotes are never marked lost in ServiceM8; they just sit.
-  - So show two rates: decided quotes only, and one that counts a quote unanswered after 180 days as lost (quote-worklist.ts's "Over 6 months").
+  - So a quote unanswered after 180 days counts as lost (decided, above), and there is one rate.
   - **now**
 - ★ Win rate by work kind: split, multi, ducted, VRF, service, maintenance. **read**
 - ★ Win rate by price band (under $5k, $5–10k, $10–20k, over $20k). **now**
@@ -172,7 +193,7 @@ These are the fields to add first, in order of what they unlock. Each one is wor
 ## Open questions for Isaac
 
 1. Is the ★ first cut the right one? It's the top line, win rate, speed to quote, brand mix, price by job type, and quoted against actual hours. All of it is buildable from what's stored today.
-2. Are quotes marked Unsuccessful in ServiceM8 reliably, or do they just sit? The answer decides which win rate leads.
-3. Owner only, or also admins who are given `workboard_money`?
-4. Per-tech figures: shown, or kept off the page?
-5. Should the capture fields above go in now, ahead of the page, so the history starts building?
+2. Owner only, or also admins who are given `workboard_money`?
+3. Per-tech figures: shown, or kept off the page?
+4. Should the capture fields above go in now, ahead of the page, so the history starts building?
+5. Charts need a grey for the context series (the mock-up uses `#8a929e`, 3.2:1 on white). Is that one token in docs/design.md?

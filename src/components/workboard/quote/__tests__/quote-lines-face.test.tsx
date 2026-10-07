@@ -48,14 +48,16 @@ const view = (lines: QuoteLine[]) => ({
 
 beforeEach(() => {
   posted = [];
-  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string, init?: { body?: string }) => ({
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return {
     json: async () => {
-      if (init?.body) posted.push(JSON.parse(init.body));
       if (String(url).startsWith("/api/workboard/quote-lookup"))
         return { ok: true, hits: [{ product: { key: "aad|CMADJ", name: "ANTI VIBRATION FEET", category: "parts", offers: [], cheapest: { supplierKey: "aad", supplierName: "AAD", code: "CMADJ", name: "ANTI VIBRATION FEET", netCents: 1372 }, preferred: null, brand: null, quotes: 3 }, why: "On your quotes", buyCents: 1372 }] };
       return view([indoor, core]);
     },
-  }));
+  };
+  });
 });
 
 const face = (onPriced = jest.fn()) => render(<QuoteLinesFace job="job-3377" price={price} actionsEl={null} onPriced={onPriced} onSwitchBack={jest.fn()} />);
@@ -176,4 +178,27 @@ it("copies option 1 to a new option, and says what an option changed from it", a
   fireEvent.click(screen.getByRole("tab", { name: /Option 2/ }));
   expect(screen.getByText("Added")).toBeInTheDocument();
   expect(screen.getByText("Not in this option: Ducted indoor, under the floor")).toBeInTheDocument();
+});
+
+/* Select preferred item, slice 2.4 */
+it("swaps a line for another item of its kind from the book, and makes it preferred from the next quote", async () => {
+  face();
+  await screen.findByText("Ducted indoor, under the floor");
+  fireEvent.click(screen.getAllByRole("button", { name: "Select preferred item" })[0]!);
+  expect(screen.getByLabelText("Search your book for another Ducted indoor, under the floor")).toHaveValue("Ducted indoor");
+  const pick = await screen.findByRole("button", { name: /ANTI VIBRATION FEET/ }, { timeout: 2000 });
+  await act(async () => {
+    fireEvent.click(pick);
+  });
+  await waitFor(() =>
+    expect(posted).toContainEqual({
+      job: "job-3377",
+      op: "change",
+      id: "l1",
+      version: 1,
+      patch: { name: "ANTI VIBRATION FEET", code: "CMADJ", supplierKey: "aad", costCents: 1372, sellCents: null },
+      why: "Select preferred item",
+    })
+  );
+  await waitFor(() => expect(posted.map((b) => b.ref ?? b.op)).toContain("aad|CMADJ"));
 });

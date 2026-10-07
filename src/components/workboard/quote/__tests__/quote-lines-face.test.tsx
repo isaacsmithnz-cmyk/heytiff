@@ -234,3 +234,11 @@ it("says under a part why it doesn't fit its system's outdoor unit", async () =>
   face();
   expect(await screen.findByText("20 A is under the PUZ-ZM125VKA2-A's 28 A")).toBeInTheDocument();
 });
+
+/* the review's own half, slice 11.1 */
+it("lists what to check: what isn't known yet, and the profit against the target", async () => {
+  face();
+  expect(await screen.findByText("Core hole 200 mm: not known yet")).toBeInTheDocument();
+  expect(screen.getByText("To check")).toBeInTheDocument();
+  expect(screen.getByText("Profit 20%, target 20%")).toBeInTheDocument();
+});

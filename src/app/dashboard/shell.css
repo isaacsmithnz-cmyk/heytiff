@@ -6786,6 +6786,11 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-kf { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:500; color:var(--q); }
 .fg .ql-kin { display:flex; align-items:center; gap:8px; }
 .fg .ql-kin em { font-style:normal; font-size:13px; color:var(--q); }
+.fg .ql-checks { list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; }
+.fg .ql-checks li { display:grid; grid-template-columns:16px minmax(0, 1fr); gap:8px; padding:4px 0; font-size:13px; line-height:1.45; color:var(--hd-ink); }
+.fg .ql-checks li > i { width:8px; height:8px; margin-top:4px; border-radius:50%; background:var(--hd-today); }
+.fg .ql-checks li.due > i { background:var(--warn-t); }
+.fg .ql-checks li.info > i { background:var(--info-t); }
 .fg .ql-chg { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
 .fg .ql-chg li { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:13px; line-height:1.45; color:var(--hd-ink); }
 .fg .ql-chg li:first-child { border-top:0; }

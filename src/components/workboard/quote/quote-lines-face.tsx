@@ -534,8 +534,35 @@ export function QuoteLinesFace({
     </>
   );
 
+  /* what to look at before it goes: the non-Tiff half of the review (slice
+     11.1) — what isn't known, what doesn't fit, and the profit */
+  const unknownHere = lines.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null);
+  const misfits = lines.filter((l) => fitOf.get(l.id)?.state === "misfit");
+  const assumedHere = lines.filter((l) => l.source === "assumed");
+  const checks: { tone: "due" | "info" | "ok"; text: string }[] = [
+    ...unknownHere.map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
+    ...misfits.map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
+    ...(assumedHere.length > 0 ? [{ tone: "info" as const, text: `${assumedHere.length} ${assumedHere.length === 1 ? "line" : "lines"} assumed` }] : []),
+    ...(o?.profit
+      ? [{ tone: o.profit.short ? ("due" as const) : ("ok" as const), text: `Profit ${o.profit.pct}%${o.profit.targetPct != null ? `, target ${o.profit.targetPct}%` : ""}` }]
+      : []),
+  ];
+
   const rail = (
     <div className="ql-rail">
+      {checks.length > 0 && (
+        <>
+          <h2 className="hd-ls-grp">To check</h2>
+          <ul className="ql-checks">
+            {checks.map((c, i) => (
+              <li key={i} className={c.tone}>
+                <i aria-hidden="true" />
+                <span>{c.text}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <h2 className="hd-ls-grp">Changes</h2>
       {(view?.changes ?? []).length === 0 && <p className="qp-none">Nothing changed yet.</p>}
       <ul className="ql-chg">

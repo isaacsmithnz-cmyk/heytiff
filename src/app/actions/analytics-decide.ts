@@ -45,7 +45,8 @@ export async function decideJob(jobUuid: string, question: string, answer: strin
         );
   if (error) {
     const code = (error as { code?: string }).code ?? "";
-    if (code === "PGRST205" || code === "42P01") return { ok: false, error: NO_TABLE };
+    /* the table, or (23514) its question check, from before this question */
+    if (code === "PGRST205" || code === "42P01" || code === "23514") return { ok: false, error: NO_TABLE };
     console.error(`[analytics] couldn't ${answer === null ? "take back" : "keep"} the ${question} answer on job ${job}:`, error);
     return { ok: false, error: DIDNT_SAVE };
   }

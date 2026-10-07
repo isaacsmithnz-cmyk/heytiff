@@ -15,6 +15,7 @@ import {
 } from "@/lib/analytics/job-analytics";
 import { DaysToYes, EnquiriesChart, PriceTable, RateBars } from "./analytics-charts";
 import { ToDecide } from "./analytics-decide";
+import { useVoids, VoidList } from "./analytics-jobs";
 import "./analytics.css";
 
 /* ANALYTICS — the business's own jobs, read off ServiceM8's copy
@@ -87,13 +88,16 @@ export function AnalyticsScreen({ state, period }: { state: AnalyticsState; peri
                 {state.kind === "ready" && tab === "overview" && (
                   <Overview a={state.data} truncated={state.truncated} onDecide={() => setTab("decide")} />
                 )}
-                {state.kind === "ready" && tab === "quotes" && <Quotes a={state.data} />}
+                {state.kind === "ready" && tab === "quotes" && (
+                  <Quotes a={state.data} names={state.names ?? {}} canDecide={state.canDecide ?? false} />
+                )}
                 {state.kind === "ready" && tab === "decide" && (
                   <ToDecide
                     asks={state.data.toDecide.asks}
                     names={state.names ?? {}}
                     canDecide={state.canDecide ?? false}
                     workOrders={state.workOrders ?? null}
+                    voided={state.data.voided}
                   />
                 )}
               </section>
@@ -174,6 +178,8 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
     <div className="an">
       <p className="an-facts">
         Quotes on jobs raised {spanWords(a)}, against the same days a year earlier. Money is inc GST, as ServiceM8 holds it.
+        {a.voided.length > 0 &&
+          ` ${plural(a.voided.length, "void job is", "void jobs are")} left out.`}
         {truncated && " The account holds more jobs than one read carries, so the oldest are left out."}
       </p>
       <ToDecideLine a={a} onDecide={onDecide} />
@@ -276,7 +282,9 @@ function ToDecideLine({ a, onDecide }: { a: JobAnalytics; onDecide: () => void }
 
 /* ── Quotes ── */
 
-function Quotes({ a }: { a: JobAnalytics }) {
+function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string, string>; canDecide: boolean }) {
+  const voids = useVoids();
+  const [review, setReview] = useState(false);
   const q = a.quotes;
   const t = a.top;
   const lost = q.unsuccessful.count + q.lapsed.count;
@@ -320,6 +328,29 @@ function Quotes({ a }: { a: JobAnalytics }) {
           </div>
         </section>
       </div>
+
+      {q.lostJobs.length > 0 && (
+        <section className="an-sec" aria-labelledby="an-h-review">
+          <h2 id="an-h-review">Lost, or not a job at all?</h2>
+          <button type="button" className="an-more" onClick={() => setReview((r) => !r)} aria-expanded={review}>
+            {review ? "Hide the lost quotes" : `Review the ${q.lostJobs.length.toLocaleString("en-AU")} lost`}
+          </button>
+          {review && (
+            <VoidList
+              jobs={q.lostJobs.map((l) => l.job)}
+              names={names}
+              voids={voids}
+              serverVoid={false}
+              what={(job) =>
+                (q.lostJobs.find((l) => l.job.id === job.id)?.lapsed ?? (job.status ?? "").trim().toLowerCase() === "quote")
+                  ? `No answer after ${LAPSE_AFTER_DAYS} days`
+                  : "Marked Unsuccessful in ServiceM8"
+              }
+              canDecide={canDecide}
+            />
+          )}
+        </section>
+      )}
 
       <section className="an-sec" aria-labelledby="an-h-open">
         <h2 id="an-h-open">Open quotes today</h2>

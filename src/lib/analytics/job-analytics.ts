@@ -45,7 +45,10 @@ export { kindLabel };
      answered it counts under "Not known".
    - Does this price belong? A won price four times its kind's median or a
      quarter of it, among five or more. Until answered it is left out of the
-     prices; it still counts as won. */
+     prices; it still counts as won.
+   And any job can be called void: not a real job. A void job is taken out
+   before anything is counted, so it is in no figure at all, enquiries
+   included, and is listed apart so it can be undone. */
 
 /** A quote with no answer this long after the job was raised counts as lost. */
 export const LAPSE_AFTER_DAYS = 180;
@@ -383,6 +386,9 @@ export const YES_BINS = [
   { label: "Over 180", upTo: Infinity },
 ] as const;
 
+/** A lost quote, for the review that voids the ones that weren't real jobs. */
+export type LostJob = { job: AnalyticsJob; lapsed: boolean };
+
 export type QuotesFigures = {
   /** won quotes by days from the job being raised to its work order */
   daysToYes: { label: string; count: number; late: boolean }[];
@@ -391,6 +397,8 @@ export type QuotesFigures = {
   winsDated: number;
   unsuccessful: { count: number; cents: number };
   lapsed: { count: number; cents: number };
+  /** every lost quote in the span, newest first, to review */
+  lostJobs: LostJob[];
   /** open quotes today, whatever the period: the board's groups */
   openNow: {
     toPrice: number;
@@ -439,6 +447,10 @@ function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: stri
     winsDated,
     unsuccessful: pack(now.filter((p) => p.outcome === "lost")),
     lapsed: pack(now.filter((p) => p.outcome === "lapsed")),
+    lostJobs: now
+      .filter((p) => p.outcome === "lost" || p.outcome === "lapsed")
+      .sort((a, b) => (b.job.raisedOn ?? "").localeCompare(a.job.raisedOn ?? ""))
+      .map((p) => ({ job: p.job, lapsed: p.outcome === "lapsed" })),
     openNow: open,
   };
 }
@@ -525,6 +537,8 @@ export type JobAnalytics = {
   prices: PriceRow[];
   enquiries: { weeks: Week[]; total: number; totalBefore: number };
   toDecide: ToDecide;
+  /** jobs raised in the span that were called void, newest first */
+  voided: AnalyticsJob[];
 };
 
 export type ToDecide = {
@@ -555,6 +569,10 @@ export function analyse(
 ): JobAnalytics {
   const span = periodSpan(period, today);
   const before = spanBefore(span);
+  /* a void job is not a job: out before anything is counted */
+  const isVoid = (j: AnalyticsJob) => decisions.get(j.id)?.void === "void";
+  const voided = jobs.filter((j) => isVoid(j) && inSpan(j.raisedOn, span)).sort((a, b) => (b.raisedOn ?? "").localeCompare(a.raisedOn ?? ""));
+  jobs = jobs.filter((j) => !isVoid(j));
   const { placed: now, asks } = placeIn(jobs, span, today, decisions);
   const { placed: prev } = placeIn(jobs, before, today, decisions);
   return {
@@ -569,6 +587,7 @@ export function analyse(
     prices: priceRows(now),
     enquiries: weeksOf(jobs, span, before),
     toDecide: toDecideOf(asks),
+    voided,
   };
 }
 

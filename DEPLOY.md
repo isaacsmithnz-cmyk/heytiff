@@ -934,6 +934,12 @@ docs/job-analytics-plan.md is the design.
    questions but offers no answers and says they can't be kept yet, and the
    figures read as if nothing had been decided. **Applied to production
    2026-10-07** (migration `job_analytics_decisions`).
+3. Apply `docs/migrations/job_analytics_void.sql` **before the deploy that
+   writes it**: it lets the table take a fifth question, `void`. It only
+   widens the question check, so applying it early is safe. Without it, Void
+   is refused with "Answers can't be kept until the database is updated for
+   them." and every other answer still saves. **Not yet applied to
+   production.**
 
 ---
 

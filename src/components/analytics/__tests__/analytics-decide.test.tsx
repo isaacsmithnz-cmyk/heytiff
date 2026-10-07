@@ -156,3 +156,36 @@ describe("the clean-up in ServiceM8", () => {
     expect(screen.getAllByText("On its way to ServiceM8.")).toHaveLength(2);
   });
 });
+
+describe("void", () => {
+  it("offers Void on every question, and once void the job says so, with Undo and ServiceM8", async () => {
+    decideJob.mockResolvedValue({ ok: true });
+    const JOB = "5d1e2f3a-4b5c-4d6e-8f7a-9b0c1d2e3f4a";
+    render(<ToDecide asks={[{ question: "quote", job: job(JOB), answer: null, kind: "ducted" }]} names={names} canDecide />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Void" }));
+    });
+    expect(decideJob).toHaveBeenCalledWith(JOB, "void", "void");
+    expect(screen.getByText("Void. Left out of every figure.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing to decide. Every job is in the figures.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open in ServiceM8" })).toHaveAttribute("href", `https://go.servicem8.com/OpenJob/${JOB}`);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    });
+    expect(decideJob).toHaveBeenLastCalledWith(JOB, "void", null);
+    expect(screen.getByRole("button", { name: "A quote, won" })).toBeInTheDocument();
+  });
+
+  it("lists the jobs already void, folded, each with Undo", async () => {
+    decideJob.mockResolvedValue({ ok: true });
+    render(<ToDecide asks={[]} names={names} canDecide voided={[job("v1", { number: "3100" })]} />);
+    expect(screen.getByRole("heading", { name: "Void" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show the 1 void job" }));
+    expect(screen.getByRole("link", { name: "#3100 Greenway Builders" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    });
+    expect(decideJob).toHaveBeenCalledWith("v1", "void", null);
+    expect(screen.getByRole("button", { name: "Void" })).toBeInTheDocument();
+  });
+});

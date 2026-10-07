@@ -88,4 +88,13 @@ describe("AnalyticsScreen", () => {
     expect(screen.getByRole("tab", { name: /To decide/ })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("heading", { name: "Won or lost?" })).toBeInTheDocument();
   });
+
+  it("reviews the lost quotes on the Quotes face, so a job that wasn't real can be made void", () => {
+    render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false, names: {}, canDecide: true }} period="12m" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review the 2 lost" }));
+    const labels = [...document.querySelectorAll(".an-qwhat .an-label")].map((e) => e.textContent);
+    expect(labels).toEqual(["Marked Unsuccessful in ServiceM8", "No answer after 180 days"]);
+    expect(screen.getAllByRole("button", { name: "Void" })).toHaveLength(2);
+  });
 });

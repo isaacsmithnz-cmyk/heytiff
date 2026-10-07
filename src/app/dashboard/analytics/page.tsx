@@ -43,10 +43,12 @@ export default async function AnalyticsPage({
   ]);
   if (!read) return <AnalyticsScreen state={{ kind: "unread" }} period={period} />;
   const data = analyse(read.jobs, today, period, kept.decisions);
-  /* the client names the To decide rows show, and only theirs */
+  /* the client names the rows of jobs show, and only theirs */
   const names = await readClientNames(
     orgId,
-    data.toDecide.asks.map((a) => a.job.clientId).filter((c): c is string => !!c),
+    [...data.toDecide.asks.map((a) => a.job), ...data.quotes.lostJobs.map((l) => l.job), ...data.voided]
+      .map((j) => j.clientId)
+      .filter((c): c is string => !!c),
   );
   return (
     <AnalyticsScreen

@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { decideJob } from "@/app/actions/analytics-decide";
 import { makeWorkOrder } from "@/app/actions/booking-sm8";
 import { ANSWERS, QUESTIONS, QUESTION_WORDS, answerLabel, answerSaid, cleanupFor, kindLabel, type Question } from "@/lib/analytics/decisions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
-import { longDay, money, type Ask } from "@/lib/analytics/job-analytics";
+import { money, type AnalyticsJob, type Ask } from "@/lib/analytics/job-analytics";
+import { JobCell, useVoids, VoidList, VoidSaid, type Voids } from "./analytics-jobs";
 
 /* TO DECIDE — what the figures can't place on their own (Isaac, 2026-10-07:
    "anything unknown or questionable should be manually decided"; the
@@ -49,12 +49,15 @@ export function ToDecide({
   names,
   canDecide,
   workOrders = null,
+  voided = [],
 }: {
   asks: Ask[];
   names: Record<string, string>;
   canDecide: boolean;
   /** a Quote can be made a Work Order in ServiceM8 from here */
   workOrders?: "on" | "trial" | null;
+  /** jobs of the period already void */
+  voided?: AnalyticsJob[];
 }) {
   const router = useRouter();
   const [, startRefresh] = useTransition();
@@ -67,11 +70,23 @@ export function ToDecide({
   const [showDecided, setShowDecided] = useState(false);
   const [more, setMore] = useState<ReadonlySet<Question>>(new Set());
   const [sm8, setSm8] = useState<Record<string, Sm8Step>>({});
+  const [showVoided, setShowVoided] = useState(false);
+  const voids = useVoids();
+  /* the rows pressed on this visit stay where they were, though the page,
+     once it has the answer, drops a job made void */
+  const [seen, setSeen] = useState<Record<string, Ask>>({});
+  const remember = (a: Ask) => {
+    const k = keyOf(a);
+    setSeen((m) => ({ ...m, [k]: a }));
+  };
+  const all = [...asks, ...Object.values(seen).filter((a) => !asks.some((b) => keyOf(b) === keyOf(a)))];
+  const voidNow = (a: Ask) => voids.isVoid(a.job, false);
 
   const answerOf = (a: Ask): string | null => (keyOf(a) in local ? local[keyOf(a)] : a.answer);
 
   async function give(a: Ask, answer: string | null) {
     const k = keyOf(a);
+    remember(a);
     const before = answerOf(a);
     setLocal((m) => ({ ...m, [k]: answer }));
     setTouched((t) => new Set(t).add(k));
@@ -98,7 +113,8 @@ export function ToDecide({
 
   /* the won Quotes still waiting on their change, one after another */
   const waitingWorkOrders = workOrders
-    ? asks.filter((a) => {
+    ? all.filter((a) => {
+        if (voidNow(a)) return false;
         const ans = answerOf(a);
         const step = sm8[keyOf(a)];
         return ans !== null && cleanupFor(a.question, ans, a.job.status) === "work_order" && (!step || "error" in step);
@@ -108,11 +124,12 @@ export function ToDecide({
     for (const a of waitingWorkOrders) await toWorkOrder(a);
   }
 
-  const open = asks.filter((a) => answerOf(a) === null);
+  const open = all.filter((a) => answerOf(a) === null && !voidNow(a));
   const openJobs = new Set(open.map((a) => a.job.id)).size;
   const decidedBefore = asks.filter(
     (a) => a.answer !== null && !touched.has(keyOf(a)) && cleanupFor(a.question, a.answer, a.job.status) === null,
   ).length;
+  const voidedCount = voided.filter((j) => voids.isVoid(j, true)).length;
 
   return (
     <div className="an">
@@ -136,14 +153,14 @@ export function ToDecide({
       {!canDecide && <p className="an-err">Answers can&rsquo;t be kept until the database is updated for them.</p>}
 
       {QUESTIONS.map((q) => {
-        const all = asks.filter((a) => a.question === q);
+        const ofQ = all.filter((a) => a.question === q);
         /* an answer ServiceM8 still disagrees with stays in view: its change is still to make */
-        const rows = all.filter((a) => {
+        const rows = ofQ.filter((a) => {
           const ans = answerOf(a);
-          return ans === null || touched.has(keyOf(a)) || showDecided || cleanupFor(a.question, ans, a.job.status) !== null;
+          return ans === null || touched.has(keyOf(a)) || voids.pressed[a.job.id] || showDecided || cleanupFor(a.question, ans, a.job.status) !== null;
         });
         if (rows.length === 0) return null;
-        const waiting = all.filter((a) => answerOf(a) === null).length;
+        const waiting = ofQ.filter((a) => answerOf(a) === null && !voidNow(a)).length;
         const shown = more.has(q) ? rows : rows.slice(0, FIRST);
         return (
           <section className="an-sec" key={q} aria-labelledby={`an-h-${q}`}>
@@ -168,6 +185,8 @@ export function ToDecide({
                   workOrders={workOrders}
                   sm8={sm8[keyOf(a)] ?? null}
                   onWorkOrder={() => toWorkOrder(a)}
+                  voids={voids}
+                  onVoid={() => remember(a)}
                 />
               ))}
             </div>
@@ -179,6 +198,22 @@ export function ToDecide({
           </section>
         );
       })}
+
+      {voided.length > 0 && (
+        <section className="an-sec" aria-labelledby="an-h-void">
+          <div className="an-qhead">
+            <h2 id="an-h-void">{QUESTION_WORDS.void.title}</h2>
+            <span className="an-qcount">{voidedCount.toLocaleString("en-AU")}</span>
+          </div>
+          <p className="an-say">{QUESTION_WORDS.void.why}</p>
+          <button type="button" className="an-more" onClick={() => setShowVoided((s) => !s)} aria-expanded={showVoided}>
+            {showVoided ? "Hide the void jobs" : `Show the ${voided.length.toLocaleString("en-AU")} void ${voided.length === 1 ? "job" : "jobs"}`}
+          </button>
+          {showVoided && (
+            <VoidList jobs={voided} names={names} voids={voids} serverVoid what={() => "Job description"} canDecide={canDecide} />
+          )}
+        </section>
+      )}
     </div>
   );
 }
@@ -194,6 +229,8 @@ function Row({
   workOrders,
   sm8,
   onWorkOrder,
+  voids,
+  onVoid,
 }: {
   ask: Ask;
   client: string | null;
@@ -205,16 +242,12 @@ function Row({
   workOrders: "on" | "trial" | null;
   sm8: Sm8Step | null;
   onWorkOrder: () => void;
+  voids: Voids;
+  onVoid: () => void;
 }) {
   const j = ask.job;
-  const facts = [
-    j.suburb,
-    `${j.status ?? "No status"} in ServiceM8`,
-    j.raisedOn ? `raised ${longDay(j.raisedOn)}` : null,
-    j.valueCents === null ? "no price" : money(j.valueCents),
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const isVoid = voids.isVoid(j, false);
+  const voidBusy = !!voids.busy[j.id];
   const { label, said, hint } = evidence(ask);
   const choices = ANSWERS[ask.question];
   /* a change that has gone, or is going, to ServiceM8 can't be undone here */
@@ -222,25 +255,34 @@ function Row({
 
   return (
     <div className="an-qrow">
-      <div className="an-qjob">
-        <Link href={`/dashboard/workboard?job=${encodeURIComponent(j.id)}`}>
-          {j.number ? `#${j.number} ` : ""}
-          {client ?? "No client name"}
-        </Link>
-        <span>{facts}</span>
-      </div>
+      <JobCell job={j} client={client} />
       <div className="an-qwhat">
         <span className="an-label">{label}</span>
         <span>{said}</span>
         {hint && <span className="an-note">{hint}</span>}
       </div>
       <div className="an-qact">
-        {answer === null ? (
-          choices.map((c) => (
-            <button key={c} type="button" className="an-choice" disabled={busy || !canDecide} onClick={() => onAnswer(c)}>
-              {answerLabel(ask.question, c)}
+        {isVoid ? (
+          <VoidSaid job={j} busy={voidBusy} onUndo={() => voids.setVoid(j, false, false)} />
+        ) : answer === null ? (
+          <>
+            {choices.map((c) => (
+              <button key={c} type="button" className="an-choice" disabled={busy || !canDecide} onClick={() => onAnswer(c)}>
+                {answerLabel(ask.question, c)}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="an-choice"
+              disabled={busy || voidBusy || !canDecide}
+              onClick={() => {
+                onVoid();
+                voids.setVoid(j, true, false);
+              }}
+            >
+              {answerLabel("void", "void")}
             </button>
-          ))
+          </>
         ) : (
           <>
             <span className="an-said ok">
@@ -255,9 +297,9 @@ function Row({
             <Cleanup ask={ask} answer={answer} workOrders={workOrders} sm8={sm8} onWorkOrder={onWorkOrder} />
           </>
         )}
-        {error && (
+        {(error ?? voids.errors[j.id]) && (
           <p className="an-err" role="alert">
-            {error}
+            {error ?? voids.errors[j.id]}
           </p>
         )}
       </div>
@@ -334,6 +376,7 @@ function evidence(a: Ask): { label: string; said: string; hint: string | null } 
         hint: null,
       };
     case "kind":
+    case "void":
       return { label: "Job description", said: brief, hint: null };
     case "price": {
       const kind = kindLabel(a.kind).replace(/^(?!VRF)./, (c) => c.toLowerCase());

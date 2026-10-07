@@ -309,3 +309,45 @@ describe("what can't be placed is asked, and the answers count", () => {
     expect(analyse([won("a", 3_000_000), won("b", 3_100_000), won("c", 3_200_000), won("d", 30_000_000)], TODAY, "12m").toDecide.asks).toEqual([]);
   });
 });
+
+describe("a void job is not a job", () => {
+  const lost = job({ id: "spam", status: "Unsuccessful", quoteSentOn: "2026-05-02", raisedOn: "2026-05-01", valueCents: 900_000 });
+  const won = job({ id: "won", status: "Completed", quoteSentOn: "2026-06-02", wonOn: "2026-06-09", completedOn: "2026-07-01", raisedOn: "2026-06-01", valueCents: 400_000 });
+  const lapsedDup = job({ id: "dup", status: "Quote", quoteSentOn: "2026-01-12", raisedOn: "2026-01-10", valueCents: 300_000 });
+  const testJob = job({ id: "test", status: "Completed", quoteSentOn: null, completedOn: "2026-08-02", raisedOn: "2026-08-01", valueCents: 100 });
+  const jobs = [lost, won, lapsedDup, testJob];
+
+  it("lists the lost quotes for review, newest first, the 180-day ones marked", () => {
+    expect(analyse(jobs, TODAY, "12m").quotes.lostJobs.map((l) => [l.job.id, l.lapsed])).toEqual([
+      ["spam", false],
+      ["dup", true],
+    ]);
+  });
+
+  it("takes a void job out of every figure, enquiries and completed work included, and lists it apart", () => {
+    const before = analyse(jobs, TODAY, "12m");
+    expect(before.top.winRate).toEqual({ won: 1, decided: 3, rate: 1 / 3 });
+    expect(before.enquiries.total).toBe(4);
+    expect(before.top.completedCents).toBe(400_100);
+
+    const voided = new Map([
+      ["spam", { void: "void" }],
+      ["dup", { void: "void" }],
+      ["test", { void: "void" }],
+    ]);
+    const after = analyse(jobs, TODAY, "12m", voided);
+    expect(after.top.winRate).toEqual({ won: 1, decided: 1, rate: 1 });
+    expect(after.top.quotedCents).toBe(400_000);
+    expect(after.quotes.lapsed.count).toBe(0);
+    expect(after.quotes.lostJobs).toEqual([]);
+    expect(after.enquiries.total).toBe(1);
+    expect(after.top.completedCents).toBe(400_000);
+    expect(after.voided.map((j) => j.id)).toEqual(["test", "spam", "dup"]);
+  });
+
+  it("asks nothing about a void job", () => {
+    const outlier = job({ id: "paid", status: "Unsuccessful", paid: true, quoteSentOn: "2026-05-02", raisedOn: "2026-05-01" });
+    expect(analyse([outlier], TODAY, "12m").toDecide.asks).toHaveLength(1);
+    expect(analyse([outlier], TODAY, "12m", new Map([["paid", { void: "void" }]])).toDecide.asks).toEqual([]);
+  });
+});

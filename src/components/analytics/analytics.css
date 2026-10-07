@@ -148,3 +148,4 @@
 .fg .an-undo:hover { background: var(--tint); }
 .fg .an-undo:focus-visible { outline: none; box-shadow: var(--ring); }
 .an-out { font-weight: 600; color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
+.an-said.void i { background: var(--q); }

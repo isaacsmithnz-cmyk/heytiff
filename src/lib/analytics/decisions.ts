@@ -8,9 +8,13 @@ import { WORK_KIND_WORDS, type WorkKind } from "@/lib/quotes/labour-history";
    understand. Kept in job_analytics_decisions, one row per job and
    question. Pure and client-safe. */
 
-export type Question = "quote" | "outcome" | "kind" | "price";
+export type Question = "quote" | "outcome" | "kind" | "price" | "void";
 
-/** The order the tab asks them in: what moves the win rate first. */
+/** The order the tab asks them in: what moves the win rate first. Void is
+    not asked: it can be said of any job (Isaac, 2026-10-07: "i also need a
+    way to mark jobs void or something, unsuccessful isnt accurate for invalid
+    jobs"). A void job is not a job at all, a duplicate, a test, spam or one
+    raised by mistake, and is left out of every figure, enquiries included. */
 export const QUESTIONS: readonly Question[] = ["quote", "outcome", "kind", "price"];
 
 export const KINDS: readonly WorkKind[] = ["split", "multi", "ducted", "vrf", "service", "maintenance"];
@@ -20,10 +24,11 @@ export const ANSWERS: Record<Question, readonly string[]> = {
   outcome: ["won", "lost"],
   kind: KINDS,
   price: ["count", "leave_out"],
+  void: ["void"],
 };
 
 export function isQuestion(v: unknown): v is Question {
-  return v === "quote" || v === "outcome" || v === "kind" || v === "price";
+  return v === "quote" || v === "outcome" || v === "kind" || v === "price" || v === "void";
 }
 
 /** Whether `answer` is one the question takes. */
@@ -61,6 +66,7 @@ export const QUESTION_WORDS: Record<Question, { title: string; why: string }> = 
   outcome: { title: "Won or lost?", why: "ServiceM8's status and the money or the proposal disagree." },
   kind: { title: "What kind of job?", why: "The job type couldn't be read from the job's words or its category." },
   price: { title: "Does this price belong?", why: "Far from what won jobs of the kind usually cost." },
+  void: { title: "Void", why: "Not real jobs: duplicates, tests, spam, raised by mistake. Left out of every figure." },
 };
 
 /** The button that gives an answer. */
@@ -74,6 +80,7 @@ export function answerLabel(question: Question, answer: string): string {
       lost: "Lost",
       count: "Count it",
       leave_out: "Leave it out of prices",
+      void: "Void",
     }[answer] ?? answer
   );
 }
@@ -89,6 +96,7 @@ export function answerSaid(question: Question, answer: string): string {
       lost: "Counted as lost.",
       count: "Counted in prices.",
       leave_out: "Left out of prices. Still counts as won.",
+      void: "Void. Left out of every figure.",
     }[answer] ?? ""
   );
 }

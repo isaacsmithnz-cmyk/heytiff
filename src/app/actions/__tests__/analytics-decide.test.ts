@@ -98,3 +98,13 @@ it("says plainly when the table isn't there yet", async () => {
   expect(await decideJob("job-1", "quote", "quote")).toEqual({ ok: false, error: "Answers can't be kept until the database is updated for them." });
   expect(console.error).not.toHaveBeenCalled();
 });
+
+it("keeps a void, the one answer its question takes", async () => {
+  expect(await decideJob("job-1", "void", "void")).toEqual({ ok: true });
+  expect(await decideJob("job-1", "void", "won")).toEqual({ ok: false, error: "That isn't one of the answers." });
+});
+
+it("says plainly when the table's question check is from before void", async () => {
+  writeError = { code: "23514", message: "violates check constraint" };
+  expect(await decideJob("job-1", "void", "void")).toEqual({ ok: false, error: "Answers can't be kept until the database is updated for them." });
+});

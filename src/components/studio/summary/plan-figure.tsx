@@ -203,7 +203,8 @@ export function PlanFigure({
         .ds-pf .ds-room polygon { fill: rgba(240,164,49,0.13); stroke: #d98f1f; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-room-name { fill: #0d1220; font-weight: 800; text-anchor: middle; }
         .ds-pf .ds-room-area { fill: #6a7284; font-weight: 600; text-anchor: middle; }
-        .ds-pf .ds-room-tab { fill: #fff; stroke: none; }
+        .ds-pf .ds-room-tab { fill: rgba(250,250,250,0.96); stroke: none; }
+        .ds-pf .ds-room-wall { fill: none; stroke: #d98f1f; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-room-tab-edge { fill: none; stroke: #d98f1f; stroke-width: 1.4; stroke-dasharray: 4 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-room-name.in-tab { font-weight: 700; text-anchor: start; }
         .ds-pf .ds-room-area.in-tab { text-anchor: start; }
@@ -289,11 +290,19 @@ export function PlanFigure({
           const tab = spot?.tab;
           return (
             <g key={r.id} className="ds-room">
-              {/* the label's tab on its wall (room-tab.ts), under the room's
-                  wash and wall exactly as the canvas draws it */}
-              {tab && <path className="ds-room-tab" d={tabPath(tab, u)} />}
               <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
-              {tab && <path className="ds-room-tab-edge" d={tabPath(tab, u, true)} />}
+              {/* the label's tab on its wall (room-tab.ts), exactly as the
+                  canvas draws it: its grey over the room's wash, the wall
+                  again over the tab, then its dashed edge */}
+              {tab && (
+                <>
+                  <path className="ds-room-tab" d={tabPath(tab, u)} />
+                  {/* a path, not a polygon: paper's rooms have no states to
+                      take a stroke from, and a polygon is what counts a room */}
+                  <path className="ds-room-wall" d={`M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`} />
+                  <path className="ds-room-tab-edge" d={tabPath(tab, u, true)} />
+                </>
+              )}
               {spot && labelBacks && !tab && backOf(spot.box)}
               {spot && (
                 <>

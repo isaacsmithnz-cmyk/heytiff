@@ -4817,12 +4817,23 @@ export function StudioCanvas({
                 }${owners.length ? " zoned" : ""}`}
                 style={zoneStyle}
               >
-                {/* the label's tab, UNDER the room: its paper hides the plan's
-                    lines behind the words, and the room's own wash and wall
-                    still run over it, so it reads as part of the room */}
-                {tab && <path className="ds-room-tab" d={tabPath(tab, tabPx)} />}
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
-                {tab && <path className="ds-room-tab-edge" d={tabPath(tab, tabPx, true)} />}
+                {/* the label's tab: the tool hint's grey, OVER the room's wash
+                    (under it, the wash tinted it the room's colour and it was
+                    lost — Isaac, "where is the grey background"), then the
+                    wall again over the tab so it still runs straight through,
+                    then the tab's dashed edge */}
+                {tab && (
+                  <>
+                    <path className="ds-room-tab" d={tabPath(tab, tabPx)} />
+                    <polygon
+                      className="ds-room-wall"
+                      points={pts.map((p) => `${p.x},${p.y}`).join(" ")}
+                      style={{ fill: "none", pointerEvents: "none" }}
+                    />
+                    <path className="ds-room-tab-edge" d={tabPath(tab, tabPx, true)} />
+                  </>
+                )}
                 {tab &&
                   owners.length >= 2 &&
                   owners.map((o, i) => (

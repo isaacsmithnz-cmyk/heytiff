@@ -2648,11 +2648,18 @@ html[data-ds-display] .dstudio.editing {
 /* A SELECTED ROOM'S NAME CAN BE PICKED UP: a hairline dashed outline says
    so, and the pointer turns to move over it. Unselected, it is not a target
    at all, so a drag across it pans the plan (canvas.tsx). */
-/* A ROOM'S LABEL ON ITS WALL (room-tab.ts). The tab is paper, drawn UNDER the
-   room so the room's wash and wall run over it; its edge is dashed in the
-   room's colour (a zone's, once claimed) — a solid edge read as part of the
-   wall and made the room look a different shape (Isaac, 2026-10-07). */
-.dstudio .ds-room-tab { fill: var(--paper); stroke: none; pointer-events: none; }
+/* A ROOM'S LABEL ON ITS WALL (room-tab.ts). The tab is the tool hint's grey,
+   drawn OVER the room's wash (under it the wash tinted it the room's colour
+   and the grey was lost), with the wall drawn again over it; its edge is
+   dashed in the room's colour (a zone's, once claimed) — a solid edge read as
+   part of the wall and made the room look a different shape (Isaac,
+   2026-10-07). The wall's copy takes every state's stroke from the room's
+   own polygon rules, and its `fill: none` is inline so no state can fill it. */
+.dstudio .ds-room-tab {
+  fill: color-mix(in srgb, var(--paper) 94%, var(--ink) 2%);
+  stroke: none;
+  pointer-events: none;
+}
 .dstudio .ds-room-tab-edge {
   fill: none;
   stroke: var(--zc, #d98f1f);

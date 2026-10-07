@@ -2,6 +2,8 @@
    the figures the page draws, on jobs shaped as the mirror hands them over. */
 import {
   analyse,
+  analyticsKindOf,
+  wasQuoted,
   change,
   LAPSE_AFTER_DAYS,
   money,
@@ -235,7 +237,7 @@ describe("what can't be placed is asked, and the answers count", () => {
 
   it("asks whether a work order with no quote sent was quoted, when it reads like an install or is big", () => {
     const ducted = job({ id: "wo-ducted", status: "Completed", quoteSentOn: null, kind: "ducted", valueCents: 1_800_000, raisedOn: "2026-08-01", wonOn: "2026-08-02" });
-    const big = job({ id: "wo-big", status: "Work Order", quoteSentOn: null, kind: null, valueCents: 450_000, raisedOn: "2026-08-03" });
+    const big = job({ id: "wo-big", status: "Work Order", quoteSentOn: null, kind: null, category: "Install", valueCents: 450_000, raisedOn: "2026-08-03" });
     const callout = job({ id: "wo-small", status: "Completed", quoteSentOn: null, kind: "service", valueCents: 25_000, raisedOn: "2026-08-04" });
     const before = analyse([ducted, big, callout], TODAY, "12m");
     expect(asksOf(before)).toEqual([
@@ -349,5 +351,28 @@ describe("a void job is not a job", () => {
     const outlier = job({ id: "paid", status: "Unsuccessful", paid: true, quoteSentOn: "2026-05-02", raisedOn: "2026-05-01" });
     expect(analyse([outlier], TODAY, "12m").toDecide.asks).toHaveLength(1);
     expect(analyse([outlier], TODAY, "12m", new Map([["paid", { void: "void" }]])).toDecide.asks).toEqual([]);
+  });
+});
+
+describe("what the live account taught the rules", () => {
+  it("counts a job ServiceM8 made a Quote a day or more before its work order as quoted, where no sent date was kept", () => {
+    expect(wasQuoted(job({ status: "Completed", quoteSentOn: null, quotedOn: "2026-03-01", wonOn: "2026-03-09" }))).toBe(true);
+    // made a Quote and a Work Order the same day: done and charged, not quoted
+    expect(wasQuoted(job({ status: "Completed", quoteSentOn: null, quotedOn: "2026-03-01", wonOn: "2026-03-01" }))).toBe(false);
+    expect(wasQuoted(job({ status: "Work Order", quoteSentOn: null, quotedOn: null, wonOn: "2026-03-01" }))).toBe(false);
+  });
+
+  it("asks about an install-like work order only from $3,000 ex GST, and never about a call-out", () => {
+    const small = job({ id: "small", status: "Completed", quoteSentOn: null, kind: "ducted", valueCents: 120_000, raisedOn: "2026-08-01" });
+    const callout = job({ id: "call", status: "Completed", quoteSentOn: null, kind: null, category: "Service Call", valueCents: 900_000, raisedOn: "2026-08-01" });
+    expect(analyse([small, callout], TODAY, "12m").toDecide.asks).toEqual([]);
+  });
+
+  it("reads a service call as a service whatever its words mention, and a kind from the lines' names", () => {
+    expect(analyticsKindOf("Ducted system not cooling", [], "Service Call")).toBe("service");
+    expect(analyticsKindOf("Annual service", [], "Annual Maintenance ")).toBe("maintenance");
+    expect(analyticsKindOf("As per quote", ["MITSUBISHI ELEC. HIGH WALL SPLIT 4.2KW", "HVAC Labour"], "Install")).toBe("split");
+    expect(analyticsKindOf("Supply and Install Mitsubishi Electric 3.5kw HWS", [], "Install")).toBe("split");
+    expect(analyticsKindOf("As per quote", ["As Per Quote"], "Install")).toBeNull();
   });
 });

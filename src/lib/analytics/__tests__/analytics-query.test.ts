@@ -7,6 +7,7 @@ const ranges: { column: string; from: number; to: number }[] = [];
 let failOn: string | null = null;
 let categories: Record<string, unknown>[] = [];
 let drafts: Record<string, unknown>[] = [];
+let lines: Record<string, unknown>[] = [];
 let decisions: { data: Record<string, unknown>[] | null; error: unknown } = { data: [], error: null };
 
 jest.mock("@/lib/supabase-server", () => ({
@@ -30,6 +31,7 @@ jest.mock("@/lib/supabase-server", () => ({
       sub.then = (res: (v: { data: unknown[] | null; error: unknown }) => unknown) => {
         if (table === "sm8_categories") return Promise.resolve({ data: categories, error: null }).then(res);
         if (table === "quote_drafts") return Promise.resolve({ data: drafts, error: null }).then(res);
+        if (table === "sm8_job_materials") return Promise.resolve({ data: span ? lines.slice(span[0], span[1] + 1) : lines, error: null }).then(res);
         if (table === "job_analytics_decisions") return Promise.resolve(decisions).then(res);
         if (failOn === column) return Promise.resolve({ data: null, error: { message: "down" } }).then(res);
         const all = byColumn[column] ?? [];
@@ -61,6 +63,7 @@ beforeEach(() => {
   failOn = null;
   categories = [];
   drafts = [];
+  lines = [];
   decisions = { data: [], error: null };
   jest.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -83,41 +86,56 @@ describe("readAnalyticsJobs", () => {
     expect(read?.jobs.map((j) => j.id)).toEqual(["a", "old"]);
   });
 
-  it("shapes a job: days off the stamps, money in cents, the kind from its words and category", async () => {
-    categories = [{ uuid: "c1", name: "Maintenance" }];
+  it("shapes a job: days off the stamps, money from its lines ex GST, the kind from its words, lines and category", async () => {
+    categories = [{ uuid: "c1", name: "Annual Maintenance " }, { uuid: "c2", name: "Install" }];
     byColumn.date = [
       row("won", {
-        status: "Work Order",
+        status: "Completed",
         date: "2026-08-01 09:15:00",
-        quote_sent_stamp: "2026-08-03 14:00:00",
+        quote_date: "2026-08-01 10:00:00",
+        quote_sent_stamp: null,
         work_order_date: "2026-08-20 07:30:00",
-        total_invoice_amount: "8250.5000",
-        job_description: "Supply and install 14kW ducted system",
+        job_description: "As per quote",
         generated_job_id: "1042",
         geo_city: "Mosman",
         company_uuid: "co-1",
+        category_uuid: "c2",
       }),
-      row("svc", { category_uuid: "c1", total_invoice_amount: "0.0000" }),
+      row("svc", { category_uuid: "c1" }),
+    ];
+    lines = [
+      { uuid: "l1", job_uuid: "won", name: "MITSUBISHI ELEC. DUCTED 12.5KW", quantity: "1.0000", price: "9800.0000" },
+      { uuid: "l2", job_uuid: "won", name: "HVAC Labour", quantity: "16.0000", price: "95.5000" },
+      // ServiceM8's netting row for a claim: the job is worth its whole work
+      { uuid: "l3", job_uuid: "won", name: "Partial invoice #1042A", quantity: "-1.0000", price: "3000.0000" },
     ];
     const read = await readAnalyticsJobs("org", "2024-10-08");
     expect(read?.jobs[0]).toEqual({
       id: "won",
-      status: "Work Order",
+      status: "Completed",
       raisedOn: "2026-08-01",
-      quoteSentOn: "2026-08-03",
+      quoteSentOn: null,
+      quotedOn: "2026-08-01",
       wonOn: "2026-08-20",
       completedOn: null,
-      valueCents: 825_050,
+      valueCents: 980_000 + 152_800,
       kind: "ducted",
+      category: "Install",
       paid: false,
       acceptedInHeyTiff: false,
       number: "1042",
       suburb: "Mosman",
-      brief: "14kW ducted system",
+      brief: "As per quote",
       clientId: "co-1",
     });
-    // ServiceM8's zero is "not priced", not a $0 job
+    // nothing priced is no value, not a $0 job
     expect(read?.jobs[1]).toMatchObject({ valueCents: null, kind: "maintenance" });
+  });
+
+  it("leaves a progress claim out: it is part of its parent, not a job", async () => {
+    byColumn.date = [row("parent", { generated_job_id: "2380" }), row("claim", { generated_job_id: "2380A" })];
+    const read = await readAnalyticsJobs("org", "2024-10-08");
+    expect(read?.jobs.map((j) => j.id)).toEqual(["parent"]);
   });
 
   it("marks a job paid in ServiceM8, and one whose proposal has an option accepted", async () => {

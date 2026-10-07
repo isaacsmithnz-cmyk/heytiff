@@ -177,7 +177,7 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
   return (
     <div className="an">
       <p className="an-facts">
-        Quotes on jobs raised {spanWords(a)}, against the same days a year earlier. Money is inc GST, as ServiceM8 holds it.
+        Quotes on jobs raised {spanWords(a)}, against the same days a year earlier. Money is ex GST, from each job’s lines in ServiceM8.
         {a.voided.length > 0 &&
           ` ${plural(a.voided.length, "void job is", "void jobs are")} left out.`}
         {truncated && " The account holds more jobs than one read carries, so the oldest are left out."}

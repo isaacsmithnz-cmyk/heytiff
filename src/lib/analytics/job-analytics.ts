@@ -1,7 +1,7 @@
 import { lineOf } from "@/lib/workboard/job-steps";
 import { plusDays } from "@/lib/workboard/dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import type { WorkKind } from "@/lib/quotes/labour-history";
+import { workKindOf, type WorkKind } from "@/lib/quotes/labour-history";
 import { KINDS, kindLabel, type Decisions, type JobDecisions, type Question } from "./decisions";
 
 export { kindLabel };
@@ -29,14 +29,15 @@ export { kindLabel };
    same day the rule counts from. Each figure is set beside the same span a
    year earlier.
 
-   MONEY is ServiceM8's job total, which is inc GST (job-money.ts). It is
-   labelled, never converted.
+   MONEY is the job's own lines, ex GST (analytics-query says why: the job
+   total isn't there for most of the account). It is labelled, never
+   converted.
 
    WHAT CAN'T BE PLACED IS ASKED (Isaac: "anything unknown or questionable
    should be manually decided"). Four questions, answered on the To decide tab
    and kept in job_analytics_decisions (decisions.ts):
    - Is it a quote? A work order no quote was sent for that reads like an
-     install or comes to $3,000 or more. Until answered it is what the
+     install and comes to $3,000 ex GST or more. Until answered it is what the
      progress line says, not a quote.
    - Won or lost? ServiceM8 says Unsuccessful but the job was paid, or still a
      Quote though the client accepted HeyTiff's proposal. Until answered it is
@@ -62,10 +63,14 @@ export type AnalyticsJob = {
   raisedOn: string | null;
   /** the day the quote was sent, when ServiceM8 says */
   quoteSentOn: string | null;
+  /** the day ServiceM8 made it a Quote */
+  quotedOn?: string | null;
+  /** its ServiceM8 category's name */
+  category?: string | null;
   /** the day it became a work order */
   wonOn: string | null;
   completedOn: string | null;
-  /** the job's total in cents, inc GST; null when nothing is priced */
+  /** what its lines come to, in cents ex GST; null when nothing is priced */
   valueCents: number | null;
   kind: WorkKind | null;
   /** ServiceM8 says it was paid */
@@ -87,9 +92,20 @@ const norm = (s: string | null) => (s ?? "").trim().toLowerCase();
 export const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
+/** Whether a job was quoted: the progress line's rule (a quote was sent, or
+    it is still a Quote or Unsuccessful), or ServiceM8 made it a Quote at least
+    a day before it became a Work Order. The sent stamp exists only on jobs
+    edited since mid-August 2026; the quote date covers the rest. On the live
+    account a job a Quote a day or more before its work order is worth $5,400
+    at the median, and one with no quote date $428: installs against call-outs. */
+export function wasQuoted(j: AnalyticsJob): boolean {
+  if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) === "quote") return true;
+  return !!j.quotedOn && !!j.wonOn && j.wonOn > j.quotedOn;
+}
+
 /** Where a quote stands today; null for a job that isn't a quote. */
 export function outcomeOf(j: AnalyticsJob, today: string): Outcome | null {
-  if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) !== "quote") return null;
+  if (!wasQuoted(j)) return null;
   const s = norm(j.status);
   if (s === "work order" || s === "completed") return "won";
   if (s === "unsuccessful") return "lost";
@@ -101,7 +117,7 @@ export function outcomeOf(j: AnalyticsJob, today: string): Outcome | null {
 /* ── what can't be placed ── */
 
 /** A work order this big, with no quote sent, may have been quoted outside
-    ServiceM8: asked. Cents, inc GST. */
+    ServiceM8: asked. Cents, ex GST. */
 export const QUOTE_LIKELY_FROM_CENTS = 300_000;
 /** A won price this many times its kind's median, or this fraction of it, is
     asked about once the kind has PRICE_SAMPLE priced wins. */
@@ -110,11 +126,26 @@ export const PRICE_SAMPLE = 5;
 
 const INSTALL: ReadonlySet<WorkKind> = new Set(["split", "multi", "ducted", "vrf"]);
 
-/** A work order no quote was sent for that reads like an install, or is big
-    enough to have been quoted outside ServiceM8. */
+/** A work order with no sign of a quote that reads like an install (by its
+    kind or its category) and comes to $3,000 ex GST or more: quoted outside
+    ServiceM8, or done and charged? */
 function mightBeQuote(j: AnalyticsJob): boolean {
-  if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) !== "work") return false;
-  return (j.kind !== null && INSTALL.has(j.kind)) || (j.valueCents ?? 0) >= QUOTE_LIKELY_FROM_CENTS;
+  if (wasQuoted(j)) return false;
+  const install = (j.kind !== null && INSTALL.has(j.kind)) || /install|construction/i.test(j.category ?? "");
+  return install && (j.valueCents ?? 0) >= QUOTE_LIKELY_FROM_CENTS;
+}
+
+/** The kind of work, read for the figures: a service call or maintenance by
+    its category first, whatever its words mention (a "Service call" about a
+    ducted system is a service, not a ducted install), then the job's words
+    and its lines' names together ("MITSUBISHI ELEC. HIGH WALL SPLIT 4.2KW"),
+    "HWS" being the trade's high wall split. */
+export function analyticsKindOf(description: string | null, lineNames: readonly string[], category: string | null): WorkKind | null {
+  const cat = (category ?? "").toLowerCase();
+  if (cat.includes("service")) return "service";
+  if (cat.includes("maintenance")) return "maintenance";
+  const words = [description ?? "", ...lineNames].join(" ");
+  return workKindOf(words, category) ?? (/\bhws\b/i.test(words) ? "split" : null);
 }
 
 /** ServiceM8's status and the money or the proposal disagree. */

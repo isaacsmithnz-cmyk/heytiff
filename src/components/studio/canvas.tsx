@@ -85,6 +85,7 @@ import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
 import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, type PlanLabels } from "@/lib/studio/plan-labels";
+import { nearestTabS, tabPath, tabShare, wallsOf, TAB_PAD_T, TAB_PAD_X } from "@/lib/studio/room-tab";
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
 
@@ -838,7 +839,7 @@ type Drag =
   | { kind: "callout"; id: string; startWorld: Point; orig: CalloutPlacement }
   /** a selected room's name slid to where it reads best: `orig` + the
       travel, as the callout does, so it never jumps to the grab point */
-  | { kind: "room-label"; id: string; startWorld: Point; orig: Point }
+  | { kind: "room-label"; id: string; startWorld: Point; orig: Point; origEdge?: number }
   /** pulling the words' outer SIDE: the measure, in characters. The block
       reflows under the pointer and the type stays the size it was. */
   | { kind: "note-measure"; id: string }
@@ -1107,7 +1108,11 @@ export function StudioCanvas({
     { id: string; at: CalloutPlacement } | null
   >(null);
   /* a room's name mid-drag, never written until the gesture ends */
-  const [liveRoomLabel, setLiveRoomLabel] = useState<{ id: string; at: Point } | null>(null);
+  /* a room's label mid-drag: on its wall, as a share of the way round (a tab,
+     room-tab.ts); or, for a room no wall of which can carry one, a point */
+  const [liveRoomLabel, setLiveRoomLabel] = useState<
+    { id: string; edge: number; at?: undefined } | { id: string; at: Point; edge?: undefined } | null
+  >(null);
   /* the words as last placed, for the pointer handlers: they are laid out in
      render, after the handlers are made */
   const planLabelsRef = useRef<PlanLabels | null>(null);
@@ -3084,15 +3089,16 @@ export function StudioCanvas({
         const selSpot = selRoom ? planLabelsRef.current?.rooms.get(selRoom.id) : undefined;
         if (selRoom && selSpot) {
           if (
-            roomLabelFixed(selRoom.props, roomPoints(selRoom)) &&
+            labelPutByHand(selRoom) &&
             dist(worldToScreen(labelResetAt(selSpot.box), vp), worldToScreen(w, vp)) <= 11
           ) {
             onMutate((d) => ({
               ...d,
               objects: d.objects.map((o) => {
                 if (o.id !== selRoom.id) return o;
-                const { labelAt: _gone, ...props } = o.props;
+                const { labelAt: _gone, labelEdge: _gone2, ...props } = o.props;
                 void _gone;
+                void _gone2;
                 return { ...o, props };
               }),
             }));
@@ -3100,7 +3106,13 @@ export function StudioCanvas({
           }
           const b = selSpot.box;
           if (w.x >= b.x0 && w.x <= b.x1 && w.y >= b.y0 && w.y <= b.y1) {
-            setDrag({ kind: "room-label", id: selRoom.id, startWorld: w, orig: { x: selSpot.x, y: selSpot.y } });
+            setDrag({
+              kind: "room-label",
+              id: selRoom.id,
+              startWorld: w,
+              orig: { x: selSpot.x, y: selSpot.y },
+              origEdge: selSpot.tab ? tabShare(selSpot.tab.s, selSpot.tab.P) : undefined,
+            });
             break;
           }
         }
@@ -3459,12 +3471,32 @@ export function StudioCanvas({
           },
         });
         break;
-      case "room-label":
+      case "room-label": {
+        /* a tab slides round its room's walls by as far as the pointer has
+           travelled round them — measured from where the press began, so a
+           press is not a jump — and the layout tucks it into a corner or stops
+           it short of one as it gets there */
+        const spot = planLabelsRef.current?.rooms.get(drag.id);
+        const room = rooms.find((r) => r.id === drag.id);
+        if (drag.origEdge != null && spot?.tab && room) {
+          const walls = wallsOf(roomPoints(room));
+          const size = { w: spot.box.x1 - spot.box.x0, h: spot.box.y1 - spot.box.y0 };
+          const from = nearestTabS(walls, drag.startWorld, size);
+          const to = nearestTabS(walls, w, size);
+          if (from != null && to != null) {
+            let d = to - from;
+            if (d > walls.P / 2) d -= walls.P;
+            if (d < -walls.P / 2) d += walls.P;
+            setLiveRoomLabel({ id: drag.id, edge: tabShare(drag.origEdge * walls.P + d, walls.P) });
+          }
+          break;
+        }
         setLiveRoomLabel({
           id: drag.id,
           at: { x: drag.orig.x + (w.x - drag.startWorld.x), y: drag.orig.y + (w.y - drag.startWorld.y) },
         });
         break;
+      }
       case "callout":
         setLiveCallout({
           id: drag.id,
@@ -3716,8 +3748,26 @@ export function StudioCanvas({
        as a callout, so a press that rolls a few px costs no undo step) */
     if (drag.kind === "room-label") {
       const live = liveRoomLabel;
-      if (
-        live &&
+      const room = rooms.find((r) => r.id === drag.id);
+      if (live?.edge != null && drag.origEdge != null && room) {
+        /* a tab let go: written only if it really moved round the wall (the
+           same slop as everything else), and the old inside-the-room spot goes */
+        const P = wallsOf(roomPoints(room)).P;
+        let d = Math.abs(live.edge - drag.origEdge);
+        d = Math.min(d, 1 - d);
+        if (d * P * vp.zoom > TAP_SLOP_PX) {
+          onMutate((doc2) => ({
+            ...doc2,
+            objects: doc2.objects.map((o) => {
+              if (o.id !== live.id) return o;
+              const { labelAt: _gone, ...props } = o.props;
+              void _gone;
+              return { ...o, props: { ...props, labelEdge: live.edge } };
+            }),
+          }));
+        }
+      } else if (
+        live?.at &&
         (Math.abs(live.at.x - drag.orig.x) * vp.zoom > TAP_SLOP_PX ||
           Math.abs(live.at.y - drag.orig.y) * vp.zoom > TAP_SLOP_PX)
       ) {
@@ -3725,7 +3775,7 @@ export function StudioCanvas({
           ...d,
           objects: d.objects.map((o) =>
             o.id === live.id && o.geometry.kind === "polygon"
-              ? { ...o, props: { ...o.props, labelAt: roomLabelOffset(live.at, o.geometry.points) } }
+              ? { ...o, props: { ...o.props, labelAt: roomLabelOffset(live.at!, o.geometry.points) } }
               : o
           ),
         }));
@@ -4056,7 +4106,22 @@ export function StudioCanvas({
           return {
             id: r.id,
             polygon: pts,
-            fixed: liveRoomLabel?.id === r.id ? liveRoomLabel.at : roomLabelFixed(r.props, pts),
+            /* its tab where somebody put it on the wall, live mid-drag; the old
+               inside-the-room spot only stands in when that is all there is */
+            edge:
+              liveRoomLabel?.id === r.id
+                ? (liveRoomLabel.edge ?? null)
+                : typeof r.props.labelEdge === "number"
+                  ? r.props.labelEdge
+                  : null,
+            fixed:
+              liveRoomLabel?.id === r.id
+                ? liveRoomLabel.at
+                : typeof r.props.labelEdge === "number"
+                  ? undefined
+                  : roomLabelFixed(r.props, pts),
+            /* a zone on two systems carries a dot per system in its tab */
+            badge: (zoneOwners.get(r.id)?.length ?? 0) >= 2 ? (zoneOwners.get(r.id)?.length ?? 0) * 14 + 4 : 0,
             lineGap: 16,
             lines: [
               { text: `${String(r.props.name ?? "Zone")}${isSpillRoom(r) ? " ⤢" : ""}`, size: 13 },
@@ -4098,6 +4163,11 @@ export function StudioCanvas({
   const labelBacks = doc.settings.labelBacks === true;
   /** where a placed-by-hand label's reset mark sits: off its top-right corner */
   const labelResetAt = (b: { x1: number; y0: number }): Point => ({ x: b.x1 + 4 / zoom, y: b.y0 - 4 / zoom });
+  /** has somebody put this room's label somewhere — on its wall, or (the old
+      way) inside it? Then its reset mark hands it back to the Studio. */
+  const labelPutByHand = (r: DesignObject): boolean =>
+    typeof r.props.labelEdge === "number" ||
+    (r.geometry.kind === "polygon" && roomLabelFixed(r.props, r.geometry.points) != null);
 
   /* ── drop-to-attribute readout: while an indoor unit rides the cursor,
      every room reads how the armed capacity sits against its OWN load —
@@ -4733,7 +4803,10 @@ export function StudioCanvas({
             const zoneStyle = owners.length
               ? ({ "--zc": owners[0].colour, "--zc-fill": zoneFill(owners[0].colour) } as CSSProperties)
               : undefined;
-            const corner = owners.length >= 2 ? topLeftOf(pts) : null;
+            const tab = roomSpot?.tab;
+            /* the dots go in the tab when there is one, else in the corner */
+            const corner = owners.length >= 2 && !tab ? topLeftOf(pts) : null;
+            const tabPx = 1 / labelZoom;
             return (
               <g
                 key={r.id}
@@ -4744,7 +4817,24 @@ export function StudioCanvas({
                 }${owners.length ? " zoned" : ""}`}
                 style={zoneStyle}
               >
+                {/* the label's tab, UNDER the room: its paper hides the plan's
+                    lines behind the words, and the room's own wash and wall
+                    still run over it, so it reads as part of the room */}
+                {tab && <path className="ds-room-tab" d={tabPath(tab, tabPx)} />}
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
+                {tab && <path className="ds-room-tab-edge" d={tabPath(tab, tabPx, true)} />}
+                {tab &&
+                  owners.length >= 2 &&
+                  owners.map((o, i) => (
+                    <circle
+                      key={o.id}
+                      className="ds-zone-dot"
+                      cx={tab.x1 - (TAB_PAD_X + 5 + 14 * (owners.length - 1 - i)) * tabPx}
+                      cy={tab.y0 + (TAB_PAD_T + 7) * tabPx}
+                      r={5 * tabPx}
+                      style={{ fill: o.colour }}
+                    />
+                  ))}
                 {corner &&
                   owners.map((o, i) => (
                     <circle
@@ -4756,7 +4846,7 @@ export function StudioCanvas({
                       style={{ fill: o.colour }}
                     />
                   ))}
-                {roomSpot && labelBacks && (
+                {roomSpot && labelBacks && !tab && (
                   <rect
                     className="ds-label-back"
                     x={roomSpot.box.x0}
@@ -4766,7 +4856,10 @@ export function StudioCanvas({
                     rx={2 / labelZoom}
                   />
                 )}
-                {roomSpot && selected && (
+                {roomSpot && selected && tab && (
+                  <path className="ds-label-grab on-tab" d={tabPath(tab, tabPx)} />
+                )}
+                {roomSpot && selected && !tab && (
                   <rect
                     className="ds-label-grab"
                     x={roomSpot.box.x0}
@@ -4778,7 +4871,12 @@ export function StudioCanvas({
                 )}
                 {roomSpot && (
                   <>
-                    <text x={roomSpot.x} y={roomSpot.y} fontSize={13 / labelZoom} className="ds-room-name">
+                    <text
+                      x={roomSpot.x}
+                      y={roomSpot.y}
+                      fontSize={13 / labelZoom}
+                      className={`ds-room-name${tab ? " in-tab" : ""}`}
+                    >
                       {String(r.props.name ?? "Zone")}
                       {/* spill rooms wear the ⤢ chip (ducted spec §9c) */}
                       {isSpillRoom(r) ? " ⤢" : ""}
@@ -4787,7 +4885,7 @@ export function StudioCanvas({
                       x={roomSpot.x}
                       y={roomSpot.y + 16 / labelZoom}
                       fontSize={11 / labelZoom}
-                      className="ds-room-area"
+                      className={`ds-room-area${tab ? " in-tab" : ""}`}
                     >
                       {mm ? formatArea(areaUnitsToM2(areaU, mm)) : "not calibrated"}
                       {/* the verdict that PERSISTS after a drop — a room served
@@ -4803,7 +4901,7 @@ export function StudioCanvas({
                 )}
                 {/* back to automatic: offered on the selected room once its
                     name has been moved by hand */}
-                {roomSpot && selected && roomLabelFixed(r.props, pts) && (() => {
+                {roomSpot && selected && labelPutByHand(r) && (() => {
                   const x = labelResetAt(roomSpot.box);
                   const rr = 7 / zoom;
                   return (

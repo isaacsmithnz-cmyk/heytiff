@@ -20,6 +20,15 @@
    toward a gap rather than an overlap). */
 
 import type { Point } from "./document";
+import {
+  autoTabS,
+  nearestTabS,
+  placeTab,
+  tabSizePx,
+  wallsOf,
+  TAB_PAD_X,
+  type RoomTab,
+} from "./room-tab";
 
 export interface Box {
   x0: number;
@@ -39,9 +48,16 @@ export interface LabelSpot {
 export interface RoomLabelIn {
   id: string;
   polygon: Point[];
-  /** where somebody put it by hand (the name's baseline, centred): it stays
-      there, and everything else works round it */
+  /** where somebody put it by hand, the OLD way (the name's baseline,
+      centred, inside the room): a room that can carry a tab takes its tab to
+      the wall nearest this; one that cannot keeps it here */
   fixed?: Point;
+  /** where on the wall somebody put its tab, as a share of the way round
+      (room-tab.ts `labelEdge`) — it stays there, and everything else works
+      round it */
+  edge?: number | null;
+  /** px beside the words for what else the tab carries (a zone's dots) */
+  badge?: number;
   /** the name, then the area line, each with its font size in px */
   lines: { text: string; size: number }[];
   /** px between the first line's baseline and the second's */
@@ -68,6 +84,9 @@ export interface PlanLabelsIn {
     and a hit test) */
 export interface PlacedLabel extends LabelSpot {
   box: Box;
+  /** a room's label on its wall (room-tab.ts): the box IS the tab, and the
+      spot is its first line's start */
+  tab?: RoomTab;
 }
 
 export interface PlanLabels {
@@ -199,9 +218,50 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
       r.lines.length,
       r.lineGap
     );
+  /* ── ROOMS ON THEIR WALLS (room-tab.ts): the name and area in a tab
+     hanging off one wall, out of the middle of the room where the plan's own
+     words are. Put by hand first, so the rest go round it; then each other
+     room's tab where it sits clearest, a square corner before a wall's middle.
+     A room with no level or plumb wall long enough to carry one keeps its
+     label in its middle, the old way, below. ── */
+  const tabbed = new Set<string>();
+  const tabOf = (r: RoomLabelIn) => {
+    if (r.polygon.length < 3 || !r.lines.length) return null;
+    const walls = wallsOf(r.polygon);
+    const sz = tabSizePx(
+      r.lines.map((l, i) => ({ text: l.text, size: l.size, weight: i === 0 ? 700 : 600 })),
+      r.lineGap,
+      r.badge ?? 0
+    );
+    return { walls, size: { w: sz.w * px, h: sz.h * px }, firstBaseline: sz.firstBaseline };
+  };
+  const putTab = (r: RoomLabelIn, f: NonNullable<ReturnType<typeof tabOf>>, at: number): boolean => {
+    const tab = placeTab(f.walls, at, f.size, px);
+    if (!tab) return false;
+    const box: Box = { x0: tab.x0, y0: tab.y0, x1: tab.x1, y1: tab.y1 };
+    rooms.set(r.id, { x: tab.x0 + TAB_PAD_X * px, y: tab.y0 + f.firstBaseline * px, anchor: "start", box, tab });
+    placed.push(box);
+    tabbed.add(r.id);
+    return true;
+  };
+  for (const r of input.rooms) {
+    if (r.edge == null && !r.fixed) continue;
+    const f = tabOf(r);
+    if (!f) continue;
+    const at = r.edge != null ? r.edge * f.walls.P : nearestTabS(f.walls, r.fixed!, f.size);
+    if (at != null) putTab(r, f, at);
+  }
+  for (const r of input.rooms) {
+    if (tabbed.has(r.id) || r.edge != null || r.fixed) continue;
+    const f = tabOf(r);
+    if (!f) continue;
+    const at = autoTabS(f.walls, f.size, px, (t) => crowding({ x0: t.x0, y0: t.y0, x1: t.x1, y1: t.y1 }));
+    if (at != null) putTab(r, f, at);
+  }
+
   /* ── rooms placed by hand: where they were put, and the rest go round ── */
   for (const r of input.rooms) {
-    if (!r.fixed || !r.lines.length) continue;
+    if (tabbed.has(r.id) || !r.fixed || !r.lines.length) continue;
     const spot: LabelSpot = { x: r.fixed.x, y: r.fixed.y, anchor: "middle" };
     const box = roomBlock(r, spot);
     rooms.set(r.id, { ...spot, box });
@@ -210,7 +270,7 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
 
   /* ── rooms: the centre, else the nearest clear spot inside ── */
   for (const r of input.rooms) {
-    if (r.fixed || r.polygon.length < 3 || !r.lines.length) continue;
+    if (tabbed.has(r.id) || r.fixed || r.polygon.length < 3 || !r.lines.length) continue;
     const c = centroidOf(r.polygon);
     const size = r.lines[0].size;
     const w = Math.max(...r.lines.map((l) => textWidthPx(l.text, l.size)));

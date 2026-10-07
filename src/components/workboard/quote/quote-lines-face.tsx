@@ -10,7 +10,7 @@ import type { Fit } from "@/lib/quotes/fit";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { linesSteps } from "@/lib/quotes/quote-steps";
 import { unsetWords } from "@/lib/quotes/build-settings";
-import { PIPE_SIZES } from "@/lib/quotes/kits";
+import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
@@ -743,7 +743,7 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
   const [sys, setSys] = useState(system || "");
   const [brand, setBrand] = useState("mitsubishi-electric");
   const [model, setModel] = useState("");
-  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "", replacing: "" });
+  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "", replacing: "", keptPipe: "" });
   const set = (k: string) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const num = (k: string, label: string, unit: string) => (
     <label className="ql-kf">
@@ -807,8 +807,22 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
           <select className="wb2-fi" value={f.replacing} onChange={set("replacing")} aria-label="An old system comes out">
             <option value="">None to take out</option>
             <option value="yes">Comes out</option>
+            <option value="keep">Comes out, its pipe kept</option>
           </select>
         </label>
+        {f.replacing === "keep" && (
+          <label className="ql-kf">
+            <span>Old pipe</span>
+            <select className="wb2-fi" value={f.keptPipe} onChange={set("keptPipe")} aria-label="The old pipe's size">
+              <option value="">Its size</option>
+              {OLD_PIPES.map((p) => (
+                <option key={p} value={p}>
+                  {p.replace("+", " + ")}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {kit === "ducted" && num("outlets", "Outlets", "")}
         {kit === "ducted" && num("outletMm", "Outlet size", "mm")}
       </div>

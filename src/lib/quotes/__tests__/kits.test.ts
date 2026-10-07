@@ -101,7 +101,10 @@ it("reads a unit's pipe off its data pack's connections, and makes a person's fa
     outlets: 40,
     outletMm: null,
     replacing: false,
+    keptPipe: null,
   });
+  expect(normaliseKitFacts({ replacing: "keep", keptPipe: "3/8+5/8" })).toMatchObject({ replacing: true, keptPipe: "3/8+5/8" });
+  expect(normaliseKitFacts({ replacing: "yes", keptPipe: "3/8+5/8" })).toMatchObject({ replacing: true, keptPipe: null });
 });
 
 it("lists every kit part at each size as the book prices it today, and what the book hasn't got", async () => {
@@ -126,4 +129,26 @@ it("adds the business's own allowances: consumables always, recovery and a flush
     ["Pipe flush", 0, "unknown", "Not set in Quoting"],
   ]);
   expect(expandKit("split", facts, book, at).some((l) => l.group === "Allowances")).toBe(false);
+});
+
+/* SWAPS (slice 9.1): the old pipe stays only at the size the new unit's data
+   pack gives; anything else is new pipe, saying why (3304's 1/2" liquid). */
+describe("an old system's pipe, kept", () => {
+  const allowances = { consumables: null, flush: 9000, recovery: 15000 };
+  it("leaves the pipe off when it's the size the unit takes, and says so on the flush", () => {
+    const lines = expandKit("split", { ...facts, replacing: true, keptPipe: "1/4+1/2" }, book, at, allowances);
+    expect(lines.some((l) => /PAIRED COIL/.test(l.name ?? ""))).toBe(false);
+    expect(lines.find((l) => l.name === "Pipe flush")).toMatchObject({ costCents: 9000, why: "your allowance, a system; the old 1/4 + 1/2 kept, the size the unit takes" });
+  });
+  it("prices new pipe when the old isn't the unit's size, saying why", () => {
+    const lines = expandKit("split", { ...facts, replacing: true, keptPipe: "3/8+5/8" }, book, at, allowances);
+    expect(lines[0]).toMatchObject({ name: "PAIRED COIL 1/4+1/2X20M", source: "fitted", why: "the old 3/8 + 5/8 isn't the 1/4 + 1/2 the unit takes; 20 m pipe run; cheapest" });
+    expect(lines.find((l) => l.name === "Pipe flush")!.why).toBe("your allowance, a system");
+    /* 3304: a 1/2" liquid line is no new split's */
+    expect(expandKit("split", { ...facts, replacing: true, keptPipe: "1/2+7/8" }, book, at)[0]!.why).toMatch(/^the old 1\/2 \+ 7\/8 isn't the 1\/4 \+ 1\/2/);
+  });
+  it("can't check the old pipe without the unit's", () => {
+    const lines = expandKit("split", { ...facts, pipe: null, replacing: true, keptPipe: "1/4+1/2" }, book, at);
+    expect(lines[0]).toMatchObject({ name: "Pair coil", source: "unknown", why: "Needs the unit's details to check the old pipe" });
+  });
 });

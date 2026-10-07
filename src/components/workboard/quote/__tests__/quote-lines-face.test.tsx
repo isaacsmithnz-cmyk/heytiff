@@ -224,3 +224,13 @@ it("adds a provisional sum, and its price is its cost: nothing on top", async ()
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "change", id: "p1", version: 1, patch: { sellCents: 130000, costCents: 130000 } });
 });
+
+/* fit checks on the page, slice 3.1 */
+it("says under a part why it doesn't fit its system's outdoor unit", async () => {
+  const iso = line({ id: "iso", group: "Pipe, power and controls", name: "Isolator 20 A", code: "ALSIPW201", kind: "material", costCents: 2279, source: "assumed" });
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async () => ({
+    json: async () => ({ ...view([indoor, iso]), fits: [{ key: "iso", state: "misfit", why: "20 A is under the PUZ-ZM125VKA2-A's 28 A" }] }),
+  }));
+  face();
+  expect(await screen.findByText("20 A is under the PUZ-ZM125VKA2-A's 28 A")).toBeInTheDocument();
+});

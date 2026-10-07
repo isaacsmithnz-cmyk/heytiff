@@ -6,6 +6,7 @@ import { fmtAud } from "@/lib/workboard/project-money";
 import type { LineChange } from "@/lib/quotes/lines-server";
 import { againstFirst, isProvisional, missingFromFirst, PROVISIONAL, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
 import type { BookHit } from "@/lib/quotes/lookups";
+import type { Fit } from "@/lib/quotes/fit";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { linesSteps } from "@/lib/quotes/quote-steps";
 import { unsetWords } from "@/lib/quotes/build-settings";
@@ -38,6 +39,8 @@ type View = {
   changes: LineChange[];
   names: Record<string, string>;
   me: string;
+  /** each checked part against its system's outdoor unit (fit.ts) */
+  fits?: Fit[];
 };
 
 /** The quote's kept lines, read once and after every change. */
@@ -152,6 +155,7 @@ export function QuoteLinesFace({
   const o = price && price.ok ? price.options[at] : undefined;
   const sells = sellEachOf(o, lines);
   const systems = [...new Set(lines.map((l) => l.system))];
+  const fitOf = new Map((view?.fits ?? []).map((f) => [f.key, f]));
   const all = view?.lines ?? [];
   const steps = linesSteps({
     lines: all.length,
@@ -324,7 +328,14 @@ export function QuoteLinesFace({
                         <tr key={l.id} className="ql-it">
                           <td>
                             <span className="ql-n">
-                              <i className={`ql-d ${l.source}`} title={`${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`} />
+                              <i
+                                className={`ql-d ${fitOf.get(l.id)?.state === "fitted" ? "fitted" : l.source}`}
+                                title={
+                                  fitOf.get(l.id)
+                                    ? `${fitOf.get(l.id)!.state === "fitted" ? "Fitted" : fitOf.get(l.id)!.state === "misfit" ? "Doesn't fit" : "Not checked"}: ${fitOf.get(l.id)!.why}`
+                                    : `${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`
+                                }
+                              />
                               <span className="nm">
                                 {l.name}
                                 {at > 0 && againstFirst(l, all) !== "same" && (
@@ -332,6 +343,7 @@ export function QuoteLinesFace({
                                 )}
                               </span>
                               {l.code && <span className="cd">{l.code}</span>}
+                              {fitOf.get(l.id)?.state === "misfit" && <span className="ql-misfit">{fitOf.get(l.id)!.why}</span>}
                               {l.kind !== "labour" && (
                                 <button type="button" className="ql-pick" aria-expanded={swapping === l.id} onClick={() => setSwapping(swapping === l.id ? null : l.id)}>
                                   Select preferred item

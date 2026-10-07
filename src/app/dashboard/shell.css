@@ -6754,6 +6754,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-d.said { background:var(--hd-today); }
 .fg .ql-d.assumed { background:var(--info-t); }
 .fg .ql-d.unknown { background:var(--warn-t); }
+.fg .ql-d.fitted { background:var(--hd-today); }
+.fg .ql-misfit { grid-column:2; font-size:12px; font-weight:600; color:var(--bad-t); }
 .fg .ql-f { box-sizing:border-box; width:100%; height:30px; padding:0 8px; border:1px solid transparent; border-radius:var(--r-control);
   background:var(--tint); font:inherit; font-size:13px; text-align:right; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
 .fg .ql-f:hover { border-color:var(--hd-edge); background:var(--paper); }

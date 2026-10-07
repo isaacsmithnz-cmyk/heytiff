@@ -1,0 +1,178 @@
+# Job analytics — plan
+
+Isaac, 2026-10-07:
+
+> "need an analytics page for jobs. Quotes, brands used, win rate, average price of job types etc. Make a list of all things you think are useful"
+
+Status: **listed, not built.** This is the list of what the page could show, and what each figure stands on.
+
+## What the numbers stand on
+
+Most job data is the ServiceM8 mirror (`sm8_*`, docs/migrations/sm8_mirror.sql and sm8_jobs_money.sql):
+
+- every value is text;
+- 24 months are backfilled, so year on year is as far back as it goes;
+- a job's `status` is `Quote`, `Work Order` (won), `Unsuccessful` (lost) or `Completed`;
+- its dates are `date` (enquiry), `quote_sent_stamp`, `work_order_date`, `completion_date`, `invoice_date` and `payment_received_stamp`.
+
+HeyTiff's own quote is `quote_drafts.draft` (src/lib/quotes/proposal.ts): the options, their units and `priceCents`, which option the client took (`accepted`), and `status.sentAt`.
+
+Each item below carries one of three tags:
+
+- **now**: it can be worked out from what is stored today;
+- **read**: it can be worked out today, but from text (`brandOf()` in src/lib/quotes/brands.ts, `workKindOf()` in src/lib/quotes/labour-history.ts), so it's an estimate;
+- **needs**: a field has to be captured first (see "What to start capturing").
+
+**★** marks the suggested first cut. It needs nothing new.
+
+## The list
+
+### 1. The top line
+
+- ★ Quoted, won and invoiced value for the period, ex GST, against the same period last year. **now**
+- ★ Win rate by count and by value, with the count beside it ("62% of 48"). **now**
+- ★ Average and median job value. **now**
+- ★ Open pipeline: the value of quotes waiting for an answer. **now**
+- Work in hand: won but not finished, which is the revenue already coming. **now**
+
+### 2. Quotes and win rate
+
+- ★ **Win rate, defined once.** Won is `Work Order` or `Completed`; lost is `Unsuccessful`.
+  - Many quotes are never marked lost in ServiceM8; they just sit.
+  - So show two rates: decided quotes only, and one that counts a quote unanswered after 180 days as lost (quote-worklist.ts's "Over 6 months").
+  - **now**
+- ★ Win rate by work kind: split, multi, ducted, VRF, service, maintenance. **read**
+- ★ Win rate by price band (under $5k, $5–10k, $10–20k, over $20k). **now**
+- Win rate by suburb or postcode. **now**
+- Win rate by customer, person or company (`is_individual`). **now**
+- Win rate by how many options were offered: one, or two to four. **now**
+- Win rate by who quoted. **needs** the quote's author.
+- Win rate by where the lead came from. **needs** a lead source field.
+- ★ **Speed to quote:** enquiry to quote sent, as a median, by work kind. **now**
+  - Then win rate by speed: sent within a day, within three days, within a week, slower.
+  - This is usually the clearest lever.
+- **Speed to answer:** quote sent to won.
+  - Show "after N days a quote rarely wins", which sets the chase rule.
+  - **now** for wins. **needs** a date for losses, because ServiceM8 keeps no date for Unsuccessful.
+- Ageing: To price, Waiting, Going cold and Over 6 months, each with a count and a value. **now** (quote-worklist.ts already groups them)
+- **Which option clients pick** when offered two to four: the cheapest, the middle or the top. **now** (from `accepted` and each option's `priceCents`)
+  - The upsell rate: how often they take more than the cheapest.
+- Uptake of optional extras in `optional` pricing mode. **now**
+- Why quotes are lost: price, went elsewhere, no reply, timing, other. **needs** a lost reason.
+- Quotes opened against quotes sent. **needs** a viewed date, and only if the proposal goes out as a HeyTiff page.
+
+### 3. Brands and equipment
+
+- ★ Brand mix: each brand's share of units quoted and of units won, and how it moves month to month. **read**
+- Win rate by brand, on quotes that offered one brand. **read**
+- Brand offered against brand chosen, when the options span brands. **read**
+- Average installed price per unit by brand and size (for example, Daikin 7.1 kW high wall, installed). **read**
+- Size mix: kW bands (2.5, 3.5, 5, 7, 8 and up). **read** (`capacity` is free text)
+- Type mix: high wall, ducted, floor, cassette, multi-head. **read** (`type` is free text)
+- The most installed models, by count. **read**
+- Margin by brand: cost against price on `sm8_job_materials`. **read**
+- Spend by supplier, from `quote_price_items` (`paid_cents`, `times_bought`). **now**
+- Price creep on the top 20 items. **needs** a price history; today only the current price is kept.
+- Brand partner leads (for example, "Mitsubishi Electric Australia - Lead accepted"): how many came in and how many were won. **read**
+
+### 4. Price by job type
+
+- ★ Median, average and range of won job value by work kind. **read**
+  - Median leads, because one commercial job moves the average.
+- ★ How won prices spread within each work kind, so you can see where most jobs land. **read**
+- $ per kW installed (ducted) and $ per head (multi). This is a sanity check for a new quote. **read**
+- Quoted against invoiced: the accepted option's price against `total_invoice_amount`. This shows variations and scope creep. **now**
+- The average variation, from `project_variations`. **now**
+- Median price by work kind, quarter by quarter. **read**
+- Price by customer type and by region. **now**
+- Discount given. **needs** the discount stored; `priceBuildUp()` works it out on every read and keeps nothing.
+
+### 5. Margin
+
+- Materials margin per job: sell less cost on `sm8_job_materials`. **now**
+- Markup achieved against the markups set in `quote_settings` (`unit_markup_pct`, `material_markup_pct`). **now**
+- Gross margin per job, with labour in: hours on site × a cost rate. **needs** a labour cost rate (charge-out is in `quote_settings`, cost isn't).
+- Margin by work kind, brand, crew and customer type. **read**, and needs the above for labour.
+- Jobs under a margin floor, as a list to look at. **now** for materials.
+
+### 6. Labour: quoted against actual
+
+- ★ Quoted hours against hours on site, across all jobs. **now**
+  - `quotedHours()` and the `HoursBar` already do this for one job.
+  - Over or under, by work kind.
+  - This is the one that feeds quoting: the `typical` figure in quote-labour-server.ts is `null` until it exists.
+- Days on site by work kind and crew size. **now** (`sm8_job_activities` sessions, `job_check_ins`)
+- Hours per unit and per kW. **read**
+- Return visits as a share of jobs: the call-back rate. **now** (the Return stage)
+  - Warranty hours once docs/warranty-plan.md is built.
+- Per tech: jobs finished, hours, and how close they come to the quoted hours. Owner only, and worth Isaac's call before it's shown.
+
+### 7. Speed through the job
+
+- Median days at each step: enquiry, quoted, accepted, deposit, materials, installed, paid (job-steps.ts). The slowest step is the bottleneck. **now**
+- Accepted to first booking: how far out the business is booked. **now**
+- Booked hours against available hours (`schedule_capacity_staff.daily_minutes`), for the next four and eight weeks. **now**
+
+### 8. Cash
+
+- Invoiced against paid, and days to pay (`invoice_date` to `payment_received_stamp`). **now**
+- Overdue: the total and the list. **now**
+- How often a deposit is taken, and the average deposit as a share of the job (`sm8_job_payments.is_deposit`, `job_no_deposit`). **now**
+- Progress claims outstanding (`project_claims`). **now**
+
+### 9. Customers and where work comes from
+
+- Where leads come from (phone, email, website, referral, brand partner), and the win rate of each. **needs** a field.
+  - Today it's only text: "Came in by …" appended to `job_description`, which could be parsed for the history.
+- New against repeat customers, the repeat rate, and value per customer over time. **now**
+- Top customers by value: builders and commercial clients. **now**
+- By suburb or postcode: jobs, win rate and average value, to show where to advertise and how far the crews travel. **now**
+- Residential against commercial. **read** from `is_individual` for now; **needs** `building_type` stored, because it's parsed from the brief and dropped.
+- Maintenance agreements: how many, renewals, visits done against due, and the yearly value. This is the recurring revenue. **now**
+
+### 10. Through the year
+
+- ★ Enquiries and quotes per week, with last year drawn behind them (heatwaves show). **now**
+- Revenue by month. This helps with hiring and stock. **now**
+
+## What to start capturing
+
+These are the fields to add first, in order of what they unlock. Each one is worth adding before the page is built, because history can't be backfilled.
+
+1. **Snapshot the quote when it's sent and when it's accepted:** sell, cost, labour hours, discount, and the accepted option.
+   - Today the build-up is worked out from the current price book, so an old quote read today gives today's numbers, not the ones that were sent.
+   - Every price and margin figure depends on this.
+2. **A lost reason, with a date,** on Unsuccessful.
+3. **Lead source as a field,** not text in the description.
+4. **The quote's author:** `quote_drafts` has `updated_by` but no `created_by` or `sent_by`.
+5. **Brand and work kind stored on the quote** when it's sent, instead of read from text each time.
+6. **Customer type stored** (`building_type`).
+7. **A labour cost rate** per person or per business, to give margin with labour in.
+8. **Price history** on `quote_price_items`.
+
+## Rules for the numbers
+
+- Ex GST throughout.
+- Show the count beside every rate. A rate over five jobs says so.
+- Use the median for prices and the average only beside it.
+- The period is this month, this quarter, the financial year (July to June) or a custom range, always against the same period last year.
+- Every figure opens the jobs behind it, as a filtered Workboard list.
+- Without ServiceM8 there are no won jobs and no money (docs/design.md), so the page says it needs ServiceM8 connected.
+
+## Where it sits
+
+- Every figure here is job money, so the page is gated by `workboard_money`. That's the owner tier by default, and admins don't get it.
+- The page itself checks `can("workboard_money")` and redirects, as admin/quoting/page.tsx does with `financials`.
+- **Home:** an Analytics entry under Operations, or a tab on the Workboard. Isaac's call.
+- **Design:**
+  - Read docs/design.md before drawing it.
+  - The app has no chart library yet, and colour is state only. Charts need series colours, so they need a decision written into design.md before the page is built.
+  - The admin index's "Usage analytics" row is a different thing: how the workspace is used, not job figures.
+
+## Open questions for Isaac
+
+1. Is the ★ first cut the right one? It's the top line, win rate, speed to quote, brand mix, price by job type, and quoted against actual hours. All of it is buildable from what's stored today.
+2. Are quotes marked Unsuccessful in ServiceM8 reliably, or do they just sit? The answer decides which win rate leads.
+3. Owner only, or also admins who are given `workboard_money`?
+4. Per-tech figures: shown, or kept off the page?
+5. Should the capture fields above go in now, ahead of the page, so the history starts building?

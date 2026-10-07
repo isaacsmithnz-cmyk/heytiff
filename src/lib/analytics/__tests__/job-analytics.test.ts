@@ -229,3 +229,83 @@ describe("the words", () => {
     expect(change(5, 0)).toBeNull();
   });
 });
+
+describe("what can't be placed is asked, and the answers count", () => {
+  const asksOf = (a: ReturnType<typeof analyse>) => a.toDecide.asks.map((x) => [x.job.id, x.question, x.answer]);
+
+  it("asks whether a work order with no quote sent was quoted, when it reads like an install or is big", () => {
+    const ducted = job({ id: "wo-ducted", status: "Completed", quoteSentOn: null, kind: "ducted", valueCents: 1_800_000, raisedOn: "2026-08-01", wonOn: "2026-08-02" });
+    const big = job({ id: "wo-big", status: "Work Order", quoteSentOn: null, kind: null, valueCents: 450_000, raisedOn: "2026-08-03" });
+    const callout = job({ id: "wo-small", status: "Completed", quoteSentOn: null, kind: "service", valueCents: 25_000, raisedOn: "2026-08-04" });
+    const before = analyse([ducted, big, callout], TODAY, "12m");
+    expect(asksOf(before)).toEqual([
+      ["wo-ducted", "quote", null],
+      ["wo-big", "quote", null],
+    ]);
+    // until answered, neither is a quote: left out of the win rate, and counted as left out
+    expect(before.top.winRate.decided).toBe(0);
+    expect(before.toDecide.leftOut).toEqual({ jobs: 2, cents: 2_250_000 });
+
+    const after = analyse([ducted, big, callout], TODAY, "12m", new Map([["wo-ducted", { quote: "quote" }], ["wo-big", { quote: "not_quote" }]]));
+    expect(after.top.winRate).toEqual({ won: 1, decided: 1, rate: 1 });
+    expect(after.toDecide.open).toBe(0);
+    expect(after.toDecide.leftOut).toEqual({ jobs: 0, cents: 0 });
+    // answered, they are still listed, with the answer, so it can be undone
+    expect(asksOf(after)).toEqual([
+      ["wo-ducted", "quote", "quote"],
+      ["wo-big", "quote", "not_quote"],
+    ]);
+  });
+
+  it("asks won or lost when ServiceM8 and the money or the proposal disagree, and leaves it out until then", () => {
+    const paid = job({ id: "paid", status: "Unsuccessful", paid: true, quoteSentOn: "2026-05-02", raisedOn: "2026-05-01" });
+    const accepted = job({ id: "accepted", status: "Quote", acceptedInHeyTiff: true, quoteSentOn: "2026-06-02", raisedOn: "2026-06-01" });
+    const plain = job({ id: "plain", status: "Unsuccessful", quoteSentOn: "2026-05-02", raisedOn: "2026-05-01" });
+    const jobs = [paid, accepted, plain];
+    expect(asksOf(analyse(jobs, TODAY, "12m"))).toEqual([
+      ["paid", "outcome", null],
+      ["accepted", "outcome", null],
+    ]);
+    expect(analyse(jobs, TODAY, "12m").top.winRate).toEqual({ won: 0, decided: 1, rate: 0 });
+    const answered = analyse(jobs, TODAY, "12m", new Map([["paid", { outcome: "won" }], ["accepted", { outcome: "lost" }]]));
+    expect(answered.top.winRate).toEqual({ won: 1, decided: 3, rate: 1 / 3 });
+  });
+
+  it("asks the kind of a decided quote it can't read, and counts the answer as that kind", () => {
+    const unknown = job({ id: "u", status: "Work Order", quoteSentOn: "2026-08-02", wonOn: "2026-08-09", raisedOn: "2026-08-01", kind: null });
+    const open = job({ id: "o", status: "Quote", raisedOn: "2026-09-30", kind: null });
+    expect(asksOf(analyse([unknown, open], TODAY, "12m"))).toEqual([["u", "kind", null]]);
+    // an unknown kind still counts, under "Not known", so it is not left out
+    expect(analyse([unknown, open], TODAY, "12m").toDecide.leftOut.jobs).toBe(0);
+    const answered = analyse([unknown, open], TODAY, "12m", new Map([["u", { kind: "ducted" }]]));
+    expect(answered.byKind.map((b) => b.label)).toEqual(["Ducted"]);
+    expect(answered.prices.map((p) => p.label)).toEqual(["Ducted"]);
+  });
+
+  it("asks about a price far from its kind's, and leaves it out of the prices, not the wins, until it is counted", () => {
+    const won = (id: string, cents: number) =>
+      job({ id, status: "Completed", quoteSentOn: "2026-07-02", wonOn: "2026-07-05", raisedOn: "2026-07-01", kind: "split", valueCents: cents });
+    const jobs = [won("a", 380_000), won("b", 400_000), won("c", 420_000), won("d", 390_000), won("e", 9_650_000), won("f", 8_500)];
+    const a = analyse(jobs, TODAY, "12m");
+    expect(asksOf(a)).toEqual([
+      ["e", "price", null],
+      ["f", "price", null],
+    ]);
+    const e = a.toDecide.asks.find((x) => x.job.id === "e")!;
+    expect(e.median).toBe(395_000);
+    expect(Math.round(e.times!)).toBe(24);
+    expect(a.top.winRate.won).toBe(6);
+    expect(a.prices[0]!.jobs).toBe(4);
+    expect(a.toDecide.leftOut).toEqual({ jobs: 2, cents: 9_658_500 });
+
+    const counted = analyse(jobs, TODAY, "12m", new Map([["e", { price: "count" }], ["f", { price: "leave_out" }]]));
+    expect(counted.prices[0]!.jobs).toBe(5);
+    expect(counted.toDecide.open).toBe(0);
+  });
+
+  it("doesn't ask about prices until a kind has five priced wins", () => {
+    const won = (id: string, cents: number) =>
+      job({ id, status: "Completed", quoteSentOn: "2026-07-02", raisedOn: "2026-07-01", kind: "vrf", valueCents: cents });
+    expect(analyse([won("a", 3_000_000), won("b", 3_100_000), won("c", 3_200_000), won("d", 30_000_000)], TODAY, "12m").toDecide.asks).toEqual([]);
+  });
+});

@@ -1,6 +1,10 @@
 /* The analytics screen: the top line and the 180-day rule on real-shaped
    figures, the two faces, the period kept in the URL, and what it says with
    no ServiceM8 to read. */
+const refresh = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
+jest.mock("@/app/actions/analytics-decide", () => ({ decideJob: jest.fn() }));
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { analyse, type AnalyticsJob } from "@/lib/analytics/job-analytics";
 import { AnalyticsScreen } from "../analytics-screen";
@@ -69,5 +73,18 @@ describe("AnalyticsScreen", () => {
     render(<AnalyticsScreen state={{ kind: "standalone" }} period="12m" />);
     expect(screen.getByRole("link", { name: "Connect ServiceM8" })).toHaveAttribute("href", "/dashboard/admin/integrations/servicem8");
     expect(screen.queryByRole("link", { name: "12 months" })).not.toBeInTheDocument();
+  });
+
+  it("says on the Overview what waits on an answer, and the press goes to it", () => {
+    const disputed = analyse(
+      [job({ id: "paid", status: "Unsuccessful", paid: true, raisedOn: "2026-05-01", quoteSentOn: "2026-05-02", valueCents: 324_000 })],
+      TODAY,
+      "12m",
+    );
+    render(<AnalyticsScreen state={{ kind: "ready", data: disputed, truncated: false, names: {}, canDecide: true }} period="12m" />);
+    expect(screen.getByText("1 job to decide. It is left out of these figures until then.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Decide 1 job" }));
+    expect(screen.getByRole("tab", { name: /To decide/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Won or lost?" })).toBeInTheDocument();
   });
 });

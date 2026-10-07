@@ -106,3 +106,44 @@
 /* when there is nothing to draw */
 .an-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px 0; font-size: 14px; }
 .an-empty p { margin: 0; color: var(--q); }
+
+/* waiting on an answer: the Overview's line and the To decide tab */
+.an-todo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+.an-todo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.fg .an-door { height: 28px; padding: 0 12px; border-radius: var(--r-button); border: 0; background: none; font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; transition: background-color var(--t-fast) var(--ease); }
+.fg .an-door:hover { background: var(--tint); }
+.fg .an-door:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.an-headrow { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.an-head { margin: 0; font-size: 16px; font-weight: 600; }
+.an-err { margin: 0; font-size: 14px; color: var(--bad-t); }
+.fg .an-more { align-self: flex-start; height: 28px; padding: 0 12px; border: 0; border-radius: var(--r-button); background: none; font: inherit;
+  font-size: 14px; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease); }
+.fg .an-more:hover { background: var(--tint); }
+.fg .an-more:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.an-qhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+.an-qcount { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.an-qcount.warn { color: var(--warn-t); }
+.an-qcount.ok { color: var(--ok-t); }
+.an-qlist { display: flex; flex-direction: column; }
+.an-qrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px; align-items: start; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.an-qjob, .an-qwhat { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 14px; }
+.an-qjob a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-qjob > span { font-size: 13px; color: var(--q); font-variant-numeric: tabular-nums; }
+.an-qact { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+.an-qact .an-err { flex-basis: 100%; text-align: right; }
+.fg .an-choice { height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--r-button); background: var(--paper); font: inherit;
+  font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; cursor: pointer; transition: background-color var(--t-fast) var(--ease); }
+.fg .an-choice:hover:not(:disabled) { background: var(--tint); }
+.fg .an-choice:focus-visible { outline: none; box-shadow: var(--ring); }
+.fg .an-choice:disabled { color: var(--q); cursor: default; }
+.an-said { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.an-said i { width: 8px; height: 8px; border-radius: 50%; }
+.an-said.ok i { background: var(--ok-t); }
+.fg .an-undo { height: 28px; padding: 0 12px; border: 0; border-radius: var(--r-button); background: none; font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; transition: background-color var(--t-fast) var(--ease); }
+.fg .an-undo:hover { background: var(--tint); }
+.fg .an-undo:focus-visible { outline: none; box-shadow: var(--ring); }

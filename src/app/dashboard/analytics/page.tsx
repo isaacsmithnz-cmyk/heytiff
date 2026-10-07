@@ -5,7 +5,7 @@ import { getConnectionView } from "@/lib/integrations/store";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { analyse, DEFAULT_PERIOD, isPeriodKey, periodSpan, spanBefore } from "@/lib/analytics/job-analytics";
-import { readAnalyticsJobs } from "@/lib/analytics/analytics-query";
+import { readAnalyticsJobs, readClientNames, readDecisions } from "@/lib/analytics/analytics-query";
 import { AnalyticsScreen } from "@/components/analytics/analytics-screen";
 
 /* Analytics — what the business's own jobs say about its quoting: win rate,
@@ -35,9 +35,18 @@ export default async function AnalyticsPage({
   }
 
   const today = todayInZone(await getSm8Timezone(orgId));
-  const read = await readAnalyticsJobs(orgId, spanBefore(periodSpan(period, today)).from);
+  const [read, kept] = await Promise.all([readAnalyticsJobs(orgId, spanBefore(periodSpan(period, today)).from), readDecisions(orgId)]);
   if (!read) return <AnalyticsScreen state={{ kind: "unread" }} period={period} />;
+  const data = analyse(read.jobs, today, period, kept.decisions);
+  /* the client names the To decide rows show, and only theirs */
+  const names = await readClientNames(
+    orgId,
+    data.toDecide.asks.map((a) => a.job.clientId).filter((c): c is string => !!c),
+  );
   return (
-    <AnalyticsScreen state={{ kind: "ready", data: analyse(read.jobs, today, period), truncated: read.truncated }} period={period} />
+    <AnalyticsScreen
+      state={{ kind: "ready", data, truncated: read.truncated, names, canDecide: kept.ready }}
+      period={period}
+    />
   );
 }

@@ -4,7 +4,7 @@ Isaac, 2026-10-07:
 
 > "need an analytics page for jobs. Quotes, brands used, win rate, average price of job types etc. Make a list of all things you think are useful"
 
-Status: **first part built**: `/dashboard/analytics`, Overview and Quotes (see "Built" below). To decide and the ServiceM8 clean-up are next. This is the list of what the page could show, and what each figure stands on. The mock-up is three screens, Overview, Quotes and To decide, on the canvas at https://claude.ai/artifact/Daf2AbjZ7ekgA7TJrpqFg7, drawn with sample figures.
+Status: **built: Overview, Quotes and To decide** at `/dashboard/analytics` (see "Built" below). The ServiceM8 clean-up buttons are next. To decide needs `docs/migrations/job_analytics_decisions.sql` applied (DEPLOY.md, 3f). This is the list of what the page could show, and what each figure stands on. The mock-up is three screens, Overview, Quotes and To decide, on the canvas at https://claude.ai/artifact/Daf2AbjZ7ekgA7TJrpqFg7, drawn with sample figures.
 
 ## Built
 
@@ -36,8 +36,18 @@ Settled while building:
 - **Money is inc GST**, labelled as such. ServiceM8's job total is inc GST, and the house rule (job-money.ts) is to label, never convert.
 - **Completed work stands in for invoiced.** ServiceM8's invoice flags never arrive (job-money.ts); a completed job's total and date do.
 - **Bars are square.** 4px isn't a radius on the scale, and the paper register is the sharper one. The comparison series is the quiet text colour, so no new token was needed.
+- **To decide**, the second part (Isaac, 2026-10-07: "Keep going with the To decide tab"):
+  - **Is it a quote?** A work order no quote was sent for that reads like an install or comes to $3,000 or more. Until answered it isn't a quote, as the progress line says.
+  - **Won or lost?** Unsuccessful in ServiceM8 but marked paid, or still a Quote though the proposal has an option marked accepted. Until answered it's left out of the win rate.
+  - **What kind of job?** A decided quote whose kind can't be read. Until answered it counts as "Not known".
+  - **Does this price belong?** A won price over four times its kind's median, or under a quarter of it, once the kind has five priced wins. Until answered it's left out of the prices but still counts as won.
+  - The questions cover jobs raised in the chosen period. Each answer is one row in `job_analytics_decisions` (job, question, answer, who, when); a new answer replaces it and Undo deletes it.
+  - The Overview says how many jobs wait, and what they keep out of the figures, with a press that opens the tab.
+  - Rows answered before this visit are folded away behind "Show what was decided". A group shows 20 rows, then "Show N more".
+  - The code: `src/lib/analytics/decisions.ts` (the questions and their answers), the placement in `job-analytics.ts`, `src/app/actions/analytics-decide.ts`, `src/components/analytics/analytics-decide.tsx`.
 - **Not yet:**
-  - To decide, with its table, and the ServiceM8 clean-up buttons.
+  - The ServiceM8 clean-up buttons (Make it a work order, Mark Unsuccessful).
+  - The first look at real data: how many "Is it a quote?" questions the account raises depends on how often ServiceM8 records the day a quote was sent. If it's most installs, the tab wants an "answer all of these" press.
   - Brands, which need the job's material lines read.
   - Labour, quoted against actual.
   - Price per kW, which needs each unit's capacity.

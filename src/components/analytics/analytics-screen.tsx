@@ -14,6 +14,7 @@ import {
   type PeriodKey,
 } from "@/lib/analytics/job-analytics";
 import { DaysToYes, EnquiriesChart, PriceTable, RateBars } from "./analytics-charts";
+import { ToDecide } from "./analytics-decide";
 import "./analytics.css";
 
 /* ANALYTICS — the business's own jobs, read off ServiceM8's copy
@@ -26,9 +27,17 @@ import "./analytics.css";
 export type AnalyticsState =
   | { kind: "standalone" }
   | { kind: "unread" }
-  | { kind: "ready"; data: JobAnalytics; truncated: boolean };
+  | {
+      kind: "ready";
+      data: JobAnalytics;
+      truncated: boolean;
+      /** client names for the To decide rows, by ServiceM8 company uuid */
+      names?: Record<string, string>;
+      /** answers can be kept: the decisions table is there */
+      canDecide?: boolean;
+    };
 
-type Tab = "overview" | "quotes";
+type Tab = "overview" | "quotes" | "decide";
 
 export function AnalyticsScreen({ state, period }: { state: AnalyticsState; period: PeriodKey }) {
   const [tab, setTab] = useState<Tab>("overview");
@@ -46,6 +55,13 @@ export function AnalyticsScreen({ state, period }: { state: AnalyticsState; peri
             items={[
               { key: "overview", label: "Overview" },
               { key: "quotes", label: "Quotes" },
+              {
+                key: "decide",
+                label: "To decide",
+                count: state.kind === "ready" ? jobsToDecide(state.data) : 0,
+                tone: "warn",
+                countLabel: (n) => `, ${n} ${n === 1 ? "job" : "jobs"} waiting on an answer`,
+              },
             ]}
           >
             {state.kind === "ready" && <PeriodPicker period={period} />}
@@ -66,12 +82,13 @@ export function AnalyticsScreen({ state, period }: { state: AnalyticsState; peri
                     <p>ServiceM8&rsquo;s copy couldn&rsquo;t be read just now. Reload the page in a minute.</p>
                   </div>
                 )}
-                {state.kind === "ready" &&
-                  (tab === "overview" ? (
-                    <Overview a={state.data} truncated={state.truncated} />
-                  ) : (
-                    <Quotes a={state.data} />
-                  ))}
+                {state.kind === "ready" && tab === "overview" && (
+                  <Overview a={state.data} truncated={state.truncated} onDecide={() => setTab("decide")} />
+                )}
+                {state.kind === "ready" && tab === "quotes" && <Quotes a={state.data} />}
+                {state.kind === "ready" && tab === "decide" && (
+                  <ToDecide asks={state.data.toDecide.asks} names={state.names ?? {}} canDecide={state.canDecide ?? false} />
+                )}
               </section>
             </div>
           </div>
@@ -92,6 +109,9 @@ function PeriodPicker({ period }: { period: PeriodKey }) {
     </nav>
   );
 }
+
+/** Jobs with a question still waiting on an answer. */
+const jobsToDecide = (a: JobAnalytics) => new Set(a.toDecide.asks.filter((x) => x.answer === null).map((x) => x.job.id)).size;
 
 /* ── words for the figures ── */
 
@@ -123,7 +143,7 @@ function spanWords(a: JobAnalytics) {
 
 /* ── Overview ── */
 
-function Overview({ a, truncated }: { a: JobAnalytics; truncated: boolean }) {
+function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: boolean; onDecide: () => void }) {
   const t = a.top;
   const open = a.quotes.openNow;
   const openCount = open.toPrice + open.waiting.count + open.cold.count;
@@ -149,6 +169,7 @@ function Overview({ a, truncated }: { a: JobAnalytics; truncated: boolean }) {
         Quotes on jobs raised {spanWords(a)}, against the same days a year earlier. Money is inc GST, as ServiceM8 holds it.
         {truncated && " The account holds more jobs than one read carries, so the oldest are left out."}
       </p>
+      <ToDecideLine a={a} onDecide={onDecide} />
 
       <section className="an-top" aria-label="The top line">
         <div className="an-lead">
@@ -222,6 +243,26 @@ function Overview({ a, truncated }: { a: JobAnalytics; truncated: boolean }) {
         </div>
         <EnquiriesChart weeks={a.enquiries.weeks} />
       </section>
+    </div>
+  );
+}
+
+/** What is waiting on an answer, and what it keeps out of the figures. */
+function ToDecideLine({ a, onDecide }: { a: JobAnalytics; onDecide: () => void }) {
+  const jobs = jobsToDecide(a);
+  if (jobs === 0) return null;
+  const out = a.toDecide.leftOut;
+  return (
+    <div className="an-todo">
+      <span className="an-todo-dot" aria-hidden="true" />
+      <span>
+        {plural(jobs, "job", "jobs")} to decide.
+        {out.jobs > 0 &&
+          ` ${out.jobs === jobs ? (jobs === 1 ? "It is" : "They are") : `${out.jobs.toLocaleString("en-AU")} of them, ${money(out.cents)} of work, are`} left out of these figures until then.`}
+      </span>
+      <button type="button" className="an-door" onClick={onDecide}>
+        Decide {plural(jobs, "job", "jobs")}
+      </button>
     </div>
   );
 }

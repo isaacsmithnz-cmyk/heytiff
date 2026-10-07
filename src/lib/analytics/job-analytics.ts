@@ -1,7 +1,10 @@
 import { lineOf } from "@/lib/workboard/job-steps";
 import { plusDays } from "@/lib/workboard/dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { WORK_KIND_WORDS, type WorkKind } from "@/lib/quotes/labour-history";
+import type { WorkKind } from "@/lib/quotes/labour-history";
+import { KINDS, kindLabel, type Decisions, type JobDecisions, type Question } from "./decisions";
+
+export { kindLabel };
 
 /* JOB ANALYTICS — what the business's own jobs say about its quoting
    (docs/job-analytics-plan.md; Isaac, 2026-10-07: "need an analytics page
@@ -27,7 +30,22 @@ import { WORK_KIND_WORDS, type WorkKind } from "@/lib/quotes/labour-history";
    year earlier.
 
    MONEY is ServiceM8's job total, which is inc GST (job-money.ts). It is
-   labelled, never converted. */
+   labelled, never converted.
+
+   WHAT CAN'T BE PLACED IS ASKED (Isaac: "anything unknown or questionable
+   should be manually decided"). Four questions, answered on the To decide tab
+   and kept in job_analytics_decisions (decisions.ts):
+   - Is it a quote? A work order no quote was sent for that reads like an
+     install or comes to $3,000 or more. Until answered it is what the
+     progress line says, not a quote.
+   - Won or lost? ServiceM8 says Unsuccessful but the job was paid, or still a
+     Quote though the client accepted HeyTiff's proposal. Until answered it is
+     left out of the win rate.
+   - What kind of job? A decided quote whose kind can't be read. Until
+     answered it counts under "Not known".
+   - Does this price belong? A won price four times its kind's median or a
+     quarter of it, among five or more. Until answered it is left out of the
+     prices; it still counts as won. */
 
 /** A quote with no answer this long after the job was raised counts as lost. */
 export const LAPSE_AFTER_DAYS = 180;
@@ -47,6 +65,15 @@ export type AnalyticsJob = {
   /** the job's total in cents, inc GST; null when nothing is priced */
   valueCents: number | null;
   kind: WorkKind | null;
+  /** ServiceM8 says it was paid */
+  paid?: boolean;
+  /** the client accepted HeyTiff's proposal for it */
+  acceptedInHeyTiff?: boolean;
+  /* what a To decide row shows of it */
+  number?: string | null;
+  suburb?: string | null;
+  brief?: string | null;
+  clientId?: string | null;
 };
 
 export type Outcome = "won" | "lost" | "lapsed" | "open";
@@ -66,6 +93,58 @@ export function outcomeOf(j: AnalyticsJob, today: string): Outcome | null {
   if (s !== "quote") return null;
   if (!j.raisedOn) return "open";
   return daysBetween(j.raisedOn, today) > LAPSE_AFTER_DAYS ? "lapsed" : "open";
+}
+
+/* ── what can't be placed ── */
+
+/** A work order this big, with no quote sent, may have been quoted outside
+    ServiceM8: asked. Cents, inc GST. */
+export const QUOTE_LIKELY_FROM_CENTS = 300_000;
+/** A won price this many times its kind's median, or this fraction of it, is
+    asked about once the kind has PRICE_SAMPLE priced wins. */
+export const PRICE_OUTLIER_TIMES = 4;
+export const PRICE_SAMPLE = 5;
+
+const INSTALL: ReadonlySet<WorkKind> = new Set(["split", "multi", "ducted", "vrf"]);
+
+/** A work order no quote was sent for that reads like an install, or is big
+    enough to have been quoted outside ServiceM8. */
+function mightBeQuote(j: AnalyticsJob): boolean {
+  if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) !== "work") return false;
+  return (j.kind !== null && INSTALL.has(j.kind)) || (j.valueCents ?? 0) >= QUOTE_LIKELY_FROM_CENTS;
+}
+
+/** ServiceM8's status and the money or the proposal disagree. */
+function disputed(j: AnalyticsJob): boolean {
+  const s = norm(j.status);
+  return (s === "unsuccessful" && !!j.paid) || (s === "quote" && !!j.acceptedInHeyTiff);
+}
+
+export type Placement = {
+  /** where it stands with the answers given; null when it isn't counted as a quote */
+  outcome: Outcome | null;
+  /** its kind, answered or read */
+  kind: WorkKind | null;
+  /** the questions it raises, answered or not (price is decided across jobs, in placeIn) */
+  raises: Question[];
+};
+
+/** One job with its answers applied. */
+export function placeJob(j: AnalyticsJob, today: string, d: JobDecisions = {}): Placement {
+  const kind = (d.kind as WorkKind | undefined) ?? j.kind;
+  const raises: Question[] = [];
+  let outcome: Outcome | null;
+  if (mightBeQuote(j)) {
+    raises.push("quote");
+    outcome = d.quote === "quote" ? "won" : null;
+  } else if (disputed(j)) {
+    raises.push("outcome");
+    outcome = d.outcome === "won" ? "won" : d.outcome === "lost" ? "lost" : null;
+  } else {
+    outcome = outcomeOf(j, today);
+  }
+  if (outcome !== null && outcome !== "open" && j.kind === null) raises.push("kind");
+  return { outcome, kind, raises };
 }
 
 /* ── periods ── */
@@ -126,16 +205,58 @@ const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
 
 /* ── the figures ── */
 
-type Placed = { job: AnalyticsJob; outcome: Outcome };
+type Placed = {
+  job: AnalyticsJob;
+  outcome: Outcome;
+  kind: WorkKind | null;
+  /** its price counts toward the prices */
+  priced: boolean;
+};
 
-function quotesIn(jobs: readonly AnalyticsJob[], span: Span, today: string): Placed[] {
-  const out: Placed[] = [];
+/** A question about one job, for the To decide tab: its answer if one was
+    given. A price question carries what the price was set against. */
+export type Ask = {
+  question: Question;
+  job: AnalyticsJob;
+  answer: string | null;
+  /** the job's kind, answered or read */
+  kind: WorkKind | null;
+  /** price: its kind's median, and how many times it the price is */
+  median?: number;
+  times?: number;
+};
+
+const NO_DECISIONS: Decisions = new Map();
+
+/** The quotes on jobs raised in the span, the answers applied, and every
+    question they raise. */
+function placeIn(jobs: readonly AnalyticsJob[], span: Span, today: string, decisions: Decisions): { placed: Placed[]; asks: Ask[] } {
+  const placed: Placed[] = [];
+  const asks: Ask[] = [];
   for (const job of jobs) {
     if (!inSpan(job.raisedOn, span)) continue;
-    const outcome = outcomeOf(job, today);
-    if (outcome) out.push({ job, outcome });
+    const d = decisions.get(job.id) ?? {};
+    const p = placeJob(job, today, d);
+    for (const q of p.raises) asks.push({ question: q, job, answer: d[q] ?? null, kind: p.kind });
+    if (p.outcome) placed.push({ job, outcome: p.outcome, kind: p.kind, priced: job.valueCents !== null });
   }
-  return out;
+
+  /* A price far from its kind's is asked about, and left out of the prices
+     until it is counted. The median is every won price of the kind, the odd
+     one included: one stray can't move a middle of five. */
+  const byKind = new Map<WorkKind, number[]>();
+  for (const p of placed) if (p.outcome === "won" && p.kind && p.job.valueCents !== null) byKind.set(p.kind, [...(byKind.get(p.kind) ?? []), p.job.valueCents]);
+  const medians = new Map([...byKind].filter(([, xs]) => xs.length >= PRICE_SAMPLE).map(([k, xs]) => [k, median(xs)!]));
+  for (const p of placed) {
+    if (p.outcome !== "won" || !p.kind || p.job.valueCents === null || !medians.has(p.kind)) continue;
+    const mid = medians.get(p.kind)!;
+    const times = p.job.valueCents / mid;
+    if (times <= PRICE_OUTLIER_TIMES && times >= 1 / PRICE_OUTLIER_TIMES) continue;
+    const answer = decisions.get(p.job.id)?.price ?? null;
+    p.priced = answer === "count";
+    asks.push({ question: "price", job: p.job, answer, kind: p.kind, median: mid, times });
+  }
+  return { placed, asks };
 }
 
 const decided = (p: Placed) => p.outcome !== "open";
@@ -175,7 +296,7 @@ function topLine(jobs: readonly AnalyticsJob[], now: Placed[], before: Placed[],
   const won = now.filter((p) => p.outcome === "won");
   const wonPrev = before.filter((p) => p.outcome === "won");
   const dec = now.filter(decided);
-  const wonValues = won.map((p) => p.job.valueCents).filter((v): v is number => v !== null);
+  const wonValues = won.filter((p) => p.priced).map((p) => p.job.valueCents!);
   const completed = (s: Span) =>
     sum(jobs.filter((j) => norm(j.status) === "completed" && inSpan(j.completedOn, s)).map((j) => j.valueCents ?? 0));
   const decidedCents = sum(dec.map(valueOf));
@@ -190,7 +311,7 @@ function topLine(jobs: readonly AnalyticsJob[], now: Placed[], before: Placed[],
     completedCents: completed(span),
     completedBefore: completed(prev),
     medianWonCents: median(wonValues),
-    medianWonBefore: median(wonPrev.map((p) => p.job.valueCents).filter((v): v is number => v !== null)),
+    medianWonBefore: median(wonPrev.filter((p) => p.priced).map((p) => p.job.valueCents!)),
     averageWonCents: wonValues.length ? sum(wonValues) / wonValues.length : null,
     speedDays: speedOf(now),
     speedBefore: speedOf(before),
@@ -202,12 +323,6 @@ function topLine(jobs: readonly AnalyticsJob[], now: Placed[], before: Placed[],
 /* ── win rate, broken down ── */
 
 export type Bar = Rate & { key: string; label: string };
-
-const KIND_ORDER: readonly WorkKind[] = ["split", "multi", "ducted", "vrf", "service", "maintenance"];
-
-/** A kind of work as a row's label: "Wall split", "VRF". */
-export const kindLabel = (k: WorkKind | null) =>
-  k === null ? "Not known" : k === "vrf" ? "VRF" : WORK_KIND_WORDS[k].charAt(0).toUpperCase() + WORK_KIND_WORDS[k].slice(1);
 
 function bars(
   ps: readonly Placed[],
@@ -229,7 +344,7 @@ function bars(
     .map((k) => ({ key: k.key, label: k.label, ...rateOf(tally.get(k.key)!.won, tally.get(k.key)!.decided) }));
 }
 
-const KIND_KEYS = [...KIND_ORDER.map((k) => ({ key: k as string, label: kindLabel(k) })), { key: "unknown", label: kindLabel(null) }];
+const KIND_KEYS = [...KINDS.map((k) => ({ key: k as string, label: kindLabel(k) })), { key: "unknown", label: kindLabel(null) }];
 
 export const PRICE_BANDS = [
   { key: "lt5", label: "Under $5k", below: 500_000 },
@@ -289,7 +404,7 @@ export type QuotesFigures = {
 const COLD_AFTER = 60;
 const SOON = 30;
 
-function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: string): QuotesFigures {
+function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: string, decisions: Decisions): QuotesFigures {
   const counts = YES_BINS.map(() => 0);
   let winsDated = 0;
   for (const p of now) {
@@ -302,7 +417,7 @@ function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: stri
 
   const open = { toPrice: 0, waiting: { count: 0, cents: 0 }, cold: { count: 0, cents: 0 }, lapsingSoon: { count: 0, cents: 0 } };
   for (const job of jobs) {
-    if (outcomeOf(job, today) !== "open" || !job.raisedOn) continue;
+    if (placeJob(job, today, decisions.get(job.id)).outcome !== "open" || !job.raisedOn) continue;
     const age = Math.max(0, daysBetween(job.raisedOn, today));
     const cents = job.valueCents ?? 0;
     if (age > LAPSE_AFTER_DAYS - SOON) {
@@ -347,9 +462,9 @@ export type PriceRow = {
 function priceRows(now: Placed[]): PriceRow[] {
   const by = new Map<string, number[]>();
   for (const p of now) {
-    if (p.outcome !== "won" || p.job.valueCents === null) continue;
-    const k = p.job.kind ?? "unknown";
-    by.set(k, [...(by.get(k) ?? []), p.job.valueCents]);
+    if (p.outcome !== "won" || !p.priced) continue;
+    const k = p.kind ?? "unknown";
+    by.set(k, [...(by.get(k) ?? []), p.job.valueCents!]);
   }
   return KIND_KEYS.filter((k) => by.has(k.key)).map((k) => {
     const xs = by.get(k.key)!.sort((a, b) => a - b);
@@ -409,24 +524,51 @@ export type JobAnalytics = {
   quotes: QuotesFigures;
   prices: PriceRow[];
   enquiries: { weeks: Week[]; total: number; totalBefore: number };
+  toDecide: ToDecide;
 };
 
-export function analyse(jobs: readonly AnalyticsJob[], today: string, period: PeriodKey): JobAnalytics {
+export type ToDecide = {
+  /** every question the span's jobs raise, answered or not */
+  asks: Ask[];
+  /** questions still waiting on an answer */
+  open: number;
+  /** jobs left out of a figure until they're decided: the quote, outcome and
+      price questions (an unknown kind still counts, as "Not known") */
+  leftOut: { jobs: number; cents: number };
+};
+
+function toDecideOf(asks: Ask[]): ToDecide {
+  const out = new Map<string, number>();
+  for (const a of asks) if (a.answer === null && a.question !== "kind") out.set(a.job.id, a.job.valueCents ?? 0);
+  return {
+    asks,
+    open: asks.filter((a) => a.answer === null).length,
+    leftOut: { jobs: out.size, cents: sum([...out.values()]) },
+  };
+}
+
+export function analyse(
+  jobs: readonly AnalyticsJob[],
+  today: string,
+  period: PeriodKey,
+  decisions: Decisions = NO_DECISIONS,
+): JobAnalytics {
   const span = periodSpan(period, today);
   const before = spanBefore(span);
-  const now = quotesIn(jobs, span, today);
-  const prev = quotesIn(jobs, before, today);
+  const { placed: now, asks } = placeIn(jobs, span, today, decisions);
+  const { placed: prev } = placeIn(jobs, before, today, decisions);
   return {
     period,
     span,
     before,
     top: topLine(jobs, now, prev, span, before),
-    byKind: bars(now, KIND_KEYS, (p) => p.job.kind ?? "unknown"),
+    byKind: bars(now, KIND_KEYS, (p) => p.kind ?? "unknown"),
     byPrice: bars(now, PRICE_BANDS, (p) => bandOf(p.job.valueCents)),
     bySpeed: bars(now, SPEED_BUCKETS, speedBucketOf),
-    quotes: quotesFigures(jobs, now, today),
+    quotes: quotesFigures(jobs, now, today, decisions),
     prices: priceRows(now),
     enquiries: weeksOf(jobs, span, before),
+    toDecide: toDecideOf(asks),
   };
 }
 

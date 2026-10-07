@@ -6,6 +6,8 @@ const byColumn: Record<string, Record<string, unknown>[]> = {};
 const ranges: { column: string; from: number; to: number }[] = [];
 let failOn: string | null = null;
 let categories: Record<string, unknown>[] = [];
+let drafts: Record<string, unknown>[] = [];
+let decisions: { data: Record<string, unknown>[] | null; error: unknown } = { data: [], error: null };
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -27,6 +29,8 @@ jest.mock("@/lib/supabase-server", () => ({
       };
       sub.then = (res: (v: { data: unknown[] | null; error: unknown }) => unknown) => {
         if (table === "sm8_categories") return Promise.resolve({ data: categories, error: null }).then(res);
+        if (table === "quote_drafts") return Promise.resolve({ data: drafts, error: null }).then(res);
+        if (table === "job_analytics_decisions") return Promise.resolve(decisions).then(res);
         if (failOn === column) return Promise.resolve({ data: null, error: { message: "down" } }).then(res);
         const all = byColumn[column] ?? [];
         return Promise.resolve({ data: span ? all.slice(span[0], span[1] + 1) : all, error: null }).then(res);
@@ -36,7 +40,7 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { readAnalyticsJobs } from "../analytics-query";
+import { readAnalyticsJobs, readDecisions } from "../analytics-query";
 
 const row = (uuid: string, over: Record<string, unknown> = {}) => ({
   uuid,
@@ -56,8 +60,12 @@ beforeEach(() => {
   ranges.length = 0;
   failOn = null;
   categories = [];
+  drafts = [];
+  decisions = { data: [], error: null };
   jest.spyOn(console, "error").mockImplementation(() => {});
 });
+
+afterEach(() => jest.restoreAllMocks());
 
 describe("readAnalyticsJobs", () => {
   it("reads past the first thousand rows", async () => {
@@ -85,6 +93,9 @@ describe("readAnalyticsJobs", () => {
         work_order_date: "2026-08-20 07:30:00",
         total_invoice_amount: "8250.5000",
         job_description: "Supply and install 14kW ducted system",
+        generated_job_id: "1042",
+        geo_city: "Mosman",
+        company_uuid: "co-1",
       }),
       row("svc", { category_uuid: "c1", total_invoice_amount: "0.0000" }),
     ];
@@ -98,14 +109,50 @@ describe("readAnalyticsJobs", () => {
       completedOn: null,
       valueCents: 825_050,
       kind: "ducted",
+      paid: false,
+      acceptedInHeyTiff: false,
+      number: "1042",
+      suburb: "Mosman",
+      brief: "14kW ducted system",
+      clientId: "co-1",
     });
     // ServiceM8's zero is "not priced", not a $0 job
     expect(read?.jobs[1]).toMatchObject({ valueCents: null, kind: "maintenance" });
+  });
+
+  it("marks a job paid in ServiceM8, and one whose proposal has an option accepted", async () => {
+    byColumn.date = [row("paid", { status: "Unsuccessful", payment_received: 1 }), row("acc"), row("draft-only")];
+    drafts = [
+      { sm8_job_uuid: "acc", accepted: [1] },
+      { sm8_job_uuid: "draft-only", accepted: [] },
+    ];
+    const read = await readAnalyticsJobs("org", "2024-10-08");
+    expect(read?.jobs.map((j) => [j.id, j.paid, j.acceptedInHeyTiff])).toEqual([
+      ["paid", true, false],
+      ["acc", false, true],
+      ["draft-only", false, false],
+    ]);
   });
 
   it("says nothing rather than a quiet year when the mirror can't be read", async () => {
     byColumn.date = [row("a")];
     failOn = "completion_date";
     expect(await readAnalyticsJobs("org", "2024-10-08")).toBeNull();
+  });
+});
+
+describe("readDecisions", () => {
+  it("makes the stored answers one map", async () => {
+    decisions = { data: [{ sm8_job_uuid: "a", question: "kind", answer: "ducted" }], error: null };
+    const read = await readDecisions("org");
+    expect(read.ready).toBe(true);
+    expect(read.decisions.get("a")).toEqual({ kind: "ducted" });
+  });
+
+  it("says it can't keep answers while the table isn't there, quietly", async () => {
+    decisions = { data: null, error: { code: "PGRST205", message: "Could not find the table" } };
+    const read = await readDecisions("org");
+    expect(read).toEqual({ decisions: new Map(), ready: false });
+    expect(console.error).not.toHaveBeenCalled();
   });
 });

@@ -921,6 +921,20 @@ docs/certificates-plan.md is the design.
    reads or writes. **Applied to production 2026-10-05** (migration
    `drop_unused_cert_tables`).
 
+## 3f. Analytics (Operations, owner-tier)
+
+What the business's own jobs say about its quoting, at `/dashboard/analytics`:
+docs/job-analytics-plan.md is the design.
+
+1. Overview and Quotes need nothing new: they read ServiceM8's copy and
+   `quote_drafts`, and show only to people with `workboard_money`.
+2. Apply `docs/migrations/job_analytics_decisions.sql` **before the deploy
+   that writes it**. It is additive (one new table nothing reads yet), so
+   applying it early is safe. Without it, the To decide tab still asks its
+   questions but offers no answers and says they can't be kept yet, and the
+   figures read as if nothing had been decided. **Not yet applied to
+   production.**
+
 ---
 
 ## 4. Deploy & verify

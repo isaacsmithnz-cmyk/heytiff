@@ -44,7 +44,12 @@ export type KitFacts = {
   /** ducted: how many outlets, and their size, mm */
   outlets?: number | null;
   outletMm?: number | null;
+  /** an old system comes out: its refrigerant recovered, the pipe flushed */
+  replacing?: boolean;
 };
+
+/** The business's own allowances (Quoting): at cost, null when not set. */
+export type KitAllowances = { consumables: number | null; flush: number | null; recovery: number | null };
 
 export type KitPart = {
   key: string;
@@ -175,7 +180,13 @@ export const KITS: Record<KitKey, { label: string; parts: KitPart[] }> = {
 /** A kit's parts as lines for one option and system, each picked from the
     book; a part with a fact missing, or that the book hasn't got, is a line
     nobody knows the price of yet, saying why. */
-export function expandKit(kit: KitKey, f: KitFacts, products: Product[], at: { optionIndex: number; system: string }): Partial<LineFields>[] {
+export function expandKit(
+  kit: KitKey,
+  f: KitFacts,
+  products: Product[],
+  at: { optionIndex: number; system: string },
+  allowances: KitAllowances | null = null
+): Partial<LineFields>[] {
   const out: Partial<LineFields>[] = [];
   for (const part of KITS[kit].parts) {
     if (part.skip?.(f)) continue;
@@ -206,6 +217,28 @@ export function expandKit(kit: KitKey, f: KitFacts, products: Product[], at: { o
       source: "assumed",
       why: `${q.why}; ${picked.why.toLowerCase()}`,
     });
+  }
+  /* the business's own allowances, at what it set them at; one it hasn't
+     set is on the quote as not known yet */
+  if (allowances) {
+    const allow = (name: string, cents: number | null, why: string) =>
+      out.push({
+        optionIndex: at.optionIndex,
+        system: at.system,
+        group: "Allowances",
+        kind: "material",
+        name,
+        qty: 1,
+        unit: "",
+        costCents: cents ?? 0,
+        source: cents == null ? "unknown" : "assumed",
+        why: cents == null ? "Not set in Quoting" : why,
+      });
+    allow("Consumables", allowances.consumables, "your allowance, a head");
+    if (f.replacing) {
+      allow("Refrigerant recovery and removal", allowances.recovery, "your allowance, a system");
+      allow("Pipe flush", allowances.flush, "your allowance, a system");
+    }
   }
   return out;
 }
@@ -241,6 +274,7 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     drainM: n(r.drainM, 200),
     outlets: n(r.outlets, 40),
     outletMm: n(r.outletMm, 600),
+    replacing: r.replacing === true || r.replacing === "yes",
   };
 }
 

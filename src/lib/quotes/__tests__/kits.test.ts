@@ -100,6 +100,7 @@ it("reads a unit's pipe off its data pack's connections, and makes a person's fa
     drainM: null,
     outlets: 40,
     outletMm: null,
+    replacing: false,
   });
 });
 
@@ -112,4 +113,17 @@ it("lists every kit part at each size as the book prices it today, and what the 
   expect(rows.find((r) => r.part === "RCBO" && r.size === "16 A")!.pick).toMatchObject({ name: "RCBO 20A 30MA 1P+N" });
   expect(rows.find((r) => r.part === "Outdoor mount" && r.size === "Wall bracket")!.pick).toBeNull();
   expect(rows.filter((r) => r.kit === "ducted").map((r) => r.part)).toContain("Flex duct");
+});
+
+it("adds the business's own allowances: consumables always, recovery and a flush when an old system comes out", () => {
+  const allowances = { consumables: 3182, flush: null, recovery: 15000 };
+  const plain = expandKit("split", facts, book, at, allowances).filter((l) => l.group === "Allowances");
+  expect(plain.map((l) => [l.name, l.costCents, l.source])).toEqual([["Consumables", 3182, "assumed"]]);
+  const swap = expandKit("split", { ...facts, replacing: true }, book, at, allowances).filter((l) => l.group === "Allowances");
+  expect(swap.map((l) => [l.name, l.costCents, l.source, l.why])).toEqual([
+    ["Consumables", 3182, "assumed", "your allowance, a head"],
+    ["Refrigerant recovery and removal", 15000, "assumed", "your allowance, a system"],
+    ["Pipe flush", 0, "unknown", "Not set in Quoting"],
+  ]);
+  expect(expandKit("split", facts, book, at).some((l) => l.group === "Allowances")).toBe(false);
 });

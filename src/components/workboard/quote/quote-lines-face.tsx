@@ -202,7 +202,7 @@ export function QuoteLinesFace({
       op: "add",
       line:
         kind === "labour"
-          ? { optionIndex: at, system: "", group: "Labour", name: "Install", kind: "labour", qty: 8, unit: "h", costCents: 0, source: "by_hand" }
+          ? { optionIndex: at, system: "", group: "Labour", name: "Install", kind: "labour", qty: 0, unit: "h", costCents: o?.profit?.hourCostCents ?? 0, source: "by_hand" }
           : { optionIndex: at, system, group: "Materials", name: search.trim() || "A line by hand", kind: "material", qty: 1, costCents: 0, source: "by_hand" },
     });
 
@@ -533,7 +533,7 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
   const [sys, setSys] = useState(system || "");
   const [brand, setBrand] = useState("mitsubishi-electric");
   const [model, setModel] = useState("");
-  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "" });
+  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "", replacing: "" });
   const set = (k: string) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const num = (k: string, label: string, unit: string) => (
     <label className="ql-kf">
@@ -590,6 +590,13 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
           <select className="wb2-fi" value={f.mount} onChange={set("mount")} aria-label="What the outdoor sits on">
             <option value="ground">Feet on the ground</option>
             <option value="wall">A wall bracket</option>
+          </select>
+        </label>
+        <label className="ql-kf">
+          <span>An old system</span>
+          <select className="wb2-fi" value={f.replacing} onChange={set("replacing")} aria-label="An old system comes out">
+            <option value="">None to take out</option>
+            <option value="yes">Comes out</option>
           </select>
         </label>
         {kit === "ducted" && num("outlets", "Outlets", "")}

@@ -17,7 +17,7 @@ import { normaliseCertAnswers } from "@/lib/certs/input";
 import { readQuote, suggestBuilding, type BuildingGuess, type QuoteReading } from "@/lib/certs/quote";
 import { quoteHasEquipment, readingFromQuote, withSerials, type UnitSerial } from "@/lib/certs/from-quote";
 import { acceptedOptions } from "@/lib/quotes/proposal";
-import { readStoredProposal } from "@/lib/quotes/proposal-writer";
+import { readJobQuote } from "@/lib/quotes/lines-job-server";
 import { CERT_EMAIL_PROMPT, CERT_LIST_PROMPT, CERT_LIST_SCHEMA, parseListReading, type ListReading } from "@/lib/certs/list-reader";
 import { CERT_DESCRIPTION_PROMPT, CERT_DESCRIPTION_SCHEMA, mergeDescriptionReading } from "@/lib/certs/description-reader";
 import {
@@ -156,7 +156,7 @@ export async function certWizardContext(jobUuid: string): Promise<CertWizardCont
     getDbRole(),
     ownerName(orgId),
     readableFiles(orgId, uuid),
-    readStoredProposal(orgId, uuid).catch(() => null),
+    readJobQuote(orgId, uuid).catch(() => null),
     supabaseAdmin.from("organizations").select("state").eq("id", orgId).maybeSingle(),
   ]);
   if (!job) return null;

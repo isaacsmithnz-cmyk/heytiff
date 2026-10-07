@@ -109,15 +109,16 @@ export async function readAnalyticsJobs(orgId: string, floor: string): Promise<A
   return { jobs, truncated: raised.truncated || completed.truncated };
 }
 
-/** The jobs whose HeyTiff proposal has an option marked accepted. Only the
-    marks are read, not the drafts. A read that fails names none (logged):
+/** The jobs whose HeyTiff proposal has an option marked accepted, or whose
+    quote built on its lines has (lines-job.ts). Only the marks are read,
+    not the drafts. A read that fails names none (logged):
     then no Quote is asked about for being accepted. */
 async function acceptedProposals(orgId: string): Promise<Set<string>> {
   const out = new Set<string>();
   for (let page = 0; page < MAX_PAGES; page++) {
     const { data, error } = await supabaseAdmin
       .from("quote_drafts")
-      .select("sm8_job_uuid, accepted:draft->accepted")
+      .select("sm8_job_uuid, engine, accepted:draft->accepted, byHand:draft->byHand->accepted")
       .eq("org_id", orgId)
       .order("sm8_job_uuid", { ascending: true })
       .range(page * PAGE, page * PAGE + PAGE - 1);
@@ -125,8 +126,11 @@ async function acceptedProposals(orgId: string): Promise<Set<string>> {
       console.error(`[analytics] couldn't read org ${orgId}'s accepted proposals:`, error);
       return out;
     }
-    const rows = (data ?? []) as unknown as { sm8_job_uuid: string; accepted: unknown }[];
-    for (const r of rows) if (Array.isArray(r.accepted) && r.accepted.length > 0) out.add(r.sm8_job_uuid);
+    const rows = (data ?? []) as unknown as { sm8_job_uuid: string; engine: string | null; accepted: unknown; byHand: unknown }[];
+    for (const r of rows) {
+      const marks = r.engine === "lines" ? r.byHand : r.accepted;
+      if (Array.isArray(marks) && marks.length > 0) out.add(r.sm8_job_uuid);
+    }
     if (rows.length < PAGE) return out;
   }
   return out;

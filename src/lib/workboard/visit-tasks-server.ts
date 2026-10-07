@@ -6,7 +6,9 @@ import { imageForClaude } from "@/lib/images/for-claude";
 import { VISIT_STAGES, type Visit, type VisitStage } from "@/lib/quotes/buildup";
 import { CHECKLIST } from "@/lib/quotes/checklist";
 import { acceptedOptions, type ProposalOption } from "@/lib/quotes/proposal";
-import { FALLBACK_MODEL, MODEL, readStoredProposal } from "@/lib/quotes/proposal-writer";
+import { FALLBACK_MODEL, MODEL } from "@/lib/quotes/proposal-writer";
+import { linesHours } from "@/lib/quotes/lines-job";
+import { readJobQuote } from "@/lib/quotes/lines-job-server";
 import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";
 import { getSm8Timezone } from "./query";
 import { todayInZone } from "./dates";
@@ -200,10 +202,14 @@ export type QuotePlan = {
     worked out: an option's own labour, else the brief's. Null when no option
     is accepted. */
 export async function quotePlan(orgId: string, cardId: string): Promise<QuotePlan | null> {
-  const [proposal, labour] = await Promise.all([readStoredProposal(orgId, cardId).catch(() => null), readQuoteLabour(orgId, cardId).catch(() => null)]);
-  if (!proposal) return null;
-  const options = acceptedOptions(proposal.draft);
+  const [quote, labour] = await Promise.all([readJobQuote(orgId, cardId).catch(() => null), readQuoteLabour(orgId, cardId).catch(() => null)]);
+  if (!quote) return null;
+  const options = acceptedOptions(quote.draft);
   if (options.length === 0) return null;
+  /* a quote built on its lines holds its hours as typed: no working day
+     needed to tell them */
+  const taken = quote.draft.accepted.length ? quote.draft.accepted : [0];
+  const linesOwn = quote.lines ? taken.map((i) => linesHours(quote.lines!.filter((l) => l.optionIndex === i))) : null;
   const dayHours = labour?.dayHours ?? null;
   /* a brief's visit in hours, with no working day set, is still one visit */
   const brief: Visit[] = (labour?.brief?.visits ?? []).map((v) => ({
@@ -211,9 +217,10 @@ export async function quotePlan(orgId: string, cardId: string): Promise<QuotePla
     people: v.people,
     days: v.days ?? (v.hours != null && dayHours ? v.hours / dayHours : 1),
   }));
-  const each = options.map((o) => (o.labour?.visits.length ? { visits: o.labour.visits, own: true } : { visits: brief, own: false }));
+  const each = options.map((o, i) => (o.labour?.visits.length ? { visits: o.labour.visits, own: true, typed: linesOwn?.[i] ?? null } : { visits: brief, own: false, typed: null }));
   const hoursOf = (e: (typeof each)[number]): number | null => {
     const personDays = e.visits.reduce((a, v) => a + v.people * v.days, 0);
+    if (e.typed != null) return e.typed;
     if (!e.own && labour?.brief?.personHours != null) return labour.brief.personHours;
     return dayHours ? personDays * dayHours : null;
   };
@@ -223,7 +230,7 @@ export async function quotePlan(orgId: string, cardId: string): Promise<QuotePla
     options,
     labour: each.flatMap((e) => e.visits),
     hours: total && total > 0 ? total : null,
-    facts: proposal.draft.checklist.filter((i) => i.state === "known" && i.answer.trim()).map((i) => `${CHECKLIST[i.key].label}: ${i.answer.trim()}`),
+    facts: quote.draft.checklist.filter((i) => i.state === "known" && i.answer.trim()).map((i) => `${CHECKLIST[i.key].label}: ${i.answer.trim()}`),
   };
 }
 

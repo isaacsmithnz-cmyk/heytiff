@@ -41,6 +41,10 @@ type View = {
   me: string;
   /** each checked part against its system's outdoor unit (fit.ts) */
   fits?: Fit[];
+  /** the option the client took, marked by a person (lines-job.ts) */
+  accepted?: number[];
+  /** what marking it did to the job's own materials list */
+  onJob?: { added: number; removed: number } | null;
 };
 
 /** The quote's kept lines, read once and after every change. */
@@ -131,10 +135,15 @@ export function QuoteLinesFace({
   actionsEl,
   onPriced,
   onSwitchBack,
+  onToast,
+  send,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
   actionsEl: HTMLDivElement | null;
+  onToast?: (message: string) => void;
+  /** what goes to ServiceM8 once an option is accepted (job-quote-send.tsx) */
+  send?: ReactNode;
   /** read the price again: a line changed */
   onPriced: () => void;
   onSwitchBack: () => void;
@@ -157,7 +166,9 @@ export function QuoteLinesFace({
   const systems = [...new Set(lines.map((l) => l.system))];
   const fitOf = new Map((view?.fits ?? []).map((f) => [f.key, f]));
   const all = view?.lines ?? [];
+  const accepted = view?.accepted ?? [];
   const steps = linesSteps({
+    accepted,
     lines: all.length,
     unknown: all.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).length,
     price: priceState(price),
@@ -171,6 +182,20 @@ export function QuoteLinesFace({
     if (!v) setNote("That didn't save. Try again.");
     else if (!v.ok) setNote(v.reason ?? "That didn't save. Try again.");
     onPriced();
+  };
+
+  /* the client's choice: its parts go on the job's own materials list */
+  const accept = async () => {
+    const marking = !accepted.includes(at);
+    setBusy(true);
+    setNote(null);
+    const v = await post({ op: "accept", option: at });
+    setBusy(false);
+    if (!v?.ok) return setNote(v?.reason ?? "That didn't save. Try again.");
+    onPriced();
+    if (marking && v.onJob) {
+      onToast?.(v.onJob.added || v.onJob.removed ? "The accepted option's parts are on the job's materials list" : "The job's materials list already has the accepted option's parts");
+    }
   };
 
   const change = (l: QuoteLine, patch: Partial<LineFields>) => void act({ op: "change", id: l.id, version: l.version, patch });
@@ -571,6 +596,7 @@ export function QuoteLinesFace({
           </ul>
         </>
       )}
+      {accepted.length > 0 && send}
       <h2 className="hd-ls-grp">Changes</h2>
       {(view?.changes ?? []).length === 0 && <p className="qp-none">Nothing changed yet.</p>}
       <ul className="ql-chg">
@@ -606,9 +632,22 @@ export function QuoteLinesFace({
     <>
       {actionsEl &&
         createPortal(
-          <button type="button" className="pbtn ghost" onClick={onSwitchBack}>
-            Use Tiff&apos;s builder
-          </button>,
+          <>
+            <button type="button" className="pbtn ghost" onClick={onSwitchBack}>
+              Use Tiff&apos;s builder
+            </button>
+            {all.length > 0 && (
+              <button
+                type="button"
+                className={accepted.includes(at) ? "pbtn ghost wb2-jqacc on" : "pbtn ghost"}
+                aria-pressed={accepted.includes(at)}
+                disabled={busy}
+                onClick={() => void accept()}
+              >
+                {accepted.includes(at) ? (options > 1 ? `Option ${at + 1} accepted` : "Accepted") : options > 1 ? `Mark option ${at + 1} accepted` : "Mark accepted"}
+              </button>
+            )}
+          </>,
           actionsEl
         )}
       <section className="hd-day" aria-label="Where the quote is">

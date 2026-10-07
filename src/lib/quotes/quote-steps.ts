@@ -115,9 +115,10 @@ export function quoteSteps(input: {
 
 /** A quote built on its kept lines (the engine rebuild): the brief is the
     lines themselves, the questions are the lines nobody knows yet, and the
-    build-up is priced when nothing is left to price. Approved, Sent and
-    Accepted wait for the proposal, which these quotes don't write yet. */
-export function linesSteps(input: { lines: number; unknown: number; price: PriceState }): QuoteStep[] {
+    build-up is priced when nothing is left to price. Approved and Sent
+    wait for the proposal, which these quotes don't write yet; Accepted is
+    the option a person marked. */
+export function linesSteps(input: { lines: number; unknown: number; price: PriceState; accepted?: readonly number[] }): QuoteStep[] {
   const step = (key: StepKey, state: StepState, words: string): QuoteStep => ({ key, label: LABELS[key], state, words });
   const { lines, unknown, price } = input;
   const built =
@@ -137,6 +138,6 @@ export function linesSteps(input: { lines: number; unknown: number; price: Price
     built,
     step("approved", "todo", ""),
     step("sent", "todo", ""),
-    step("accepted", "todo", ""),
+    input.accepted?.length ? step("accepted", "done", acceptedWords(input.accepted)) : step("accepted", "todo", ""),
   ];
 }

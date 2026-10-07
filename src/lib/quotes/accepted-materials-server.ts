@@ -3,7 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
 import { optionMaterials, type OptionRow } from "./option-materials";
 import { acceptedOptions } from "./proposal";
-import { readStoredProposal } from "./proposal-writer";
+import { linesMaterials } from "./lines-job";
+import { readJobQuote } from "./lines-job-server";
 
 /* THE ACCEPTED OPTION BECOMES THE JOB'S MATERIALS (Isaac, 2026-10-05:
    "whichever one is accepted as an option will then turn into the materials
@@ -51,14 +52,23 @@ export function rowsToAdd(accepted: readonly OptionRow[], already: readonly { na
 }
 
 export async function putAcceptedOnJob(orgId: string, userId: string, cardId: string): Promise<AcceptedOnJob> {
-  const proposal = await readStoredProposal(orgId, cardId);
-  if (!proposal) return { ok: false, reason: "There's no quote on this job." };
-  const options = acceptedOptions(proposal.draft);
+  const quote = await readJobQuote(orgId, cardId);
+  if (!quote) return { ok: false, reason: "There's no quote on this job." };
+  const options = acceptedOptions(quote.draft);
   if (options.length === 0) return { ok: false, reason: "No option is marked accepted." };
-  const ref = await latestInstalledPack(PACK_BRAND);
-  const pack = ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
-  const accepted = options.flatMap((o) => optionMaterials(o, proposal.draft.checklist, pack));
-  const everyOption = proposal.draft.options.flatMap((o) => optionMaterials(o, proposal.draft.checklist, pack));
+  let accepted: OptionRow[];
+  let everyOption: OptionRow[];
+  if (quote.lines) {
+    /* a quote built on its lines: its parts are the list, one for one */
+    const taken = new Set(quote.draft.accepted.length ? quote.draft.accepted : [0]);
+    accepted = linesMaterials(quote.lines.filter((l) => taken.has(l.optionIndex)));
+    everyOption = linesMaterials(quote.lines);
+  } else {
+    const ref = await latestInstalledPack(PACK_BRAND);
+    const pack = ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
+    accepted = options.flatMap((o) => optionMaterials(o, quote.draft.checklist, pack));
+    everyOption = quote.draft.options.flatMap((o) => optionMaterials(o, quote.draft.checklist, pack));
+  }
 
   const { data } = await supabaseAdmin
     .from("job_picklist_items")

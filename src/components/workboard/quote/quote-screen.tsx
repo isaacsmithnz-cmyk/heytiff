@@ -181,7 +181,15 @@ export function QuoteScreen({
             <div className="qp-acts" ref={setActionsEl} />
           </div>
           {engine === "lines" ? (
-            <QuoteLinesFace job={job} price={price} actionsEl={actionsEl} onPriced={() => setLinesRev((n) => n + 1)} onSwitchBack={() => void switchTo("old")} />
+            <QuoteLinesFace
+              job={job}
+              price={price}
+              actionsEl={actionsEl}
+              onPriced={() => setLinesRev((n) => n + 1)}
+              onSwitchBack={() => void switchTo("old")}
+              onToast={(m) => toast(m)}
+              send={<JobQuoteSend job={job} visible version={`lines-${linesRev}`} />}
+            />
           ) : (
             <JobQuoteFace
             mode="page"

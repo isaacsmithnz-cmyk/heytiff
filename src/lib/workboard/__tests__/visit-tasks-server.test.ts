@@ -39,7 +39,17 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 const readStoredProposal = jest.fn();
-jest.mock("@/lib/quotes/proposal-writer", () => ({ MODEL: "claude-opus-5-5", readStoredProposal: (...a: unknown[]) => readStoredProposal(...a) }));
+jest.mock("@/lib/quotes/proposal-writer", () => ({ MODEL: "claude-opus-5-5" }));
+/* the quote as the job reads it: Tiff's proposal, or a switched quote's lines */
+const linesQuote = jest.fn();
+jest.mock("@/lib/quotes/lines-job-server", () => ({
+  readJobQuote: async (...a: unknown[]) => {
+    const lines = linesQuote();
+    if (lines) return lines;
+    const p = await readStoredProposal(...a);
+    return p ? { draft: p.draft, lines: null } : null;
+  },
+}));
 jest.mock("@/lib/quotes/quote-labour-server", () => ({ readQuoteLabour: jest.fn(async () => ({ brief: null, typical: null, dayHours: 8 })) }));
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn(async () => "Australia/Sydney") }));
 jest.mock("@/lib/workboard/dates", () => ({ todayInZone: () => "2026-10-08" }));
@@ -47,6 +57,8 @@ jest.mock("@/lib/images/for-claude", () => ({ imageForClaude: jest.fn() }));
 jest.mock("@/lib/documents/query", () => ({ DOCUMENTS_BUCKET: "documents", signMany: jest.fn(async () => new Map()) }));
 
 import { normaliseDraft } from "@/lib/quotes/proposal";
+import { linesDraft } from "@/lib/quotes/lines-job";
+import type { QuoteLine } from "@/lib/quotes/lines";
 import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";
 import { applyTaskEdit, editOf, makeTasksFromQuote, quotePlan, quotedHours, serialsWith } from "../visit-tasks-server";
 
@@ -75,6 +87,7 @@ beforeEach(() => {
   calls.length = 0;
   tables = {};
   readStoredProposal.mockReset().mockResolvedValue({ draft, brief: "", changes: [], updatedAt: "x", cardId: "job-1" });
+  linesQuote.mockReset();
 });
 
 describe("an edit as the browser sent it", () => {
@@ -245,5 +258,19 @@ describe("the hours quoted", () => {
   it("is nothing on a quote with nothing accepted", async () => {
     readStoredProposal.mockResolvedValue({ draft: { ...draft, accepted: [], options: [draft.options[0]!, draft.options[0]!] }, brief: "", changes: [], updatedAt: "x", cardId: "job-1" });
     expect(quotedHours(await quotePlan("org-1", "job-1"))).toBeNull();
+  });
+
+  it("is the accepted option's labour lines as typed, on a quote built by hand", async () => {
+    const line = (o: Partial<QuoteLine>): QuoteLine => ({
+      id: "x", version: 1, updatedAt: "", updatedBy: "", optionIndex: 0, system: "", group: "Labour", position: 0, name: "Install",
+      code: null, supplierKey: null, kind: "labour", qty: 1, unit: "h", costCents: 0, sellCents: null, source: "by_hand", why: "", duct: false, ...o,
+    });
+    const lines = [
+      line({ id: "a", name: "Rough-in: 2 people", qty: 12.5 }),
+      line({ id: "b", name: "Install", qty: 7 }),
+      line({ id: "c", optionIndex: 1, qty: 40 }),
+    ];
+    linesQuote.mockReturnValue({ draft: linesDraft(lines, [], { accepted: [0] }, new Map(), 8)!, lines });
+    expect(quotedHours(await quotePlan("org-1", "job-1"))).toEqual({ hours: 19.5, people: 2, visits: 2 });
   });
 });

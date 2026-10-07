@@ -6,6 +6,8 @@ import { addKit } from "@/lib/quotes/kits-server";
 import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
+import { markAccepted, readByHand } from "@/lib/quotes/lines-job-server";
+import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
 
 /* A quote's kept lines (the engine rebuild, slices 2.1–2.3): read them with
    their history and who made each change, and change them one at a time.
@@ -26,12 +28,17 @@ async function gate(): Promise<Gate> {
 }
 
 async function view(orgId: string, jobUuid: string, userId: string) {
-  const [engine, lines, changes] = await Promise.all([readEngine(orgId, jobUuid), readLines(orgId, jobUuid), readChanges(orgId, jobUuid, 50)]);
+  const [engine, lines, changes, byHand] = await Promise.all([
+    readEngine(orgId, jobUuid),
+    readLines(orgId, jobUuid),
+    readChanges(orgId, jobUuid, 50),
+    readByHand(orgId, jobUuid),
+  ]);
   const [names, fits] = await Promise.all([
     namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy)]),
     linesFit(lines).catch(() => []),
   ]);
-  return { ok: true as const, engine, lines, changes, names, me: userId, fits };
+  return { ok: true as const, engine, lines, changes, names, me: userId, fits, accepted: byHand.accepted };
 }
 
 export async function GET(req: Request) {
@@ -55,6 +62,8 @@ export async function POST(req: Request) {
   const version = typeof body.version === "number" ? body.version : -1;
   const why = typeof body.why === "string" ? body.why : "";
   let result: { ok: boolean; reason?: string; stale?: true } = { ok: true };
+  /* what marking an option accepted did to the job's own materials list */
+  let onJob: { added: number; removed: number } | null = null;
   switch (body.op) {
     case "switch":
       result = (await setEngine(g.orgId, jobUuid, body.engine === "lines" ? "lines" : "old", g.userId))
@@ -86,6 +95,18 @@ export async function POST(req: Request) {
       result = await copyOption(g.orgId, jobUuid, n(body.from), n(body.to), g.userId);
       break;
     }
+    case "accept": {
+      /* the client's choice: its parts go on the job's own materials list,
+         as an option accepted on Tiff's proposal does */
+      const i = typeof body.option === "number" ? Math.max(0, Math.min(19, Math.round(body.option))) : 0;
+      const marked = await markAccepted(g.orgId, jobUuid, i, g.userId);
+      result = marked;
+      if (marked.ok && marked.byHand.accepted.length > 0) {
+        const put = await putAcceptedOnJob(g.orgId, g.userId, jobUuid);
+        onJob = put.ok ? { added: put.added, removed: put.removed } : null;
+      }
+      break;
+    }
     case "undo":
       result = await undoChange(g.orgId, jobUuid, typeof body.change === "number" ? body.change : -1, g.userId);
       break;
@@ -93,5 +114,5 @@ export async function POST(req: Request) {
       return Response.json({ ok: false, reason: "Not something a quote's lines can do." }, { status: 400 });
   }
   const now = await view(g.orgId, jobUuid, g.userId);
-  return Response.json(result.ok ? now : { ...now, ok: false, reason: result.reason, stale: result.stale ?? false }, { status: 200 });
+  return Response.json(result.ok ? { ...now, onJob } : { ...now, ok: false, reason: result.reason, stale: result.stale ?? false }, { status: 200 });
 }

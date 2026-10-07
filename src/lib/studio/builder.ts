@@ -23,6 +23,7 @@ import { vrfOutdoorsListing } from "./vrf";
 import { outdoorReadiness } from "./packs/ready";
 import { deleteRoomWithContents, releaseRoomsFromSystems, stripAttachesTo } from "./attach";
 import { OVERSIZE_CAP } from "./select";
+import { coversLoad } from "./fit";
 import { nextSystemColour } from "./modules";
 import { ATTACHED_RUN_TYPES } from "./attach";
 import { attachOf } from "./graph";
@@ -906,7 +907,7 @@ export function roomVerdict(
   const base = { loadKw: cov.loadKw, coverKw: cov.coveredKw, capped: cov.capped };
   if (cov.loadKw == null) return { word: "Calibrate", ...base };
   if (cov.contributors.length === 0) return { word: "No units", ...base };
-  if (cov.coveredKw + 1e-9 < cov.loadKw) return { word: "Undersized", ...base };
+  if (!coversLoad(cov.coveredKw, cov.loadKw)) return { word: "Undersized", ...base };
   if (cov.coveredKw > cov.loadKw * OVERSIZE_CAP + 1e-9) return { word: "Oversized", ...base };
   return { word: "Fits", ...base };
 }

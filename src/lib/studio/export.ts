@@ -53,6 +53,37 @@ export const hasSheet = (s: SheetSections): boolean =>
 export type ExportPaper = "A4" | "A3";
 export type ExportOrientation = "portrait" | "landscape";
 
+/** The box a plan prints in, in mm: the page less its 20mm padding, the
+    caption and its slack. Twin of the `.ds-print-plan` heights in studio.css,
+    which must say the same numbers. */
+export const PLAN_BOX_MM: Record<ExportPaper, Record<ExportOrientation, { w: number; h: number }>> = {
+  A4: { portrait: { w: 170, h: 217 }, landscape: { w: 257, h: 136 } },
+  A3: { portrait: { w: 257, h: 346 }, landscape: { w: 380, h: 224 } },
+};
+
+/** A plan page turns when the plan prints noticeably bigger the other way
+    round — less than this and the document's own orientation stands, so a
+    near-square plan doesn't flip the page for nothing. */
+const TURN_GAIN = 1.1;
+
+/** Which way up a plan's page prints (Isaac, 2026-10-07: "rotate the design
+    plan landscape if needed"). The document's orientation is the sheet's; a
+    plan page takes whichever orientation prints the plan bigger, so a wide
+    plan stops being a strip across a portrait page. */
+export function planPageOrientation(
+  figure: { w: number; h: number },
+  paper: ExportPaper,
+  sheet: ExportOrientation
+): ExportOrientation {
+  if (!(figure.w > 0 && figure.h > 0)) return sheet;
+  const fit = (o: ExportOrientation) => {
+    const b = PLAN_BOX_MM[paper][o];
+    return Math.min(b.w / figure.w, b.h / figure.h);
+  };
+  const other: ExportOrientation = sheet === "portrait" ? "landscape" : "portrait";
+  return fit(other) > fit(sheet) * TURN_GAIN ? other : sheet;
+}
+
 export interface ExportOptions {
   /** which parts of the sheet go in */
   sections: SheetSections;

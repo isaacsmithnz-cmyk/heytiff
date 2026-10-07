@@ -3975,6 +3975,14 @@ html[data-ds-display] .dstudio.editing {
   background: #f4f5f7;
   color: #0a0b10;
 }
+/* OVER THE SEND DIALOG it opens from: the dialog's own layer, and later in
+   the document, so it paints on top */
+.ds-lightbox.ds-lb-over { z-index: 1000; }
+/* the PDF itself, in the browser's own viewer */
+.ds-lightbox .ds-lb-pdf { flex: 1; width: 100%; border: 0; background: var(--bg); }
+/* the customer's page, at the size it opens at */
+.ds-lightbox .ds-lb-sheet { flex: 1; overflow: auto; background: var(--bg); }
+.ds-lightbox .ds-lb-wait { margin: auto; font-size: 14px; color: var(--q); }
 .ds-lightbox .ds-lb-img {
   flex: 1;
   overflow: auto;
@@ -6539,6 +6547,22 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-send-plan-in { padding: 48px; }
 .dstudio .ds-send-plan-in svg { display: block; width: 100%; height: auto; }
 .dstudio .ds-send-plan > span { font-size: 12px; font-weight: 600; color: var(--gray500); }
+/* EACH PREVIEW IS A DOOR to its page full size (send-viewer.tsx). Named
+   through the list, (0,3,0), so it wins the button reset and the plan
+   block's own display; the hover is one change, the picture's edge. */
+.dstudio .ds-send-pv .ds-send-pvbtn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: zoom-in;
+}
+.dstudio .ds-send-pv .ds-send-pvbtn:hover .ds-send-mini { border-color: var(--ink); }
+.dstudio .ds-send-pv .ds-send-pvbtn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .dstudio .ds-send-empty {
   margin: 0;
   padding: 24px 12px;

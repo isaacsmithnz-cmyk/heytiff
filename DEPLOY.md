@@ -940,6 +940,11 @@ docs/job-analytics-plan.md is the design.
    is refused with "Answers can't be kept until the database is updated for
    them." and every other answer still saves. **Applied to production
    2026-10-07** (migration `job_analytics_void`).
+4. Apply `docs/migrations/analytics_settings.sql` **before the deploy that
+   writes it**: one new table, one row per business, for Admin, Analytics.
+   It is additive, so applying it early is safe. Without it, the page counts
+   by its defaults and the settings page says its choices can't be kept yet.
+   **Applied to production 2026-10-07** (migration `analytics_settings`).
 
 ---
 

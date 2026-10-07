@@ -5,7 +5,6 @@ import { useState } from "react";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import {
   change,
-  LAPSE_AFTER_DAYS,
   longDay,
   money,
   pct,
@@ -99,6 +98,7 @@ export function AnalyticsScreen({ state, period }: { state: AnalyticsState; peri
                     canDecide={state.canDecide ?? false}
                     workOrders={state.workOrders ?? null}
                     voided={state.data.voided}
+                    quoteFromCents={state.data.rules.quoteFromCents}
                   />
                 )}
               </section>
@@ -133,11 +133,14 @@ const kindsToDecide = (a: JobAnalytics) => a.toDecide.asks.filter((x) => x.answe
 
 const days = (d: number | null) => (d === null ? "—" : `${Math.round(d * 10) / 10} ${d === 1 ? "day" : "days"}`);
 /** Why a lost quote is lost, on its row in the review. */
-const LOST_WHY: Record<LostWhy, string> = {
-  marked: "Marked Unsuccessful in ServiceM8",
-  closed: "No answer, closed by ServiceM8 at 60 days",
-  lapsed: `No answer after ${LAPSE_AFTER_DAYS} days`,
-};
+const lostWords = (why: LostWhy, a: JobAnalytics) =>
+  why === "marked"
+    ? "Marked Unsuccessful in ServiceM8"
+    : why === "closed"
+      ? closedWords(a)
+      : `No answer after ${a.rules.lapseAfterDays} days`;
+const closedWords = (a: JobAnalytics) =>
+  a.rules.closeAfterDays ? `No answer, closed by ServiceM8 at ${a.rules.closeAfterDays} days` : "No answer, closed by ServiceM8";
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-AU")} ${n === 1 ? one : many}`;
 
 type Note = { words: string; tone: "" | "ok" | "warn" };
@@ -191,7 +194,10 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
         Quotes on jobs raised {spanWords(a)}, against the same days a year earlier. Money is ex GST, from each job’s lines in ServiceM8.
         {a.voided.length > 0 &&
           ` ${plural(a.voided.length, "void job is", "void jobs are")} left out.`}
-        {truncated && " The account holds more jobs than one read carries, so the oldest are left out."}
+        {truncated && " The account holds more jobs than one read carries, so the oldest are left out."}{" "}
+        <Link href="/dashboard/admin/analytics" className="an-door">
+          How jobs are counted
+        </Link>
       </p>
       <ToDecideLine a={a} onDecide={onDecide} />
 
@@ -219,7 +225,7 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
         <Fig
           label="Open quotes"
           value={money(open.waiting.cents + open.cold.cents)}
-          note={{ words: `${plural(openCount, "quote", "quotes")} under ${LAPSE_AFTER_DAYS} days`, tone: "" }}
+          note={{ words: `${plural(openCount, "quote", "quotes")} under ${a.rules.lapseAfterDays} days`, tone: "" }}
         />
         <Fig label="Days to quote" value={days(t.speedDays)} note={speedNote} />
       </section>
@@ -228,8 +234,8 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
         <h2 id="an-h-win">Win rate</h2>
         <p className="an-say">
           {lapsed.count === 0
-            ? `No quote in these dates has gone ${LAPSE_AFTER_DAYS} days without an answer.`
-            : `${plural(lapsed.count, "quote", "quotes")} with no answer after ${LAPSE_AFTER_DAYS} days ${lapsed.count === 1 ? "counts" : "count"} as lost, ${money(lapsed.cents)} of work.`}
+            ? `No quote in these dates has gone ${a.rules.lapseAfterDays} days without an answer.`
+            : `${plural(lapsed.count, "quote", "quotes")} with no answer after ${a.rules.lapseAfterDays} days ${lapsed.count === 1 ? "counts" : "count"} as lost, ${money(lapsed.cents)} of work.`}
         </p>
         <div className="an-cols">
           <RateBars title="By job type" bars={a.byKind} colourOf={(k) => KIND_COLOUR[k] ?? "var(--q)"} />
@@ -305,10 +311,10 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
   const inside = q.winsDated - q.lateWins;
   const rule =
     q.winsDated === 0
-      ? `At ${LAPSE_AFTER_DAYS} days with no answer. No wins in these dates yet.`
+      ? `At ${a.rules.lapseAfterDays} days with no answer. No wins in these dates yet.`
       : q.lateWins === 0
-        ? `At ${LAPSE_AFTER_DAYS} days with no answer. All ${q.winsDated.toLocaleString("en-AU")} wins came inside that.`
-        : `At ${LAPSE_AFTER_DAYS} days with no answer. ${inside.toLocaleString("en-AU")} of the ${q.winsDated.toLocaleString("en-AU")} wins came inside that, and the ${q.lateWins} that came later count as won.`;
+        ? `At ${a.rules.lapseAfterDays} days with no answer. All ${q.winsDated.toLocaleString("en-AU")} wins came inside that.`
+        : `At ${a.rules.lapseAfterDays} days with no answer. ${inside.toLocaleString("en-AU")} of the ${q.winsDated.toLocaleString("en-AU")} wins came inside that, and the ${q.lateWins} that came later count as won.`;
   const open = q.openNow;
 
   return (
@@ -336,13 +342,13 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
             </div>
             {q.closed.count > 0 && (
               <div>
-                <span>No answer, closed by ServiceM8 at 60 days</span>
+                <span>{closedWords(a)}</span>
                 <b>{q.closed.count.toLocaleString("en-AU")}</b>
                 <em>{money(q.closed.cents)}</em>
               </div>
             )}
             <div>
-              <span>No answer after {LAPSE_AFTER_DAYS} days, still a Quote in ServiceM8</span>
+              <span>No answer after {a.rules.lapseAfterDays} days, still a Quote in ServiceM8</span>
               <b>{q.lapsed.count.toLocaleString("en-AU")}</b>
               <em>{money(q.lapsed.cents)}</em>
             </div>
@@ -362,7 +368,7 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
               names={names}
               voids={voids}
               serverVoid={false}
-              what={(job) => LOST_WHY[q.lostJobs.find((l) => l.job.id === job.id)?.why ?? "marked"]}
+              what={(job) => lostWords(q.lostJobs.find((l) => l.job.id === job.id)?.why ?? "marked", a)}
               canDecide={canDecide}
             />
           )}
@@ -374,9 +380,9 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
         <div className="an-top">
           <Fig label="To price" value={open.toPrice.toLocaleString("en-AU")} note={{ words: "Nothing priced yet", tone: "" }} />
           <Fig label="Waiting, under 60 days" value={open.waiting.count.toLocaleString("en-AU")} note={{ words: money(open.waiting.cents), tone: "" }} />
-          <Fig label={`Going cold, 60 to ${LAPSE_AFTER_DAYS} days`} value={open.cold.count.toLocaleString("en-AU")} note={{ words: money(open.cold.cents), tone: "" }} />
+          <Fig label={`Going cold, 60 to ${a.rules.lapseAfterDays} days`} value={open.cold.count.toLocaleString("en-AU")} note={{ words: money(open.cold.cents), tone: "" }} />
           <Fig
-            label={`Reach ${LAPSE_AFTER_DAYS} days in the next 30`}
+            label={`Reach ${a.rules.lapseAfterDays} days in the next 30`}
             value={open.lapsingSoon.count.toLocaleString("en-AU")}
             note={{ words: money(open.lapsingSoon.cents), tone: open.lapsingSoon.count > 0 ? "warn" : "" }}
           />

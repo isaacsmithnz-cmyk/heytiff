@@ -3,8 +3,6 @@
 import {
   analyse,
   analyticsKindOf,
-  isTafeDay,
-  closedAtSixtyDays,
   yesOn,
   wasQuoted,
   change,
@@ -456,11 +454,7 @@ describe("what the live account taught the rules", () => {
     expect(answered.top.winRate).toMatchObject({ won: 1, decided: 2 });
   });
 
-  it("says apart a quote ServiceM8 closed itself at 60 days with no answer", () => {
-    expect(closedAtSixtyDays("2026-03-11 09:14:02", "2026-05-10 09:14:40")).toBe(true);
-    expect(closedAtSixtyDays("2026-03-11 09:14:02", "2026-05-10 13:40:00")).toBe(false);
-    expect(closedAtSixtyDays("2026-03-11 09:14:02", "2026-05-12 09:14:02")).toBe(false);
-    expect(closedAtSixtyDays(null, "2026-05-10 09:14:40")).toBe(false);
+  it("says apart a quote ServiceM8 closed itself with no answer", () => {
     const marked = job({ id: "m", status: "Unsuccessful", quoteSentOn: "2026-05-02", raisedOn: "2026-05-01", valueCents: 500_000 });
     const closed = job({ id: "c", status: "Unsuccessful", quoteSentOn: "2026-04-02", raisedOn: "2026-04-01", valueCents: 300_000, closedUnanswered: true });
     const q = analyse([marked, closed], TODAY, "12m").quotes;
@@ -472,14 +466,4 @@ describe("what the live account taught the rules", () => {
     ]);
   });
 
-  it("knows a TAFE day booked as a job card, and still counts work done for TAFE", () => {
-    const none = { quoted: false, invoiced: false, paid: false };
-    expect(isTafeDay("TAFE NSW", none)).toBe(true);
-    expect(isTafeDay("tafe nsw", none)).toBe(true);
-    expect(isTafeDay("TAFE NSW", { ...none, quoted: true })).toBe(false);
-    expect(isTafeDay("TAFE NSW", { ...none, invoiced: true })).toBe(false);
-    expect(isTafeDay("TAFE NSW", { ...none, paid: true })).toBe(false);
-    expect(isTafeDay("Tafeline Builders", none)).toBe(false);
-    expect(isTafeDay(null, none)).toBe(false);
-  });
 });

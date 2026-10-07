@@ -24,6 +24,8 @@ export type AdminViewer = {
   isOwner: boolean;
   /** grantable capability: the charge-out rate calculator */
   canFinancials: boolean;
+  /** grantable capability: job money, which the Analytics settings count */
+  canJobMoney?: boolean;
   /** field-learned KB entries nobody has looked over — the queue's badge.
       A COUNT rather than a flag so the row can say "4 new". */
   kbQueueCount: number;
@@ -154,6 +156,16 @@ export const SECTIONS: AdminGroup[] = [
         accent: "#2E68FF",
         href: "/dashboard/admin/quoting",
         show: (v) => v.canFinancials,
+      },
+      {
+        /* `workboard_money`, the Analytics page's own grant: every setting
+           moves a figure of job money */
+        title: "Analytics",
+        sub: "How jobs and quotes are counted",
+        icon: "gauge",
+        accent: "#2E68FF",
+        href: "/dashboard/admin/analytics",
+        show: (v) => !!v.canJobMoney,
       },
       {
         /* `financials`, like Quoting: the business's buying prices */

@@ -6,7 +6,6 @@ const byColumn: Record<string, Record<string, unknown>[]> = {};
 const ranges: { column: string; from: number; to: number }[] = [];
 let failOn: string | null = null;
 let categories: Record<string, unknown>[] = [];
-let companies: Record<string, unknown>[] = [];
 let quoteDocs: Record<string, unknown>[] = [];
 let drafts: Record<string, unknown>[] = [];
 let lines: Record<string, unknown>[] = [];
@@ -20,7 +19,6 @@ jest.mock("@/lib/supabase-server", () => ({
       const sub: Record<string, unknown> = {};
       sub.select = () => sub;
       sub.eq = () => sub;
-      sub.ilike = () => sub;
       sub.order = () => sub;
       sub.gte = (c: string) => {
         column = c;
@@ -33,7 +31,6 @@ jest.mock("@/lib/supabase-server", () => ({
       };
       sub.then = (res: (v: { data: unknown[] | null; error: unknown }) => unknown) => {
         if (table === "sm8_attachments") return Promise.resolve({ data: quoteDocs, error: null }).then(res);
-        if (table === "sm8_companies") return Promise.resolve({ data: companies, error: null }).then(res);
         if (table === "sm8_categories") return Promise.resolve({ data: categories, error: null }).then(res);
         if (table === "quote_drafts") return Promise.resolve({ data: drafts, error: null }).then(res);
         if (table === "sm8_job_materials") return Promise.resolve({ data: span ? lines.slice(span[0], span[1] + 1) : lines, error: null }).then(res);
@@ -48,6 +45,7 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 
 import { readAnalyticsJobs, readDecisions } from "../analytics-query";
+import { DEFAULT_SETTINGS } from "../settings";
 
 const row = (uuid: string, over: Record<string, unknown> = {}) => ({
   uuid,
@@ -67,7 +65,6 @@ beforeEach(() => {
   ranges.length = 0;
   failOn = null;
   categories = [];
-  companies = [];
   quoteDocs = [];
   drafts = [];
   lines = [];
@@ -131,6 +128,7 @@ describe("readAnalyticsJobs", () => {
       valueCents: 980_000 + 152_800,
       kind: "ducted",
       category: "Install",
+      role: "install",
       paid: false,
       acceptedInHeyTiff: false,
       number: "1042",
@@ -159,31 +157,57 @@ describe("readAnalyticsJobs", () => {
     expect(read?.jobs[0]).toMatchObject({ id: "parent", wonOn: "2026-09-25", claimedOn: "2026-08-28" });
   });
 
-  it("reads the day a quote document was first made, and a Quote ServiceM8 closed itself at 60 days", async () => {
+  it("reads the day a quote document was first made, and finds the age ServiceM8 closes an unanswered Quote at", async () => {
     quoteDocs = [
-      { uuid: "a2", related_object_uuid: "lost", timestamp: "2026-03-14 10:00:00" },
-      { uuid: "a1", related_object_uuid: "lost", timestamp: "2026-03-12 09:00:00" },
+      { uuid: "a2", related_object_uuid: "c0", timestamp: "2026-03-14 10:00:00" },
+      { uuid: "a1", related_object_uuid: "c0", timestamp: "2026-03-12 09:00:00" },
     ];
+    // five closed 60 days to the hour after they became a Quote, one by hand
     byColumn.date = [
-      row("lost", { status: "Unsuccessful", quote_date: "2026-03-11 09:14:02", edit_date: "2026-05-10 09:14:40" }),
-      row("other", { status: "Unsuccessful", quote_date: "2026-03-11 09:14:02", edit_date: "2026-06-01 15:00:00" }),
+      ...["09", "10", "11", "12", "13"].map((d, i) =>
+        row(`c${i}`, { status: "Unsuccessful", quote_date: `2026-03-${Number(d) + 1} 09:14:02`, edit_date: `2026-05-${d} 09:20:00` }),
+      ),
+      row("hand", { status: "Unsuccessful", quote_date: "2026-03-11 09:14:02", edit_date: "2026-06-01 15:00:00" }),
     ];
     const read = await readAnalyticsJobs("org", "2024-10-08");
-    expect(read?.jobs.map((j) => [j.id, j.quoteDocOn, j.closedUnanswered])).toEqual([
-      ["lost", "2026-03-12", true],
-      ["other", null, false],
-    ]);
+    expect(read?.found.closeAge).toEqual({ days: 60, count: 5 });
+    expect(read?.jobs.find((j) => j.id === "c0")).toMatchObject({ quoteDocOn: "2026-03-12", closedUnanswered: true });
+    expect(read?.jobs.find((j) => j.id === "hand")).toMatchObject({ quoteDocOn: null, closedUnanswered: false });
+
+    // the business says ServiceM8 doesn't close quotes: none is said to be
+    const off = await readAnalyticsJobs("org", "2024-10-08", { ...DEFAULT_SETTINGS, autoCloseDays: 0 });
+    expect(off?.jobs.filter((j) => j.closedUnanswered)).toEqual([]);
   });
 
-  it("leaves out an apprentice's TAFE day booked as a job card, and keeps work invoiced to TAFE", async () => {
-    companies = [{ uuid: "tafe", name: "TAFE NSW" }];
+  it("leaves out the cards of clients that are bookings, found or listed, and keeps work done for them", async () => {
+    const day = (id: string, client: string) => row(id, { status: "Work Order", company_uuid: client, job_description: "UNIVERSITY" });
     byColumn.date = [
-      row("day", { status: "Work Order", company_uuid: "tafe", job_description: "UNIVERSITY" }),
-      row("work", { status: "Completed", company_uuid: "tafe", invoice_sent: 1 }),
+      ...[1, 2, 3, 4, 5, 6].map((i) => day(`tafe${i}`, "tafe")),
       row("other", { status: "Work Order", company_uuid: "co-2" }),
     ];
-    const read = await readAnalyticsJobs("org", "2024-10-08");
-    expect(read?.jobs.map((j) => j.id)).toEqual(["work", "other"]);
+    // found: six cards, none quoted, invoiced or paid
+    const found = await readAnalyticsJobs("org", "2024-10-08");
+    expect(found?.found.bookingClients).toEqual([{ clientId: "tafe", cards: 6 }]);
+    expect(found?.jobs.map((j) => j.id)).toEqual(["other"]);
+
+    // the business's list replaces what was found; an invoiced card still counts
+    byColumn.date.push(row("work", { status: "Completed", company_uuid: "co-2", invoice_sent: 1 }));
+    const listed = await readAnalyticsJobs("org", "2024-10-08", { ...DEFAULT_SETTINGS, notCustomers: ["co-2"] });
+    expect(listed?.jobs.map((j) => j.id)).toEqual(["tafe1", "tafe2", "tafe3", "tafe4", "tafe5", "tafe6", "work"]);
+  });
+
+  it("reads each category's role, the business's or from its name, and leaves out a category of not jobs", async () => {
+    categories = [
+      { uuid: "c-ins", name: "Install" },
+      { uuid: "c-tafe", name: "Bookings" },
+    ];
+    byColumn.date = [row("i", { category_uuid: "c-ins" }), row("b", { category_uuid: "c-tafe" }), row("n")];
+    const read = await readAnalyticsJobs("org", "2024-10-08", { ...DEFAULT_SETTINGS, categoryRoles: { "c-tafe": "not_job" } });
+    expect(read?.jobs.map((j) => [j.id, j.role])).toEqual([
+      ["i", "install"],
+      ["n", "other"],
+    ]);
+    expect(read?.found.byCategory).toEqual({ "c-ins": 1, "c-tafe": 1, "": 1 });
   });
 
   it("marks a job paid in ServiceM8, and one whose proposal has an option accepted", async () => {

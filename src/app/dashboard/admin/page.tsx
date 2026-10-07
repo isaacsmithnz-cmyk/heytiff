@@ -26,14 +26,16 @@ export default async function AdminPage() {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
 
-  const [canFinancials, kbQueueCount] = await Promise.all([
+  const [canFinancials, canJobMoney, kbQueueCount] = await Promise.all([
     can("financials"),
+    can("workboard_money"),
     orgId ? countUnreviewedFieldNotes(orgId) : Promise.resolve(0),
   ]);
   return (
     <AdminIndex
       isOwner={hasMinRole(role, "owner")}
       canFinancials={canFinancials}
+      canJobMoney={canJobMoney}
       kbQueueCount={kbQueueCount}
     />
   );

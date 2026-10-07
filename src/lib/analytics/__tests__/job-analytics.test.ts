@@ -400,6 +400,42 @@ describe("what the live account taught the rules", () => {
     expect(analyse([claimed], TODAY, "12m").toDecide.asks.map((a) => [a.job.id, a.question])).toEqual([["cl", "outcome"]]);
   });
 
+  it("reads a job's type from the words the live account uses, and leaves what can't be told unknown", () => {
+    const kind = (d: string, lines: string[] = [], cat: string | null = "Install") => analyticsKindOf(d, lines, cat);
+    // wall splits
+    expect(kind("Mits 2.5kw split to guest bed $2500 plus")).toBe("split");
+    expect(kind("Supply and Install: 2 x Carrier splits")).toBe("split");
+    expect(kind("Install Daikin Cora 6kw Change over")).toBe("split");
+    expect(kind("Would like a quote for the install of two MHI Avanti Plus 2 kW and one MHI Bronte 6.3 KW.")).toBe("split");
+    expect(kind("Fuji 3.5kw install", ["As Per Quote"])).toBe("split");
+    // ducted
+    expect(kind("Mitsubishi Electric 14kw 1Ph 3 Zones Downstairs")).toBe("ducted");
+    expect(kind("Ac installation of mits elec 14kw GAA system client supplying unit and 240v zone box")).toBe("ducted");
+    expect(kind("DAIKIN STANDARD DUCT 14KW R32 Included: FDYAN140AV1")).toBe("ducted");
+    expect(kind("Supply and Install 6kw Daikin Bulk Head Unit")).toBe("ducted");
+    // multi
+    expect(kind("Mitsubishi 5.2kw to serve 2 x 3.5kw high walls")).toBe("multi");
+    expect(kind("8kw Outdoor 7kw indoor 4.2kw indoor")).toBe("multi");
+    expect(kind("4 x Bulkheads off an Outdoor")).toBe("multi");
+    expect(kind("Replacement of upstairs beds high walls 80multi outdoor")).toBe("multi");
+    // ventilation
+    expect(kind("Supply and installation of 200mm silent series sub floor fan and associated ductwork")).toBe("ventilation");
+    expect(kind("Fw: Fresh Air Supply / Lossnay System Quote")).toBe("ventilation");
+    expect(kind("Underfloor ventallation")).toBe("ventilation");
+    // not what they seem
+    expect(kind("Fw: 14 Boundary Street, Bronte: Quote Notes: Downstairs (3 Units)")).toBeNull();
+    expect(kind("split level apartment, looking for whole property solution")).toBeNull();
+    expect(kind("BTO required to split air flow to new room - 10' and 12' Duct")).toBeNull();
+    expect(kind("Disconnect split temporarily.")).toBeNull();
+    expect(kind("Duct Work Re-configuration", ["JOINER METAL 250MM/10\" INCH"])).toBeNull();
+    expect(kind("Carry out service and cut bigger grills", ["Daikin Fan Motor"])).toBeNull();
+    expect(kind("FUJITSU COMP CASSETTE 5.0KW 1PH R32")).toBeNull();
+    expect(kind("Mitsubishi 9kw and 3.5kw installation", ["As Per Quote"])).toBeNull();
+    expect(kind("Install AC", ["As Per Quote"])).toBeNull();
+    // the category still comes first
+    expect(kind("Exhaust fan rattling", [], "Service Call")).toBe("service");
+  });
+
   it("reads what an Unsuccessful job was: a quote lost, a work order called off, an enquiry never quoted, or a question", () => {
     const at = { raisedOn: "2026-05-01", valueCents: 0 };
     const lostQuote = job({ ...at, id: "lost", status: "Unsuccessful", quoteDocOn: "2026-05-02", valueCents: 600_000 });

@@ -159,14 +159,15 @@
      design laws are killing the app in terms of colour"). Drawing
      vocabulary, like the day colours and the pipe sizes: a chart's series
      wear these, read against its key or its labels, and nothing else does.
-     Six series, the kinds of job in this order (split, multi, ducted, VRF,
-     service, maintenance), validated as a set: every adjacent pair clears
-     the colour-blind floor (worst deltaE 9.2) and the normal-vision floor
-     (19.6). Three sit under 3:1 on white, so a mark in them always carries
-     its figure as text. `--chart-seq-*` is one blue, lightest to darkest,
-     for ordered groups (price bands, days to quote). None of them is a state
-     token: a chart's colour says which series, never good or bad. */
-  --chart-1:#2a78d6; --chart-2:#eb6834; --chart-3:#1baf7a; --chart-4:#4a3aa7; --chart-5:#e87ba4; --chart-6:#eda100;
+     Seven series, the kinds of job in this order (split, multi, ducted, VRF,
+     service, maintenance, ventilation), validated as a set: every adjacent
+     pair clears the colour-blind floor (worst deltaE 9.2) and the
+     normal-vision floor (19.6). Three sit under 3:1 on white, so a mark in
+     them always carries its figure as text. `--chart-seq-*` is one blue,
+     lightest to darkest, for ordered groups (price bands, days to quote).
+     None of them is a state token: a chart's colour says which series,
+     never good or bad. */
+  --chart-1:#2a78d6; --chart-2:#eb6834; --chart-3:#1baf7a; --chart-4:#4a3aa7; --chart-5:#e87ba4; --chart-6:#eda100; --chart-7:#008300;
   --chart-seq-1:#86b6ef; --chart-seq-2:#5598e7; --chart-seq-3:#2a78d6; --chart-seq-4:#1c5cab;
   --t-fast:120ms; --t-move:200ms; --ease:ease-out;
   --z-raised:1; --z-sticky:10; --z-overlay:100; --z-modal:200; --z-toast:300;

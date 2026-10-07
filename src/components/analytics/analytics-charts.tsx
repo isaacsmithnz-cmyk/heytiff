@@ -17,6 +17,7 @@ export const KIND_COLOUR: Record<string, string> = {
   vrf: "var(--chart-4)",
   service: "var(--chart-5)",
   maintenance: "var(--chart-6)",
+  ventilation: "var(--chart-7)",
   unknown: "var(--q)",
 };
 

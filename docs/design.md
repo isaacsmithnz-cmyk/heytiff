@@ -500,12 +500,12 @@ Every decision below is made once, here, and a guard test holds each number.
   colour. the design laws are killing the app in terms of colour"). Ink and
   paper still holds for the interface; a chart's marks are drawing, like the
   day colours and the pipe sizes, and wear the `--chart-*` tokens in
-  `tokens.css`. Six for series that have no order (the kinds of job: split,
-  multi, ducted, VRF, service, maintenance, always in that order so a kind
-  keeps its colour from chart to chart) and four steps of one blue,
+  `tokens.css`. Seven for series that have no order (the kinds of job:
+  split, multi, ducted, VRF, service, maintenance, ventilation, always in that
+  order so a kind keeps its colour from chart to chart) and four steps of one blue,
   `--chart-seq-*`, for groups that do (price bands, days to quote). The set
   was checked as a set: every neighbour clears the colour-blind and
-  normal-vision floors. Three of the six sit under 3:1 on white, so a mark
+  normal-vision floors. Three of the seven sit under 3:1 on white, so a mark
   in colour always carries its figure or its name as text beside it, and a
   line chart's two series are told apart by a key as well as a colour. A
   chart colour never means good or bad; state keeps its own tokens. First

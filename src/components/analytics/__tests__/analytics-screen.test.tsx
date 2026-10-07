@@ -89,6 +89,20 @@ describe("AnalyticsScreen", () => {
     expect(screen.getByRole("heading", { name: "Won or lost?" })).toBeInTheDocument();
   });
 
+  it("counts a job with no job type apart: it is in the figures, and only waits to be placed by type", () => {
+    const untyped = analyse(
+      [job({ id: "u", status: "Completed", raisedOn: "2026-05-01", quoteSentOn: "2026-05-02", wonOn: "2026-05-20", valueCents: 600_000, kind: null })],
+      TODAY,
+      "12m",
+    );
+    render(<AnalyticsScreen state={{ kind: "ready", data: untyped, truncated: false, names: {}, canDecide: true }} period="12m" />);
+    expect(screen.getByText("1 job has no job type: counted, as Not known by type.")).toBeInTheDocument();
+    expect(screen.queryByText(/to decide\./)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Give job types" }));
+    expect(screen.getByText("Nothing to decide. Every job is in the figures. 1 more with no job type, at the bottom.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What kind of job?" })).toBeInTheDocument();
+  });
+
   it("reviews the lost quotes on the Quotes face, so a job that wasn't real can be made void", () => {
     render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false, names: {}, canDecide: true }} period="12m" />);
     fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));

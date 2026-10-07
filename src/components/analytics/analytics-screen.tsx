@@ -123,7 +123,11 @@ function PeriodPicker({ period }: { period: PeriodKey }) {
 }
 
 /** Jobs with a question still waiting on an answer. */
-const jobsToDecide = (a: JobAnalytics) => new Set(a.toDecide.asks.filter((x) => x.answer === null).map((x) => x.job.id)).size;
+/** Jobs waiting on an answer that moves a figure: job type only fills the
+    job-type breakdowns, and is counted apart. */
+const jobsToDecide = (a: JobAnalytics) =>
+  new Set(a.toDecide.asks.filter((x) => x.answer === null && x.question !== "kind").map((x) => x.job.id)).size;
+const kindsToDecide = (a: JobAnalytics) => a.toDecide.asks.filter((x) => x.answer === null && x.question === "kind").length;
 
 /* ── words for the figures ── */
 
@@ -270,18 +274,21 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
 /** What is waiting on an answer, and what it keeps out of the figures. */
 function ToDecideLine({ a, onDecide }: { a: JobAnalytics; onDecide: () => void }) {
   const jobs = jobsToDecide(a);
-  if (jobs === 0) return null;
+  const kinds = kindsToDecide(a);
+  if (jobs === 0 && kinds === 0) return null;
   const out = a.toDecide.leftOut;
   return (
     <div className="an-todo">
       <span className="an-todo-dot" aria-hidden="true" />
       <span>
-        {plural(jobs, "job", "jobs")} to decide.
-        {out.jobs > 0 &&
+        {jobs > 0 && `${plural(jobs, "job", "jobs")} to decide.`}
+        {jobs > 0 &&
+          out.jobs > 0 &&
           ` ${out.jobs === jobs ? (jobs === 1 ? "It is" : "They are") : `${out.jobs.toLocaleString("en-AU")} of them, ${money(out.cents)} of work, are`} left out of these figures until then.`}
+        {kinds > 0 && `${jobs > 0 ? " " : ""}${plural(kinds, "job has", "jobs have")} no job type: counted, as Not known by type.`}
       </span>
       <button type="button" className="an-door" onClick={onDecide}>
-        Decide {plural(jobs, "job", "jobs")}
+        {jobs > 0 ? `Decide ${plural(jobs, "job", "jobs")}` : "Give job types"}
       </button>
     </div>
   );

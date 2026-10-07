@@ -1,10 +1,10 @@
 import { lineOf } from "@/lib/workboard/job-steps";
 import { plusDays } from "@/lib/workboard/dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { workKindOf, type WorkKind } from "@/lib/quotes/labour-history";
-import { KINDS, kindLabel, type Decisions, type JobDecisions, type Question } from "./decisions";
+import { workKindOf } from "@/lib/quotes/labour-history";
+import { KINDS, kindLabel, type Decisions, type JobDecisions, type JobKind, type Question } from "./decisions";
 
-export { kindLabel };
+export { kindLabel, type JobKind };
 
 /* JOB ANALYTICS — what the business's own jobs say about its quoting
    (docs/job-analytics-plan.md; Isaac, 2026-10-07: "need an analytics page
@@ -78,7 +78,7 @@ export type AnalyticsJob = {
   completedOn: string | null;
   /** what its lines come to, in cents ex GST; null when nothing is priced */
   valueCents: number | null;
-  kind: WorkKind | null;
+  kind: JobKind | null;
   /** ServiceM8 says it was paid */
   paid?: boolean;
   /** the client accepted HeyTiff's proposal for it */
@@ -175,7 +175,7 @@ export const QUOTE_LIKELY_FROM_CENTS = 300_000;
 export const PRICE_OUTLIER_TIMES = 4;
 export const PRICE_SAMPLE = 5;
 
-const INSTALL: ReadonlySet<WorkKind> = new Set(["split", "multi", "ducted", "vrf"]);
+const INSTALL: ReadonlySet<JobKind> = new Set(["split", "multi", "ducted", "vrf"]);
 
 /** A work order with no sign of a quote that reads like an install (by its
     kind or its category) and comes to $3,000 ex GST or more: quoted outside
@@ -187,17 +187,83 @@ function mightBeQuote(j: AnalyticsJob): boolean {
   return install && (j.valueCents ?? 0) >= QUOTE_LIKELY_FROM_CENTS;
 }
 
+/* WHAT THE WORDS SAY WHEN THE PROGRESS LINE'S WORDS DON'T (Isaac,
+   2026-10-07: "i just need the most accurate data"). Read against the 710
+   jobs of the live account's two years whose kind workKindOf couldn't
+   tell, each reading below was checked against the jobs it places:
+   - multi first: one outdoor "to serve" several, bulkheads counted or "off
+     an outdoor", one outdoor and two indoors, or "80multi";
+   - ducted: a system of 7 kW or more with ducts, zones, return air or the
+     Mitsubishi GAA/HAA series; a ducted model (PEAD; Daikin FDYAN, FBA); or
+     a bulk head, as workKindOf reads "bulkhead".
+     A duct, a zone motor or a return air grille alone is ductwork done to
+     a system, or a rangehood's, not a ducted install, and stays unknown;
+   - wall split: "split" on its own ("mits 2.5kw split"), but not "split
+     level" or a split disconnected or reconnected; "high walls"; and the
+     wall-split models (AP Series, Avanti, MHI Bronte, Daikin Cora and Zena,
+     MSZ, FTXM). Bronte alone is a suburb, and "split air flow" a verb;
+   - ventilation: exhaust and inline fans, subfloor ventilation, Lossnay and
+     fresh air, which is none of the air conditioning kinds. A fan motor is
+     an air conditioner's as often as not, and isn't read;
+   - one unit of 6 kW or less and nothing else sized is a wall split: ducted
+     starts above it, a cassette or a console is said so, and a job naming
+     two sizes may be two units or a multi.
+   Anything else stays unknown and is asked. */
+const kwSizes = (words: string) => [...words.matchAll(/(\d+(?:\.\d+)?)\s*kw\b/gi)].map((m) => Number(m[1]));
+const DUCTED_MODELS = /\b(pead|fdyan?|fdyq|fba)[\w-]*|\bbulk\s*heads?\b/i;
+const DUCTED_WORDS = /\bducts?\b|\bzones?\b|\breturn\s+air\b|\b(gaa|haa)\b/i;
+const MULTI_WORDS =
+  /\boutdoor\b[^.]{0,40}\bto\s+serve\b|\bto\s+serve\s+\d+\s*x\b|\dmulti\b|\b\d+\s*x\s+[^.]{0,40}\bbulk\s*heads\b|\bbulk\s*heads\s+off\b/i;
+const SPLIT_WORD = /\bsplits?\b(?!\s+(level|the|into|between|up|it|them|air|flow)\b)/i;
+const SPLIT_MODELS = /\bap\s+series\b|\bavanti\b|\bmhi\s+bronte\b|\b(msz|ftxm|ctxm|ftxv)[\w-]*/i;
+const NOT_AN_INSTALL = /\b(dis|re)connect\w*|\breinstall\w*/i;
+const NOT_A_WALL_UNIT = /\bcassette\b|\bconsole\b|\bfloor\s*standing\b|\bbulkhead\b/i;
+const VENTILATION_WORDS =
+  /\b(exhaust|vent[a-z]*lation|lossnay|fresh\s*air|rangehood)\b|\b(inline|in-line|sub\s*floor|subfloor|underfloor|roof|bathroom)\s+fans?\b|\b\d+\s*mm\s+(\w+\s+){0,3}fans?\b/i;
+
+function readsDucted(words: string): boolean {
+  if (DUCTED_MODELS.test(words)) return true;
+  return kwSizes(words).some((kw) => kw >= 7) && DUCTED_WORDS.test(words);
+}
+
+/** One outdoor and two indoors or more, sized: a multi. */
+const oneOutdoorManyIndoors = (words: string) =>
+  /\boutdoor\b/i.test(words) && (words.match(/\bindoors?\b/gi)?.length ?? 0) >= 2 && kwSizes(words).length > 0;
+
+function readsSplit(words: string): boolean {
+  if (SPLIT_MODELS.test(words)) return true;
+  if (/\b(cora|zena)\b/i.test(words) && /\bdaikin\b/i.test(words)) return true;
+  return SPLIT_WORD.test(words) && !NOT_AN_INSTALL.test(words);
+}
+
+/** One sized unit of 6 kW or less, not a cassette or a console, and nothing
+    else sized or counted. */
+function oneSmallUnit(words: string): boolean {
+  const sizes = new Set(kwSizes(words));
+  if (sizes.size !== 1 || /\b\d+\s*x\b|\boutdoor\b/i.test(words) || NOT_A_WALL_UNIT.test(words)) return false;
+  const [kw] = [...sizes];
+  return kw! > 0 && kw! <= 6;
+}
+
 /** The kind of work, read for the figures: a service call or maintenance by
     its category first, whatever its words mention (a "Service call" about a
     ducted system is a service, not a ducted install), then the job's words
     and its lines' names together ("MITSUBISHI ELEC. HIGH WALL SPLIT 4.2KW"),
-    "HWS" being the trade's high wall split. */
-export function analyticsKindOf(description: string | null, lineNames: readonly string[], category: string | null): WorkKind | null {
+    "HWS" being the trade's high wall split, then the readings above. */
+export function analyticsKindOf(description: string | null, lineNames: readonly string[], category: string | null): JobKind | null {
   const cat = (category ?? "").toLowerCase();
   if (cat.includes("service")) return "service";
   if (cat.includes("maintenance")) return "maintenance";
   const words = [description ?? "", ...lineNames].join(" ");
-  return workKindOf(words, category) ?? (/\bhws\b/i.test(words) ? "split" : null);
+  const read = workKindOf(words, category);
+  if (read) return read;
+  if (/\bhws\b/i.test(words)) return "split";
+  if (MULTI_WORDS.test(words) || oneOutdoorManyIndoors(words)) return "multi";
+  if (readsDucted(words)) return "ducted";
+  if (readsSplit(words)) return "split";
+  if (VENTILATION_WORDS.test(words)) return "ventilation";
+  if (oneSmallUnit(words)) return "split";
+  return null;
 }
 
 /* A DAY AT TAFE IS NOT A JOB (Isaac, 2026-10-07: "TAFE NSW is the booking
@@ -228,14 +294,14 @@ export type Placement = {
   /** where it stands with the answers given; null when it isn't counted as a quote */
   outcome: Outcome | null;
   /** its kind, answered or read */
-  kind: WorkKind | null;
+  kind: JobKind | null;
   /** the questions it raises, answered or not (price is decided across jobs, in placeIn) */
   raises: Question[];
 };
 
 /** One job with its answers applied. */
 export function placeJob(j: AnalyticsJob, today: string, d: JobDecisions = {}): Placement {
-  const kind = (d.kind as WorkKind | undefined) ?? j.kind;
+  const kind = (d.kind as JobKind | undefined) ?? j.kind;
   const raises: Question[] = [];
   let outcome: Outcome | null;
   if (mightBeQuote(j)) {
@@ -312,7 +378,7 @@ const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
 type Placed = {
   job: AnalyticsJob;
   outcome: Outcome;
-  kind: WorkKind | null;
+  kind: JobKind | null;
   /** its price counts toward the prices */
   priced: boolean;
 };
@@ -324,7 +390,7 @@ export type Ask = {
   job: AnalyticsJob;
   answer: string | null;
   /** the job's kind, answered or read */
-  kind: WorkKind | null;
+  kind: JobKind | null;
   /** price: its kind's median, and how many times it the price is */
   median?: number;
   times?: number;
@@ -348,7 +414,7 @@ function placeIn(jobs: readonly AnalyticsJob[], span: Span, today: string, decis
   /* A price far from its kind's is asked about, and left out of the prices
      until it is counted. The median is every won price of the kind, the odd
      one included: one stray can't move a middle of five. */
-  const byKind = new Map<WorkKind, number[]>();
+  const byKind = new Map<JobKind, number[]>();
   for (const p of placed) if (p.outcome === "won" && p.kind && p.job.valueCents !== null) byKind.set(p.kind, [...(byKind.get(p.kind) ?? []), p.job.valueCents]);
   const medians = new Map([...byKind].filter(([, xs]) => xs.length >= PRICE_SAMPLE).map(([k, xs]) => [k, median(xs)!]));
   for (const p of placed) {

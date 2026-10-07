@@ -114,6 +114,11 @@ Isaac, 2026-10-07:
   - The 60-day close is ServiceM8's automation, not a client's no; it is read off the job's last edit, so a job edited again afterwards reads as marked by hand.
   - A lost quote replaced by a later job for the same client (#2505's VRV re-quoted as #2694, won) is still lost here; Void on the Quotes face takes it out.
 
+- **Job type is read as far as the words allow, and never guessed** (Isaac, 2026-10-07: "i just need the most accurate data").
+  - Each new reading was checked by hand against the 710 jobs of the two years whose type couldn't be read: "split" on its own, "high walls", wall-split models (AP Series, Avanti, MHI Bronte, Daikin Cora and Zena); a ducted system of 7 kW or more with zones, ducts or the GAA/HAA series, or a ducted model or a bulk head; a multi as one outdoor "to serve" several; one unit of 6 kW or less. 111 of the 710 are placed; the rest say nothing that tells ("As Per Quote", "Install AC", blank).
+  - **Ventilation** is a job type of its own: exhaust, inline and subfloor fans, Lossnay, fresh air.
+  - Job type doesn't hold a job out of any figure, so it isn't counted in "N jobs to decide": it shows at the bottom of To decide, and the job counts as Not known by type until it's given.
+
 ## What the numbers stand on
 
 Most job data is the ServiceM8 mirror (`sm8_*`, docs/migrations/sm8_mirror.sql and sm8_jobs_money.sql):

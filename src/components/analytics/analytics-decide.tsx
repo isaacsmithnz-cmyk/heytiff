@@ -44,6 +44,9 @@ function without<T>(m: Record<string, T>, k: string): Record<string, T> {
   return out;
 }
 
+/** The questions that hold a job out of the figures first; job type last. */
+const SHOWN_ORDER: readonly Question[] = [...QUESTIONS.filter((q) => q !== "kind"), "kind"];
+
 export function ToDecide({
   asks,
   names,
@@ -125,7 +128,9 @@ export function ToDecide({
   }
 
   const open = all.filter((a) => answerOf(a) === null && !voidNow(a));
-  const openJobs = new Set(open.map((a) => a.job.id)).size;
+  /* job type only fills the job-type breakdowns, so it isn't counted as waiting */
+  const openJobs = new Set(open.filter((a) => a.question !== "kind").map((a) => a.job.id)).size;
+  const openKinds = open.filter((a) => a.question === "kind").length;
   const decidedBefore = asks.filter(
     (a) => a.answer !== null && !touched.has(keyOf(a)) && cleanupFor(a.question, a.answer, a.job.status) === null,
   ).length;
@@ -138,6 +143,7 @@ export function ToDecide({
           {openJobs === 0
             ? "Nothing to decide. Every job is in the figures."
             : `${openJobs.toLocaleString("en-AU")} ${openJobs === 1 ? "job" : "jobs"} to decide.`}
+          {openKinds > 0 && ` ${openKinds.toLocaleString("en-AU")} more with no job type, at the bottom.`}
         </p>
         {waitingWorkOrders.length > 1 && (
           <button type="button" className="an-choice" onClick={allToWorkOrder}>
@@ -152,7 +158,7 @@ export function ToDecide({
       </div>
       {!canDecide && <p className="an-err">Answers can&rsquo;t be kept until the database is updated for them.</p>}
 
-      {QUESTIONS.map((q) => {
+      {SHOWN_ORDER.map((q) => {
         const ofQ = all.filter((a) => a.question === q);
         /* an answer ServiceM8 still disagrees with stays in view: its change is still to make */
         const rows = ofQ.filter((a) => {
@@ -362,16 +368,22 @@ function evidence(a: Ask): { label: string; said: string; hint: string | null } 
         label: "Job description",
         said: brief,
         hint:
-          a.kind && a.kind !== "service" && a.kind !== "maintenance"
-            ? `Reads like ${kindLabel(a.kind).toLowerCase().replace("vrf", "VRF")} work, and no quote was sent.`
-            : `No quote was sent, and it comes to ${money(j.valueCents)}.`,
+          (j.status ?? "").trim().toLowerCase() === "unsuccessful"
+            ? `Unsuccessful in ServiceM8, priced at ${money(j.valueCents)}, and no quote was sent from it.`
+            : a.kind && a.kind !== "service" && a.kind !== "maintenance"
+              ? `Reads like ${kindLabel(a.kind).toLowerCase().replace("vrf", "VRF")} work, and no quote was sent.`
+              : `No quote was sent, and it comes to ${money(j.valueCents)}.`,
       };
     case "outcome":
       return {
         label: "What doesn't match",
         said:
           (j.status ?? "").trim().toLowerCase() === "unsuccessful"
-            ? "Unsuccessful in ServiceM8, but marked paid."
+            ? j.paid
+              ? "Unsuccessful in ServiceM8, but marked paid."
+              : j.claimedOn
+                ? "Unsuccessful in ServiceM8, but a claim was invoiced on it."
+                : "Unsuccessful in ServiceM8, but it was a Work Order once its quote went out."
             : "Accepted on the proposal, and still a Quote in ServiceM8.",
         hint: null,
       };

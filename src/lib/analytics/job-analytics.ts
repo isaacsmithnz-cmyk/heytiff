@@ -1,10 +1,10 @@
 import { lineOf } from "@/lib/workboard/job-steps";
 import { plusDays } from "@/lib/workboard/dates";
 import { fmtAud } from "@/lib/workboard/project-money";
-import type { WorkKind } from "@/lib/quotes/labour-history";
-import { KINDS, kindLabel, type Decisions, type JobDecisions, type Question } from "./decisions";
+import { workKindOf } from "@/lib/quotes/labour-history";
+import { KINDS, kindLabel, type Decisions, type JobDecisions, type JobKind, type Question } from "./decisions";
 
-export { kindLabel };
+export { kindLabel, type JobKind };
 
 /* JOB ANALYTICS — what the business's own jobs say about its quoting
    (docs/job-analytics-plan.md; Isaac, 2026-10-07: "need an analytics page
@@ -29,14 +29,15 @@ export { kindLabel };
    same day the rule counts from. Each figure is set beside the same span a
    year earlier.
 
-   MONEY is ServiceM8's job total, which is inc GST (job-money.ts). It is
-   labelled, never converted.
+   MONEY is the job's own lines, ex GST (analytics-query says why: the job
+   total isn't there for most of the account). It is labelled, never
+   converted.
 
    WHAT CAN'T BE PLACED IS ASKED (Isaac: "anything unknown or questionable
    should be manually decided"). Four questions, answered on the To decide tab
    and kept in job_analytics_decisions (decisions.ts):
    - Is it a quote? A work order no quote was sent for that reads like an
-     install or comes to $3,000 or more. Until answered it is what the
+     install and comes to $3,000 ex GST or more. Until answered it is what the
      progress line says, not a quote.
    - Won or lost? ServiceM8 says Unsuccessful but the job was paid, or still a
      Quote though the client accepted HeyTiff's proposal. Until answered it is
@@ -62,12 +63,22 @@ export type AnalyticsJob = {
   raisedOn: string | null;
   /** the day the quote was sent, when ServiceM8 says */
   quoteSentOn: string | null;
-  /** the day it became a work order */
+  /** the day ServiceM8 made it a Quote */
+  quotedOn?: string | null;
+  /** its ServiceM8 category's name */
+  category?: string | null;
+  /** the day it became a work order, as ServiceM8 last set it */
   wonOn: string | null;
+  /** the day its first progress claim was raised: a deposit is a yes */
+  claimedOn?: string | null;
+  /** the day ServiceM8 first made a quote document for it */
+  quoteDocOn?: string | null;
+  /** ServiceM8's own automation made it Unsuccessful 60 days after it became a Quote */
+  closedUnanswered?: boolean;
   completedOn: string | null;
-  /** the job's total in cents, inc GST; null when nothing is priced */
+  /** what its lines come to, in cents ex GST; null when nothing is priced */
   valueCents: number | null;
-  kind: WorkKind | null;
+  kind: JobKind | null;
   /** ServiceM8 says it was paid */
   paid?: boolean;
   /** the client accepted HeyTiff's proposal for it */
@@ -87,11 +98,67 @@ const norm = (s: string | null) => (s ?? "").trim().toLowerCase();
 export const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
+/** Whether a job was quoted: the progress line's rule (a quote was sent, or
+    it is still a Quote or Unsuccessful), or ServiceM8 made it a Quote at least
+    a day before it became a Work Order. The sent stamp exists only on jobs
+    edited since mid-August 2026; the quote date covers the rest. On the live
+    account a job a Quote a day or more before its work order is worth $5,400
+    at the median, and one with no quote date $428: installs against call-outs. */
+export function wasQuoted(j: AnalyticsJob): boolean {
+  if (norm(j.status) === "unsuccessful") return unsuccessfulQuote(j);
+  if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) === "quote") return true;
+  return !!j.quotedOn && !!j.wonOn && j.wonOn > j.quotedOn;
+}
+
+/* WHAT UNSUCCESSFUL MEANS (Isaac, 2026-10-07: "You will have to investigate
+   unsuccessful jobs"). Read against the 80 Unsuccessful jobs of the live
+   account's year, it is four things:
+   - a quote that went out and lost: a quote was sent or its quote document
+     made (21 marked by hand, $284k);
+   - a quote ServiceM8 closed itself, 60 days to the hour after it became a
+     Quote, with no answer (32, $229k): still lost, and said apart;
+   - a work order called off before anything was quoted: a call-out the
+     tenant cancelled, a maintenance visit cut short (13): not a quote;
+   - an enquiry never priced or quoted (9): not a quote.
+   A job that was a Work Order and also had a quote sent or a claim invoiced
+   is asked (4, $65k), and one priced at $3,000 or more with no sign of a
+   quote leaving is asked whether it was a quote (1, $208k). */
+const quoteWentOut = (j: AnalyticsJob) => !!j.quoteSentOn || !!j.quoteDocOn;
+
+function unsuccessfulQuote(j: AnalyticsJob): boolean {
+  return quoteWentOut(j) || !!j.claimedOn;
+}
+
+/** ServiceM8 made it Unsuccessful 60 days after it became a Quote, give or
+    take two hours: its automation, not a client's no. Stamps are the
+    account's wall clock, so the two are compared as they stand. */
+export function closedAtSixtyDays(quoteStamp: string | null, editStamp: string | null): boolean {
+  const at = (s: string | null) => (s && s.length >= 19 ? Date.parse(`${s.slice(0, 10)}T${s.slice(11, 19)}Z`) : NaN);
+  const hours = (at(editStamp) - at(quoteStamp)) / 3_600_000;
+  return Number.isFinite(hours) && Math.abs(hours - 60 * 24) <= 2;
+}
+
+/* THE FIRST YES (Isaac, 2026-10-07: "The proposal was updated which turned
+   it back to a quote"). Updating an accepted proposal makes the job a Quote
+   again, and its acceptance makes it a Work Order again, so ServiceM8's
+   work-order date is the last yes, not the first: on the live account 53
+   jobs had a claim invoiced before it (#2587: deposit 28 August, work order
+   25 September). The first claim is the earliest sure yes, so the yes is
+   whichever came first; and a Quote that already has a claim is a won job
+   whose proposal is being updated, never an open or lapsed quote. */
+
+/** The day of the first yes: the work order or the first claim, whichever came first. */
+export function yesOn(j: AnalyticsJob): string | null {
+  const days = [j.wonOn, j.claimedOn].filter((d): d is string => !!d).sort();
+  return days[0] ?? null;
+}
+
 /** Where a quote stands today; null for a job that isn't a quote. */
 export function outcomeOf(j: AnalyticsJob, today: string): Outcome | null {
-  if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) !== "quote") return null;
+  if (!wasQuoted(j)) return null;
   const s = norm(j.status);
   if (s === "work order" || s === "completed") return "won";
+  if (s === "quote" && j.claimedOn) return "won";
   if (s === "unsuccessful") return "lost";
   if (s !== "quote") return null;
   if (!j.raisedOn) return "open";
@@ -101,45 +168,145 @@ export function outcomeOf(j: AnalyticsJob, today: string): Outcome | null {
 /* ── what can't be placed ── */
 
 /** A work order this big, with no quote sent, may have been quoted outside
-    ServiceM8: asked. Cents, inc GST. */
+    ServiceM8: asked. Cents, ex GST. */
 export const QUOTE_LIKELY_FROM_CENTS = 300_000;
 /** A won price this many times its kind's median, or this fraction of it, is
     asked about once the kind has PRICE_SAMPLE priced wins. */
 export const PRICE_OUTLIER_TIMES = 4;
 export const PRICE_SAMPLE = 5;
 
-const INSTALL: ReadonlySet<WorkKind> = new Set(["split", "multi", "ducted", "vrf"]);
+const INSTALL: ReadonlySet<JobKind> = new Set(["split", "multi", "ducted", "vrf"]);
 
-/** A work order no quote was sent for that reads like an install, or is big
-    enough to have been quoted outside ServiceM8. */
+/** A work order with no sign of a quote that reads like an install (by its
+    kind or its category) and comes to $3,000 ex GST or more: quoted outside
+    ServiceM8, or done and charged? */
 function mightBeQuote(j: AnalyticsJob): boolean {
-  if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) !== "work") return false;
-  return (j.kind !== null && INSTALL.has(j.kind)) || (j.valueCents ?? 0) >= QUOTE_LIKELY_FROM_CENTS;
+  if (wasQuoted(j)) return false;
+  if (norm(j.status) === "unsuccessful") return !j.wonOn && (j.valueCents ?? 0) >= QUOTE_LIKELY_FROM_CENTS;
+  const install = (j.kind !== null && INSTALL.has(j.kind)) || /install|construction/i.test(j.category ?? "");
+  return install && (j.valueCents ?? 0) >= QUOTE_LIKELY_FROM_CENTS;
 }
 
-/** ServiceM8's status and the money or the proposal disagree. */
+/* WHAT THE WORDS SAY WHEN THE PROGRESS LINE'S WORDS DON'T (Isaac,
+   2026-10-07: "i just need the most accurate data"). Read against the 710
+   jobs of the live account's two years whose kind workKindOf couldn't
+   tell, each reading below was checked against the jobs it places:
+   - multi first: one outdoor "to serve" several, bulkheads counted or "off
+     an outdoor", one outdoor and two indoors, or "80multi";
+   - ducted: a system of 7 kW or more with ducts, zones, return air or the
+     Mitsubishi GAA/HAA series; a ducted model (PEAD; Daikin FDYAN, FBA); or
+     a bulk head, as workKindOf reads "bulkhead".
+     A duct, a zone motor or a return air grille alone is ductwork done to
+     a system, or a rangehood's, not a ducted install, and stays unknown;
+   - wall split: "split" on its own ("mits 2.5kw split"), but not "split
+     level" or a split disconnected or reconnected; "high walls"; and the
+     wall-split models (AP Series, Avanti, MHI Bronte, Daikin Cora and Zena,
+     MSZ, FTXM). Bronte alone is a suburb, and "split air flow" a verb;
+   - ventilation: exhaust and inline fans, subfloor ventilation, Lossnay and
+     fresh air, which is none of the air conditioning kinds. A fan motor is
+     an air conditioner's as often as not, and isn't read;
+   - one unit of 6 kW or less and nothing else sized is a wall split: ducted
+     starts above it, a cassette or a console is said so, and a job naming
+     two sizes may be two units or a multi.
+   Anything else stays unknown and is asked. */
+const kwSizes = (words: string) => [...words.matchAll(/(\d+(?:\.\d+)?)\s*kw\b/gi)].map((m) => Number(m[1]));
+const DUCTED_MODELS = /\b(pead|fdyan?|fdyq|fba)[\w-]*|\bbulk\s*heads?\b/i;
+const DUCTED_WORDS = /\bducts?\b|\bzones?\b|\breturn\s+air\b|\b(gaa|haa)\b/i;
+const MULTI_WORDS =
+  /\boutdoor\b[^.]{0,40}\bto\s+serve\b|\bto\s+serve\s+\d+\s*x\b|\dmulti\b|\b\d+\s*x\s+[^.]{0,40}\bbulk\s*heads\b|\bbulk\s*heads\s+off\b/i;
+const SPLIT_WORD = /\bsplits?\b(?!\s+(level|the|into|between|up|it|them|air|flow)\b)/i;
+const SPLIT_MODELS = /\bap\s+series\b|\bavanti\b|\bmhi\s+bronte\b|\b(msz|ftxm|ctxm|ftxv)[\w-]*/i;
+const NOT_AN_INSTALL = /\b(dis|re)connect\w*|\breinstall\w*/i;
+const NOT_A_WALL_UNIT = /\bcassette\b|\bconsole\b|\bfloor\s*standing\b|\bbulkhead\b/i;
+const VENTILATION_WORDS =
+  /\b(exhaust|vent[a-z]*lation|lossnay|fresh\s*air|rangehood)\b|\b(inline|in-line|sub\s*floor|subfloor|underfloor|roof|bathroom)\s+fans?\b|\b\d+\s*mm\s+(\w+\s+){0,3}fans?\b/i;
+
+function readsDucted(words: string): boolean {
+  if (DUCTED_MODELS.test(words)) return true;
+  return kwSizes(words).some((kw) => kw >= 7) && DUCTED_WORDS.test(words);
+}
+
+/** One outdoor and two indoors or more, sized: a multi. */
+const oneOutdoorManyIndoors = (words: string) =>
+  /\boutdoor\b/i.test(words) && (words.match(/\bindoors?\b/gi)?.length ?? 0) >= 2 && kwSizes(words).length > 0;
+
+function readsSplit(words: string): boolean {
+  if (SPLIT_MODELS.test(words)) return true;
+  if (/\b(cora|zena)\b/i.test(words) && /\bdaikin\b/i.test(words)) return true;
+  return SPLIT_WORD.test(words) && !NOT_AN_INSTALL.test(words);
+}
+
+/** One sized unit of 6 kW or less, not a cassette or a console, and nothing
+    else sized or counted. */
+function oneSmallUnit(words: string): boolean {
+  const sizes = new Set(kwSizes(words));
+  if (sizes.size !== 1 || /\b\d+\s*x\b|\boutdoor\b/i.test(words) || NOT_A_WALL_UNIT.test(words)) return false;
+  const [kw] = [...sizes];
+  return kw! > 0 && kw! <= 6;
+}
+
+/** The kind of work, read for the figures: a service call or maintenance by
+    its category first, whatever its words mention (a "Service call" about a
+    ducted system is a service, not a ducted install), then the job's words
+    and its lines' names together ("MITSUBISHI ELEC. HIGH WALL SPLIT 4.2KW"),
+    "HWS" being the trade's high wall split, then the readings above. */
+export function analyticsKindOf(description: string | null, lineNames: readonly string[], category: string | null): JobKind | null {
+  const cat = (category ?? "").toLowerCase();
+  if (cat.includes("service")) return "service";
+  if (cat.includes("maintenance")) return "maintenance";
+  const words = [description ?? "", ...lineNames].join(" ");
+  const read = workKindOf(words, category);
+  if (read) return read;
+  if (/\bhws\b/i.test(words)) return "split";
+  if (MULTI_WORDS.test(words) || oneOutdoorManyIndoors(words)) return "multi";
+  if (readsDucted(words)) return "ducted";
+  if (readsSplit(words)) return "split";
+  if (VENTILATION_WORDS.test(words)) return "ventilation";
+  if (oneSmallUnit(words)) return "split";
+  return null;
+}
+
+/* A DAY AT TAFE IS NOT A JOB (Isaac, 2026-10-07: "TAFE NSW is the booking
+   to mark the apprentices day at tafe"). Until March 2026 the apprentice's
+   day at TAFE went into ServiceM8 as a job card for the client TAFE NSW, one
+   a week, mostly under Warranty: 162 on the live account, none quoted,
+   invoiced or paid. Time off has been ServiceM8's staff leave since
+   (workboard/away). A card for a client named TAFE that was never quoted,
+   invoiced or paid is that booking, and is left out before any figure: it
+   would count as a job raised, an enquiry and a warranty call-out. Work done
+   for a TAFE campus is quoted or invoiced, and counts. */
+export function isTafeDay(clientName: string | null, card: { quoted: boolean; invoiced: boolean; paid: boolean }): boolean {
+  return /\btafe\b/i.test(clientName ?? "") && !card.quoted && !card.invoiced && !card.paid;
+}
+
+/** ServiceM8's status and the money or the proposal disagree: Unsuccessful
+    but paid, with a claim invoiced, or once a Work Order on a quote that went
+    out; or accepted in HeyTiff and still a Quote. */
 function disputed(j: AnalyticsJob): boolean {
   const s = norm(j.status);
-  return (s === "unsuccessful" && !!j.paid) || (s === "quote" && !!j.acceptedInHeyTiff);
+  return (
+    (s === "unsuccessful" && (!!j.paid || !!j.claimedOn || (!!j.wonOn && quoteWentOut(j)))) ||
+    (s === "quote" && !!j.acceptedInHeyTiff && !j.claimedOn)
+  );
 }
 
 export type Placement = {
   /** where it stands with the answers given; null when it isn't counted as a quote */
   outcome: Outcome | null;
   /** its kind, answered or read */
-  kind: WorkKind | null;
+  kind: JobKind | null;
   /** the questions it raises, answered or not (price is decided across jobs, in placeIn) */
   raises: Question[];
 };
 
 /** One job with its answers applied. */
 export function placeJob(j: AnalyticsJob, today: string, d: JobDecisions = {}): Placement {
-  const kind = (d.kind as WorkKind | undefined) ?? j.kind;
+  const kind = (d.kind as JobKind | undefined) ?? j.kind;
   const raises: Question[] = [];
   let outcome: Outcome | null;
   if (mightBeQuote(j)) {
     raises.push("quote");
-    outcome = d.quote === "quote" ? "won" : null;
+    outcome = d.quote === "quote" ? (norm(j.status) === "unsuccessful" ? "lost" : "won") : null;
   } else if (disputed(j)) {
     raises.push("outcome");
     outcome = d.outcome === "won" ? "won" : d.outcome === "lost" ? "lost" : null;
@@ -211,7 +378,7 @@ const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
 type Placed = {
   job: AnalyticsJob;
   outcome: Outcome;
-  kind: WorkKind | null;
+  kind: JobKind | null;
   /** its price counts toward the prices */
   priced: boolean;
 };
@@ -223,7 +390,7 @@ export type Ask = {
   job: AnalyticsJob;
   answer: string | null;
   /** the job's kind, answered or read */
-  kind: WorkKind | null;
+  kind: JobKind | null;
   /** price: its kind's median, and how many times it the price is */
   median?: number;
   times?: number;
@@ -247,7 +414,7 @@ function placeIn(jobs: readonly AnalyticsJob[], span: Span, today: string, decis
   /* A price far from its kind's is asked about, and left out of the prices
      until it is counted. The median is every won price of the kind, the odd
      one included: one stray can't move a middle of five. */
-  const byKind = new Map<WorkKind, number[]>();
+  const byKind = new Map<JobKind, number[]>();
   for (const p of placed) if (p.outcome === "won" && p.kind && p.job.valueCents !== null) byKind.set(p.kind, [...(byKind.get(p.kind) ?? []), p.job.valueCents]);
   const medians = new Map([...byKind].filter(([, xs]) => xs.length >= PRICE_SAMPLE).map(([k, xs]) => [k, median(xs)!]));
   for (const p of placed) {
@@ -387,7 +554,10 @@ export const YES_BINS = [
 ] as const;
 
 /** A lost quote, for the review that voids the ones that weren't real jobs. */
-export type LostJob = { job: AnalyticsJob; lapsed: boolean };
+/** Why a lost quote is lost: marked Unsuccessful by hand, closed by
+    ServiceM8 at 60 days with no answer, or past the 180 days as a Quote. */
+export type LostWhy = "marked" | "closed" | "lapsed";
+export type LostJob = { job: AnalyticsJob; why: LostWhy };
 
 export type QuotesFigures = {
   /** won quotes by days from the job being raised to its work order */
@@ -395,7 +565,10 @@ export type QuotesFigures = {
   /** wins that came after the 180 days, which count as won */
   lateWins: number;
   winsDated: number;
+  /** marked Unsuccessful by hand */
   unsuccessful: { count: number; cents: number };
+  /** made Unsuccessful by ServiceM8 at 60 days, with no answer */
+  closed: { count: number; cents: number };
   lapsed: { count: number; cents: number };
   /** every lost quote in the span, newest first, to review */
   lostJobs: LostJob[];
@@ -412,12 +585,19 @@ export type QuotesFigures = {
 const COLD_AFTER = 60;
 const SOON = 30;
 
+function lostWhy(p: Placed): LostWhy | null {
+  if (p.outcome === "lapsed") return "lapsed";
+  if (p.outcome !== "lost") return null;
+  return p.job.closedUnanswered && norm(p.job.status) === "unsuccessful" ? "closed" : "marked";
+}
+
 function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: string, decisions: Decisions): QuotesFigures {
   const counts = YES_BINS.map(() => 0);
   let winsDated = 0;
   for (const p of now) {
-    if (p.outcome !== "won" || !p.job.wonOn || !p.job.raisedOn) continue;
-    const d = Math.max(0, daysBetween(p.job.raisedOn, p.job.wonOn));
+    const yes = yesOn(p.job);
+    if (p.outcome !== "won" || !yes || !p.job.raisedOn) continue;
+    const d = Math.max(0, daysBetween(p.job.raisedOn, yes));
     counts[YES_BINS.findIndex((b) => d <= b.upTo)]!++;
     winsDated++;
   }
@@ -445,12 +625,13 @@ function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: stri
     daysToYes: YES_BINS.map((b, i) => ({ label: b.label, count: counts[i]!, late: b.upTo === Infinity })),
     lateWins: counts[counts.length - 1]!,
     winsDated,
-    unsuccessful: pack(now.filter((p) => p.outcome === "lost")),
+    unsuccessful: pack(now.filter((p) => lostWhy(p) === "marked")),
+    closed: pack(now.filter((p) => lostWhy(p) === "closed")),
     lapsed: pack(now.filter((p) => p.outcome === "lapsed")),
     lostJobs: now
       .filter((p) => p.outcome === "lost" || p.outcome === "lapsed")
       .sort((a, b) => (b.job.raisedOn ?? "").localeCompare(a.job.raisedOn ?? ""))
-      .map((p) => ({ job: p.job, lapsed: p.outcome === "lapsed" })),
+      .map((p) => ({ job: p.job, why: lostWhy(p)! })),
     openNow: open,
   };
 }

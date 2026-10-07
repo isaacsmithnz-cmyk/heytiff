@@ -1,5 +1,9 @@
 import { WORK_KIND_WORDS, type WorkKind } from "@/lib/quotes/labour-history";
 
+/** A kind of job in the figures: the progress line's kinds, and ventilation,
+    which the analytics read (job-analytics) and the labour memory doesn't. */
+export type JobKind = WorkKind | "ventilation";
+
 /* THE TO DECIDE QUESTIONS (Isaac, 2026-10-07: "anything unknown or
    questionable should be manually decided"). What can be asked about a job,
    the answers each takes, and the words for both, in one place: the figures
@@ -17,7 +21,7 @@ export type Question = "quote" | "outcome" | "kind" | "price" | "void";
     raised by mistake, and is left out of every figure, enquiries included. */
 export const QUESTIONS: readonly Question[] = ["quote", "outcome", "kind", "price"];
 
-export const KINDS: readonly WorkKind[] = ["split", "multi", "ducted", "vrf", "service", "maintenance"];
+export const KINDS: readonly JobKind[] = ["split", "multi", "ducted", "vrf", "ventilation", "service", "maintenance"];
 
 export const ANSWERS: Record<Question, readonly string[]> = {
   quote: ["quote", "not_quote"],
@@ -53,25 +57,34 @@ export function decisionsFrom(rows: readonly { sm8_job_uuid: string; question: s
 }
 
 /** A kind of work as a row's label: "Wall split", "VRF". */
-export const kindLabel = (k: WorkKind | null) =>
-  k === null ? "Not known" : k === "vrf" ? "VRF" : WORK_KIND_WORDS[k].charAt(0).toUpperCase() + WORK_KIND_WORDS[k].slice(1);
+export const kindLabel = (k: JobKind | null) =>
+  k === null
+    ? "Not known"
+    : k === "vrf"
+      ? "VRF"
+      : k === "ventilation"
+        ? "Ventilation"
+        : WORK_KIND_WORDS[k].charAt(0).toUpperCase() + WORK_KIND_WORDS[k].slice(1);
 
 /* ── the words ── */
 
 export const QUESTION_WORDS: Record<Question, { title: string; why: string }> = {
   quote: {
     title: "Is it a quote?",
-    why: "Work orders no quote was sent for in ServiceM8 that read like an install, or come to $3,000 or more. A quote counts toward the win rate; a call-out doesn't.",
+    why: "Jobs of $3,000 ex GST or more with no sign of a quote leaving ServiceM8: a work order that reads like an install, or a job marked Unsuccessful. A quote counts toward the win rate; a call-out, or an enquiry never quoted, doesn't.",
   },
-  outcome: { title: "Won or lost?", why: "ServiceM8's status and the money or the proposal disagree." },
-  kind: { title: "What kind of job?", why: "The job type couldn't be read from the job's words or its category." },
+  outcome: { title: "Won or lost?", why: "ServiceM8's status and the money, a claim or the proposal disagree." },
+  kind: {
+    title: "What kind of job?",
+    why: "The job type couldn't be read from the job's words, its lines or its category. The job is in every figure already; its type only places it in the job-type breakdowns, where it shows as Not known until it's given.",
+  },
   price: { title: "Does this price belong?", why: "Far from what won jobs of the kind usually cost." },
   void: { title: "Void", why: "Not real jobs: duplicates, tests, spam, raised by mistake. Left out of every figure." },
 };
 
 /** The button that gives an answer. */
 export function answerLabel(question: Question, answer: string): string {
-  if (question === "kind") return kindLabel(answer as WorkKind);
+  if (question === "kind") return kindLabel(answer as JobKind);
   return (
     {
       quote: "A quote, won",
@@ -87,7 +100,7 @@ export function answerLabel(question: Question, answer: string): string {
 
 /** What an answer did, said once it's given. */
 export function answerSaid(question: Question, answer: string): string {
-  if (question === "kind") return `Counted as ${kindLabel(answer as WorkKind).replace(/^(?!VRF)./, (c) => c.toLowerCase())}.`;
+  if (question === "kind") return `Counted as ${kindLabel(answer as JobKind).replace(/^(?!VRF)./, (c) => c.toLowerCase())}.`;
   return (
     {
       quote: "A quote, won.",

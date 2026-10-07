@@ -6,10 +6,26 @@ import { money, pct, type Bar, type PriceRow, type Week } from "@/lib/analytics/
 
 /* The page's marks, drawn the one way (analytics.css says how they look).
    Every figure a mark stands for is also written beside it, so nothing is
-   read off a bar alone. */
+   read off a bar alone: three of the chart colours are under 3:1 on white,
+   and a label is what lets them be. */
+
+/** A kind of job's colour, the same in every chart (tokens.css, in order). */
+export const KIND_COLOUR: Record<string, string> = {
+  split: "var(--chart-1)",
+  multi: "var(--chart-2)",
+  ducted: "var(--chart-3)",
+  vrf: "var(--chart-4)",
+  service: "var(--chart-5)",
+  maintenance: "var(--chart-6)",
+  ventilation: "var(--chart-7)",
+  unknown: "var(--q)",
+};
+
+/** Ordered groups step through one blue, the first the lightest. */
+export const STEP_COLOUR = ["var(--chart-seq-1)", "var(--chart-seq-2)", "var(--chart-seq-3)", "var(--chart-seq-4)"];
 
 /** A list of rates: the label, a bar the length of the rate, "50% of 312". */
-export function RateBars({ title, bars }: { title: string; bars: Bar[] }) {
+export function RateBars({ title, bars, colourOf }: { title: string; bars: Bar[]; colourOf?: (key: string, i: number) => string }) {
   return (
     <div>
       <h3>{title}</h3>
@@ -17,11 +33,11 @@ export function RateBars({ title, bars }: { title: string; bars: Bar[] }) {
         <p className="an-say">Nothing decided yet.</p>
       ) : (
         <div className="an-bars">
-          {bars.map((b) => (
+          {bars.map((b, i) => (
             <div className="an-bar" key={b.key}>
               <span>{b.label}</span>
               <span className="an-track" aria-hidden="true">
-                <span style={{ width: `${((b.rate ?? 0) * 100).toFixed(1)}%` }} />
+                <span style={{ width: `${((b.rate ?? 0) * 100).toFixed(1)}%`, background: colourOf?.(b.key, i) }} />
               </span>
               <span className="an-num">
                 <b>{pct(b.rate)}</b> <span>of {b.decided}</span>
@@ -92,7 +108,11 @@ export function PriceTable({ rows }: { rows: PriceRow[] }) {
                       <span className="an-whisk" />
                       <span
                         className="an-mid"
-                        style={{ left: at(r.p25), width: width > 0 ? `${(((r.p75 - r.p25) / width) * 100).toFixed(1)}%` : "0" }}
+                        style={{
+                          left: at(r.p25),
+                          width: width > 0 ? `${(((r.p75 - r.p25) / width) * 100).toFixed(1)}%` : "0",
+                          background: KIND_COLOUR[r.key],
+                        }}
                       />
                       <span className="an-med" style={{ left: at(r.median) }} />
                     </span>
@@ -177,8 +197,8 @@ export function EnquiriesChart({ weeks }: { weeks: Week[] }) {
           <span className="an-grid base" style={{ top: 199 }} aria-hidden="true" />
           <span className="an-cross" style={{ left: left(at) }} aria-hidden="true" />
           <svg viewBox="0 0 1000 200" preserveAspectRatio="none" width="100%" height="200" aria-hidden="true">
-            <path d={path("before")} fill="none" stroke="var(--q)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            <path d={path("now")} fill="none" stroke="var(--ink)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            <path d={path("before")} fill="none" stroke="var(--chart-2)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            <path d={path("now")} fill="none" stroke="var(--chart-1)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
           </svg>
           <span className="an-dot before" style={{ left: left(at), top: y(w.before) }} aria-hidden="true" />
           <span className="an-dot" style={{ left: left(at), top: y(w.now) }} aria-hidden="true" />

@@ -89,6 +89,36 @@ Isaac, 2026-10-07:
   - Once a row has gone to ServiceM8, it has no Undo; the change is then ServiceM8's, and is undone there.
   - **Not written back:** brand, "is it a quote" and "leave it out of prices", because ServiceM8 has no field for them. Job type could set the ServiceM8 category, but only once each business maps its own categories to the job types. Not in the mock-up.
 
+- **An apprentice's day at TAFE is not a job** (Isaac, 2026-10-07: "TAFE NSW is the booking to mark the apprentices day at tafe").
+  - Until March 2026 the TAFE day was booked as a ServiceM8 job card for the client TAFE NSW, weekly, mostly under Warranty: 49 in the last 12 months and 112 the year before. None was quoted, invoiced or paid.
+  - A card for a client with TAFE in its name that was never quoted, invoiced or paid is left out before any figure. Real work for a TAFE campus is quoted or invoiced, and still counts.
+  - Without it, jobs raised read 1,370 against 1,288 (+6%); with it, 1,321 against 1,176 (+12%).
+
+- **The first claim is a yes** (Isaac, 2026-10-07: "The proposal was updated which turned it back to a quote").
+  - Updating an accepted proposal makes the job a Quote again, and accepting it again makes it a Work Order again. ServiceM8's work-order date is then the last yes, not the first.
+  - Days to a yes run to whichever came first: the work order or the first claim (the deposit). In the last 12 months that moves 15 wins earlier, by 68 days on average. Job 2587 (Troy Porter): deposit 28 Aug, work order 25 Sep.
+  - A Quote that already has a claim is a won job whose proposal is being updated. It is counted won, never open or lapsed.
+  - A job Unsuccessful in ServiceM8 with a claim invoiced on it is asked on To decide, "Won or lost?", as one marked paid is (5 on the account).
+
+- **What Unsuccessful means** (Isaac, 2026-10-07: "You will have to investigate unsuccessful jobs"). The year's 80 Unsuccessful jobs ($802k), read one by one, were five things:
+
+  | | Jobs | Ex GST | Counted as |
+  |---|---|---|---|
+  | A quote went out (sent, or its quote document made) and was marked Unsuccessful by hand | 21 | $284k | lost |
+  | A quote ServiceM8 closed itself, 60 days to the hour after it became a Quote | 32 | $229k | lost, said apart: "No answer, closed by ServiceM8 at 60 days" |
+  | A work order called off with no quote: a cancelled call-out, a maintenance visit cut short | 13 | $16k | not a quote |
+  | An enquiry never priced or quoted | 9 | $0 | not a quote |
+  | A Work Order once, with its quote sent or a claim invoiced | 4 | $65k | asked: Won or lost? |
+  | Priced at $3,000 or more, no sign of a quote leaving ServiceM8 | 1 | $208k | asked: Is it a quote? |
+
+  - The 60-day close is ServiceM8's automation, not a client's no; it is read off the job's last edit, so a job edited again afterwards reads as marked by hand.
+  - A lost quote replaced by a later job for the same client (#2505's VRV re-quoted as #2694, won) is still lost here; Void on the Quotes face takes it out.
+
+- **Job type is read as far as the words allow, and never guessed** (Isaac, 2026-10-07: "i just need the most accurate data").
+  - Each new reading was checked by hand against the 710 jobs of the two years whose type couldn't be read: "split" on its own, "high walls", wall-split models (AP Series, Avanti, MHI Bronte, Daikin Cora and Zena); a ducted system of 7 kW or more with zones, ducts or the GAA/HAA series, or a ducted model or a bulk head; a multi as one outdoor "to serve" several; one unit of 6 kW or less. 111 of the 710 are placed; the rest say nothing that tells ("As Per Quote", "Install AC", blank).
+  - **Ventilation** is a job type of its own: exhaust, inline and subfloor fans, Lossnay, fresh air.
+  - Job type doesn't hold a job out of any figure, so it isn't counted in "N jobs to decide": it shows at the bottom of To decide, and the job counts as Not known by type until it's given.
+
 ## What the numbers stand on
 
 Most job data is the ServiceM8 mirror (`sm8_*`, docs/migrations/sm8_mirror.sql and sm8_jobs_money.sql):

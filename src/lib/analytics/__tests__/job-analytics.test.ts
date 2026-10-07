@@ -2,6 +2,11 @@
    the figures the page draws, on jobs shaped as the mirror hands them over. */
 import {
   analyse,
+  analyticsKindOf,
+  isTafeDay,
+  closedAtSixtyDays,
+  yesOn,
+  wasQuoted,
   change,
   LAPSE_AFTER_DAYS,
   money,
@@ -39,9 +44,11 @@ describe("which jobs are quotes, and where each stands", () => {
     expect(outcomeOf(job({ status: "Completed", quoteSentOn: "2026-09-02" }), TODAY)).toBe("won");
   });
 
-  it("counts Unsuccessful as lost, sent or not", () => {
-    expect(outcomeOf(job({ status: "Unsuccessful" }), TODAY)).toBe("lost");
+  it("counts Unsuccessful as lost once a quote went out, its document made or a claim invoiced", () => {
     expect(outcomeOf(job({ status: "Unsuccessful", quoteSentOn: "2026-09-02" }), TODAY)).toBe("lost");
+    expect(outcomeOf(job({ status: "Unsuccessful", quoteDocOn: "2026-09-02" }), TODAY)).toBe("lost");
+    // never quoted: not a quote at all
+    expect(outcomeOf(job({ status: "Unsuccessful" }), TODAY)).toBeNull();
   });
 
   it("counts a Quote as lost once it is more than 180 days old, and not a day before", () => {
@@ -60,7 +67,7 @@ describe("which jobs are quotes, and where each stands", () => {
 
   it("reads ServiceM8's status whatever its case or spacing", () => {
     expect(outcomeOf(job({ status: " work order ", quoteSentOn: "2026-09-02" }), TODAY)).toBe("won");
-    expect(outcomeOf(job({ status: "UNSUCCESSFUL" }), TODAY)).toBe("lost");
+    expect(outcomeOf(job({ status: "UNSUCCESSFUL", quoteSentOn: "2026-09-02" }), TODAY)).toBe("lost");
   });
 });
 
@@ -235,7 +242,7 @@ describe("what can't be placed is asked, and the answers count", () => {
 
   it("asks whether a work order with no quote sent was quoted, when it reads like an install or is big", () => {
     const ducted = job({ id: "wo-ducted", status: "Completed", quoteSentOn: null, kind: "ducted", valueCents: 1_800_000, raisedOn: "2026-08-01", wonOn: "2026-08-02" });
-    const big = job({ id: "wo-big", status: "Work Order", quoteSentOn: null, kind: null, valueCents: 450_000, raisedOn: "2026-08-03" });
+    const big = job({ id: "wo-big", status: "Work Order", quoteSentOn: null, kind: null, category: "Install", valueCents: 450_000, raisedOn: "2026-08-03" });
     const callout = job({ id: "wo-small", status: "Completed", quoteSentOn: null, kind: "service", valueCents: 25_000, raisedOn: "2026-08-04" });
     const before = analyse([ducted, big, callout], TODAY, "12m");
     expect(asksOf(before)).toEqual([
@@ -318,9 +325,9 @@ describe("a void job is not a job", () => {
   const jobs = [lost, won, lapsedDup, testJob];
 
   it("lists the lost quotes for review, newest first, the 180-day ones marked", () => {
-    expect(analyse(jobs, TODAY, "12m").quotes.lostJobs.map((l) => [l.job.id, l.lapsed])).toEqual([
-      ["spam", false],
-      ["dup", true],
+    expect(analyse(jobs, TODAY, "12m").quotes.lostJobs.map((l) => [l.job.id, l.why])).toEqual([
+      ["spam", "marked"],
+      ["dup", "lapsed"],
     ]);
   });
 
@@ -349,5 +356,130 @@ describe("a void job is not a job", () => {
     const outlier = job({ id: "paid", status: "Unsuccessful", paid: true, quoteSentOn: "2026-05-02", raisedOn: "2026-05-01" });
     expect(analyse([outlier], TODAY, "12m").toDecide.asks).toHaveLength(1);
     expect(analyse([outlier], TODAY, "12m", new Map([["paid", { void: "void" }]])).toDecide.asks).toEqual([]);
+  });
+});
+
+describe("what the live account taught the rules", () => {
+  it("counts a job ServiceM8 made a Quote a day or more before its work order as quoted, where no sent date was kept", () => {
+    expect(wasQuoted(job({ status: "Completed", quoteSentOn: null, quotedOn: "2026-03-01", wonOn: "2026-03-09" }))).toBe(true);
+    // made a Quote and a Work Order the same day: done and charged, not quoted
+    expect(wasQuoted(job({ status: "Completed", quoteSentOn: null, quotedOn: "2026-03-01", wonOn: "2026-03-01" }))).toBe(false);
+    expect(wasQuoted(job({ status: "Work Order", quoteSentOn: null, quotedOn: null, wonOn: "2026-03-01" }))).toBe(false);
+  });
+
+  it("asks about an install-like work order only from $3,000 ex GST, and never about a call-out", () => {
+    const small = job({ id: "small", status: "Completed", quoteSentOn: null, kind: "ducted", valueCents: 120_000, raisedOn: "2026-08-01" });
+    const callout = job({ id: "call", status: "Completed", quoteSentOn: null, kind: null, category: "Service Call", valueCents: 900_000, raisedOn: "2026-08-01" });
+    expect(analyse([small, callout], TODAY, "12m").toDecide.asks).toEqual([]);
+  });
+
+  it("reads a service call as a service whatever its words mention, and a kind from the lines' names", () => {
+    expect(analyticsKindOf("Ducted system not cooling", [], "Service Call")).toBe("service");
+    expect(analyticsKindOf("Annual service", [], "Annual Maintenance ")).toBe("maintenance");
+    expect(analyticsKindOf("As per quote", ["MITSUBISHI ELEC. HIGH WALL SPLIT 4.2KW", "HVAC Labour"], "Install")).toBe("split");
+    expect(analyticsKindOf("Supply and Install Mitsubishi Electric 3.5kw HWS", [], "Install")).toBe("split");
+    expect(analyticsKindOf("As per quote", ["As Per Quote"], "Install")).toBeNull();
+  });
+
+  it("takes the yes from the first claim when the proposal was updated after it, and counts a Quote with a claim as won", () => {
+    // #2587: deposit invoiced 28 Aug, the proposal updated (a Quote again), a work order again 25 Sep
+    const updated = job({ status: "Work Order", raisedOn: "2026-03-20", quoteSentOn: "2026-03-23", wonOn: "2026-09-25", claimedOn: "2026-08-28" });
+    expect(yesOn(updated)).toBe("2026-08-28");
+    expect(yesOn(job({ wonOn: "2026-05-01", claimedOn: "2026-06-01" }))).toBe("2026-05-01");
+    expect(yesOn(job({ wonOn: null, claimedOn: null }))).toBeNull();
+    // 161 days to the deposit, not 189 to the last work order, which would read as a late win
+    expect(analyse([updated], TODAY, "12m").quotes.daysToYes.map((b) => b.count)).toEqual([0, 0, 0, 0, 0, 1, 0]);
+
+    // mid-update: a Quote again, a year old, with a deposit on it — won, never lapsed
+    const midUpdate = job({ status: "Quote", raisedOn: "2025-10-20", quoteSentOn: "2025-10-21", claimedOn: "2026-01-10" });
+    expect(outcomeOf(midUpdate, TODAY)).toBe("won");
+  });
+
+  it("asks won or lost of a job Unsuccessful in ServiceM8 with a claim invoiced on it", () => {
+    const claimed = job({ id: "cl", status: "Unsuccessful", raisedOn: "2026-03-30", quoteSentOn: "2026-03-31", claimedOn: "2026-09-29" });
+    expect(analyse([claimed], TODAY, "12m").toDecide.asks.map((a) => [a.job.id, a.question])).toEqual([["cl", "outcome"]]);
+  });
+
+  it("reads a job's type from the words the live account uses, and leaves what can't be told unknown", () => {
+    const kind = (d: string, lines: string[] = [], cat: string | null = "Install") => analyticsKindOf(d, lines, cat);
+    // wall splits
+    expect(kind("Mits 2.5kw split to guest bed $2500 plus")).toBe("split");
+    expect(kind("Supply and Install: 2 x Carrier splits")).toBe("split");
+    expect(kind("Install Daikin Cora 6kw Change over")).toBe("split");
+    expect(kind("Would like a quote for the install of two MHI Avanti Plus 2 kW and one MHI Bronte 6.3 KW.")).toBe("split");
+    expect(kind("Fuji 3.5kw install", ["As Per Quote"])).toBe("split");
+    // ducted
+    expect(kind("Mitsubishi Electric 14kw 1Ph 3 Zones Downstairs")).toBe("ducted");
+    expect(kind("Ac installation of mits elec 14kw GAA system client supplying unit and 240v zone box")).toBe("ducted");
+    expect(kind("DAIKIN STANDARD DUCT 14KW R32 Included: FDYAN140AV1")).toBe("ducted");
+    expect(kind("Supply and Install 6kw Daikin Bulk Head Unit")).toBe("ducted");
+    // multi
+    expect(kind("Mitsubishi 5.2kw to serve 2 x 3.5kw high walls")).toBe("multi");
+    expect(kind("8kw Outdoor 7kw indoor 4.2kw indoor")).toBe("multi");
+    expect(kind("4 x Bulkheads off an Outdoor")).toBe("multi");
+    expect(kind("Replacement of upstairs beds high walls 80multi outdoor")).toBe("multi");
+    // ventilation
+    expect(kind("Supply and installation of 200mm silent series sub floor fan and associated ductwork")).toBe("ventilation");
+    expect(kind("Fw: Fresh Air Supply / Lossnay System Quote")).toBe("ventilation");
+    expect(kind("Underfloor ventallation")).toBe("ventilation");
+    // not what they seem
+    expect(kind("Fw: 14 Boundary Street, Bronte: Quote Notes: Downstairs (3 Units)")).toBeNull();
+    expect(kind("split level apartment, looking for whole property solution")).toBeNull();
+    expect(kind("BTO required to split air flow to new room - 10' and 12' Duct")).toBeNull();
+    expect(kind("Disconnect split temporarily.")).toBeNull();
+    expect(kind("Duct Work Re-configuration", ["JOINER METAL 250MM/10\" INCH"])).toBeNull();
+    expect(kind("Carry out service and cut bigger grills", ["Daikin Fan Motor"])).toBeNull();
+    expect(kind("FUJITSU COMP CASSETTE 5.0KW 1PH R32")).toBeNull();
+    expect(kind("Mitsubishi 9kw and 3.5kw installation", ["As Per Quote"])).toBeNull();
+    expect(kind("Install AC", ["As Per Quote"])).toBeNull();
+    // the category still comes first
+    expect(kind("Exhaust fan rattling", [], "Service Call")).toBe("service");
+  });
+
+  it("reads what an Unsuccessful job was: a quote lost, a work order called off, an enquiry never quoted, or a question", () => {
+    const at = { raisedOn: "2026-05-01", valueCents: 0 };
+    const lostQuote = job({ ...at, id: "lost", status: "Unsuccessful", quoteDocOn: "2026-05-02", valueCents: 600_000 });
+    const calledOff = job({ ...at, id: "off", status: "Unsuccessful", wonOn: "2026-05-01", valueCents: 28_000 });
+    const neverQuoted = job({ ...at, id: "enq", status: "Unsuccessful", valueCents: null });
+    const smallUnsent = job({ ...at, id: "small", status: "Unsuccessful", valueCents: 95_000 });
+    const bigUnsent = job({ ...at, id: "big", status: "Unsuccessful", valueCents: 20_800_000 });
+    const acceptedThenOff = job({ ...at, id: "acc", status: "Unsuccessful", quoteSentOn: "2026-05-03", wonOn: "2026-06-01", valueCents: 2_238_000 });
+    const a = analyse([lostQuote, calledOff, neverQuoted, smallUnsent, bigUnsent, acceptedThenOff], TODAY, "12m");
+    expect(a.top.quotes).toBe(1);
+    expect(a.quotes.lostJobs.map((l) => l.job.id)).toEqual(["lost"]);
+    expect(a.toDecide.asks.map((x) => [x.job.id, x.question])).toEqual([
+      ["big", "quote"],
+      ["acc", "outcome"],
+    ]);
+    // answered: a quote, so lost; won, so won
+    const answered = analyse([bigUnsent, acceptedThenOff], TODAY, "12m", new Map([["big", { quote: "quote" }], ["acc", { outcome: "won" }]]));
+    expect(answered.top.winRate).toMatchObject({ won: 1, decided: 2 });
+  });
+
+  it("says apart a quote ServiceM8 closed itself at 60 days with no answer", () => {
+    expect(closedAtSixtyDays("2026-03-11 09:14:02", "2026-05-10 09:14:40")).toBe(true);
+    expect(closedAtSixtyDays("2026-03-11 09:14:02", "2026-05-10 13:40:00")).toBe(false);
+    expect(closedAtSixtyDays("2026-03-11 09:14:02", "2026-05-12 09:14:02")).toBe(false);
+    expect(closedAtSixtyDays(null, "2026-05-10 09:14:40")).toBe(false);
+    const marked = job({ id: "m", status: "Unsuccessful", quoteSentOn: "2026-05-02", raisedOn: "2026-05-01", valueCents: 500_000 });
+    const closed = job({ id: "c", status: "Unsuccessful", quoteSentOn: "2026-04-02", raisedOn: "2026-04-01", valueCents: 300_000, closedUnanswered: true });
+    const q = analyse([marked, closed], TODAY, "12m").quotes;
+    expect(q.unsuccessful).toEqual({ count: 1, cents: 500_000 });
+    expect(q.closed).toEqual({ count: 1, cents: 300_000 });
+    expect(q.lostJobs.map((l) => [l.job.id, l.why])).toEqual([
+      ["m", "marked"],
+      ["c", "closed"],
+    ]);
+  });
+
+  it("knows a TAFE day booked as a job card, and still counts work done for TAFE", () => {
+    const none = { quoted: false, invoiced: false, paid: false };
+    expect(isTafeDay("TAFE NSW", none)).toBe(true);
+    expect(isTafeDay("tafe nsw", none)).toBe(true);
+    expect(isTafeDay("TAFE NSW", { ...none, quoted: true })).toBe(false);
+    expect(isTafeDay("TAFE NSW", { ...none, invoiced: true })).toBe(false);
+    expect(isTafeDay("TAFE NSW", { ...none, paid: true })).toBe(false);
+    expect(isTafeDay("Tafeline Builders", none)).toBe(false);
+    expect(isTafeDay(null, none)).toBe(false);
   });
 });

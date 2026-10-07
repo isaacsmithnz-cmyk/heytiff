@@ -11,9 +11,10 @@ import {
   pct,
   PERIODS,
   type JobAnalytics,
+  type LostWhy,
   type PeriodKey,
 } from "@/lib/analytics/job-analytics";
-import { DaysToYes, EnquiriesChart, PriceTable, RateBars } from "./analytics-charts";
+import { DaysToYes, EnquiriesChart, KIND_COLOUR, PriceTable, RateBars, STEP_COLOUR } from "./analytics-charts";
 import { ToDecide } from "./analytics-decide";
 import { useVoids, VoidList } from "./analytics-jobs";
 import "./analytics.css";
@@ -122,11 +123,21 @@ function PeriodPicker({ period }: { period: PeriodKey }) {
 }
 
 /** Jobs with a question still waiting on an answer. */
-const jobsToDecide = (a: JobAnalytics) => new Set(a.toDecide.asks.filter((x) => x.answer === null).map((x) => x.job.id)).size;
+/** Jobs waiting on an answer that moves a figure: job type only fills the
+    job-type breakdowns, and is counted apart. */
+const jobsToDecide = (a: JobAnalytics) =>
+  new Set(a.toDecide.asks.filter((x) => x.answer === null && x.question !== "kind").map((x) => x.job.id)).size;
+const kindsToDecide = (a: JobAnalytics) => a.toDecide.asks.filter((x) => x.answer === null && x.question === "kind").length;
 
 /* ── words for the figures ── */
 
 const days = (d: number | null) => (d === null ? "—" : `${Math.round(d * 10) / 10} ${d === 1 ? "day" : "days"}`);
+/** Why a lost quote is lost, on its row in the review. */
+const LOST_WHY: Record<LostWhy, string> = {
+  marked: "Marked Unsuccessful in ServiceM8",
+  closed: "No answer, closed by ServiceM8 at 60 days",
+  lapsed: `No answer after ${LAPSE_AFTER_DAYS} days`,
+};
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-AU")} ${n === 1 ? one : many}`;
 
 type Note = { words: string; tone: "" | "ok" | "warn" };
@@ -177,7 +188,7 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
   return (
     <div className="an">
       <p className="an-facts">
-        Quotes on jobs raised {spanWords(a)}, against the same days a year earlier. Money is inc GST, as ServiceM8 holds it.
+        Quotes on jobs raised {spanWords(a)}, against the same days a year earlier. Money is ex GST, from each job’s lines in ServiceM8.
         {a.voided.length > 0 &&
           ` ${plural(a.voided.length, "void job is", "void jobs are")} left out.`}
         {truncated && " The account holds more jobs than one read carries, so the oldest are left out."}
@@ -221,9 +232,9 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
             : `${plural(lapsed.count, "quote", "quotes")} with no answer after ${LAPSE_AFTER_DAYS} days ${lapsed.count === 1 ? "counts" : "count"} as lost, ${money(lapsed.cents)} of work.`}
         </p>
         <div className="an-cols">
-          <RateBars title="By job type" bars={a.byKind} />
-          <RateBars title="By price" bars={a.byPrice} />
-          <RateBars title="By days to quote" bars={a.bySpeed} />
+          <RateBars title="By job type" bars={a.byKind} colourOf={(k) => KIND_COLOUR[k] ?? "var(--q)"} />
+          <RateBars title="By price" bars={a.byPrice} colourOf={(k) => STEP_COLOUR[["lt5", "lt10", "lt20", "rest"].indexOf(k)] ?? STEP_COLOUR[0]!} />
+          <RateBars title="By days to quote" bars={a.bySpeed} colourOf={(k) => STEP_COLOUR[3 - ["d1", "d3", "d7", "slow"].indexOf(k)] ?? STEP_COLOUR[0]!} />
         </div>
       </section>
 
@@ -263,18 +274,21 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
 /** What is waiting on an answer, and what it keeps out of the figures. */
 function ToDecideLine({ a, onDecide }: { a: JobAnalytics; onDecide: () => void }) {
   const jobs = jobsToDecide(a);
-  if (jobs === 0) return null;
+  const kinds = kindsToDecide(a);
+  if (jobs === 0 && kinds === 0) return null;
   const out = a.toDecide.leftOut;
   return (
     <div className="an-todo">
       <span className="an-todo-dot" aria-hidden="true" />
       <span>
-        {plural(jobs, "job", "jobs")} to decide.
-        {out.jobs > 0 &&
+        {jobs > 0 && `${plural(jobs, "job", "jobs")} to decide.`}
+        {jobs > 0 &&
+          out.jobs > 0 &&
           ` ${out.jobs === jobs ? (jobs === 1 ? "It is" : "They are") : `${out.jobs.toLocaleString("en-AU")} of them, ${money(out.cents)} of work, are`} left out of these figures until then.`}
+        {kinds > 0 && `${jobs > 0 ? " " : ""}${plural(kinds, "job has", "jobs have")} no job type: counted, as Not known by type.`}
       </span>
       <button type="button" className="an-door" onClick={onDecide}>
-        Decide {plural(jobs, "job", "jobs")}
+        {jobs > 0 ? `Decide ${plural(jobs, "job", "jobs")}` : "Give job types"}
       </button>
     </div>
   );
@@ -287,7 +301,7 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
   const [review, setReview] = useState(false);
   const q = a.quotes;
   const t = a.top;
-  const lost = q.unsuccessful.count + q.lapsed.count;
+  const lost = q.unsuccessful.count + q.closed.count + q.lapsed.count;
   const inside = q.winsDated - q.lateWins;
   const rule =
     q.winsDated === 0
@@ -320,6 +334,13 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
               <b>{q.unsuccessful.count.toLocaleString("en-AU")}</b>
               <em>{money(q.unsuccessful.cents)}</em>
             </div>
+            {q.closed.count > 0 && (
+              <div>
+                <span>No answer, closed by ServiceM8 at 60 days</span>
+                <b>{q.closed.count.toLocaleString("en-AU")}</b>
+                <em>{money(q.closed.cents)}</em>
+              </div>
+            )}
             <div>
               <span>No answer after {LAPSE_AFTER_DAYS} days, still a Quote in ServiceM8</span>
               <b>{q.lapsed.count.toLocaleString("en-AU")}</b>
@@ -341,11 +362,7 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
               names={names}
               voids={voids}
               serverVoid={false}
-              what={(job) =>
-                (q.lostJobs.find((l) => l.job.id === job.id)?.lapsed ?? (job.status ?? "").trim().toLowerCase() === "quote")
-                  ? `No answer after ${LAPSE_AFTER_DAYS} days`
-                  : "Marked Unsuccessful in ServiceM8"
-              }
+              what={(job) => LOST_WHY[q.lostJobs.find((l) => l.job.id === job.id)?.why ?? "marked"]}
               canDecide={canDecide}
             />
           )}

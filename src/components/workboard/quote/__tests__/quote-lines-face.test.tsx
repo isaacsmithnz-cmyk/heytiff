@@ -269,3 +269,29 @@ it("marks the option accepted from the corner, says its parts went on the job, a
   expect(screen.getByText("To ServiceM8")).toBeInTheDocument();
   corner.remove();
 });
+
+/* which supplier, slice 3.2: the same item at another supplier, its own pick */
+it("offers the same item from each supplier, and takes the one picked over the cheapest", async () => {
+  const aad = { supplierKey: "aad", supplierName: "AAD", code: "CMADJ", name: "ANTI VIBRATION FEET", netCents: 1372 };
+  const reece = { supplierKey: "reece", supplierName: "Reece", code: "9500123-1", name: "RUBBER FEET PAIR", netCents: 1490 };
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (url: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return {
+      json: async () =>
+        String(url).startsWith("/api/workboard/quote-lookup")
+          ? { ok: true, hits: [{ product: { key: "aad|CMADJ", name: "ANTI VIBRATION FEET", category: "parts", offers: [aad, reece], cheapest: aad, preferred: null, brand: null, quotes: 3 }, why: "Cheapest", buyCents: 1372 }] }
+          : view([indoor, core]),
+    };
+  });
+  face();
+  await screen.findByText("Ducted indoor, under the floor");
+  fireEvent.click(screen.getByRole("button", { name: "Ducted indoor, under the floor" }));
+  const fromReece = await screen.findByRole("button", { name: /From Reece/ }, { timeout: 2000 });
+  expect(fromReece).toHaveTextContent("$14.90 each");
+  await act(async () => {
+    fireEvent.click(fromReece);
+  });
+  await waitFor(() =>
+    expect(posted).toContainEqual(expect.objectContaining({ op: "change", patch: { name: "ANTI VIBRATION FEET", code: "9500123-1", supplierKey: "reece", costCents: 1490, sellCents: null } }))
+  );
+});

@@ -6,6 +6,7 @@ import { fmtAud } from "@/lib/workboard/project-money";
 import type { LineChange } from "@/lib/quotes/lines-server";
 import { againstFirst, isProvisional, missingFromFirst, PROVISIONAL, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
 import type { BookHit } from "@/lib/quotes/lookups";
+import type { Offer } from "@/lib/quotes/price-book";
 import type { Fit } from "@/lib/quotes/fit";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { linesSteps } from "@/lib/quotes/quote-steps";
@@ -450,9 +451,7 @@ export function QuoteLinesFace({
                                 line={l}
                                 busy={busy}
                                 onCancel={() => setSwapping(null)}
-                                onPick={(h, prefer) => {
-                                  const offer = h.product.preferred ?? h.product.cheapest;
-                                  if (!offer) return;
+                                onPick={(h, prefer, offer) => {
                                   setSwapping(null);
                                   void act({
                                     op: "change",
@@ -673,7 +672,17 @@ export function QuoteLinesFace({
     in the business's book, as it buys them, at its cost and as it would
     land on this quote. The one chosen goes on the line at once and, unless
     unticked, is the business's preferred from the next quote. */
-function PickList({ line, busy, onPick, onCancel }: { line: QuoteLine; busy: boolean; onPick: (h: BookHit, prefer: boolean) => void; onCancel: () => void }) {
+function PickList({
+  line,
+  busy,
+  onPick,
+  onCancel,
+}: {
+  line: QuoteLine;
+  busy: boolean;
+  onPick: (h: BookHit, prefer: boolean, offer: Offer) => void;
+  onCancel: () => void;
+}) {
   const size = /(\d{3})\s*(?:mm|MM)?\b/.exec(line.name)?.[1] ?? null;
   const words = line.name
     .replace(/[^A-Za-z ]+/g, " ")
@@ -708,20 +717,34 @@ function PickList({ line, busy, onPick, onCancel }: { line: QuoteLine; busy: boo
       </div>
       <ul className="ql-hits">
         {hits && hits.length === 0 && <li className="none">Nothing in your book like that.</li>}
-        {(hits ?? []).map((h) => {
+        {(hits ?? []).flatMap((h) => {
           const offer = h.product.preferred ?? h.product.cheapest;
-          const on = offer?.code === line.code;
-          return (
+          const isOn = (o: Offer | null) => !!o && o.code === line.code && (line.supplierKey == null || o.supplierKey === line.supplierKey);
+          /* the same item at the business's other suppliers, lowest first:
+             its own pick over the one HeyTiff would take (slice 3.2) */
+          const others = h.product.offers.filter((o) => o.netCents > 0 && !(o.supplierKey === offer?.supplierKey && o.code === offer?.code));
+          return [
             <li key={h.product.key}>
-              <button type="button" disabled={busy || on || !offer} onClick={() => onPick(h, prefer)}>
+              <button type="button" disabled={busy || isOn(offer) || !offer} onClick={() => offer && onPick(h, prefer, offer)}>
                 <span>
                   {h.product.name}
-                  <small>{`${offer?.code ?? ""}, ${on ? "on this quote now" : h.why.toLowerCase()}`}</small>
+                  <small>{`${offer ? `${offer.supplierName}, ${offer.code}` : ""}, ${isOn(offer) ? "on this quote now" : h.why.toLowerCase()}`}</small>
                 </span>
                 <b>{offer ? `${fmtAud(offer.netCents)} each` : "–"}</b>
               </button>
-            </li>
-          );
+            </li>,
+            ...others.map((o) => (
+              <li key={`${h.product.key}|${o.supplierKey}|${o.code}`} className="ql-alt">
+                <button type="button" disabled={busy || isOn(o)} onClick={() => onPick(h, prefer, o)}>
+                  <span>
+                    {`From ${o.supplierName}`}
+                    <small>{`${o.code}${isOn(o) ? ", on this quote now" : ""}`}</small>
+                  </span>
+                  <b>{`${fmtAud(o.netCents)} each`}</b>
+                </button>
+              </li>
+            )),
+          ];
         })}
       </ul>
       <div className="wb2-jqacts">

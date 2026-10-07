@@ -156,3 +156,24 @@ it("adds a kit for a system: the outdoor named, the runs given, the rest read of
     })
   );
 });
+
+/* options as whole jobs, slice 10.1 */
+it("copies option 1 to a new option, and says what an option changed from it", async () => {
+  const bigger = line({ id: "l9", optionIndex: 1, name: "XL Premium 9.5", code: "FTXM95WVMA", costCents: 76007 });
+  const sameCore = { ...core, id: "l10", optionIndex: 1 };
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => ({
+    json: async () => {
+      if (init?.body) posted.push(JSON.parse(init.body));
+      return view([indoor, core, bigger, sameCore]);
+    },
+  }));
+  face();
+  await screen.findByText("Ducted indoor, under the floor");
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Copy option 1 to a new option" }));
+  });
+  expect(posted).toContainEqual({ job: "job-3377", op: "copy", from: 0, to: 2 });
+  fireEvent.click(screen.getByRole("tab", { name: /Option 2/ }));
+  expect(screen.getByText("Added")).toBeInTheDocument();
+  expect(screen.getByText("Not in this option: Ducted indoor, under the floor")).toBeInTheDocument();
+});

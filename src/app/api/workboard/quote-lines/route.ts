@@ -1,7 +1,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
-import { addLine, changeLine, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
+import { addLine, changeLine, copyOption, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
 import { addKit } from "@/lib/quotes/kits-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 
@@ -71,6 +71,11 @@ export async function POST(req: Request) {
       const model = typeof body.model === "string" ? body.model.trim().slice(0, 60) : "";
       const brand = typeof body.brand === "string" ? body.brand.trim().slice(0, 60) : "";
       result = await addKit(g.orgId, jobUuid, kit, normaliseKitFacts(body.facts), at, model && brand ? { brand, model } : null, g.userId);
+      break;
+    }
+    case "copy": {
+      const n = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : -1);
+      result = await copyOption(g.orgId, jobUuid, n(body.from), n(body.to), g.userId);
       break;
     }
     case "undo":

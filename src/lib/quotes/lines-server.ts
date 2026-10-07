@@ -244,3 +244,18 @@ export async function namesBySignIn(orgId: string, ids: readonly string[]): Prom
   }
   return out;
 }
+
+/** An option started as a copy of another: every line of `from` added to
+    `to`, each kept in the history as its own add, so the new option is a
+    whole job from the start and changes from there (slice 10.1). */
+export async function copyOption(orgId: string, jobUuid: string, from: number, to: number, by: string): Promise<LineResult> {
+  if (from === to) return { ok: false, reason: "An option can't be copied onto itself." };
+  const lines = (await readLines(orgId, jobUuid)).filter((l) => l.optionIndex === from);
+  if (lines.length === 0) return { ok: false, reason: "That option has no lines to copy." };
+  for (const l of lines) {
+    const { id: _id, version: _v, updatedAt: _a, updatedBy: _b, ...fields } = l;
+    const r = await addLine(orgId, jobUuid, { ...fields, optionIndex: to }, by, `Copied from option ${from + 1}`);
+    if (!r.ok) return r;
+  }
+  return { ok: true, line: null };
+}

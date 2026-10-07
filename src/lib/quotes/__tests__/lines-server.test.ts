@@ -158,3 +158,15 @@ it("names who made each change by their staff card, Tiff and the unknown left un
   TABLES.staff_profiles = [{ org_id: ORG, user_id: "auth0|luke", first_name: "Luke", last_name: "Bennett", full_name: null, preferred_name: null }];
   expect(await namesBySignIn(ORG, ["auth0|luke", "tiff", "auth0|gone"])).toEqual({ "auth0|luke": "Luke Bennett" });
 });
+
+it("starts an option as a copy of another, each line its own add", async () => {
+  await addLine(ORG, JOB, flex, "isaac");
+  await addLine(ORG, JOB, { ...flex, name: "Cone diffuser 250", code: "CD250" }, "isaac");
+  const { copyOption } = await import("../lines-server");
+  expect(await copyOption(ORG, JOB, 0, 1, "luke")).toEqual({ ok: true, line: null });
+  const lines = await readLines(ORG, JOB);
+  expect(lines.filter((l) => l.optionIndex === 1).map((l) => l.name)).toEqual(["Flex 250, 6 m bag", "Cone diffuser 250"]);
+  expect((await readChanges(ORG, JOB)).filter((c) => c.why === "Copied from option 1")).toHaveLength(2);
+  expect(await copyOption(ORG, JOB, 3, 4, "luke")).toMatchObject({ ok: false });
+  expect(await copyOption(ORG, JOB, 1, 1, "luke")).toMatchObject({ ok: false });
+});

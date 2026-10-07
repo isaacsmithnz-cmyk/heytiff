@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { fmtAud } from "@/lib/workboard/project-money";
 import type { LineChange } from "@/lib/quotes/lines-server";
-import type { LineFields, QuoteLine } from "@/lib/quotes/lines";
+import { againstFirst, missingFromFirst, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
 import type { BookHit } from "@/lib/quotes/lookups";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { linesSteps } from "@/lib/quotes/quote-steps";
@@ -315,7 +315,12 @@ export function QuoteLinesFace({
                           <td>
                             <span className="ql-n">
                               <i className={`ql-d ${l.source}`} title={`${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`} />
-                              <span className="nm">{l.name}</span>
+                              <span className="nm">
+                                {l.name}
+                                {at > 0 && againstFirst(l, all) !== "same" && (
+                                  <em className="ql-vs">{againstFirst(l, all) === "added" ? " Added" : " Changed"}</em>
+                                )}
+                              </span>
                               {l.code && <span className="cd">{l.code}</span>}
                             </span>
                           </td>
@@ -376,6 +381,12 @@ export function QuoteLinesFace({
         );
       })}
 
+      {at > 0 && missingFromFirst(at, all).length > 0 && (
+        <p className="qp-none">{`Not in this option: ${missingFromFirst(at, all)
+          .map((l) => l.name)
+          .join(", ")}`}</p>
+      )}
+
       <section className="ql-add" aria-label="Add a line">
         <div className="ql-addrow">
           <input
@@ -423,6 +434,19 @@ export function QuoteLinesFace({
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setAt(options)}>
             Add an option
           </button>
+          {all.some((l) => l.optionIndex === 0) && (
+            <button
+              type="button"
+              className="pbtn ghost sm"
+              disabled={busy}
+              onClick={() => {
+                const to = options;
+                void act({ op: "copy", from: 0, to }).then(() => setAt(to));
+              }}
+            >
+              Copy option 1 to a new option
+            </button>
+          )}
         </div>
         {kitOpen && (
           <KitForm

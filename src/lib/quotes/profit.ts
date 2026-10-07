@@ -45,14 +45,20 @@ export function profitOf(
   labourCostCents: number | null
 ): Profit | null {
   const hourCost = hourCostOf(s.chargeOutCents, targetPct, labourCostCents);
-  if (hourCost == null || b.exGstCents <= 0) return null;
-  const costCents = b.buyCents + Math.round(hoursOf(b, s.dayHours) * hourCost);
-  const profitCents = b.exGstCents - costCents;
-  const pct = Math.round((profitCents / b.exGstCents) * 1000) / 10;
+  if (hourCost == null) return null;
+  return profitAt(b.exGstCents, b.buyCents + Math.round(hoursOf(b, s.dayHours) * hourCost), targetPct, hourCost);
+}
+
+/** Profit on a price whose cost is already known (a quote's kept lines carry
+    each line's own cost, an hour's included: lines-price.ts). */
+export function profitAt(priceCents: number, costCents: number, targetPct: number | null, hourCostCents: number): Profit | null {
+  if (priceCents <= 0) return null;
+  const profitCents = priceCents - costCents;
+  const pct = Math.round((profitCents / priceCents) * 1000) / 10;
   let short: Profit["short"] = null;
   if (targetPct != null && targetPct < 100) {
-    const priceCents = Math.ceil(costCents / (1 - targetPct / 100));
-    if (b.exGstCents < priceCents) short = { cents: priceCents - b.exGstCents, priceCents };
+    const meets = Math.ceil(costCents / (1 - targetPct / 100));
+    if (priceCents < meets) short = { cents: meets - priceCents, priceCents: meets };
   }
-  return { costCents, profitCents, pct, targetPct, hourCostCents: hourCost, short };
+  return { costCents, profitCents, pct, targetPct, hourCostCents, short };
 }

@@ -121,6 +121,7 @@ describe("readAnalyticsJobs", () => {
       quoteSentOn: null,
       quotedOn: "2026-08-01",
       wonOn: "2026-08-20",
+      claimedOn: null,
       completedOn: null,
       valueCents: 980_000 + 152_800,
       kind: "ducted",
@@ -140,6 +141,17 @@ describe("readAnalyticsJobs", () => {
     byColumn.date = [row("parent", { generated_job_id: "2380" }), row("claim", { generated_job_id: "2380A" })];
     const read = await readAnalyticsJobs("org", "2024-10-08");
     expect(read?.jobs.map((j) => j.id)).toEqual(["parent"]);
+  });
+
+  it("gives a job the day of its first claim, a deposit being a yes", async () => {
+    byColumn.date = [
+      row("parent", { generated_job_id: "2587", status: "Work Order", work_order_date: "2026-09-25 12:23:13" }),
+      row("deposit", { generated_job_id: "2587A", status: "Completed", date: "2026-08-28 00:00:00" }),
+    ];
+    byColumn.completion_date = [row("stage", { generated_job_id: "2587B", status: "Completed", date: "2026-09-25 00:00:00" })];
+    const read = await readAnalyticsJobs("org", "2024-10-08");
+    expect(read?.jobs).toHaveLength(1);
+    expect(read?.jobs[0]).toMatchObject({ id: "parent", wonOn: "2026-09-25", claimedOn: "2026-08-28" });
   });
 
   it("leaves out an apprentice's TAFE day booked as a job card, and keeps work invoiced to TAFE", async () => {

@@ -31,6 +31,9 @@ import { analyticsKindOf, isTafeDay, type AnalyticsJob } from "./job-analytics";
      extra jobs and their money twice.
    - THE QUOTE DATE is read too: it says a job was a Quote before it was a
      Work Order, where the sent stamp was never recorded (job-analytics).
+   - THE FIRST CLAIM IS A YES: updating an accepted proposal makes the job
+     a Quote again, so the work-order date is the last yes (job-analytics'
+     yesOn). Each job carries its first claim's day.
    - A DAY AT TAFE IS NOT A JOB: the apprentice's weekly TAFE day was booked
      as a job card for TAFE NSW until March 2026 (job-analytics' isTafeDay).
      Only the clients with TAFE in their name are read for it.
@@ -105,6 +108,16 @@ export async function readAnalyticsJobs(orgId: string, floor: string): Promise<A
   const category = new Map(((cats.data ?? []) as { uuid: string; name: string | null }[]).map((c) => [c.uuid, c.name]));
   const tafeName = new Map(((tafe.data ?? []) as { uuid: string; name: string | null }[]).map((c) => [c.uuid, c.name]));
 
+  /* the day each job's first claim was raised, by the parent's number */
+  const firstClaim = new Map<string, string>();
+  for (const r of [...raised.rows, ...completed.rows]) {
+    const split = splitJobNumber(r.generated_job_id);
+    const day = dayOf(r.date);
+    if (!split?.suffix || !day) continue;
+    const had = firstClaim.get(split.base);
+    if (!had || day < had) firstClaim.set(split.base, day);
+  }
+
   const seen = new Set<string>();
   const jobs: AnalyticsJob[] = [];
   for (const r of [...raised.rows, ...completed.rows]) {
@@ -125,6 +138,7 @@ export async function readAnalyticsJobs(orgId: string, floor: string): Promise<A
       quoteSentOn: dayOf(r.quote_sent_stamp),
       quotedOn: dayOf(r.quote_date),
       wonOn: dayOf(r.work_order_date),
+      claimedOn: firstClaim.get(splitJobNumber(r.generated_job_id)?.base ?? "") ?? null,
       completedOn: dayOf(r.completion_date),
       valueCents: own && own.cents > 0 ? own.cents : null,
       kind: analyticsKindOf(r.job_description, own?.names ?? [], categoryName),

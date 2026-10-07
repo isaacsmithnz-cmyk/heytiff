@@ -371,7 +371,9 @@ function evidence(a: Ask): { label: string; said: string; hint: string | null } 
         label: "What doesn't match",
         said:
           (j.status ?? "").trim().toLowerCase() === "unsuccessful"
-            ? "Unsuccessful in ServiceM8, but marked paid."
+            ? j.paid
+              ? "Unsuccessful in ServiceM8, but marked paid."
+              : "Unsuccessful in ServiceM8, but a claim was invoiced on it."
             : "Accepted on the proposal, and still a Quote in ServiceM8.",
         hint: null,
       };

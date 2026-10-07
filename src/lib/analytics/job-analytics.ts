@@ -67,8 +67,10 @@ export type AnalyticsJob = {
   quotedOn?: string | null;
   /** its ServiceM8 category's name */
   category?: string | null;
-  /** the day it became a work order */
+  /** the day it became a work order, as ServiceM8 last set it */
   wonOn: string | null;
+  /** the day its first progress claim was raised: a deposit is a yes */
+  claimedOn?: string | null;
   completedOn: string | null;
   /** what its lines come to, in cents ex GST; null when nothing is priced */
   valueCents: number | null;
@@ -103,11 +105,27 @@ export function wasQuoted(j: AnalyticsJob): boolean {
   return !!j.quotedOn && !!j.wonOn && j.wonOn > j.quotedOn;
 }
 
+/* THE FIRST YES (Isaac, 2026-10-07: "The proposal was updated which turned
+   it back to a quote"). Updating an accepted proposal makes the job a Quote
+   again, and its acceptance makes it a Work Order again, so ServiceM8's
+   work-order date is the last yes, not the first: on the live account 53
+   jobs had a claim invoiced before it (#2587: deposit 28 August, work order
+   25 September). The first claim is the earliest sure yes, so the yes is
+   whichever came first; and a Quote that already has a claim is a won job
+   whose proposal is being updated, never an open or lapsed quote. */
+
+/** The day of the first yes: the work order or the first claim, whichever came first. */
+export function yesOn(j: AnalyticsJob): string | null {
+  const days = [j.wonOn, j.claimedOn].filter((d): d is string => !!d).sort();
+  return days[0] ?? null;
+}
+
 /** Where a quote stands today; null for a job that isn't a quote. */
 export function outcomeOf(j: AnalyticsJob, today: string): Outcome | null {
   if (!wasQuoted(j)) return null;
   const s = norm(j.status);
   if (s === "work order" || s === "completed") return "won";
+  if (s === "quote" && j.claimedOn) return "won";
   if (s === "unsuccessful") return "lost";
   if (s !== "quote") return null;
   if (!j.raisedOn) return "open";
@@ -161,10 +179,12 @@ export function isTafeDay(clientName: string | null, card: { quoted: boolean; in
   return /\btafe\b/i.test(clientName ?? "") && !card.quoted && !card.invoiced && !card.paid;
 }
 
-/** ServiceM8's status and the money or the proposal disagree. */
+/** ServiceM8's status and the money or the proposal disagree: Unsuccessful
+    but paid, or with a claim invoiced; or accepted in HeyTiff and still a
+    Quote. */
 function disputed(j: AnalyticsJob): boolean {
   const s = norm(j.status);
-  return (s === "unsuccessful" && !!j.paid) || (s === "quote" && !!j.acceptedInHeyTiff);
+  return (s === "unsuccessful" && (!!j.paid || !!j.claimedOn)) || (s === "quote" && !!j.acceptedInHeyTiff && !j.claimedOn);
 }
 
 export type Placement = {
@@ -460,8 +480,9 @@ function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: stri
   const counts = YES_BINS.map(() => 0);
   let winsDated = 0;
   for (const p of now) {
-    if (p.outcome !== "won" || !p.job.wonOn || !p.job.raisedOn) continue;
-    const d = Math.max(0, daysBetween(p.job.raisedOn, p.job.wonOn));
+    const yes = yesOn(p.job);
+    if (p.outcome !== "won" || !yes || !p.job.raisedOn) continue;
+    const d = Math.max(0, daysBetween(p.job.raisedOn, yes));
     counts[YES_BINS.findIndex((b) => d <= b.upTo)]!++;
     winsDated++;
   }

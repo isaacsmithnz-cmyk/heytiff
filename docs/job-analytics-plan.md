@@ -94,6 +94,12 @@ Isaac, 2026-10-07:
   - A card for a client with TAFE in its name that was never quoted, invoiced or paid is left out before any figure. Real work for a TAFE campus is quoted or invoiced, and still counts.
   - Without it, jobs raised read 1,370 against 1,288 (+6%); with it, 1,321 against 1,176 (+12%).
 
+- **The first claim is a yes** (Isaac, 2026-10-07: "The proposal was updated which turned it back to a quote").
+  - Updating an accepted proposal makes the job a Quote again, and accepting it again makes it a Work Order again. ServiceM8's work-order date is then the last yes, not the first.
+  - Days to a yes run to whichever came first: the work order or the first claim (the deposit). In the last 12 months that moves 15 wins earlier, by 68 days on average. Job 2587 (Troy Porter): deposit 28 Aug, work order 25 Sep.
+  - A Quote that already has a claim is a won job whose proposal is being updated. It is counted won, never open or lapsed.
+  - A job Unsuccessful in ServiceM8 with a claim invoiced on it is asked on To decide, "Won or lost?", as one marked paid is (5 on the account).
+
 ## What the numbers stand on
 
 Most job data is the ServiceM8 mirror (`sm8_*`, docs/migrations/sm8_mirror.sql and sm8_jobs_money.sql):

@@ -4,6 +4,7 @@ import {
   analyse,
   analyticsKindOf,
   isTafeDay,
+  yesOn,
   wasQuoted,
   change,
   LAPSE_AFTER_DAYS,
@@ -375,6 +376,25 @@ describe("what the live account taught the rules", () => {
     expect(analyticsKindOf("As per quote", ["MITSUBISHI ELEC. HIGH WALL SPLIT 4.2KW", "HVAC Labour"], "Install")).toBe("split");
     expect(analyticsKindOf("Supply and Install Mitsubishi Electric 3.5kw HWS", [], "Install")).toBe("split");
     expect(analyticsKindOf("As per quote", ["As Per Quote"], "Install")).toBeNull();
+  });
+
+  it("takes the yes from the first claim when the proposal was updated after it, and counts a Quote with a claim as won", () => {
+    // #2587: deposit invoiced 28 Aug, the proposal updated (a Quote again), a work order again 25 Sep
+    const updated = job({ status: "Work Order", raisedOn: "2026-03-20", quoteSentOn: "2026-03-23", wonOn: "2026-09-25", claimedOn: "2026-08-28" });
+    expect(yesOn(updated)).toBe("2026-08-28");
+    expect(yesOn(job({ wonOn: "2026-05-01", claimedOn: "2026-06-01" }))).toBe("2026-05-01");
+    expect(yesOn(job({ wonOn: null, claimedOn: null }))).toBeNull();
+    // 161 days to the deposit, not 189 to the last work order, which would read as a late win
+    expect(analyse([updated], TODAY, "12m").quotes.daysToYes.map((b) => b.count)).toEqual([0, 0, 0, 0, 0, 1, 0]);
+
+    // mid-update: a Quote again, a year old, with a deposit on it — won, never lapsed
+    const midUpdate = job({ status: "Quote", raisedOn: "2025-10-20", quoteSentOn: "2025-10-21", claimedOn: "2026-01-10" });
+    expect(outcomeOf(midUpdate, TODAY)).toBe("won");
+  });
+
+  it("asks won or lost of a job Unsuccessful in ServiceM8 with a claim invoiced on it", () => {
+    const claimed = job({ id: "cl", status: "Unsuccessful", raisedOn: "2026-03-30", quoteSentOn: "2026-03-31", claimedOn: "2026-09-29" });
+    expect(analyse([claimed], TODAY, "12m").toDecide.asks.map((a) => [a.job.id, a.question])).toEqual([["cl", "outcome"]]);
   });
 
   it("knows a TAFE day booked as a job card, and still counts work done for TAFE", () => {

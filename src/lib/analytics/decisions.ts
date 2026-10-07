@@ -63,7 +63,7 @@ export const QUESTION_WORDS: Record<Question, { title: string; why: string }> = 
     title: "Is it a quote?",
     why: "Work orders with no sign of a quote in ServiceM8 that read like an install and come to $3,000 ex GST or more. A quote counts toward the win rate; a call-out doesn't.",
   },
-  outcome: { title: "Won or lost?", why: "ServiceM8's status and the money or the proposal disagree." },
+  outcome: { title: "Won or lost?", why: "ServiceM8's status and the money, a claim or the proposal disagree." },
   kind: { title: "What kind of job?", why: "The job type couldn't be read from the job's words or its category." },
   price: { title: "Does this price belong?", why: "Far from what won jobs of the kind usually cost." },
   void: { title: "Void", why: "Not real jobs: duplicates, tests, spam, raised by mistake. Left out of every figure." },

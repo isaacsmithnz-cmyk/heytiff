@@ -13,7 +13,7 @@ import {
   type JobAnalytics,
   type PeriodKey,
 } from "@/lib/analytics/job-analytics";
-import { DaysToYes, EnquiriesChart, PriceTable, RateBars } from "./analytics-charts";
+import { DaysToYes, EnquiriesChart, KIND_COLOUR, PriceTable, RateBars, STEP_COLOUR } from "./analytics-charts";
 import { ToDecide } from "./analytics-decide";
 import { useVoids, VoidList } from "./analytics-jobs";
 import "./analytics.css";
@@ -221,9 +221,9 @@ function Overview({ a, truncated, onDecide }: { a: JobAnalytics; truncated: bool
             : `${plural(lapsed.count, "quote", "quotes")} with no answer after ${LAPSE_AFTER_DAYS} days ${lapsed.count === 1 ? "counts" : "count"} as lost, ${money(lapsed.cents)} of work.`}
         </p>
         <div className="an-cols">
-          <RateBars title="By job type" bars={a.byKind} />
-          <RateBars title="By price" bars={a.byPrice} />
-          <RateBars title="By days to quote" bars={a.bySpeed} />
+          <RateBars title="By job type" bars={a.byKind} colourOf={(k) => KIND_COLOUR[k] ?? "var(--q)"} />
+          <RateBars title="By price" bars={a.byPrice} colourOf={(k) => STEP_COLOUR[["lt5", "lt10", "lt20", "rest"].indexOf(k)] ?? STEP_COLOUR[0]!} />
+          <RateBars title="By days to quote" bars={a.bySpeed} colourOf={(k) => STEP_COLOUR[3 - ["d1", "d3", "d7", "slow"].indexOf(k)] ?? STEP_COLOUR[0]!} />
         </div>
       </section>
 

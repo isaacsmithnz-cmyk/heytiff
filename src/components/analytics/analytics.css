@@ -1,8 +1,10 @@
 /* ANALYTICS — the business's own figures (docs/job-analytics-plan.md, the
-   mock-up Isaac approved 2026-10-07). Ink and paper: every bar and line is
-   ink, and the series it is set against is the quiet colour. Colour is a
-   change on the year before said as a word, in the state's colour, and
-   nowhere else. Sections are groups (a hairline top), not cards: nothing on
+   mock-up Isaac approved 2026-10-07). The charts wear the chart colours
+   (tokens.css `--chart-*`; Isaac, 2026-10-07: "the graph needs colour"): a
+   kind of job has one colour wherever it is drawn, ordered groups step
+   through one blue, and the year before is orange against this year's blue.
+   Text stays ink and the quiet colour; a change on the year before is a word
+   in the state's colour. Sections are groups (a hairline top), not cards: nothing on
    this page is acted on. Bars are square: the paper register is the sharper
    one, and 4px is not a radius on the scale. */
 
@@ -31,7 +33,7 @@
 .an-lead { grid-row: span 2; display: flex; flex-direction: column; gap: 8px; padding-right: 24px; border-right: 1px solid var(--line); }
 .an-lead .an-big { font-size: 32px; font-weight: 700; line-height: 1.1; }
 .an-meter { height: 8px; border-radius: var(--r-pill); background: var(--tint-2); overflow: hidden; }
-.an-meter > span { display: block; height: 8px; background: var(--ink); }
+.an-meter > span { display: block; height: 8px; background: var(--chart-1); }
 .an-fig { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .an-label { font-size: 13px; font-weight: 500; color: var(--q); }
 .an-value { font-size: 20px; font-weight: 600; line-height: 1.3; }
@@ -44,7 +46,7 @@
 .an-bar { display: grid; grid-template-columns: 128px minmax(0, 1fr) 96px; align-items: center; gap: 12px; min-height: 32px; }
 .an-bar > span:first-child { font-size: 13px; font-weight: 500; }
 .an-track { display: block; border-left: 1px solid var(--q); }
-.an-track > span { display: block; height: 12px; background: var(--ink); }
+.an-track > span { display: block; height: 12px; background: var(--chart-1); }
 .an-num { font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .an-num b { font-weight: 600; }
 .an-num span { color: var(--q); }
@@ -54,9 +56,9 @@
 .an-colplot { height: 160px; align-items: end; border-bottom: 1px solid var(--q); }
 .an-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
 .an-col > b { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.an-col > span { width: 24px; background: var(--ink); }
+.an-col > span { width: 24px; background: var(--chart-1); }
 .an-col.late { border-left: 1px solid var(--ink); }
-.an-col.late > span { background: var(--q); }
+.an-col.late > span { background: var(--chart-2); }
 .an-axis { font-size: 12px; font-weight: 500; color: var(--q); text-align: center; font-variant-numeric: tabular-nums; }
 
 /* a ledger of a few figures */
@@ -80,14 +82,14 @@
 .an-spread > span:first-child { text-align: right; }
 .an-strip { position: relative; display: block; height: 16px; }
 .an-whisk { position: absolute; left: 0; right: 0; top: 7px; height: 2px; background: var(--tint-2); }
-.an-mid { position: absolute; top: 4px; height: 8px; background: var(--q); }
+.an-mid { position: absolute; top: 4px; height: 8px; background: var(--chart-1); }
 .an-med { position: absolute; top: 2px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-sizing: border-box; }
 
 /* enquiries week by week */
 .an-key { display: flex; gap: 16px; font-size: 13px; font-weight: 500; color: var(--q); }
 .an-key > span { display: inline-flex; align-items: center; gap: 8px; }
-.an-key i { width: 16px; height: 2px; background: var(--ink); }
-.an-key i.before { background: var(--q); }
+.an-key i { width: 16px; height: 2px; background: var(--chart-1); }
+.an-key i.before { background: var(--chart-2); }
 .an-read { margin: 0; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .an-line { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 8px; }
 .an-ticks { position: relative; height: 200px; font-size: 12px; color: var(--q); font-variant-numeric: tabular-nums; }
@@ -98,8 +100,8 @@
 .an-grid { position: absolute; left: 0; right: 0; height: 1px; background: var(--line); }
 .an-grid.base { background: var(--q); }
 .an-cross { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--tint-2); }
-.an-dot { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-sizing: border-box; }
-.an-dot.before { background: var(--q); }
+.an-dot { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--chart-1); border: 2px solid var(--paper); box-sizing: border-box; }
+.an-dot.before { background: var(--chart-2); }
 .an-months { position: relative; height: 24px; font-size: 12px; color: var(--q); }
 .an-months > span { position: absolute; top: 4px; }
 

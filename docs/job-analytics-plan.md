@@ -26,6 +26,13 @@ Isaac, 2026-10-07:
     - **Does this price belong?** Far from the median for its kind. "Leave it out of prices" keeps it counted as won.
     - **Won or lost?** ServiceM8 and the money disagree. For example, Unsuccessful but paid, or accepted on the proposal but still a Quote in ServiceM8.
   - A suggestion, where there is one ("Looks like Daikin, from the model code"), is shown beside the choices but never chosen for you.
+- **ServiceM8 can be cleaned up too, with an extra button** (Isaac, 2026-10-07: "They can clean up in servicem8 too with an extra button").
+  - Once an answer disagrees with ServiceM8, the row offers the write that would make ServiceM8 agree. It's never sent on its own.
+    - **Won** on a job that's a Quote or Unsuccessful in ServiceM8: "Make it a work order in ServiceM8". This is the same Quote-to-Work-Order write that Book in and Make it a work order already send (src/app/actions/booking-sm8.ts), with its live re-read of the job first.
+    - **Lost** on a job that's still a Quote: "Mark Unsuccessful in ServiceM8". This is a new status write; the 180-day button uses the same one.
+  - An "Update N jobs in ServiceM8" button over the list sends every one waiting at once.
+  - Once a row has gone to ServiceM8, it has no Undo; the change is then ServiceM8's, and is undone there.
+  - **Not written back:** brand, "is it a quote" and "leave it out of prices", because ServiceM8 has no field for them. Job type could set the ServiceM8 category, but only once each business maps its own categories to the job types. Not in the mock-up.
 
 ## What the numbers stand on
 

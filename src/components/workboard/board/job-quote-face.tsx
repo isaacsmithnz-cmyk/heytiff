@@ -98,6 +98,8 @@ type Answer =
       showLines?: boolean;
       /** the brief's labour, beside each option */
       labour?: QuoteLabour | null;
+      /** a quote built by hand on its kept lines, and how many it holds */
+      byHand?: { lines: number } | null;
     }
   /** `proposal` comes back when the draft moved on underneath the change */
   | { ok: false; reason: string; proposal?: StoredProposal | null };
@@ -238,6 +240,7 @@ export function JobQuoteFace({
     </div>
   ) : null;
   const [loaded, setLoaded] = useState<StoredProposal | null | undefined>(undefined);
+  const [byHand, setByHand] = useState<{ lines: number } | null>(null);
   const [readFailed, setReadFailed] = useState(false);
   const [brief, setBrief] = useState("");
   const [change, setChange] = useState("");
@@ -284,6 +287,7 @@ export function JobQuoteFace({
         setSm8Brief(a.sm8Brief ?? null);
         setLabourFacts(a.labour ?? null);
         setLinesByDefault(a.showLines === true);
+        setByHand(a.byHand ?? null);
         if (a.proposal) setBrief(a.proposal.brief);
       })
       /* NOT the draft box: drafting on a read that failed would pay for a
@@ -522,10 +526,18 @@ export function JobQuoteFace({
             </div>
           </div>
         )}
+        {!proposal && byHand && (
+          <div className="wb2-jcsec">
+            <div className="wb2-jcdhead">
+              <b>Quote</b>
+              <em>{`Built by hand, ${byHand.lines} ${byHand.lines === 1 ? "line" : "lines"}`}</em>
+            </div>
+          </div>
+        )}
         <div className="wb2-jqacts">
-          <Link className={proposal ? "pbtn primary" : "pbtn ghost"} href={`/dashboard/workboard/quotes/${encodeURIComponent(job)}`}>
-            {!proposal && <Icon name="plus" size={15} />}
-            {proposal ? "Continue quote" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}
+          <Link className={proposal || byHand ? "pbtn primary" : "pbtn ghost"} href={`/dashboard/workboard/quotes/${encodeURIComponent(job)}`}>
+            {!proposal && !byHand && <Icon name="plus" size={15} />}
+            {proposal || byHand ? "Continue quote" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}
           </Link>
         </div>
       </>

@@ -469,6 +469,14 @@ describe("a quote ServiceM8 generated", () => {
     expect(box.value).toBe("Ducted for the whole house");
   });
 
+  /* the engine rebuild: a quote built by hand on its kept lines */
+  it("a quote built by hand shows on the card as Continue quote, with how many lines it holds", async () => {
+    fetchMock.mockImplementation(() => respond({ ok: true, proposal: null, byHand: { lines: 12 } }));
+    render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
+    expect(await screen.findByRole("link", { name: "Continue quote" })).toBeInTheDocument();
+    expect(screen.getByText("Built by hand, 12 lines")).toBeInTheDocument();
+  });
+
   it("a job ServiceM8 never quoted shows Create a quote on the card", async () => {
     render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
     expect(await screen.findByRole("link", { name: "Create a quote" })).toBeInTheDocument();

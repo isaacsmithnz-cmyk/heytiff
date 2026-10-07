@@ -4,6 +4,7 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { normaliseDraft } from "@/lib/quotes/proposal";
 import { orgTemplates } from "@/lib/templates/query";
 import { readSm8QuoteBrief } from "@/lib/quotes/sm8-quote-brief-server";
+import { readEngine, readLines } from "@/lib/quotes/lines-server";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
 import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";
@@ -59,13 +60,17 @@ export async function GET(req: Request) {
   const target = await resolveJobCard(who.orgId, job);
   /* sm8Brief: what ServiceM8's own quote says, for "Update ServiceM8 quote"
      to start from — read from the mirror, never from ServiceM8 */
-  const [proposal, t, sm8Brief, settings, labour] = await Promise.all([
+  const [proposal, t, sm8Brief, settings, labour, engine] = await Promise.all([
     readStoredProposal(who.orgId, target.parentRemoteId),
     orgTemplates(who.orgId),
     readSm8QuoteBrief(who.orgId, target.parentRemoteId).catch(() => null),
     readQuoteSettings(who.orgId),
     readQuoteLabour(who.orgId, target.parentRemoteId).catch(() => null),
+    readEngine(who.orgId, target.parentRemoteId).catch(() => "old" as const),
   ]);
+  /* a quote built by hand on its kept lines (the engine rebuild): the card
+     says so, and how many lines it holds */
+  const byHand = engine === "lines" ? { lines: (await readLines(who.orgId, target.parentRemoteId).catch(() => [])).length } : null;
   /* showLines: the business's own default for what the customer sees;
      labour: what the brief gives, beside each option */
   return Response.json({
@@ -75,6 +80,7 @@ export async function GET(req: Request) {
     sm8Brief,
     showLines: settings.showLines,
     labour,
+    byHand,
   });
 }
 

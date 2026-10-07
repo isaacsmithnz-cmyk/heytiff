@@ -136,6 +136,14 @@ describe("AdminIndex", () => {
     expect(screen.queryByText(/new$/)).not.toBeInTheDocument();
   });
 
+  it("offers the Analytics settings only to someone who sees job money", () => {
+    const { unmount } = render(<AdminIndex isOwner canFinancials canJobMoney kbQueueCount={0} />);
+    expect(screen.getByText("Analytics").closest("a")).toHaveAttribute("href", "/dashboard/admin/analytics");
+    unmount();
+    render(<AdminIndex isOwner={false} canFinancials kbQueueCount={0} />);
+    expect(linkHrefs()).not.toContain("/dashboard/admin/analytics");
+  });
+
   it("offers neither invites nor the holiday calendar — both moved", () => {
     for (const viewer of [
       { isOwner: true, canFinancials: true, kbQueueCount: 0 },

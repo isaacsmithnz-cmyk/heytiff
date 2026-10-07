@@ -119,6 +119,13 @@ Isaac, 2026-10-07:
   - **Ventilation** is a job type of its own: exhaust, inline and subfloor fans, Lossnay, fresh air.
   - Job type doesn't hold a job out of any figure, so it isn't counted in "N jobs to decide": it shows at the bottom of To decide, and the job counts as Not known by type until it's given.
 
+- **Each business counts its own way: Admin, Analytics** (Isaac, 2026-10-07: "How do we make it universal", "Settings options maybe?"). One row per business (`analytics_settings`); nothing has to be set, and what stands in for each setting is what the live account taught.
+  - **Counting quotes:** lost after N days with no answer (blank: 180, from 91 to 730), and the price from which a work order with no quote sent is asked about (blank: $3,000).
+  - **When ServiceM8 closes a quote:** as found in the jobs (the one age, to the hour, that a quarter of the Unsuccessful quotes and at least five share: 60 days on the live account), a number of days, or never.
+  - **Categories:** each ServiceM8 category is installs (can be quotes), service calls, maintenance, warranty (not a new enquiry), other work, or not jobs (left out of everything). Until saved, each is read from its name.
+  - **Bookings, not customers:** clients whose cards book time rather than work. Until the list is saved, the ones found are left out: six cards or more, none quoted, invoiced or paid, a fifth or fewer priced (on the live account, TAFE NSW alone). Anything quoted, invoiced or paid for one still counts.
+  - The rule that named TAFE, and the fixed 60 days, are gone: these replace them.
+
 ## What the numbers stand on
 
 Most job data is the ServiceM8 mirror (`sm8_*`, docs/migrations/sm8_mirror.sql and sm8_jobs_money.sql):

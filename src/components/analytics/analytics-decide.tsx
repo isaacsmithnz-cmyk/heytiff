@@ -4,9 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { decideJob } from "@/app/actions/analytics-decide";
 import { makeWorkOrder } from "@/app/actions/booking-sm8";
-import { ANSWERS, QUESTIONS, QUESTION_WORDS, answerLabel, answerSaid, cleanupFor, kindLabel, type Question } from "@/lib/analytics/decisions";
+import { ANSWERS, QUESTIONS, QUESTION_WORDS, answerLabel, answerSaid, cleanupFor, kindLabel, questionWhy, type Question } from "@/lib/analytics/decisions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
-import { money, type AnalyticsJob, type Ask } from "@/lib/analytics/job-analytics";
+import { money, QUOTE_LIKELY_FROM_CENTS, type AnalyticsJob, type Ask } from "@/lib/analytics/job-analytics";
 import { JobCell, useVoids, VoidList, VoidSaid, type Voids } from "./analytics-jobs";
 
 /* TO DECIDE — what the figures can't place on their own (Isaac, 2026-10-07:
@@ -53,6 +53,7 @@ export function ToDecide({
   canDecide,
   workOrders = null,
   voided = [],
+  quoteFromCents = QUOTE_LIKELY_FROM_CENTS,
 }: {
   asks: Ask[];
   names: Record<string, string>;
@@ -61,6 +62,8 @@ export function ToDecide({
   workOrders?: "on" | "trial" | null;
   /** jobs of the period already void */
   voided?: AnalyticsJob[];
+  /** the business's line for "Is it a quote?" */
+  quoteFromCents?: number;
 }) {
   const router = useRouter();
   const [, startRefresh] = useTransition();
@@ -176,7 +179,7 @@ export function ToDecide({
                 {waiting ? `${waiting.toLocaleString("en-AU")} to decide` : "All decided"}
               </span>
             </div>
-            <p className="an-say">{QUESTION_WORDS[q].why}</p>
+            <p className="an-say">{questionWhy(q, quoteFromCents)}</p>
             <div className="an-qlist">
               {shown.map((a) => (
                 <Row

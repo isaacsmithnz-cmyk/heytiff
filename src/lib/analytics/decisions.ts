@@ -71,7 +71,7 @@ export const kindLabel = (k: JobKind | null) =>
 export const QUESTION_WORDS: Record<Question, { title: string; why: string }> = {
   quote: {
     title: "Is it a quote?",
-    why: "Jobs of $3,000 ex GST or more with no sign of a quote leaving ServiceM8: a work order that reads like an install, or a job marked Unsuccessful. A quote counts toward the win rate; a call-out, or an enquiry never quoted, doesn't.",
+    why: "Jobs of {from} ex GST or more with no sign of a quote leaving ServiceM8: a work order that reads like an install, or a job marked Unsuccessful. A quote counts toward the win rate; a call-out, or an enquiry never quoted, doesn't.",
   },
   outcome: { title: "Won or lost?", why: "ServiceM8's status and the money, a claim or the proposal disagree." },
   kind: {
@@ -81,6 +81,10 @@ export const QUESTION_WORDS: Record<Question, { title: string; why: string }> = 
   price: { title: "Does this price belong?", why: "Far from what won jobs of the kind usually cost." },
   void: { title: "Void", why: "Not real jobs: duplicates, tests, spam, raised by mistake. Left out of every figure." },
 };
+
+/** Why a question is asked, with the business's quote line in it. */
+export const questionWhy = (q: Question, quoteFromCents: number) =>
+  QUESTION_WORDS[q].why.replace("{from}", `$${Math.round(quoteFromCents / 100).toLocaleString("en-AU")}`);
 
 /** The button that gives an answer. */
 export function answerLabel(question: Question, answer: string): string {

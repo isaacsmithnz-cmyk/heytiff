@@ -1,0 +1,13 @@
+/* ADMIN, ANALYTICS — a list of the business's categories, each with its
+   role, and of the clients whose cards are bookings, each with a tick. The
+   rest of the page is Quoting's (qs-*). */
+
+.as-list { list-style:none; margin:12px 0 0; padding:0; max-width:720px; display:flex; flex-direction:column; }
+.as-list li { display:grid; grid-template-columns:minmax(0, 1fr) 240px; gap:16px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+.as-list li:first-child { border-top:0; }
+.as-list li .wb2-sel { width:100%; }
+.as-check { grid-column:1 / -1; display:flex; align-items:center; gap:12px; min-width:0; cursor:pointer; }
+.as-check input { flex:none; }
+@media (max-width: 640px) {
+  .as-list li { grid-template-columns:minmax(0, 1fr); gap:8px; }
+}

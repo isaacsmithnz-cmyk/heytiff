@@ -3,7 +3,18 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { cleanBrief } from "@/lib/workboard/quote-worklist";
 import { isPartialInvoiceLine, splitJobNumber } from "@/lib/workboard/job-family";
 import { decisionsFrom, type Decisions } from "./decisions";
-import { analyticsKindOf, closedAtSixtyDays, isTafeDay, type AnalyticsJob } from "./job-analytics";
+import { analyticsKindOf, type AnalyticsJob } from "./job-analytics";
+import {
+  bookingClients,
+  closeAgeOf,
+  DEFAULT_SETTINGS,
+  hoursToClose,
+  roleOf,
+  rulesOf,
+  normaliseSettings,
+  type AnalyticsSettings,
+  type CardFacts,
+} from "./settings";
 
 /* THE JOBS THE ANALYTICS READ, off the ServiceM8 mirror.
 
@@ -38,10 +49,17 @@ import { analyticsKindOf, closedAtSixtyDays, isTafeDay, type AnalyticsJob } from
      ServiceM8 made (its attachment, source QUOTE), which every quote that
      left it has whenever it was edited; and when ServiceM8 itself closed a
      Quote as Unsuccessful at 60 days, read off the last edit (job-analytics'
-     unsuccessfulQuote and closedAtSixtyDays).
-   - A DAY AT TAFE IS NOT A JOB: the apprentice's weekly TAFE day was booked
-     as a job card for TAFE NSW until March 2026 (job-analytics' isTafeDay).
-     Only the clients with TAFE in their name are read for it.
+     unsuccessfulQuote; the close age below).
+   - BOOKINGS ARE NOT JOBS: the apprentice's weekly TAFE day was booked as a
+     job card for TAFE NSW until March 2026. The clients whose cards are
+     bookings are the business's list (Admin, Analytics), else the ones
+     found here (settings' bookingClients); their cards never quoted,
+     invoiced or paid are left out. A category the business calls "not
+     jobs" is left out whole.
+   - THE CLOSE AGE: the age ServiceM8 closes an unanswered Quote at is the
+     business's setting, else found here in the Unsuccessful jobs
+     (settings' closeAgeOf); a quote closed at it says so.
+   - What was found is handed back, for the settings page to show.
 
    NO SESSION HERE: the page has already asked for `workboard_money`. */
 
@@ -71,7 +89,17 @@ type Row = {
   job_description: string | null;
 };
 
-export type AnalyticsJobsRead = { jobs: AnalyticsJob[]; truncated: boolean };
+/** What the read found in the jobs, which a setting can replace. */
+export type Found = {
+  /** clients whose cards look like bookings, most cards first */
+  bookingClients: { clientId: string; cards: number }[];
+  /** the age ServiceM8 closes an unanswered Quote at, if one stands out */
+  closeAge: { days: number; count: number } | null;
+  /** jobs read, by ServiceM8 category uuid ("" for none) */
+  byCategory: Record<string, number>;
+};
+
+export type AnalyticsJobsRead = { jobs: AnalyticsJob[]; truncated: boolean; found: Found };
 
 const dayOf = (stamp: string | null) => (stamp && stamp.length >= 10 ? stamp.slice(0, 10) : null);
 
@@ -99,45 +127,70 @@ async function pages(orgId: string, column: "date" | "completion_date", floor: s
 
 /** The jobs raised or completed since `floor` (a bare day), shaped for the
     figures; null when the mirror can't be read. */
-export async function readAnalyticsJobs(orgId: string, floor: string): Promise<AnalyticsJobsRead | null> {
-  const [raised, completed, cats, tafe, accepted, lines, quoteDocs] = await Promise.all([
+export async function readAnalyticsJobs(
+  orgId: string,
+  floor: string,
+  settings: AnalyticsSettings = DEFAULT_SETTINGS,
+): Promise<AnalyticsJobsRead | null> {
+  const [raised, completed, cats, accepted, lines, quoteDocs] = await Promise.all([
     pages(orgId, "date", floor),
     pages(orgId, "completion_date", floor),
     supabaseAdmin.from("sm8_categories").select("uuid, name").eq("org_id", orgId),
-    supabaseAdmin.from("sm8_companies").select("uuid, name").eq("org_id", orgId).ilike("name", "%tafe%"),
     acceptedProposals(orgId),
     jobLines(orgId),
     quoteDocuments(orgId),
   ]);
   if (!raised || !completed || !lines || !quoteDocs) return null;
   if (cats.error) console.error(`[analytics] couldn't read org ${orgId}'s categories:`, cats.error);
-  if (tafe.error) console.error(`[analytics] couldn't read org ${orgId}'s TAFE clients:`, tafe.error);
   const category = new Map(((cats.data ?? []) as { uuid: string; name: string | null }[]).map((c) => [c.uuid, c.name]));
-  const tafeName = new Map(((tafe.data ?? []) as { uuid: string; name: string | null }[]).map((c) => [c.uuid, c.name]));
 
-  /* the day each job's first claim was raised, by the parent's number */
-  const firstClaim = new Map<string, string>();
-  for (const r of [...raised.rows, ...completed.rows]) {
-    const split = splitJobNumber(r.generated_job_id);
-    const day = dayOf(r.date);
-    if (!split?.suffix || !day) continue;
-    const had = firstClaim.get(split.base);
-    if (!had || day < had) firstClaim.set(split.base, day);
-  }
-
+  /* every job once, and the day each job's first claim was raised, by the parent's number */
   const seen = new Set<string>();
-  const jobs: AnalyticsJob[] = [];
+  const rows: Row[] = [];
+  const firstClaim = new Map<string, string>();
   for (const r of [...raised.rows, ...completed.rows]) {
     if (seen.has(r.uuid)) continue;
     seen.add(r.uuid);
-    /* a progress claim is part of its parent, never a job of its own */
-    if (splitJobNumber(r.generated_job_id)?.suffix) continue;
-    /* an apprentice's day at TAFE, booked as a job card */
-    const quoted = !!dayOf(r.quote_date) || !!dayOf(r.quote_sent_stamp);
-    const clientName = r.company_uuid ? (tafeName.get(r.company_uuid) ?? null) : null;
-    if (isTafeDay(clientName, { quoted, invoiced: r.invoice_sent === 1, paid: r.payment_received === 1 })) continue;
-    const own = lines.get(r.uuid);
+    const split = splitJobNumber(r.generated_job_id);
+    const day = dayOf(r.date);
+    if (split?.suffix) {
+      /* a progress claim is part of its parent, never a job of its own */
+      if (day && (!firstClaim.has(split.base) || day < firstClaim.get(split.base)!)) firstClaim.set(split.base, day);
+      continue;
+    }
+    rows.push(r);
+  }
+
+  /* what the jobs show, before any is left out */
+  const quotedOf = (r: Row) => !!dayOf(r.quote_date) || !!dayOf(r.quote_sent_stamp) || quoteDocs.has(r.uuid);
+  const cards: CardFacts[] = rows.map((r) => ({
+    clientId: r.company_uuid,
+    quoted: quotedOf(r),
+    invoiced: r.invoice_sent === 1,
+    paid: r.payment_received === 1,
+    priced: (lines.get(r.uuid)?.cents ?? 0) > 0,
+  }));
+  const gaps = rows
+    .filter((r) => (r.status ?? "").trim().toLowerCase() === "unsuccessful")
+    .map((r) => hoursToClose(r.quote_date, r.edit_date))
+    .filter((h): h is number => h !== null);
+  const byCategory: Record<string, number> = {};
+  for (const r of rows) byCategory[r.category_uuid ?? ""] = (byCategory[r.category_uuid ?? ""] ?? 0) + 1;
+  const found: Found = { bookingClients: bookingClients(cards), closeAge: closeAgeOf(gaps), byCategory };
+
+  const notCustomers = new Set(settings.notCustomers ?? found.bookingClients.map((c) => c.clientId));
+  const closeDays = rulesOf(settings, found.closeAge?.days ?? null).closeAfterDays;
+
+  const jobs: AnalyticsJob[] = [];
+  rows.forEach((r, i) => {
     const categoryName = r.category_uuid ? (category.get(r.category_uuid) ?? null) : null;
+    const role = roleOf(settings, r.category_uuid, categoryName);
+    if (role === "not_job") return;
+    /* a booking, not work: a card for one of those clients never quoted, invoiced or paid */
+    const card = cards[i]!;
+    if (r.company_uuid && notCustomers.has(r.company_uuid) && !card.quoted && !card.invoiced && !card.paid) return;
+    const own = lines.get(r.uuid);
+    const hours = hoursToClose(r.quote_date, r.edit_date);
     jobs.push({
       id: r.uuid,
       status: r.status,
@@ -147,11 +200,12 @@ export async function readAnalyticsJobs(orgId: string, floor: string): Promise<A
       wonOn: dayOf(r.work_order_date),
       claimedOn: firstClaim.get(splitJobNumber(r.generated_job_id)?.base ?? "") ?? null,
       quoteDocOn: quoteDocs.get(r.uuid) ?? null,
-      closedUnanswered: closedAtSixtyDays(r.quote_date, r.edit_date),
+      closedUnanswered: closeDays !== null && hours !== null && Math.abs(hours - closeDays * 24) <= 2,
       completedOn: dayOf(r.completion_date),
       valueCents: own && own.cents > 0 ? own.cents : null,
-      kind: analyticsKindOf(r.job_description, own?.names ?? [], categoryName),
+      kind: analyticsKindOf(r.job_description, own?.names ?? [], categoryName, role),
       category: categoryName,
+      role,
       paid: r.payment_received === 1,
       acceptedInHeyTiff: accepted.has(r.uuid),
       number: r.generated_job_id,
@@ -159,8 +213,8 @@ export async function readAnalyticsJobs(orgId: string, floor: string): Promise<A
       brief: cleanBrief(r.job_description),
       clientId: r.company_uuid,
     });
-  }
-  return { jobs, truncated: raised.truncated || completed.truncated };
+  });
+  return { jobs, truncated: raised.truncated || completed.truncated, found };
 }
 
 /** The jobs whose HeyTiff proposal has an option marked accepted. Only the
@@ -212,6 +266,35 @@ export async function readDecisions(orgId: string): Promise<DecisionsRead> {
     if (got.length < PAGE) break;
   }
   return { decisions: decisionsFrom(rows), ready: true };
+}
+
+export type SettingsRead = { settings: AnalyticsSettings; ready: boolean };
+
+/** The business's analytics settings; the defaults when it has none, or
+    (ready false, quietly) while the table isn't there yet. */
+export async function readAnalyticsSettings(orgId: string): Promise<SettingsRead> {
+  const { data, error } = await supabaseAdmin
+    .from("analytics_settings")
+    .select("lapse_after_days, quote_from_cents, auto_close_days, category_roles, not_customers")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (error) {
+    if (!NO_TABLE.has((error as { code?: string }).code ?? "")) console.error(`[analytics] couldn't read org ${orgId}'s settings:`, error);
+    return { settings: DEFAULT_SETTINGS, ready: false };
+  }
+  return { settings: data ? normaliseSettings(data) : DEFAULT_SETTINGS, ready: true };
+}
+
+/** The business's ServiceM8 categories, by name; none when they can't be read (logged). */
+export async function readCategories(orgId: string): Promise<{ uuid: string; name: string }[]> {
+  const { data, error } = await supabaseAdmin.from("sm8_categories").select("uuid, name").eq("org_id", orgId);
+  if (error) {
+    console.error(`[analytics] couldn't read org ${orgId}'s categories:`, error);
+    return [];
+  }
+  return ((data ?? []) as { uuid: string; name: string | null }[])
+    .map((c) => ({ uuid: c.uuid, name: (c.name ?? "").trim() || "Unnamed" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** Client names for the To decide rows only, by ServiceM8 company uuid,

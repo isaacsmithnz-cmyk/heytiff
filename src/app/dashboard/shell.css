@@ -6772,6 +6772,11 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-hits small { display:block; font-size:12px; color:var(--q); }
 .fg .ql-hits b { font-weight:600; font-variant-numeric:tabular-nums; }
 .fg .ql-hits li.none { padding:8px 12px; font-size:13px; color:var(--q); }
+.fg .ql-kit { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
+.fg .ql-kgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px 16px; }
+.fg .ql-kf { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:500; color:var(--q); }
+.fg .ql-kin { display:flex; align-items:center; gap:8px; }
+.fg .ql-kin em { font-style:normal; font-size:13px; color:var(--q); }
 .fg .ql-chg { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
 .fg .ql-chg li { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:13px; line-height:1.45; color:var(--hd-ink); }
 .fg .ql-chg li:first-child { border-top:0; }

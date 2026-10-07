@@ -131,3 +131,28 @@ it("takes a line off with its version", async () => {
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "remove", id: "l1", version: 1 });
 });
+
+/* kits as data, slice 1.3: a whole install kit in one press */
+it("adds a kit for a system: the outdoor named, the runs given, the rest read off its data pack", async () => {
+  face();
+  await screen.findByText("Ducted indoor, under the floor");
+  fireEvent.click(screen.getByRole("button", { name: "Add a kit" }));
+  fireEvent.change(screen.getByLabelText("The system it's for"), { target: { value: "Living room" } });
+  fireEvent.change(screen.getByLabelText("Outdoor model"), { target: { value: "MUZ-AP60VG2" } });
+  fireEvent.change(screen.getByLabelText("Pipe run"), { target: { value: "20" } });
+  fireEvent.change(screen.getByLabelText("Power run"), { target: { value: "25" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add the kit" }));
+  });
+  expect(posted).toContainEqual(
+    expect.objectContaining({
+      op: "kit",
+      kit: "split",
+      optionIndex: 0,
+      system: "Living room",
+      brand: "mitsubishi-electric",
+      model: "MUZ-AP60VG2",
+      facts: expect.objectContaining({ pipeM: "20", powerM: "25", pipe: "", mount: "ground" }),
+    })
+  );
+});

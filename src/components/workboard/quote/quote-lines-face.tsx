@@ -9,6 +9,7 @@ import type { BookHit } from "@/lib/quotes/lookups";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { linesSteps } from "@/lib/quotes/quote-steps";
 import { unsetWords } from "@/lib/quotes/build-settings";
+import { PIPE_SIZES } from "@/lib/quotes/kits";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
@@ -140,6 +141,7 @@ export function QuoteLinesFace({
   const [search, setSearch] = useState("");
   const [hits, setHits] = useState<BookHit[] | null>(null);
   const [system, setSystem] = useState("");
+  const [kitOpen, setKitOpen] = useState(false);
 
   const lines = (view?.lines ?? []).filter((l) => l.optionIndex === at);
   const options = Math.max(1, ...(view?.lines ?? []).map((l) => l.optionIndex + 1), price && price.ok ? price.options.length : 1);
@@ -415,10 +417,23 @@ export function QuoteLinesFace({
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => addByHand("labour")}>
             Add labour
           </button>
+          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setKitOpen((v) => !v)} aria-expanded={kitOpen}>
+            Add a kit
+          </button>
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setAt(options)}>
             Add an option
           </button>
         </div>
+        {kitOpen && (
+          <KitForm
+            busy={busy}
+            system={system}
+            onAdd={(k) => {
+              setKitOpen(false);
+              void act({ op: "kit", optionIndex: at, ...k });
+            }}
+          />
+        )}
       </section>
     </>
   );
@@ -481,6 +496,87 @@ export function QuoteLinesFace({
         </div>
       </div>
     </>
+  );
+}
+
+type KitAsk = { kit: "split" | "ducted"; system: string; brand: string; model: string; facts: Record<string, string> };
+
+/** What a kit needs to know: the unit (its pipe and current read off its
+    data pack when blank), the runs, and the outlets for a ducted one. A run
+    left blank leaves its part on the quote as not known yet. */
+function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd: (k: KitAsk) => void }) {
+  const [kit, setKit] = useState<"split" | "ducted">("split");
+  const [sys, setSys] = useState(system || "");
+  const [brand, setBrand] = useState("mitsubishi-electric");
+  const [model, setModel] = useState("");
+  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "" });
+  const set = (k: string) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const num = (k: string, label: string, unit: string) => (
+    <label className="ql-kf">
+      <span>{label}</span>
+      <span className="ql-kin">
+        <input className="wb2-fi" inputMode="decimal" value={f[k]} onChange={set(k)} aria-label={label} />
+        <em>{unit}</em>
+      </span>
+    </label>
+  );
+  return (
+    <div className="ql-kit">
+      <div className="ql-kgrid">
+        <label className="ql-kf">
+          <span>Kit</span>
+          <select className="wb2-fi" value={kit} onChange={(e) => setKit(e.target.value === "ducted" ? "ducted" : "split")} aria-label="Kit">
+            <option value="split">Split install</option>
+            <option value="ducted">Ducted install</option>
+          </select>
+        </label>
+        <label className="ql-kf">
+          <span>System</span>
+          <input className="wb2-fi" value={sys} onChange={(e) => setSys(e.target.value)} aria-label="The system it's for" />
+        </label>
+        <label className="ql-kf">
+          <span>Outdoor model</span>
+          <input className="wb2-fi" value={model} onChange={(e) => setModel(e.target.value)} aria-label="Outdoor model" />
+        </label>
+        <label className="ql-kf">
+          <span>Its data pack</span>
+          <select className="wb2-fi" value={brand} onChange={(e) => setBrand(e.target.value)} aria-label="The outdoor's data pack">
+            <option value="mitsubishi-electric">Mitsubishi Electric</option>
+            <option value="">None</option>
+          </select>
+        </label>
+        <label className="ql-kf">
+          <span>Pipe</span>
+          <select className="wb2-fi" value={f.pipe} onChange={set("pipe")} aria-label="Pipe size">
+            <option value="">From the unit</option>
+            {PIPE_SIZES.map((p) => (
+              <option key={p} value={p}>
+                {p.replace("+", " + ")}
+              </option>
+            ))}
+          </select>
+        </label>
+        {num("amps", "It draws", "A")}
+        {num("pipeM", "Pipe run", "m")}
+        {num("powerM", "Power run", "m")}
+        {num("drainM", "Drain", "m")}
+        {num("trunkingM", "Trunking outside", "m")}
+        <label className="ql-kf">
+          <span>Outdoor on</span>
+          <select className="wb2-fi" value={f.mount} onChange={set("mount")} aria-label="What the outdoor sits on">
+            <option value="ground">Feet on the ground</option>
+            <option value="wall">A wall bracket</option>
+          </select>
+        </label>
+        {kit === "ducted" && num("outlets", "Outlets", "")}
+        {kit === "ducted" && num("outletMm", "Outlet size", "mm")}
+      </div>
+      <div className="wb2-jqacts">
+        <button type="button" className="pbtn primary sm" disabled={busy} onClick={() => onAdd({ kit, system: sys.trim(), brand, model: model.trim(), facts: f })}>
+          Add the kit
+        </button>
+      </div>
+    </div>
   );
 }
 

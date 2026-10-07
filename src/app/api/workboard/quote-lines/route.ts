@@ -2,6 +2,8 @@ import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { addLine, changeLine, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
+import { addKit } from "@/lib/quotes/kits-server";
+import { normaliseKitFacts } from "@/lib/quotes/kits";
 
 /* A quote's kept lines (the engine rebuild, slices 2.1–2.3): read them with
    their history and who made each change, and change them one at a time.
@@ -63,6 +65,14 @@ export async function POST(req: Request) {
     case "remove":
       result = await removeLine(g.orgId, jobUuid, id, version, g.userId, why);
       break;
+    case "kit": {
+      const kit = body.kit === "ducted" ? "ducted" : "split";
+      const at = { optionIndex: typeof body.optionIndex === "number" ? Math.max(0, Math.min(19, Math.round(body.optionIndex))) : 0, system: typeof body.system === "string" ? body.system.slice(0, 60) : "" };
+      const model = typeof body.model === "string" ? body.model.trim().slice(0, 60) : "";
+      const brand = typeof body.brand === "string" ? body.brand.trim().slice(0, 60) : "";
+      result = await addKit(g.orgId, jobUuid, kit, normaliseKitFacts(body.facts), at, model && brand ? { brand, model } : null, g.userId);
+      break;
+    }
     case "undo":
       result = await undoChange(g.orgId, jobUuid, typeof body.change === "number" ? body.change : -1, g.userId);
       break;

@@ -13,6 +13,7 @@
    boundary so a fuller calc can replace it without touching callers. */
 
 import type { Point } from "./document";
+import { coversLoad } from "./fit";
 
 /* ────────────────── climate zones (Australian NCC, W/m²) ──────────────────
    Rule-of-thumb watts per m² by zone × building type. Source (per DUCTR):
@@ -169,7 +170,7 @@ export function unitMeetsLoad(
   loadKw: number,
   basis: SizingBasis
 ): boolean {
-  return sizingCapacityKw(unit, basis) >= loadKw;
+  return coversLoad(sizingCapacityKw(unit, basis), loadKw);
 }
 
 /* ──────────────── orientation detection (north arrow) ────────────────

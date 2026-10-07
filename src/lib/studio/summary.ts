@@ -25,6 +25,7 @@ import { equipmentList, installState, NOT_SURE_VALUE, vrfFittings, type Equipmen
 import { systemVrfTree } from "./vrf-tree";
 import { describeUnit } from "./materials";
 import { formFactorLabel } from "./form-factors";
+import { coverPct, coversLoad } from "./fit";
 
 /** The zone number the engine actually uses — settings store a stringified
     zone ("5") or null; anything unparsable falls back like loads-room.ts.
@@ -415,17 +416,19 @@ export function buildSummaryModel(
       const styles = [
         ...new Set(models.map(iduStyle).filter((x): x is string => x != null)),
       ];
-      const pct =
-        share.loadKw != null && share.loadKw > 0
-          ? Math.round((share.coverKw / share.loadKw) * 100)
-          : null;
+      /* judged and counted on the figures as shown (fit.ts) */
+      const pct = share.loadKw != null ? coverPct(share.coverKw, share.loadKw) : null;
       return {
         ...strip(rows.get(share.room.id)!),
         loadKw: share.loadKw,
         capacityKw: share.coverKw,
         pct,
         status:
-          share.loadKw == null ? "unknown" : pct != null && pct >= 100 ? "covered" : "under",
+          share.loadKw == null
+            ? "unknown"
+            : pct != null && coversLoad(share.coverKw, share.loadKw)
+              ? "covered"
+              : "under",
         // every unit in the room, not the first one found
         indoorModel: models.join(", "),
         styleLabel: styles.length ? styles.join(", ") : null,
@@ -588,7 +591,7 @@ export function buildSummaryModel(
       loadKw: load == null ? null : Math.round(load * 10) / 10,
       capacityKw: cap == null ? null : Math.round(cap * 10) / 10,
       pct,
-      status: load == null ? "unknown" : pct != null && pct >= 100 ? "covered" : "under",
+      status: load == null || cap == null ? "unknown" : pct != null && coversLoad(cap, load) ? "covered" : "under",
       lines,
     };
   });

@@ -11,6 +11,7 @@ import { roomVerdict, trayItems } from "./builder";
 import { systemKind, systemZones } from "./zones";
 import { blockingFindings, doneReason, systemFindings } from "./verdict";
 import { installState } from "./install";
+import { coverPct } from "./fit";
 
 export interface CardStatus {
   text: string;
@@ -37,7 +38,7 @@ export function cardStatus(
   for (const zone of zones) {
     const v = roomVerdict(doc, pack, basis, zone);
     if (v.word === "Undersized" && v.loadKw) {
-      const pct = Math.round((v.coverKw / v.loadKw) * 100);
+      const pct = coverPct(v.coverKw, v.loadKw);
       return { text: `${String(zone.props.name ?? "Zone")} short, ${pct}%`, tone: "bad" };
     }
   }

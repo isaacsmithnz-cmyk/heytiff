@@ -12,6 +12,7 @@ import type { DataPack, IndoorUnit, OutdoorUnit, PairTable } from "./packs/schem
 import { indoorReadiness } from "./packs/ready";
 import { buildSystemGraph, findPath, type SystemGraph } from "./graph";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
+import { coversLoad } from "./fit";
 
 /* ─────────────────────────── pair proposals ─────────────────────────── */
 
@@ -64,7 +65,7 @@ export function proposePairs(
   all.sort((a, b) => a.capacityKw - b.capacityKw || a.idu.model.localeCompare(b.idu.model));
 
   if (loadKw == null) return all;
-  const covering = all.filter((p) => p.capacityKw >= loadKw);
+  const covering = all.filter((p) => coversLoad(p.capacityKw, loadKw));
   if (covering.length) covering[0].recommended = true;
   return covering;
 }

@@ -148,6 +148,19 @@ export function analyticsKindOf(description: string | null, lineNames: readonly 
   return workKindOf(words, category) ?? (/\bhws\b/i.test(words) ? "split" : null);
 }
 
+/* A DAY AT TAFE IS NOT A JOB (Isaac, 2026-10-07: "TAFE NSW is the booking
+   to mark the apprentices day at tafe"). Until March 2026 the apprentice's
+   day at TAFE went into ServiceM8 as a job card for the client TAFE NSW, one
+   a week, mostly under Warranty: 162 on the live account, none quoted,
+   invoiced or paid. Time off has been ServiceM8's staff leave since
+   (workboard/away). A card for a client named TAFE that was never quoted,
+   invoiced or paid is that booking, and is left out before any figure: it
+   would count as a job raised, an enquiry and a warranty call-out. Work done
+   for a TAFE campus is quoted or invoiced, and counts. */
+export function isTafeDay(clientName: string | null, card: { quoted: boolean; invoiced: boolean; paid: boolean }): boolean {
+  return /\btafe\b/i.test(clientName ?? "") && !card.quoted && !card.invoiced && !card.paid;
+}
+
 /** ServiceM8's status and the money or the proposal disagree. */
 function disputed(j: AnalyticsJob): boolean {
   const s = norm(j.status);

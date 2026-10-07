@@ -3,6 +3,7 @@
 import {
   analyse,
   analyticsKindOf,
+  isTafeDay,
   wasQuoted,
   change,
   LAPSE_AFTER_DAYS,
@@ -374,5 +375,16 @@ describe("what the live account taught the rules", () => {
     expect(analyticsKindOf("As per quote", ["MITSUBISHI ELEC. HIGH WALL SPLIT 4.2KW", "HVAC Labour"], "Install")).toBe("split");
     expect(analyticsKindOf("Supply and Install Mitsubishi Electric 3.5kw HWS", [], "Install")).toBe("split");
     expect(analyticsKindOf("As per quote", ["As Per Quote"], "Install")).toBeNull();
+  });
+
+  it("knows a TAFE day booked as a job card, and still counts work done for TAFE", () => {
+    const none = { quoted: false, invoiced: false, paid: false };
+    expect(isTafeDay("TAFE NSW", none)).toBe(true);
+    expect(isTafeDay("tafe nsw", none)).toBe(true);
+    expect(isTafeDay("TAFE NSW", { ...none, quoted: true })).toBe(false);
+    expect(isTafeDay("TAFE NSW", { ...none, invoiced: true })).toBe(false);
+    expect(isTafeDay("TAFE NSW", { ...none, paid: true })).toBe(false);
+    expect(isTafeDay("Tafeline Builders", none)).toBe(false);
+    expect(isTafeDay(null, none)).toBe(false);
   });
 });

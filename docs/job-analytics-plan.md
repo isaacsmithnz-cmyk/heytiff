@@ -89,6 +89,11 @@ Isaac, 2026-10-07:
   - Once a row has gone to ServiceM8, it has no Undo; the change is then ServiceM8's, and is undone there.
   - **Not written back:** brand, "is it a quote" and "leave it out of prices", because ServiceM8 has no field for them. Job type could set the ServiceM8 category, but only once each business maps its own categories to the job types. Not in the mock-up.
 
+- **An apprentice's day at TAFE is not a job** (Isaac, 2026-10-07: "TAFE NSW is the booking to mark the apprentices day at tafe").
+  - Until March 2026 the TAFE day was booked as a ServiceM8 job card for the client TAFE NSW, weekly, mostly under Warranty: 49 in the last 12 months and 112 the year before. None was quoted, invoiced or paid.
+  - A card for a client with TAFE in its name that was never quoted, invoiced or paid is left out before any figure. Real work for a TAFE campus is quoted or invoiced, and still counts.
+  - Without it, jobs raised read 1,370 against 1,288 (+6%); with it, 1,321 against 1,176 (+12%).
+
 ## What the numbers stand on
 
 Most job data is the ServiceM8 mirror (`sm8_*`, docs/migrations/sm8_mirror.sql and sm8_jobs_money.sql):

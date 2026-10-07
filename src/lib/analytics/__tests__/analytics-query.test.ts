@@ -6,6 +6,7 @@ const byColumn: Record<string, Record<string, unknown>[]> = {};
 const ranges: { column: string; from: number; to: number }[] = [];
 let failOn: string | null = null;
 let categories: Record<string, unknown>[] = [];
+let companies: Record<string, unknown>[] = [];
 let drafts: Record<string, unknown>[] = [];
 let lines: Record<string, unknown>[] = [];
 let decisions: { data: Record<string, unknown>[] | null; error: unknown } = { data: [], error: null };
@@ -18,6 +19,7 @@ jest.mock("@/lib/supabase-server", () => ({
       const sub: Record<string, unknown> = {};
       sub.select = () => sub;
       sub.eq = () => sub;
+      sub.ilike = () => sub;
       sub.order = () => sub;
       sub.gte = (c: string) => {
         column = c;
@@ -29,6 +31,7 @@ jest.mock("@/lib/supabase-server", () => ({
         return sub;
       };
       sub.then = (res: (v: { data: unknown[] | null; error: unknown }) => unknown) => {
+        if (table === "sm8_companies") return Promise.resolve({ data: companies, error: null }).then(res);
         if (table === "sm8_categories") return Promise.resolve({ data: categories, error: null }).then(res);
         if (table === "quote_drafts") return Promise.resolve({ data: drafts, error: null }).then(res);
         if (table === "sm8_job_materials") return Promise.resolve({ data: span ? lines.slice(span[0], span[1] + 1) : lines, error: null }).then(res);
@@ -62,6 +65,7 @@ beforeEach(() => {
   ranges.length = 0;
   failOn = null;
   categories = [];
+  companies = [];
   drafts = [];
   lines = [];
   decisions = { data: [], error: null };
@@ -136,6 +140,17 @@ describe("readAnalyticsJobs", () => {
     byColumn.date = [row("parent", { generated_job_id: "2380" }), row("claim", { generated_job_id: "2380A" })];
     const read = await readAnalyticsJobs("org", "2024-10-08");
     expect(read?.jobs.map((j) => j.id)).toEqual(["parent"]);
+  });
+
+  it("leaves out an apprentice's TAFE day booked as a job card, and keeps work invoiced to TAFE", async () => {
+    companies = [{ uuid: "tafe", name: "TAFE NSW" }];
+    byColumn.date = [
+      row("day", { status: "Work Order", company_uuid: "tafe", job_description: "UNIVERSITY" }),
+      row("work", { status: "Completed", company_uuid: "tafe", invoice_sent: 1 }),
+      row("other", { status: "Work Order", company_uuid: "co-2" }),
+    ];
+    const read = await readAnalyticsJobs("org", "2024-10-08");
+    expect(read?.jobs.map((j) => j.id)).toEqual(["work", "other"]);
   });
 
   it("marks a job paid in ServiceM8, and one whose proposal has an option accepted", async () => {

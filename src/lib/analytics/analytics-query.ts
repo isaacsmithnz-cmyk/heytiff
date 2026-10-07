@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { cleanBrief } from "@/lib/workboard/quote-worklist";
 import { isPartialInvoiceLine, splitJobNumber } from "@/lib/workboard/job-family";
 import { decisionsFrom, type Decisions } from "./decisions";
-import { analyticsKindOf, type AnalyticsJob } from "./job-analytics";
+import { analyticsKindOf, isTafeDay, type AnalyticsJob } from "./job-analytics";
 
 /* THE JOBS THE ANALYTICS READ, off the ServiceM8 mirror.
 
@@ -31,6 +31,9 @@ import { analyticsKindOf, type AnalyticsJob } from "./job-analytics";
      extra jobs and their money twice.
    - THE QUOTE DATE is read too: it says a job was a Quote before it was a
      Work Order, where the sent stamp was never recorded (job-analytics).
+   - A DAY AT TAFE IS NOT A JOB: the apprentice's weekly TAFE day was booked
+     as a job card for TAFE NSW until March 2026 (job-analytics' isTafeDay).
+     Only the clients with TAFE in their name are read for it.
 
    NO SESSION HERE: the page has already asked for `workboard_money`. */
 
@@ -40,7 +43,7 @@ const MAX_PAGES = 30;
 
 const COLUMNS =
   "uuid, generated_job_id, status, date, quote_date, quote_sent_stamp, work_order_date, completion_date, " +
-  "payment_received, category_uuid, company_uuid, geo_city, job_description";
+  "payment_received, invoice_sent, category_uuid, company_uuid, geo_city, job_description";
 
 type Row = {
   uuid: string;
@@ -52,6 +55,7 @@ type Row = {
   work_order_date: string | null;
   completion_date: string | null;
   payment_received: number | null;
+  invoice_sent: number | null;
   category_uuid: string | null;
   company_uuid: string | null;
   geo_city: string | null;
@@ -87,16 +91,19 @@ async function pages(orgId: string, column: "date" | "completion_date", floor: s
 /** The jobs raised or completed since `floor` (a bare day), shaped for the
     figures; null when the mirror can't be read. */
 export async function readAnalyticsJobs(orgId: string, floor: string): Promise<AnalyticsJobsRead | null> {
-  const [raised, completed, cats, accepted, lines] = await Promise.all([
+  const [raised, completed, cats, tafe, accepted, lines] = await Promise.all([
     pages(orgId, "date", floor),
     pages(orgId, "completion_date", floor),
     supabaseAdmin.from("sm8_categories").select("uuid, name").eq("org_id", orgId),
+    supabaseAdmin.from("sm8_companies").select("uuid, name").eq("org_id", orgId).ilike("name", "%tafe%"),
     acceptedProposals(orgId),
     jobLines(orgId),
   ]);
   if (!raised || !completed || !lines) return null;
   if (cats.error) console.error(`[analytics] couldn't read org ${orgId}'s categories:`, cats.error);
+  if (tafe.error) console.error(`[analytics] couldn't read org ${orgId}'s TAFE clients:`, tafe.error);
   const category = new Map(((cats.data ?? []) as { uuid: string; name: string | null }[]).map((c) => [c.uuid, c.name]));
+  const tafeName = new Map(((tafe.data ?? []) as { uuid: string; name: string | null }[]).map((c) => [c.uuid, c.name]));
 
   const seen = new Set<string>();
   const jobs: AnalyticsJob[] = [];
@@ -105,6 +112,10 @@ export async function readAnalyticsJobs(orgId: string, floor: string): Promise<A
     seen.add(r.uuid);
     /* a progress claim is part of its parent, never a job of its own */
     if (splitJobNumber(r.generated_job_id)?.suffix) continue;
+    /* an apprentice's day at TAFE, booked as a job card */
+    const quoted = !!dayOf(r.quote_date) || !!dayOf(r.quote_sent_stamp);
+    const clientName = r.company_uuid ? (tafeName.get(r.company_uuid) ?? null) : null;
+    if (isTafeDay(clientName, { quoted, invoiced: r.invoice_sent === 1, paid: r.payment_received === 1 })) continue;
     const own = lines.get(r.uuid);
     const categoryName = r.category_uuid ? (category.get(r.category_uuid) ?? null) : null;
     jobs.push({

@@ -1,6 +1,6 @@
 import "server-only";
-import { priceBuildUp, type BuildUp } from "./buildup";
-import { profitOf, type Profit } from "./profit";
+import { priceBuildUp, type BuildLine, type BuildUp, type Visit } from "./buildup";
+import { hourCostOf, profitOf, type Profit } from "./profit";
 import { readEngine, readLines } from "./lines-server";
 import { buildLineOf, priceLines, stillUnknown } from "./lines-price";
 import { buildSettingsOf, type BuildUnset } from "./build-settings";
@@ -41,6 +41,18 @@ export type QuotePrice =
   | { ok: true; options: OptionPrice[] };
 
 export async function readQuotePrice(orgId: string, jobUuid: string): Promise<QuotePrice> {
+  const r = await priceQuote(orgId, jobUuid);
+  return r.ok ? { ok: true, options: r.options.map(({ lines: _l, visits: _v, ...o }) => o) } : r;
+}
+
+/** An option priced the old way, with the lines and visits it was priced
+    from, for a quote brought across to its kept lines (lines-adopt.ts). */
+export type OptionWithLines = OptionPrice & { lines: BuildLine[]; visits: Visit[] };
+export type QuoteWithLines = { ok: false; unset: BuildUnset[] } | { ok: true; options: OptionWithLines[]; dayHours: number; hourCostCents: number | null };
+
+/** The quote priced, its lines kept: what readQuotePrice reads, before it
+    drops them. */
+export async function priceQuote(orgId: string, jobUuid: string): Promise<QuoteWithLines> {
   const [settings, day] = await Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]);
   const built = buildSettingsOf(settings, day);
   if (!built.ok) return { ok: false, unset: built.unset };
@@ -52,7 +64,12 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
     const options = priceLines(lines, names, built.settings, { pct: settings.profitTargetPct, labourCostCents: settings.labourCostCents });
     const parts = lines.filter((l) => l.kind !== "labour" && !stillUnknown(l)).map(buildLineOf);
     if (parts.length > 0) await recordQuoteItems(orgId, jobUuid, parts);
-    return { ok: true, options };
+    return {
+      ok: true,
+      options: options.map((o) => ({ ...o, lines: [], visits: [] })),
+      dayHours: built.settings.dayHours,
+      hourCostCents: hourCostOf(built.settings.chargeOutCents, settings.profitTargetPct, settings.labourCostCents),
+    };
   }
 
   const [proposal, ref] = await Promise.all([readStoredProposal(orgId, jobUuid).catch(() => null), latestInstalledPack(PACK_BRAND)]);
@@ -127,9 +144,14 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
     const { visits, from } = optionLabour(l.labour, brief);
     const build = priceBuildUp(lines, visits, built.settings);
     const profit = profitOf(build, built.settings, settings.profitTargetPct, settings.labourCostCents);
-    return { name: l.name, lines, build, unpriced, rows: l.rows.length, labourFrom: from, profit };
+    return { name: l.name, lines, visits, build, unpriced, rows: l.rows.length, labourFrom: from, profit };
   });
   /* what this quote pulled from the price book, for the price book's Most used */
   if (lists.length > 0) await recordQuoteItems(orgId, jobUuid, options.flatMap((o) => o.lines));
-  return { ok: true, options: options.map(({ lines: _lines, ...o }) => o) };
+  return {
+    ok: true,
+    options,
+    dayHours: built.settings.dayHours,
+    hourCostCents: hourCostOf(built.settings.chargeOutCents, settings.profitTargetPct, settings.labourCostCents),
+  };
 }

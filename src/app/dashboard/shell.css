@@ -6682,21 +6682,28 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    the parts Home hasn't got. `.fg .qp-*`, two classes deep, for Home's
    reason: `.fg button` is (0,1,1). */
 .fg .qp-acts { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
-/* THE PROGRESS LINE: a dot and a step, joined; done in Home's teal, due in
-   the warn colour, the next one a ring in ink, the rest Home's quiet dot. */
+/* THE PROGRESS LINE: a dot and a step, joined, the job card's stepper in
+   colour (Isaac, 2026-10-07: "it matched job card, I just wanted colour in
+   it"): done in Home's teal, due in the warn colour, each dot ringed in its
+   own tint and its line after it a rounded 3px in the same colour; the next
+   one a ring in ink; the steps not reached yet quiet. */
 .fg .qp-steps { margin:0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); }
 .fg .qp-steps > li { position:relative; display:flex; flex-direction:column; gap:2px; min-width:0; padding:24px 16px 0 0; }
-.fg .qp-steps > li > i { position:absolute; top:4px; left:0; box-sizing:border-box; width:12px; height:12px;
+.fg .qp-steps > li > i { position:absolute; top:3px; left:0; box-sizing:border-box; width:14px; height:14px;
   border-radius:50%; background:var(--hd-dot); }
-.fg .qp-steps > li::after { content:""; position:absolute; top:9px; left:20px; right:8px; height:2px; background:var(--hd-rule); }
+.fg .qp-steps > li::after { content:""; position:absolute; top:8.5px; left:24px; right:8px; height:3px;
+  border-radius:var(--r-pill); background:var(--hd-rule); }
 .fg .qp-steps > li:last-child::after { display:none; }
 .fg .qp-steps b { font-size:14px; font-weight:600; color:var(--hd-ink); }
 .fg .qp-steps span { display:flex; align-items:baseline; gap:8px; min-width:0; font-size:13px; font-weight:500; color:var(--q); }
-.fg .qp-steps > li.done > i, .fg .qp-steps > li.done::after { background:var(--hd-today); }
+.fg .qp-steps > li:not(.done, .due, .next) b { font-weight:500; color:var(--q); }
+.fg .qp-steps > li.done > i { background:var(--hd-today); box-shadow:0 0 0 4px var(--hd-fresh); }
+.fg .qp-steps > li.done::after { background:var(--hd-today); }
 .fg .qp-steps > li.done span { color:var(--hd-today); }
-.fg .qp-steps > li.due > i { background:var(--warn-t); }
+.fg .qp-steps > li.due > i { background:var(--warn-t); box-shadow:0 0 0 4px var(--warn-tint); }
+.fg .qp-steps > li.due::after { background:color-mix(in srgb, var(--warn-t) 40%, transparent); }
 .fg .qp-steps > li.due span { color:var(--warn-t); }
-.fg .qp-steps > li.next > i { background:var(--paper); border:2px solid var(--hd-ink); }
+.fg .qp-steps > li.next > i { background:var(--paper); border:2px solid var(--hd-ink); box-shadow:0 0 0 4px var(--tint-2); }
 .fg .qp-undo { padding:0; border:0; background:none; font:inherit; font-weight:600; color:var(--hd-ink);
   text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 .fg .qp-undo:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }

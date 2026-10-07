@@ -52,6 +52,7 @@ jest.mock("@/lib/supabase-server", () => ({
         update: (p: Row) => ((op = "update"), (payload = p), q),
         delete: () => ((op = "delete"), q),
         eq: (c: string, v: unknown) => (filters.push((r) => r[c] === v), q),
+        in: (c: string, vs: unknown[]) => (filters.push((r) => vs.includes(r[c])), q),
         order: (c: string, o?: { ascending?: boolean }) => (orderBy.push({ c, asc: o?.ascending !== false }), q),
         limit: (n: number) => ((limitN = n), q),
         single: async () => ({ data: run()[0] ?? null, error: null }),
@@ -63,7 +64,7 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { addLine, changeLine, readChanges, readEngine, readLines, removeLine, undoChange } from "../lines-server";
+import { addLine, changeLine, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "../lines-server";
 
 const ORG = "org-a";
 const JOB = "job-3384";
@@ -139,4 +140,21 @@ it("every quote is on the old engine until it's switched", async () => {
   expect(await readEngine(ORG, JOB)).toBe("old");
   TABLES.quote_drafts = [{ org_id: ORG, sm8_job_uuid: JOB, engine: "lines" }];
   expect(await readEngine(ORG, JOB)).toBe("lines");
+});
+
+it("switches a quote with a draft by its own row, and one with none by a row that holds only the switch", async () => {
+  TABLES.quote_drafts = [{ org_id: ORG, sm8_job_uuid: "drafted", engine: "old", draft: { options: [1] } }];
+  expect(await setEngine(ORG, "drafted", "lines", "isaac")).toBe(true);
+  expect(TABLES.quote_drafts[0]).toMatchObject({ engine: "lines", draft: { options: [1] } });
+  expect(await setEngine(ORG, JOB, "lines", "isaac")).toBe(true);
+  expect(TABLES.quote_drafts.find((r) => r.sm8_job_uuid === JOB)).toMatchObject({ engine: "lines", draft: {}, brief: "" });
+  expect(await readEngine(ORG, JOB)).toBe("lines");
+  /* switching back never makes a row */
+  expect(await setEngine(ORG, "never", "old", "isaac")).toBe(true);
+  expect(TABLES.quote_drafts.find((r) => r.sm8_job_uuid === "never")).toBeUndefined();
+});
+
+it("names who made each change by their staff card, Tiff and the unknown left unnamed", async () => {
+  TABLES.staff_profiles = [{ org_id: ORG, user_id: "auth0|luke", first_name: "Luke", last_name: "Bennett", full_name: null, preferred_name: null }];
+  expect(await namesBySignIn(ORG, ["auth0|luke", "tiff", "auth0|gone"])).toEqual({ "auth0|luke": "Luke Bennett" });
 });

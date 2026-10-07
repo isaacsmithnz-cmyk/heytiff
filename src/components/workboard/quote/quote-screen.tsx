@@ -15,6 +15,7 @@ import { JobMediaViewer } from "../board/job-media-viewer";
 import { JobQuoteFace } from "../board/job-quote-face";
 import { JobQuoteSend } from "../board/job-quote-send";
 import { useQuotePrice } from "./quote-parts";
+import { QuoteLinesFace } from "./quote-lines-face";
 import { ToastHost, useBoardToasts } from "../board/toasts";
 import { sm8QuoteOf } from "./sm8-quote-of";
 
@@ -110,8 +111,39 @@ export function QuoteScreen({
     family,
     rowValueCents: moneyVisible ? (detail.money?.valueCents ?? null) : null,
   });
+  /* which engine prices it: a quote switched to the rebuild is built by hand
+     on its own kept lines (quote-lines-face.tsx). Every quote opens as it
+     always has; one switched shows its lines once the switch is read. */
+  const [engine, setEngine] = useState<"old" | "lines">("old");
+  const [linesRev, setLinesRev] = useState(0);
+  useEffect(() => {
+    if (!financials) return;
+    let live = true;
+    fetch(`/api/workboard/quote-lines?job=${encodeURIComponent(job)}`)
+      .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines" }>)
+      .then((a) => {
+        if (live && a.ok && a.engine === "lines") setEngine("lines");
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [job, financials]);
+  const switchTo = async (to: "old" | "lines") => {
+    const r = await fetch("/api/workboard/quote-lines", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job, op: "switch", engine: to }),
+    }).catch(() => null);
+    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean } | null) : null;
+    if (a?.ok) {
+      setEngine(to);
+      setLinesRev((n) => n + 1);
+    } else toast("The quote couldn't be switched. Try again.");
+  };
+
   /* the price, to the money grant only; read for each version of the quote */
-  const price = useQuotePrice(job, financials, version);
+  const price = useQuotePrice(job, financials, engine === "lines" ? `lines-${linesRev}` : version);
 
   return (
     <div className="page in full">
@@ -127,7 +159,10 @@ export function QuoteScreen({
             <h1 className="wb2-h1">{proposalTitle(address)}</h1>
             <div className="qp-acts" ref={setActionsEl} />
           </div>
-          <JobQuoteFace
+          {engine === "lines" ? (
+            <QuoteLinesFace job={job} price={price} actionsEl={actionsEl} onPriced={() => setLinesRev((n) => n + 1)} onSwitchBack={() => void switchTo("old")} />
+          ) : (
+            <JobQuoteFace
             mode="page"
             job={job}
             address={address}
@@ -140,7 +175,9 @@ export function QuoteScreen({
             price={price}
             actionsEl={actionsEl}
             send={financials ? <JobQuoteSend job={job} visible version={version} /> : null}
+            onByHand={financials ? () => void switchTo("lines") : undefined}
           />
+          )}
         </div>
       </div>
       <ToastHost toasts={toasts} onDismiss={dismiss} />

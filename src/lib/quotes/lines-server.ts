@@ -1,5 +1,6 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { displayNameOf } from "@/lib/staff/name";
 import {
   applyPatch,
   diffOf,
@@ -206,4 +207,40 @@ export async function undoChange(orgId: string, jobUuid: string, changeId: numbe
 export async function readEngine(orgId: string, jobUuid: string): Promise<Engine> {
   const { data } = await supabaseAdmin.from("quote_drafts").select("engine").eq("org_id", orgId).eq("sm8_job_uuid", jobUuid).maybeSingle();
   return engineOf(data?.engine);
+}
+
+/** Switches a quote between engines. A quote with no draft gets a row that
+    holds only the switch: an empty draft, which every proposal reader takes
+    as no proposal (normaliseDraft refuses a draft with no option). */
+export async function setEngine(orgId: string, jobUuid: string, engine: Engine, by: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("quote_drafts")
+    .update({ engine })
+    .eq("org_id", orgId)
+    .eq("sm8_job_uuid", jobUuid)
+    .select("engine");
+  if (data && data.length > 0) return true;
+  if (engine === "old") return true;
+  const { error } = await supabaseAdmin
+    .from("quote_drafts")
+    .insert({ org_id: orgId, sm8_job_uuid: jobUuid, draft: {}, brief: "", changes: [], updated_by: by, engine });
+  return !error;
+}
+
+/** Who each person is, by their sign-in id, for a quote's history: their
+    staff card's name. Somebody with no card is unnamed, never dropped. */
+export async function namesBySignIn(orgId: string, ids: readonly string[]): Promise<Record<string, string>> {
+  const wanted = [...new Set(ids.filter((i) => i && i !== "tiff"))];
+  const out: Record<string, string> = {};
+  if (wanted.length === 0) return out;
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("user_id, first_name, last_name, full_name, preferred_name")
+    .eq("org_id", orgId)
+    .in("user_id", wanted);
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const name = displayNameOf(r as Parameters<typeof displayNameOf>[0], "");
+    if (name && typeof r.user_id === "string") out[r.user_id] = name;
+  }
+  return out;
 }

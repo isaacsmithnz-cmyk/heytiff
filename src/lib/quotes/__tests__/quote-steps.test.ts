@@ -1,5 +1,5 @@
 import { normaliseDraft, statusAfterChange, type ProposalDraft } from "../proposal";
-import { acceptedWords, quoteSteps, type PriceState } from "../quote-steps";
+import { acceptedWords, linesSteps, quoteSteps, type PriceState } from "../quote-steps";
 
 /* Isaac, 2026-10-06: the progress line where Home has "Your day", and
    "You should still be able to manually approve" */
@@ -90,4 +90,28 @@ it("keeps a status only when it says something, and a change keeps the day it wa
   expect(draft({ status: { approvedAt: "2026-10-06T02:00:00Z" } }).status).toEqual({ approvedAt: "2026-10-06T02:00:00Z", sentAt: null });
   expect(statusAfterChange({ approvedAt: "2026-10-06T02:00:00Z", sentAt: null })).toBeNull();
   expect(statusAfterChange({ approvedAt: "2026-10-06T02:00:00Z", sentAt: "2026-10-07T02:00:00Z" })).toEqual({ approvedAt: null, sentAt: "2026-10-07T02:00:00Z" });
+});
+
+describe("a quote built on its kept lines", () => {
+  it("is waiting on its first line", () => {
+    expect(linesSteps({ lines: 0, unknown: 0, price: { kind: "empty" } }).map((s) => [s.key, s.state, s.words])).toEqual([
+      ["brief", "next", "By hand"],
+      ["questions", "todo", ""],
+      ["buildup", "next", "No lines yet"],
+      ["approved", "todo", ""],
+      ["sent", "todo", ""],
+      ["accepted", "todo", ""],
+    ]);
+  });
+  it("says what's unknown and what's left to price, then that every line is priced", () => {
+    const due = linesSteps({ lines: 40, unknown: 2, price: { kind: "priced", left: 2 } });
+    expect(due[1]).toMatchObject({ state: "due", words: "2 unknown" });
+    expect(due[2]).toMatchObject({ state: "due", words: "2 to price" });
+    const done = linesSteps({ lines: 40, unknown: 0, price: { kind: "priced", left: 0 } });
+    expect(done[1]).toMatchObject({ state: "done", words: "None" });
+    expect(done[2]).toMatchObject({ state: "done", words: "Every line priced" });
+  });
+  it("asks for Quoting when the business hasn't set what pricing needs", () => {
+    expect(linesSteps({ lines: 3, unknown: 0, price: { kind: "unset" } })[2]).toMatchObject({ state: "due", words: "Set Quoting to price it" });
+  });
 });

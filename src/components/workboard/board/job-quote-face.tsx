@@ -165,6 +165,7 @@ export function JobQuoteFace({
   price,
   actionsEl = null,
   send = null,
+  onByHand,
 }: {
   /** The job card's uuid, or the row's until the record read lands. */
   job: string;
@@ -199,6 +200,9 @@ export function JobQuoteFace({
   actionsEl?: HTMLElement | null;
   /** The page: what goes to ServiceM8 once an option is accepted. */
   send?: ReactNode;
+  /** The page, on a quote with nothing drafted: build it by hand on its own
+      kept lines instead (the engine rebuild, slice 2.3). */
+  onByHand?: () => void;
 }) {
   /* THE QUOTE OPENS FROM ONE BUTTON (Isaac, 2026-10-05): "Create a quote"
      when there is none, "Continue quote" on a draft, and on a job quoted in
@@ -685,6 +689,11 @@ export function JobQuoteFace({
               {proposal && (
                 <button type="button" className="pbtn ghost" onClick={() => setRedraft(false)}>
                   Keep this draft
+                </button>
+              )}
+              {!proposal && onByHand && (
+                <button type="button" className="pbtn ghost" onClick={onByHand}>
+                  Build it by hand
                 </button>
               )}
               {!proposal && (

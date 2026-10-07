@@ -239,3 +239,44 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     outletMm: n(r.outletMm, 600),
   };
 }
+
+/* ── the kits as the business's price list (slice 14.1) ──
+   Every part of every kit at each size it comes in, as the business's own
+   book would price it today: what it picks, why, and what it costs. A part
+   the book hasn't got says so, which is the list of what to add. */
+
+export type KitRow = { kit: KitKey; part: string; size: string; pick: { name: string; code: string; why: string; cents: number; perMetre: boolean } | null };
+
+const ALL_FACTS: KitFacts = { pipe: null, pipeM: 1, powerM: 1, amps: null, mount: "ground", trunkingM: 2.4, drainM: 1, outlets: 1, outletMm: null };
+
+export function kitPriceList(products: Product[]): KitRow[] {
+  const rows: KitRow[] = [];
+  const at = { optionIndex: 0, system: "" };
+  const one = (kit: KitKey, partKey: string, size: string, f: KitFacts) => {
+    const part = KITS[kit].parts.find((p) => p.key === partKey)!;
+    const s = part.search(f);
+    const picked = s ? pickItem(s.match ? products.filter(s.match) : products, s) : null;
+    const line = picked ? expandKit(kit, f, products, at).find((l) => l.code === picked.offer.code) : null;
+    rows.push({
+      kit,
+      part: part.name,
+      size,
+      pick: picked
+        ? { name: picked.product.name, code: picked.offer.code, why: picked.why, cents: line?.costCents ?? picked.offer.netCents, perMetre: line?.unit === "m" }
+        : null,
+    });
+  };
+  for (const pipe of PIPE_SIZES) one("split", "pair-coil", pipe.replace("+", " + "), { ...ALL_FACTS, pipe });
+  one("split", "interconnect", "", ALL_FACTS);
+  for (const amps of [20, 32, 40]) one("split", "power", `${cableFor(amps)} mm²`, { ...ALL_FACTS, amps });
+  for (const b of [16, 20, 25, 32, 40]) one("split", "breaker", `${b} A`, { ...ALL_FACTS, amps: b });
+  for (const i of ISOLATORS) one("split", "isolator", `${i} A`, { ...ALL_FACTS, amps: i });
+  one("split", "mount", "Feet", ALL_FACTS);
+  one("split", "mount", "Wall bracket", { ...ALL_FACTS, mount: "wall" });
+  one("split", "drain", "", ALL_FACTS);
+  one("split", "trunking", "", ALL_FACTS);
+  for (const mm of [150, 200, 250, 300, 350, 400]) one("ducted", "flex", `${mm} mm`, { ...ALL_FACTS, outletMm: mm });
+  for (const mm of [150, 200, 250, 300]) one("ducted", "outlets", `${mm} mm`, { ...ALL_FACTS, outletMm: mm });
+  one("ducted", "return", "", ALL_FACTS);
+  return rows;
+}

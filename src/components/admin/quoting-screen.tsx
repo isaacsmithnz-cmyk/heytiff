@@ -24,6 +24,7 @@ import {
 } from "@/lib/quotes/settings";
 import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
 import { hourCostOf } from "@/lib/quotes/profit";
+import { KITS, type KitRow } from "@/lib/quotes/kits";
 import type { RangeView } from "@/lib/quotes/ranges";
 import { RangesGroup } from "./quoting-ranges";
 
@@ -62,6 +63,45 @@ import { RangesGroup } from "./quoting-ranges";
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
 const $ = (cents: number | null) => (cents == null ? "–" : money.format(cents / 100));
 
+/** THE KITS, as the business's own book prices them today (the engine
+    rebuild, slice 14.1): every part of each kit at each size, what the book
+    picks for it and why, and what the book hasn't got. Read here; the quote
+    by hand adds a kit in one press. */
+function KitsGroup({ rows }: { rows: KitRow[] }) {
+  return (
+    <>
+      {(Object.keys(KITS) as (keyof typeof KITS)[]).map((k) => (
+        <section key={k} className="qs-group" aria-labelledby={`qs-kit-${k}`}>
+          <h2 className="qs-h" id={`qs-kit-${k}`}>{`Kit: ${KITS[k].label}`}</h2>
+          <div className="qs-table">
+            <div className="qs-row qs-kitrow qs-headrow">
+              <span>Part</span>
+              <span>From your book</span>
+              <span className="num">Price</span>
+            </div>
+            {rows
+              .filter((r) => r.kit === k)
+              .map((r, i) => (
+                <div key={i} className="qs-row qs-kitrow">
+                  <span>{r.size ? `${r.part}, ${r.size}` : r.part}</span>
+                  {r.pick ? (
+                    <span className="qs-item">
+                      {r.pick.name}
+                      <em>{`${r.pick.code}, ${r.pick.why.toLowerCase()}`}</em>
+                    </span>
+                  ) : (
+                    <span className="qs-none">Not in your book</span>
+                  )}
+                  <span className="num">{r.pick ? `${$(r.pick.cents)}${r.pick.perMetre ? " a metre" : ""}` : "–"}</span>
+                </div>
+              ))}
+          </div>
+        </section>
+      ))}
+    </>
+  );
+}
+
 /** A setting as its field shows it: blank when the business hasn't set one. */
 const field = (n: number | null) => (n == null ? "" : String(n));
 const numOrNone = (s: string) => (s.trim() === "" ? null : Number(s));
@@ -76,6 +116,7 @@ export function QuotingScreen({
   components,
   ranges,
   calc,
+  kits = [],
 }: {
   initial: QuoteSettings;
   components: ComponentShortlist[];
@@ -83,6 +124,8 @@ export function QuotingScreen({
   ranges: RangeView[];
   /** what the business's Rate Calculator says, when it has one */
   calc: CalcDay | null;
+  /** each kit's parts at each size, as the business's book prices them (kits.ts) */
+  kits?: KitRow[];
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(initial);
@@ -388,6 +431,8 @@ export function QuotingScreen({
             </section>
 
             <RangesGroup initial={ranges} />
+
+            {kits.length > 0 && <KitsGroup rows={kits} />}
           </ScreenPanel>
         </div>
       </div>

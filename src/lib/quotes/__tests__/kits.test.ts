@@ -102,3 +102,13 @@ it("reads a unit's pipe off its data pack's connections, and makes a person's fa
     outletMm: null,
   });
 });
+
+it("lists every kit part at each size as the book prices it today, and what the book hasn't got", async () => {
+  const { kitPriceList } = await import("../kits");
+  const rows = kitPriceList(book);
+  expect(rows.find((r) => r.part === "Pair coil" && r.size === "1/4 + 1/2")!.pick).toMatchObject({ name: "PAIRED COIL 1/4+1/2X20M", cents: 955, perMetre: true });
+  expect(rows.find((r) => r.part === "RCBO" && r.size === "20 A")!.pick).toMatchObject({ cents: 3886, perMetre: false });
+  expect(rows.find((r) => r.part === "RCBO" && r.size === "16 A")!.pick).toBeNull();
+  expect(rows.find((r) => r.part === "Outdoor mount" && r.size === "Wall bracket")!.pick).toBeNull();
+  expect(rows.filter((r) => r.kit === "ducted").map((r) => r.part)).toContain("Flex duct");
+});

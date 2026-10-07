@@ -64,3 +64,24 @@ it("keeps the business's own allowances, at cost, and none until it sets them", 
   fireEvent.click(save);
   expect(saveQuoteSettings.mock.calls[0][0].allowances).toEqual({ consumables: 3182, newCircuit: 50000, flush: null, recovery: null });
 });
+
+/* the engine rebuild, slice 14.1: the kits as the business's own book prices them */
+it("lists each kit's parts as the book prices them, and what the book hasn't got", () => {
+  render(
+    <QuotingScreen
+      initial={DEFAULT_QUOTE_SETTINGS}
+      components={[]}
+      ranges={[]}
+      calc={null}
+      kits={[
+        { kit: "split", part: "Pair coil", size: "1/4 + 1/2", pick: { name: "PAIRED COIL 1/4+1/2X20M", code: "PC1412", why: "On your quotes", cents: 955, perMetre: true } },
+        { kit: "split", part: "RCBO", size: "16 A", pick: null },
+      ]}
+    />
+  );
+  expect(screen.getByRole("heading", { name: "Kit: Split install" })).toBeInTheDocument();
+  expect(screen.getByText("PAIRED COIL 1/4+1/2X20M")).toBeInTheDocument();
+  expect(screen.getByText("PC1412, on your quotes")).toBeInTheDocument();
+  expect(screen.getByText("$9.55 a metre")).toBeInTheDocument();
+  expect(screen.getByText("Not in your book")).toBeInTheDocument();
+});

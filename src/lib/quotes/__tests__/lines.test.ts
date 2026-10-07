@@ -1,4 +1,4 @@
-import { applyPatch, diffOf, engineOf, lineFromRow, lineRow, normaliseLine, sortLines } from "../lines";
+import { againstFirst, applyPatch, diffOf, engineOf, lineFromRow, lineRow, missingFromFirst, normaliseLine, sortLines } from "../lines";
 
 /* The engine rebuild's own record of a quote (slice 2.1): each line a row,
    changed one at a time, every change kept. */
@@ -86,4 +86,17 @@ it("every quote is on the old engine unless switched", () => {
   expect(engineOf(undefined)).toBe("old");
   expect(engineOf("lines")).toBe("lines");
   expect(engineOf("anything")).toBe("old");
+});
+
+describe("an option against option 1 (slice 10.1)", () => {
+  const l = (optionIndex: number, code: string | null, name: string, qty: number) => ({ optionIndex, code, name, qty });
+  const all = [l(0, "FTXV71WVMA", "Cora 7.1", 1), l(0, "PC1458", "Pair coil", 20), l(0, null, "Drain", 3), l(2, "FTXM95WVMA", "XL 9.5", 1), l(2, "PC3858", "Pair coil", 20), l(2, null, "Drain", 4)];
+  it("says what's added and what's changed", () => {
+    expect(all.filter((x) => x.optionIndex === 2).map((x) => againstFirst(x, all))).toEqual(["added", "added", "changed"]);
+    expect(againstFirst(all[0]!, all)).toBe("same");
+  });
+  it("and what option 1 has that this one hasn't", () => {
+    expect(missingFromFirst(2, all).map((x) => x.name)).toEqual(["Cora 7.1", "Pair coil"]);
+    expect(missingFromFirst(0, all)).toEqual([]);
+  });
 });

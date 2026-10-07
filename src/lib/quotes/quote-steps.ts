@@ -112,3 +112,30 @@ export function quoteSteps(input: {
     next,
   };
 }
+
+/** A quote built on its kept lines (the engine rebuild): the brief is the
+    lines themselves, the questions are the lines nobody knows yet, and the
+    build-up is priced when nothing is left to price. Approved, Sent and
+    Accepted wait for the proposal, which these quotes don't write yet. */
+export function linesSteps(input: { lines: number; unknown: number; price: PriceState }): QuoteStep[] {
+  const step = (key: StepKey, state: StepState, words: string): QuoteStep => ({ key, label: LABELS[key], state, words });
+  const { lines, unknown, price } = input;
+  const built =
+    lines === 0
+      ? step("buildup", "next", "No lines yet")
+      : price.kind === "unset"
+        ? step("buildup", "due", "Set Quoting to price it")
+        : price.kind === "priced" && price.left > 0
+          ? step("buildup", "due", `${price.left} to price`)
+          : price.kind === "priced"
+            ? step("buildup", "done", "Every line priced")
+            : step("buildup", "next", "Pricing");
+  return [
+    step("brief", lines > 0 ? "done" : "next", "By hand"),
+    step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} unknown` : lines > 0 ? "None" : ""),
+    built,
+    step("approved", "todo", ""),
+    step("sent", "todo", ""),
+    step("accepted", "todo", ""),
+  ];
+}

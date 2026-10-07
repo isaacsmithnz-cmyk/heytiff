@@ -172,3 +172,23 @@ export function sortLines<T extends Pick<LineFields, "optionIndex" | "position">
 }
 
 export const engineOf = (v: unknown): Engine => (v === "lines" ? "lines" : "old");
+
+/** How a line on another option stands against option 1: the same part at
+    the same qty, the same part at another qty, or a part option 1 hasn't
+    got (by code, else by name). Option 1's own lines are themselves. */
+export type AgainstFirst = "same" | "changed" | "added";
+export function againstFirst<T extends Pick<LineFields, "optionIndex" | "code" | "name" | "qty">>(line: T, all: readonly T[]): AgainstFirst {
+  if (line.optionIndex === 0) return "same";
+  const key = (l: Pick<LineFields, "code" | "name">) => (l.code ? `c:${l.code.toUpperCase()}` : `n:${l.name.toLowerCase()}`);
+  const first = all.filter((l) => l.optionIndex === 0 && key(l) === key(line));
+  if (first.length === 0) return "added";
+  return first.some((l) => l.qty === line.qty) ? "same" : "changed";
+}
+
+/** What option 1 has that this option hasn't: taken off, for the option to say. */
+export function missingFromFirst<T extends Pick<LineFields, "optionIndex" | "code" | "name">>(option: number, all: readonly T[]): T[] {
+  if (option === 0) return [];
+  const key = (l: Pick<LineFields, "code" | "name">) => (l.code ? `c:${l.code.toUpperCase()}` : `n:${l.name.toLowerCase()}`);
+  const mine = new Set(all.filter((l) => l.optionIndex === option).map(key));
+  return all.filter((l) => l.optionIndex === 0 && !mine.has(key(l)));
+}

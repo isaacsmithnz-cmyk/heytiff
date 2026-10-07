@@ -1,4 +1,5 @@
 import { priceBuildUp, type BuildLine, type BuildSettings, type BuildUp, type Visit } from "../buildup";
+import { rollMetresOf } from "../components";
 
 /* THE BENCH (the engine rebuild, slices 0.1–0.3) — every engine held to
    quotes a person built and stands by, part by part, not only the total
@@ -43,6 +44,10 @@ export type BenchCase = {
   /** what happened: approved, sent, accepted by the client */
   outcome?: string;
 };
+
+/** How much of a part, in metres when it's sold by length: one 20 m roll
+    and 20 m by the metre are the same pipe. */
+export const amountOf = (l: Pick<CaseLine, "qty" | "unit" | "name">) => (l.unit === "m" ? l.qty : l.qty * (rollMetresOf(l.name) ?? 1));
 
 /** A part's identity: its code, else its name, folded. */
 export const partKey = (l: Pick<CaseLine, "code" | "name">) => (l.code ? `code:${l.code.toUpperCase()}` : `name:${l.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`);
@@ -94,7 +99,7 @@ export function scoreOption(want: BenchOption, got: CaseLine[], s: BuildSettings
     for (const l of ls) {
       const k = partKey(l);
       const prev = m.get(k);
-      m.set(k, { name: l.name, qty: (prev?.qty ?? 0) + l.qty });
+      m.set(k, { name: l.name, qty: (prev?.qty ?? 0) + amountOf(l) });
     }
     return m;
   };

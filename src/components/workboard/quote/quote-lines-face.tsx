@@ -1,0 +1,618 @@
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { fmtAud } from "@/lib/workboard/project-money";
+import type { LineChange } from "@/lib/quotes/lines-server";
+import { againstFirst, missingFromFirst, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
+import type { BookHit } from "@/lib/quotes/lookups";
+import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
+import { linesSteps } from "@/lib/quotes/quote-steps";
+import { unsetWords } from "@/lib/quotes/build-settings";
+import { PIPE_SIZES } from "@/lib/quotes/kits";
+import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
+
+/* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
+   the mock-ups Isaac shaped on 7 October): the total in its own card, pinned
+   with the column heads while the lines scroll; each system a card with its
+   total, each group a band with its subtotal, each item one row with its
+   code under its name and a dot for where it came from. Qty, cost each and
+   sell each are typed in place on every line; the total is always qty ×
+   sell. A line is added from the business's own book (searched as it buys:
+   lookups.ts) or by hand, and taken off with its ×. On the right, every
+   change with who made it, and Undo.
+
+   Each edit goes to the route with the version the line was read at, so two
+   people never overwrite each other (lines-server.ts); the price is read
+   again after every change. */
+
+const ROUTE = "/api/workboard/quote-lines";
+const LOOKUP = "/api/workboard/quote-lookup";
+
+type View = {
+  ok: boolean;
+  reason?: string;
+  stale?: boolean;
+  engine: "old" | "lines";
+  lines: QuoteLine[];
+  changes: LineChange[];
+  names: Record<string, string>;
+  me: string;
+};
+
+/** The quote's kept lines, read once and after every change. */
+export function useQuoteLines(job: string, enabled: boolean) {
+  const [view, setView] = useState<View | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    fetch(`${ROUTE}?job=${encodeURIComponent(job)}`)
+      .then((r) => r.json() as Promise<View>)
+      .then((v) => live && setView(v.ok ? v : null))
+      .catch(() => live && setView(null));
+    return () => {
+      live = false;
+    };
+  }, [job, enabled]);
+  const post = async (body: Record<string, unknown>): Promise<View | null> => {
+    const r = await fetch(ROUTE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ job, ...body }) }).catch(() => null);
+    const v = r ? ((await r.json().catch(() => null)) as View | null) : null;
+    if (v && Array.isArray(v.lines)) setView(v);
+    return v;
+  };
+  return { view, post };
+}
+
+const SOURCE_WORDS: Record<LineFields["source"], string> = {
+  said: "Said",
+  assumed: "Assumed",
+  unknown: "Unknown",
+  fitted: "Fitted",
+  by_hand: "Set by hand",
+};
+
+/** cents to the box's dollars: a tenth of a cent shows only when there is one */
+const dollars = (cents: number) => (Number.isInteger(cents) ? (cents / 100).toFixed(2) : (cents / 100).toFixed(3));
+const centsOf = (typed: string): number | null => {
+  const t = typed.replace(/[$,\s]/g, "");
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 1000) / 10 : NaN;
+};
+const qtyWords = (l: QuoteLine) => `${l.qty}${l.unit ? ` ${l.unit}` : ""}`;
+
+/** A box that commits on Enter or leaving it, and says nothing until then. */
+function Field({ value, label, onCommit, disabled }: { value: string; label: string; onCommit: (typed: string) => void; disabled: boolean }) {
+  const [typed, setTyped] = useState<string | null>(null);
+  const shown = typed ?? value;
+  const done = () => {
+    if (typed !== null && typed !== value) onCommit(typed);
+    setTyped(null);
+  };
+  return (
+    <input
+      className="ql-f"
+      inputMode="decimal"
+      value={shown}
+      aria-label={label}
+      disabled={disabled}
+      onChange={(e) => setTyped(e.target.value)}
+      onBlur={done}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") setTyped(null);
+      }}
+    />
+  );
+}
+
+/** Each line's sell each, as the price build-up sold it: a part from its
+    priced line, labour from its visit, in the order the lines are. */
+function sellEachOf(o: OptionPrice | undefined, lines: QuoteLine[]): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!o) return out;
+  for (const g of o.build.groups) for (const l of g.lines) if (l.qty > 0) out.set(l.key, l.sellCents / l.qty);
+  const labour = lines.filter((l) => l.kind === "labour" && !(l.source === "unknown" && l.costCents <= 0 && l.sellCents == null));
+  labour.forEach((l, i) => {
+    const v = o.build.labour.visits[i];
+    if (v && l.qty > 0) out.set(l.id, v.sellCents / l.qty);
+  });
+  return out;
+}
+
+export function QuoteLinesFace({
+  job,
+  price,
+  actionsEl,
+  onPriced,
+  onSwitchBack,
+}: {
+  job: string;
+  price: QuotePrice | null | undefined;
+  actionsEl: HTMLDivElement | null;
+  /** read the price again: a line changed */
+  onPriced: () => void;
+  onSwitchBack: () => void;
+}) {
+  const { view, post } = useQuoteLines(job, true);
+  const [at, setAt] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [hits, setHits] = useState<BookHit[] | null>(null);
+  const [system, setSystem] = useState("");
+  const [kitOpen, setKitOpen] = useState(false);
+
+  const lines = (view?.lines ?? []).filter((l) => l.optionIndex === at);
+  const options = Math.max(1, ...(view?.lines ?? []).map((l) => l.optionIndex + 1), price && price.ok ? price.options.length : 1);
+  const o = price && price.ok ? price.options[at] : undefined;
+  const sells = sellEachOf(o, lines);
+  const systems = [...new Set(lines.map((l) => l.system))];
+  const all = view?.lines ?? [];
+  const steps = linesSteps({
+    lines: all.length,
+    unknown: all.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).length,
+    price: priceState(price),
+  });
+
+  const act = async (body: Record<string, unknown>) => {
+    setBusy(true);
+    setNote(null);
+    const v = await post(body);
+    setBusy(false);
+    if (!v) setNote("That didn't save. Try again.");
+    else if (!v.ok) setNote(v.reason ?? "That didn't save. Try again.");
+    onPriced();
+  };
+
+  const change = (l: QuoteLine, patch: Partial<LineFields>) => void act({ op: "change", id: l.id, version: l.version, patch });
+
+  const find = async (q: string) => {
+    setSearch(q);
+    if (q.trim().length < 2) return setHits(null);
+    const r = await fetch(`${LOOKUP}?q=${encodeURIComponent(q)}`).catch(() => null);
+    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; hits?: BookHit[] } | null) : null;
+    setHits(a?.ok ? (a.hits ?? []) : []);
+  };
+
+  const addFromBook = (h: BookHit) => {
+    const offer = h.product.preferred ?? h.product.cheapest;
+    const unit = h.product.category === "units";
+    void act({
+      op: "add",
+      line: {
+        optionIndex: at,
+        system,
+        group: unit ? "Units" : "Materials",
+        name: h.product.name,
+        code: offer?.code ?? null,
+        supplierKey: offer?.supplierKey ?? null,
+        kind: unit ? "unit" : "material",
+        qty: 1,
+        costCents: offer?.netCents ?? 0,
+        source: "by_hand",
+      },
+    });
+    setSearch("");
+    setHits(null);
+  };
+
+  const addByHand = (kind: "material" | "labour") =>
+    void act({
+      op: "add",
+      line:
+        kind === "labour"
+          ? { optionIndex: at, system: "", group: "Labour", name: "Install", kind: "labour", qty: 8, unit: "h", costCents: 0, source: "by_hand" }
+          : { optionIndex: at, system, group: "Materials", name: search.trim() || "A line by hand", kind: "material", qty: 1, costCents: 0, source: "by_hand" },
+    });
+
+  /* ── the total, in its own card ── */
+  let total: ReactNode = null;
+  if (price && !price.ok) {
+    total = (
+      <div className="ql-tot unset">
+        <span>Price</span>
+        <b>Not set</b>
+        <small>{unsetWords(price.unset)}</small>
+      </div>
+    );
+  } else if (o) {
+    const left = leftOn(o).length > 0;
+    total = (
+      <div className="ql-tot">
+        <span>{`Total ex GST${left ? ", so far" : ""}`}</span>
+        <b>{fmtAud(o.build.exGstCents)}</b>
+        <small>{`${fmtAud(o.build.incGstCents)} inc GST`}</small>
+        {o.profit && <em>{`Profit ${fmtAud(o.profit.profitCents)}, ${o.profit.pct}%`}</em>}
+      </div>
+    );
+  }
+  const units = o ? o.build.groups.filter((g) => g.lines.some((l) => l.kind === "unit")).reduce((n, g) => n + g.sellCents, 0) : 0;
+  const materials = o ? o.build.exGstCents - units - o.build.labour.sellCents : 0;
+  const hours = lines.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0);
+
+  const flow = (
+    <>
+      <div className="ql-sum">
+        <div className="ql-sum-l">
+          {options > 1 ? (
+            <div className="ql-opts" role="tablist" aria-label="Options">
+              {Array.from({ length: options }, (_, i) => (
+                <button key={i} type="button" role="tab" aria-selected={i === at} className={i === at ? "ql-opt on" : "ql-opt"} onClick={() => setAt(i)}>
+                  <span>{`Option ${i + 1}`}</span>
+                  <b>{price && price.ok && price.options[i] ? fmtAud(price.options[i]!.build.exGstCents) : "–"}</b>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <dl className="ql-stats">
+              <div>
+                <dt>Units</dt>
+                <dd>{fmtAud(units)}</dd>
+              </div>
+              <div>
+                <dt>Materials</dt>
+                <dd>{fmtAud(Math.max(0, materials))}</dd>
+              </div>
+              <div>
+                <dt>{`Labour, ${hours} h`}</dt>
+                <dd>{o ? fmtAud(o.build.labour.sellCents) : "–"}</dd>
+              </div>
+            </dl>
+          )}
+        </div>
+        {total}
+      </div>
+      {o?.profit?.short && leftOn(o).length === 0 && (
+        <p className="qp-short" role="status">
+          {`Profit ${o.profit.pct}%, under your ${o.profit.targetPct}% target by ${fmtAud(o.profit.short.cents)}. ${fmtAud(o.profit.short.priceCents)} ex GST would meet it.`}
+        </p>
+      )}
+      {note && <p className="wb2-sherr">{note}</p>}
+
+      <table className="ql-lt ql-colh">
+        <Cols />
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th className="n">Qty</th>
+            <th className="n">Cost each</th>
+            <th className="n">Sell each</th>
+            <th className="n">Total</th>
+            <th aria-label="Take off" />
+          </tr>
+        </thead>
+      </table>
+
+      {systems.length === 0 && <p className="qp-none">No lines yet.</p>}
+      {systems.map((sys) => {
+        const mine = lines.filter((l) => l.system === sys);
+        const groups = [...new Set(mine.map((l) => l.group))];
+        const sysTotal = mine.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
+        return (
+          <section key={sys || "_"} className="ql-sys" aria-label={sys || "Quote"}>
+            <header className="ql-sys-h">
+              <h3>{sys || "Quote"}</h3>
+              <b>{fmtAud(sysTotal)}</b>
+            </header>
+            <table className="ql-lt">
+              <Cols />
+              <tbody>
+                {groups.map((g) => {
+                  const rows = mine.filter((l) => l.group === g);
+                  const sub = rows.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
+                  return [
+                    <tr key={`g-${g}`} className="ql-sg">
+                      <td colSpan={4}>{g}</td>
+                      <td className="n">{fmtAud(sub)}</td>
+                      <td />
+                    </tr>,
+                    ...rows.map((l) => {
+                      const unknown = l.source === "unknown" && l.costCents <= 0 && l.sellCents == null;
+                      const each = sells.get(l.id);
+                      return (
+                        <tr key={l.id} className="ql-it">
+                          <td>
+                            <span className="ql-n">
+                              <i className={`ql-d ${l.source}`} title={`${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`} />
+                              <span className="nm">
+                                {l.name}
+                                {at > 0 && againstFirst(l, all) !== "same" && (
+                                  <em className="ql-vs">{againstFirst(l, all) === "added" ? " Added" : " Changed"}</em>
+                                )}
+                              </span>
+                              {l.code && <span className="cd">{l.code}</span>}
+                            </span>
+                          </td>
+                          <td className="n">
+                            <Field
+                              value={qtyWords(l)}
+                              label={`Quantity of ${l.name}`}
+                              disabled={busy}
+                              onCommit={(t) => {
+                                const n = Number(t.replace(/[^\d.]/g, ""));
+                                if (Number.isFinite(n) && n >= 0) change(l, { qty: n });
+                              }}
+                            />
+                          </td>
+                          <td className="n">
+                            <Field
+                              value={dollars(l.costCents)}
+                              label={`What one ${l.name} costs you`}
+                              disabled={busy}
+                              onCommit={(t) => {
+                                const c = centsOf(t);
+                                if (c != null && Number.isFinite(c)) change(l, { costCents: c });
+                              }}
+                            />
+                          </td>
+                          <td className="n">
+                            <Field
+                              value={l.sellCents != null ? dollars(l.sellCents) : each != null ? dollars(Math.round(each * 10) / 10) : ""}
+                              label={`What one ${l.name} sells for`}
+                              disabled={busy}
+                              onCommit={(t) => {
+                                const c = centsOf(t);
+                                if (c === null) change(l, { sellCents: null });
+                                else if (Number.isFinite(c)) change(l, { sellCents: c });
+                              }}
+                            />
+                          </td>
+                          <td className="n">{unknown ? "—" : fmtAud(Math.round((each ?? 0) * l.qty))}</td>
+                          <td className="x">
+                            <button
+                              type="button"
+                              className="ql-x"
+                              aria-label={`Take ${l.name} off`}
+                              disabled={busy}
+                              onClick={() => void act({ op: "remove", id: l.id, version: l.version })}
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    }),
+                  ];
+                })}
+              </tbody>
+            </table>
+          </section>
+        );
+      })}
+
+      {at > 0 && missingFromFirst(at, all).length > 0 && (
+        <p className="qp-none">{`Not in this option: ${missingFromFirst(at, all)
+          .map((l) => l.name)
+          .join(", ")}`}</p>
+      )}
+
+      <section className="ql-add" aria-label="Add a line">
+        <div className="ql-addrow">
+          <input
+            className="wb2-fi"
+            value={search}
+            placeholder="Add a line from your book"
+            aria-label="Search your book for a line to add"
+            onChange={(e) => void find(e.target.value)}
+          />
+          <select className="wb2-fi ql-sysin" value={system} onChange={(e) => setSystem(e.target.value)} aria-label="The system it goes in">
+            <option value="">No system</option>
+            {systems.filter(Boolean).map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        {hits && (
+          <ul className="ql-hits">
+            {hits.length === 0 && <li className="none">Nothing in your book like that.</li>}
+            {hits.map((h) => (
+              <li key={h.product.key}>
+                <button type="button" disabled={busy} onClick={() => addFromBook(h)}>
+                  <span>
+                    {h.product.name}
+                    <small>{`${(h.product.preferred ?? h.product.cheapest)?.code ?? ""}, ${h.why.toLowerCase()}`}</small>
+                  </span>
+                  <b>{h.buyCents != null ? fmtAud(h.buyCents) : "–"}</b>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="wb2-jqacts">
+          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => addByHand("material")}>
+            Add a line by hand
+          </button>
+          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => addByHand("labour")}>
+            Add labour
+          </button>
+          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setKitOpen((v) => !v)} aria-expanded={kitOpen}>
+            Add a kit
+          </button>
+          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setAt(options)}>
+            Add an option
+          </button>
+          {all.some((l) => l.optionIndex === 0) && (
+            <button
+              type="button"
+              className="pbtn ghost sm"
+              disabled={busy}
+              onClick={() => {
+                const to = options;
+                void act({ op: "copy", from: 0, to }).then(() => setAt(to));
+              }}
+            >
+              Copy option 1 to a new option
+            </button>
+          )}
+        </div>
+        {kitOpen && (
+          <KitForm
+            busy={busy}
+            system={system}
+            onAdd={(k) => {
+              setKitOpen(false);
+              void act({ op: "kit", optionIndex: at, ...k });
+            }}
+          />
+        )}
+      </section>
+    </>
+  );
+
+  const rail = (
+    <div className="ql-rail">
+      <h2 className="hd-ls-grp">Changes</h2>
+      {(view?.changes ?? []).length === 0 && <p className="qp-none">Nothing changed yet.</p>}
+      <ul className="ql-chg">
+        {(view?.changes ?? []).slice(0, 30).map((c) => {
+          const who = c.madeBy === view?.me ? "You" : (view?.names[c.madeBy] ?? "Someone");
+          const name = (c.after?.name ?? c.before?.name ?? "a line") as string;
+          const what =
+            c.action === "add"
+              ? `added ${name}`
+              : c.action === "remove"
+                ? `took off ${name}`
+                : `changed ${Object.keys(c.after ?? {})
+                    .filter((k) => k !== "source")
+                    .map((k) => (k === "qty" ? "qty" : k === "costCents" ? "cost" : k === "sellCents" ? "sell" : k))
+                    .join(", ")}`;
+          return (
+            <li key={c.id}>
+              <span>
+                <b>{who}</b> {what}
+                {c.why ? <small>{c.why}</small> : null}
+              </span>
+              <button type="button" className="ql-undo" disabled={busy} onClick={() => void act({ op: "undo", change: c.id })}>
+                Undo
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+
+  return (
+    <>
+      {actionsEl &&
+        createPortal(
+          <button type="button" className="pbtn ghost" onClick={onSwitchBack}>
+            Use Tiff&apos;s builder
+          </button>,
+          actionsEl
+        )}
+      <section className="hd-day" aria-label="Where the quote is">
+        <QuoteStepsLine steps={steps} />
+      </section>
+      <div className="hd-body">
+        <div className="hd-fx">
+          <div className="hd-main">
+            <div className="hd-col">
+              <div className="hd-face qp-face ql-face">{flow}</div>
+            </div>
+            <aside className="hd-list qp-rail" aria-label="Changes">
+              {rail}
+            </aside>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+type KitAsk = { kit: "split" | "ducted"; system: string; brand: string; model: string; facts: Record<string, string> };
+
+/** What a kit needs to know: the unit (its pipe and current read off its
+    data pack when blank), the runs, and the outlets for a ducted one. A run
+    left blank leaves its part on the quote as not known yet. */
+function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd: (k: KitAsk) => void }) {
+  const [kit, setKit] = useState<"split" | "ducted">("split");
+  const [sys, setSys] = useState(system || "");
+  const [brand, setBrand] = useState("mitsubishi-electric");
+  const [model, setModel] = useState("");
+  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "" });
+  const set = (k: string) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const num = (k: string, label: string, unit: string) => (
+    <label className="ql-kf">
+      <span>{label}</span>
+      <span className="ql-kin">
+        <input className="wb2-fi" inputMode="decimal" value={f[k]} onChange={set(k)} aria-label={label} />
+        <em>{unit}</em>
+      </span>
+    </label>
+  );
+  return (
+    <div className="ql-kit">
+      <div className="ql-kgrid">
+        <label className="ql-kf">
+          <span>Kit</span>
+          <select className="wb2-fi" value={kit} onChange={(e) => setKit(e.target.value === "ducted" ? "ducted" : "split")} aria-label="Kit">
+            <option value="split">Split install</option>
+            <option value="ducted">Ducted install</option>
+          </select>
+        </label>
+        <label className="ql-kf">
+          <span>System</span>
+          <input className="wb2-fi" value={sys} onChange={(e) => setSys(e.target.value)} aria-label="The system it's for" />
+        </label>
+        <label className="ql-kf">
+          <span>Outdoor model</span>
+          <input className="wb2-fi" value={model} onChange={(e) => setModel(e.target.value)} aria-label="Outdoor model" />
+        </label>
+        <label className="ql-kf">
+          <span>Its data pack</span>
+          <select className="wb2-fi" value={brand} onChange={(e) => setBrand(e.target.value)} aria-label="The outdoor's data pack">
+            <option value="mitsubishi-electric">Mitsubishi Electric</option>
+            <option value="">None</option>
+          </select>
+        </label>
+        <label className="ql-kf">
+          <span>Pipe</span>
+          <select className="wb2-fi" value={f.pipe} onChange={set("pipe")} aria-label="Pipe size">
+            <option value="">From the unit</option>
+            {PIPE_SIZES.map((p) => (
+              <option key={p} value={p}>
+                {p.replace("+", " + ")}
+              </option>
+            ))}
+          </select>
+        </label>
+        {num("amps", "It draws", "A")}
+        {num("pipeM", "Pipe run", "m")}
+        {num("powerM", "Power run", "m")}
+        {num("drainM", "Drain", "m")}
+        {num("trunkingM", "Trunking outside", "m")}
+        <label className="ql-kf">
+          <span>Outdoor on</span>
+          <select className="wb2-fi" value={f.mount} onChange={set("mount")} aria-label="What the outdoor sits on">
+            <option value="ground">Feet on the ground</option>
+            <option value="wall">A wall bracket</option>
+          </select>
+        </label>
+        {kit === "ducted" && num("outlets", "Outlets", "")}
+        {kit === "ducted" && num("outletMm", "Outlet size", "mm")}
+      </div>
+      <div className="wb2-jqacts">
+        <button type="button" className="pbtn primary sm" disabled={busy} onClick={() => onAdd({ kit, system: sys.trim(), brand, model: model.trim(), facts: f })}>
+          Add the kit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Cols() {
+  return (
+    <colgroup>
+      <col />
+      <col className="cq" />
+      <col className="cc" />
+      <col className="ce" />
+      <col className="ct" />
+      <col className="cx" />
+    </colgroup>
+  );
+}

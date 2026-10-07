@@ -68,3 +68,28 @@ describe("the score", () => {
     expect(runBench(BRIEF_CASES, () => null).every((r) => r.score === null)).toBe(true);
   });
 });
+
+/* KITS ON THE BENCH (slice 1.3): the split kit, given only 3375's facts (the
+   pipe, the runs, what the unit draws, feet on the ground), picks its parts
+   from a book holding 3375's own items, and must find every part the
+   accepted quote has. Labour isn't a kit's: it's held out of both. */
+describe("the split kit against 3375, the quote the client accepted", () => {
+  const { expandKit } = jest.requireActual("../../kits") as typeof import("../../kits");
+  const c75 = BRIEF_CASES.find((c) => c.job === "3375")!;
+  const parts = c75.options[0]!.lines.filter((l) => l.kind !== "labour");
+  const book = parts.map((l, i) => {
+    const o = { supplierKey: "s", supplierName: "S", code: l.code ?? "", name: l.name, netCents: l.costCents };
+    return { key: `s|${l.code ?? i}`, name: l.name, category: "parts" as const, offers: [o], cheapest: o, preferred: null, brand: null, quotes: 1 };
+  });
+  /* the AP60 draws 13.5 A, its data pack says */
+  const kitLines = expandKit("split", { pipe: "1/4+1/2", pipeM: 20, powerM: 25, amps: 13.5, mount: "ground", trunkingM: null, drainM: 1 }, book as never, { optionIndex: 0, system: "Split system" });
+  const got: CaseLine[] = kitLines.map((l) => ({ system: l.system!, group: l.group!, name: l.name!, code: l.code || undefined, kind: "material", qty: l.qty!, unit: l.unit, costCents: l.costCents!, source: l.source }));
+
+  it("finds every part, at the quote's own quantities", () => {
+    const s = scoreOption({ ...c75.options[0]!, lines: parts, quotedExGstCents: null }, got, c75.settings);
+    expect(s.missing).toEqual([]);
+    expect(s.extra).toEqual([]);
+    expect(s.qtyOff).toEqual([]);
+    expect(s.found).toBe(s.of);
+  });
+});

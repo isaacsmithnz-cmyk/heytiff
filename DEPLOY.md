@@ -938,8 +938,8 @@ docs/job-analytics-plan.md is the design.
    writes it**: it lets the table take a fifth question, `void`. It only
    widens the question check, so applying it early is safe. Without it, Void
    is refused with "Answers can't be kept until the database is updated for
-   them." and every other answer still saves. **Not yet applied to
-   production.**
+   them." and every other answer still saves. **Applied to production
+   2026-10-07** (migration `job_analytics_void`).
 
 ---
 

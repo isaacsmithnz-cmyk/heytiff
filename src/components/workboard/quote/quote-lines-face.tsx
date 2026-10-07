@@ -79,6 +79,8 @@ const centsOf = (typed: string): number | null => {
   const n = Number(t);
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 1000) / 10 : NaN;
 };
+/** every figure in the lines to the cent, so the column reads as one */
+const cents2 = (c: number) => `$${(c / 100).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const qtyWords = (l: QuoteLine) => `${l.qty}${l.unit ? ` ${l.unit}` : ""}`;
 
 /** A box that commits on Enter or leaving it, and says nothing until then. */
@@ -293,7 +295,7 @@ export function QuoteLinesFace({
           <section key={sys || "_"} className="ql-sys" aria-label={sys || "Quote"}>
             <header className="ql-sys-h">
               <h3>{sys || "Quote"}</h3>
-              <b>{fmtAud(sysTotal)}</b>
+              <b>{cents2(sysTotal)}</b>
             </header>
             <table className="ql-lt">
               <Cols />
@@ -304,7 +306,7 @@ export function QuoteLinesFace({
                   return [
                     <tr key={`g-${g}`} className="ql-sg">
                       <td colSpan={4}>{g}</td>
-                      <td className="n">{fmtAud(sub)}</td>
+                      <td className="n">{cents2(sub)}</td>
                       <td />
                     </tr>,
                     ...rows.map((l) => {
@@ -348,7 +350,16 @@ export function QuoteLinesFace({
                           </td>
                           <td className="n">
                             <Field
-                              value={l.sellCents != null ? dollars(l.sellCents) : each != null ? dollars(Math.round(each * 10) / 10) : ""}
+                              value={
+                                l.sellCents != null
+                                  ? dollars(l.sellCents)
+                                  : each == null
+                                    ? ""
+                                    : /* by the metre a tenth of a cent is real (20.741 × 10 m = 207.41); a counted item is to the cent */
+                                      l.unit === "m"
+                                      ? dollars(Math.round(each * 10) / 10)
+                                      : dollars(Math.round(each))
+                              }
                               label={`What one ${l.name} sells for`}
                               disabled={busy}
                               onCommit={(t) => {
@@ -358,7 +369,7 @@ export function QuoteLinesFace({
                               }}
                             />
                           </td>
-                          <td className="n">{unknown ? "—" : fmtAud(Math.round((each ?? 0) * l.qty))}</td>
+                          <td className="n">{unknown ? "—" : cents2(Math.round((each ?? 0) * l.qty))}</td>
                           <td className="x">
                             <button
                               type="button"

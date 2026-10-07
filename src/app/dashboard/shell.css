@@ -6713,7 +6713,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    place; every change on the right with who made it. */
 .fg .ql-face > * { flex:none; }
 .fg .ql-sum { position:sticky; top:0; z-index:10; display:flex; align-items:center; justify-content:space-between; gap:24px;
-  margin:0 -24px; padding:12px 24px; min-height:104px; box-sizing:border-box; background:var(--paper); border-bottom:1px solid var(--hd-rule); }
+  margin:0 -24px; padding:12px 24px; height:144px; box-sizing:border-box; background:var(--paper); border-bottom:1px solid var(--hd-rule); }
 .fg .ql-stats { display:flex; gap:32px; margin:0; }
 .fg .ql-stats div { display:flex; flex-direction:column; gap:2px; }
 .fg .ql-stats dt { font-size:12px; font-weight:500; color:var(--q); }
@@ -6736,7 +6736,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-lt col.cc, .fg .ql-lt col.ce { width:100px; }
 .fg .ql-lt col.ct { width:108px; }
 .fg .ql-lt col.cx { width:36px; }
-.fg .ql-colh { position:sticky; top:104px; z-index:10; background:var(--paper); }
+.fg .ql-colh { position:sticky; top:144px; z-index:10; background:var(--paper); }
 .fg .ql-colh th { padding:12px 12px 8px 0; font-size:12px; font-weight:600; color:var(--q); text-align:left; border-bottom:1px solid var(--hd-rule); }
 .fg .ql-colh th:first-child { padding-left:16px; }
 .fg .ql-lt .n { text-align:right; }

@@ -150,6 +150,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: "people", label: "Team", icon: "users", href: "/dashboard/team", hint: "People & their day", accent: "#00A389", capability: "team" },
       { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", hint: "Timesheets, leave & expenses", accent: "#2E68FF", capability: "timepay_all" },
       { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", hint: "Fleet & equipment", accent: "#FF8A00", capability: "assets_all" },
+      /* Job money, so it follows `workboard_money` (owner-tier by default)
+         rather than a role: whoever is granted the board's money sees what
+         it adds up to (docs/job-analytics-plan.md). */
+      { key: "analytics", label: "Analytics", icon: "gauge", href: "/dashboard/analytics", hint: "Win rate, prices & quotes", accent: "#00A389", capability: "workboard_money" },
       // Role-intrinsic, not grantable: the section is admin+ (staff hidden
       // entirely) and the owner-only items inside it gate individually.
       { key: "admin", label: "Admin", icon: "shield", href: "/dashboard/admin", hint: "Compliance, documents & settings", accent: "#FF3366", minRole: "admin" },

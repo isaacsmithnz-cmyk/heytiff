@@ -74,32 +74,63 @@ const nameAt = (svg: Element) => {
   return { x: Number(t.getAttribute("x")), y: Number(t.getAttribute("y")) };
 };
 
+/* the room is a 180 square from (-60, -60): clockwise from its first corner
+   the top wall runs 0–180, the right 180–360, the bottom 360–540, the left
+   540–720 — so the middle of the right wall is 0.375 of the way round */
+
+/* A ROOM'S NAME IS A TAB ON ITS WALL (room-tab.ts; Isaac, 2026-10-07): drawn
+   under the room on its own paper, its edge dashed, moved round the walls */
+describe("a room's name on its wall", () => {
+  it("is a tab, under the room, its words left-aligned in it", () => {
+    const { svg } = renderCanvas(mkDoc(), null);
+    const g = svg.querySelector(".ds-room")!;
+    const kids = [...g.children].map((c) => c.getAttribute("class") ?? c.tagName);
+    // its paper under the room's wash and wall, its dashed edge over them
+    expect(kids.indexOf("ds-room-tab")).toBeLessThan(kids.indexOf("polygon"));
+    expect(kids.indexOf("ds-room-tab-edge")).toBeGreaterThan(kids.indexOf("polygon"));
+    expect(g.querySelector(".ds-room-name")!.getAttribute("class")).toContain("in-tab");
+  });
+
+  it("starts tucked into the room's top-left corner", () => {
+    const { svg } = renderCanvas(mkDoc(), null);
+    const n = nameAt(svg);
+    expect(n.x).toBeGreaterThan(-60);
+    expect(n.x).toBeLessThan(0);
+    expect(n.y).toBeGreaterThan(-60);
+    expect(n.y).toBeLessThan(-30);
+  });
+});
+
 describe("moving a room's name by hand", () => {
   it("unselected, a drag across the name pans the plan and moves nothing", () => {
     const onMutate = jest.fn();
     const { svg } = renderCanvas(mkDoc(), null, onMutate);
     const n = nameAt(svg);
     expect(svg.querySelector(".ds-label-grab")).toBeNull();
-    fireEvent.pointerDown(svg, at(svg, n.x, n.y + 4));
-    fireEvent.pointerMove(svg, at(svg, n.x + 80, n.y + 4));
-    fireEvent.pointerUp(svg, at(svg, n.x + 80, n.y + 4));
+    fireEvent.pointerDown(svg, at(svg, n.x, n.y));
+    fireEvent.pointerMove(svg, at(svg, n.x + 80, n.y));
+    fireEvent.pointerUp(svg, at(svg, n.x + 80, n.y));
     expect(onMutate).not.toHaveBeenCalled();
   });
 
-  it("selected, the name wears its grab outline, and a drag moves it and keeps it on the room", () => {
+  it("selected, its tab slides round the walls by as far as the pointer goes, and is kept as a share of the way round", () => {
     const doc = mkDoc();
     let next: DesignDocument | undefined;
     const { svg } = renderCanvas(doc, "rm1", (fn) => (next = fn(doc)));
     expect(svg.querySelector(".ds-label-grab")).not.toBeNull();
     const n = nameAt(svg);
-    fireEvent.pointerDown(svg, at(svg, n.x, n.y + 4));
-    fireEvent.pointerMove(svg, at(svg, n.x + 40, n.y + 64));
-    fireEvent.pointerUp(svg, at(svg, n.x + 40, n.y + 64));
+    // pressed on the words near the top wall, carried round to the right wall's middle
+    fireEvent.pointerDown(svg, at(svg, n.x, n.y));
+    fireEvent.pointerMove(svg, at(svg, 60, -58));
+    fireEvent.pointerMove(svg, at(svg, 118, 30));
+    fireEvent.pointerUp(svg, at(svg, 118, 30));
     const moved = next!.objects.find((o) => o.id === "rm1")!;
-    // the room's centre is (30, 30); the name was there and went 40 across, 60 down
-    const labelAt = moved.props.labelAt as { dx: number; dy: number };
-    expect(labelAt.dx).toBeCloseTo(n.x + 40 - 30, 0);
-    expect(labelAt.dy).toBeCloseTo(n.y + 60 - 30, 0);
+    const edge = moved.props.labelEdge as number;
+    // the tab's middle travelled as far round as the pointer did: from where the
+    // press met the top wall to the right wall's middle
+    expect(edge).toBeGreaterThan(0.3);
+    expect(edge).toBeLessThan(0.45);
+    expect(moved.props).not.toHaveProperty("labelAt");
     // the room itself did not move
     expect(moved.geometry).toEqual(room().geometry);
   });
@@ -108,32 +139,50 @@ describe("moving a room's name by hand", () => {
     const onMutate = jest.fn();
     const { svg } = renderCanvas(mkDoc(), "rm1", onMutate);
     const n = nameAt(svg);
-    fireEvent.pointerDown(svg, at(svg, n.x, n.y + 4));
-    fireEvent.pointerMove(svg, { ...at(svg, n.x, n.y + 4), clientX: at(svg, n.x, n.y + 4).clientX + 3 });
-    fireEvent.pointerUp(svg, { ...at(svg, n.x, n.y + 4), clientX: at(svg, n.x, n.y + 4).clientX + 3 });
+    fireEvent.pointerDown(svg, at(svg, n.x, n.y));
+    fireEvent.pointerMove(svg, { ...at(svg, n.x, n.y), clientX: at(svg, n.x, n.y).clientX + 3 });
+    fireEvent.pointerUp(svg, { ...at(svg, n.x, n.y), clientX: at(svg, n.x, n.y).clientX + 3 });
     expect(onMutate).not.toHaveBeenCalled();
   });
 
-  it("put by hand, it is drawn there, and its reset mark hands it back to the Studio", () => {
-    const doc = mkDoc({ labelAt: { dx: -50, dy: 60 } });
+  it("put on a wall by hand, it is drawn there, and its reset mark hands it back to the Studio", () => {
+    const doc = mkDoc({ labelEdge: 0.375 });
     let next: DesignDocument | undefined;
     const { svg } = renderCanvas(doc, "rm1", (fn) => (next = fn(doc)));
-    expect(nameAt(svg)).toEqual({ x: -20, y: 90 });
+    // on the right wall: the words sit at its left edge, short of the wall
+    const n = nameAt(svg);
+    expect(n.x).toBeGreaterThan(30);
+    expect(n.x).toBeLessThan(120);
     const mark = svg.querySelector(".ds-label-reset circle")!;
     const cx = Number(mark.getAttribute("cx"));
     const cy = Number(mark.getAttribute("cy"));
     fireEvent.pointerDown(svg, at(svg, cx, cy));
     fireEvent.pointerUp(svg, at(svg, cx, cy));
+    expect(next!.objects.find((o) => o.id === "rm1")!.props).not.toHaveProperty("labelEdge");
+  });
+
+  it("put by hand the OLD way, inside the room, it goes on the nearest wall, and its reset mark clears that too", () => {
+    // the old spot is (-20, 90): 30 off the bottom wall, 40 off the left
+    const doc = mkDoc({ labelAt: { dx: -50, dy: 60 } });
+    let next: DesignDocument | undefined;
+    const { svg } = renderCanvas(doc, "rm1", (fn) => (next = fn(doc)));
+    expect(nameAt(svg).y).toBeGreaterThan(90);
+    const mark = svg.querySelector(".ds-label-reset circle")!;
+    fireEvent.pointerDown(svg, at(svg, Number(mark.getAttribute("cx")), Number(mark.getAttribute("cy"))));
+    fireEvent.pointerUp(svg, at(svg, Number(mark.getAttribute("cx")), Number(mark.getAttribute("cy"))));
     expect(next!.objects.find((o) => o.id === "rm1")!.props).not.toHaveProperty("labelAt");
   });
 
   it("offers no reset mark while the Studio places it, or while the room is not selected", () => {
     expect(renderCanvas(mkDoc(), "rm1").svg.querySelector(".ds-label-reset")).toBeNull();
-    expect(renderCanvas(mkDoc({ labelAt: { dx: 0, dy: 40 } }), null).svg.querySelector(".ds-label-reset")).toBeNull();
+    expect(renderCanvas(mkDoc({ labelEdge: 0.375 }), null).svg.querySelector(".ds-label-reset")).toBeNull();
   });
 
-  it("View › Label backing puts the words on a white card", () => {
-    expect(renderCanvas(mkDoc(), null).svg.querySelector(".ds-label-back")).toBeNull();
-    expect(renderCanvas(mkDoc({}, { labelBacks: true }), null).svg.querySelector(".ds-label-back")).not.toBeNull();
+  /* the tab is the name's own paper, so the View's backing (for the plan's
+     other words) never doubles it */
+  it("a tab is its own backing, whatever View › Label backing says", () => {
+    const { svg } = renderCanvas(mkDoc({}, { labelBacks: true }), null);
+    expect(svg.querySelector(".ds-room-tab")).not.toBeNull();
+    expect(svg.querySelector(".ds-room .ds-label-back")).toBeNull();
   });
 });

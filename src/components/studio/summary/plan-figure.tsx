@@ -30,6 +30,7 @@ import {
 } from "@/lib/studio/figure-bounds";
 import { unitGlyph, type LayerFlags } from "../canvas";
 import { footprintBox, layoutPlanLabels, roomLabelFixed } from "@/lib/studio/plan-labels";
+import { tabPath } from "@/lib/studio/room-tab";
 import type { UnitMark } from "@/lib/studio/export";
 
 /* A STATIC plan rendering for print and image export — the same drawing the
@@ -145,7 +146,10 @@ export function PlanFigure({
         rooms: rooms.map((r) => ({
           id: r.id,
           polygon: r.geometry.points,
-          fixed: roomLabelFixed(r.props, r.geometry.points),
+          /* its tab where it was put on the wall; the old inside spot only
+             when that is all there is — the canvas reads it the same way */
+          edge: typeof r.props.labelEdge === "number" ? r.props.labelEdge : null,
+          fixed: typeof r.props.labelEdge === "number" ? undefined : roomLabelFixed(r.props, r.geometry.points),
           lineGap: 16,
           lines: [
             { text: String(r.props.name ?? "Room"), size: 13 },
@@ -199,6 +203,10 @@ export function PlanFigure({
         .ds-pf .ds-room polygon { fill: rgba(240,164,49,0.13); stroke: #d98f1f; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-room-name { fill: #0d1220; font-weight: 800; text-anchor: middle; }
         .ds-pf .ds-room-area { fill: #6a7284; font-weight: 600; text-anchor: middle; }
+        .ds-pf .ds-room-tab { fill: #fff; stroke: none; }
+        .ds-pf .ds-room-tab-edge { fill: none; stroke: #d98f1f; stroke-width: 1.4; stroke-dasharray: 4 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+        .ds-pf .ds-room-name.in-tab { font-weight: 700; text-anchor: start; }
+        .ds-pf .ds-room-area.in-tab { text-anchor: start; }
         .ds-pf .ds-pipe polyline, .ds-pf .ds-pipe path { fill: none; stroke: currentColor; stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-pfdrain polyline { fill: none; stroke: currentColor; stroke-width: 2px; stroke-dasharray: 8 5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-pfcable path { fill: none; stroke: currentColor; stroke-width: 1.8px; stroke-dasharray: 2 5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
@@ -278,20 +286,25 @@ export function PlanFigure({
         {rooms.map((r) => {
           const pts = r.geometry.points;
           const spot = planLabels?.rooms.get(r.id);
+          const tab = spot?.tab;
           return (
             <g key={r.id} className="ds-room">
+              {/* the label's tab on its wall (room-tab.ts), under the room's
+                  wash and wall exactly as the canvas draws it */}
+              {tab && <path className="ds-room-tab" d={tabPath(tab, u)} />}
               <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
-              {spot && labelBacks && backOf(spot.box)}
+              {tab && <path className="ds-room-tab-edge" d={tabPath(tab, u, true)} />}
+              {spot && labelBacks && !tab && backOf(spot.box)}
               {spot && (
                 <>
-                  <text x={spot.x} y={spot.y} fontSize={13 * u} className="ds-room-name">
+                  <text x={spot.x} y={spot.y} fontSize={13 * u} className={`ds-room-name${tab ? " in-tab" : ""}`}>
                     {String(r.props.name ?? "Room")}
                   </text>
                   <text
                     x={spot.x}
                     y={spot.y + 16 * u}
                     fontSize={11 * u}
-                    className="ds-room-area"
+                    className={`ds-room-area${tab ? " in-tab" : ""}`}
                   >
                     {scale
                       ? formatArea(areaUnitsToM2(polygonArea(pts), scale))

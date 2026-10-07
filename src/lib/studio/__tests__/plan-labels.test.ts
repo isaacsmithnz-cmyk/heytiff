@@ -30,9 +30,24 @@ const crosses = (b: { x0: number; x1: number; y0: number; y1: number }, x: numbe
   b.x0 < x && x < b.x1 && b.y0 < y1 && y0 < b.y1;
 
 describe("the plan's words", () => {
-  it("a room with nothing in it keeps its name on its centre", () => {
+  /* A ROOM'S NAME IS A TAB ON ITS WALL (room-tab.ts; Isaac, 2026-10-07): out
+     of the middle of the room, where the plan's own words are */
+  it("a room with nothing in it has its name in a tab tucked into its top-left corner", () => {
     const out = layoutPlanLabels({ rooms: [room("r", square(0, 0, 600))], runs: [], solids: [], px: 1 });
-    expect(out.rooms.get("r")).toMatchObject({ x: 300, y: 300, anchor: "middle" });
+    const r = out.rooms.get("r")!;
+    expect(r.tab?.att).toEqual({ top: true, right: false, bottom: false, left: true });
+    expect([r.box.x0, r.box.y0]).toEqual([0, 0]);
+    // the words start at the tab's padding, inside it
+    expect(r.anchor).toBe("start");
+    expect(r.x).toBeGreaterThan(r.box.x0);
+    expect(r.y).toBeLessThan(r.box.y1);
+  });
+
+  it("a room no level or plumb wall of which can carry a tab keeps its name in its middle", () => {
+    const diamond = [{ x: 300, y: 0 }, { x: 600, y: 300 }, { x: 300, y: 600 }, { x: 0, y: 300 }];
+    const r = layoutPlanLabels({ rooms: [room("r", diamond)], runs: [], solids: [], px: 1 }).rooms.get("r")!;
+    expect(r.tab).toBeUndefined();
+    expect(r).toMatchObject({ x: 300, y: 300, anchor: "middle" });
   });
 
   it("a pipe down through the room's centre moves the name off it, and the pipe's words go beside the copper, clear of the name", () => {
@@ -91,16 +106,25 @@ describe("the plan's words", () => {
     expect(Math.abs(at2.x - 300)).toBeCloseTo(Math.abs(at1.x - 300) * 2);
   });
 
-  it("a name put by hand stays where it was put, and the other words go round it (Isaac: a kitchen island under it)", () => {
+  it("a tab put on a wall by hand stays there, and the other words go round it (Isaac: a kitchen island under it)", () => {
     const polygon = square(0, 0, 600);
-    const put = { x: 150, y: 480 };
-    const pipe = { id: "p", points: [{ x: 60, y: 486 }, { x: 560, y: 486 }], text: "5.00 m", size: 11 };
-    const out = layoutPlanLabels({ rooms: [{ ...room("r", polygon), fixed: put }], runs: [pipe], solids: [], px: 1 });
-    expect(out.rooms.get("r")).toMatchObject({ x: 150, y: 480, anchor: "middle" });
-    // the pipe's words, which would sit at its middle, stay off the hand-placed name
-    const name = out.rooms.get("r")!.box;
+    // clockwise from the first corner: the bottom wall runs 1200–1800, so its middle is 0.625 of the way
+    const pipe = { id: "p", points: [{ x: 60, y: 580 }, { x: 560, y: 580 }], text: "5.00 m", size: 11 };
+    const out = layoutPlanLabels({ rooms: [{ ...room("r", polygon), edge: 0.625 }], runs: [pipe], solids: [], px: 1 });
+    const r = out.rooms.get("r")!;
+    expect(r.tab?.att.bottom).toBe(true);
+    expect((r.box.x0 + r.box.x1) / 2).toBeCloseTo(300, 0);
+    // the pipe's words, which would sit at its middle, stay off the tab
     const words = out.runs.get("p")!.box;
-    expect(words.x1 <= name.x0 || name.x1 <= words.x0 || words.y1 <= name.y0 || name.y1 <= words.y0).toBe(true);
+    expect(words.x1 <= r.box.x0 || r.box.x1 <= words.x0 || words.y1 <= r.box.y0 || r.box.y1 <= words.y0).toBe(true);
+  });
+
+  it("a name put by hand the OLD way, inside the room, takes its tab to the nearest wall", () => {
+    const polygon = square(0, 0, 600);
+    // nearer the bottom wall (120 off) than the left one (150 off)
+    const r = layoutPlanLabels({ rooms: [{ ...room("r", polygon), fixed: { x: 150, y: 480 } }], runs: [], solids: [], px: 1 }).rooms.get("r")!;
+    expect(r.tab?.att.bottom).toBe(true);
+    expect((r.box.x0 + r.box.x1) / 2).toBeCloseTo(150, 0);
   });
 
   it("is kept on the room as an offset from its centre, so it travels with the room", () => {

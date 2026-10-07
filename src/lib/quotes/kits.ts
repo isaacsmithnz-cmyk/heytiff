@@ -51,8 +51,9 @@ export type KitPart = {
   group: string;
   /** the line's name when the book has nothing for it */
   name: string;
-  /** what to look for in the book, or null when a fact it needs is missing */
-  search: (f: KitFacts) => (BookQuery & { match?: (p: Product) => boolean }) | null;
+  /** what to look for in the book, or null when a fact it needs is missing;
+      `pool` narrows the book first (a rating at or above the draw) */
+  search: (f: KitFacts) => (BookQuery & { pool?: (all: Product[]) => Product[] }) | null;
   /** how many, and in what: null when a fact it needs is missing */
   qty: (f: KitFacts) => { qty: number; unit: LineFields["unit"]; why: string } | null;
   /** a part only some jobs take: left off when this says so */
@@ -67,7 +68,16 @@ export const isolatorFor = (amps: number) => ISOLATORS.find((b) => b >= amps) ??
 /** TPS by the circuit it carries: 2.5 mm² to 20 A, 4 mm² to 32 A, 6 mm² beyond. */
 export const cableFor = (amps: number) => (amps <= 20 ? "2.5" : amps <= 32 ? "4" : "6");
 
-const rated = (want: number) => (p: Product) => isolatorOf(p.name)?.amps === want;
+/** The smallest rating the book has at or above what's needed: a 13.5 A
+    unit takes a 20 A breaker when the business stocks no 16 A (3375). */
+const atLeast = (want: number, words: RegExp) => (all: Product[]) => {
+  const rated = all
+    .filter((p) => words.test(p.name))
+    .map((p) => ({ p, a: isolatorOf(p.name)?.amps ?? null }))
+    .filter((x): x is { p: Product; a: number } => x.a != null && x.a >= want);
+  const least = Math.min(...rated.map((x) => x.a));
+  return rated.filter((x) => x.a === least).map((x) => x.p);
+};
 const pipeWords = (pipe: PipeSize) => pipe.replace("+", " ");
 const metres = (m: number | null, what: string) => (m != null && m > 0 ? { qty: m, unit: "m" as const, why: `${m} m ${what}` } : null);
 const one = (why: string) => () => ({ qty: 1, unit: "" as const, why });
@@ -98,20 +108,14 @@ const SPLIT: KitPart[] = [
     key: "breaker",
     group: "Pipe, power and controls",
     name: "RCBO",
-    search: (f) => {
-      const b = f.amps != null ? breakerFor(f.amps) : null;
-      return b ? { text: "rcbo", match: rated(b) } : null;
-    },
+    search: (f) => (f.amps != null ? { text: "rcbo", pool: atLeast(f.amps, /rcbo/i) } : null),
     qty: one("one for the new circuit"),
   },
   {
     key: "isolator",
     group: "Pipe, power and controls",
     name: "Isolator",
-    search: (f) => {
-      const i = f.amps != null ? isolatorFor(f.amps) : null;
-      return i ? { text: "isolator", match: rated(i) } : null;
-    },
+    search: (f) => (f.amps != null ? { text: "isolator", pool: atLeast(f.amps, /isolat/i) } : null),
     qty: one("one at the outdoor"),
   },
   {
@@ -182,7 +186,7 @@ export function expandKit(kit: KitKey, f: KitFacts, products: Product[], at: { o
       out.push({ ...base, name: part.name, qty: q?.qty ?? 0, unit: q?.unit ?? "", costCents: 0, source: "unknown", why: !s ? "Needs the unit's details" : "Needs the run" });
       continue;
     }
-    const pool = s.match ? products.filter(s.match) : products;
+    const pool = s.pool ? s.pool(products) : products;
     const picked = pickItem(pool, s);
     if (!picked) {
       out.push({ ...base, name: part.name, qty: q.qty, unit: q.unit, costCents: 0, source: "unknown", why: "Not in your book" });
@@ -255,7 +259,7 @@ export function kitPriceList(products: Product[]): KitRow[] {
   const one = (kit: KitKey, partKey: string, size: string, f: KitFacts) => {
     const part = KITS[kit].parts.find((p) => p.key === partKey)!;
     const s = part.search(f);
-    const picked = s ? pickItem(s.match ? products.filter(s.match) : products, s) : null;
+    const picked = s ? pickItem(s.pool ? s.pool(products) : products, s) : null;
     const line = picked ? expandKit(kit, f, products, at).find((l) => l.code === picked.offer.code) : null;
     rows.push({
       kit,

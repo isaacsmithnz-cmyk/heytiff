@@ -203,7 +203,7 @@ export function PlanFigure({
         .ds-pf .ds-room polygon { fill: rgba(240,164,49,0.13); stroke: #d98f1f; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-room-name { fill: #0d1220; font-weight: 800; text-anchor: middle; }
         .ds-pf .ds-room-area { fill: #6a7284; font-weight: 600; text-anchor: middle; }
-        .ds-pf .ds-room-tab { fill: rgba(250,250,250,0.96); stroke: none; }
+        .ds-pf .ds-room-tab { fill: rgba(244,244,244,0.88); stroke: none; }
         .ds-pf .ds-room-wall { fill: none; stroke: #d98f1f; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-room-tab-edge { fill: none; stroke: #d98f1f; stroke-width: 1.4; stroke-dasharray: 4 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-room-name.in-tab { font-weight: 700; text-anchor: start; }

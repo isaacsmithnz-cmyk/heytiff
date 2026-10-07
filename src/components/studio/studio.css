@@ -2655,8 +2655,10 @@ html[data-ds-display] .dstudio.editing {
    part of the wall and made the room look a different shape (Isaac,
    2026-10-07). The wall's copy takes every state's stroke from the room's
    own polygon rules, and its `fill: none` is inline so no state can fill it. */
+/* the tool hint's own grey, exactly (.ds-tool-hint): "make the grey darker
+   like the tool helper" (Isaac, 2026-10-08) */
 .dstudio .ds-room-tab {
-  fill: color-mix(in srgb, var(--paper) 94%, var(--ink) 2%);
+  fill: color-mix(in srgb, var(--paper) 84%, var(--ink) 4%);
   stroke: none;
   pointer-events: none;
 }

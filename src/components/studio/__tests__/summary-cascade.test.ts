@@ -45,6 +45,15 @@ const selectors = css
   .filter(Boolean);
 
 describe("Summary sheet cascade", () => {
+  /* a room's tab is the tool hint's grey, exactly ("make the grey darker like
+     the tool helper", Isaac, 2026-10-08) — so the two can only change together */
+  it("fills a room's label tab with the tool hint's own grey", () => {
+    const hint = /\.dstudio \.ds-tool-hint \{[^}]*background:\s*([^;]+);/.exec(css)?.[1];
+    const tab = /\.dstudio \.ds-room-tab \{[^}]*fill:\s*([^;]+);/.exec(css)?.[1];
+    expect(hint).toMatch(/color-mix/);
+    expect(tab).toBe(hint);
+  });
+
   /* THE PLAN BOX HAS A HEIGHT FOR EVERY PAPER AND WAY UP. Its classes are
      built at runtime — `paper-${paper}` on the document, the orientation on
      each page — so a dead-CSS sweep (#681) read three of the four rows as

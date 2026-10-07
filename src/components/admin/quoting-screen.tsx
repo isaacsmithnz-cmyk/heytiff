@@ -17,11 +17,13 @@ import {
   MAX_CONTINGENCY_PCT,
   MAX_DAY_HOURS,
   MAX_MARKUP_PCT,
+  MAX_PROFIT_TARGET_PCT,
   USUAL_LAYOUT_WORDS,
   type AllowanceKey,
   type QuoteSettings,
 } from "@/lib/quotes/settings";
 import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
+import { hourCostOf } from "@/lib/quotes/profit";
 import type { RangeView } from "@/lib/quotes/ranges";
 import { RangesGroup } from "./quoting-ranges";
 
@@ -35,6 +37,11 @@ import { RangesGroup } from "./quoting-ranges";
 
    THE DUCT CONTINGENCY: a share of a quote's ductwork and grilles, and
    hours on top at the rate — the business's own, and none when blank.
+
+   THE PROFIT TARGET: the share of a price the business means to keep. A
+   quote under it says so and by how much; nothing changes a price (Isaac,
+   2026-10-07). An hour's cost is the rate less the target unless typed,
+   because the rate already carries the profit (profit.ts).
 
    THE MARKUP says its profit share beside it, because 20% markup is 16.7% of
    the sell price and the two get confused on every quote otherwise.
@@ -85,6 +92,8 @@ export function QuotingScreen({
   const [hours, setHours] = useState(field(initial.dayHours));
   const [contPct, setContPct] = useState(field(initial.contingencyPct));
   const [contHours, setContHours] = useState(field(initial.contingencyHours));
+  const [target, setTarget] = useState(field(initial.profitTargetPct));
+  const [hourCost, setHourCost] = useState(dollarsField(initial.labourCostCents));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [open, setOpen] = useState<ComponentKey | null>(null);
@@ -105,6 +114,8 @@ export function QuotingScreen({
     setHours(field(res.settings.dayHours));
     setContPct(field(res.settings.contingencyPct));
     setContHours(field(res.settings.contingencyHours));
+    setTarget(field(res.settings.profitTargetPct));
+    setHourCost(dollarsField(res.settings.labourCostCents));
     setNote({ tone: "ok", text: done });
     router.refresh();
     return true;
@@ -117,6 +128,8 @@ export function QuotingScreen({
     dayHours: numOrNone(hours),
     contingencyPct: numOrNone(contPct),
     contingencyHours: numOrNone(contHours),
+    profitTargetPct: numOrNone(target),
+    labourCostCents: centsOrNone(hourCost),
   };
   const changed =
     typed.unitMarkupPct !== saved.unitMarkupPct ||
@@ -124,15 +137,22 @@ export function QuotingScreen({
     typed.chargeOutCents !== saved.chargeOutCents ||
     typed.dayHours !== saved.dayHours ||
     typed.contingencyPct !== saved.contingencyPct ||
-    typed.contingencyHours !== saved.contingencyHours;
+    typed.contingencyHours !== saved.contingencyHours ||
+    typed.profitTargetPct !== saved.profitTargetPct ||
+    typed.labourCostCents !== saved.labourCostCents;
   const valid =
     [unit, material].every((s) => inRange(s, 0, MAX_MARKUP_PCT)) &&
     inRange(rate.replace(/[$,\s]/g, ""), 0.01, MAX_CHARGE_OUT_CENTS / 100) &&
     inRange(hours, 1, MAX_DAY_HOURS) &&
     inRange(contPct, 0, MAX_CONTINGENCY_PCT) &&
-    inRange(contHours, 0, MAX_CONTINGENCY_HOURS);
+    inRange(contHours, 0, MAX_CONTINGENCY_HOURS) &&
+    inRange(target, 0, MAX_PROFIT_TARGET_PCT) &&
+    inRange(hourCost.replace(/[$,\s]/g, ""), 0.01, MAX_CHARGE_OUT_CENTS / 100);
   /* what a quote will use, as typed: this page's figure, else the Rate Calculator's */
   const day = orgDayOf(valid ? typed : saved, calc);
+  /* what an hour costs, as typed: its own figure, else the rate less the target */
+  const shown = valid ? typed : saved;
+  const hourCostCents = day.rate ? hourCostOf(day.rate.perHourCents, shown.profitTargetPct, shown.labourCostCents) : shown.labourCostCents;
 
   const choose = (key: ComponentKey, group: ComponentGroup, offer: ComponentOffer, rollM: number | null) =>
     save(
@@ -229,6 +249,43 @@ export function QuotingScreen({
                     <em>hours</em>
                   </span>
                   <em className="qs-share">{contPct.trim() === "" && contHours.trim() === "" ? "None" : "On a quote with ductwork"}</em>
+                </label>
+                <label className="qs-field">
+                  <span>Profit target</span>
+                  <span className="qs-in">
+                    <input
+                      className="wb2-fi"
+                      inputMode="decimal"
+                      value={target}
+                      disabled={busy}
+                      onChange={(e) => setTarget(e.target.value)}
+                      aria-label="Profit target, percent of the price"
+                    />
+                    <em>% of the price</em>
+                  </span>
+                  <em className="qs-share">{target.trim() === "" ? "Not set: quotes aren't checked" : "A quote under it says so"}</em>
+                </label>
+                <label className="qs-field">
+                  <span>An hour costs you</span>
+                  <span className="qs-in">
+                    <em>$</em>
+                    <input
+                      className="wb2-fi"
+                      inputMode="decimal"
+                      value={hourCost}
+                      disabled={busy}
+                      onChange={(e) => setHourCost(e.target.value)}
+                      aria-label="What an hour of labour costs, dollars"
+                    />
+                    <em>an hour</em>
+                  </span>
+                  <em className="qs-share">
+                    {hourCost.trim() !== ""
+                      ? "Your figure"
+                      : hourCostCents != null
+                        ? `${$(hourCostCents)}: the rate less the target`
+                        : "Not set"}
+                  </em>
                 </label>
               </div>
               <p className="qs-sub">

@@ -1,5 +1,6 @@
 import "server-only";
 import { priceBuildUp, type BuildUp } from "./buildup";
+import { profitOf, type Profit } from "./profit";
 import { buildSettingsOf, type BuildUnset } from "./build-settings";
 import { briefVisits, optionLabour, priceJobList, type LabourFrom, type ComponentPrice, type ListRow, type Unpriced, type UnitOffer } from "./job-price";
 import { pricedLinks, readUnitChoices } from "./links-server";
@@ -29,7 +30,9 @@ import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/serve
 
 const PACK_BRAND = "mitsubishi-electric";
 
-export type OptionPrice = { name: string; build: BuildUp; unpriced: Unpriced[]; rows: number; labourFrom: LabourFrom };
+/** `profit`: against the business's target; null when it has no target and
+    no hour's cost to reckon one by (profit.ts). */
+export type OptionPrice = { name: string; build: BuildUp; unpriced: Unpriced[]; rows: number; labourFrom: LabourFrom; profit?: Profit | null };
 
 export type QuotePrice =
   | { ok: false; unset: BuildUnset[] }
@@ -110,7 +113,9 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   const options = lists.map((l) => {
     const { lines, unpriced } = priceJobList(l.rows, deps);
     const { visits, from } = optionLabour(l.labour, brief);
-    return { name: l.name, lines, build: priceBuildUp(lines, visits, built.settings), unpriced, rows: l.rows.length, labourFrom: from };
+    const build = priceBuildUp(lines, visits, built.settings);
+    const profit = profitOf(build, built.settings, settings.profitTargetPct, settings.labourCostCents);
+    return { name: l.name, lines, build, unpriced, rows: l.rows.length, labourFrom: from, profit };
   });
   /* what this quote pulled from the price book, for the price book's Most used */
   if (lists.length > 0) await recordQuoteItems(orgId, jobUuid, options.flatMap((o) => o.lines));

@@ -133,3 +133,19 @@ it("leaves a length not known yet out of the quantity: its why says so", () => {
   expect(row).not.toHaveTextContent(RUN_TO_ASK);
   expect(row).toHaveTextContent("Its length isn't known yet");
 });
+
+/* Isaac, 2026-10-07: "if it's over then great, if it's under it needs a warning" */
+it("shows the profit against the target, and warns only a finished quote under it", () => {
+  const build = priceBuildUp([ap71], [{ stage: "Install", people: 1, days: 1 }], settings);
+  const over = { costCents: 129600, profitCents: 32400, pct: 20, targetPct: 20, hourCostCents: 11200, short: null };
+  const { rerender } = render(<PriceSummary price={one(option({ build, profit: over }))} at={0} names={["Option 1: Split"]} />);
+  expect(screen.getByText("Profit, target 20%")).toBeInTheDocument();
+  expect(screen.getByText("$324, 20%")).toBeInTheDocument();
+  expect(screen.queryByRole("status")).toBeNull();
+  const under = { ...over, profitCents: 20000, pct: 12.3, short: { cents: 5000, priceCents: 167000 } };
+  rerender(<PriceSummary price={one(option({ build, profit: under }))} at={0} names={["Option 1: Split"]} />);
+  expect(screen.getByRole("status")).toHaveTextContent("Profit 12.3%, under your 20% target by $50. $1,670 ex GST would meet it.");
+  rerender(<PriceSummary price={one(option({ build, profit: under, unpriced: [{ name: "Bracket", qty: "1", why: "Not in your price book" }] }))} at={0} names={["Option 1: Split"]} />);
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.getByText("$200, 12.3%")).toBeInTheDocument();
+});

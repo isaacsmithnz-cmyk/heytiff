@@ -21,8 +21,8 @@ it("blank here: says the Rate Calculator's figures, and the day they make", () =
 
 it("with no Rate Calculator, a rate and a day typed here make the day", () => {
   screenWith(null);
-  /* the rate and the day, and the four allowances */
-  expect(screen.getAllByText("Not set")).toHaveLength(6);
+  /* the rate and the day, an hour's cost, and the four allowances */
+  expect(screen.getAllByText("Not set")).toHaveLength(7);
   expect(screen.getByText("A day on site needs a charge-out rate and a working day.")).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Charge-out rate, dollars an hour"), { target: { value: "150" } });
   fireEvent.change(screen.getByLabelText("Hours in a working day"), { target: { value: "7.5" } });
@@ -37,6 +37,20 @@ it("takes the business's own duct contingency, and has none until it's set", () 
   fireEvent.change(screen.getByLabelText("Duct contingency, hours"), { target: { value: "2" } });
   expect(screen.getByText("On a quote with ductwork")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+});
+
+/* Isaac, 2026-10-07: "profit will be part of quoting setting" */
+it("takes a profit target, and costs an hour at the rate less it until one's typed", () => {
+  screenWith({ chargedCents: 14000, recommendedCents: null, workingHours: 8 });
+  expect(screen.getByText("Not set: quotes aren't checked")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Profit target, percent of the price"), { target: { value: "20" } });
+  expect(screen.getByText("A quote under it says so")).toBeInTheDocument();
+  expect(screen.getByText("$112.00: the rate less the target")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("What an hour of labour costs, dollars"), { target: { value: "95" } });
+  expect(screen.getByText("Your figure")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  fireEvent.change(screen.getByLabelText("Profit target, percent of the price"), { target: { value: "120" } });
+  expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
 });
 
 it("keeps the business's own allowances, at cost, and none until it sets them", async () => {

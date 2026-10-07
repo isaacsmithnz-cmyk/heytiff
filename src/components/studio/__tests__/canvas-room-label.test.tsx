@@ -81,13 +81,21 @@ const nameAt = (svg: Element) => {
 /* A ROOM'S NAME IS A TAB ON ITS WALL (room-tab.ts; Isaac, 2026-10-07): drawn
    under the room on its own paper, its edge dashed, moved round the walls */
 describe("a room's name on its wall", () => {
-  it("is a tab, under the room, its words left-aligned in it", () => {
+  /* its grey OVER the room's wash — under it, the wash tinted it the room's
+     colour and the grey was lost ("where is the grey background") — and the
+     wall drawn again over the tab, so it still runs straight through */
+  it("is a grey tab over the room's wash, the wall over it, its words left-aligned in it", () => {
     const { svg } = renderCanvas(mkDoc(), null);
     const g = svg.querySelector(".ds-room")!;
-    const kids = [...g.children].map((c) => c.getAttribute("class") ?? c.tagName);
-    // its paper under the room's wash and wall, its dashed edge over them
-    expect(kids.indexOf("ds-room-tab")).toBeLessThan(kids.indexOf("polygon"));
-    expect(kids.indexOf("ds-room-tab-edge")).toBeGreaterThan(kids.indexOf("polygon"));
+    const kids = [...g.children].map((c) => c.getAttribute("class") || c.tagName.toLowerCase());
+    const room = kids.indexOf("polygon");
+    const tab = kids.indexOf("ds-room-tab");
+    const wall = kids.indexOf("ds-room-wall");
+    expect(room).toBeLessThan(tab);
+    expect(tab).toBeLessThan(wall);
+    expect(wall).toBeLessThan(kids.indexOf("ds-room-tab-edge"));
+    // the wall's copy never fills, whatever state the room is in
+    expect((g.querySelector(".ds-room-wall") as SVGElement).style.fill).toBe("none");
     expect(g.querySelector(".ds-room-name")!.getAttribute("class")).toContain("in-tab");
   });
 

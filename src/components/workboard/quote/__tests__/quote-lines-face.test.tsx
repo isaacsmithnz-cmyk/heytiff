@@ -202,3 +202,25 @@ it("swaps a line for another item of its kind from the book, and makes it prefer
   );
   await waitFor(() => expect(posted.map((b) => b.ref ?? b.op)).toContain("aad|CMADJ"));
 });
+
+/* provisional sums, slice 12.1 */
+it("adds a provisional sum, and its price is its cost: nothing on top", async () => {
+  const ps = line({ id: "p1", system: "", group: "Provisional sums", name: "Core hole 200 mm", code: null, supplierKey: null, kind: "material", costCents: 0, sellCents: null, source: "unknown", why: "" });
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return { json: async () => view([indoor, ps]) };
+  });
+  face();
+  await screen.findByText("Core hole 200 mm");
+  fireEvent.change(screen.getByLabelText("Search your book for a line to add"), { target: { value: "Ergovent round grille" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add a provisional sum" }));
+  });
+  expect(posted).toContainEqual(expect.objectContaining({ op: "add", line: expect.objectContaining({ group: "Provisional sums", name: "Ergovent round grille", sellCents: null }) }));
+  const sell = screen.getByLabelText("What one Core hole 200 mm sells for");
+  fireEvent.change(sell, { target: { value: "1300" } });
+  await act(async () => {
+    fireEvent.blur(sell);
+  });
+  expect(posted).toContainEqual({ job: "job-3377", op: "change", id: "p1", version: 1, patch: { sellCents: 130000, costCents: 130000 } });
+});

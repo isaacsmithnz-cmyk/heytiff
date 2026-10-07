@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { fmtAud } from "@/lib/workboard/project-money";
 import type { LineChange } from "@/lib/quotes/lines-server";
-import { againstFirst, missingFromFirst, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
+import { againstFirst, isProvisional, missingFromFirst, PROVISIONAL, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
 import type { BookHit } from "@/lib/quotes/lookups";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { linesSteps } from "@/lib/quotes/quote-steps";
@@ -201,6 +201,12 @@ export function QuoteLinesFace({
     setHits(null);
   };
 
+  const addProvisional = () =>
+    void act({
+      op: "add",
+      line: { optionIndex: at, system, group: PROVISIONAL, name: search.trim() || "Provisional sum", kind: "material", qty: 1, costCents: 0, sellCents: null, source: "unknown", why: "Its price to set" },
+    });
+
   const addByHand = (kind: "material" | "labour") =>
     void act({
       op: "add",
@@ -371,7 +377,10 @@ export function QuoteLinesFace({
                               disabled={busy}
                               onCommit={(t) => {
                                 const c = centsOf(t);
-                                if (c === null) change(l, { sellCents: null });
+                                /* a provisional sum sells at what it costs: no markup on top */
+                                if (isProvisional(l)) {
+                                  if (c != null && Number.isFinite(c)) change(l, { sellCents: c, costCents: c });
+                                } else if (c === null) change(l, { sellCents: null });
                                 else if (Number.isFinite(c)) change(l, { sellCents: c });
                               }}
                             />
@@ -475,6 +484,9 @@ export function QuoteLinesFace({
           </button>
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => addByHand("labour")}>
             Add labour
+          </button>
+          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={addProvisional}>
+            Add a provisional sum
           </button>
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setKitOpen((v) => !v)} aria-expanded={kitOpen}>
             Add a kit

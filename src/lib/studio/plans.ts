@@ -7,6 +7,7 @@
    browser-only; the floor-mapping helpers are pure + unit-tested. */
 
 import { newId, type DesignDocument, type Floor, type PlanSheet, type Point } from "./document";
+import { trimBorders, type TrimRect } from "./plan-trim";
 
 /** A rasterised candidate floor plan (one PDF page or one uploaded image).
     `blob`/`ext` are present for freshly rendered pages (they feed the upload);
@@ -21,6 +22,9 @@ export interface PageImage {
   width: number;
   height: number;
   ref?: string; // storage ref, once uploaded / when restored
+  /** the raster inside its one-colour margins (plan-trim.ts), when it has
+      any worth cutting — becomes the sheet's crop */
+  trim?: TrimRect;
 }
 
 /** Number every candidate page "Page 1", "Page 2"… by combined order, so a
@@ -43,6 +47,8 @@ export interface UploadedSheet {
   pageNumber: number | null;
   width: number;
   height: number;
+  /** the page's trimmed margins, as the sheet's starting crop */
+  crop?: TrimRect;
 }
 
 const SHEET_GAP = 60; // world units between auto-placed sheets
@@ -66,6 +72,10 @@ export function placeSheets(
       height: s.height,
       x,
       y: 0,
+      /* a page arrives cropped to its drawing: the empty margins round it —
+         a screenshot's viewer bars above all — would otherwise frame the
+         sheet on paper and size every word on it */
+      ...(s.crop ? { crop: { ...s.crop } } : {}),
     };
   });
 }
@@ -549,6 +559,18 @@ export function applyBuilderRows(
 
 const MAX_RENDER_WIDTH = 2400;
 
+/** a drawn page's empty margins, or nothing — never a failed import: a canvas
+    that can't be read back (a test DOM, a tainted or oversized one) simply
+    leaves the page uncropped */
+function trimOf(ctx: CanvasRenderingContext2D | null, w: number, h: number): TrimRect | undefined {
+  if (!ctx) return undefined;
+  try {
+    return trimBorders(ctx.getImageData(0, 0, w, h).data, w, h) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function pdfToPages(
   file: File,
   onProgress?: (done: number, total: number) => void
@@ -574,6 +596,7 @@ export async function pdfToPages(
     const blob = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("render failed"))), "image/png")
     );
+    const trim = trimOf(ctx, canvas.width, canvas.height);
     pages.push({
       pageNumber: n,
       label: `Page ${n}`, // real floor names are set in the naming step
@@ -582,6 +605,7 @@ export async function pdfToPages(
       thumbUrl: URL.createObjectURL(blob),
       width: canvas.width,
       height: canvas.height,
+      ...(trim ? { trim } : {}),
     });
     onProgress?.(n, doc.numPages);
   }
@@ -591,6 +615,12 @@ export async function pdfToPages(
 export async function imageToPage(file: File): Promise<PageImage> {
   const bmp = await createImageBitmap(file);
   const ext = file.type === "image/jpeg" ? "jpeg" : "png";
+  const canvas = document.createElement("canvas");
+  canvas.width = bmp.width;
+  canvas.height = bmp.height;
+  const ctx = canvas.getContext("2d");
+  ctx?.drawImage(bmp, 0, 0);
+  const trim = trimOf(ctx, bmp.width, bmp.height);
   return {
     pageNumber: null,
     label: "Page 1", // relabelled by combined order when several files land
@@ -599,7 +629,65 @@ export async function imageToPage(file: File): Promise<PageImage> {
     thumbUrl: URL.createObjectURL(file),
     width: bmp.width,
     height: bmp.height,
+    ...(trim ? { trim } : {}),
   };
+}
+
+/** A raster's trim, in its own pixels, with the size it was measured at. */
+export interface PixelTrim extends TrimRect {
+  naturalW: number;
+  naturalH: number;
+}
+
+/** A stored sheet's empty margins, read off its raster — for the sheets that
+    were placed before a page was trimmed at import, so their paper frames the
+    drawing too. Null whenever the pixels cannot be had (a raster served
+    without CORS taints the canvas; a slow one times out), and the caller then
+    prints the sheet exactly as it is. */
+export function trimOfImageUrl(url: string, timeoutMs = 8000): Promise<PixelTrim | null> {
+  return new Promise((resolve) => {
+    let done = false;
+    let timer = 0;
+    const finish = (t: PixelTrim | null) => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      resolve(t);
+    };
+    timer = window.setTimeout(() => finish(null), timeoutMs);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0);
+      const t = trimOf(ctx, w, h);
+      finish(t ? { ...t, naturalW: w, naturalH: h } : null);
+    };
+    img.onerror = () => finish(null);
+    img.src = url;
+  });
+}
+
+/** A floor as it PRINTS: every sheet nobody has cropped takes its raster's
+    trim as its crop, scaled from raster pixels to the sheet's world units. A
+    crop or a shape somebody set by hand always wins — the trim only stands in
+    for one that was never made. */
+export function withPrintTrims(floor: Floor, trims: Record<string, PixelTrim>): Floor {
+  let changed = false;
+  const plans = floor.plans.map((s) => {
+    const t = trims[s.imageRef];
+    if (!t || s.crop || s.shape || !s.width || !s.height) return s;
+    changed = true;
+    const kx = s.width / t.naturalW;
+    const ky = s.height / t.naturalH;
+    return { ...s, crop: { x: t.x * kx, y: t.y * ky, w: t.w * kx, h: t.h * ky } };
+  });
+  return changed ? { ...floor, plans } : floor;
 }
 
 /* ── Storage seam (injectable for tests, like DesignStore) ── */

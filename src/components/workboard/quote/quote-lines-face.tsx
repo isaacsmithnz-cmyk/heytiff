@@ -4,8 +4,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { fmtAud } from "@/lib/workboard/project-money";
 import type { LineChange } from "@/lib/quotes/lines-server";
-import { againstFirst, missingFromFirst, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
+import { againstFirst, isProvisional, missingFromFirst, PROVISIONAL, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
 import type { BookHit } from "@/lib/quotes/lookups";
+import type { Fit } from "@/lib/quotes/fit";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { linesSteps } from "@/lib/quotes/quote-steps";
 import { unsetWords } from "@/lib/quotes/build-settings";
@@ -38,6 +39,8 @@ type View = {
   changes: LineChange[];
   names: Record<string, string>;
   me: string;
+  /** each checked part against its system's outdoor unit (fit.ts) */
+  fits?: Fit[];
 };
 
 /** The quote's kept lines, read once and after every change. */
@@ -152,6 +155,7 @@ export function QuoteLinesFace({
   const o = price && price.ok ? price.options[at] : undefined;
   const sells = sellEachOf(o, lines);
   const systems = [...new Set(lines.map((l) => l.system))];
+  const fitOf = new Map((view?.fits ?? []).map((f) => [f.key, f]));
   const all = view?.lines ?? [];
   const steps = linesSteps({
     lines: all.length,
@@ -200,6 +204,12 @@ export function QuoteLinesFace({
     setSearch("");
     setHits(null);
   };
+
+  const addProvisional = () =>
+    void act({
+      op: "add",
+      line: { optionIndex: at, system, group: PROVISIONAL, name: search.trim() || "Provisional sum", kind: "material", qty: 1, costCents: 0, sellCents: null, source: "unknown", why: "Its price to set" },
+    });
 
   const addByHand = (kind: "material" | "labour") =>
     void act({
@@ -318,19 +328,35 @@ export function QuoteLinesFace({
                         <tr key={l.id} className="ql-it">
                           <td>
                             <span className="ql-n">
-                              <i className={`ql-d ${l.source}`} title={`${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`} />
+                              <i
+                                className={`ql-d ${fitOf.get(l.id)?.state === "fitted" ? "fitted" : l.source}`}
+                                title={
+                                  fitOf.get(l.id)
+                                    ? `${fitOf.get(l.id)!.state === "fitted" ? "Fitted" : fitOf.get(l.id)!.state === "misfit" ? "Doesn't fit" : "Not checked"}: ${fitOf.get(l.id)!.why}`
+                                    : `${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`
+                                }
+                              />
                               <span className="nm">
-                                {l.name}
+                                {l.kind !== "labour" ? (
+                                  <button
+                                    type="button"
+                                    className="ql-nmbtn"
+                                    title="Select preferred item"
+                                    aria-expanded={swapping === l.id}
+                                    onClick={() => setSwapping(swapping === l.id ? null : l.id)}
+                                  >
+                                    {l.name}
+                                  </button>
+                                ) : (
+                                  l.name
+                                )}
                                 {at > 0 && againstFirst(l, all) !== "same" && (
                                   <em className="ql-vs">{againstFirst(l, all) === "added" ? " Added" : " Changed"}</em>
                                 )}
                               </span>
                               {l.code && <span className="cd">{l.code}</span>}
-                              {l.kind !== "labour" && (
-                                <button type="button" className="ql-pick" aria-expanded={swapping === l.id} onClick={() => setSwapping(swapping === l.id ? null : l.id)}>
-                                  Select preferred item
-                                </button>
-                              )}
+                              {fitOf.get(l.id)?.state === "misfit" && <span className="ql-misfit">{fitOf.get(l.id)!.why}</span>}
+
                             </span>
                           </td>
                           <td className="n">
@@ -371,7 +397,10 @@ export function QuoteLinesFace({
                               disabled={busy}
                               onCommit={(t) => {
                                 const c = centsOf(t);
-                                if (c === null) change(l, { sellCents: null });
+                                /* a provisional sum sells at what it costs: no markup on top */
+                                if (isProvisional(l)) {
+                                  if (c != null && Number.isFinite(c)) change(l, { sellCents: c, costCents: c });
+                                } else if (c === null) change(l, { sellCents: null });
                                 else if (Number.isFinite(c)) change(l, { sellCents: c });
                               }}
                             />
@@ -476,6 +505,9 @@ export function QuoteLinesFace({
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => addByHand("labour")}>
             Add labour
           </button>
+          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={addProvisional}>
+            Add a provisional sum
+          </button>
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setKitOpen((v) => !v)} aria-expanded={kitOpen}>
             Add a kit
           </button>
@@ -510,8 +542,35 @@ export function QuoteLinesFace({
     </>
   );
 
+  /* what to look at before it goes: the non-Tiff half of the review (slice
+     11.1) — what isn't known, what doesn't fit, and the profit */
+  const unknownHere = lines.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null);
+  const misfits = lines.filter((l) => fitOf.get(l.id)?.state === "misfit");
+  const assumedHere = lines.filter((l) => l.source === "assumed");
+  const checks: { tone: "due" | "info" | "ok"; text: string }[] = [
+    ...unknownHere.map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
+    ...misfits.map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
+    ...(assumedHere.length > 0 ? [{ tone: "info" as const, text: `${assumedHere.length} ${assumedHere.length === 1 ? "line" : "lines"} assumed` }] : []),
+    ...(o?.profit
+      ? [{ tone: o.profit.short ? ("due" as const) : ("ok" as const), text: `Profit ${o.profit.pct}%${o.profit.targetPct != null ? `, target ${o.profit.targetPct}%` : ""}` }]
+      : []),
+  ];
+
   const rail = (
     <div className="ql-rail">
+      {checks.length > 0 && (
+        <>
+          <h2 className="hd-ls-grp">To check</h2>
+          <ul className="ql-checks">
+            {checks.map((c, i) => (
+              <li key={i} className={c.tone}>
+                <i aria-hidden="true" />
+                <span>{c.text}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <h2 className="hd-ls-grp">Changes</h2>
       {(view?.changes ?? []).length === 0 && <p className="qp-none">Nothing changed yet.</p>}
       <ul className="ql-chg">

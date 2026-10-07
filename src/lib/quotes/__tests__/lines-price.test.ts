@@ -81,3 +81,12 @@ it("costs the duct contingency's share at buy and its hours at the business's ho
   expect(o!.build.contingency).toMatchObject({ buyCents: 2240, hours: 3 });
   expect(o!.profit!.costCents).toBe(2489 * 6 + 2240 + 3 * 11200);
 });
+
+it("a provisional sum is still to price until it has one, then sells at its cost with nothing on top", async () => {
+  const { PROVISIONAL } = await import("../lines");
+  const ps = line({ group: PROVISIONAL, name: "Core hole 200 mm through sandstone", source: "unknown" });
+  expect(priceLines([ps], [], s, { pct: 20, labourCostCents: null })[0]!.unpriced).toHaveLength(1);
+  const [o] = priceLines([{ ...ps, costCents: 130000, sellCents: 130000, source: "by_hand" }], [], s, { pct: 20, labourCostCents: null });
+  expect(o!.build.exGstCents).toBe(130000);
+  expect(o!.profit).toMatchObject({ profitCents: 0, costCents: 130000 });
+});

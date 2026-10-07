@@ -6754,6 +6754,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-d.said { background:var(--hd-today); }
 .fg .ql-d.assumed { background:var(--info-t); }
 .fg .ql-d.unknown { background:var(--warn-t); }
+.fg .ql-d.fitted { background:var(--hd-today); }
+.fg .ql-misfit { grid-column:2; font-size:12px; font-weight:600; color:var(--bad-t); }
 .fg .ql-f { box-sizing:border-box; width:100%; height:30px; padding:0 8px; border:1px solid transparent; border-radius:var(--r-control);
   background:var(--tint); font:inherit; font-size:13px; text-align:right; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
 .fg .ql-f:hover { border-color:var(--hd-edge); background:var(--paper); }
@@ -6772,9 +6774,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-hits small { display:block; font-size:12px; color:var(--q); }
 .fg .ql-hits b { font-weight:600; font-variant-numeric:tabular-nums; }
 .fg .ql-hits li.none { padding:8px 12px; font-size:13px; color:var(--q); }
-.fg .ql-pick { grid-column:2; justify-self:start; padding:0; border:0; background:none; font:inherit; font-size:12px; font-weight:600; color:var(--hd-ink);
-  text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-.fg .ql-pick:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .ql-nmbtn { padding:0; border:0; background:none; font:inherit; color:inherit; text-align:left; cursor:pointer; }
+.fg .ql-nmbtn:hover, .fg .ql-nmbtn[aria-expanded="true"] { text-decoration:underline; text-underline-offset:3px; }
+.fg .ql-nmbtn:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
 .fg .ql-pickrow td { padding:4px 16px 12px; background:var(--tint); border-top:0; }
 .fg .ql-pop { display:flex; flex-direction:column; gap:8px; padding:12px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
 .fg .ql-prefer { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--hd-ink); }
@@ -6784,6 +6786,11 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-kf { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:500; color:var(--q); }
 .fg .ql-kin { display:flex; align-items:center; gap:8px; }
 .fg .ql-kin em { font-style:normal; font-size:13px; color:var(--q); }
+.fg .ql-checks { list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; }
+.fg .ql-checks li { display:grid; grid-template-columns:16px minmax(0, 1fr); gap:8px; padding:4px 0; font-size:13px; line-height:1.45; color:var(--hd-ink); }
+.fg .ql-checks li > i { width:8px; height:8px; margin-top:4px; border-radius:50%; background:var(--hd-today); }
+.fg .ql-checks li.due > i { background:var(--warn-t); }
+.fg .ql-checks li.info > i { background:var(--info-t); }
 .fg .ql-chg { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
 .fg .ql-chg li { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:13px; line-height:1.45; color:var(--hd-ink); }
 .fg .ql-chg li:first-child { border-top:0; }

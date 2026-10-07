@@ -184,7 +184,7 @@ it("copies option 1 to a new option, and says what an option changed from it", a
 it("swaps a line for another item of its kind from the book, and makes it preferred from the next quote", async () => {
   face();
   await screen.findByText("Ducted indoor, under the floor");
-  fireEvent.click(screen.getAllByRole("button", { name: "Select preferred item" })[0]!);
+  fireEvent.click(screen.getByRole("button", { name: "Ducted indoor, under the floor" }));
   expect(screen.getByLabelText("Search your book for another Ducted indoor, under the floor")).toHaveValue("Ducted indoor");
   const pick = await screen.findByRole("button", { name: /ANTI VIBRATION FEET/ }, { timeout: 2000 });
   await act(async () => {
@@ -201,4 +201,44 @@ it("swaps a line for another item of its kind from the book, and makes it prefer
     })
   );
   await waitFor(() => expect(posted.map((b) => b.ref ?? b.op)).toContain("aad|CMADJ"));
+});
+
+/* provisional sums, slice 12.1 */
+it("adds a provisional sum, and its price is its cost: nothing on top", async () => {
+  const ps = line({ id: "p1", system: "", group: "Provisional sums", name: "Core hole 200 mm", code: null, supplierKey: null, kind: "material", costCents: 0, sellCents: null, source: "unknown", why: "" });
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return { json: async () => view([indoor, ps]) };
+  });
+  face();
+  await screen.findByText("Core hole 200 mm");
+  fireEvent.change(screen.getByLabelText("Search your book for a line to add"), { target: { value: "Ergovent round grille" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add a provisional sum" }));
+  });
+  expect(posted).toContainEqual(expect.objectContaining({ op: "add", line: expect.objectContaining({ group: "Provisional sums", name: "Ergovent round grille", sellCents: null }) }));
+  const sell = screen.getByLabelText("What one Core hole 200 mm sells for");
+  fireEvent.change(sell, { target: { value: "1300" } });
+  await act(async () => {
+    fireEvent.blur(sell);
+  });
+  expect(posted).toContainEqual({ job: "job-3377", op: "change", id: "p1", version: 1, patch: { sellCents: 130000, costCents: 130000 } });
+});
+
+/* fit checks on the page, slice 3.1 */
+it("says under a part why it doesn't fit its system's outdoor unit", async () => {
+  const iso = line({ id: "iso", group: "Pipe, power and controls", name: "Isolator 20 A", code: "ALSIPW201", kind: "material", costCents: 2279, source: "assumed" });
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async () => ({
+    json: async () => ({ ...view([indoor, iso]), fits: [{ key: "iso", state: "misfit", why: "20 A is under the PUZ-ZM125VKA2-A's 28 A" }] }),
+  }));
+  face();
+  expect(await screen.findByText("20 A is under the PUZ-ZM125VKA2-A's 28 A")).toBeInTheDocument();
+});
+
+/* the review's own half, slice 11.1 */
+it("lists what to check: what isn't known yet, and the profit against the target", async () => {
+  face();
+  expect(await screen.findByText("Core hole 200 mm: not known yet")).toBeInTheDocument();
+  expect(screen.getByText("To check")).toBeInTheDocument();
+  expect(screen.getByText("Profit 20%, target 20%")).toBeInTheDocument();
 });

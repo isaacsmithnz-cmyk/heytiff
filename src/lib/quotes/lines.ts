@@ -199,3 +199,11 @@ export function missingFromFirst<T extends Pick<LineFields, "optionIndex" | "cod
   const mine = new Set(all.filter((l) => l.optionIndex === option).map(key));
   return all.filter((l) => l.optionIndex === 0 && !mine.has(key(l)));
 }
+
+/* A PROVISIONAL SUM (slice 12.1): a price a person has to go on before the
+   real one is known (a core hole through sandstone, a researched retail
+   price), sold at what it costs with no markup on top (Isaac, 2026-10-06:
+   retail already carries a margin), and adjusted to cost once the real
+   figure lands. Kept as its own group, so the proposal can word it. */
+export const PROVISIONAL = "Provisional sums";
+export const isProvisional = (l: Pick<LineFields, "group">) => l.group === PROVISIONAL;

@@ -4,6 +4,7 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { addLine, changeLine, copyOption, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
 import { addKit } from "@/lib/quotes/kits-server";
 import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
+import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 
 /* A quote's kept lines (the engine rebuild, slices 2.1–2.3): read them with
@@ -26,8 +27,11 @@ async function gate(): Promise<Gate> {
 
 async function view(orgId: string, jobUuid: string, userId: string) {
   const [engine, lines, changes] = await Promise.all([readEngine(orgId, jobUuid), readLines(orgId, jobUuid), readChanges(orgId, jobUuid, 50)]);
-  const names = await namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy)]);
-  return { ok: true as const, engine, lines, changes, names, me: userId };
+  const [names, fits] = await Promise.all([
+    namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy)]),
+    linesFit(lines).catch(() => []),
+  ]);
+  return { ok: true as const, engine, lines, changes, names, me: userId, fits };
 }
 
 export async function GET(req: Request) {

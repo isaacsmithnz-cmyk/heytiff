@@ -2,7 +2,7 @@ import type { DataPack } from "@/lib/studio/packs/schema";
 import type { CategoryKey } from "./categories";
 import { matchesWords, sizesOf, usesOf, type Product } from "./families";
 import { sameUnit } from "./option-materials";
-import { searchWords } from "./price-book";
+import { searchWords, type Offer } from "./price-book";
 
 /* WHAT A QUOTE LOOKS THINGS UP IN (the engine rebuild, slice 1.1) — the
    business's own book, and the shared data packs for what a unit is.
@@ -62,6 +62,22 @@ export function findInBook(products: Product[], q: BookQuery): BookHit[] {
     why: p.preferred ? "Your preferred" : usesOf(p) > 0 ? "On your quotes" : price(p) === cheapest && price(p) != null ? "Cheapest" : "In your book",
     buyCents: price(p),
   }));
+}
+
+/* ── which item, which supplier (slice 3.2) ──
+   Which item: the business's preferred, else the one on most of its
+   quotes, else the cheapest after its supplier discounts (the book's
+   ranking above). Which supplier: the business's own pick for that item,
+   else the lowest price for that same item. */
+
+export type Pick = { product: Product; offer: Offer; why: BookHit["why"] };
+
+export function pickItem(products: Product[], q: BookQuery): Pick | null {
+  for (const h of findInBook(products, { ...q, limit: BOOK_LIMIT })) {
+    const offer = h.product.preferred ?? h.product.cheapest;
+    if (offer) return { product: h.product, offer, why: h.why };
+  }
+  return null;
 }
 
 /* ── a unit, from its maker's data pack ── */

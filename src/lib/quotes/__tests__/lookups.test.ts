@@ -3,7 +3,7 @@ import { join } from "path";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import type { Product } from "../families";
-import { findInBook, unitSpecs } from "../lookups";
+import { findInBook, pickItem, unitSpecs } from "../lookups";
 
 /* What a quote looks things up in (slice 1.1): the business's book, ranked
    the way it buys, and the maker's data pack for what a unit is. */
@@ -58,6 +58,18 @@ describe("the book, as the business buys", () => {
 
   it("stops at the limit", () => {
     expect(findInBook(book, { text: "vortex", limit: 2 })).toHaveLength(2);
+  });
+});
+
+describe("which item, which supplier", () => {
+  it("takes the business's preferred, else the most quoted, at its cheapest supplier", () => {
+    const two = { ...vb250, offers: [offer("VB250", vb250.name, 3045), { ...offer("VB250", vb250.name, 3300), supplierKey: "jz", supplierName: "J&Z" }] };
+    expect(pickItem([vf250, two], { text: "flex", sizeMm: 250 })).toMatchObject({ product: { key: "aad|VB250" }, offer: { supplierKey: "aad", netCents: 3045 }, why: "On your quotes" });
+    const pref = { ...vf250, preferred: vf250.offers[0]! };
+    expect(pickItem([two, pref], { text: "flex", sizeMm: 250 })).toMatchObject({ offer: { code: "VF250" }, why: "Your preferred" });
+  });
+  it("is nothing when the book has nothing that fits", () => {
+    expect(pickItem(book, { text: "ergovent" })).toBeNull();
   });
 });
 

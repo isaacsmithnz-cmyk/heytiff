@@ -129,7 +129,7 @@ const body = (m: string) => {
   return norm(x);
 };
 /** The same unit, by its model or its body. */
-const sameUnit = (written: string, pack: string) => sameModel(written, pack) || (body(written).length >= 6 && body(written) === body(pack));
+export const sameUnit = (written: string, pack: string) => sameModel(written, pack) || (body(written).length >= 6 && body(written) === body(pack));
 
 const roomOf = (u: UnitLine, n: number, of: number): string => {
   const name = u.room.trim() || "Room";

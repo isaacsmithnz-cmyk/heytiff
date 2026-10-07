@@ -337,18 +337,26 @@ export function QuoteLinesFace({
                                 }
                               />
                               <span className="nm">
-                                {l.name}
+                                {l.kind !== "labour" ? (
+                                  <button
+                                    type="button"
+                                    className="ql-nmbtn"
+                                    title="Select preferred item"
+                                    aria-expanded={swapping === l.id}
+                                    onClick={() => setSwapping(swapping === l.id ? null : l.id)}
+                                  >
+                                    {l.name}
+                                  </button>
+                                ) : (
+                                  l.name
+                                )}
                                 {at > 0 && againstFirst(l, all) !== "same" && (
                                   <em className="ql-vs">{againstFirst(l, all) === "added" ? " Added" : " Changed"}</em>
                                 )}
                               </span>
                               {l.code && <span className="cd">{l.code}</span>}
                               {fitOf.get(l.id)?.state === "misfit" && <span className="ql-misfit">{fitOf.get(l.id)!.why}</span>}
-                              {l.kind !== "labour" && (
-                                <button type="button" className="ql-pick" aria-expanded={swapping === l.id} onClick={() => setSwapping(swapping === l.id ? null : l.id)}>
-                                  Select preferred item
-                                </button>
-                              )}
+
                             </span>
                           </td>
                           <td className="n">

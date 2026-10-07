@@ -184,7 +184,7 @@ it("copies option 1 to a new option, and says what an option changed from it", a
 it("swaps a line for another item of its kind from the book, and makes it preferred from the next quote", async () => {
   face();
   await screen.findByText("Ducted indoor, under the floor");
-  fireEvent.click(screen.getAllByRole("button", { name: "Select preferred item" })[0]!);
+  fireEvent.click(screen.getByRole("button", { name: "Ducted indoor, under the floor" }));
   expect(screen.getByLabelText("Search your book for another Ducted indoor, under the floor")).toHaveValue("Ducted indoor");
   const pick = await screen.findByRole("button", { name: /ANTI VIBRATION FEET/ }, { timeout: 2000 });
   await act(async () => {

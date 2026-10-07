@@ -6704,6 +6704,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qp-steps > li.due::after { background:color-mix(in srgb, var(--warn-t) 40%, transparent); }
 .fg .qp-steps > li.due span { color:var(--warn-t); }
 .fg .qp-steps > li.next > i { background:var(--paper); border:2px solid var(--hd-ink); box-shadow:0 0 0 4px var(--tint-2); }
+/* under the profit target: the warning in the bad colour, words not a badge */
+.fg .qp-short { margin:8px 0 0; font-size:13px; font-weight:600; line-height:1.45; color:var(--bad-t); }
 .fg .qp-undo { padding:0; border:0; background:none; font:inherit; font-weight:600; color:var(--hd-ink);
   text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 .fg .qp-undo:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }

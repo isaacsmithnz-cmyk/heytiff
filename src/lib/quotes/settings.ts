@@ -32,6 +32,14 @@ export type QuoteSettings = {
   /** whether a quote shows the customer its line items unless it says
       otherwise; false: each option's total only (Isaac, 2026-10-05) */
   showLines: boolean;
+  /** the share of a quote's price the business means to keep as profit,
+      percent; null: not set, and no quote is checked against one (Isaac,
+      2026-10-07: "if it's over then great, if it's under it needs a
+      warning") */
+  profitTargetPct: number | null;
+  /** what an hour of labour costs the business, cents; null: the charge-out
+      rate less the profit target, since the rate already carries it */
+  labourCostCents: number | null;
   preferred: Partial<Record<ComponentKey, Preferred>>;
 };
 
@@ -66,6 +74,8 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   allowances: { consumables: null, newCircuit: null, flush: null, recovery: null },
   usualLayout: null,
   showLines: false,
+  profitTargetPct: null,
+  labourCostCents: null,
   preferred: {},
 };
 
@@ -75,6 +85,8 @@ export const MAX_CONTINGENCY_PCT = 100;
 export const MAX_CONTINGENCY_HOURS = 80;
 /** $2,000 an hour: a typo's ceiling, not a guide */
 export const MAX_CHARGE_OUT_CENTS = 200_000;
+/** a profit target is a share of the price, so under 100: 90 is a typo's ceiling */
+export const MAX_PROFIT_TARGET_PCT = 90;
 
 const num = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
@@ -132,6 +144,8 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
     allowances: allowancesOf(r),
     usualLayout: ((v: unknown) => (v === "trunks" || v === "plenum" ? v : null))(r.usual_layout ?? r.usualLayout),
     showLines: (r.show_lines ?? r.showLines) === true,
+    profitTargetPct: clampTo(r.profit_target_pct ?? r.profitTargetPct, 0, MAX_PROFIT_TARGET_PCT) ?? d.profitTargetPct,
+    labourCostCents: chargeOutOf(r.labour_cost_cents ?? r.labourCostCents) ?? d.labourCostCents,
     preferred: preferredOf(r.preferred),
   };
 }
@@ -152,6 +166,8 @@ export function quoteSettingsRow(s: QuoteSettings) {
     ...Object.fromEntries(ALLOWANCE_KEYS.map((k) => [ALLOWANCES[k].column, s.allowances[k]])),
     usual_layout: s.usualLayout,
     show_lines: s.showLines,
+    profit_target_pct: s.profitTargetPct,
+    labour_cost_cents: s.labourCostCents,
     preferred,
   };
 }

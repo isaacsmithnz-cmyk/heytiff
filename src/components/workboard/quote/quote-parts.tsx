@@ -224,7 +224,21 @@ export function PriceSummary({ price, at, names }: { price: QuotePrice; at: numb
           <dt>Parts cost you</dt>
           <dd>{fmtAud(b.buyCents)}</dd>
         </div>
+        {o.profit && (!o.profit.short || left.length > 0) && (
+          <div className="q">
+            <dt>{o.profit.targetPct != null ? `Profit, target ${o.profit.targetPct}%` : "Profit"}</dt>
+            <dd>{`${fmtAud(o.profit.profitCents)}, ${o.profit.pct}%`}</dd>
+          </div>
+        )}
       </dl>
+      {/* under the business's target: how far, and the price that meets it,
+          never a price changed (Isaac, 2026-10-07); a quote still being
+          priced isn't judged on part of itself */}
+      {o.profit?.short && left.length === 0 && (
+        <p className="qp-short" role="status">
+          {`Profit ${o.profit.pct}%, under your ${o.profit.targetPct}% target by ${fmtAud(o.profit.short.cents)}. ${fmtAud(o.profit.short.priceCents)} ex GST would meet it.`}
+        </p>
+      )}
     </div>
   );
 }

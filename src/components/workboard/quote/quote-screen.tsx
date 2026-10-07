@@ -129,6 +129,20 @@ export function QuoteScreen({
       live = false;
     };
   }, [job, financials]);
+  /* a quote Tiff's builder priced, brought across to its kept lines as it's
+     priced today, to change by hand (lines-adopt.ts) */
+  const adopt = async () => {
+    const r = await fetch("/api/workboard/quote-lines", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job, op: "adopt" }),
+    }).catch(() => null);
+    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; reason?: string } | null) : null;
+    if (a?.ok) {
+      setEngine("lines");
+      setLinesRev((n) => n + 1);
+    } else toast(a?.reason ?? "The lines couldn't be brought across. Try again.");
+  };
   const switchTo = async (to: "old" | "lines") => {
     const r = await fetch("/api/workboard/quote-lines", {
       method: "POST",
@@ -157,6 +171,13 @@ export function QuoteScreen({
           </div>
           <div className="wb2-vtabs">
             <h1 className="wb2-h1">{proposalTitle(address)}</h1>
+            {engine === "old" && price?.ok && price.options.some((o) => o.rows > 0) && (
+              <div className="qp-acts">
+                <button type="button" className="pbtn ghost" onClick={() => void adopt()}>
+                  Edit the lines by hand
+                </button>
+              </div>
+            )}
             <div className="qp-acts" ref={setActionsEl} />
           </div>
           {engine === "lines" ? (

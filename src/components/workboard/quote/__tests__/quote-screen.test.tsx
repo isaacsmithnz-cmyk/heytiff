@@ -26,6 +26,7 @@ jest.mock("../../board/job-quote-face", () => ({
     send,
     actionsEl,
     onOpenPaper,
+    onByHand,
   }: {
     mode: string;
     onVersion: (v: string | null) => void;
@@ -35,6 +36,7 @@ jest.mock("../../board/job-quote-face", () => ({
     send: React.ReactNode;
     actionsEl: HTMLElement | null;
     onOpenPaper: (p: unknown) => void;
+    onByHand?: () => void;
   }) => {
     useEffect(() => onVersion(drafted ? "v1" : null), [onVersion]);
     return (
@@ -50,10 +52,18 @@ jest.mock("../../board/job-quote-face", () => ({
         <button type="button" onClick={onCancel}>
           Cancel
         </button>
+        {onByHand && (
+          <button type="button" onClick={onByHand}>
+            Build it by hand
+          </button>
+        )}
         {send}
       </div>
     );
   },
+}));
+jest.mock("../quote-lines-face", () => ({
+  QuoteLinesFace: ({ price }: { price: unknown }) => <p>{`Lines builder, ${price ? "priced" : "no price"}`}</p>,
 }));
 jest.mock("../../board/job-quote-send", () => ({ JobQuoteSend: ({ version }: { version: string }) => <p>{`Send block, ${version}`}</p> }));
 jest.mock("../../board/job-media-viewer", () => ({
@@ -121,4 +131,53 @@ it("opens ServiceM8's quote over the whole shell, and Escape closes it", async (
   expect(container.contains(viewer)).toBe(false);
   fireEvent.keyDown(document, { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("brings a quote Tiff's builder priced across to its kept lines, to edit by hand", async () => {
+  const posted: unknown[] = [];
+  let engine = "old";
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string, init?: { body?: string }) => ({
+    json: async () => {
+      if (String(url).startsWith("/api/workboard/quote-lines")) {
+        if (init?.body) {
+          posted.push(JSON.parse(init.body));
+          engine = "lines";
+        }
+        return { ok: true, engine, lines: [], changes: [], names: {}, me: "u" };
+      }
+      return { ok: true, price: { ok: true, options: [{ name: "Option 1", rows: 3, unpriced: [], labourFrom: "brief", build: { exGstCents: 1 } }] } };
+    },
+  }));
+  render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
+  fireEvent.click(await screen.findByRole("button", { name: "Edit the lines by hand" }));
+  expect(await screen.findByText(/Lines builder/)).toBeInTheDocument();
+  expect(posted).toContainEqual({ job: JOB, op: "adopt" });
+});
+
+/* the engine rebuild, slice 2.3: a quote switched to its kept lines is built by hand */
+it("shows a switched quote's lines, and switches a new quote to them from Build it by hand", async () => {
+  let engine = "old";
+  const fetchMock = jest.fn(async (url: string, init?: { body?: string }) => ({
+    json: async () => {
+      if (String(url).startsWith("/api/workboard/quote-lines")) {
+        if (init?.body) engine = JSON.parse(init.body).engine;
+        return { ok: true, engine, lines: [], changes: [], names: {}, me: "u" };
+      }
+      return { ok: true, price: { ok: true, options: [] } };
+    },
+  }));
+  (global as unknown as { fetch: unknown }).fetch = fetchMock;
+  render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
+  expect(screen.getByText("Builder, page, $64,790 inc GST")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Build it by hand" }));
+  expect(await screen.findByText(/Lines builder/)).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledWith("/api/workboard/quote-lines", expect.objectContaining({ method: "POST", body: JSON.stringify({ job: JOB, op: "switch", engine: "lines" }) }));
+});
+
+it("opens a quote already switched on its lines", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => ({
+    json: async () => (String(url).startsWith("/api/workboard/quote-lines") ? { ok: true, engine: "lines", lines: [], changes: [], names: {}, me: "u" } : { ok: true, price: { ok: true, options: [] } }),
+  }));
+  render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
+  expect(await screen.findByText(/Lines builder/)).toBeInTheDocument();
 });

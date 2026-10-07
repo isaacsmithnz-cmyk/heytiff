@@ -3,6 +3,7 @@ import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { addLine, changeLine, copyOption, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
 import { addKit } from "@/lib/quotes/kits-server";
+import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 
 /* A quote's kept lines (the engine rebuild, slices 2.1–2.3): read them with
@@ -73,6 +74,9 @@ export async function POST(req: Request) {
       result = await addKit(g.orgId, jobUuid, kit, normaliseKitFacts(body.facts), at, model && brand ? { brand, model } : null, g.userId);
       break;
     }
+    case "adopt":
+      result = await adoptQuote(g.orgId, jobUuid, g.userId);
+      break;
     case "copy": {
       const n = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : -1);
       result = await copyOption(g.orgId, jobUuid, n(body.from), n(body.to), g.userId);

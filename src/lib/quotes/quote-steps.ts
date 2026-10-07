@@ -132,7 +132,8 @@ export function linesSteps(input: { lines: number; unknown: number; price: Price
             : step("buildup", "next", "Pricing");
   return [
     step("brief", lines > 0 ? "done" : "next", "By hand"),
-    step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} unknown` : lines > 0 ? "None" : ""),
+    /* his word for them on the new quote page (7 Oct): Unknowns */
+    { ...step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} unknown` : lines > 0 ? "None" : ""), label: "Unknowns" },
     built,
     step("approved", "todo", ""),
     step("sent", "todo", ""),

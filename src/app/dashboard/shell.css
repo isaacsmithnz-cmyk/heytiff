@@ -6713,7 +6713,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    place; every change on the right with who made it. */
 .fg .ql-face > * { flex:none; }
 .fg .ql-sum { position:sticky; top:0; z-index:10; display:flex; align-items:center; justify-content:space-between; gap:24px;
-  margin:0 -24px; padding:12px 24px; min-height:104px; box-sizing:border-box; background:var(--paper); border-bottom:1px solid var(--hd-rule); }
+  margin:0 -24px; padding:12px 24px; height:144px; box-sizing:border-box; background:var(--paper); border-bottom:1px solid var(--hd-rule); }
 .fg .ql-stats { display:flex; gap:32px; margin:0; }
 .fg .ql-stats div { display:flex; flex-direction:column; gap:2px; }
 .fg .ql-stats dt { font-size:12px; font-weight:500; color:var(--q); }
@@ -6736,7 +6736,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-lt col.cc, .fg .ql-lt col.ce { width:100px; }
 .fg .ql-lt col.ct { width:108px; }
 .fg .ql-lt col.cx { width:36px; }
-.fg .ql-colh { position:sticky; top:104px; z-index:10; background:var(--paper); }
+.fg .ql-colh { position:sticky; top:144px; z-index:10; background:var(--paper); }
 .fg .ql-colh th { padding:12px 12px 8px 0; font-size:12px; font-weight:600; color:var(--q); text-align:left; border-bottom:1px solid var(--hd-rule); }
 .fg .ql-colh th:first-child { padding-left:16px; }
 .fg .ql-lt .n { text-align:right; }
@@ -6772,6 +6772,12 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-hits small { display:block; font-size:12px; color:var(--q); }
 .fg .ql-hits b { font-weight:600; font-variant-numeric:tabular-nums; }
 .fg .ql-hits li.none { padding:8px 12px; font-size:13px; color:var(--q); }
+.fg .ql-pick { grid-column:2; justify-self:start; padding:0; border:0; background:none; font:inherit; font-size:12px; font-weight:600; color:var(--hd-ink);
+  text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.fg .ql-pick:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .ql-pickrow td { padding:4px 16px 12px; background:var(--tint); border-top:0; }
+.fg .ql-pop { display:flex; flex-direction:column; gap:8px; padding:12px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
+.fg .ql-prefer { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--hd-ink); }
 .fg .ql-vs { font-style:normal; font-size:12px; font-weight:600; color:var(--info-t); }
 .fg .ql-kit { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
 .fg .ql-kgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px 16px; }
@@ -12283,6 +12289,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
 .qs-row.on { background:var(--tint); }
 .qs-row.qs-kitrow { grid-template-columns:240px minmax(0, 1fr) 160px; }
+.qs-list li.qs-habit { grid-template-columns:minmax(0, 1fr) auto; }
 .qs-headrow { border-top:0; font-size:13px; font-weight:500; color:var(--q); }
 .qs-row b { font-weight:600; }
 .qs-row .num, .qs-list .num { text-align:right; font-variant-numeric:tabular-nums; }

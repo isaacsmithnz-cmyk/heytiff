@@ -79,6 +79,8 @@ const centsOf = (typed: string): number | null => {
   const n = Number(t);
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 1000) / 10 : NaN;
 };
+/** every figure in the lines to the cent, so the column reads as one */
+const cents2 = (c: number) => `$${(c / 100).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const qtyWords = (l: QuoteLine) => `${l.qty}${l.unit ? ` ${l.unit}` : ""}`;
 
 /** A box that commits on Enter or leaving it, and says nothing until then. */
@@ -142,6 +144,8 @@ export function QuoteLinesFace({
   const [hits, setHits] = useState<BookHit[] | null>(null);
   const [system, setSystem] = useState("");
   const [kitOpen, setKitOpen] = useState(false);
+  /* the line whose pick list is open (Select preferred item, slice 2.4) */
+  const [swapping, setSwapping] = useState<string | null>(null);
 
   const lines = (view?.lines ?? []).filter((l) => l.optionIndex === at);
   const options = Math.max(1, ...(view?.lines ?? []).map((l) => l.optionIndex + 1), price && price.ok ? price.options.length : 1);
@@ -202,7 +206,7 @@ export function QuoteLinesFace({
       op: "add",
       line:
         kind === "labour"
-          ? { optionIndex: at, system: "", group: "Labour", name: "Install", kind: "labour", qty: 8, unit: "h", costCents: 0, source: "by_hand" }
+          ? { optionIndex: at, system: "", group: "Labour", name: "Install", kind: "labour", qty: 0, unit: "h", costCents: o?.profit?.hourCostCents ?? 0, source: "by_hand" }
           : { optionIndex: at, system, group: "Materials", name: search.trim() || "A line by hand", kind: "material", qty: 1, costCents: 0, source: "by_hand" },
     });
 
@@ -293,7 +297,7 @@ export function QuoteLinesFace({
           <section key={sys || "_"} className="ql-sys" aria-label={sys || "Quote"}>
             <header className="ql-sys-h">
               <h3>{sys || "Quote"}</h3>
-              <b>{fmtAud(sysTotal)}</b>
+              <b>{cents2(sysTotal)}</b>
             </header>
             <table className="ql-lt">
               <Cols />
@@ -304,13 +308,13 @@ export function QuoteLinesFace({
                   return [
                     <tr key={`g-${g}`} className="ql-sg">
                       <td colSpan={4}>{g}</td>
-                      <td className="n">{fmtAud(sub)}</td>
+                      <td className="n">{cents2(sub)}</td>
                       <td />
                     </tr>,
                     ...rows.map((l) => {
                       const unknown = l.source === "unknown" && l.costCents <= 0 && l.sellCents == null;
                       const each = sells.get(l.id);
-                      return (
+                      return [
                         <tr key={l.id} className="ql-it">
                           <td>
                             <span className="ql-n">
@@ -322,6 +326,11 @@ export function QuoteLinesFace({
                                 )}
                               </span>
                               {l.code && <span className="cd">{l.code}</span>}
+                              {l.kind !== "labour" && (
+                                <button type="button" className="ql-pick" aria-expanded={swapping === l.id} onClick={() => setSwapping(swapping === l.id ? null : l.id)}>
+                                  Select preferred item
+                                </button>
+                              )}
                             </span>
                           </td>
                           <td className="n">
@@ -348,7 +357,16 @@ export function QuoteLinesFace({
                           </td>
                           <td className="n">
                             <Field
-                              value={l.sellCents != null ? dollars(l.sellCents) : each != null ? dollars(Math.round(each * 10) / 10) : ""}
+                              value={
+                                l.sellCents != null
+                                  ? dollars(l.sellCents)
+                                  : each == null
+                                    ? ""
+                                    : /* by the metre a tenth of a cent is real (20.741 × 10 m = 207.41); a counted item is to the cent */
+                                      l.unit === "m"
+                                      ? dollars(Math.round(each * 10) / 10)
+                                      : dollars(Math.round(each))
+                              }
                               label={`What one ${l.name} sells for`}
                               disabled={busy}
                               onCommit={(t) => {
@@ -358,7 +376,7 @@ export function QuoteLinesFace({
                               }}
                             />
                           </td>
-                          <td className="n">{unknown ? "—" : fmtAud(Math.round((each ?? 0) * l.qty))}</td>
+                          <td className="n">{unknown ? "—" : cents2(Math.round((each ?? 0) * l.qty))}</td>
                           <td className="x">
                             <button
                               type="button"
@@ -370,8 +388,38 @@ export function QuoteLinesFace({
                               ×
                             </button>
                           </td>
-                        </tr>
-                      );
+                        </tr>,
+                        swapping === l.id ? (
+                          <tr key={`${l.id}-pick`} className="ql-pickrow">
+                            <td colSpan={6}>
+                              <PickList
+                                line={l}
+                                busy={busy}
+                                onCancel={() => setSwapping(null)}
+                                onPick={(h, prefer) => {
+                                  const offer = h.product.preferred ?? h.product.cheapest;
+                                  if (!offer) return;
+                                  setSwapping(null);
+                                  void act({
+                                    op: "change",
+                                    id: l.id,
+                                    version: l.version,
+                                    patch: { name: h.product.name, code: offer.code, supplierKey: offer.supplierKey, costCents: offer.netCents, sellCents: null },
+                                    why: "Select preferred item",
+                                  }).then(() => {
+                                    if (prefer)
+                                      void fetch("/api/quoting/preferred", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ ref: `${offer.supplierKey}|${offer.code}`, on: true }),
+                                      }).catch(() => undefined);
+                                  });
+                                }}
+                              />
+                            </td>
+                          </tr>
+                        ) : null,
+                      ];
                     }),
                   ];
                 })}
@@ -523,6 +571,70 @@ export function QuoteLinesFace({
   );
 }
 
+/** SELECT PREFERRED ITEM (slice 2.4): every item of the line's kind and size
+    in the business's book, as it buys them, at its cost and as it would
+    land on this quote. The one chosen goes on the line at once and, unless
+    unticked, is the business's preferred from the next quote. */
+function PickList({ line, busy, onPick, onCancel }: { line: QuoteLine; busy: boolean; onPick: (h: BookHit, prefer: boolean) => void; onCancel: () => void }) {
+  const size = /(\d{3})\s*(?:mm|MM)?\b/.exec(line.name)?.[1] ?? null;
+  const words = line.name
+    .replace(/[^A-Za-z ]+/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2)
+    .slice(0, 2)
+    .join(" ");
+  const [q, setQ] = useState(words);
+  const [hits, setHits] = useState<BookHit[] | null>(null);
+  const [prefer, setPrefer] = useState(true);
+  useEffect(() => {
+    let live = true;
+    const t = setTimeout(() => {
+      fetch(`${LOOKUP}?q=${encodeURIComponent(q)}${size ? `&size=${size}` : ""}`)
+        .then((r) => r.json() as Promise<{ ok: boolean; hits?: BookHit[] }>)
+        .then((a) => live && setHits(a.ok ? (a.hits ?? []) : []))
+        .catch(() => live && setHits([]));
+    }, 200);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [q, size]);
+  return (
+    <div className="ql-pop">
+      <div className="ql-addrow">
+        <input className="wb2-fi" value={q} onChange={(e) => setQ(e.target.value)} aria-label={`Search your book for another ${line.name}`} />
+        <label className="ql-prefer">
+          <input type="checkbox" checked={prefer} onChange={(e) => setPrefer(e.target.checked)} />
+          Your preferred from the next quote
+        </label>
+      </div>
+      <ul className="ql-hits">
+        {hits && hits.length === 0 && <li className="none">Nothing in your book like that.</li>}
+        {(hits ?? []).map((h) => {
+          const offer = h.product.preferred ?? h.product.cheapest;
+          const on = offer?.code === line.code;
+          return (
+            <li key={h.product.key}>
+              <button type="button" disabled={busy || on || !offer} onClick={() => onPick(h, prefer)}>
+                <span>
+                  {h.product.name}
+                  <small>{`${offer?.code ?? ""}, ${on ? "on this quote now" : h.why.toLowerCase()}`}</small>
+                </span>
+                <b>{offer ? `${fmtAud(offer.netCents)} each` : "–"}</b>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="wb2-jqacts">
+        <button type="button" className="pbtn ghost sm" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 type KitAsk = { kit: "split" | "ducted"; system: string; brand: string; model: string; facts: Record<string, string> };
 
 /** What a kit needs to know: the unit (its pipe and current read off its
@@ -533,7 +645,7 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
   const [sys, setSys] = useState(system || "");
   const [brand, setBrand] = useState("mitsubishi-electric");
   const [model, setModel] = useState("");
-  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "" });
+  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "", replacing: "" });
   const set = (k: string) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const num = (k: string, label: string, unit: string) => (
     <label className="ql-kf">
@@ -590,6 +702,13 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
           <select className="wb2-fi" value={f.mount} onChange={set("mount")} aria-label="What the outdoor sits on">
             <option value="ground">Feet on the ground</option>
             <option value="wall">A wall bracket</option>
+          </select>
+        </label>
+        <label className="ql-kf">
+          <span>An old system</span>
+          <select className="wb2-fi" value={f.replacing} onChange={set("replacing")} aria-label="An old system comes out">
+            <option value="">None to take out</option>
+            <option value="yes">Comes out</option>
           </select>
         </label>
         {kit === "ducted" && num("outlets", "Outlets", "")}

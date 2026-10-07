@@ -259,3 +259,23 @@ export async function copyOption(orgId: string, jobUuid: string, from: number, t
   }
   return { ok: true, line: null };
 }
+
+/** The swaps people made on the business's quotes, newest first, for its
+    habits (habits.ts): a change whose after names a code. */
+export async function readSwaps(orgId: string, limit = 2000) {
+  const { data, error } = await supabaseAdmin
+    .from("quote_line_changes")
+    .select("sm8_job_uuid, made_by, before, after")
+    .eq("org_id", orgId)
+    .eq("action", "change")
+    .not("after->>code", "is", null)
+    .order("made_at", { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  return (data ?? []).map((r) => ({
+    job: r.sm8_job_uuid as string,
+    madeBy: r.made_by as string,
+    before: (r.before as Record<string, string | null> | null) ?? null,
+    after: (r.after as Record<string, string | null> | null) ?? null,
+  }));
+}

@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { cleanBrief } from "@/lib/workboard/quote-worklist";
 import { isPartialInvoiceLine, splitJobNumber } from "@/lib/workboard/job-family";
 import { decisionsFrom, type Decisions } from "./decisions";
-import { analyticsKindOf, isTafeDay, type AnalyticsJob } from "./job-analytics";
+import { analyticsKindOf, closedAtSixtyDays, isTafeDay, type AnalyticsJob } from "./job-analytics";
 
 /* THE JOBS THE ANALYTICS READ, off the ServiceM8 mirror.
 
@@ -34,6 +34,11 @@ import { analyticsKindOf, isTafeDay, type AnalyticsJob } from "./job-analytics";
    - THE FIRST CLAIM IS A YES: updating an accepted proposal makes the job
      a Quote again, so the work-order date is the last yes (job-analytics'
      yesOn). Each job carries its first claim's day.
+   - WHETHER A QUOTE WENT OUT: the sent stamp, or the quote document
+     ServiceM8 made (its attachment, source QUOTE), which every quote that
+     left it has whenever it was edited; and when ServiceM8 itself closed a
+     Quote as Unsuccessful at 60 days, read off the last edit (job-analytics'
+     unsuccessfulQuote and closedAtSixtyDays).
    - A DAY AT TAFE IS NOT A JOB: the apprentice's weekly TAFE day was booked
      as a job card for TAFE NSW until March 2026 (job-analytics' isTafeDay).
      Only the clients with TAFE in their name are read for it.
@@ -46,7 +51,7 @@ const MAX_PAGES = 30;
 
 const COLUMNS =
   "uuid, generated_job_id, status, date, quote_date, quote_sent_stamp, work_order_date, completion_date, " +
-  "payment_received, invoice_sent, category_uuid, company_uuid, geo_city, job_description";
+  "payment_received, invoice_sent, category_uuid, company_uuid, geo_city, job_description, edit_date";
 
 type Row = {
   uuid: string;
@@ -59,6 +64,7 @@ type Row = {
   completion_date: string | null;
   payment_received: number | null;
   invoice_sent: number | null;
+  edit_date: string | null;
   category_uuid: string | null;
   company_uuid: string | null;
   geo_city: string | null;
@@ -94,15 +100,16 @@ async function pages(orgId: string, column: "date" | "completion_date", floor: s
 /** The jobs raised or completed since `floor` (a bare day), shaped for the
     figures; null when the mirror can't be read. */
 export async function readAnalyticsJobs(orgId: string, floor: string): Promise<AnalyticsJobsRead | null> {
-  const [raised, completed, cats, tafe, accepted, lines] = await Promise.all([
+  const [raised, completed, cats, tafe, accepted, lines, quoteDocs] = await Promise.all([
     pages(orgId, "date", floor),
     pages(orgId, "completion_date", floor),
     supabaseAdmin.from("sm8_categories").select("uuid, name").eq("org_id", orgId),
     supabaseAdmin.from("sm8_companies").select("uuid, name").eq("org_id", orgId).ilike("name", "%tafe%"),
     acceptedProposals(orgId),
     jobLines(orgId),
+    quoteDocuments(orgId),
   ]);
-  if (!raised || !completed || !lines) return null;
+  if (!raised || !completed || !lines || !quoteDocs) return null;
   if (cats.error) console.error(`[analytics] couldn't read org ${orgId}'s categories:`, cats.error);
   if (tafe.error) console.error(`[analytics] couldn't read org ${orgId}'s TAFE clients:`, tafe.error);
   const category = new Map(((cats.data ?? []) as { uuid: string; name: string | null }[]).map((c) => [c.uuid, c.name]));
@@ -139,6 +146,8 @@ export async function readAnalyticsJobs(orgId: string, floor: string): Promise<A
       quotedOn: dayOf(r.quote_date),
       wonOn: dayOf(r.work_order_date),
       claimedOn: firstClaim.get(splitJobNumber(r.generated_job_id)?.base ?? "") ?? null,
+      quoteDocOn: quoteDocs.get(r.uuid) ?? null,
+      closedUnanswered: closedAtSixtyDays(r.quote_date, r.edit_date),
       completedOn: dayOf(r.completion_date),
       valueCents: own && own.cents > 0 ? own.cents : null,
       kind: analyticsKindOf(r.job_description, own?.names ?? [], categoryName),
@@ -252,6 +261,36 @@ async function jobLines(orgId: string): Promise<Map<string, { cents: number; nam
       job.cents += Math.round((quantity ?? 0) * (num(r.price) ?? 0) * 100);
       if (name) job.names.push(name);
       out.set(r.job_uuid, job);
+    }
+    if (rows.length < PAGE) return out;
+  }
+  return out;
+}
+
+/** The day ServiceM8 first made a quote document for each job, by job uuid.
+    Null when they can't be read: without them a lost quote reads as never
+    quoted. */
+async function quoteDocuments(orgId: string): Promise<Map<string, string> | null> {
+  const out = new Map<string, string>();
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await supabaseAdmin
+      .from("sm8_attachments")
+      .select("uuid, related_object_uuid, timestamp")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .eq("attachment_source", "QUOTE")
+      .order("uuid", { ascending: true })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) {
+      console.error(`[analytics] couldn't read org ${orgId}'s quote documents:`, error);
+      return null;
+    }
+    const rows = (data ?? []) as { related_object_uuid: string | null; timestamp: string | null }[];
+    for (const r of rows) {
+      const day = dayOf(r.timestamp);
+      if (!r.related_object_uuid || !day) continue;
+      const had = out.get(r.related_object_uuid);
+      if (!had || day < had) out.set(r.related_object_uuid, day);
     }
     if (rows.length < PAGE) return out;
   }

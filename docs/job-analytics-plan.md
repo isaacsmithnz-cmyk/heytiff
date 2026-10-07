@@ -100,6 +100,20 @@ Isaac, 2026-10-07:
   - A Quote that already has a claim is a won job whose proposal is being updated. It is counted won, never open or lapsed.
   - A job Unsuccessful in ServiceM8 with a claim invoiced on it is asked on To decide, "Won or lost?", as one marked paid is (5 on the account).
 
+- **What Unsuccessful means** (Isaac, 2026-10-07: "You will have to investigate unsuccessful jobs"). The year's 80 Unsuccessful jobs ($802k), read one by one, were five things:
+
+  | | Jobs | Ex GST | Counted as |
+  |---|---|---|---|
+  | A quote went out (sent, or its quote document made) and was marked Unsuccessful by hand | 21 | $284k | lost |
+  | A quote ServiceM8 closed itself, 60 days to the hour after it became a Quote | 32 | $229k | lost, said apart: "No answer, closed by ServiceM8 at 60 days" |
+  | A work order called off with no quote: a cancelled call-out, a maintenance visit cut short | 13 | $16k | not a quote |
+  | An enquiry never priced or quoted | 9 | $0 | not a quote |
+  | A Work Order once, with its quote sent or a claim invoiced | 4 | $65k | asked: Won or lost? |
+  | Priced at $3,000 or more, no sign of a quote leaving ServiceM8 | 1 | $208k | asked: Is it a quote? |
+
+  - The 60-day close is ServiceM8's automation, not a client's no; it is read off the job's last edit, so a job edited again afterwards reads as marked by hand.
+  - A lost quote replaced by a later job for the same client (#2505's VRV re-quoted as #2694, won) is still lost here; Void on the Quotes face takes it out.
+
 ## What the numbers stand on
 
 Most job data is the ServiceM8 mirror (`sm8_*`, docs/migrations/sm8_mirror.sql and sm8_jobs_money.sql):

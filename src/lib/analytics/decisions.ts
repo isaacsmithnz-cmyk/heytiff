@@ -61,7 +61,7 @@ export const kindLabel = (k: WorkKind | null) =>
 export const QUESTION_WORDS: Record<Question, { title: string; why: string }> = {
   quote: {
     title: "Is it a quote?",
-    why: "Work orders with no sign of a quote in ServiceM8 that read like an install and come to $3,000 ex GST or more. A quote counts toward the win rate; a call-out doesn't.",
+    why: "Jobs of $3,000 ex GST or more with no sign of a quote leaving ServiceM8: a work order that reads like an install, or a job marked Unsuccessful. A quote counts toward the win rate; a call-out, or an enquiry never quoted, doesn't.",
   },
   outcome: { title: "Won or lost?", why: "ServiceM8's status and the money, a claim or the proposal disagree." },
   kind: { title: "What kind of job?", why: "The job type couldn't be read from the job's words or its category." },

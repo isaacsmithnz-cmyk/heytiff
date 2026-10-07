@@ -362,9 +362,11 @@ function evidence(a: Ask): { label: string; said: string; hint: string | null } 
         label: "Job description",
         said: brief,
         hint:
-          a.kind && a.kind !== "service" && a.kind !== "maintenance"
-            ? `Reads like ${kindLabel(a.kind).toLowerCase().replace("vrf", "VRF")} work, and no quote was sent.`
-            : `No quote was sent, and it comes to ${money(j.valueCents)}.`,
+          (j.status ?? "").trim().toLowerCase() === "unsuccessful"
+            ? `Unsuccessful in ServiceM8, priced at ${money(j.valueCents)}, and no quote was sent from it.`
+            : a.kind && a.kind !== "service" && a.kind !== "maintenance"
+              ? `Reads like ${kindLabel(a.kind).toLowerCase().replace("vrf", "VRF")} work, and no quote was sent.`
+              : `No quote was sent, and it comes to ${money(j.valueCents)}.`,
       };
     case "outcome":
       return {
@@ -373,7 +375,9 @@ function evidence(a: Ask): { label: string; said: string; hint: string | null } 
           (j.status ?? "").trim().toLowerCase() === "unsuccessful"
             ? j.paid
               ? "Unsuccessful in ServiceM8, but marked paid."
-              : "Unsuccessful in ServiceM8, but a claim was invoiced on it."
+              : j.claimedOn
+                ? "Unsuccessful in ServiceM8, but a claim was invoiced on it."
+                : "Unsuccessful in ServiceM8, but it was a Work Order once its quote went out."
             : "Accepted on the proposal, and still a Quote in ServiceM8.",
         hint: null,
       };

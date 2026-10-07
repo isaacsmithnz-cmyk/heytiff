@@ -4,6 +4,7 @@ import {
   analyse,
   analyticsKindOf,
   isTafeDay,
+  closedAtSixtyDays,
   yesOn,
   wasQuoted,
   change,
@@ -43,9 +44,11 @@ describe("which jobs are quotes, and where each stands", () => {
     expect(outcomeOf(job({ status: "Completed", quoteSentOn: "2026-09-02" }), TODAY)).toBe("won");
   });
 
-  it("counts Unsuccessful as lost, sent or not", () => {
-    expect(outcomeOf(job({ status: "Unsuccessful" }), TODAY)).toBe("lost");
+  it("counts Unsuccessful as lost once a quote went out, its document made or a claim invoiced", () => {
     expect(outcomeOf(job({ status: "Unsuccessful", quoteSentOn: "2026-09-02" }), TODAY)).toBe("lost");
+    expect(outcomeOf(job({ status: "Unsuccessful", quoteDocOn: "2026-09-02" }), TODAY)).toBe("lost");
+    // never quoted: not a quote at all
+    expect(outcomeOf(job({ status: "Unsuccessful" }), TODAY)).toBeNull();
   });
 
   it("counts a Quote as lost once it is more than 180 days old, and not a day before", () => {
@@ -64,7 +67,7 @@ describe("which jobs are quotes, and where each stands", () => {
 
   it("reads ServiceM8's status whatever its case or spacing", () => {
     expect(outcomeOf(job({ status: " work order ", quoteSentOn: "2026-09-02" }), TODAY)).toBe("won");
-    expect(outcomeOf(job({ status: "UNSUCCESSFUL" }), TODAY)).toBe("lost");
+    expect(outcomeOf(job({ status: "UNSUCCESSFUL", quoteSentOn: "2026-09-02" }), TODAY)).toBe("lost");
   });
 });
 
@@ -322,9 +325,9 @@ describe("a void job is not a job", () => {
   const jobs = [lost, won, lapsedDup, testJob];
 
   it("lists the lost quotes for review, newest first, the 180-day ones marked", () => {
-    expect(analyse(jobs, TODAY, "12m").quotes.lostJobs.map((l) => [l.job.id, l.lapsed])).toEqual([
-      ["spam", false],
-      ["dup", true],
+    expect(analyse(jobs, TODAY, "12m").quotes.lostJobs.map((l) => [l.job.id, l.why])).toEqual([
+      ["spam", "marked"],
+      ["dup", "lapsed"],
     ]);
   });
 
@@ -395,6 +398,42 @@ describe("what the live account taught the rules", () => {
   it("asks won or lost of a job Unsuccessful in ServiceM8 with a claim invoiced on it", () => {
     const claimed = job({ id: "cl", status: "Unsuccessful", raisedOn: "2026-03-30", quoteSentOn: "2026-03-31", claimedOn: "2026-09-29" });
     expect(analyse([claimed], TODAY, "12m").toDecide.asks.map((a) => [a.job.id, a.question])).toEqual([["cl", "outcome"]]);
+  });
+
+  it("reads what an Unsuccessful job was: a quote lost, a work order called off, an enquiry never quoted, or a question", () => {
+    const at = { raisedOn: "2026-05-01", valueCents: 0 };
+    const lostQuote = job({ ...at, id: "lost", status: "Unsuccessful", quoteDocOn: "2026-05-02", valueCents: 600_000 });
+    const calledOff = job({ ...at, id: "off", status: "Unsuccessful", wonOn: "2026-05-01", valueCents: 28_000 });
+    const neverQuoted = job({ ...at, id: "enq", status: "Unsuccessful", valueCents: null });
+    const smallUnsent = job({ ...at, id: "small", status: "Unsuccessful", valueCents: 95_000 });
+    const bigUnsent = job({ ...at, id: "big", status: "Unsuccessful", valueCents: 20_800_000 });
+    const acceptedThenOff = job({ ...at, id: "acc", status: "Unsuccessful", quoteSentOn: "2026-05-03", wonOn: "2026-06-01", valueCents: 2_238_000 });
+    const a = analyse([lostQuote, calledOff, neverQuoted, smallUnsent, bigUnsent, acceptedThenOff], TODAY, "12m");
+    expect(a.top.quotes).toBe(1);
+    expect(a.quotes.lostJobs.map((l) => l.job.id)).toEqual(["lost"]);
+    expect(a.toDecide.asks.map((x) => [x.job.id, x.question])).toEqual([
+      ["big", "quote"],
+      ["acc", "outcome"],
+    ]);
+    // answered: a quote, so lost; won, so won
+    const answered = analyse([bigUnsent, acceptedThenOff], TODAY, "12m", new Map([["big", { quote: "quote" }], ["acc", { outcome: "won" }]]));
+    expect(answered.top.winRate).toMatchObject({ won: 1, decided: 2 });
+  });
+
+  it("says apart a quote ServiceM8 closed itself at 60 days with no answer", () => {
+    expect(closedAtSixtyDays("2026-03-11 09:14:02", "2026-05-10 09:14:40")).toBe(true);
+    expect(closedAtSixtyDays("2026-03-11 09:14:02", "2026-05-10 13:40:00")).toBe(false);
+    expect(closedAtSixtyDays("2026-03-11 09:14:02", "2026-05-12 09:14:02")).toBe(false);
+    expect(closedAtSixtyDays(null, "2026-05-10 09:14:40")).toBe(false);
+    const marked = job({ id: "m", status: "Unsuccessful", quoteSentOn: "2026-05-02", raisedOn: "2026-05-01", valueCents: 500_000 });
+    const closed = job({ id: "c", status: "Unsuccessful", quoteSentOn: "2026-04-02", raisedOn: "2026-04-01", valueCents: 300_000, closedUnanswered: true });
+    const q = analyse([marked, closed], TODAY, "12m").quotes;
+    expect(q.unsuccessful).toEqual({ count: 1, cents: 500_000 });
+    expect(q.closed).toEqual({ count: 1, cents: 300_000 });
+    expect(q.lostJobs.map((l) => [l.job.id, l.why])).toEqual([
+      ["m", "marked"],
+      ["c", "closed"],
+    ]);
   });
 
   it("knows a TAFE day booked as a job card, and still counts work done for TAFE", () => {

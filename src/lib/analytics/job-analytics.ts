@@ -71,6 +71,10 @@ export type AnalyticsJob = {
   wonOn: string | null;
   /** the day its first progress claim was raised: a deposit is a yes */
   claimedOn?: string | null;
+  /** the day ServiceM8 first made a quote document for it */
+  quoteDocOn?: string | null;
+  /** ServiceM8's own automation made it Unsuccessful 60 days after it became a Quote */
+  closedUnanswered?: boolean;
   completedOn: string | null;
   /** what its lines come to, in cents ex GST; null when nothing is priced */
   valueCents: number | null;
@@ -101,8 +105,37 @@ export const daysBetween = (from: string, to: string) =>
     account a job a Quote a day or more before its work order is worth $5,400
     at the median, and one with no quote date $428: installs against call-outs. */
 export function wasQuoted(j: AnalyticsJob): boolean {
+  if (norm(j.status) === "unsuccessful") return unsuccessfulQuote(j);
   if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) === "quote") return true;
   return !!j.quotedOn && !!j.wonOn && j.wonOn > j.quotedOn;
+}
+
+/* WHAT UNSUCCESSFUL MEANS (Isaac, 2026-10-07: "You will have to investigate
+   unsuccessful jobs"). Read against the 80 Unsuccessful jobs of the live
+   account's year, it is four things:
+   - a quote that went out and lost: a quote was sent or its quote document
+     made (21 marked by hand, $284k);
+   - a quote ServiceM8 closed itself, 60 days to the hour after it became a
+     Quote, with no answer (32, $229k): still lost, and said apart;
+   - a work order called off before anything was quoted: a call-out the
+     tenant cancelled, a maintenance visit cut short (13): not a quote;
+   - an enquiry never priced or quoted (9): not a quote.
+   A job that was a Work Order and also had a quote sent or a claim invoiced
+   is asked (4, $65k), and one priced at $3,000 or more with no sign of a
+   quote leaving is asked whether it was a quote (1, $208k). */
+const quoteWentOut = (j: AnalyticsJob) => !!j.quoteSentOn || !!j.quoteDocOn;
+
+function unsuccessfulQuote(j: AnalyticsJob): boolean {
+  return quoteWentOut(j) || !!j.claimedOn;
+}
+
+/** ServiceM8 made it Unsuccessful 60 days after it became a Quote, give or
+    take two hours: its automation, not a client's no. Stamps are the
+    account's wall clock, so the two are compared as they stand. */
+export function closedAtSixtyDays(quoteStamp: string | null, editStamp: string | null): boolean {
+  const at = (s: string | null) => (s && s.length >= 19 ? Date.parse(`${s.slice(0, 10)}T${s.slice(11, 19)}Z`) : NaN);
+  const hours = (at(editStamp) - at(quoteStamp)) / 3_600_000;
+  return Number.isFinite(hours) && Math.abs(hours - 60 * 24) <= 2;
 }
 
 /* THE FIRST YES (Isaac, 2026-10-07: "The proposal was updated which turned
@@ -149,6 +182,7 @@ const INSTALL: ReadonlySet<WorkKind> = new Set(["split", "multi", "ducted", "vrf
     ServiceM8, or done and charged? */
 function mightBeQuote(j: AnalyticsJob): boolean {
   if (wasQuoted(j)) return false;
+  if (norm(j.status) === "unsuccessful") return !j.wonOn && (j.valueCents ?? 0) >= QUOTE_LIKELY_FROM_CENTS;
   const install = (j.kind !== null && INSTALL.has(j.kind)) || /install|construction/i.test(j.category ?? "");
   return install && (j.valueCents ?? 0) >= QUOTE_LIKELY_FROM_CENTS;
 }
@@ -180,11 +214,14 @@ export function isTafeDay(clientName: string | null, card: { quoted: boolean; in
 }
 
 /** ServiceM8's status and the money or the proposal disagree: Unsuccessful
-    but paid, or with a claim invoiced; or accepted in HeyTiff and still a
-    Quote. */
+    but paid, with a claim invoiced, or once a Work Order on a quote that went
+    out; or accepted in HeyTiff and still a Quote. */
 function disputed(j: AnalyticsJob): boolean {
   const s = norm(j.status);
-  return (s === "unsuccessful" && (!!j.paid || !!j.claimedOn)) || (s === "quote" && !!j.acceptedInHeyTiff && !j.claimedOn);
+  return (
+    (s === "unsuccessful" && (!!j.paid || !!j.claimedOn || (!!j.wonOn && quoteWentOut(j)))) ||
+    (s === "quote" && !!j.acceptedInHeyTiff && !j.claimedOn)
+  );
 }
 
 export type Placement = {
@@ -203,7 +240,7 @@ export function placeJob(j: AnalyticsJob, today: string, d: JobDecisions = {}): 
   let outcome: Outcome | null;
   if (mightBeQuote(j)) {
     raises.push("quote");
-    outcome = d.quote === "quote" ? "won" : null;
+    outcome = d.quote === "quote" ? (norm(j.status) === "unsuccessful" ? "lost" : "won") : null;
   } else if (disputed(j)) {
     raises.push("outcome");
     outcome = d.outcome === "won" ? "won" : d.outcome === "lost" ? "lost" : null;
@@ -451,7 +488,10 @@ export const YES_BINS = [
 ] as const;
 
 /** A lost quote, for the review that voids the ones that weren't real jobs. */
-export type LostJob = { job: AnalyticsJob; lapsed: boolean };
+/** Why a lost quote is lost: marked Unsuccessful by hand, closed by
+    ServiceM8 at 60 days with no answer, or past the 180 days as a Quote. */
+export type LostWhy = "marked" | "closed" | "lapsed";
+export type LostJob = { job: AnalyticsJob; why: LostWhy };
 
 export type QuotesFigures = {
   /** won quotes by days from the job being raised to its work order */
@@ -459,7 +499,10 @@ export type QuotesFigures = {
   /** wins that came after the 180 days, which count as won */
   lateWins: number;
   winsDated: number;
+  /** marked Unsuccessful by hand */
   unsuccessful: { count: number; cents: number };
+  /** made Unsuccessful by ServiceM8 at 60 days, with no answer */
+  closed: { count: number; cents: number };
   lapsed: { count: number; cents: number };
   /** every lost quote in the span, newest first, to review */
   lostJobs: LostJob[];
@@ -475,6 +518,12 @@ export type QuotesFigures = {
 
 const COLD_AFTER = 60;
 const SOON = 30;
+
+function lostWhy(p: Placed): LostWhy | null {
+  if (p.outcome === "lapsed") return "lapsed";
+  if (p.outcome !== "lost") return null;
+  return p.job.closedUnanswered && norm(p.job.status) === "unsuccessful" ? "closed" : "marked";
+}
 
 function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: string, decisions: Decisions): QuotesFigures {
   const counts = YES_BINS.map(() => 0);
@@ -510,12 +559,13 @@ function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: stri
     daysToYes: YES_BINS.map((b, i) => ({ label: b.label, count: counts[i]!, late: b.upTo === Infinity })),
     lateWins: counts[counts.length - 1]!,
     winsDated,
-    unsuccessful: pack(now.filter((p) => p.outcome === "lost")),
+    unsuccessful: pack(now.filter((p) => lostWhy(p) === "marked")),
+    closed: pack(now.filter((p) => lostWhy(p) === "closed")),
     lapsed: pack(now.filter((p) => p.outcome === "lapsed")),
     lostJobs: now
       .filter((p) => p.outcome === "lost" || p.outcome === "lapsed")
       .sort((a, b) => (b.job.raisedOn ?? "").localeCompare(a.job.raisedOn ?? ""))
-      .map((p) => ({ job: p.job, lapsed: p.outcome === "lapsed" })),
+      .map((p) => ({ job: p.job, why: lostWhy(p)! })),
     openNow: open,
   };
 }

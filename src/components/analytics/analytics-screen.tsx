@@ -11,6 +11,7 @@ import {
   pct,
   PERIODS,
   type JobAnalytics,
+  type LostWhy,
   type PeriodKey,
 } from "@/lib/analytics/job-analytics";
 import { DaysToYes, EnquiriesChart, KIND_COLOUR, PriceTable, RateBars, STEP_COLOUR } from "./analytics-charts";
@@ -127,6 +128,12 @@ const jobsToDecide = (a: JobAnalytics) => new Set(a.toDecide.asks.filter((x) => 
 /* ── words for the figures ── */
 
 const days = (d: number | null) => (d === null ? "—" : `${Math.round(d * 10) / 10} ${d === 1 ? "day" : "days"}`);
+/** Why a lost quote is lost, on its row in the review. */
+const LOST_WHY: Record<LostWhy, string> = {
+  marked: "Marked Unsuccessful in ServiceM8",
+  closed: "No answer, closed by ServiceM8 at 60 days",
+  lapsed: `No answer after ${LAPSE_AFTER_DAYS} days`,
+};
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-AU")} ${n === 1 ? one : many}`;
 
 type Note = { words: string; tone: "" | "ok" | "warn" };
@@ -287,7 +294,7 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
   const [review, setReview] = useState(false);
   const q = a.quotes;
   const t = a.top;
-  const lost = q.unsuccessful.count + q.lapsed.count;
+  const lost = q.unsuccessful.count + q.closed.count + q.lapsed.count;
   const inside = q.winsDated - q.lateWins;
   const rule =
     q.winsDated === 0
@@ -320,6 +327,13 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
               <b>{q.unsuccessful.count.toLocaleString("en-AU")}</b>
               <em>{money(q.unsuccessful.cents)}</em>
             </div>
+            {q.closed.count > 0 && (
+              <div>
+                <span>No answer, closed by ServiceM8 at 60 days</span>
+                <b>{q.closed.count.toLocaleString("en-AU")}</b>
+                <em>{money(q.closed.cents)}</em>
+              </div>
+            )}
             <div>
               <span>No answer after {LAPSE_AFTER_DAYS} days, still a Quote in ServiceM8</span>
               <b>{q.lapsed.count.toLocaleString("en-AU")}</b>
@@ -341,11 +355,7 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
               names={names}
               voids={voids}
               serverVoid={false}
-              what={(job) =>
-                (q.lostJobs.find((l) => l.job.id === job.id)?.lapsed ?? (job.status ?? "").trim().toLowerCase() === "quote")
-                  ? `No answer after ${LAPSE_AFTER_DAYS} days`
-                  : "Marked Unsuccessful in ServiceM8"
-              }
+              what={(job) => LOST_WHY[q.lostJobs.find((l) => l.job.id === job.id)?.why ?? "marked"]}
               canDecide={canDecide}
             />
           )}

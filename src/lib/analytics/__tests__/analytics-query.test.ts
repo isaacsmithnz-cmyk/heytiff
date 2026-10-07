@@ -7,6 +7,7 @@ const ranges: { column: string; from: number; to: number }[] = [];
 let failOn: string | null = null;
 let categories: Record<string, unknown>[] = [];
 let companies: Record<string, unknown>[] = [];
+let quoteDocs: Record<string, unknown>[] = [];
 let drafts: Record<string, unknown>[] = [];
 let lines: Record<string, unknown>[] = [];
 let decisions: { data: Record<string, unknown>[] | null; error: unknown } = { data: [], error: null };
@@ -31,6 +32,7 @@ jest.mock("@/lib/supabase-server", () => ({
         return sub;
       };
       sub.then = (res: (v: { data: unknown[] | null; error: unknown }) => unknown) => {
+        if (table === "sm8_attachments") return Promise.resolve({ data: quoteDocs, error: null }).then(res);
         if (table === "sm8_companies") return Promise.resolve({ data: companies, error: null }).then(res);
         if (table === "sm8_categories") return Promise.resolve({ data: categories, error: null }).then(res);
         if (table === "quote_drafts") return Promise.resolve({ data: drafts, error: null }).then(res);
@@ -66,6 +68,7 @@ beforeEach(() => {
   failOn = null;
   categories = [];
   companies = [];
+  quoteDocs = [];
   drafts = [];
   lines = [];
   decisions = { data: [], error: null };
@@ -122,6 +125,8 @@ describe("readAnalyticsJobs", () => {
       quotedOn: "2026-08-01",
       wonOn: "2026-08-20",
       claimedOn: null,
+      quoteDocOn: null,
+      closedUnanswered: false,
       completedOn: null,
       valueCents: 980_000 + 152_800,
       kind: "ducted",
@@ -152,6 +157,22 @@ describe("readAnalyticsJobs", () => {
     const read = await readAnalyticsJobs("org", "2024-10-08");
     expect(read?.jobs).toHaveLength(1);
     expect(read?.jobs[0]).toMatchObject({ id: "parent", wonOn: "2026-09-25", claimedOn: "2026-08-28" });
+  });
+
+  it("reads the day a quote document was first made, and a Quote ServiceM8 closed itself at 60 days", async () => {
+    quoteDocs = [
+      { uuid: "a2", related_object_uuid: "lost", timestamp: "2026-03-14 10:00:00" },
+      { uuid: "a1", related_object_uuid: "lost", timestamp: "2026-03-12 09:00:00" },
+    ];
+    byColumn.date = [
+      row("lost", { status: "Unsuccessful", quote_date: "2026-03-11 09:14:02", edit_date: "2026-05-10 09:14:40" }),
+      row("other", { status: "Unsuccessful", quote_date: "2026-03-11 09:14:02", edit_date: "2026-06-01 15:00:00" }),
+    ];
+    const read = await readAnalyticsJobs("org", "2024-10-08");
+    expect(read?.jobs.map((j) => [j.id, j.quoteDocOn, j.closedUnanswered])).toEqual([
+      ["lost", "2026-03-12", true],
+      ["other", null, false],
+    ]);
   });
 
   it("leaves out an apprentice's TAFE day booked as a job card, and keeps work invoiced to TAFE", async () => {

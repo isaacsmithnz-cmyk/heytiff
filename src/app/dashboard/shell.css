@@ -12283,6 +12283,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
 .qs-row.on { background:var(--tint); }
 .qs-row.qs-kitrow { grid-template-columns:240px minmax(0, 1fr) 160px; }
+.qs-list li.qs-habit { grid-template-columns:minmax(0, 1fr) auto; }
 .qs-headrow { border-top:0; font-size:13px; font-weight:500; color:var(--q); }
 .qs-row b { font-weight:600; }
 .qs-row .num, .qs-list .num { text-align:right; font-variant-numeric:tabular-nums; }

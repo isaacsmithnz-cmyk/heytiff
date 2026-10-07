@@ -69,6 +69,13 @@ describe("a change to a line", () => {
     expect(applyPatch(line, { name: "" })).toBeNull();
   });
 
+  it("keeps a swap's items whole, for the habits it may become", () => {
+    expect(diffOf(line, { ...line, code: "VH250", costCents: 2921 })).toEqual({
+      before: { code: "VB250", name: "Flex 250, 6 m bag", supplierKey: "aad", costCents: 3045 },
+      after: { code: "VH250", name: "Flex 250, 6 m bag", supplierKey: "aad", costCents: 2921 },
+    });
+  });
+
   it("is kept as before and after, the changed fields only", () => {
     expect(diffOf(line, { ...line, qty: 6, source: "by_hand" })).toEqual({ before: { qty: 5, source: "assumed" }, after: { qty: 6, source: "by_hand" } });
   });

@@ -25,6 +25,7 @@ import {
 import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
 import { hourCostOf } from "@/lib/quotes/profit";
 import { KITS, type KitRow } from "@/lib/quotes/kits";
+import type { Habit } from "@/lib/quotes/habits";
 import type { RangeView } from "@/lib/quotes/ranges";
 import { RangesGroup } from "./quoting-ranges";
 
@@ -62,6 +63,50 @@ import { RangesGroup } from "./quoting-ranges";
 
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
 const $ = (cents: number | null) => (cents == null ? "–" : money.format(cents / 100));
+
+/** HABITS, asked about (slice 13.2): a swap made on three quotes or more,
+    offered as the preferred item, one press to say yes. */
+function HabitsGroup({ habits, onDone }: { habits: Habit[]; onDone: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [done, setDone] = useState<Set<string>>(new Set());
+  const prefer = async (h: Habit) => {
+    const ref = `${h.to.supplierKey}|${h.to.code}`;
+    setBusy(ref);
+    const r = await fetch("/api/quoting/preferred", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref, on: true }) }).catch(() => null);
+    setBusy(null);
+    if (r?.ok) {
+      setDone((d) => new Set(d).add(ref));
+      onDone();
+    }
+  };
+  return (
+    <section className="qs-group" aria-labelledby="qs-habits">
+      <h2 className="qs-h" id="qs-habits">
+        Habits
+      </h2>
+      <ul className="qs-list">
+        {habits.map((h) => {
+          const ref = `${h.to.supplierKey}|${h.to.code}`;
+          return (
+            <li key={ref + h.from.code} className="qs-habit">
+              <span className="qs-item">
+                {`You've swapped ${h.from.code} for ${h.to.code} on ${h.quotes} quotes.`}
+                <em>{h.to.name}</em>
+              </span>
+              {done.has(ref) ? (
+                <span className="qs-chosen">Preferred</span>
+              ) : (
+                <button type="button" className="pbtn ghost sm" disabled={busy !== null} onClick={() => void prefer(h)}>
+                  {`Make ${h.to.code} your preferred`}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 /** THE KITS, as the business's own book prices them today (the engine
     rebuild, slice 14.1): every part of each kit at each size, what the book
@@ -117,6 +162,7 @@ export function QuotingScreen({
   ranges,
   calc,
   kits = [],
+  habits = [],
 }: {
   initial: QuoteSettings;
   components: ComponentShortlist[];
@@ -126,6 +172,8 @@ export function QuotingScreen({
   calc: CalcDay | null;
   /** each kit's parts at each size, as the business's book prices them (kits.ts) */
   kits?: KitRow[];
+  /** swaps made on three quotes or more, asked about (habits.ts) */
+  habits?: Habit[];
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(initial);
@@ -431,6 +479,8 @@ export function QuotingScreen({
             </section>
 
             <RangesGroup initial={ranges} />
+
+            {habits.length > 0 && <HabitsGroup habits={habits} onDone={() => router.refresh()} />}
 
             {kits.length > 0 && <KitsGroup rows={kits} />}
           </ScreenPanel>

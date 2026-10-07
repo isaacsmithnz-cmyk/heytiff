@@ -163,6 +163,13 @@ export function diffOf(before: LineFields, after: LineFields): { before: Partial
       (a as Record<string, unknown>)[k] = after[k];
     }
   }
+  /* a swap keeps what each item was, whole, for the habits it may become */
+  if (before.code !== after.code) {
+    for (const k of ["code", "name", "supplierKey"] as const) {
+      (b as Record<string, unknown>)[k] = before[k];
+      (a as Record<string, unknown>)[k] = after[k];
+    }
+  }
   return { before: b, after: a };
 }
 

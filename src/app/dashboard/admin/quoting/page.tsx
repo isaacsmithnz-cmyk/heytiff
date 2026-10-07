@@ -8,6 +8,9 @@ import { rangeViews } from "@/lib/quotes/ranges-server";
 import { QuotingScreen } from "@/components/admin/quoting-screen";
 import { bookProducts } from "@/lib/quotes/book-view-server";
 import { kitPriceList } from "@/lib/quotes/kits";
+import { habitsFrom } from "@/lib/quotes/habits";
+import { readSwaps } from "@/lib/quotes/lines-server";
+import { readPreferred } from "@/lib/quotes/price-book-server";
 
 /* Quoting — the settings a quote is priced by: the charge-out rate and the
    working day (else the Rate Calculator's), markup on units and on
@@ -23,10 +26,21 @@ export default async function QuotingPage() {
   if (!orgId) redirect("/dashboard");
 
   const [settings, suppliers, calc] = await Promise.all([readQuoteSettings(orgId), readSuppliers(orgId), readCalcDay(orgId)]);
-  const [components, ranges, products] = await Promise.all([
+  const [components, ranges, products, swaps, preferred] = await Promise.all([
     componentShortlists(orgId, settings, suppliers),
     rangeViews(orgId, suppliers),
     bookProducts(orgId).catch(() => []),
+    readSwaps(orgId).catch(() => []),
+    readPreferred(orgId).catch(() => new Set<string>()),
   ]);
-  return <QuotingScreen initial={settings} components={components} ranges={ranges} calc={calc} kits={kitPriceList(products)} />;
+  return (
+    <QuotingScreen
+      initial={settings}
+      components={components}
+      ranges={ranges}
+      calc={calc}
+      kits={kitPriceList(products)}
+      habits={habitsFrom(swaps, preferred)}
+    />
+  );
 }

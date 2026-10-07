@@ -85,3 +85,22 @@ it("lists each kit's parts as the book prices them, and what the book hasn't got
   expect(screen.getByText("$9.55 a metre")).toBeInTheDocument();
   expect(screen.getByText("Not in your book")).toBeInTheDocument();
 });
+
+/* habits, slice 13.2: a swap made again and again, asked about, one press to say yes */
+it("asks about a swap made on three quotes, and makes it preferred with one press", async () => {
+  const fetchMock = jest.fn(async () => ({ ok: true, json: async () => ({ ok: true }) }));
+  (global as unknown as { fetch: unknown }).fetch = fetchMock;
+  render(
+    <QuotingScreen
+      initial={DEFAULT_QUOTE_SETTINGS}
+      components={[]}
+      ranges={[]}
+      calc={null}
+      habits={[{ from: { code: "VB250", name: "Vortex flexible 250" }, to: { code: "VH250", name: "Vortex acoustic 250", supplierKey: "aad" }, quotes: 3 }]}
+    />
+  );
+  expect(screen.getByText("You've swapped VB250 for VH250 on 3 quotes.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Make VH250 your preferred" }));
+  expect(await screen.findByText("Preferred")).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledWith("/api/quoting/preferred", expect.objectContaining({ body: JSON.stringify({ ref: "aad|VH250", on: true }) }));
+});

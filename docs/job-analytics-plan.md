@@ -4,7 +4,43 @@ Isaac, 2026-10-07:
 
 > "need an analytics page for jobs. Quotes, brands used, win rate, average price of job types etc. Make a list of all things you think are useful"
 
-Status: **listed and mocked up, not built.** This is the list of what the page could show, and what each figure stands on. The mock-up is three screens, Overview, Quotes and To decide, on the canvas at https://claude.ai/artifact/Daf2AbjZ7ekgA7TJrpqFg7, drawn with sample figures.
+Status: **first part built**: `/dashboard/analytics`, Overview and Quotes (see "Built" below). To decide and the ServiceM8 clean-up are next. This is the list of what the page could show, and what each figure stands on. The mock-up is three screens, Overview, Quotes and To decide, on the canvas at https://claude.ai/artifact/Daf2AbjZ7ekgA7TJrpqFg7, drawn with sample figures.
+
+## Built
+
+The first part, 2026-10-07 (Isaac: "Start building it").
+
+- **Where it is:** `/dashboard/analytics`, an Analytics row under Operations.
+  - Gated by `workboard_money`, in the nav and in the page.
+  - Without ServiceM8 connected, the page leads with Connect ServiceM8.
+- **The period:** Quarter, Financial year or 12 months, kept in the URL (`?period=`). Each figure is set beside the same days a year earlier.
+- **Overview:**
+  - The win rate leads, by count and by value.
+  - Beside it: quoted, won, completed work, the median job won, open quotes and days to quote.
+  - Win rate by job type, by price and by days to quote.
+  - Price by job type: median, average, middle half and spread.
+  - Enquiries week by week against the year before.
+- **Quotes:**
+  - The 180-day rule, with the days from the job being raised to a yes for every win.
+  - The lost, split into Unsuccessful and past 180 days.
+  - Open quotes today: to price, waiting, going cold, and reaching 180 days in the next 30.
+- **The code:**
+  - `src/lib/analytics/job-analytics.ts`: pure, every rule and figure, tested.
+  - `src/lib/analytics/analytics-query.ts`: the mirror read, paged.
+  - `src/components/analytics/`: the screen.
+
+Settled while building:
+
+- **What counts as a quote** is the progress line's rule (`lineOf` in job-steps.ts): a quote was sent, or the job is still a Quote or Unsuccessful. A work order nobody quoted isn't one. That settles "Is it a quote?" for most jobs before anyone is asked.
+- **The 180 days run from the day the job was raised**, the clock the Workboard's "Over 6 months" group uses, so the two screens count the same quotes. A period holds the quotes on jobs raised in it.
+- **Money is inc GST**, labelled as such. ServiceM8's job total is inc GST, and the house rule (job-money.ts) is to label, never convert.
+- **Completed work stands in for invoiced.** ServiceM8's invoice flags never arrive (job-money.ts); a completed job's total and date do.
+- **Bars are square.** 4px isn't a radius on the scale, and the paper register is the sharper one. The comparison series is the quiet text colour, so no new token was needed.
+- **Not yet:**
+  - To decide, with its table, and the ServiceM8 clean-up buttons.
+  - Brands, which need the job's material lines read.
+  - Labour, quoted against actual.
+  - Price per kW, which needs each unit's capacity.
 
 ## Decided
 
@@ -57,7 +93,7 @@ Each item below carries one of three tags:
 
 ### 1. The top line
 
-- ★ Quoted, won and invoiced value for the period, ex GST, against the same period last year. **now**
+- ★ Quoted, won and invoiced value for the period, inc GST, against the same period last year. **now** (built with completed work in place of invoiced, see Built)
 - ★ Win rate by count and by value, with the count beside it ("62% of 48"). **now**
 - ★ Average and median job value. **now**
 - ★ Open pipeline: the value of quotes waiting for an answer. **now**
@@ -180,7 +216,7 @@ These are the fields to add first, in order of what they unlock. Each one is wor
 
 ## Rules for the numbers
 
-- Ex GST throughout.
+- Inc GST throughout, as ServiceM8 holds it, and labelled.
 - Show the count beside every rate. A rate over five jobs says so.
 - Use the median for prices and the average only beside it.
 - The period is this month, this quarter, the financial year (July to June) or a custom range, always against the same period last year.

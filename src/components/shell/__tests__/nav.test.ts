@@ -58,6 +58,7 @@ describe("nav config", () => {
       "/dashboard/team",
       "/dashboard/timepay",
       "/dashboard/assets",
+      "/dashboard/analytics",
       "/dashboard/admin",
     ];
     const known = new Set(NAV.map((n) => n.href));
@@ -123,7 +124,7 @@ describe("nav config", () => {
 
   it("groups the operations section as designed", () => {
     const ops = NAV_GROUPS.find((g) => g.label === "Operations");
-    expect(ops?.items.map((i) => i.key)).toEqual(["people", "timepay", "assets", "admin"]);
+    expect(ops?.items.map((i) => i.key)).toEqual(["people", "timepay", "assets", "analytics", "admin"]);
   });
 
   it("opens Workspace with Home then the Workboard", () => {
@@ -259,7 +260,16 @@ describe("capability gating", () => {
 
   it("owner sees the full rail", () => {
     expect(navGroupsFor(viewer("owner")).find((g) => g.label === "Operations")?.items.map((i) => i.key))
-      .toEqual(["people", "timepay", "assets", "admin"]);
+      .toEqual(["people", "timepay", "assets", "analytics", "admin"]);
+  });
+
+  it("offers Analytics to whoever holds the board's money, and no one else", () => {
+    // job money is owner-tier: an admin has it only when it is granted
+    const ops = (v: NavViewer) => navGroupsFor(v).find((g) => g.label === "Operations")?.items.map((i) => i.key) ?? [];
+    expect(ops(viewer("admin"))).not.toContain("analytics");
+    expect(ops({ caps: resolve("admin", { workboard_money: true }), role: "admin" })).toContain("analytics");
+    expect(keys(viewer("staff"))).not.toContain("analytics");
+    expect(ops(viewer("owner"))).toContain("analytics");
   });
 
   it("every capability named in the nav is a real capability", () => {

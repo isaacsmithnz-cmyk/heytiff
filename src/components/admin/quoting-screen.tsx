@@ -18,9 +18,13 @@ import {
   MAX_DAY_HOURS,
   MAX_MARKUP_PCT,
   MAX_PROFIT_TARGET_PCT,
+  MAX_TASK_HOURS,
+  TASK_KEYS,
+  TASKS,
   USUAL_LAYOUT_WORDS,
   type AllowanceKey,
   type QuoteSettings,
+  type TaskKey,
 } from "@/lib/quotes/settings";
 import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
 import { hourCostOf } from "@/lib/quotes/profit";
@@ -403,6 +407,13 @@ export function QuotingScreen({
               onSave={(allowances) => void save({ ...saved, allowances }, "Allowances saved")}
             />
 
+            <TaskHoursGroup
+              key={JSON.stringify(saved.taskHours)}
+              saved={saved.taskHours}
+              busy={busy}
+              onSave={(taskHours) => void save({ ...saved, taskHours }, "Task hours saved")}
+            />
+
             <section className="qs-group">
               <h2 className="qs-h">Ductwork, when the brief doesn&apos;t say</h2>
               <div className="qs-fields">
@@ -534,6 +545,52 @@ function AllowancesGroup({
       <div className="wb2-jqacts">
         <button type="button" className="pbtn primary" disabled={busy || !changed || !valid} onClick={() => onSave(next)}>
           Save allowances
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** THE BUSINESS'S OWN TASK HOURS (slice 8.1): a check beside each quote's
+    labour, never a price. Empty until it sets them. */
+function TaskHoursGroup({
+  saved,
+  busy,
+  onSave,
+}: {
+  saved: QuoteSettings["taskHours"];
+  busy: boolean;
+  onSave: (t: QuoteSettings["taskHours"]) => void;
+}) {
+  const [typed, setTyped] = useState<Record<TaskKey, string>>(() => Object.fromEntries(TASK_KEYS.map((k) => [k, field(saved[k])])) as Record<TaskKey, string>);
+  const next = Object.fromEntries(TASK_KEYS.map((k) => [k, numOrNone(typed[k])])) as QuoteSettings["taskHours"];
+  const changed = TASK_KEYS.some((k) => next[k] !== saved[k]);
+  const valid = TASK_KEYS.every((k) => inRange(typed[k], 0.01, MAX_TASK_HOURS));
+  return (
+    <section className="qs-group">
+      <h2 className="qs-h">Task hours</h2>
+      <div className="qs-fields">
+        {TASK_KEYS.map((k) => (
+          <label className="qs-field" key={k}>
+            <span>{TASKS[k].label}</span>
+            <span className="qs-in">
+              <input
+                className="wb2-fi"
+                inputMode="decimal"
+                value={typed[k]}
+                disabled={busy}
+                onChange={(e) => setTyped((cur) => ({ ...cur, [k]: e.target.value }))}
+                aria-label={`Hours for ${TASKS[k].per}`}
+              />
+              <em>{`hours ${TASKS[k].per}`}</em>
+            </span>
+            <em className="qs-share">{saved[k] == null ? "Not set" : "Set"}</em>
+          </label>
+        ))}
+      </div>
+      <div className="wb2-jqacts">
+        <button type="button" className="pbtn primary" disabled={busy || !changed || !valid} onClick={() => onSave(next)}>
+          Save task hours
         </button>
       </div>
     </section>

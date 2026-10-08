@@ -300,3 +300,10 @@ it("offers the same item from each supplier, and takes the one picked over the c
     expect(posted).toContainEqual(expect.objectContaining({ op: "change", patch: { name: "ANTI VIBRATION FEET", code: "9500123-1", supplierKey: "reece", costCents: 1490, sellCents: null } }))
   );
 });
+
+/* the business's own task hours, a check in To check (slice 8.1) */
+it("sets the business's task hours beside the quote's own", async () => {
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), tasks: [{ hours: 18, words: "3 zones and 4 outlets", quoted: 24 }] }) }));
+  face();
+  expect(await screen.findByText("Your task hours make it 18 h for 3 zones and 4 outlets; the quote has 24 h")).toBeInTheDocument();
+});

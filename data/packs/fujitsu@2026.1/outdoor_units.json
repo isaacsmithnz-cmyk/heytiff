@@ -239,14 +239,14 @@
   "precharged_kg": 1.8,
   "width_mm": 940,
   "depth_mm": 320,
-  "height_mm": 988,
+  "height_mm": 998,
   "weight_kg": 63.0,
   "sound_high_dba": 48,
   "provenance": {
    "kind": "extracted",
-   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Design & Technical Manual ARTH24KMTAP / AOTH24KCTA",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "13, 23"
+   "page": "13, 23; DR_AR057EF_01 f.48"
   }
  },
  {
@@ -264,13 +264,14 @@
   "precharged_kg": 2.1,
   "width_mm": 940,
   "depth_mm": 320,
+  "height_mm": 998,
   "weight_kg": 64.0,
   "sound_high_dba": 51,
   "provenance": {
    "kind": "extracted",
-   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Design & Technical Manual ARTH30KMTAP / AOTH30KCTA",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "13, 15, 23, 25"
+   "page": "13, 15, 23, 25; DR_AR059EF_01 f.48"
   }
  },
  {

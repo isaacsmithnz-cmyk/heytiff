@@ -536,12 +536,12 @@
   "airflow_ls": 695,
   "static_pressure_pa": 210,
   "supply_opening": {
-   "w_mm": 851,
+   "w_mm": 850,
    "h_mm": 295
   },
   "return_opening": {
-   "w_mm": 862,
-   "h_mm": 324
+   "w_mm": 865,
+   "h_mm": 325
   },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -561,9 +561,9 @@
   "weight_kg": 39.0,
   "provenance": {
    "kind": "extracted",
-   "source": "Duct Type High Static Three Phase Design & Technical Manual ARTH36-60KHTA; Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "source": "Duct Type High Static Three Phase Design & Technical Manual ARTH36-60KHTA; Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH24/30/36KHTA",
    "edition": "DR_AR083EF_01 (2023.01.19)",
-   "page": "2, 4, 9; Ducted brochure 24, 26"
+   "page": "2, 4, 9; Ducted brochure 24, 26; IM 9381386345-02 En-7"
   }
  },
  {

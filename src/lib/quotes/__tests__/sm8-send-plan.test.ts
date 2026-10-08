@@ -47,6 +47,18 @@ it("sends every line, labour by the person-day, when the customer sees line item
   expect(Math.round(sum)).toBe(build.exGstCents);
 });
 
+it("folds a loading into the labour, never a line of its own, and still adds up to the total", () => {
+  const loaded = priceBuildUp(
+    [{ key: "o", group: "Units", name: "MXZ-4F71VGD", code: "MXZ-4F71VGD", supplierKey: "aad", qty: 1, unitBuyCents: 200000, kind: "unit" }],
+    [{ stage: "Install", people: 3, days: 1 }],
+    settings,
+    { pct: 12, reason: "Parapet access" }
+  );
+  const lines = optionLines(draft, 0, loaded, true);
+  expect(lines.map((l) => l.name)).toEqual(["MXZ-4F71VGD", "Labour"]);
+  expect(Math.round(lines.reduce((s, l) => s + l.quantity * l.unitPriceCents, 0))).toBe(loaded.exGstCents);
+});
+
 it("refuses what ServiceM8 mustn't get: nothing accepted, a part-priced option, an invoiced job, a job past work order", () => {
   expect(sendPlan({ ...base, accepted: [] })).toEqual({ ok: false, why: "No option is marked accepted." });
   expect(sendPlan({ ...base, accepted: [{ index: 0, build, left: 2 }] })).toEqual({ ok: false, why: "The accepted option has 2 still to price: ServiceM8 must get the whole quote." });

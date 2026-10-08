@@ -45,6 +45,9 @@ type View = {
   fits?: Fit[];
   /** the option the client took, marked by a person (lines-job.ts) */
   accepted?: number[];
+  /** each option's name, and its loading on labour (lines-job.ts) */
+  optionNames?: string[];
+  loading?: Record<number, { pct: number; reason: string }>;
   /** what marking it did to the job's own materials list */
   onJob?: { added: number; removed: number } | null;
   /** each option's labour by the business's own task hours (task-hours.ts) */
@@ -118,6 +121,32 @@ function Field({ value, label, onCommit, disabled }: { value: string; label: str
         if (e.key === "Escape") setTyped(null);
       }}
     />
+  );
+}
+
+/** A box of words that commits on Enter or leaving it. */
+function TextBox({ value, label, onCommit, disabled, className }: { value: string; label: string; onCommit: (typed: string) => void; disabled: boolean; className: string }) {
+  const [typed, setTyped] = useState<string | null>(null);
+  const done = () => {
+    if (typed !== null && typed.trim() !== value) onCommit(typed.trim());
+    setTyped(null);
+  };
+  return (
+    <label className={className}>
+      <span>{label}</span>
+      <input
+        className="wb2-fi"
+        value={typed ?? value}
+        aria-label={label}
+        disabled={disabled}
+        onChange={(e) => setTyped(e.target.value)}
+        onBlur={done}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") setTyped(null);
+        }}
+      />
+    </label>
   );
 }
 
@@ -278,6 +307,44 @@ export function QuoteLinesFace({
   const units = o ? o.build.groups.filter((g) => g.lines.some((l) => l.kind === "unit")).reduce((n, g) => n + g.sellCents, 0) : 0;
   const materials = o ? o.build.exGstCents - units - o.build.labour.sellCents : 0;
   const hours = lines.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0);
+  /* a hard job's loading on this option's labour (slice 9.2): the last line
+     of its Labour group, in the price, never a line the customer sees */
+  const loading = view?.loading?.[at] ?? null;
+  const labourAt = lines.find((l) => l.group === "Labour");
+  const setLoad = (next: { pct: number | null; reason: string }) => void act({ op: "loading", option: at, ...next });
+  const loadingRow = loading ? (
+    <tr key="loading" className="ql-it ql-load">
+      <td>
+        <span className="ql-n">
+          <i className="ql-d by_hand" aria-hidden="true" />
+          <span className="nm">
+            Loading on labour<em className="ql-hid">Hidden from the customer</em>
+          </span>
+          <TextBox
+            key={loading.reason}
+            label="Why the loading"
+            value={loading.reason}
+            disabled={busy}
+            className="ql-why"
+            onCommit={(reason) => setLoad({ pct: loading.pct, reason })}
+          />
+        </span>
+      </td>
+      <td className="n">
+        <span className="ql-pct">
+          <Field value={String(loading.pct)} label="Loading on labour, percent" disabled={busy} onCommit={(t) => setLoad({ pct: Number(t) || null, reason: loading.reason })} />%
+        </span>
+      </td>
+      <td />
+      <td />
+      <td className="n">{o?.build.loading ? cents2(o.build.loading.sellCents) : "—"}</td>
+      <td className="x">
+        <button type="button" className="ql-x" aria-label="Take the loading off" disabled={busy} onClick={() => setLoad({ pct: null, reason: "" })}>
+          ×
+        </button>
+      </td>
+    </tr>
+  ) : null;
 
   const flow = (
     <>
@@ -307,6 +374,16 @@ export function QuoteLinesFace({
                 <dd>{o ? fmtAud(o.build.labour.sellCents) : "–"}</dd>
               </div>
             </dl>
+          )}
+          {all.length > 0 && (
+            <TextBox
+              key={`${at}|${view?.optionNames?.[at] ?? ""}`}
+              label={`Option ${at + 1}, as the proposal names it`}
+              value={view?.optionNames?.[at] ?? ""}
+              disabled={busy}
+              className="ql-oname"
+              onCommit={(name) => void act({ op: "name", option: at, name })}
+            />
           )}
         </div>
         {total}
@@ -482,6 +559,7 @@ export function QuoteLinesFace({
                         ) : null,
                       ];
                     }),
+                    g === "Labour" && labourAt && sys === labourAt.system ? loadingRow : null,
                   ];
                 })}
               </tbody>
@@ -540,6 +618,12 @@ export function QuoteLinesFace({
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={addProvisional}>
             Add a provisional sum
           </button>
+          {labourAt && !loading && (
+            /* 10%: the low end of Isaac's own "10 to 15%"; not applied until it says why */
+            <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setLoad({ pct: 10, reason: "" })}>
+              Add a loading
+            </button>
+          )}
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setKitOpen((v) => !v)} aria-expanded={kitOpen}>
             Add a kit
           </button>
@@ -582,6 +666,7 @@ export function QuoteLinesFace({
   const checks: { tone: "due" | "info" | "ok"; text: string }[] = [
     ...unknownHere.map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
     ...misfits.map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
+    ...(o?.build.loadingNeedsReason ? [{ tone: "due" as const, text: "The loading isn't on the price until it says why" }] : []),
     ...(assumedHere.length > 0 ? [{ tone: "info" as const, text: `${assumedHere.length} ${assumedHere.length === 1 ? "line" : "lines"} assumed` }] : []),
     ...(view?.tasks?.[at]
       ? [{ tone: "info" as const, text: `Your task hours make it ${view.tasks[at]!.hours} h for ${view.tasks[at]!.words}; the quote has ${view.tasks[at]!.quoted} h` }]

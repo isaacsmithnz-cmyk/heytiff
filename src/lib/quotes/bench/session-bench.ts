@@ -30,6 +30,7 @@ export function memoryStore(opts: {
   taskHours?: Record<TaskKey, number | null>;
 }): QuoteStore & { lines: () => QuoteLine[] } {
   let lines: QuoteLine[] = [];
+  const names: string[] = [];
   let n = 0;
   const add = (row: Record<string, unknown>) => {
     const f = normaliseLine(row);
@@ -69,6 +70,10 @@ export function memoryStore(opts: {
       const made = expandKit(kit, facts, opts.products, at, opts.allowances ?? null);
       for (const l of made) add(l as Record<string, unknown>);
       return { ok: true, added: made.length };
+    },
+    nameOption: async (option, name) => {
+      names[option] = name;
+      return { ok: true };
     },
     book: async () => opts.products,
     hourCost: async () => opts.hourCostCents,

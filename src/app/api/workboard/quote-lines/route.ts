@@ -6,7 +6,7 @@ import { addKit } from "@/lib/quotes/kits-server";
 import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
-import { markAccepted, readByHand } from "@/lib/quotes/lines-job-server";
+import { markAccepted, nameOption, readByHand, setLoading } from "@/lib/quotes/lines-job-server";
 import { addEvents, readSession } from "@/lib/quotes/session/store-server";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
@@ -47,7 +47,7 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy)]),
     linesFit(lines).catch(() => []),
   ]);
-  return { ok: true as const, engine, lines, changes, names, me: userId, fits, accepted: byHand.accepted, tasks };
+  return { ok: true as const, engine, lines, changes, names, me: userId, fits, accepted: byHand.accepted, optionNames: byHand.names, loading: byHand.loading, tasks };
 }
 
 export async function GET(req: Request) {
@@ -71,6 +71,7 @@ export async function POST(req: Request) {
   const version = typeof body.version === "number" ? body.version : -1;
   const why = typeof body.why === "string" ? body.why : "";
   let result: { ok: boolean; reason?: string; stale?: true } = { ok: true };
+  const opt = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : 0);
   /* what marking an option accepted did to the job's own materials list */
   let onJob: { added: number; removed: number } | null = null;
   switch (body.op) {
@@ -124,6 +125,12 @@ export async function POST(req: Request) {
       }
       break;
     }
+    case "name":
+      result = await nameOption(g.orgId, jobUuid, opt(body.option), body.name, g.userId);
+      break;
+    case "loading":
+      result = await setLoading(g.orgId, jobUuid, opt(body.option), { pct: body.pct, reason: body.reason }, g.userId);
+      break;
     case "undo":
       result = await undoChange(g.orgId, jobUuid, typeof body.change === "number" ? body.change : -1, g.userId);
       break;

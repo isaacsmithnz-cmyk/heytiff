@@ -20,6 +20,8 @@ import type { RangeKind } from "./ranges";
 import type { AllowanceKey } from "./settings";
 import type { ProposalOption } from "./proposal";
 import { readStoredProposal } from "./proposal-writer";
+import { byHandOf, optionNames } from "./lines-job";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
 
 /* A JOB'S QUOTE, PRICED, OPTION BY OPTION — each option's own materials
@@ -59,9 +61,13 @@ export async function priceQuote(orgId: string, jobUuid: string): Promise<QuoteW
 
   /* a quote switched to the rebuild prices from its own kept lines */
   if ((await readEngine(orgId, jobUuid)) === "lines") {
-    const [lines, stored] = await Promise.all([readLines(orgId, jobUuid), readStoredProposal(orgId, jobUuid).catch(() => null)]);
-    const names = (stored?.draft.options ?? []).map((o) => o.name);
-    const options = priceLines(lines, names, built.settings, { pct: settings.profitTargetPct, labourCostCents: settings.labourCostCents });
+    const [lines, raw] = await Promise.all([
+      readLines(orgId, jobUuid),
+      supabaseAdmin.from("quote_drafts").select("draft").eq("org_id", orgId).eq("sm8_job_uuid", jobUuid).maybeSingle(),
+    ]);
+    const draft = (raw.data as { draft: unknown } | null)?.draft ?? null;
+    const byHand = byHandOf(draft);
+    const options = priceLines(lines, optionNames(draft, byHand), built.settings, { pct: settings.profitTargetPct, labourCostCents: settings.labourCostCents }, byHand.loading);
     const parts = lines.filter((l) => l.kind !== "labour" && !stillUnknown(l)).map(buildLineOf);
     if (parts.length > 0) await recordQuoteItems(orgId, jobUuid, parts);
     return {

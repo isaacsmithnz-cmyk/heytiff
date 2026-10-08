@@ -22,6 +22,7 @@ export type QuoteStore = {
   changeLine: (id: string, version: number, patch: Record<string, unknown>, why: string) => Promise<LineWrite>;
   removeLine: (id: string, version: number, why: string) => Promise<LineWrite>;
   copyOption: (from: number, to: number) => Promise<LineWrite>;
+  nameOption: (option: number, name: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
   addKit: (kit: KitKey, facts: KitFacts, at: { optionIndex: number; system: string }, unit: { brand: string; model: string } | null) => Promise<{ ok: true; added: number } | { ok: false; reason: string }>;
   book: () => Promise<Product[]>;
   /** an hour of labour's cost to the business; null when it isn't set */
@@ -157,6 +158,13 @@ export function makeTools(store: QuoteStore) {
         const n = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : -1);
         const res = await store.copyOption(n(input.from), n(input.to));
         return res.ok ? { ok: true, label, value: { copied: true } } : fail(res.reason);
+      }
+      case "name_option": {
+        const option = typeof input.option === "number" ? Math.max(0, Math.min(19, Math.round(input.option))) : 0;
+        const name = typeof input.name === "string" ? input.name.trim().slice(0, 120) : "";
+        if (!name) return fail("Give the option a name.");
+        const res = await store.nameOption(option, name);
+        return res.ok ? { ok: true, label, said: name, value: { named: option } } : fail(res.reason);
       }
       case "ask": {
         const q = questionOf(input);

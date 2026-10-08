@@ -307,3 +307,41 @@ it("sets the business's task hours beside the quote's own", async () => {
   face();
   expect(await screen.findByText("Your task hours make it 18 h for 3 zones and 4 outlets; the quote has 24 h")).toBeInTheDocument();
 });
+
+/* option names and loading (mock-ups of 8 October) */
+const labour = line({ id: "lab", system: "", group: "Labour", name: "Install", code: null, supplierKey: null, kind: "labour", qty: 16, unit: "h", costCents: 11200, source: "by_hand", why: "" });
+
+it("names the option the proposal heads it with", async () => {
+  face();
+  const box = await screen.findByLabelText("Option 1, as the proposal names it");
+  fireEvent.change(box, { target: { value: "Underfloor ducted, 12.5 kW" } });
+  await act(async () => {
+    fireEvent.blur(box);
+  });
+  expect(posted).toContainEqual({ job: "job-3377", op: "name", option: 0, name: "Underfloor ducted, 12.5 kW" });
+});
+
+it("adds a loading to the labour, keeps it with its reason, and takes it off", async () => {
+  let loading: Record<number, { pct: number; reason: string }> = {};
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (_u: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return { json: async () => ({ ...view([indoor, labour]), loading }) };
+  });
+  const { unmount } = face();
+  const add = await screen.findByRole("button", { name: "Add a loading" });
+  await act(async () => {
+    fireEvent.click(add);
+  });
+  expect(posted).toContainEqual({ job: "job-3377", op: "loading", option: 0, pct: 10, reason: "" });
+  unmount();
+
+  loading = { 0: { pct: 12, reason: "Parapet access" } };
+  face();
+  expect(await screen.findByText("Hidden from the customer")).toBeInTheDocument();
+  expect(screen.getByLabelText("Why the loading")).toHaveValue("Parapet access");
+  expect(screen.queryByRole("button", { name: "Add a loading" })).toBeNull();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Take the loading off" }));
+  });
+  expect(posted).toContainEqual({ job: "job-3377", op: "loading", option: 0, pct: null, reason: "" });
+});

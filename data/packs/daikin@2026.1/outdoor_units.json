@@ -906,12 +906,12 @@
   "depth_mm": 300,
   "height_mm": 595,
   "sound_high_dba": 47,
-  "weight_kg": 64,
+  "weight_kg": 45,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU); Engineering Data, SkyAir FDYBA + RZAC Series",
    "edition": "PCDUAU0126",
-   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+   "page": "30; SkyAir Brochure PCSAU2313 p.60; EDAU282228 p.10"
   }
  },
  {
@@ -931,12 +931,12 @@
   "depth_mm": 300,
   "height_mm": 595,
   "sound_high_dba": 48,
-  "weight_kg": 64,
+  "weight_kg": 45,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU); Engineering Data, SkyAir FDYBA + RZAC Series",
    "edition": "PCDUAU0126",
-   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+   "page": "30; SkyAir Brochure PCSAU2313 p.60; EDAU282228 p.10"
   }
  },
  {
@@ -956,12 +956,12 @@
   "depth_mm": 350,
   "height_mm": 695,
   "sound_high_dba": 53,
-  "weight_kg": 128,
+  "weight_kg": 54,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU); Engineering Data, SkyAir FDYBA + RZAC Series",
    "edition": "PCDUAU0126",
-   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+   "page": "30; SkyAir Brochure PCSAU2313 p.60; EDAU282228 p.11"
   }
  },
  {

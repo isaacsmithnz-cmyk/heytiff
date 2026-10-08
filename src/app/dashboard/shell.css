@@ -6869,6 +6869,27 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-cmpnote { margin:0; font-size:13px; color:var(--info-t); }
 .fg .ql-ask { display:flex; gap:8px; align-items:center; padding-top:8px; }
 .fg .ql-ask input { flex:1; min-width:0; height:36px; font-size:14px; color:var(--hd-ink); }
+/* WATCHING HER BUILD IT (slice 5.2, mock-up screen 2): under the total
+   while Tiff works, each part of the quote in her order, done with its
+   price, the one she's on in blue, what's still to come quiet */
+.fg .qb { flex:none; margin-top:16px; padding:16px; border:1px solid var(--hd-edge); border-radius:var(--r-card); background:var(--paper); display:flex; flex-direction:column; gap:12px; }
+.fg .qb > header { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.fg .qb > header b { font-size:16px; font-weight:600; color:var(--hd-ink); }
+.fg .qb > header span { font-size:13px; color:var(--q); }
+.fg .qb-bar { height:6px; border-radius:var(--r-pill); background:var(--tint-2); overflow:hidden; }
+.fg .qb-bar i { display:block; height:100%; border-radius:var(--r-pill); background:var(--hd-today); }
+.fg .qb ol { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
+.fg .qb li { display:grid; grid-template-columns:24px minmax(0, 1fr) auto; gap:8px; align-items:baseline; padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:14px; color:var(--q); }
+.fg .qb li:first-child { border-top:0; }
+.fg .qb li > i { align-self:center; width:12px; height:12px; box-sizing:border-box; border-radius:50%; border:1.5px solid var(--hd-dot); }
+.fg .qb li b { font-weight:500; }
+.fg .qb li small { display:block; font-size:13px; color:var(--q); }
+.fg .qb li em { font-style:normal; font-variant-numeric:tabular-nums; }
+.fg .qb li.done, .fg .qb li.now { color:var(--hd-ink); }
+.fg .qb li.done > i { border:0; background:var(--hd-today); }
+.fg .qb li.done b, .fg .qb li.now b { font-weight:600; }
+.fg .qb li.now > i { border:3px solid var(--info-t); }
+.fg .qb li.now small { color:var(--info-t); }
 /* the proposal for a quote built on its lines (slice 7.1, mock-up screen 7):
    a sheet of paper on the desk, option by option, price last; the
    business's colour on its headings where it has one */

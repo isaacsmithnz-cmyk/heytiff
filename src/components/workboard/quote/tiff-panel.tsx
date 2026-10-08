@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
+import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
 import { fmtAud } from "@/lib/workboard/project-money";
 
 /* TIFF'S PANEL ON THE QUOTE (slice 5.1, mock-up screens 1 and 3): a rounded
@@ -34,12 +35,15 @@ export function TiffPanel({
   job,
   onChanged,
   onOpen,
+  onPlan,
   children,
 }: {
   job: string;
   onChanged: () => void;
   /** how many of her questions are open, for the progress line's Unknowns */
   onOpen?: (n: number) => void;
+  /** the parts she said she'd build, while she builds them; null when she isn't (5.2) */
+  onPlan?: (plan: { option: number; parts: PlannedPart[] } | null) => void;
   children: ReactNode;
 }) {
   const [on, setOn] = useState(false);
@@ -105,6 +109,16 @@ export function TiffPanel({
   useEffect(() => {
     tell(on ? openCount : 0);
   }, [on, openCount]);
+
+  /* her plan for this turn, while she works on it */
+  const turn = events.at(-1)?.turnId ?? null;
+  const planned = on && working ? events.findLast((e) => e.kind === "tool" && e.body.name === "plan_parts" && e.turnId === turn) : undefined;
+  const planDetail = (planned?.body.detail ?? null) as { option?: unknown; parts?: unknown } | null;
+  const planId = planned?.id ?? 0;
+  const tellPlan = useEffectEvent(() => onPlan?.(planDetail ? { option: typeof planDetail.option === "number" ? planDetail.option : 0, parts: planOf(planDetail.parts) } : null));
+  useEffect(() => {
+    tellPlan();
+  }, [planId]);
 
   if (!on) return <>{children}</>;
 

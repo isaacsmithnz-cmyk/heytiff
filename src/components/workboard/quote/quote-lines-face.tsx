@@ -20,6 +20,7 @@ import type { LinesProposal } from "@/lib/quotes/lines-proposal";
 import type { PaymentPreset, PaymentStage } from "@/lib/quotes/payment";
 import type { QuoteNote } from "@/lib/templates/settings";
 import { unitPartOf } from "@/lib/quotes/brands";
+import { buildProgress, type PlannedPart } from "@/lib/quotes/build-progress";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
    the mock-ups Isaac shaped on 7 October): the total in its own card, pinned
@@ -217,6 +218,8 @@ export function QuoteLinesFace({
   const [comparing, setComparing] = useState<string | null>(null);
   /* Tiff's questions still open (tiff-panel.tsx) */
   const [asked, setAsked] = useState(0);
+  /* the parts she said she'd build, while she builds them (5.2) */
+  const [plan, setPlan] = useState<{ option: number; parts: PlannedPart[] } | null>(null);
 
   const lines = (view?.lines ?? []).filter((l) => l.optionIndex === at);
   const options = Math.max(1, ...(view?.lines ?? []).map((l) => l.optionIndex + 1), price && price.ok ? price.options.length : 1);
@@ -327,6 +330,42 @@ export function QuoteLinesFace({
       </div>
     );
   }
+  /* ── watching her build it, under the total (5.2, mock-up screen 2) ── */
+  let building: ReactNode = null;
+  if (plan && plan.parts.length > 0) {
+    const theirs = (view?.lines ?? []).filter((l) => l.optionIndex === plan.option);
+    const each = sellEachOf(price && price.ok ? price.options[plan.option] : undefined, theirs);
+    const { parts, done } = buildProgress(plan.parts, theirs, (l) => Math.round((each.get(l.id) ?? 0) * l.qty));
+    building = (
+      <section className="qb" aria-label="Building the quote">
+        <header>
+          <b>Building the quote</b>
+          <span>{`${done} of ${parts.length} ${parts.length === 1 ? "part" : "parts"} done`}</span>
+        </header>
+        <div className="qb-bar" aria-hidden="true">
+          <i style={{ width: `${Math.round((done / parts.length) * 100)}%` }} />
+        </div>
+        <ol>
+          {parts.map((p) => {
+            /* "Downstairs units"; a system named for its group says it once */
+            const name = !p.system || p.system.toLowerCase() === p.group.toLowerCase() ? p.group : `${p.system} ${p.group.charAt(0).toLowerCase()}${p.group.slice(1)}`;
+            const small = p.state === "now" ? [p.detail, p.items ? `${p.items} ${p.items === 1 ? "item" : "items"} so far` : "Starting"].filter(Boolean).join(", ") : p.detail;
+            return (
+              <li key={`${p.system}|${p.group}`} className={p.state === "todo" ? undefined : p.state}>
+                <i aria-hidden="true" />
+                <span>
+                  <b>{name}</b>
+                  {small && <small>{small}</small>}
+                </span>
+                <em>{p.sellCents && p.state !== "todo" ? cents2(p.sellCents) : ""}</em>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    );
+  }
+
   /* who approved the proposal, in words */
   const approvedBy = view?.proposal?.approvedBy ?? "";
   const approver = !approvedBy ? "someone" : approvedBy === view?.me ? "you" : (view?.names[approvedBy] ?? "someone");
@@ -438,6 +477,7 @@ export function QuoteLinesFace({
         </p>
       )}
       {note && <p className="wb2-sherr">{note}</p>}
+      {building}
 
       {comparing && lines.some((l) => l.id === comparing) && (
         <CompareCard
@@ -871,6 +911,7 @@ export function QuoteLinesFace({
               <TiffPanel
                 job={job}
                 onOpen={setAsked}
+                onPlan={setPlan}
                 onChanged={() => {
                   reload();
                   onPriced();

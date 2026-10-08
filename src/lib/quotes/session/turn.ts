@@ -23,7 +23,7 @@ import { isText, isToolUse, replyCost, type Block, type Effort, type MediaBlock,
 
 export type EventDraft =
   | { kind: "reply"; author: "tiff"; body: { text: string } }
-  | { kind: "tool"; author: "tiff"; body: { name: string; label: string; ok: boolean; said?: string } }
+  | { kind: "tool"; author: "tiff"; body: { name: string; label: string; ok: boolean; said?: string; detail?: Record<string, unknown> } }
   | { kind: "usage"; author: "tiff"; body: { usd: number | null; rounds: number; models: string[] } }
   | { kind: "error"; author: "tiff"; body: { message: string } }
   | { kind: "question"; author: "tiff"; body: Record<string, unknown> };
@@ -32,7 +32,7 @@ export type SessionState = { messages: Msg[]; summary: string };
 
 /** What a tool did: its answer for the model, and what the thread says. */
 export type ToolOutcome =
-  | { ok: true; value: unknown; label: string; said?: string; event?: EventDraft; media?: MediaBlock[] }
+  | { ok: true; value: unknown; label: string; said?: string; event?: EventDraft; media?: MediaBlock[]; detail?: Record<string, unknown> }
   | { ok: false; error: string; label: string };
 
 export type TurnDeps = {
@@ -199,7 +199,7 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
       const results: ToolResultBlock[] = [];
       for (const call of calls) {
         const out = await deps.runTool(call.name, call.input ?? {}).catch((): ToolOutcome => ({ ok: false, error: "That couldn't be done just now.", label: call.name }));
-        events.push({ kind: "tool", author: "tiff", body: { name: call.name, label: out.label, ok: out.ok, ...(out.ok && out.said ? { said: out.said } : {}) } });
+        events.push({ kind: "tool", author: "tiff", body: { name: call.name, label: out.label, ok: out.ok, ...(out.ok && out.said ? { said: out.said } : {}), ...(out.ok && out.detail ? { detail: out.detail } : {}) } });
         if (out.ok && out.event) events.push(out.event);
         const words = out.ok ? JSON.stringify(out.value ?? null).slice(0, MAX_RESULT) : out.error;
         results.push({

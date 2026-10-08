@@ -6,6 +6,7 @@ import { findInBook, offerFor, supplierOffer, type UnitLookup } from "../lookups
 import type { TaskKey } from "../settings";
 import type { Correction } from "../corrections";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
+import { planOf } from "../build-progress";
 import { taskCheck } from "../task-hours";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
@@ -217,6 +218,12 @@ export function makeTools(store: QuoteStore) {
         if (!name) return fail("Give the option a name.");
         const res = await store.nameOption(option, name);
         return res.ok ? { ok: true, label, said: name, value: { named: option } } : fail(res.reason);
+      }
+      case "plan_parts": {
+        const parts = planOf(input.parts);
+        if (parts.length === 0) return fail("Give the parts in order, each with its group.");
+        const option = typeof input.option === "number" ? Math.max(0, Math.min(19, Math.round(input.option))) : 0;
+        return { ok: true, label, said: `${parts.length} ${parts.length === 1 ? "part" : "parts"}`, value: { planned: parts.length }, detail: { option, parts } };
       }
       case "write_proposal": {
         const patch: Partial<LinesProposal> = {};

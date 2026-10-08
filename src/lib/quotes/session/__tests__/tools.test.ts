@@ -100,6 +100,12 @@ describe("a price from the book, never from her", () => {
 describe("her tools, run", () => {
   const run = sessionTools("org-1", "job-1");
 
+  it("plans the parts she'll build, for the page to show as she works", async () => {
+    const out = await run("plan_parts", { parts: [{ system: "Downstairs", group: "Units", detail: "PEA-M125HAA" }, { group: "Labour" }, { system: "x" }] });
+    expect(out).toMatchObject({ ok: true, said: "2 parts", detail: { option: 0, parts: [{ system: "Downstairs", group: "Units", detail: "PEA-M125HAA" }, { system: "", group: "Labour", detail: "" }] } });
+    expect(await run("plan_parts", { parts: [] })).toMatchObject({ ok: false });
+  });
+
   it("writes an option's words into the proposal, leaving what she didn't give", async () => {
     const out = await run("write_proposal", { option: 0, summary: "A wall split in the living room.", work: [{ area: "Living", items: ["Unit above the window"] }] });
     expect(out).toMatchObject({ ok: true, said: "option 1" });

@@ -146,3 +146,17 @@ it("reads the job: every source listed to untick, and only the ticked ones sent"
   });
   expect(posted).toContainEqual({ job: "j", message: "", sources: ["description", "note:n1"] });
 });
+
+it("tells the page her plan while she works on it, and nothing once she's done (5.2)", async () => {
+  const plan = { name: "plan_parts", label: "Planned the quote", ok: true, said: "2 parts", detail: { option: 0, parts: [{ system: "Downstairs", group: "Units", detail: "PEA-M125HAA" }, { system: "", group: "Labour" }] } };
+  const working = { ...thread, working: true, events: [{ id: 9, turnId: "t2", kind: "tool", author: "tiff", at: "", body: plan }] };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(working));
+  const onPlan = jest.fn();
+  render(
+    <TiffPanel job="j" onChanged={jest.fn()} onPlan={onPlan}>
+      {null}
+    </TiffPanel>
+  );
+  await screen.findByText("Planned the quote: 2 parts");
+  expect(onPlan).toHaveBeenLastCalledWith({ option: 0, parts: [{ system: "Downstairs", group: "Units", detail: "PEA-M125HAA" }, { system: "", group: "Labour", detail: "" }] });
+});

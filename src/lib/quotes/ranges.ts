@@ -590,3 +590,55 @@ export function needWords(kind: RangeKind, need: RangeNeed): string {
   if (kind === "wall_bracket") return [need.kg != null ? `${need.kg} kg` : null, need.w != null ? `${need.w} mm wide` : null].filter(Boolean).join(", ");
   return sizeWords(kind, need);
 }
+
+/* ── one preferred store (slice 1.2) ── */
+
+/** The range an item is of, by its name, or the one a line was: a kit's
+    "Return box" swapped for AAD's "MTL R/A BX 900X550" is a return. Null
+    when it's no range's. */
+export function rangeKindOf(name: string, was = ""): RangeKind | null {
+  return RANGE_KEYS.find((k) => inKind(k, name) && RANGE_KINDS[k].sizeOf(name)) ?? RANGE_KEYS.find((k) => !!was && inKind(k, was) && RANGE_KINDS[k].sizeOf(name)) ?? null;
+}
+
+/** What makes two items in a range the one size: an isolator's amps, a
+    bracket's kg, a face, a fitting's sizes, a plenum's spigots, else the
+    round size. */
+function sizeKey(kind: RangeKind, s: RangeSize): string {
+  const sorted = (v?: number[]) => [...(v ?? [])].sort((x, y) => x - y).join("/");
+  switch (kind) {
+    case "isolator":
+      return `${s.amps}`;
+    case "wall_bracket":
+      return `${s.kg}`;
+    case "bar_grille":
+    case "slot_diffuser":
+    case "return_grille":
+      return `${s.w}x${s.h}|${sorted(s.spigots)}`;
+    case "fitting":
+      return `${sorted(s.ins)}>${sorted(s.outs)}`;
+    case "plenum":
+      return sorted(s.spigots);
+    default:
+      return `${s.mm}`;
+  }
+}
+
+/** Whether two items in a range are the one size. */
+export const sameSize = (kind: RangeKind, a: RangeSize, b: RangeSize) => sizeKey(kind, a) === sizeKey(kind, b);
+
+/** WHOLE-RANGE PREFERRED (Isaac, 2026-10-08, "I'll use your
+    recommendation"): an item chosen at one size makes its product line the
+    range at every size it comes in; at each of those sizes, whatever the
+    range held from another line gives way. A size the line doesn't come in
+    keeps what it had. Pure. */
+export function wholeRange(
+  kind: RangeKind,
+  line: readonly { code: string; size: RangeSize | null }[],
+  supplierKey: string,
+  held: readonly { supplierKey: string; code: string; size: RangeSize }[]
+): { add: { supplierKey: string; code: string; size: RangeSize }[]; remove: { supplierKey: string; code: string }[] } {
+  const add = line.filter((i): i is { code: string; size: RangeSize } => !!i.size).map((i) => ({ supplierKey, code: i.code, size: i.size }));
+  const mine = new Set(add.map((a) => `${a.supplierKey}|${a.code}`));
+  const remove = held.filter((h) => !mine.has(`${h.supplierKey}|${h.code}`) && add.some((a) => sameSize(kind, a.size, h.size))).map((h) => ({ supplierKey: h.supplierKey, code: h.code }));
+  return { add, remove };
+}

@@ -2,8 +2,11 @@ import { trunkingLengths } from "./buildup";
 import { rollMetresOf } from "./components";
 import type { Product } from "./families";
 import type { LineFields } from "./lines";
-import { pickItem, type BookQuery } from "./lookups";
-import { isolatorOf } from "./ranges";
+import { pickItem, supplierOffer, type BookQuery, type Pick } from "./lookups";
+import { isolatorOf, pickFromRange, type RangeKind, type RangeNeed } from "./ranges";
+import type { ComponentKey } from "./components";
+import type { RangeOffer } from "./job-price";
+import type { Preferred } from "./settings";
 
 /* KITS AS DATA (the engine rebuild, slice 1.3) — what a system takes to
    install, part by part, for any business: each part named by what it is
@@ -70,6 +73,26 @@ export type KitPart = {
   qty: (f: KitFacts) => { qty: number; unit: LineFields["unit"]; why: string } | null;
   /** a part only some jobs take: left off when this says so */
   skip?: (f: KitFacts) => boolean;
+  /** the business's range it's picked from, at the size the job needs
+      (ranges.ts); null when the size isn't known */
+  range?: (f: KitFacts) => { kind: RangeKind; need: RangeNeed } | null;
+  /** the part as Quoting names its preferred item (components.ts) */
+  component?: (f: KitFacts) => ComponentKey | null;
+};
+
+/** What the business has chosen for a kit's parts (1.2, one preferred
+    store): its ranges at today's prices, and Quoting's preferred items. */
+export type KitPreferences = {
+  ranges: ReadonlyMap<RangeKind, readonly RangeOffer[]>;
+  components: Partial<Record<ComponentKey, Preferred>>;
+};
+
+const PIPE_COMPONENT: Record<PipeSize, ComponentKey> = {
+  "1/4+3/8": "pair_coil_14_38",
+  "1/4+1/2": "pair_coil_14_12",
+  "1/4+5/8": "pair_coil_14_58",
+  "3/8+5/8": "pair_coil_38_58",
+  "3/8+3/4": "pair_coil_38_34",
 };
 
 /* the circuit's parts by what the unit draws: the next standard size up */
@@ -100,6 +123,7 @@ const SPLIT: KitPart[] = [
     group: "Pipe, power and controls",
     name: "Pair coil",
     search: (f) => (f.pipe ? { text: `coil ${pipeWords(f.pipe)}` } : null),
+    component: (f) => (f.pipe ? PIPE_COMPONENT[f.pipe] : null),
     qty: (f) => metres(f.pipeM, "pipe run"),
   },
   {
@@ -114,6 +138,8 @@ const SPLIT: KitPart[] = [
     group: "Pipe, power and controls",
     name: "Power cable",
     search: (f) => (f.amps != null ? { text: `tps ${cableFor(f.amps)}` } : null),
+    /* Quoting's power cable is the 2.5 mm² */
+    component: (f) => (f.amps != null && cableFor(f.amps) === "2.5" ? "power_cable" : null),
     qty: (f) => metres(f.powerM, "from the board"),
   },
   {
@@ -128,6 +154,7 @@ const SPLIT: KitPart[] = [
     group: "Pipe, power and controls",
     name: "Isolator",
     search: (f) => (f.amps != null ? { text: "isolator", pool: atLeast(f.amps, /isolat/i) } : null),
+    range: (f) => (f.amps != null ? { kind: "isolator", need: { amps: f.amps } } : null),
     qty: one("one at the outdoor"),
   },
   {
@@ -135,6 +162,7 @@ const SPLIT: KitPart[] = [
     group: "Mounting and drain",
     name: "Outdoor mount",
     search: (f) => (f.mount === "wall" ? { text: "wall bracket" } : { text: "feet" }),
+    component: (f) => (f.mount === "wall" ? "wall_bracket" : "ground_mount"),
     qty: one("under the outdoor"),
   },
   {
@@ -142,6 +170,7 @@ const SPLIT: KitPart[] = [
     group: "Mounting and drain",
     name: "Drain hose",
     search: () => ({ text: "drain hose" }),
+    component: () => "drain_hose",
     qty: (f) => metres(f.drainM, "of drain"),
   },
   {
@@ -150,6 +179,7 @@ const SPLIT: KitPart[] = [
     name: "Trunking",
     skip: (f) => !f.trunkingM,
     search: () => ({ text: "trunking" }),
+    component: () => "pipe_cover",
     qty: (f) => (f.trunkingM ? { qty: trunkingLengths(f.trunkingM), unit: "", why: `${f.trunkingM} m outside, in 2.4 m lengths` } : null),
   },
 ];
@@ -161,6 +191,7 @@ const DUCTED: KitPart[] = [
     group: "Ductwork and grilles",
     name: "Flex duct",
     search: (f) => (f.outletMm ? { text: "flex", sizeMm: f.outletMm } : null),
+    range: (f) => (f.outletMm ? { kind: "flex_duct", need: { mm: f.outletMm } } : null),
     qty: (f) => (f.outlets ? { qty: f.outlets, unit: "", why: `a bag to each of ${f.outlets} outlets` } : null),
   },
   {
@@ -168,6 +199,7 @@ const DUCTED: KitPart[] = [
     group: "Ductwork and grilles",
     name: "Outlet diffuser",
     search: (f) => (f.outletMm ? { text: "diffuser", sizeMm: f.outletMm } : null),
+    range: (f) => (f.outletMm ? { kind: "round_diffuser", need: { mm: f.outletMm } } : null),
     qty: (f) => (f.outlets ? { qty: f.outlets, unit: "", why: `${f.outlets} outlets` } : null),
   },
   {
@@ -184,6 +216,31 @@ export const KITS: Record<KitKey, { label: string; parts: KitPart[] }> = {
   ducted: { label: "Ducted install", parts: DUCTED },
 };
 
+/** The item the business chose for a part, before any search: its range
+    at the size the job needs (the job's supplier's item first), else
+    Quoting's preferred item for the part, at the job's supplier where it
+    sells the same item. Null: nothing chosen, so the book is searched. */
+export function chosenFor(part: KitPart, f: KitFacts, products: readonly Product[], preferred: KitPreferences | null, supplier: string | null): Pick | null {
+  if (!preferred) return null;
+  const r = part.range?.(f);
+  const offers = r ? (preferred.ranges.get(r.kind) ?? []) : [];
+  if (r && offers.length) {
+    const mine = supplier ? offers.filter((o) => o.supplierKey === supplier) : [];
+    const hit = pickFromRange(r.kind, mine, r.need) ?? pickFromRange(r.kind, offers, r.need);
+    const product = hit ? products.find((p) => p.offers.some((o) => o.supplierKey === hit.supplierKey && o.code === hit.code)) : null;
+    const offer = product?.offers.find((o) => o.supplierKey === hit!.supplierKey && o.code === hit!.code);
+    if (product && offer) return { product, offer, why: "Your range" };
+  }
+  const key = part.component?.(f);
+  const p = key ? preferred.components[key] : undefined;
+  if (p) {
+    const product = products.find((x) => x.offers.some((o) => o.supplierKey === p.supplierKey && o.code === p.code));
+    const own = product?.offers.find((o) => o.supplierKey === p.supplierKey && o.code === p.code);
+    if (product && own) return { product, offer: (supplier ? supplierOffer(product, supplier) : null) ?? own, why: "Your preferred" };
+  }
+  return null;
+}
+
 /** A kit's parts as lines for one option and system, each picked from the
     book; a part with a fact missing, or that the book hasn't got, is a line
     nobody knows the price of yet, saying why. */
@@ -194,7 +251,9 @@ export function expandKit(
   at: { optionIndex: number; system: string },
   allowances: KitAllowances | null = null,
   /** the job's supplier, bought from where it sells the part */
-  supplier: string | null = null
+  supplier: string | null = null,
+  /** the business's ranges and Quoting's preferred items, first */
+  preferred: KitPreferences | null = null
 ): Partial<LineFields>[] {
   const out: Partial<LineFields>[] = [];
   for (const part of KITS[kit].parts) {
@@ -215,7 +274,7 @@ export function expandKit(
       continue;
     }
     const pool = s.pool ? s.pool(products) : products;
-    const picked = pickItem(pool, s, supplier);
+    const picked = chosenFor(part, f, products, preferred, supplier) ?? pickItem(pool, s, supplier);
     if (!picked) {
       out.push({ ...base, name: part.name, qty: q.qty, unit: q.unit, costCents: 0, source: "unknown", why: "Not in your book" });
       continue;
@@ -309,14 +368,14 @@ export type KitRow = { kit: KitKey; part: string; size: string; pick: { name: st
 
 const ALL_FACTS: KitFacts = { pipe: null, pipeM: 1, powerM: 1, amps: null, mount: "ground", trunkingM: 2.4, drainM: 1, outlets: 1, outletMm: null };
 
-export function kitPriceList(products: Product[]): KitRow[] {
+export function kitPriceList(products: Product[], preferred: KitPreferences | null = null): KitRow[] {
   const rows: KitRow[] = [];
   const at = { optionIndex: 0, system: "" };
   const one = (kit: KitKey, partKey: string, size: string, f: KitFacts) => {
     const part = KITS[kit].parts.find((p) => p.key === partKey)!;
     const s = part.search(f);
-    const picked = s ? pickItem(s.pool ? s.pool(products) : products, s) : null;
-    const line = picked ? expandKit(kit, f, products, at).find((l) => l.code === picked.offer.code) : null;
+    const picked = s ? (chosenFor(part, f, products, preferred, null) ?? pickItem(s.pool ? s.pool(products) : products, s)) : null;
+    const line = picked ? expandKit(kit, f, products, at, null, null, preferred).find((l) => l.code === picked.offer.code) : null;
     rows.push({
       kit,
       part: part.name,

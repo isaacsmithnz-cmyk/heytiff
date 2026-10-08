@@ -599,7 +599,7 @@ export function QuoteLinesFace({
                                       void fetch("/api/quoting/preferred", {
                                         method: "POST",
                                         headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ ref: `${offer.supplierKey}|${offer.code}`, on: true }),
+                                        body: JSON.stringify({ ref: `${offer.supplierKey}|${offer.code}`, on: true, was: l.name }),
                                       }).catch(() => undefined);
                                   });
                                 }}

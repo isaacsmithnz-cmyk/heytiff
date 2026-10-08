@@ -70,7 +70,7 @@ export function findInBook(products: Product[], q: BookQuery): BookHit[] {
    ranking above). Which supplier: the business's own pick for that item,
    else the lowest price for that same item. */
 
-export type Pick = { product: Product; offer: Offer; why: BookHit["why"] };
+export type Pick = { product: Product; offer: Offer; why: BookHit["why"] | "Your range" };
 
 /** The job's supplier's offer of an item, its lowest pack where it has
     several; null when that supplier doesn't sell it. */

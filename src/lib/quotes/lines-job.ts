@@ -1,5 +1,6 @@
 import { VISIT_STAGES, type Visit, type VisitStage } from "./buildup";
 import type { QuoteLine } from "./lines";
+import { proposalOf, type LinesProposal } from "./lines-proposal";
 import type { UnitSpecs } from "./lookups";
 import { normaliseDraft, type ProposalDraft, type UnitLine, type UnitRole } from "./proposal";
 
@@ -32,6 +33,8 @@ export type ByHand = {
       any (Isaac, 2026-10-08: "select aad to use only items from their price
       book unless something doesn't show up") */
   supplier: string | null;
+  /** the proposal's words, written by Tiff or a person (7.1, lines-proposal.ts) */
+  proposal: LinesProposal | null;
 };
 
 /** Units a compare holds beside its suggestions, at most. */
@@ -75,8 +78,28 @@ export function byHandOf(draft: unknown): ByHand {
     if (/^[\w-]{1,60}$/.test(id) && list.length) compare[id] = list;
   }
   const supplier = said(o.supplier, 40) || null;
-  return { accepted, names, loading, compare, supplier };
+  const proposal = o.proposal && typeof o.proposal === "object" ? proposalOf(o.proposal) : null;
+  return { accepted, names, loading, compare, supplier, proposal };
 }
+
+/** The proposal's words changed: a patch over what's there (blocks left
+    out stay as they were), stamped now, so an approval given before it no
+    longer stands. */
+export function withProposal(b: ByHand, patch: unknown, now: string, options: number): ByHand {
+  const was = b.proposal ?? proposalOf({});
+  const p = patch && typeof patch === "object" ? (patch as Record<string, unknown>) : {};
+  const merged = proposalOf({ ...was, ...p, updatedAt: now, approvedAt: was.approvedAt, approvedBy: was.approvedBy });
+  /* one set of words an option the quote has, never more or fewer */
+  const opts = Array.from({ length: Math.max(1, options) }, (_, i) => merged.options[i] ?? { summary: "", areas: [], included: [] });
+  return { ...b, proposal: { ...merged, options: opts } };
+}
+
+/** The proposal approved by a person, now: one never written is approved
+    as it's drawn, the lines with no words of their own. */
+export const withApproval = (b: ByHand, by: string, now: string): ByHand => ({
+  ...b,
+  proposal: { ...(b.proposal ?? { ...proposalOf({}), updatedAt: now }), approvedAt: now, approvedBy: by },
+});
 
 /** The job's supplier set, or any with none. */
 export const withSupplier = (b: ByHand, key: unknown): ByHand => ({ ...b, supplier: said(key, 40) || null });

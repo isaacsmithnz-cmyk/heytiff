@@ -270,7 +270,7 @@ describe("the hours quoted", () => {
       line({ id: "b", name: "Install", qty: 7 }),
       line({ id: "c", optionIndex: 1, qty: 40 }),
     ];
-    linesQuote.mockReturnValue({ draft: linesDraft(lines, [], { accepted: [0], names: [], loading: {}, compare: {}, supplier: null }, new Map(), 8)!, lines });
+    linesQuote.mockReturnValue({ draft: linesDraft(lines, [], { accepted: [0], names: [], loading: {}, compare: {}, supplier: null, proposal: null }, new Map(), 8)!, lines });
     expect(quotedHours(await quotePlan("org-1", "job-1"))).toEqual({ hours: 19.5, people: 2, visits: 2 });
   });
 });

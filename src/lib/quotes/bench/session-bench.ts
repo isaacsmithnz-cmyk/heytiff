@@ -4,6 +4,7 @@ import { expandKit, type KitAllowances } from "../kits";
 import { applyPatch, lineFromRow, lineRow, normaliseLine, sortLines, type QuoteLine } from "../lines";
 import { priceLines } from "../lines-price";
 import type { UnitLookup } from "../lookups";
+import type { TaskKey } from "../settings";
 import type { ModelCall } from "../session/model";
 import { openingMessage, sessionSystemPrompt } from "../session/prompt";
 import { SESSION_TOOLS } from "../session/tools";
@@ -26,6 +27,7 @@ export function memoryStore(opts: {
   hourCostCents: number | null;
   units?: Record<string, UnitLookup>;
   allowances?: KitAllowances | null;
+  taskHours?: Record<TaskKey, number | null>;
 }): QuoteStore & { lines: () => QuoteLine[] } {
   let lines: QuoteLine[] = [];
   let n = 0;
@@ -72,6 +74,7 @@ export function memoryStore(opts: {
     hourCost: async () => opts.hourCostCents,
     lookupUnit: async (_brand, model) => opts.units?.[model.toUpperCase()] ?? { found: false, reason: "no data pack" },
     totals: async () => ({ ok: true, options: priceLines(lines, [], opts.settings, { pct: null, labourCostCents: null }).map((o) => o.build.exGstCents) }),
+    taskHours: async () => ({ hours: opts.taskHours ?? { zone: null, grille: null, metre: null, visit: null }, dayHours: opts.settings.dayHours }),
   };
 }
 

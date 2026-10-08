@@ -6827,6 +6827,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt-meta { font-size:12px; color:var(--q); }
 .fg .qt-did { margin:0; font-size:13px; line-height:1.45; color:var(--hd-body); }
 .fg .qt-did.off { color:var(--q); }
+.fg .qt-mile { margin:0; display:flex; align-items:center; gap:12px; font-size:12px; font-weight:600; color:var(--hd-today); }
+.fg .qt-mile::before, .fg .qt-mile::after { content:""; flex:1; height:1px; background:var(--hd-rule); }
 .fg .qt-working { margin:0; font-size:13px; font-weight:600; color:var(--info-t); }
 .fg .qt-c { flex:none; padding:8px 16px 16px; }
 .fg .qt-box { display:flex; align-items:flex-end; gap:8px; padding:4px 4px 4px 12px; border:1px solid var(--hd-edge); border-radius:var(--r-card); background:var(--paper); }

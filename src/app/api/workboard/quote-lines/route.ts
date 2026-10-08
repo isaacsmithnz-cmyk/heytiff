@@ -7,6 +7,7 @@ import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 import { markAccepted, readByHand } from "@/lib/quotes/lines-job-server";
+import { addEvents, readSession } from "@/lib/quotes/session/store-server";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { readOrgDay } from "@/lib/quotes/org-day-server";
@@ -109,6 +110,14 @@ export async function POST(req: Request) {
       const i = typeof body.option === "number" ? Math.max(0, Math.min(19, Math.round(body.option))) : 0;
       const marked = await markAccepted(g.orgId, jobUuid, i, g.userId);
       result = marked;
+      /* the quote's history, in Tiff's thread where there is one (slice 6.2) */
+      if (marked.ok) {
+        const session = await readSession(g.orgId, jobUuid).catch(() => null);
+        if (session)
+          await addEvents(g.orgId, session.id, null, [
+            { kind: "milestone", author: g.userId, body: { text: marked.byHand.accepted.length ? `Option ${i + 1} accepted` : `Option ${i + 1} no longer accepted` } },
+          ]);
+      }
       if (marked.ok && marked.byHand.accepted.length > 0) {
         const put = await putAcceptedOnJob(g.orgId, g.userId, jobUuid);
         onJob = put.ok ? { added: put.added, removed: put.removed } : null;

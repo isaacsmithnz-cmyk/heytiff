@@ -3,6 +3,8 @@ import { normaliseKitFacts, type KitFacts, type KitKey } from "../kits";
 import type { QuoteLine } from "../lines";
 import { stillUnknown } from "../lines-price";
 import { findInBook, type UnitLookup } from "../lookups";
+import type { TaskKey } from "../settings";
+import { taskCheck } from "../task-hours";
 import type { ToolOutcome } from "./turn";
 import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
 
@@ -27,6 +29,8 @@ export type QuoteStore = {
   lookupUnit: (brand: string, model: string) => Promise<UnitLookup>;
   /** each option's total ex GST, cents; not ok when pricing isn't set up */
   totals: () => Promise<{ ok: true; options: number[] } | { ok: false }>;
+  /** the business's own task hours and working day (slice 8.1) */
+  taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
 };
 
 const SEARCH_LIMIT = 12;
@@ -51,14 +55,18 @@ export function makeTools(store: QuoteStore) {
     const fail = (error: string): ToolOutcome => ({ ok: false, error, label });
     switch (name) {
       case "read_quote": {
-        const [lines, price] = await Promise.all([store.readLines(), store.totals()]);
+        const [lines, price, tasks] = await Promise.all([store.readLines(), store.totals(), store.taskHours()]);
         const options = Math.max(1, ...lines.map((l) => l.optionIndex + 1));
+        const set = Object.fromEntries(Object.entries(tasks.hours).filter(([, h]) => h != null));
         return {
           ok: true,
           label,
           value: Array.from({ length: options }, (_, i) => ({
             option: i,
             total_ex_gst_cents: price.ok ? (price.options[i] ?? 0) : null,
+            /* the business's own hours for a task, and what they make this
+               option's labour: what assumed labour rests on */
+            ...(Object.keys(set).length ? { your_task_hours: set, by_your_task_hours: taskCheck(lines.filter((l) => l.optionIndex === i), tasks.hours, tasks.dayHours) } : {}),
             still_to_price: lines.filter((l) => l.optionIndex === i && stillUnknown(l)).map((l) => l.name),
             lines: lines
               .filter((l) => l.optionIndex === i)

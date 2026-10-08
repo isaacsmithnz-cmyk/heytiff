@@ -1,0 +1,4494 @@
+[
+ {
+  "model": "FTXJ25TVMAW",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 177,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FTXJ35TVMAW",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 190,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 20,
+  "sound_high_dba": 42,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FTXJ50TVMAW",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 218,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 32,
+  "sound_high_dba": 45,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FTXJ60TVMAW",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "capacity_code": 60,
+  "airflow_ls": 243,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 33,
+  "sound_high_dba": 48,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FTXJ25TVMAK",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 177,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FTXJ35TVMAK",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 190,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 20,
+  "sound_high_dba": 42,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FTXJ50TVMAK",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 218,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 32,
+  "sound_high_dba": 45,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FTXJ60TVMAK",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "capacity_code": 60,
+  "airflow_ls": 243,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 33,
+  "sound_high_dba": 48,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FTXM20AVMA",
+  "brand": "daikin",
+  "series": "Alira X FTXM-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.7,
+  "capacity_code": 20,
+  "airflow_ls": 208,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 839,
+  "depth_mm": 280,
+  "height_mm": 299,
+  "sound_low_dba": 19,
+  "sound_high_dba": 39,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "26"
+  }
+ },
+ {
+  "model": "FTXM25AVMA",
+  "brand": "daikin",
+  "series": "Alira X FTXM-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 220,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 839,
+  "depth_mm": 280,
+  "height_mm": 299,
+  "sound_low_dba": 19,
+  "sound_high_dba": 41,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "26"
+  }
+ },
+ {
+  "model": "FTXM35AVMA",
+  "brand": "daikin",
+  "series": "Alira X FTXM-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 232,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 839,
+  "depth_mm": 280,
+  "height_mm": 299,
+  "sound_low_dba": 19,
+  "sound_high_dba": 42,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "26"
+  }
+ },
+ {
+  "model": "FTXM46AVMA",
+  "brand": "daikin",
+  "series": "Alira X FTXM-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.6,
+  "capacity_heat_kw": 4.7,
+  "capacity_code": 46,
+  "airflow_ls": 258,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 921,
+  "depth_mm": 280,
+  "height_mm": 299,
+  "sound_low_dba": 26,
+  "sound_high_dba": 43,
+  "weight_kg": 14,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "26"
+  }
+ },
+ {
+  "model": "FTXM50AVMA",
+  "brand": "daikin",
+  "series": "Alira X FTXM-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 355,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1101,
+  "depth_mm": 280,
+  "height_mm": 299,
+  "sound_low_dba": 28,
+  "sound_high_dba": 45,
+  "weight_kg": 16,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "26"
+  }
+ },
+ {
+  "model": "FTXM60AVMA",
+  "brand": "daikin",
+  "series": "Alira X FTXM-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "capacity_code": 60,
+  "airflow_ls": 412,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1101,
+  "depth_mm": 280,
+  "height_mm": 299,
+  "sound_low_dba": 29,
+  "sound_high_dba": 48,
+  "weight_kg": 16,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "26"
+  }
+ },
+ {
+  "model": "FTXM71AVMA",
+  "brand": "daikin",
+  "series": "Alira X FTXM-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 425,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1101,
+  "depth_mm": 280,
+  "height_mm": 299,
+  "sound_low_dba": 30,
+  "sound_high_dba": 49,
+  "weight_kg": 16,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "26"
+  }
+ },
+ {
+  "model": "FTXV20WVMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.7,
+  "capacity_code": 20,
+  "airflow_ls": 152,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 38,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FTXV25WVMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 173,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 42,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FTXV35WVMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 175,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 42,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FTXV46WVMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.6,
+  "capacity_heat_kw": 4.7,
+  "capacity_code": 46,
+  "airflow_ls": 203,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 26,
+  "sound_high_dba": 44,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FTXV50WVMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 267,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 28,
+  "sound_high_dba": 45,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FTXV60WVMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "capacity_code": 60,
+  "airflow_ls": 310,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 29,
+  "sound_high_dba": 48,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FTXV71WVMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 310,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 30,
+  "sound_high_dba": 49,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FTXM85WVMA",
+  "brand": "daikin",
+  "series": "XL Premium FTXM-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 9.0,
+  "capacity_code": 85,
+  "airflow_ls": 380,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1240,
+  "depth_mm": 278,
+  "height_mm": 329,
+  "sound_low_dba": 35,
+  "sound_high_dba": 49,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "28"
+  }
+ },
+ {
+  "model": "FTXM95WVMA",
+  "brand": "daikin",
+  "series": "XL Premium FTXM-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.5,
+  "capacity_heat_kw": 10.3,
+  "capacity_code": 95,
+  "airflow_ls": 410,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1240,
+  "depth_mm": 278,
+  "height_mm": 329,
+  "sound_low_dba": 36,
+  "sound_high_dba": 51,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "28"
+  }
+ },
+ {
+  "model": "FTXV80WVMA",
+  "brand": "daikin",
+  "series": "XL FTXV-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.0,
+  "capacity_heat_kw": 9.0,
+  "capacity_code": 80,
+  "airflow_ls": 410,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1240,
+  "depth_mm": 278,
+  "height_mm": 329,
+  "sound_low_dba": 37,
+  "sound_high_dba": 51,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "29"
+  }
+ },
+ {
+  "model": "FTXV90WVMA",
+  "brand": "daikin",
+  "series": "XL FTXV-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.3,
+  "capacity_code": 90,
+  "airflow_ls": 440,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1240,
+  "depth_mm": 278,
+  "height_mm": 329,
+  "sound_low_dba": 38,
+  "sound_high_dba": 53,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "29"
+  }
+ },
+ {
+  "model": "FVXM25YVMA",
+  "brand": "daikin",
+  "series": "Floor Standing FVXM-Y",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.5,
+  "capacity_code": 25,
+  "airflow_ls": 141,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 238,
+  "height_mm": 600,
+  "sound_low_dba": 20,
+  "sound_high_dba": 38,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "30"
+  }
+ },
+ {
+  "model": "FVXM35YVMA",
+  "brand": "daikin",
+  "series": "Floor Standing FVXM-Y",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.5,
+  "capacity_code": 35,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 238,
+  "height_mm": 600,
+  "sound_low_dba": 24,
+  "sound_high_dba": 39,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "30"
+  }
+ },
+ {
+  "model": "FVXM45YVMA",
+  "brand": "daikin",
+  "series": "Floor Standing FVXM-Y",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.4,
+  "capacity_code": 45,
+  "airflow_ls": 171,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 238,
+  "height_mm": 600,
+  "sound_low_dba": 27,
+  "sound_high_dba": 44,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "30"
+  }
+ },
+ {
+  "model": "FVXM50YVMA",
+  "brand": "daikin",
+  "series": "Floor Standing FVXM-Y",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 243,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 238,
+  "height_mm": 600,
+  "sound_low_dba": 27,
+  "sound_high_dba": 51,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "30"
+  }
+ },
+ {
+  "model": "FVXM60YVMA",
+  "brand": "daikin",
+  "series": "Floor Standing FVXM-Y",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.0,
+  "capacity_code": 60,
+  "airflow_ls": 243,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 238,
+  "height_mm": 600,
+  "sound_low_dba": 33,
+  "sound_high_dba": 52,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "30"
+  }
+ },
+ {
+  "model": "FVXM71YVMA",
+  "brand": "daikin",
+  "series": "Floor Standing FVXM-Y",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 6.7,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 243,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 238,
+  "height_mm": 600,
+  "sound_low_dba": 33,
+  "sound_high_dba": 52,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Split Systems Brochure (AU)",
+   "edition": "PCSPAU0626",
+   "page": "30"
+  }
+ },
+ {
+  "model": "FTXF20WVMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.5,
+  "capacity_code": 20,
+  "airflow_ls": 152,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 39,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Lite Reverse Cycle Split System Flyer (AU)",
+   "edition": "PFLRAU0921",
+   "page": "2"
+  }
+ },
+ {
+  "model": "FTXF25WVMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.0,
+  "capacity_code": 25,
+  "airflow_ls": 160,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Lite Reverse Cycle Split System Flyer (AU)",
+   "edition": "PFLRAU0921",
+   "page": "2"
+  }
+ },
+ {
+  "model": "FTXF35WVMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 173,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 42,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Lite Reverse Cycle Split System Flyer (AU)",
+   "edition": "PFLRAU0921",
+   "page": "2"
+  }
+ },
+ {
+  "model": "FTXF46WVMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.6,
+  "capacity_heat_kw": 4.7,
+  "capacity_code": 46,
+  "airflow_ls": 200,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 28,
+  "sound_high_dba": 44,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Lite Reverse Cycle Split System Flyer (AU)",
+   "edition": "PFLRAU0921",
+   "page": "2"
+  }
+ },
+ {
+  "model": "FTXF50WVMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.2,
+  "capacity_code": 50,
+  "airflow_ls": 210,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 28,
+  "sound_high_dba": 45,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Lite Reverse Cycle Split System Flyer (AU)",
+   "edition": "PFLRAU0921",
+   "page": "2"
+  }
+ },
+ {
+  "model": "FTXF60WVMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 6.5,
+  "capacity_code": 60,
+  "airflow_ls": 313,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 29,
+  "sound_high_dba": 46,
+  "weight_kg": 12,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Lite Reverse Cycle Split System Flyer (AU)",
+   "edition": "PFLRAU0921",
+   "page": "2"
+  }
+ },
+ {
+  "model": "FTXF71WVMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 350,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 30,
+  "sound_high_dba": 49,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Lite Reverse Cycle Split System Flyer (AU)",
+   "edition": "PFLRAU0921",
+   "page": "2"
+  }
+ },
+ {
+  "model": "FDYBA25AV1",
+  "brand": "daikin",
+  "series": "Bulkhead FDYBA-A",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.5,
+  "capacity_code": 25,
+  "airflow_ls": 150,
+  "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 163
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "sound_high_dba": 41.6,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+  }
+ },
+ {
+  "model": "FDYBA35AV1",
+  "brand": "daikin",
+  "series": "Bulkhead FDYBA-A",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 35,
+  "airflow_ls": 195,
+  "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 775,
+   "h_mm": 163
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 900,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "sound_high_dba": 43.1,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+  }
+ },
+ {
+  "model": "FDYBA50AV1",
+  "brand": "daikin",
+  "series": "Bulkhead FDYBA-A",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 240,
+  "static_pressure_pa": 45,
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 775,
+   "h_mm": 163
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 900,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "sound_high_dba": 45.3,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+  }
+ },
+ {
+  "model": "FDYBA60AV1",
+  "brand": "daikin",
+  "series": "Bulkhead FDYBA-A",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.0,
+  "capacity_code": 60,
+  "airflow_ls": 325,
+  "static_pressure_pa": 40,
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 975,
+   "h_mm": 163
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1100,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "sound_high_dba": 47.7,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+  }
+ },
+ {
+  "model": "FDYBA71AV1",
+  "brand": "daikin",
+  "series": "Bulkhead FDYBA-A",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 325,
+  "static_pressure_pa": 40,
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 975,
+   "h_mm": 163
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1100,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "sound_high_dba": 47.7,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+  }
+ },
+ {
+  "model": "FDYAN50AV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYAN-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 315,
+  "supply_opening": {
+   "w_mm": 852,
+   "h_mm": 185
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1210,
+  "depth_mm": 900,
+  "height_mm": 300,
+  "sound_high_dba": 33.3,
+  "weight_kg": 37,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "26"
+  }
+ },
+ {
+  "model": "FDYAN60AV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYAN-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.0,
+  "capacity_code": 60,
+  "airflow_ls": 340,
+  "supply_opening": {
+   "w_mm": 852,
+   "h_mm": 185
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1210,
+  "depth_mm": 900,
+  "height_mm": 300,
+  "sound_high_dba": 34.1,
+  "weight_kg": 37,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "26"
+  }
+ },
+ {
+  "model": "FDYAN71AV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYAN-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 7.5,
+  "capacity_code": 71,
+  "airflow_ls": 425,
+  "supply_opening": {
+   "w_mm": 852,
+   "h_mm": 185
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1210,
+  "depth_mm": 900,
+  "height_mm": 300,
+  "sound_high_dba": 37.3,
+  "weight_kg": 40,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "26-27"
+  }
+ },
+ {
+  "model": "FDYAN85AV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYAN-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 85,
+  "airflow_ls": 580,
+  "supply_opening": {
+   "w_mm": 852,
+   "h_mm": 185
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1210,
+  "depth_mm": 900,
+  "height_mm": 300,
+  "sound_high_dba": 42.0,
+  "weight_kg": 40,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "26-27"
+  }
+ },
+ {
+  "model": "FDYAN100AV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYAN-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 12.5,
+  "capacity_code": 100,
+  "airflow_ls": 680,
+  "supply_opening": {
+   "w_mm": 852,
+   "h_mm": 185
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1210,
+  "depth_mm": 900,
+  "height_mm": 300,
+  "sound_high_dba": 43.5,
+  "weight_kg": 45,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "26-27"
+  }
+ },
+ {
+  "model": "FDYAN125AV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYAN-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 15.0,
+  "capacity_code": 125,
+  "airflow_ls": 755,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 245
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1520,
+  "depth_mm": 935,
+  "height_mm": 360,
+  "sound_high_dba": 44.2,
+  "weight_kg": 55,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "26-27"
+  }
+ },
+ {
+  "model": "FDYAN140AV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYAN-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.5,
+  "capacity_code": 140,
+  "airflow_ls": 900,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 245
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1520,
+  "depth_mm": 935,
+  "height_mm": 360,
+  "sound_high_dba": 46.6,
+  "weight_kg": 55,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "26-27"
+  }
+ },
+ {
+  "model": "FDYAN160AV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYAN-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 15.5,
+  "capacity_heat_kw": 18.0,
+  "capacity_code": 160,
+  "airflow_ls": 950,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 245
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1520,
+  "depth_mm": 935,
+  "height_mm": 360,
+  "sound_high_dba": 47.9,
+  "weight_kg": 56,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "26-27"
+  }
+ },
+ {
+  "model": "FDYQN180LCV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYQN (R410A)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 18.0,
+  "capacity_heat_kw": 20.0,
+  "capacity_code": 180,
+  "airflow_ls": 1160,
+  "supply_opening": {
+   "w_mm": 918,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 918,
+   "h_mm": 393
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1200,
+  "depth_mm": 997,
+  "height_mm": 470,
+  "sound_high_dba": 45.0,
+  "weight_kg": 70,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FDYQN200LCV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYQN (R410A)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 19.5,
+  "capacity_heat_kw": 22.4,
+  "capacity_code": 200,
+  "airflow_ls": 1400,
+  "supply_opening": {
+   "w_mm": 1118,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 1118,
+   "h_mm": 393
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 997,
+  "height_mm": 470,
+  "sound_high_dba": 46.0,
+  "weight_kg": 85,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FDYQN250LBV1",
+  "brand": "daikin",
+  "series": "Inverter Ducted FDYQN (R410A)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 23.5,
+  "capacity_heat_kw": 26.8,
+  "capacity_code": 250,
+  "airflow_ls": 1400,
+  "supply_opening": {
+   "w_mm": 938,
+   "h_mm": 376
+  },
+  "return_opening": {
+   "w_mm": 1118,
+   "h_mm": 350
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 22.2,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1430,
+  "depth_mm": 970,
+  "height_mm": 500,
+  "sound_high_dba": 49.5,
+  "weight_kg": 92,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "27"
+  }
+ },
+ {
+  "model": "FDYA71AV19",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYA-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 7.5,
+  "capacity_code": 71,
+  "airflow_ls": 425,
+  "supply_opening": {
+   "w_mm": 852,
+   "h_mm": 185
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1210,
+  "depth_mm": 900,
+  "height_mm": 300,
+  "sound_high_dba": 37.3,
+  "weight_kg": 40,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "24"
+  }
+ },
+ {
+  "model": "FDYA85AV19",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYA-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 85,
+  "airflow_ls": 580,
+  "supply_opening": {
+   "w_mm": 852,
+   "h_mm": 185
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1210,
+  "depth_mm": 900,
+  "height_mm": 300,
+  "sound_high_dba": 42.0,
+  "weight_kg": 41,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "24"
+  }
+ },
+ {
+  "model": "FDYA100AV19",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYA-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 12.5,
+  "capacity_code": 100,
+  "airflow_ls": 680,
+  "supply_opening": {
+   "w_mm": 852,
+   "h_mm": 185
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1210,
+  "depth_mm": 900,
+  "height_mm": 300,
+  "sound_high_dba": 42.3,
+  "weight_kg": 46,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "24"
+  }
+ },
+ {
+  "model": "FDYA125AV19",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYA-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 15.0,
+  "capacity_code": 125,
+  "airflow_ls": 755,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 245
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1520,
+  "depth_mm": 935,
+  "height_mm": 360,
+  "sound_high_dba": 44.8,
+  "weight_kg": 56,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "24"
+  }
+ },
+ {
+  "model": "FDYA140AV19",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYA-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.5,
+  "capacity_code": 140,
+  "airflow_ls": 900,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 295
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1505,
+  "depth_mm": 980,
+  "height_mm": 400,
+  "sound_high_dba": 45.9,
+  "weight_kg": 60,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "24"
+  }
+ },
+ {
+  "model": "FDYA160AV19",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYA-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "capacity_code": 160,
+  "airflow_ls": 950,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 295
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1505,
+  "depth_mm": 980,
+  "height_mm": 400,
+  "sound_high_dba": 47.2,
+  "weight_kg": 60,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "24"
+  }
+ },
+ {
+  "model": "FDYA180AV1",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYA-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 18.0,
+  "capacity_heat_kw": 20.0,
+  "capacity_code": 180,
+  "airflow_ls": 1160,
+  "supply_opening": {
+   "w_mm": 918,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 918,
+   "h_mm": 393
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1200,
+  "depth_mm": 997,
+  "height_mm": 470,
+  "sound_high_dba": 42.1,
+  "weight_kg": 70,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "24-25"
+  }
+ },
+ {
+  "model": "FDYA200AV1",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYA-A",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 20.0,
+  "capacity_heat_kw": 22.4,
+  "capacity_code": 200,
+  "airflow_ls": 1200,
+  "supply_opening": {
+   "w_mm": 1118,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 1118,
+   "h_mm": 393
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 997,
+  "height_mm": 470,
+  "sound_high_dba": 39.7,
+  "weight_kg": 77,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FDYQ180LCV1",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYQ (R410A)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 18.0,
+  "capacity_heat_kw": 20.0,
+  "capacity_code": 180,
+  "airflow_ls": 1160,
+  "supply_opening": {
+   "w_mm": 918,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 918,
+   "h_mm": 393
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1200,
+  "depth_mm": 997,
+  "height_mm": 470,
+  "sound_high_dba": 45.0,
+  "weight_kg": 70,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FDYQ200LCV1",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYQ (R410A)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 20.0,
+  "capacity_heat_kw": 22.4,
+  "capacity_code": 200,
+  "airflow_ls": 1200,
+  "supply_opening": {
+   "w_mm": 1118,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 1118,
+   "h_mm": 393
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 997,
+  "height_mm": 470,
+  "sound_high_dba": 44.0,
+  "weight_kg": 79,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FDYQ250LCV1",
+  "brand": "daikin",
+  "series": "Premium Inverter Ducted FDYQ (R410A)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 24.0,
+  "capacity_heat_kw": 26.8,
+  "capacity_code": 250,
+  "airflow_ls": 1400,
+  "supply_opening": {
+   "w_mm": 1118,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 1118,
+   "h_mm": 393
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 22.2,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 997,
+  "height_mm": 470,
+  "sound_high_dba": 46.0,
+  "weight_kg": 85,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "25"
+  }
+ },
+ {
+  "model": "FBA50BAVMA",
+  "brand": "daikin",
+  "series": "Slimline Ducted FBA-B",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 300,
+  "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 792,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 952,
+   "h_mm": 208
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_high_dba": 35,
+  "weight_kg": 37,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+  }
+ },
+ {
+  "model": "FBA60BAVMA",
+  "brand": "daikin",
+  "series": "Slimline Ducted FBA-B",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.1,
+  "capacity_code": 60,
+  "airflow_ls": 300,
+  "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 792,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 952,
+   "h_mm": 208
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_high_dba": 35,
+  "weight_kg": 37,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+  }
+ },
+ {
+  "model": "FBA71BVMA",
+  "brand": "daikin",
+  "series": "Slimline Ducted FBA-B",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 383,
+  "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 792,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 952,
+   "h_mm": 208
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_high_dba": 38,
+  "weight_kg": 37,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+  }
+ },
+ {
+  "model": "FBA85BVMA",
+  "brand": "daikin",
+  "series": "Slimline Ducted FBA-B",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 85,
+  "airflow_ls": 533,
+  "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 1192,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 1352,
+   "h_mm": 208
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_high_dba": 38,
+  "weight_kg": 47,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+  }
+ },
+ {
+  "model": "FBA100BVMA",
+  "brand": "daikin",
+  "series": "Slimline Ducted FBA-B",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 12.0,
+  "capacity_code": 100,
+  "airflow_ls": 533,
+  "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 1192,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 1352,
+   "h_mm": 208
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_high_dba": 38,
+  "weight_kg": 47,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+  }
+ },
+ {
+  "model": "FBA125BVMA",
+  "brand": "daikin",
+  "series": "Slimline Ducted FBA-B",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 15.0,
+  "capacity_code": 125,
+  "airflow_ls": 600,
+  "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 1192,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 1352,
+   "h_mm": 208
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_high_dba": 40,
+  "weight_kg": 47,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+  }
+ },
+ {
+  "model": "FBA140BVMA",
+  "brand": "daikin",
+  "series": "Slimline Ducted FBA-B",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.5,
+  "capacity_code": 140,
+  "airflow_ls": 600,
+  "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 1192,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 1352,
+   "h_mm": 208
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_high_dba": 40,
+  "weight_kg": 47,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "edition": "PCDUAU0126",
+   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+  }
+ },
+ {
+  "model": "FCTA50AVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette with Streamer FCTA-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "sound_low_dba": 27.5,
+  "sound_high_dba": 37.0,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCA50CAVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette FCA-C",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "sound_low_dba": 27.5,
+  "sound_high_dba": 37.0,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCTA60AVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette with Streamer FCTA-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.1,
+  "capacity_code": 60,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "sound_low_dba": 27.5,
+  "sound_high_dba": 37.0,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCA60CAVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette FCA-C",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.1,
+  "capacity_code": 60,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "sound_low_dba": 27.5,
+  "sound_high_dba": 37.0,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCTA71AVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette with Streamer FCTA-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "sound_low_dba": 27.5,
+  "sound_high_dba": 37.0,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCA71CAVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette FCA-C",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "sound_low_dba": 27.5,
+  "sound_high_dba": 37.0,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCTA85AVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette with Streamer FCTA-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 85,
+  "airflow_ls": 575,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 34.0,
+  "sound_high_dba": 45.0,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCA85CVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette FCA-C",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 85,
+  "airflow_ls": 575,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 34.0,
+  "sound_high_dba": 45.0,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCTA100AVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette with Streamer FCTA-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 12.0,
+  "capacity_code": 100,
+  "airflow_ls": 575,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 34.0,
+  "sound_high_dba": 45.0,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCA100CVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette FCA-C",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 12.0,
+  "capacity_code": 100,
+  "airflow_ls": 575,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 34.0,
+  "sound_high_dba": 45.0,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCTA125AVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette with Streamer FCTA-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 15.0,
+  "capacity_code": 125,
+  "airflow_ls": 608,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 36.0,
+  "sound_high_dba": 46.0,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCA125CVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette FCA-C",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 15.0,
+  "capacity_code": 125,
+  "airflow_ls": 608,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 36.0,
+  "sound_high_dba": 46.0,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCTA140AVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette with Streamer FCTA-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.5,
+  "capacity_code": 140,
+  "airflow_ls": 608,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 36.0,
+  "sound_high_dba": 46.0,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FCA140CVMA",
+  "brand": "daikin",
+  "series": "Round Flow Cassette FCA-C",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.5,
+  "capacity_code": 140,
+  "airflow_ls": 608,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 36.0,
+  "sound_high_dba": 46.0,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "51"
+  }
+ },
+ {
+  "model": "FFA25BVM",
+  "brand": "daikin",
+  "series": "Compact Multi Flow Cassette FFA-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "sound_low_dba": 25.0,
+  "sound_high_dba": 31.0,
+  "weight_kg": 16,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "55"
+  }
+ },
+ {
+  "model": "FFA35BVM",
+  "brand": "daikin",
+  "series": "Compact Multi Flow Cassette FFA-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.2,
+  "capacity_code": 35,
+  "airflow_ls": 167,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "sound_low_dba": 25.0,
+  "sound_high_dba": 34.0,
+  "weight_kg": 16,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "55"
+  }
+ },
+ {
+  "model": "FFA50BVM",
+  "brand": "daikin",
+  "series": "Compact Multi Flow Cassette FFA-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 200,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "sound_low_dba": 27.0,
+  "sound_high_dba": 39.0,
+  "weight_kg": 17.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "55"
+  }
+ },
+ {
+  "model": "FFA60BVM",
+  "brand": "daikin",
+  "series": "Compact Multi Flow Cassette FFA-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.1,
+  "capacity_code": 60,
+  "airflow_ls": 250,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "sound_low_dba": 32.0,
+  "sound_high_dba": 44.0,
+  "weight_kg": 17.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "55"
+  }
+ },
+ {
+  "model": "FFA71BVM",
+  "brand": "daikin",
+  "series": "Compact Multi Flow Cassette FFA-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 258,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "sound_low_dba": 32.0,
+  "sound_high_dba": 44.5,
+  "weight_kg": 17.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "55"
+  }
+ },
+ {
+  "model": "FHA50CAVMA",
+  "brand": "daikin",
+  "series": "Ceiling Suspended FHA-C",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 250,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 960,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "sound_low_dba": 32.0,
+  "sound_high_dba": 37.0,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "56"
+  }
+ },
+ {
+  "model": "FHA60CAVMA",
+  "brand": "daikin",
+  "series": "Ceiling Suspended FHA-C",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.1,
+  "capacity_code": 60,
+  "airflow_ls": 250,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 960,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "sound_low_dba": 32.0,
+  "sound_high_dba": 37.0,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "56"
+  }
+ },
+ {
+  "model": "FHA71CVMA",
+  "brand": "daikin",
+  "series": "Ceiling Suspended FHA-C",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 342,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1270,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "sound_low_dba": 34.0,
+  "sound_high_dba": 38.0,
+  "weight_kg": 32,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "56"
+  }
+ },
+ {
+  "model": "FHA85CVMA",
+  "brand": "daikin",
+  "series": "Ceiling Suspended FHA-C",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 85,
+  "airflow_ls": 467,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1590,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "sound_low_dba": 34.0,
+  "sound_high_dba": 42.0,
+  "weight_kg": 38,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "56"
+  }
+ },
+ {
+  "model": "FHA100CVMA",
+  "brand": "daikin",
+  "series": "Ceiling Suspended FHA-C",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 12.0,
+  "capacity_code": 100,
+  "airflow_ls": 467,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1590,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "sound_low_dba": 34.0,
+  "sound_high_dba": 42.0,
+  "weight_kg": 38,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "56"
+  }
+ },
+ {
+  "model": "FHA125CVMA",
+  "brand": "daikin",
+  "series": "Ceiling Suspended FHA-C",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 15.0,
+  "capacity_code": 125,
+  "airflow_ls": 517,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1590,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "sound_low_dba": 37.0,
+  "sound_high_dba": 44.0,
+  "weight_kg": 38,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "56"
+  }
+ },
+ {
+  "model": "FHA140CVMA",
+  "brand": "daikin",
+  "series": "Ceiling Suspended FHA-C",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.5,
+  "capacity_code": 140,
+  "airflow_ls": 567,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1590,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "sound_low_dba": 38.0,
+  "sound_high_dba": 46.0,
+  "weight_kg": 38,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "56"
+  }
+ },
+ {
+  "model": "FTXC50AV1A",
+  "brand": "daikin",
+  "series": "SkyAir Wall FTXC-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 300,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1050,
+  "depth_mm": 238,
+  "height_mm": 290,
+  "sound_low_dba": 40.0,
+  "sound_high_dba": 45.0,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "58"
+  }
+ },
+ {
+  "model": "FTXC60AV1A",
+  "brand": "daikin",
+  "series": "SkyAir Wall FTXC-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.1,
+  "capacity_code": 60,
+  "airflow_ls": 300,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1050,
+  "depth_mm": 238,
+  "height_mm": 290,
+  "sound_low_dba": 40.0,
+  "sound_high_dba": 45.0,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "58"
+  }
+ },
+ {
+  "model": "FTXC71AV1A",
+  "brand": "daikin",
+  "series": "SkyAir Wall FTXC-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 300,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1050,
+  "depth_mm": 238,
+  "height_mm": 290,
+  "sound_low_dba": 40.0,
+  "sound_high_dba": 45.0,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "58"
+  }
+ },
+ {
+  "model": "FTXC85AV1A",
+  "brand": "daikin",
+  "series": "SkyAir Wall FTXC-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 85,
+  "airflow_ls": 433,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1200,
+  "depth_mm": 240,
+  "height_mm": 340,
+  "sound_low_dba": 41.0,
+  "sound_high_dba": 49.0,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "58"
+  }
+ },
+ {
+  "model": "FTXC100AV1A",
+  "brand": "daikin",
+  "series": "SkyAir Wall FTXC-A",
+  "form_factor": "wall",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "capacity_code": 100,
+  "airflow_ls": 433,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1200,
+  "depth_mm": 240,
+  "height_mm": 340,
+  "sound_low_dba": 41.0,
+  "sound_high_dba": 49.0,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "58"
+  }
+ },
+ {
+  "model": "FAA71BVMA",
+  "brand": "daikin",
+  "series": "SkyAir Wall FAA-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 300,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1050,
+  "depth_mm": 238,
+  "height_mm": 290,
+  "sound_low_dba": 40.0,
+  "sound_high_dba": 45.0,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "59"
+  }
+ },
+ {
+  "model": "FAA85BVMA",
+  "brand": "daikin",
+  "series": "SkyAir Wall FAA-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 85,
+  "airflow_ls": 433,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1200,
+  "depth_mm": 240,
+  "height_mm": 340,
+  "sound_low_dba": 41.0,
+  "sound_high_dba": 49.0,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "59"
+  }
+ },
+ {
+  "model": "FAA100BVMA",
+  "brand": "daikin",
+  "series": "SkyAir Wall FAA-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "capacity_code": 100,
+  "airflow_ls": 433,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1200,
+  "depth_mm": 240,
+  "height_mm": 340,
+  "sound_low_dba": 41.0,
+  "sound_high_dba": 49.0,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "SkyAir Brochure (AU)",
+   "edition": "PCSAU2313",
+   "page": "59"
+  }
+ },
+ {
+  "model": "CTXJ25TVMAW",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.4,
+  "capacity_code": 25,
+  "airflow_ls": 177,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "35; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXJ35TVMAW",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.3,
+  "capacity_code": 35,
+  "airflow_ls": 190,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 20,
+  "sound_high_dba": 42,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "35; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXJ50TVMAW",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.1,
+  "capacity_code": 50,
+  "airflow_ls": 218,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 32,
+  "sound_high_dba": 45,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "35; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXJ60TVMAW",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.3,
+  "capacity_code": 60,
+  "airflow_ls": 243,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 33,
+  "sound_high_dba": 48,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "35; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXJ25TVMAK",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.4,
+  "capacity_code": 25,
+  "airflow_ls": 177,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXJ35TVMAK",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.3,
+  "capacity_code": 35,
+  "airflow_ls": 190,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 20,
+  "sound_high_dba": 42,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXJ50TVMAK",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.1,
+  "capacity_code": 50,
+  "airflow_ls": 218,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 32,
+  "sound_high_dba": 45,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXJ60TVMAK",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXJ-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.3,
+  "capacity_code": 60,
+  "airflow_ls": 243,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 33,
+  "sound_high_dba": 48,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXM20RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXM-R",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.8,
+  "capacity_code": 20,
+  "airflow_ls": 155,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 38,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXM25RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXM-R",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.4,
+  "capacity_code": 25,
+  "airflow_ls": 173,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXM35RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXM-R",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.3,
+  "capacity_code": 35,
+  "airflow_ls": 188,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 42,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXM46RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXM-R",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.6,
+  "capacity_heat_kw": 5.6,
+  "capacity_code": 46,
+  "airflow_ls": 203,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 26,
+  "sound_high_dba": 44,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXM50RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXM-R",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.1,
+  "capacity_code": 50,
+  "airflow_ls": 282,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 28,
+  "sound_high_dba": 45,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXM60RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXM-R",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.3,
+  "capacity_code": 60,
+  "airflow_ls": 325,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 29,
+  "sound_high_dba": 48,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXM71RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXM-R",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.6,
+  "capacity_code": 71,
+  "airflow_ls": 333,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 30,
+  "sound_high_dba": 49,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXM85RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXM-R",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 9.4,
+  "capacity_code": 85,
+  "airflow_ls": 398,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1200,
+  "depth_mm": 259,
+  "height_mm": 340,
+  "sound_low_dba": 37,
+  "sound_high_dba": 51,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CTXM95RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Wall CTXM-R",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.5,
+  "capacity_heat_kw": 10.2,
+  "capacity_code": 95,
+  "airflow_ls": 400,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1200,
+  "depth_mm": 259,
+  "height_mm": 340,
+  "sound_low_dba": 38,
+  "sound_high_dba": 53,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "36; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CDXP25RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct CDXP-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.4,
+  "capacity_code": 25,
+  "airflow_ls": 145,
+  "static_pressure_pa": 30,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "sound_low_dba": 29,
+  "sound_high_dba": 35,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CDXP35RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct CDXP-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.3,
+  "capacity_code": 35,
+  "airflow_ls": 145,
+  "static_pressure_pa": 30,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "sound_low_dba": 29,
+  "sound_high_dba": 35,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CDXM25RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct CDXM-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.4,
+  "capacity_code": 25,
+  "airflow_ls": 158,
+  "static_pressure_pa": 40,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 900,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "sound_low_dba": 29,
+  "sound_high_dba": 35,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CDXM35RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct CDXM-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.3,
+  "capacity_code": 35,
+  "airflow_ls": 167,
+  "static_pressure_pa": 40,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 900,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "sound_low_dba": 29,
+  "sound_high_dba": 35,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CDXM50RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct CDXM-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.1,
+  "capacity_code": 50,
+  "airflow_ls": 200,
+  "static_pressure_pa": 40,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 900,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "sound_low_dba": 31,
+  "sound_high_dba": 37,
+  "weight_kg": 27,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CDXM60RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct CDXM-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.3,
+  "capacity_code": 60,
+  "airflow_ls": 267,
+  "static_pressure_pa": 40,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1100,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "sound_low_dba": 32,
+  "sound_high_dba": 38,
+  "weight_kg": 30,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "CDXM71RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct CDXM-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.6,
+  "capacity_code": 71,
+  "airflow_ls": 267,
+  "static_pressure_pa": 40,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1100,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "sound_low_dba": 32,
+  "sound_high_dba": 38,
+  "weight_kg": 30,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "FMA50RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct FMA-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.1,
+  "capacity_code": 50,
+  "airflow_ls": 300,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_low_dba": 31,
+  "sound_high_dba": 35,
+  "weight_kg": 37,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "FMA60RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct FMA-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.3,
+  "capacity_code": 60,
+  "airflow_ls": 300,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_low_dba": 31,
+  "sound_high_dba": 35,
+  "weight_kg": 37,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "FMA71RVMA",
+  "brand": "daikin",
+  "series": "Super Multi NX Duct FMA-R",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.6,
+  "capacity_code": 71,
+  "airflow_ls": 383,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "sound_low_dba": 33,
+  "sound_high_dba": 38,
+  "weight_kg": 37,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "edition": "PCRAU1729B",
+   "page": "37; capacity tables 39-58"
+  }
+ }
+]

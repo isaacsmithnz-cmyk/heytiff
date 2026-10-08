@@ -1,0 +1,34 @@
+{
+  "brand": "daikin",
+  "version": "2026.1",
+  "packSchemaVersion": 1,
+  "name": "Daikin — splits (Zena, Alira X, Cora, XL, Lite, Floor Standing) + ducted (FDYAN, FDYA, FDYQ, FDYQN, FBA, FDYBA bulkhead) + SkyAir + Super Multi NX (multi)",
+  "updated": "2026-10-08",
+  "sources": [
+    {
+      "title": "Split Systems Brochure (AU)",
+      "edition": "PCSPAU0626",
+      "access": "public"
+    },
+    {
+      "title": "Ducted Systems Brochure (AU)",
+      "edition": "PCDUAU0126",
+      "access": "public"
+    },
+    {
+      "title": "Super Multi NX Multi-Split Brochure (AU)",
+      "edition": "PCRAU1729B",
+      "access": "public"
+    },
+    {
+      "title": "SkyAir Brochure (AU)",
+      "edition": "PCSAU2313",
+      "access": "public"
+    },
+    {
+      "title": "Lite Reverse Cycle Split System Flyer (AU)",
+      "edition": "PFLRAU0921",
+      "access": "public"
+    }
+  ]
+}

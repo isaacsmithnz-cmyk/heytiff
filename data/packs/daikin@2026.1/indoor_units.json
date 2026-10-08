@@ -4171,6 +4171,8 @@
   "capacity_code": 25,
   "airflow_ls": 145,
   "static_pressure_pa": 30,
+  "supply_opening": "open",
+  "return_opening": "open",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "default_plane": "ceiling-cavity",
@@ -4189,9 +4191,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
   }
  },
  {
@@ -4204,6 +4206,8 @@
   "capacity_code": 35,
   "airflow_ls": 145,
   "static_pressure_pa": 30,
+  "supply_opening": "open",
+  "return_opening": "open",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "default_plane": "ceiling-cavity",
@@ -4222,9 +4226,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
   }
  },
  {
@@ -4237,6 +4241,8 @@
   "capacity_code": 25,
   "airflow_ls": 158,
   "static_pressure_pa": 40,
+  "supply_opening": "open",
+  "return_opening": "open",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "default_plane": "ceiling-cavity",
@@ -4255,9 +4261,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
   }
  },
  {
@@ -4270,6 +4276,8 @@
   "capacity_code": 35,
   "airflow_ls": 167,
   "static_pressure_pa": 40,
+  "supply_opening": "open",
+  "return_opening": "open",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "default_plane": "ceiling-cavity",
@@ -4288,9 +4296,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
   }
  },
  {
@@ -4303,6 +4311,8 @@
   "capacity_code": 50,
   "airflow_ls": 200,
   "static_pressure_pa": 40,
+  "supply_opening": "open",
+  "return_opening": "open",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -4321,9 +4331,9 @@
   "weight_kg": 27,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
   }
  },
  {
@@ -4336,6 +4346,8 @@
   "capacity_code": 60,
   "airflow_ls": 267,
   "static_pressure_pa": 40,
+  "supply_opening": "open",
+  "return_opening": "open",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -4354,9 +4366,9 @@
   "weight_kg": 30,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
   }
  },
  {
@@ -4369,6 +4381,8 @@
   "capacity_code": 71,
   "airflow_ls": 267,
   "static_pressure_pa": 40,
+  "supply_opening": "open",
+  "return_opening": "open",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -4387,9 +4401,9 @@
   "weight_kg": 30,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
   }
  },
  {
@@ -4402,6 +4416,14 @@
   "capacity_code": 50,
   "airflow_ls": 300,
   "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 792,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 952,
+   "h_mm": 208
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -4420,9 +4442,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
   }
  },
  {
@@ -4435,6 +4457,14 @@
   "capacity_code": 60,
   "airflow_ls": 300,
   "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 792,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 952,
+   "h_mm": 208
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -4453,9 +4483,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
   }
  },
  {
@@ -4468,6 +4498,14 @@
   "capacity_code": 71,
   "airflow_ls": 383,
   "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 792,
+   "h_mm": 176
+  },
+  "return_opening": {
+   "w_mm": 952,
+   "h_mm": 208
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -4486,9 +4524,777 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU)",
+   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58"
+   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
+  }
+ },
+ {
+  "model": "FTXJ25T2VMAW",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 177,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "5"
+  }
+ },
+ {
+  "model": "FTXJ25T2VMAK",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 177,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "5"
+  }
+ },
+ {
+  "model": "FTXJ35T2VMAW",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 190,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 20,
+  "sound_high_dba": 42,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "6"
+  }
+ },
+ {
+  "model": "FTXJ35T2VMAK",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 190,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 20,
+  "sound_high_dba": 42,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "6"
+  }
+ },
+ {
+  "model": "FTXJ50T2VMAW",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 218,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 32,
+  "sound_high_dba": 45,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "7"
+  }
+ },
+ {
+  "model": "FTXJ50T2VMAK",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 218,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 32,
+  "sound_high_dba": 45,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "7"
+  }
+ },
+ {
+  "model": "FTXJ60T2VMAW",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "capacity_code": 60,
+  "airflow_ls": 243,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 33,
+  "sound_high_dba": 48,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "8"
+  }
+ },
+ {
+  "model": "FTXJ60T2VMAK",
+  "brand": "daikin",
+  "series": "Zena FTXJ-T2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "capacity_code": 60,
+  "airflow_ls": 243,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 185,
+  "height_mm": 295,
+  "sound_low_dba": 33,
+  "sound_high_dba": 48,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "8"
+  }
+ },
+ {
+  "model": "FTXV20W2VMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.7,
+  "capacity_code": 20,
+  "airflow_ls": 152,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 38,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "6"
+  }
+ },
+ {
+  "model": "FTXV25W2VMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 173,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 42,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "6"
+  }
+ },
+ {
+  "model": "FTXV35W2VMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 175,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 42,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "7"
+  }
+ },
+ {
+  "model": "FTXV46W2VMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.6,
+  "capacity_heat_kw": 4.7,
+  "capacity_code": 46,
+  "airflow_ls": 203,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 26,
+  "sound_high_dba": 44,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "7"
+  }
+ },
+ {
+  "model": "FTXV50W2VMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 267,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 28,
+  "sound_high_dba": 45,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "8"
+  }
+ },
+ {
+  "model": "FTXV60W2VMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "capacity_code": 60,
+  "airflow_ls": 310,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 29,
+  "sound_high_dba": 48,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "8"
+  }
+ },
+ {
+  "model": "FTXV71W2VMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 310,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 30,
+  "sound_high_dba": 49,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "9"
+  }
+ },
+ {
+  "model": "FTXV85L2VMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-L2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 9.0,
+  "capacity_code": 85,
+  "airflow_ls": 340,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1200,
+  "depth_mm": 240,
+  "height_mm": 340,
+  "sound_low_dba": 37,
+  "sound_high_dba": 51,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "10"
+  }
+ },
+ {
+  "model": "FTXV95L2VMA",
+  "brand": "daikin",
+  "series": "Cora FTXV-L2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.4,
+  "capacity_heat_kw": 10.3,
+  "capacity_code": 95,
+  "airflow_ls": 353,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1200,
+  "depth_mm": 240,
+  "height_mm": 340,
+  "sound_low_dba": 38,
+  "sound_high_dba": 53,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "10"
+  }
+ },
+ {
+  "model": "FTXF20W2VMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.5,
+  "capacity_code": 20,
+  "airflow_ls": 152,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 39,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "5"
+  }
+ },
+ {
+  "model": "FTXF25W2VMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.0,
+  "capacity_code": 25,
+  "airflow_ls": 160,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "5"
+  }
+ },
+ {
+  "model": "FTXF35W2VMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 173,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 42,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "6"
+  }
+ },
+ {
+  "model": "FTXF46W2VMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.6,
+  "capacity_heat_kw": 4.7,
+  "capacity_code": 46,
+  "airflow_ls": 200,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 28,
+  "sound_high_dba": 44,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "6"
+  }
+ },
+ {
+  "model": "FTXF50W2VMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.2,
+  "capacity_code": 50,
+  "airflow_ls": 210,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 28,
+  "sound_high_dba": 45,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "7"
+  }
+ },
+ {
+  "model": "FTXF60W2VMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 6.5,
+  "capacity_code": 60,
+  "airflow_ls": 313,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 29,
+  "sound_high_dba": 46,
+  "weight_kg": 12,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "7"
+  }
+ },
+ {
+  "model": "FTXF71W2VMA",
+  "brand": "daikin",
+  "series": "Lite FTXF-W2",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 350,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 30,
+  "sound_high_dba": 49,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "8"
   }
  }
 ]

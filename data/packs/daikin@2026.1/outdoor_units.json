@@ -107,6 +107,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
+  "precharged_kg": 0.89,
   "width_mm": 845,
   "depth_mm": 300,
   "height_mm": 595,
@@ -114,9 +115,9 @@
   "weight_kg": 36,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTXM-A Series",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26; EDTMT042601 p.5"
   }
  },
  {
@@ -131,6 +132,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
+  "precharged_kg": 0.89,
   "width_mm": 845,
   "depth_mm": 300,
   "height_mm": 595,
@@ -138,9 +140,9 @@
   "weight_kg": 36,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTXM-A Series",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26; EDTMT042601 p.5"
   }
  },
  {
@@ -155,6 +157,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
+  "precharged_kg": 0.89,
   "width_mm": 845,
   "depth_mm": 300,
   "height_mm": 595,
@@ -162,9 +165,9 @@
   "weight_kg": 36,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTXM-A Series",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26; EDTMT042601 p.6"
   }
  },
  {
@@ -179,6 +182,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
+  "precharged_kg": 1.2,
   "width_mm": 930,
   "depth_mm": 350,
   "height_mm": 695,
@@ -186,9 +190,9 @@
   "weight_kg": 50,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTXM-A Series",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26; EDTMT042601 p.6"
   }
  },
  {
@@ -203,6 +207,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
+  "precharged_kg": 1.5,
   "width_mm": 930,
   "depth_mm": 350,
   "height_mm": 695,
@@ -210,9 +215,9 @@
   "weight_kg": 52,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTXM-A Series",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26; EDTMT042601 p.7"
   }
  },
  {
@@ -227,6 +232,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
+  "precharged_kg": 1.5,
   "width_mm": 930,
   "depth_mm": 350,
   "height_mm": 695,
@@ -234,9 +240,9 @@
   "weight_kg": 52,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTXM-A Series",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26; EDTMT042601 p.7"
   }
  },
  {
@@ -251,6 +257,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
+  "precharged_kg": 2.1,
   "width_mm": 940,
   "depth_mm": 320,
   "height_mm": 990,
@@ -258,9 +265,9 @@
   "weight_kg": 75,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTXM-A Series",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26; EDTMT042601 p.8"
   }
  },
  {
@@ -443,6 +450,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
+  "precharged_kg": 2.13,
   "width_mm": 940,
   "depth_mm": 320,
   "height_mm": 990,
@@ -450,9 +458,9 @@
   "weight_kg": 77,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTK(X)M-W Series",
    "edition": "PCSPAU0626",
-   "page": "28"
+   "page": "28; EDTAU042229 p.7"
   }
  },
  {
@@ -467,6 +475,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
+  "precharged_kg": 2.13,
   "width_mm": 940,
   "depth_mm": 320,
   "height_mm": 990,
@@ -474,9 +483,9 @@
   "weight_kg": 77,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTK(X)M-W Series",
    "edition": "PCSPAU0626",
-   "page": "28"
+   "page": "28; EDTAU042229 p.7"
   }
  },
  {
@@ -491,6 +500,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
+  "precharged_kg": 2.13,
   "width_mm": 940,
   "depth_mm": 320,
   "height_mm": 990,
@@ -498,9 +508,9 @@
   "weight_kg": 77,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTXV-W Series (80/90)",
    "edition": "PCSPAU0626",
-   "page": "29"
+   "page": "29; EDTAU042230 p.4"
   }
  },
  {
@@ -515,6 +525,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
+  "precharged_kg": 2.13,
   "width_mm": 940,
   "depth_mm": 320,
   "height_mm": 990,
@@ -522,9 +533,9 @@
   "weight_kg": 77,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FTXV-W Series (80/90)",
    "edition": "PCSPAU0626",
-   "page": "29"
+   "page": "29; EDTAU042230 p.4"
   }
  },
  {
@@ -539,6 +550,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
+  "precharged_kg": 0.84,
   "width_mm": 845,
   "depth_mm": 300,
   "height_mm": 595,
@@ -546,9 +558,9 @@
   "weight_kg": 38,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FVXM-Y Series",
    "edition": "PCSPAU0626",
-   "page": "30"
+   "page": "30; EDTAU062411 p.4"
   }
  },
  {
@@ -563,6 +575,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
+  "precharged_kg": 0.84,
   "width_mm": 845,
   "depth_mm": 300,
   "height_mm": 595,
@@ -570,9 +583,9 @@
   "weight_kg": 38,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FVXM-Y Series",
    "edition": "PCSPAU0626",
-   "page": "30"
+   "page": "30; EDTAU062411 p.4"
   }
  },
  {
@@ -587,6 +600,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
+  "precharged_kg": 0.84,
   "width_mm": 845,
   "depth_mm": 300,
   "height_mm": 595,
@@ -594,9 +608,9 @@
   "weight_kg": 38,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FVXM-Y Series",
    "edition": "PCSPAU0626",
-   "page": "30"
+   "page": "30; EDTAU062411 p.5"
   }
  },
  {
@@ -611,6 +625,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
+  "precharged_kg": 1.4,
   "width_mm": 930,
   "depth_mm": 350,
   "height_mm": 695,
@@ -618,9 +633,9 @@
   "weight_kg": 54,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FVXM-Y Series",
    "edition": "PCSPAU0626",
-   "page": "30"
+   "page": "30; EDTAU062411 p.5"
   }
  },
  {
@@ -635,6 +650,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
+  "precharged_kg": 1.4,
   "width_mm": 930,
   "depth_mm": 350,
   "height_mm": 695,
@@ -642,9 +658,9 @@
   "weight_kg": 54,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FVXM-Y Series",
    "edition": "PCSPAU0626",
-   "page": "30"
+   "page": "30; EDTAU062411 p.6"
   }
  },
  {
@@ -659,6 +675,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
+  "precharged_kg": 1.4,
   "width_mm": 930,
   "depth_mm": 350,
   "height_mm": 695,
@@ -666,9 +683,9 @@
   "weight_kg": 54,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
+   "source": "Split Systems Brochure (AU); Engineering Data, Split Type Air Conditioners FVXM-Y Series",
    "edition": "PCSPAU0626",
-   "page": "30"
+   "page": "30; EDTAU062411 p.6"
   }
  },
  {
@@ -1528,6 +1545,7 @@
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
+  "precharged_kg": 3.8,
   "width_mm": 940,
   "depth_mm": 320,
   "height_mm": 1430,
@@ -1535,9 +1553,9 @@
   "weight_kg": 118,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYA-AV1 + RZAS-DV1/DY1 Series",
    "edition": "PCDUAU0126",
-   "page": "24"
+   "page": "24; EDAU282514A p.8"
   }
  },
  {
@@ -1552,6 +1570,7 @@
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
+  "precharged_kg": 3.8,
   "width_mm": 940,
   "depth_mm": 320,
   "height_mm": 1430,
@@ -1559,9 +1578,9 @@
   "weight_kg": 118,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYA-AV1 + RZAS-DV1/DY1 Series",
    "edition": "PCDUAU0126",
-   "page": "25"
+   "page": "25; EDAU282514A p.9"
   }
  },
  {
@@ -1576,6 +1595,7 @@
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
+  "precharged_kg": 3.8,
   "width_mm": 940,
   "depth_mm": 320,
   "height_mm": 1430,
@@ -1583,9 +1603,9 @@
   "weight_kg": 118,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYA-AV1 + RZAS-DV1/DY1 Series",
    "edition": "PCDUAU0126",
-   "page": "25"
+   "page": "25; EDAU282514A p.9"
   }
  },
  {
@@ -2574,6 +2594,602 @@
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
    "page": "5, 35; capacity tables 39-58"
+  }
+ },
+ {
+  "model": "RXJ25T2VMA",
+  "brand": "daikin",
+  "series": "RXJ-T2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "refrigerant": "R32",
+  "precharged_kg": 0.85,
+  "width_mm": 675,
+  "depth_mm": 284,
+  "height_mm": 550,
+  "sound_high_dba": 47,
+  "weight_kg": 30,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "5"
+  }
+ },
+ {
+  "model": "RXJ35T2VMA",
+  "brand": "daikin",
+  "series": "RXJ-T2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "refrigerant": "R32",
+  "precharged_kg": 0.85,
+  "width_mm": 675,
+  "depth_mm": 284,
+  "height_mm": 550,
+  "sound_high_dba": 49,
+  "weight_kg": 30,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "6"
+  }
+ },
+ {
+  "model": "RXJ50T2VMA",
+  "brand": "daikin",
+  "series": "RXJ-T2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 1.4,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 47,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "7"
+  }
+ },
+ {
+  "model": "RXJ60T2VMA",
+  "brand": "daikin",
+  "series": "RXJ-T2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 1.4,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 49,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+   "edition": "EDTAU042238",
+   "page": "8"
+  }
+ },
+ {
+  "model": "RXV20W2VMA",
+  "brand": "daikin",
+  "series": "RXV-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.7,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "refrigerant": "R32",
+  "precharged_kg": 0.73,
+  "width_mm": 675,
+  "depth_mm": 284,
+  "height_mm": 550,
+  "sound_high_dba": 46,
+  "weight_kg": 28,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "6"
+  }
+ },
+ {
+  "model": "RXV25W2VMA",
+  "brand": "daikin",
+  "series": "RXV-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "refrigerant": "R32",
+  "precharged_kg": 0.85,
+  "width_mm": 675,
+  "depth_mm": 284,
+  "height_mm": 550,
+  "sound_high_dba": 47,
+  "weight_kg": 30,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "6"
+  }
+ },
+ {
+  "model": "RXV35W2VMA",
+  "brand": "daikin",
+  "series": "RXV-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "refrigerant": "R32",
+  "precharged_kg": 0.85,
+  "width_mm": 675,
+  "depth_mm": 284,
+  "height_mm": 550,
+  "sound_high_dba": 49,
+  "weight_kg": 30,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "7"
+  }
+ },
+ {
+  "model": "RXV46W2VMA",
+  "brand": "daikin",
+  "series": "RXV-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 4.6,
+  "capacity_heat_kw": 4.7,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 1.2,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 47,
+  "weight_kg": 51,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "7"
+  }
+ },
+ {
+  "model": "RXV50W2VMA",
+  "brand": "daikin",
+  "series": "RXV-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 1.5,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 47,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "8"
+  }
+ },
+ {
+  "model": "RXV60W2VMA",
+  "brand": "daikin",
+  "series": "RXV-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 1.5,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 49,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "8"
+  }
+ },
+ {
+  "model": "RXV71W2VMA",
+  "brand": "daikin",
+  "series": "RXV-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "refrigerant": "R32",
+  "precharged_kg": 1.6,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 53,
+  "weight_kg": 60,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "9"
+  }
+ },
+ {
+  "model": "RXV85L2VMA",
+  "brand": "daikin",
+  "series": "RXV-L2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 9.0,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "refrigerant": "R32",
+  "precharged_kg": 2.25,
+  "width_mm": 940,
+  "depth_mm": 320,
+  "height_mm": 990,
+  "sound_high_dba": 54,
+  "weight_kg": 80,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "10"
+  }
+ },
+ {
+  "model": "RXV95L2VMA",
+  "brand": "daikin",
+  "series": "RXV-L2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 9.4,
+  "capacity_heat_kw": 10.3,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "refrigerant": "R32",
+  "precharged_kg": 2.61,
+  "width_mm": 940,
+  "depth_mm": 320,
+  "height_mm": 990,
+  "sound_high_dba": 54,
+  "weight_kg": 82,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+   "edition": "EDTAU042221B",
+   "page": "10"
+  }
+ },
+ {
+  "model": "RXF20W2VMA",
+  "brand": "daikin",
+  "series": "RXF-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.5,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "refrigerant": "R32",
+  "precharged_kg": 0.44,
+  "width_mm": 675,
+  "depth_mm": 284,
+  "height_mm": 550,
+  "sound_high_dba": 47,
+  "weight_kg": 27,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "5"
+  }
+ },
+ {
+  "model": "RXF25W2VMA",
+  "brand": "daikin",
+  "series": "RXF-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.0,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "refrigerant": "R32",
+  "precharged_kg": 0.73,
+  "width_mm": 675,
+  "depth_mm": 284,
+  "height_mm": 550,
+  "sound_high_dba": 47,
+  "weight_kg": 28,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "5"
+  }
+ },
+ {
+  "model": "RXF35W2VMA",
+  "brand": "daikin",
+  "series": "RXF-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "refrigerant": "R32",
+  "precharged_kg": 0.73,
+  "width_mm": 675,
+  "depth_mm": 284,
+  "height_mm": 550,
+  "sound_high_dba": 48,
+  "weight_kg": 28,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "6"
+  }
+ },
+ {
+  "model": "RXF46W2VMA",
+  "brand": "daikin",
+  "series": "RXF-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 4.6,
+  "capacity_heat_kw": 4.7,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 0.85,
+  "width_mm": 845,
+  "depth_mm": 300,
+  "height_mm": 595,
+  "sound_high_dba": 47,
+  "weight_kg": 41,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "6"
+  }
+ },
+ {
+  "model": "RXF50W2VMA",
+  "brand": "daikin",
+  "series": "RXF-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.2,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 0.85,
+  "width_mm": 845,
+  "depth_mm": 300,
+  "height_mm": 595,
+  "sound_high_dba": 47,
+  "weight_kg": 41,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "7"
+  }
+ },
+ {
+  "model": "RXF60W2VMA",
+  "brand": "daikin",
+  "series": "RXF-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 6.5,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 0.85,
+  "width_mm": 845,
+  "depth_mm": 300,
+  "height_mm": 595,
+  "sound_high_dba": 49,
+  "weight_kg": 41,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "7"
+  }
+ },
+ {
+  "model": "RXF71W2VMA",
+  "brand": "daikin",
+  "series": "RXF-W2VMA",
+  "system_type": "split",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 1.5,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 53,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+   "edition": "EDTAU042222B",
+   "page": "8"
+  }
+ },
+ {
+  "model": "3MXM52R2VMA",
+  "brand": "daikin",
+  "series": "Super Multi NX MXM-R2",
+  "system_type": "multi",
+  "capacity_cool_kw": 5.2,
+  "capacity_heat_kw": 6.8,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "refrigerant": "R32",
+  "precharged_kg": 1.8,
+  "ports": 3,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 45,
+  "weight_kg": 53,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "edition": "EDTAU122219A",
+   "page": "22, 24-27"
+  }
+ },
+ {
+  "model": "4MXM68R2VMA",
+  "brand": "daikin",
+  "series": "Super Multi NX MXM-R2",
+  "system_type": "multi",
+  "capacity_cool_kw": 6.8,
+  "capacity_heat_kw": 8.6,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "refrigerant": "R32",
+  "precharged_kg": 1.95,
+  "ports": 4,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 47,
+  "weight_kg": 56,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "edition": "EDTAU122219A",
+   "page": "22, 28-35"
+  }
+ },
+ {
+  "model": "4MXM80R2VMA",
+  "brand": "daikin",
+  "series": "Super Multi NX MXM-R2",
+  "system_type": "multi",
+  "capacity_cool_kw": 8.0,
+  "capacity_heat_kw": 9.6,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "refrigerant": "R32",
+  "precharged_kg": 2.05,
+  "ports": 4,
+  "width_mm": 930,
+  "depth_mm": 350,
+  "height_mm": 695,
+  "sound_high_dba": 48,
+  "weight_kg": 61,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "edition": "EDTAU122219A",
+   "page": "23, 36-47"
+  }
+ },
+ {
+  "model": "5MXM100R2VMA",
+  "brand": "daikin",
+  "series": "Super Multi NX MXM-R2",
+  "system_type": "multi",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.0,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "refrigerant": "R32",
+  "precharged_kg": 2.8,
+  "ports": 5,
+  "width_mm": 940,
+  "depth_mm": 320,
+  "height_mm": 990,
+  "sound_high_dba": 48,
+  "weight_kg": 83,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "edition": "EDTAU122219A",
+   "page": "23, 48-63"
   }
  }
 ]

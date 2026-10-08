@@ -176,9 +176,16 @@ export async function POST(req: Request) {
     case "proposal":
       result = await saveProposal(g.orgId, jobUuid, body.patch, g.userId);
       break;
-    case "approve":
-      result = await approveProposal(g.orgId, jobUuid, g.userId);
+    case "approve": {
+      const approved = await approveProposal(g.orgId, jobUuid, g.userId);
+      result = approved;
+      /* marked in Tiff's thread, where there is one (slice 6.2) */
+      if (approved.ok) {
+        const session = await readSession(g.orgId, jobUuid).catch(() => null);
+        if (session) await addEvents(g.orgId, session.id, null, [{ kind: "milestone", author: g.userId, body: { text: "Proposal approved" } }]);
+      }
       break;
+    }
     case "loading":
       result = await setLoading(g.orgId, jobUuid, opt(body.option), { pct: body.pct, reason: body.reason }, g.userId);
       break;

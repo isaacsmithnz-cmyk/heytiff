@@ -1,0 +1,1839 @@
+[
+ {
+  "model": "SRK20ZSXA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZSXA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.7,
+  "capacity_code": 20,
+  "airflow_ls": 188,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 920,
+  "depth_mm": 220,
+  "height_mm": 305,
+  "sound_low_dba": 19,
+  "sound_high_dba": 38,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "20; type: 8; 12 (PDF p.7)"
+  }
+ },
+ {
+  "model": "SRK25ZSXA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZSXA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 203,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 920,
+  "depth_mm": 220,
+  "height_mm": 305,
+  "sound_low_dba": 19,
+  "sound_high_dba": 39,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "20; type: 8; 12 (PDF p.7)"
+  }
+ },
+ {
+  "model": "SRK35ZSXA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZSXA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.3,
+  "capacity_code": 35,
+  "airflow_ls": 218,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 920,
+  "depth_mm": 220,
+  "height_mm": 305,
+  "sound_low_dba": 19,
+  "sound_high_dba": 43,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "20; type: 8; 12 (PDF p.7)"
+  }
+ },
+ {
+  "model": "SRK50ZSXA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZSXA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 238,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 920,
+  "depth_mm": 220,
+  "height_mm": 305,
+  "sound_low_dba": 22,
+  "sound_high_dba": 44,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "20; type: 8; 12 (PDF p.7)"
+  }
+ },
+ {
+  "model": "SRK60ZSXA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZSXA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.1,
+  "capacity_heat_kw": 6.8,
+  "capacity_code": 60,
+  "airflow_ls": 272,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 920,
+  "depth_mm": 220,
+  "height_mm": 305,
+  "sound_low_dba": 22,
+  "sound_high_dba": 48,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "20; type: 8; 12 (PDF p.7)"
+  }
+ },
+ {
+  "model": "SRK20ZSA-WF1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZSA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.7,
+  "capacity_code": 20,
+  "airflow_ls": 165,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 19,
+  "sound_high_dba": 35,
+  "weight_kg": 9.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "21; type: 9; 11 (PDF p.6)"
+  }
+ },
+ {
+  "model": "SRK25ZSA-WF1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZSA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 182,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 10,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "21; type: 9; 11 (PDF p.6)"
+  }
+ },
+ {
+  "model": "SRK35ZSA-WF1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZSA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 205,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 19,
+  "sound_high_dba": 43,
+  "weight_kg": 10,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "21; type: 9; 11 (PDF p.6)"
+  }
+ },
+ {
+  "model": "SRK50ZSA-WF1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZSA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.8,
+  "capacity_code": 50,
+  "airflow_ls": 213,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 22,
+  "sound_high_dba": 43,
+  "weight_kg": 10,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "21; type: 9; 11 (PDF p.6)"
+  }
+ },
+ {
+  "model": "SRK63ZRA-WF1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZRA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.3,
+  "capacity_heat_kw": 7.1,
+  "airflow_ls": 342,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1197,
+  "depth_mm": 262,
+  "height_mm": 339,
+  "sound_low_dba": 25,
+  "sound_high_dba": 44,
+  "weight_kg": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "22; type: 10"
+  }
+ },
+ {
+  "model": "SRK71ZRA-WF1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZRA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 342,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1197,
+  "depth_mm": 262,
+  "height_mm": 339,
+  "sound_low_dba": 24,
+  "sound_high_dba": 43,
+  "weight_kg": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "22; type: 10; 11 (PDF p.6)"
+  }
+ },
+ {
+  "model": "SRK80ZRA-WF1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZRA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.0,
+  "capacity_heat_kw": 9.0,
+  "capacity_code": 80,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1197,
+  "depth_mm": 262,
+  "height_mm": 339,
+  "sound_low_dba": 25,
+  "sound_high_dba": 46,
+  "weight_kg": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "22; type: 10; 11 (PDF p.6)"
+  }
+ },
+ {
+  "model": "SRK95ZRA-WF1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZRA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.5,
+  "capacity_heat_kw": 10.3,
+  "airflow_ls": 408,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1197,
+  "depth_mm": 262,
+  "height_mm": 339,
+  "sound_low_dba": 26,
+  "sound_high_dba": 48,
+  "weight_kg": 16.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "22; type: 10"
+  }
+ },
+ {
+  "model": "SRK100ZRA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZRA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "airflow_ls": 408,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1197,
+  "depth_mm": 262,
+  "height_mm": 339,
+  "sound_low_dba": 27,
+  "sound_high_dba": 48,
+  "weight_kg": 16.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "22; type: 10"
+  }
+ },
+ {
+  "model": "SRK100ZRA-WF1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZRA-WF1",
+  "form_factor": "wall",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "airflow_ls": 408,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1197,
+  "depth_mm": 262,
+  "height_mm": 339,
+  "sound_low_dba": 27,
+  "sound_high_dba": 48,
+  "weight_kg": 16.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "22; type: 10"
+  }
+ },
+ {
+  "model": "DXK05ZTLA-WFJ",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "DXK-ZTLA-WFJ",
+  "form_factor": "wall",
+  "capacity_cool_kw": 1.5,
+  "capacity_heat_kw": 2.0,
+  "airflow_ls": 158,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 210,
+  "height_mm": 294,
+  "sound_low_dba": 19,
+  "sound_high_dba": 36,
+  "weight_kg": 8.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "24; type: 12"
+  }
+ },
+ {
+  "model": "DXK07ZTLA-WFJ",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "DXK-ZTLA-WFJ",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.7,
+  "airflow_ls": 165,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 210,
+  "height_mm": 294,
+  "sound_low_dba": 19,
+  "sound_high_dba": 37,
+  "weight_kg": 8.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "24; type: 12"
+  }
+ },
+ {
+  "model": "DXK09ZTLA-WFJ",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "DXK-ZTLA-WFJ",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.0,
+  "airflow_ls": 167,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 210,
+  "height_mm": 294,
+  "sound_low_dba": 22,
+  "sound_high_dba": 41,
+  "weight_kg": 8.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "24; type: 12"
+  }
+ },
+ {
+  "model": "DXK12ZTLA-WFJ",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "DXK-ZTLA-WFJ",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.3,
+  "capacity_heat_kw": 3.8,
+  "airflow_ls": 187,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 210,
+  "height_mm": 294,
+  "sound_low_dba": 22,
+  "sound_high_dba": 45,
+  "weight_kg": 8.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "24; type: 12"
+  }
+ },
+ {
+  "model": "DXK18ZTLA-WFJ",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "DXK-ZTLA-WFJ",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.8,
+  "airflow_ls": 208,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 798,
+  "depth_mm": 210,
+  "height_mm": 294,
+  "sound_low_dba": 25,
+  "sound_high_dba": 47,
+  "weight_kg": 9.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "24; type: 12"
+  }
+ },
+ {
+  "model": "DXK21ZTLA-WFJ",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "DXK-ZTLA-WFJ",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.3,
+  "capacity_heat_kw": 7.1,
+  "airflow_ls": 283,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 998,
+  "depth_mm": 230,
+  "height_mm": 294,
+  "sound_low_dba": 30,
+  "sound_high_dba": 46,
+  "weight_kg": 11.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "24; type: 12"
+  }
+ },
+ {
+  "model": "DXK24ZTLA-WFJ",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "DXK-ZTLA-WFJ",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "airflow_ls": 320,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 998,
+  "depth_mm": 230,
+  "height_mm": 294,
+  "sound_low_dba": 31,
+  "sound_high_dba": 49,
+  "weight_kg": 11.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU",
+   "page": "24; type: 12"
+  }
+ },
+ {
+  "model": "SRF25ZS-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRF-ZS",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.4,
+  "capacity_code": 25,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 860,
+  "depth_mm": 238,
+  "height_mm": 600,
+  "sound_low_dba": 26,
+  "sound_high_dba": 37,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "25; type: 4, 13; 13 (PDF p.7)"
+  }
+ },
+ {
+  "model": "SRF35ZS-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRF-ZS",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.5,
+  "capacity_code": 35,
+  "airflow_ls": 153,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 860,
+  "depth_mm": 238,
+  "height_mm": 600,
+  "sound_low_dba": 29,
+  "sound_high_dba": 40,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "25; type: 4, 13; 13 (PDF p.7)"
+  }
+ },
+ {
+  "model": "SRF50ZSX-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRF-ZS",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 192,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 860,
+  "depth_mm": 238,
+  "height_mm": 600,
+  "sound_low_dba": 28,
+  "sound_high_dba": 46,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "25; type: 4, 13; 13 (PDF p.7)"
+  }
+ },
+ {
+  "model": "SRR25ZS-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRR-ZS",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.4,
+  "capacity_code": 25,
+  "airflow_ls": 158,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 99
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 160
+  },
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 24,
+  "sound_high_dba": 37,
+  "weight_kg": 20.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU); MHIAA Ducted Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU; Ducted System September 2026 AU",
+   "page": "26; type: 4, 14; 13 (PDF p.7); 10-11 (PDF p.6); drawing 29 (PDF p.15)"
+  }
+ },
+ {
+  "model": "SRR35ZS-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRR-ZS",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.2,
+  "capacity_code": 35,
+  "airflow_ls": 167,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 99
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 160
+  },
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 25,
+  "sound_high_dba": 38,
+  "weight_kg": 20.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU); MHIAA Ducted Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU; Ducted System September 2026 AU",
+   "page": "26; type: 4, 14; 13 (PDF p.7); 10-11 (PDF p.6); drawing 29 (PDF p.15)"
+  }
+ },
+ {
+  "model": "SRR50ZS-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRR-ZS",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.4,
+  "capacity_code": 50,
+  "airflow_ls": 225,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 29,
+  "sound_high_dba": 41,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU); MHIAA Ducted Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU; Ducted System September 2026 AU",
+   "page": "26; type: 4, 14; 13 (PDF p.7); 10-11 (PDF p.6)"
+  }
+ },
+ {
+  "model": "SRR60ZS-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRR-ZS",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.7,
+  "capacity_code": 60,
+  "airflow_ls": 242,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 30,
+  "sound_high_dba": 44,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU); MHIAA Ducted Systems Brochure (AU)",
+   "edition": "Split Systems April 2026 AU; Multi-Split Systems March 2026 AU; Ducted System September 2026 AU",
+   "page": "26; type: 4, 14; 13 (PDF p.7); 10-11 (PDF p.6)"
+  }
+ },
+ {
+  "model": "FDTC25VH1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-VH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.4,
+  "capacity_code": 25,
+  "airflow_ls": 142,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 27,
+  "sound_high_dba": 38,
+  "weight_kg": 13.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "13 (PDF p.7); drawing 17 (PDF p.9); type: 7 (PDF p.4); 14 (PDF p.8)"
+  }
+ },
+ {
+  "model": "FDTC35VH1",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-VH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.25,
+  "capacity_code": 35,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 29,
+  "sound_high_dba": 39,
+  "weight_kg": 13.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "13 (PDF p.7); drawing 17 (PDF p.9); type: 7 (PDF p.4); 14 (PDF p.8)"
+  }
+ },
+ {
+  "model": "FDTC50VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-VH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.4,
+  "capacity_code": 50,
+  "airflow_ls": 217,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 27,
+  "sound_high_dba": 44,
+  "weight_kg": 14,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "13 (PDF p.7); drawing 17 (PDF p.9); type: 7 (PDF p.4); 14 (PDF p.8)"
+  }
+ },
+ {
+  "model": "FDTC60VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-VH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.7,
+  "capacity_code": 60,
+  "airflow_ls": 233,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 31,
+  "sound_high_dba": 46,
+  "weight_kg": 14,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU; Multi-Split Systems March 2026 AU",
+   "page": "13 (PDF p.7); drawing 17 (PDF p.9); type: 7 (PDF p.4); 14 (PDF p.8)"
+  }
+ },
+ {
+  "model": "FDT60VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-VH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.7,
+  "airflow_ls": 433,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 236,
+  "sound_low_dba": 27,
+  "sound_high_dba": 44,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU",
+   "page": "12 (PDF p.7); drawing 15 (PDF p.8); type: 6 (PDF p.4)"
+  }
+ },
+ {
+  "model": "FDT71VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-VH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "airflow_ls": 467,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 236,
+  "sound_low_dba": 26,
+  "sound_high_dba": 46,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU",
+   "page": "12 (PDF p.7); drawing 15 (PDF p.8); type: 6 (PDF p.4)"
+  }
+ },
+ {
+  "model": "FDT100VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-VH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "airflow_ls": 616,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 30,
+  "sound_high_dba": 47,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU",
+   "page": "12 (PDF p.7); drawing 16 (PDF p.9); type: 6 (PDF p.4)"
+  }
+ },
+ {
+  "model": "FDT125VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-VH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 12.1,
+  "capacity_heat_kw": 12.1,
+  "airflow_ls": 633,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 31,
+  "sound_high_dba": 48,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU",
+   "page": "12 (PDF p.7); drawing 16 (PDF p.9); type: 6 (PDF p.4)"
+  }
+ },
+ {
+  "model": "FDT140VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-VH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "airflow_ls": 633,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 32,
+  "sound_high_dba": 48,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU",
+   "page": "12 (PDF p.7); drawing 16 (PDF p.9); type: 6 (PDF p.4)"
+  }
+ },
+ {
+  "model": "FDE71VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDE-VH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "airflow_ls": 333,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1320,
+  "depth_mm": 690,
+  "height_mm": 210,
+  "sound_low_dba": 32,
+  "sound_high_dba": 47,
+  "weight_kg": 33,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU",
+   "page": "14 (PDF p.8); drawing 18 (PDF p.10); type: 8 (PDF p.5)"
+  }
+ },
+ {
+  "model": "FDE100VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDE-VH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "airflow_ls": 533,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1620,
+  "depth_mm": 690,
+  "height_mm": 250,
+  "sound_low_dba": 34,
+  "sound_high_dba": 48,
+  "weight_kg": 43,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU",
+   "page": "14 (PDF p.8); drawing 19 (PDF p.10); type: 8 (PDF p.5)"
+  }
+ },
+ {
+  "model": "FDE125VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDE-VH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 12.1,
+  "capacity_heat_kw": 12.1,
+  "airflow_ls": 533,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1620,
+  "depth_mm": 690,
+  "height_mm": 250,
+  "sound_low_dba": 35,
+  "sound_high_dba": 48,
+  "weight_kg": 43,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU",
+   "page": "14 (PDF p.8); drawing 19 (PDF p.10); type: 8 (PDF p.5)"
+  }
+ },
+ {
+  "model": "FDE140VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDE-VH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "airflow_ls": 567,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1620,
+  "depth_mm": 690,
+  "height_mm": 250,
+  "sound_low_dba": 36,
+  "sound_high_dba": 49,
+  "weight_kg": 43,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU)",
+   "edition": "Ceiling Systems September 2026 AU",
+   "page": "14 (PDF p.8); drawing 19 (PDF p.10); type: 8 (PDF p.5)"
+  }
+ },
+ {
+  "model": "FDUM50VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.4,
+  "capacity_code": 50,
+  "airflow_ls": 217,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 680,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 26,
+  "sound_high_dba": 37,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book, Inverter Packaged Air-Conditioners with Zone Control (FDUA/FDUM/FDU); MHIAA Multi-Split Systems Brochure (AU)",
+   "edition": "Ducted System September 2026 AU; '19 PAC-DB-324; Multi-Split Systems March 2026 AU",
+   "page": "14 (PDF p.8); drawing 19 (PDF p.10); type: 6 (PDF p.4); drain pump: 4 (PDF p.3); 23 (PDF p.24) (indoor unit: airflow, static, connections, filter); 14 (PDF p.8)"
+  }
+ },
+ {
+  "model": "FDUM60VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.7,
+  "airflow_ls": 333,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 880,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 860,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 25,
+  "sound_high_dba": 36,
+  "weight_kg": 34,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book, Inverter Packaged Air-Conditioners with Zone Control (FDUA/FDUM/FDU)",
+   "edition": "Ducted System September 2026 AU; '19 PAC-DB-324",
+   "page": "14 (PDF p.8); drawing 20 (PDF p.11); type: 6 (PDF p.4); drain pump: 4 (PDF p.3); 24 (PDF p.25) (indoor unit: airflow, static, connections, filter)"
+  }
+ },
+ {
+  "model": "FDU71VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "airflow_ls": 400,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 880,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 740,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 25,
+  "sound_high_dba": 38,
+  "weight_kg": 34,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book, Inverter Packaged Air-Conditioners with Zone Control (FDUA/FDUM/FDU)",
+   "edition": "Ducted System September 2026 AU; '19 PAC-DB-324",
+   "page": "14 (PDF p.8); drawing 21 (PDF p.11); type: 7 (PDF p.4); drain pump: 4 (PDF p.3); 17 (PDF p.18) (indoor unit: airflow, static, connections, filter)"
+  }
+ },
+ {
+  "model": "FDU100VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 10.0,
+  "airflow_ls": 600,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 1280,
+   "h_mm": 235
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1370,
+  "depth_mm": 740,
+  "height_mm": 280,
+  "sound_low_dba": 30,
+  "sound_high_dba": 44,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book, Inverter Packaged Air-Conditioners with Zone Control (FDUA/FDUM/FDU)",
+   "edition": "Ducted System September 2026 AU; '19 PAC-DB-324",
+   "page": "14 (PDF p.8); drawing 22 (PDF p.12); type: 7 (PDF p.4); drain pump: 4 (PDF p.3); 173 (PDF p.174) (indoor unit: airflow, static, connections, filter)"
+  }
+ },
+ {
+  "model": "FDU125VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.1,
+  "capacity_heat_kw": 12.1,
+  "airflow_ls": 650,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 1280,
+   "h_mm": 235
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1370,
+  "depth_mm": 740,
+  "height_mm": 280,
+  "sound_low_dba": 29,
+  "sound_high_dba": 45,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book, Inverter Packaged Air-Conditioners with Zone Control (FDUA/FDUM/FDU)",
+   "edition": "Ducted System September 2026 AU; '19 PAC-DB-324",
+   "page": "14 (PDF p.8); drawing 22 (PDF p.12); type: 7 (PDF p.4); drain pump: 4 (PDF p.3); 18 (PDF p.19) (indoor unit: airflow, static, connections, filter)"
+  }
+ },
+ {
+  "model": "FDU140VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "airflow_ls": 800,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 1280,
+   "h_mm": 235
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1370,
+  "depth_mm": 740,
+  "height_mm": 280,
+  "sound_low_dba": 30,
+  "sound_high_dba": 47,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book, Inverter Packaged Air-Conditioners with Zone Control (FDUA/FDUM/FDU)",
+   "edition": "Ducted System September 2026 AU; '19 PAC-DB-324",
+   "page": "14 (PDF p.8); drawing 22 (PDF p.12); type: 7 (PDF p.4); drain pump: 4 (PDF p.3); 19 (PDF p.20) (indoor unit: airflow, static, connections, filter)"
+  }
+ },
+ {
+  "model": "FDUA100VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUA-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 10.0,
+  "airflow_ls": 650,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 898,
+   "h_mm": 348
+  },
+  "return_opening": {
+   "w_mm": 898,
+   "h_mm": 348
+  },
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1150,
+  "depth_mm": 650,
+  "height_mm": 398,
+  "sound_low_dba": 37,
+  "sound_high_dba": 43,
+  "weight_kg": 52,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU)",
+   "edition": "Ducted System September 2026 AU",
+   "page": "15 (PDF p.8); drawing 23 (PDF p.12); type: 8 (PDF p.5); drain pump: 4 (PDF p.3)"
+  }
+ },
+ {
+  "model": "FDUA125VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUA-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.1,
+  "capacity_heat_kw": 12.1,
+  "airflow_ls": 717,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 898,
+   "h_mm": 348
+  },
+  "return_opening": {
+   "w_mm": 898,
+   "h_mm": 348
+  },
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1150,
+  "depth_mm": 650,
+  "height_mm": 398,
+  "sound_low_dba": 38,
+  "sound_high_dba": 46,
+  "weight_kg": 52,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU)",
+   "edition": "Ducted System September 2026 AU",
+   "page": "15 (PDF p.8); drawing 23 (PDF p.12); type: 8 (PDF p.5); drain pump: 4 (PDF p.3)"
+  }
+ },
+ {
+  "model": "FDUA140VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUA-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "airflow_ls": 1000,
+  "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 1064,
+   "h_mm": 298
+  },
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1450,
+  "depth_mm": 930,
+  "height_mm": 398,
+  "sound_low_dba": 38,
+  "sound_high_dba": 48,
+  "weight_kg": 66,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU)",
+   "edition": "Ducted System September 2026 AU",
+   "page": "15 (PDF p.8); drawing 24 (PDF p.13); type: 8 (PDF p.5); drain pump: 4 (PDF p.3)"
+  }
+ },
+ {
+  "model": "FDUA160VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUA-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "airflow_ls": 1000,
+  "static_pressure_pa": 150,
+  "supply_opening": {
+   "w_mm": 1064,
+   "h_mm": 298
+  },
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1450,
+  "depth_mm": 930,
+  "height_mm": 398,
+  "sound_low_dba": 41,
+  "sound_high_dba": 48,
+  "weight_kg": 66,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU)",
+   "edition": "Ducted System September 2026 AU",
+   "page": "15 (PDF p.8); drawing 24 (PDF p.13); type: 8 (PDF p.5); drain pump: 4 (PDF p.3)"
+  }
+ },
+ {
+  "model": "FDUA200VH",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUA-VH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 20.0,
+  "capacity_heat_kw": 22.4,
+  "airflow_ls": 1333,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1450,
+   "h_mm": 250
+  },
+  "return_opening": {
+   "w_mm": 1450,
+   "h_mm": 250
+  },
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 25.4,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1600,
+  "depth_mm": 893,
+  "height_mm": 379,
+  "sound_low_dba": 45,
+  "sound_high_dba": 52,
+  "weight_kg": 88,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU)",
+   "edition": "Ducted System September 2026 AU",
+   "page": "15 (PDF p.8); drawing 25 (PDF p.13); type: 8 (PDF p.5); drain pump: 4 (PDF p.3)"
+  }
+ }
+]

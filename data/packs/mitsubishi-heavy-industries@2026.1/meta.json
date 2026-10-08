@@ -1,0 +1,54 @@
+{
+  "brand": "mitsubishi-heavy-industries",
+  "version": "2026.1",
+  "packSchemaVersion": 1,
+  "name": "Mitsubishi Heavy Industries — split (Avanti, Bronte, Ciara, Wera, Akari), ducted (FDUM, FDU, FDUA), ceiling (FDT, FDTC, FDE), SCM multi",
+  "updated": "2026-10-08",
+  "sources": [
+    {
+      "title": "MHIAA Split Systems Brochure (AU)",
+      "edition": "Split Systems April 2026 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Multi-Split Systems Brochure (AU)",
+      "edition": "Multi-Split Systems March 2026 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Ducted Systems Brochure (AU)",
+      "edition": "Ducted System September 2026 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Ceiling Systems Brochure (AU)",
+      "edition": "Ceiling Systems September 2026 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book, Inverter Packaged Air-Conditioners with Zone Control (FDUA/FDUM/FDU)",
+      "edition": "'19 PAC-DB-324",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book, Inverter Multi-Split System SCM40ZS-W / SCM45ZS-W",
+      "edition": "'19 SCM-DB-273",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Split Systems Brochure (AU)",
+      "edition": "Split Systems March 2025 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Multi-Split Systems Brochure (AU)",
+      "edition": "Multi-Split Systems May 2025 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Ducted Systems Brochure (AU)",
+      "edition": "Ducted Systems May 2023 AU",
+      "access": "public"
+    }
+  ]
+}

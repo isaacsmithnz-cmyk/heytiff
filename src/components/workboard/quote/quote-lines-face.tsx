@@ -47,6 +47,8 @@ type View = {
   accepted?: number[];
   /** what marking it did to the job's own materials list */
   onJob?: { added: number; removed: number } | null;
+  /** each option's labour by the business's own task hours (task-hours.ts) */
+  tasks?: ({ hours: number; words: string; quoted: number } | null)[];
 };
 
 /** The quote's kept lines, read once and after every change. */
@@ -581,6 +583,9 @@ export function QuoteLinesFace({
     ...unknownHere.map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
     ...misfits.map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
     ...(assumedHere.length > 0 ? [{ tone: "info" as const, text: `${assumedHere.length} ${assumedHere.length === 1 ? "line" : "lines"} assumed` }] : []),
+    ...(view?.tasks?.[at]
+      ? [{ tone: "info" as const, text: `Your task hours make it ${view.tasks[at]!.hours} h for ${view.tasks[at]!.words}; the quote has ${view.tasks[at]!.quoted} h` }]
+      : []),
     ...(o?.profit
       ? [{ tone: o.profit.short ? ("due" as const) : ("ok" as const), text: `Profit ${o.profit.pct}%${o.profit.targetPct != null ? `, target ${o.profit.targetPct}%` : ""}` }]
       : []),

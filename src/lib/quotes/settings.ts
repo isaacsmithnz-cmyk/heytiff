@@ -40,8 +40,24 @@ export type QuoteSettings = {
   /** what an hour of labour costs the business, cents; null: the charge-out
       rate less the profit target, since the rate already carries it */
   labourCostCents: number | null;
+  /** the business's own hours for a task (slice 8.1): a zone, an outlet or
+      grille, a metre of pipe, a visit; null: not set. Empty for a new
+      business: nothing is ever priced from them, they're a check */
+  taskHours: Record<TaskKey, number | null>;
   preferred: Partial<Record<ComponentKey, Preferred>>;
 };
+
+export type TaskKey = "zone" | "grille" | "metre" | "visit";
+/** Each task: what one is, as Quoting asks for its hours. */
+export const TASKS: Record<TaskKey, { label: string; per: string }> = {
+  zone: { label: "A zone", per: "a zone" },
+  grille: { label: "An outlet or grille", per: "an outlet" },
+  metre: { label: "A metre of pipe", per: "a metre" },
+  visit: { label: "A visit", per: "a visit" },
+};
+export const TASK_KEYS = Object.keys(TASKS) as TaskKey[];
+/** 40 hours for one task: a typo's ceiling, not a guide */
+export const MAX_TASK_HOURS = 40;
 
 export type UsualLayout = "trunks" | "plenum";
 export const USUAL_LAYOUT_WORDS: Record<UsualLayout, string> = {
@@ -76,6 +92,7 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   showLines: false,
   profitTargetPct: null,
   labourCostCents: null,
+  taskHours: { zone: null, grille: null, metre: null, visit: null },
   preferred: {},
 };
 
@@ -114,6 +131,16 @@ function allowancesOf(r: Record<string, unknown>): QuoteSettings["allowances"] {
   return out;
 }
 
+function taskHoursOf(raw: unknown): QuoteSettings["taskHours"] {
+  const o = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const out = { ...DEFAULT_QUOTE_SETTINGS.taskHours };
+  for (const k of TASK_KEYS) {
+    const n = num(o[k]);
+    out[k] = n == null || n <= 0 ? null : Math.min(MAX_TASK_HOURS, Math.round(n * 100) / 100);
+  }
+  return out;
+}
+
 function preferredOf(raw: unknown): QuoteSettings["preferred"] {
   const out: QuoteSettings["preferred"] = {};
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
@@ -146,6 +173,7 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
     showLines: (r.show_lines ?? r.showLines) === true,
     profitTargetPct: clampTo(r.profit_target_pct ?? r.profitTargetPct, 0, MAX_PROFIT_TARGET_PCT) ?? d.profitTargetPct,
     labourCostCents: chargeOutOf(r.labour_cost_cents ?? r.labourCostCents) ?? d.labourCostCents,
+    taskHours: taskHoursOf(r.task_hours ?? r.taskHours),
     preferred: preferredOf(r.preferred),
   };
 }
@@ -168,6 +196,7 @@ export function quoteSettingsRow(s: QuoteSettings) {
     show_lines: s.showLines,
     profit_target_pct: s.profitTargetPct,
     labour_cost_cents: s.labourCostCents,
+    task_hours: s.taskHours,
     preferred,
   };
 }

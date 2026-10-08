@@ -118,6 +118,7 @@ describe("the settings", () => {
       showLines: false,
       profitTargetPct: null,
       labourCostCents: null,
+      taskHours: { zone: null, grille: null, metre: null, visit: null },
       preferred: {},
     });
     expect(normaliseQuoteSettings({ unit_markup_pct: null, material_markup_pct: "" })).toMatchObject({ unitMarkupPct: null, materialMarkupPct: null });
@@ -146,6 +147,7 @@ describe("the settings", () => {
       showLines: false,
       profitTargetPct: null,
       labourCostCents: null,
+      taskHours: { zone: null, grille: null, metre: null, visit: null },
       preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: 20 } },
     });
     expect(normaliseQuoteSettings({ charge_out_cents: "16500" }).chargeOutCents).toBe(16500);

@@ -23,7 +23,7 @@ import { normaliseQuoteSettings, type QuoteSettings } from "./settings";
 export async function readQuoteSettings(orgId: string): Promise<QuoteSettings> {
   const { data } = await supabaseAdmin
     .from("quote_settings")
-    .select("unit_markup_pct, material_markup_pct, charge_out_cents, day_hours, contingency_pct, contingency_hours, consumables_cents, new_circuit_cents, flush_cents, recovery_cents, usual_layout, show_lines, profit_target_pct, labour_cost_cents, preferred")
+    .select("unit_markup_pct, material_markup_pct, charge_out_cents, day_hours, contingency_pct, contingency_hours, consumables_cents, new_circuit_cents, flush_cents, recovery_cents, usual_layout, show_lines, profit_target_pct, labour_cost_cents, task_hours, preferred")
     .eq("org_id", orgId)
     .maybeSingle();
   return normaliseQuoteSettings(data ?? {});

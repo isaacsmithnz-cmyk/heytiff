@@ -1,10 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/app/actions/quote-settings", () => ({ saveQuoteSettings: jest.fn() }));
 
 import { QuotingScreen } from "../quoting-screen";
 import { DEFAULT_QUOTE_SETTINGS } from "@/lib/quotes/settings";
+import { saveQuoteSettings } from "@/app/actions/quote-settings";
+
+const saveQuoteSettingsMock = saveQuoteSettings as jest.Mock;
 
 /* Isaac, 2026-10-04: "Day rate only the charge out rate by set work hours…
    make sure that you can set the rate without completing the rate calc". */
@@ -21,8 +24,8 @@ it("blank here: says the Rate Calculator's figures, and the day they make", () =
 
 it("with no Rate Calculator, a rate and a day typed here make the day", () => {
   screenWith(null);
-  /* the rate and the day, an hour's cost, and the four allowances */
-  expect(screen.getAllByText("Not set")).toHaveLength(7);
+  /* the rate and the day, an hour's cost, the four allowances and the four task hours */
+  expect(screen.getAllByText("Not set")).toHaveLength(11);
   expect(screen.getByText("A day on site needs a charge-out rate and a working day.")).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Charge-out rate, dollars an hour"), { target: { value: "150" } });
   fireEvent.change(screen.getByLabelText("Hours in a working day"), { target: { value: "7.5" } });
@@ -103,4 +106,15 @@ it("asks about a swap made on three quotes, and makes it preferred with one pres
   fireEvent.click(screen.getByRole("button", { name: "Make VH250 your preferred" }));
   expect(await screen.findByText("Preferred")).toBeInTheDocument();
   expect(fetchMock).toHaveBeenCalledWith("/api/quoting/preferred", expect.objectContaining({ body: JSON.stringify({ ref: "aad|VH250", on: true }) }));
+});
+
+/* the business's own task hours (slice 8.1) */
+it("saves the business's task hours, each a check beside a quote's labour", async () => {
+  saveQuoteSettingsMock.mockResolvedValueOnce({ ok: true, settings: { ...DEFAULT_QUOTE_SETTINGS, taskHours: { zone: null, grille: 1.5, metre: null, visit: null } } });
+  render(<QuotingScreen initial={DEFAULT_QUOTE_SETTINGS} components={[]} ranges={[]} calc={null} />);
+  fireEvent.change(screen.getByLabelText("Hours for an outlet"), { target: { value: "1.5" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save task hours" }));
+  });
+  expect(saveQuoteSettingsMock).toHaveBeenCalledWith(expect.objectContaining({ taskHours: { zone: null, grille: 1.5, metre: null, visit: null } }));
 });

@@ -8,6 +8,9 @@ import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 import { markAccepted, readByHand } from "@/lib/quotes/lines-job-server";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
+import { readQuoteSettings } from "@/lib/quotes/settings-query";
+import { readOrgDay } from "@/lib/quotes/org-day-server";
+import { taskCheck } from "@/lib/quotes/task-hours";
 
 /* A quote's kept lines (the engine rebuild, slices 2.1–2.3): read them with
    their history and who made each change, and change them one at a time.
@@ -28,17 +31,22 @@ async function gate(): Promise<Gate> {
 }
 
 async function view(orgId: string, jobUuid: string, userId: string) {
-  const [engine, lines, changes, byHand] = await Promise.all([
+  const [engine, lines, changes, byHand, settings, day] = await Promise.all([
     readEngine(orgId, jobUuid),
     readLines(orgId, jobUuid),
     readChanges(orgId, jobUuid, 50),
     readByHand(orgId, jobUuid),
+    readQuoteSettings(orgId),
+    readOrgDay(orgId),
   ]);
+  /* the business's own task hours, beside each option's (slice 8.1) */
+  const options = Math.max(0, ...lines.map((l) => l.optionIndex + 1));
+  const tasks = Array.from({ length: options }, (_, i) => taskCheck(lines.filter((l) => l.optionIndex === i), settings.taskHours, day.hours?.hours ?? null));
   const [names, fits] = await Promise.all([
     namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy)]),
     linesFit(lines).catch(() => []),
   ]);
-  return { ok: true as const, engine, lines, changes, names, me: userId, fits, accepted: byHand.accepted };
+  return { ok: true as const, engine, lines, changes, names, me: userId, fits, accepted: byHand.accepted, tasks };
 }
 
 export async function GET(req: Request) {

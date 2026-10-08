@@ -3551,5 +3551,29 @@
    "edition": "EDTRAU332224A",
    "page": "9, 5"
   }
+ },
+ {
+  "model": "2MXF70T2VMA",
+  "brand": "daikin",
+  "series": "2MXF-T2",
+  "system_type": "multi",
+  "capacity_cool_kw": 7.0,
+  "capacity_heat_kw": 7.0,
+  "phase": "1",
+  "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "refrigerant": "R32",
+  "precharged_kg": 1.24,
+  "ports": 2,
+  "width_mm": 845,
+  "depth_mm": 300,
+  "height_mm": 595,
+  "sound_high_dba": 51,
+  "weight_kg": 47,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+   "edition": "EDTAU122301",
+   "page": "7, 8-9"
+  }
  }
 ]

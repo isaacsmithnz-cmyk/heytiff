@@ -5162,5 +5162,84 @@
    "edition": "EDTAU122219A",
    "page": "23, 92"
   }
+ },
+ {
+  "odu_model_ref": "2MXF70T2VMA",
+  "port_pipe_sizes": [
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 12.7
+   }
+  ],
+  "compatibility": [
+   {
+    "method": "family_whitelist_with_limits",
+    "families": [
+     "CTXF"
+    ],
+    "max_count": 2
+   },
+   {
+    "method": "capacity_combination_table",
+    "combos": [
+     [
+      20,
+      20
+     ],
+     [
+      20,
+      25
+     ],
+     [
+      20,
+      35
+     ],
+     [
+      20,
+      50
+     ],
+     [
+      25,
+      25
+     ],
+     [
+      25,
+      35
+     ],
+     [
+      25,
+      50
+     ],
+     [
+      35,
+      35
+     ]
+    ],
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+     "edition": "EDTAU122301",
+     "page": "8-9"
+    }
+   }
+  ],
+  "max_total_pipe_m": 30,
+  "max_per_branch_m": 25,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 20
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+   "edition": "EDTAU122301",
+   "page": "7, 14"
+  }
  }
 ]

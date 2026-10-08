@@ -9136,5 +9136,133 @@
    "edition": "EDTFMT392420A",
    "page": "7; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
   }
+ },
+ {
+  "model": "CTXF20TVMA",
+  "brand": "daikin",
+  "series": "2MXF Wall CTXF-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.4,
+  "capacity_code": 20,
+  "airflow_ls": 167,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+   "edition": "EDTAU122301",
+   "page": "6, 8-9"
+  }
+ },
+ {
+  "model": "CTXF25TVMA",
+  "brand": "daikin",
+  "series": "2MXF Wall CTXF-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.0,
+  "capacity_code": 25,
+  "airflow_ls": 167,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 40,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+   "edition": "EDTAU122301",
+   "page": "6, 8-9"
+  }
+ },
+ {
+  "model": "CTXF35TVMA",
+  "brand": "daikin",
+  "series": "2MXF Wall CTXF-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 35,
+  "airflow_ls": 177,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 770,
+  "depth_mm": 223,
+  "height_mm": 285,
+  "sound_low_dba": 19,
+  "sound_high_dba": 42,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+   "edition": "EDTAU122301",
+   "page": "6, 8-9"
+  }
+ },
+ {
+  "model": "CTXF50TVMA",
+  "brand": "daikin",
+  "series": "2MXF Wall CTXF-T",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.2,
+  "capacity_code": 50,
+  "airflow_ls": 312,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 990,
+  "depth_mm": 263,
+  "height_mm": 295,
+  "sound_low_dba": 28,
+  "sound_high_dba": 45,
+  "weight_kg": 12,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+   "edition": "EDTAU122301",
+   "page": "6, 8-9"
+  }
  }
 ]

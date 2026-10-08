@@ -1,7 +1,7 @@
 import "server-only";
 import { bookProducts } from "./book-view-server";
 import { capacityOf, unitPartOf, unitTypeOf } from "./brands";
-import { askedPair, bookUnit, byCode, pairOutdoor, suggestions, type BookUnit, type Pair } from "./compare";
+import { askedPair, byCode, pairOf, suggestions, type BookUnit, type Pair } from "./compare";
 import { specsOfCodes } from "./fit-server";
 import { pipeFromMm } from "./kits";
 import type { QuoteLine } from "./lines";
@@ -66,11 +66,11 @@ export async function compareView(orgId: string, jobUuid: string, lineId: string
     outdoor: outLine?.code ? { name: outLine.name, code: outLine.code, supplierKey: outLine.supplierKey ?? "", costCents: outLine.costCents, brand: null } : null,
   };
   const others = [
-    ...suggestions(products, line.code),
-    ...(byHand.compare[line.id] ?? []).map((c) => byCode(products, c)).filter((p) => p != null).map((p) => {
-      const out = pairOutdoor(products, p!);
-      return { indoor: bookUnit(p!)!, outdoor: out ? bookUnit(out) : null };
-    }),
+    ...suggestions(products, line.code, undefined, byHand.supplier),
+    ...(byHand.compare[line.id] ?? [])
+      .map((c) => byCode(products, c))
+      .filter((p) => p != null)
+      .map((p) => pairOf(products, p!, byHand.supplier)),
   ].filter((p, i, all) => p.indoor.code !== line.code && all.findIndex((q) => q.indoor.code === p.indoor.code) === i);
 
   const pairs = [current, ...others];
@@ -108,19 +108,19 @@ export async function compareView(orgId: string, jobUuid: string, lineId: string
 /** Use a compared unit on the quote: the indoor line and its outdoor
     swapped at the book's price, as the person. */
 export async function putComparedOn(orgId: string, jobUuid: string, lineId: string, indoorCode: string, by: string): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const [lines, products] = await Promise.all([readLines(orgId, jobUuid), bookProducts(orgId)]);
+  const [lines, products, byHand] = await Promise.all([readLines(orgId, jobUuid), bookProducts(orgId), readByHand(orgId, jobUuid)]);
   const line = lines.find((l) => l.id === lineId);
   const product = byCode(products, indoorCode);
   if (!line || !product) return { ok: false, reason: "That unit has gone from the quote or your book." };
-  const indoor = bookUnit(product)!;
-  const out = pairOutdoor(products, product);
+  const pair = pairOf(products, product, byHand.supplier);
+  const indoor = pair.indoor;
   const why = `Compared, chose ${indoor.code}`;
   const swap = (l: QuoteLine, u: BookUnit) => changeLine(orgId, jobUuid, l.id, l.version, { name: u.name, code: u.code, supplierKey: u.supplierKey, costCents: u.costCents, sellCents: null }, by, why);
   const r = await swap(line, indoor);
   if (!r.ok) return r;
   const outLine = outdoorLineOf(lines, line);
-  if (outLine && out) {
-    const r2 = await swap(outLine, bookUnit(out)!);
+  if (outLine && pair.outdoor) {
+    const r2 = await swap(outLine, pair.outdoor);
     if (!r2.ok) return r2;
   }
   return { ok: true };
@@ -129,8 +129,8 @@ export async function putComparedOn(orgId: string, jobUuid: string, lineId: stri
 /** What a person asked to compare with: found in the book with no
     judgement, or null for Tiff. */
 export async function askCompare(orgId: string, jobUuid: string, lineId: string, ask: string): Promise<{ found: Pair | null; line: QuoteLine | null }> {
-  const [lines, products] = await Promise.all([readLines(orgId, jobUuid), bookProducts(orgId)]);
+  const [lines, products, byHand] = await Promise.all([readLines(orgId, jobUuid), bookProducts(orgId), readByHand(orgId, jobUuid)]);
   const line = lines.find((l) => l.id === lineId) ?? null;
   if (!line) return { found: null, line: null };
-  return { found: askedPair(products, ask, unitTypeOf(line.name, line.code ?? "")), line };
+  return { found: askedPair(products, ask, unitTypeOf(line.name, line.code ?? ""), byHand.supplier), line };
 }

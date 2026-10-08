@@ -192,7 +192,9 @@ export function expandKit(
   f: KitFacts,
   products: Product[],
   at: { optionIndex: number; system: string },
-  allowances: KitAllowances | null = null
+  allowances: KitAllowances | null = null,
+  /** the job's supplier, bought from where it sells the part */
+  supplier: string | null = null
 ): Partial<LineFields>[] {
   const out: Partial<LineFields>[] = [];
   for (const part of KITS[kit].parts) {
@@ -213,7 +215,7 @@ export function expandKit(
       continue;
     }
     const pool = s.pool ? s.pool(products) : products;
-    const picked = pickItem(pool, s);
+    const picked = pickItem(pool, s, supplier);
     if (!picked) {
       out.push({ ...base, name: part.name, qty: q.qty, unit: q.unit, costCents: 0, source: "unknown", why: "Not in your book" });
       continue;

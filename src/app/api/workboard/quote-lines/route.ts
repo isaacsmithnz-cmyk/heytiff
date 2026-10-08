@@ -6,7 +6,8 @@ import { addKit } from "@/lib/quotes/kits-server";
 import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
-import { markAccepted, nameOption, readByHand, setLoading } from "@/lib/quotes/lines-job-server";
+import { markAccepted, nameOption, readByHand, setLoading, setSupplier } from "@/lib/quotes/lines-job-server";
+import { readSuppliers } from "@/lib/quotes/price-book-server";
 import { addEvents, readSession } from "@/lib/quotes/session/store-server";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
@@ -31,14 +32,20 @@ async function gate(): Promise<Gate> {
   return { ok: true, orgId, userId };
 }
 
+/** The suppliers a job can buy from: the business's own, with items. */
+async function bookSuppliers(orgId: string) {
+  return (await readSuppliers(orgId).catch(() => [])).filter((s) => (s.itemCount ?? 0) > 0 || (s.invoiceItems ?? 0) > 0).map((s) => ({ key: s.key, name: s.name }));
+}
+
 async function view(orgId: string, jobUuid: string, userId: string) {
-  const [engine, lines, changes, byHand, settings, day] = await Promise.all([
+  const [engine, lines, changes, byHand, settings, day, suppliers] = await Promise.all([
     readEngine(orgId, jobUuid),
     readLines(orgId, jobUuid),
     readChanges(orgId, jobUuid, 50),
     readByHand(orgId, jobUuid),
     readQuoteSettings(orgId),
     readOrgDay(orgId),
+    bookSuppliers(orgId),
   ]);
   /* the business's own task hours, beside each option's (slice 8.1) */
   const options = Math.max(0, ...lines.map((l) => l.optionIndex + 1));
@@ -47,7 +54,7 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy)]),
     linesFit(lines).catch(() => []),
   ]);
-  return { ok: true as const, engine, lines, changes, names, me: userId, fits, accepted: byHand.accepted, optionNames: byHand.names, loading: byHand.loading, tasks };
+  return { ok: true as const, engine, lines, changes, names, me: userId, fits, accepted: byHand.accepted, optionNames: byHand.names, loading: byHand.loading, supplier: byHand.supplier, suppliers, tasks };
 }
 
 export async function GET(req: Request) {
@@ -128,6 +135,16 @@ export async function POST(req: Request) {
     case "name":
       result = await nameOption(g.orgId, jobUuid, opt(body.option), body.name, g.userId);
       break;
+    case "supplier": {
+      const key = typeof body.key === "string" && body.key ? body.key.slice(0, 40) : null;
+      const known = key ? (await bookSuppliers(g.orgId)).find((s) => s.key === key) : null;
+      if (key && !known) {
+        result = { ok: false, reason: "That supplier isn't in your book." };
+        break;
+      }
+      result = await setSupplier(g.orgId, jobUuid, key, g.userId, known?.name ?? "");
+      break;
+    }
     case "loading":
       result = await setLoading(g.orgId, jobUuid, opt(body.option), { pct: body.pct, reason: body.reason }, g.userId);
       break;

@@ -72,9 +72,23 @@ export function findInBook(products: Product[], q: BookQuery): BookHit[] {
 
 export type Pick = { product: Product; offer: Offer; why: BookHit["why"] };
 
-export function pickItem(products: Product[], q: BookQuery): Pick | null {
-  for (const h of findInBook(products, { ...q, limit: BOOK_LIMIT })) {
-    const offer = h.product.preferred ?? h.product.cheapest;
+/** The job's supplier's offer of an item, its lowest pack where it has
+    several; null when that supplier doesn't sell it. */
+export function supplierOffer(p: Product, supplier: string): Offer | null {
+  return p.offers.filter((o) => o.supplierKey === supplier && o.netCents > 0).sort((a, b) => a.netCents - b.netCents)[0] ?? null;
+}
+
+/** The offer an item is bought at: the job's supplier's where it sells it,
+    else the business's preferred, else the lowest. */
+export const offerFor = (p: Product, supplier: string | null = null): Offer | null => (supplier ? supplierOffer(p, supplier) : null) ?? p.preferred ?? p.cheapest;
+
+export function pickItem(products: Product[], q: BookQuery, supplier: string | null = null): Pick | null {
+  const hits = findInBook(products, { ...q, limit: BOOK_LIMIT });
+  /* the job's supplier's items first, the book's ranking among them; an
+     item it doesn't sell only when none of its own fits */
+  const ordered = supplier ? [...hits.filter((h) => supplierOffer(h.product, supplier)), ...hits.filter((h) => !supplierOffer(h.product, supplier))] : hits;
+  for (const h of ordered) {
+    const offer = offerFor(h.product, supplier);
     if (offer) return { product: h.product, offer, why: h.why };
   }
   return null;

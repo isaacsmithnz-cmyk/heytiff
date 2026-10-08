@@ -28,6 +28,10 @@ export type ByHand = {
   loading: Record<number, OptionLoading>;
   /** the units asked to be compared with a unit line, by its id: codes (10.2) */
   compare: Record<string, string[]>;
+  /** the supplier the whole job buys from where it sells the item; null:
+      any (Isaac, 2026-10-08: "select aad to use only items from their price
+      book unless something doesn't show up") */
+  supplier: string | null;
 };
 
 /** Units a compare holds beside its suggestions, at most. */
@@ -70,8 +74,12 @@ export function byHandOf(draft: unknown): ByHand {
     const list = (Array.isArray(codes) ? codes : []).map((c) => said(c, 80)).filter(Boolean).slice(0, MAX_COMPARED);
     if (/^[\w-]{1,60}$/.test(id) && list.length) compare[id] = list;
   }
-  return { accepted, names, loading, compare };
+  const supplier = said(o.supplier, 40) || null;
+  return { accepted, names, loading, compare, supplier };
 }
+
+/** The job's supplier set, or any with none. */
+export const withSupplier = (b: ByHand, key: unknown): ByHand => ({ ...b, supplier: said(key, 40) || null });
 
 /** A unit added to a line's compare: once, the newest kept. */
 export function withCompared(b: ByHand, lineId: string, code: string): ByHand {

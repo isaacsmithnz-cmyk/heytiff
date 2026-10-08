@@ -28,6 +28,7 @@ export function memoryStore(opts: {
   units?: Record<string, UnitLookup>;
   allowances?: KitAllowances | null;
   taskHours?: Record<TaskKey, number | null>;
+  supplier?: string | null;
 }): QuoteStore & { lines: () => QuoteLine[] } {
   let lines: QuoteLine[] = [];
   const names: string[] = [];
@@ -67,7 +68,7 @@ export function memoryStore(opts: {
       return { ok: true, line: null };
     },
     addKit: async (kit, facts, at) => {
-      const made = expandKit(kit, facts, opts.products, at, opts.allowances ?? null);
+      const made = expandKit(kit, facts, opts.products, at, opts.allowances ?? null, opts.supplier ?? null);
       for (const l of made) add(l as Record<string, unknown>);
       return { ok: true, added: made.length };
     },
@@ -76,6 +77,7 @@ export function memoryStore(opts: {
       return { ok: true };
     },
     compareWith: async () => ({ ok: true }),
+    supplier: async () => opts.supplier ?? null,
     book: async () => opts.products,
     hourCost: async () => opts.hourCostCents,
     lookupUnit: async (_brand, model) => opts.units?.[model.toUpperCase()] ?? { found: false, reason: "no data pack" },

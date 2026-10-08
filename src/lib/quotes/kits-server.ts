@@ -4,6 +4,7 @@ import { expandKit, pipeFromMm, type KitFacts, type KitKey } from "./kits";
 import { addLine } from "./lines-server";
 import { lookupUnit } from "./lookups-server";
 import { readQuoteSettings } from "./settings-query";
+import { readByHand } from "./lines-job-server";
 
 /* A kit added to a quote in one press (kits.ts): its facts filled from the
    outdoor's data pack where the person named one and left them blank, each
@@ -27,9 +28,9 @@ export async function addKit(
       if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
     }
   }
-  const [products, settings] = await Promise.all([bookProducts(orgId), readQuoteSettings(orgId)]);
+  const [products, settings, byHand] = await Promise.all([bookProducts(orgId), readQuoteSettings(orgId), readByHand(orgId, jobUuid)]);
   const a = settings.allowances;
-  const lines = expandKit(kit, f, products, at, { consumables: a.consumables, flush: a.flush, recovery: a.recovery });
+  const lines = expandKit(kit, f, products, at, { consumables: a.consumables, flush: a.flush, recovery: a.recovery }, byHand.supplier);
   let added = 0;
   for (const l of lines) {
     const r = await addLine(orgId, jobUuid, l, by, `${kit === "split" ? "Split" : "Ducted"} kit`);

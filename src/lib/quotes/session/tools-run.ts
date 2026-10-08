@@ -2,7 +2,7 @@ import type { Product } from "../families";
 import { normaliseKitFacts, type KitFacts, type KitKey } from "../kits";
 import type { QuoteLine } from "../lines";
 import { stillUnknown } from "../lines-price";
-import { findInBook, type UnitLookup } from "../lookups";
+import { findInBook, offerFor, supplierOffer, type UnitLookup } from "../lookups";
 import type { TaskKey } from "../settings";
 import { taskCheck } from "../task-hours";
 import type { ToolOutcome } from "./turn";
@@ -31,6 +31,8 @@ export type QuoteStore = {
   lookupUnit: (brand: string, model: string) => Promise<UnitLookup>;
   /** each option's total ex GST, cents; not ok when pricing isn't set up */
   totals: () => Promise<{ ok: true; options: number[] } | { ok: false }>;
+  /** the supplier the job buys from, where it sells the item; null: any */
+  supplier: () => Promise<string | null>;
   /** the business's own task hours and working day (slice 8.1) */
   taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
 };
@@ -39,11 +41,11 @@ const SEARCH_LIMIT = 12;
 
 /** A new line as it goes on: a book item priced from the book, labour at
     the business's hour, anything else not known yet. */
-export async function lineFor(store: Pick<QuoteStore, "book" | "hourCost">, l: NewLine): Promise<Record<string, unknown> | string> {
+export async function lineFor(store: Pick<QuoteStore, "book" | "hourCost" | "supplier">, l: NewLine): Promise<Record<string, unknown> | string> {
   const base = { optionIndex: l.optionIndex, system: l.system, group: l.group, kind: l.kind, qty: l.qty, unit: l.unit, source: l.source, why: l.why, sellCents: null };
   if (l.kind === "labour") return { ...base, name: l.name, costCents: (await store.hourCost()) ?? 0 };
   if (l.code) {
-    const p = bookPrice(await store.book(), l.code, l.unit);
+    const p = bookPrice(await store.book(), l.code, l.unit, await store.supplier());
     if (!p) return `${l.name}: ${l.code} isn't in the business's book. Search the book for what it buys, or add it with no code as not known yet.`;
     return { ...base, name: p.name, code: p.code, supplierKey: p.supplierKey, kind: l.kind === "unit" || p.kind === "unit" ? "unit" : "material", costCents: p.costCents };
   }
@@ -82,13 +84,16 @@ export function makeTools(store: QuoteStore) {
         if (!text.trim()) return fail("Say what to search for.");
         const size = typeof input.size_mm === "number" ? input.size_mm : null;
         const brand = typeof input.brand === "string" && input.brand.trim() ? input.brand.trim() : null;
-        const hits = findInBook(await store.book(), { text, sizeMm: size, brand, limit: SEARCH_LIMIT });
+        const supplier = await store.supplier();
+        const found = findInBook(await store.book(), { text, sizeMm: size, brand, limit: SEARCH_LIMIT * 2 });
+        /* the job's supplier's items first */
+        const hits = (supplier ? [...found.filter((h) => supplierOffer(h.product, supplier)), ...found.filter((h) => !supplierOffer(h.product, supplier))] : found).slice(0, SEARCH_LIMIT);
         return {
           ok: true,
           label,
           said: `${text}: ${hits.length} found`,
           value: hits.map((h) => {
-            const o = h.product.preferred ?? h.product.cheapest;
+            const o = offerFor(h.product, supplier);
             return { name: h.product.name, code: o?.code ?? null, supplier: o?.supplierName ?? null, cost_each_cents: o?.netCents ?? null, kind: h.product.category === "units" ? "unit" : "material", why: h.why };
           }),
         };
@@ -134,7 +139,7 @@ export function makeTools(store: QuoteStore) {
         delete patch.why;
         if (p.patch.code) {
           const unit = p.patch.unit ?? (await store.readLines()).find((l) => l.id === p.id)?.unit ?? "";
-          const priced = bookPrice(await store.book(), p.patch.code, unit);
+          const priced = bookPrice(await store.book(), p.patch.code, unit, await store.supplier());
           if (!priced) return fail(`${p.patch.code} isn't in the business's book. Search the book for what it buys.`);
           Object.assign(patch, { code: priced.code, name: priced.name, supplierKey: priced.supplierKey, costCents: priced.costCents, sellCents: null });
         }

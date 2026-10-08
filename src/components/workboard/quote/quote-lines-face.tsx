@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { fmtAud } from "@/lib/workboard/project-money";
 import type { LineChange } from "@/lib/quotes/lines-server";
 import { againstFirst, isProvisional, missingFromFirst, PROVISIONAL, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
-import type { BookHit } from "@/lib/quotes/lookups";
+import { offerFor, type BookHit } from "@/lib/quotes/lookups";
 import type { Offer } from "@/lib/quotes/price-book";
 import type { Fit } from "@/lib/quotes/fit";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
@@ -50,6 +50,9 @@ type View = {
   /** each option's name, and its loading on labour (lines-job.ts) */
   optionNames?: string[];
   loading?: Record<number, { pct: number; reason: string }>;
+  /** the supplier the whole job buys from, and the business's suppliers */
+  supplier?: string | null;
+  suppliers?: { key: string; name: string }[];
   /** what marking it did to the job's own materials list */
   onJob?: { added: number; removed: number } | null;
   /** each option's labour by the business's own task hours (task-hours.ts) */
@@ -251,7 +254,7 @@ export function QuoteLinesFace({
   };
 
   const addFromBook = (h: BookHit) => {
-    const offer = h.product.preferred ?? h.product.cheapest;
+    const offer = offerFor(h.product, view?.supplier ?? null);
     const unit = h.product.category === "units";
     void act({
       op: "add",
@@ -311,6 +314,9 @@ export function QuoteLinesFace({
   const units = o ? o.build.groups.filter((g) => g.lines.some((l) => l.kind === "unit")).reduce((n, g) => n + g.sellCents, 0) : 0;
   const materials = o ? o.build.exGstCents - units - o.build.labour.sellCents : 0;
   const hours = lines.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0);
+  /* the job's supplier: a line it doesn't sell says where it comes from */
+  const buyFrom = view?.supplier ?? null;
+  const supplierName = (key: string) => view?.suppliers?.find((s) => s.key === key)?.name ?? key;
   /* a hard job's loading on this option's labour (slice 9.2): the last line
      of its Labour group, in the price, never a line the customer sees */
   const loading = view?.loading?.[at] ?? null;
@@ -379,16 +385,31 @@ export function QuoteLinesFace({
               </div>
             </dl>
           )}
-          {all.length > 0 && (
-            <TextBox
-              key={`${at}|${view?.optionNames?.[at] ?? ""}`}
-              label={`Option ${at + 1}, as the proposal names it`}
-              value={view?.optionNames?.[at] ?? ""}
-              disabled={busy}
-              className="ql-oname"
-              onCommit={(name) => void act({ op: "name", option: at, name })}
-            />
-          )}
+          <div className="ql-sumrow">
+            {all.length > 0 && (
+              <TextBox
+                key={`${at}|${view?.optionNames?.[at] ?? ""}`}
+                label={`Option ${at + 1}, as the proposal names it`}
+                value={view?.optionNames?.[at] ?? ""}
+                disabled={busy}
+                className="ql-oname"
+                onCommit={(name) => void act({ op: "name", option: at, name })}
+              />
+            )}
+            {(view?.suppliers ?? []).length > 0 && (
+              /* the whole job from one supplier where it sells the item
+                 (Isaac, 2026-10-08) */
+              <label className="ql-sup">
+                <span>Buy from, for this job</span>
+                <select className="wb2-fi" value={view?.supplier ?? ""} disabled={busy} onChange={(e) => void act({ op: "supplier", key: e.target.value })}>
+                  <option value="">Any supplier</option>
+                  {(view?.suppliers ?? []).map((s) => (
+                    <option key={s.key} value={s.key}>{`${s.name}, else the lowest`}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
         </div>
         {total}
       </div>
@@ -485,6 +506,9 @@ export function QuoteLinesFace({
                               {l.code && (
                                 <span className="cd">
                                   {l.code}
+                                  {buyFrom && l.supplierKey && l.supplierKey !== buyFrom && (
+                                    <em className="ql-not">{`Not at ${supplierName(buyFrom)}: ${supplierName(l.supplierKey)}`}</em>
+                                  )}
                                   {l.kind === "unit" && unitPartOf(l.name, l.code) !== "outdoor" && (
                                     <button type="button" className="ql-cmpbtn" aria-expanded={comparing === l.id} onClick={() => setComparing(comparing === l.id ? null : l.id)}>
                                       Compare
@@ -626,9 +650,9 @@ export function QuoteLinesFace({
                 <button type="button" disabled={busy} onClick={() => addFromBook(h)}>
                   <span>
                     {h.product.name}
-                    <small>{`${(h.product.preferred ?? h.product.cheapest)?.code ?? ""}, ${h.why.toLowerCase()}`}</small>
+                    <small>{`${offerFor(h.product, view?.supplier ?? null)?.code ?? ""}, ${h.why.toLowerCase()}`}</small>
                   </span>
-                  <b>{h.buyCents != null ? fmtAud(h.buyCents) : "–"}</b>
+                  <b>{offerFor(h.product, view?.supplier ?? null) ? fmtAud(offerFor(h.product, view?.supplier ?? null)!.netCents) : "–"}</b>
                 </button>
               </li>
             ))}

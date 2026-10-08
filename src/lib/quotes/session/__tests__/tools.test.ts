@@ -18,7 +18,11 @@ jest.mock("../../lines-server", () => ({
   removeLine: jest.fn(),
 }));
 jest.mock("../../kits-server", () => ({ addKit: jest.fn() }));
-jest.mock("../../lines-job-server", () => ({ nameOption: jest.fn(async () => ({ ok: true })), addCompared: jest.fn(async () => ({ ok: true })) }));
+jest.mock("../../lines-job-server", () => ({
+  nameOption: jest.fn(async () => ({ ok: true })),
+  addCompared: jest.fn(async () => ({ ok: true })),
+  readByHand: jest.fn(async () => ({ supplier: null })),
+}));
 jest.mock("../../lookups-server", () => ({ lookupUnit: jest.fn() }));
 jest.mock("../../quote-price-server", () => ({ readQuotePrice: jest.fn() }));
 jest.mock("../../settings-query", () => ({ readQuoteSettings: jest.fn(async () => ({ profitTargetPct: 20, labourCostCents: null })) }));

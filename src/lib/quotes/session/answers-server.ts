@@ -29,9 +29,9 @@ export async function priceQuestions(orgId: string, jobUuid: string, events: rea
 
   const [lines, settings, day] = await Promise.all([readLines(orgId, jobUuid), readQuoteSettings(orgId), readOrgDay(orgId)]);
   const built = buildSettingsOf(settings, day);
-  const { book, hourCost } = linePricer(orgId);
-  const products = await book();
-  const price: Priced = (code, unit) => bookPrice(products, code, unit);
+  const { book, hourCost, supplier } = linePricer(orgId, jobUuid);
+  const [products, buyFrom] = await Promise.all([book(), supplier()]);
+  const price: Priced = (code, unit) => bookPrice(products, code, unit, buyFrom);
   const hour = await hourCost();
   for (const e of open) {
     const q = questionOf(e.body);
@@ -52,7 +52,7 @@ export async function answerQuestion(orgId: string, jobUuid: string, by: string,
   if (!answer) return { ok: false, reason: "That isn't one of its answers." };
 
   const why = `“${answer.label}”, to “${q.question}”`;
-  const { book, lineFor } = linePricer(orgId);
+  const { book, lineFor, supplier } = linePricer(orgId, jobUuid);
   for (const c of answer.changes) {
     const now = await readLines(orgId, jobUuid);
     if (c.op === "add") {
@@ -71,7 +71,7 @@ export async function answerQuestion(orgId: string, jobUuid: string, by: string,
       const r = await changeLine(orgId, jobUuid, line.id, line.version, { qty: c.qty, source: "said" }, by, why);
       if (!r.ok) return r;
     } else {
-      const p = bookPrice(await book(), c.code, line.unit);
+      const p = bookPrice(await book(), c.code, line.unit, await supplier());
       if (!p) return { ok: false, reason: `${c.code} isn't in your book any more.` };
       const r = await changeLine(orgId, jobUuid, line.id, line.version, { name: p.name, code: p.code, supplierKey: p.supplierKey, costCents: p.costCents, sellCents: null, source: "said" }, by, why);
       if (!r.ok) return r;

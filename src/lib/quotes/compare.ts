@@ -1,6 +1,6 @@
 import { capacityOf, unitPartOf, unitTypeOf } from "./brands";
 import type { Product } from "./families";
-import { findInBook } from "./lookups";
+import { findInBook, offerFor } from "./lookups";
 import type { Offer } from "./price-book";
 
 /* COMPARE (slice 10.2, the mock-up of 8 October Isaac approved): a unit on
@@ -22,8 +22,9 @@ export const MAX_SUGGESTED = 3;
 
 const offerOf = (p: Product): Offer | null => p.preferred ?? p.cheapest;
 
-export function bookUnit(p: Product): BookUnit | null {
-  const o = offerOf(p);
+/** An item as the job buys it: from its supplier where it sells it. */
+export function bookUnit(p: Product, supplier: string | null = null): BookUnit | null {
+  const o = offerFor(p, supplier);
   return o ? { name: p.name, code: o.code, supplierKey: o.supplierKey, costCents: o.netCents, brand: p.brand } : null;
 }
 
@@ -60,9 +61,9 @@ export function pairOutdoor(products: readonly Product[], indoor: Product): Prod
   return [...fits].sort((a, b) => shared(code, codeOf(b)) - shared(code, codeOf(a)) || (offerOf(a)!.netCents - offerOf(b)!.netCents))[0] ?? null;
 }
 
-const pairOf = (products: readonly Product[], indoor: Product): Pair => {
+export const pairOf = (products: readonly Product[], indoor: Product, supplier: string | null = null): Pair => {
   const out = pairOutdoor(products, indoor);
-  return { indoor: bookUnit(indoor)!, outdoor: out ? bookUnit(out) : null };
+  return { indoor: bookUnit(indoor, supplier)!, outdoor: out ? bookUnit(out, supplier) : null };
 };
 
 /** The book's item for a code, or null. */
@@ -72,7 +73,7 @@ export const byCode = (products: readonly Product[], code: string) =>
 /** Indoors like the one on the quote: the same type, within a quarter of
     its capacity, the business's preferred and most used first, each with
     its outdoor. */
-export function suggestions(products: readonly Product[], indoorCode: string, limit = MAX_SUGGESTED): Pair[] {
+export function suggestions(products: readonly Product[], indoorCode: string, limit = MAX_SUGGESTED, supplier: string | null = null): Pair[] {
   const base = byCode(products, indoorCode);
   if (!base) return [];
   const kw = kwOf(base);
@@ -86,19 +87,19 @@ export function suggestions(products: readonly Product[], indoorCode: string, li
     })
     .sort((a, b) => (a.preferred ? 0 : 1) - (b.preferred ? 0 : 1) || b.quotes - a.quotes || Math.abs((kwOf(a) ?? 0) - kw) - Math.abs((kwOf(b) ?? 0) - kw))
     .slice(0, limit)
-    .map((p) => pairOf(products, p));
+    .map((p) => pairOf(products, p, supplier));
 }
 
 /** What a person asked to compare with, when it can be found with no
     judgement: a code in the book, else a brand or name and a size ("a
     Fujitsu around 9 kW"). Null: it needs Tiff. */
-export function askedPair(products: readonly Product[], ask: string, type: string | null): Pair | null {
+export function askedPair(products: readonly Product[], ask: string, type: string | null, supplier: string | null = null): Pair | null {
   const words = ask.trim();
   if (!words) return null;
   /* a code, as written */
   for (const w of words.split(/[\s,]+/)) {
     const p = w.length >= 4 ? byCode(products, w) : null;
-    if (p && partOf(p) !== "outdoor") return pairOf(products, p);
+    if (p && partOf(p) !== "outdoor") return pairOf(products, p, supplier);
   }
   /* a name and a size */
   const kw = words.match(/(\d+(?:\.\d+)?)\s*kw\b/i);
@@ -118,5 +119,5 @@ export function askedPair(products: readonly Product[], ask: string, type: strin
       return k != null && Math.abs(k - want) <= want * 0.15;
     })
     .sort((a, b) => Math.abs((kwOf(a) ?? 0) - want) - Math.abs((kwOf(b) ?? 0) - want));
-  return hits[0] ? pairOf(products, hits[0]) : null;
+  return hits[0] ? pairOf(products, hits[0], supplier) : null;
 }

@@ -3,6 +3,7 @@ import { OLD_PIPES, PIPE_SIZES } from "../kits";
 import { rollMetresOf } from "../components";
 import type { Product } from "../families";
 import type { Offer } from "../price-book";
+import { supplierOffer } from "../lookups";
 import { DEFAULT_CLIMATE_ZONE, ORIENTATIONS, roomHeatLoadKw } from "@/lib/studio/loads";
 import type { ToolDef } from "./model";
 
@@ -380,9 +381,16 @@ export function kitAskOf(raw: unknown): { kit: "split" | "ducted"; at: { optionI
 export function bookPrice(
   products: readonly Product[],
   code: string,
-  unit: LineUnit
+  unit: LineUnit,
+  /** the job's supplier: its offer of the same item, where it sells it */
+  supplier: string | null = null
 ): { name: string; code: string; supplierKey: string; costCents: number; kind: "unit" | "material" } | null {
   const want = code.trim().toUpperCase();
+  if (supplier) {
+    const p = products.find((x) => x.offers.some((o) => o.code.toUpperCase() === want));
+    const o = p ? supplierOffer(p, supplier) : null;
+    if (p && o) return priced(p, o, unit);
+  }
   let best: { p: Product; o: Offer } | null = null;
   for (const p of products) {
     for (const o of p.offers) {

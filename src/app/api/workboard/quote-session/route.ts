@@ -3,7 +3,7 @@ import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { namesBySignIn } from "@/lib/quotes/lines-server";
-import { chosenModel } from "@/lib/quotes/session/model-server";
+import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
 import { holding, readThread } from "@/lib/quotes/session/store-server";
 import { answerQuestion, priceQuestions } from "@/lib/quotes/session/answers-server";
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
   const names = await namesBySignIn(g.orgId, [...new Set([g.userId, ...events.map((e) => e.author).filter((a) => a !== "tiff")])]);
   return Response.json({
     ok: true,
-    on: chosenModel() != null,
+    on: sessionModelFor(g.orgId) != null,
     working: session ? holding(session, Date.now()) : false,
     spentUsd: session?.spentUsd ?? 0,
     events,

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useEffectEvent, useState } from "react";
 import { createPortal } from "react-dom";
 import { readJobFiles, readJobRecord, type readMirrorJob } from "@/app/actions/workboard";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
@@ -116,19 +116,6 @@ export function QuoteScreen({
      always has; one switched shows its lines once the switch is read. */
   const [engine, setEngine] = useState<"old" | "lines">("old");
   const [linesRev, setLinesRev] = useState(0);
-  useEffect(() => {
-    if (!financials) return;
-    let live = true;
-    fetch(`/api/workboard/quote-lines?job=${encodeURIComponent(job)}`)
-      .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines" }>)
-      .then((a) => {
-        if (live && a.ok && a.engine === "lines") setEngine("lines");
-      })
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, [job, financials]);
   /* a quote Tiff's builder priced, brought across to its kept lines as it's
      priced today, to change by hand (lines-adopt.ts) */
   const adopt = async () => {
@@ -155,6 +142,26 @@ export function QuoteScreen({
       setLinesRev((n) => n + 1);
     } else toast("The quote couldn't be switched. Try again.");
   };
+
+  /* Create a quote, from the job card: starts Tiff on the quote's lines
+     when she's on for the business and nothing is drafted (slice 4.4) */
+  const starting = useSearchParams()?.get("start") === "1";
+  const startTiff = useEffectEvent(() => void switchTo("lines"));
+  useEffect(() => {
+    if (!financials) return;
+    let live = true;
+    fetch(`/api/workboard/quote-lines?job=${encodeURIComponent(job)}`)
+      .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines"; tiff?: boolean; drafted?: boolean; lines?: unknown[] }>)
+      .then((a) => {
+        if (!live || !a.ok) return;
+        if (a.engine === "lines") setEngine("lines");
+        else if (starting && a.tiff && !a.drafted && (a.lines ?? []).length === 0) startTiff();
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [job, financials, starting]);
 
   /* the price, to the money grant only; read for each version of the quote */
   const price = useQuotePrice(job, financials, engine === "lines" ? `lines-${linesRev}` : version);

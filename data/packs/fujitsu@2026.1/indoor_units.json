@@ -1,0 +1,1163 @@
+[
+ {
+  "model": "ARTH09KSLAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KSLAP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 9,
+  "airflow_ls": 167,
+  "static_pressure_pa": 30,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 198,
+  "sound_low_dba": 24,
+  "sound_high_dba": 29,
+  "weight_kg": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "20; Multi brochure 6, 13; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ARTH12KSLAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KSLAP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 12,
+  "airflow_ls": 181,
+  "static_pressure_pa": 30,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 198,
+  "sound_low_dba": 25,
+  "sound_high_dba": 31,
+  "weight_kg": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "20; Multi brochure 6, 13; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ARTH18KSLAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KSLAP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 18,
+  "airflow_ls": 261,
+  "static_pressure_pa": 50,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 900,
+  "depth_mm": 450,
+  "height_mm": 198,
+  "sound_low_dba": 26,
+  "sound_high_dba": 33,
+  "weight_kg": 18.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "20; Multi brochure 6, 13; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ARTH09KLLAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KLLAP",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 9,
+  "airflow_ls": 167,
+  "static_pressure_pa": 90,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 198,
+  "sound_low_dba": 26,
+  "sound_high_dba": 28,
+  "weight_kg": 17.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "10, 21; Multi brochure 6, 13; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ARTH12KLLAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KLLAP",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 12,
+  "airflow_ls": 181,
+  "static_pressure_pa": 90,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 198,
+  "sound_low_dba": 27,
+  "sound_high_dba": 29,
+  "weight_kg": 17.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "10, 21; Multi brochure 6, 13; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ARTH18KLLAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KLLAP",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 18,
+  "airflow_ls": 261,
+  "static_pressure_pa": 90,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 900,
+  "depth_mm": 620,
+  "height_mm": 198,
+  "sound_low_dba": 29,
+  "sound_high_dba": 32,
+  "weight_kg": 20.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "10, 21; Multi brochure 6, 13; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ARTH18KMTAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KMTAP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 18,
+  "airflow_ls": 300,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_low_dba": 25,
+  "sound_high_dba": 33,
+  "weight_kg": 31.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "12, 22; Multi brochure 6, 13; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ARTH24KMTAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KMTAP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 416,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_low_dba": 30,
+  "sound_high_dba": 38,
+  "weight_kg": 31.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "12, 22; Multi brochure 6, 13; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ARTH30KMTAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KMTAP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 30,
+  "airflow_ls": 541,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_high_dba": 38,
+  "weight_kg": 42.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "12, 22"
+  }
+ },
+ {
+  "model": "ARTH36KMTAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KMTAP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "capacity_code": 36,
+  "airflow_ls": 575,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_high_dba": 38,
+  "weight_kg": 42.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "12, 22"
+  }
+ },
+ {
+  "model": "ARTH45KMTAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KMTAP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 14.0,
+  "capacity_code": 45,
+  "airflow_ls": 600,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_high_dba": 40,
+  "weight_kg": 42.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "12, 22"
+  }
+ },
+ {
+  "model": "ARTH54KMTAP",
+  "brand": "fujitsu",
+  "series": "ARTH-KMTAP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 13.0,
+  "capacity_heat_kw": 15.0,
+  "capacity_code": 54,
+  "airflow_ls": 600,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_high_dba": 40,
+  "weight_kg": 42.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "12, 22"
+  }
+ },
+ {
+  "model": "ARTH24KMTAP-HP",
+  "brand": "fujitsu",
+  "series": "ARTH-KMTAP-HP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "airflow_ls": 416,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_high_dba": 38,
+  "weight_kg": 31.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "12, 23"
+  }
+ },
+ {
+  "model": "ARTH30KMTAP-HP",
+  "brand": "fujitsu",
+  "series": "ARTH-KMTAP-HP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "airflow_ls": 541,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_high_dba": 38,
+  "weight_kg": 42.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "12, 23"
+  }
+ },
+ {
+  "model": "ARTH24KHTA",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 500,
+  "static_pressure_pa": 210,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1050,
+  "depth_mm": 500,
+  "height_mm": 400,
+  "sound_high_dba": 34,
+  "weight_kg": 38.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "14, 24"
+  }
+ },
+ {
+  "model": "ARTH30KHTA",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 30,
+  "airflow_ls": 695,
+  "static_pressure_pa": 210,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1050,
+  "depth_mm": 500,
+  "height_mm": 400,
+  "sound_high_dba": 41,
+  "weight_kg": 39.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "14, 24"
+  }
+ },
+ {
+  "model": "ARTH36KHTA",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "capacity_code": 36,
+  "airflow_ls": 695,
+  "static_pressure_pa": 210,
+  "supply_opening": {
+   "w_mm": 851,
+   "h_mm": 295
+  },
+  "return_opening": {
+   "w_mm": 862,
+   "h_mm": 324
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1050,
+  "depth_mm": 500,
+  "height_mm": 400,
+  "sound_low_dba": 36,
+  "sound_high_dba": 41,
+  "weight_kg": 39.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Duct Type High Static Three Phase Design & Technical Manual ARTH36-60KHTA; Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "DR_AR083EF_01 (2023.01.19)",
+   "page": "2, 4, 9; Ducted brochure 24, 26"
+  }
+ },
+ {
+  "model": "ARTH45KHTA",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 14.0,
+  "capacity_code": 45,
+  "airflow_ls": 903,
+  "static_pressure_pa": 260,
+  "supply_opening": {
+   "w_mm": 921,
+   "h_mm": 304
+  },
+  "return_opening": {
+   "w_mm": 1062,
+   "h_mm": 351
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1250,
+  "depth_mm": 490,
+  "height_mm": 425,
+  "sound_low_dba": 35,
+  "sound_high_dba": 43,
+  "weight_kg": 53.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Duct Type High Static Three Phase Design & Technical Manual ARTH36-60KHTA; Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "DR_AR083EF_01 (2023.01.19)",
+   "page": "3, 5, 9; Ducted brochure 24, 26"
+  }
+ },
+ {
+  "model": "ARTH54KHTA",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 15.5,
+  "capacity_code": 54,
+  "airflow_ls": 986,
+  "static_pressure_pa": 260,
+  "supply_opening": {
+   "w_mm": 921,
+   "h_mm": 304
+  },
+  "return_opening": {
+   "w_mm": 1062,
+   "h_mm": 351
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1250,
+  "depth_mm": 490,
+  "height_mm": 425,
+  "sound_low_dba": 36,
+  "sound_high_dba": 45,
+  "weight_kg": 53.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Duct Type High Static Three Phase Design & Technical Manual ARTH36-60KHTA; Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "DR_AR083EF_01 (2023.01.19)",
+   "page": "3, 5, 9; Ducted brochure 24, 26"
+  }
+ },
+ {
+  "model": "ARTH60KHTA",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 15.5,
+  "capacity_heat_kw": 18.0,
+  "capacity_code": 60,
+  "airflow_ls": 986,
+  "static_pressure_pa": 260,
+  "supply_opening": {
+   "w_mm": 921,
+   "h_mm": 304
+  },
+  "return_opening": {
+   "w_mm": 1062,
+   "h_mm": 351
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1250,
+  "depth_mm": 490,
+  "height_mm": 425,
+  "sound_low_dba": 36,
+  "sound_high_dba": 45,
+  "weight_kg": 53.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Duct Type High Static Three Phase Design & Technical Manual ARTH36-60KHTA; Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "DR_AR083EF_01 (2023.01.19)",
+   "page": "3, 5, 9; Ducted brochure 24, 26"
+  }
+ },
+ {
+  "model": "ARTH30KHTA-HP",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA-HP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 8.5,
+  "capacity_heat_kw": 10.0,
+  "airflow_ls": 695,
+  "static_pressure_pa": 210,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1050,
+  "depth_mm": 500,
+  "height_mm": 400,
+  "sound_high_dba": 41,
+  "weight_kg": 39.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "14, 25"
+  }
+ },
+ {
+  "model": "ARTH36KHTA-HP",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA-HP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 12.5,
+  "airflow_ls": 695,
+  "static_pressure_pa": 210,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1050,
+  "depth_mm": 500,
+  "height_mm": 400,
+  "sound_high_dba": 41,
+  "weight_kg": 39.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "14, 25"
+  }
+ },
+ {
+  "model": "ARTH45KHTA-HP",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA-HP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 15.0,
+  "airflow_ls": 903,
+  "static_pressure_pa": 260,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1250,
+  "depth_mm": 490,
+  "height_mm": 425,
+  "sound_high_dba": 43,
+  "weight_kg": 53.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "14, 25"
+  }
+ },
+ {
+  "model": "ARTH54KHTA-HP",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTA-HP",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.5,
+  "airflow_ls": 986,
+  "static_pressure_pa": 260,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1250,
+  "depth_mm": 490,
+  "height_mm": 425,
+  "sound_high_dba": 45,
+  "weight_kg": 53.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "14, 25"
+  }
+ },
+ {
+  "model": "ARTH60KHTB",
+  "brand": "fujitsu",
+  "series": "ARTH-KHTB",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "capacity_code": 60,
+  "airflow_ls": 1139,
+  "static_pressure_pa": 250,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 850,
+  "height_mm": 360,
+  "sound_high_dba": 44,
+  "weight_kg": 69.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "page": "14, 25"
+  }
+ },
+ {
+  "model": "ARTH65KHTA",
+  "brand": "fujitsu",
+  "series": "ARTH65-90KHTA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 18.0,
+  "capacity_heat_kw": 20.0,
+  "capacity_code": 65,
+  "airflow_ls": 1139,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1162,
+   "h_mm": 277
+  },
+  "return_opening": {
+   "w_mm": 1295,
+   "h_mm": 316
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 850,
+  "height_mm": 360,
+  "sound_low_dba": 39,
+  "sound_high_dba": 44,
+  "weight_kg": 69.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Duct Type Design & Technical Manual ARTH65-90KHTA; Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "DR_AR110ES_01 (2025.08.13)",
+   "page": "2-4; Ducted brochure 16, 27"
+  }
+ },
+ {
+  "model": "ARTH72KHTA",
+  "brand": "fujitsu",
+  "series": "ARTH65-90KHTA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 20.0,
+  "capacity_heat_kw": 22.4,
+  "capacity_code": 72,
+  "airflow_ls": 1194,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1162,
+   "h_mm": 277
+  },
+  "return_opening": {
+   "w_mm": 1295,
+   "h_mm": 316
+  },
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 850,
+  "height_mm": 360,
+  "sound_low_dba": 41,
+  "sound_high_dba": 46,
+  "weight_kg": 69.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Duct Type Design & Technical Manual ARTH65-90KHTA; Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "DR_AR110ES_01 (2025.08.13)",
+   "page": "2-4; Ducted brochure 16, 27"
+  }
+ },
+ {
+  "model": "ARTH90KHTA",
+  "brand": "fujitsu",
+  "series": "ARTH65-90KHTA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 22.4,
+  "capacity_heat_kw": 25.0,
+  "capacity_code": 90,
+  "airflow_ls": 1400,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1162,
+   "h_mm": 277
+  },
+  "return_opening": {
+   "w_mm": 1295,
+   "h_mm": 316
+  },
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 850,
+  "height_mm": 360,
+  "sound_low_dba": 45,
+  "sound_high_dba": 50,
+  "weight_kg": 79.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Duct Type Design & Technical Manual ARTH65-90KHTA; Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "DR_AR110ES_01 (2025.08.13)",
+   "page": "2-4; Ducted brochure 16, 27"
+  }
+ },
+ {
+  "model": "ASTG09KMTC",
+  "brand": "fujitsu",
+  "series": "ASTG-KMTC",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 9,
+  "airflow_ls": 194,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 834,
+  "depth_mm": 222,
+  "height_mm": 270,
+  "sound_low_dba": 30,
+  "sound_high_dba": 40,
+  "weight_kg": 10.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Mounted Type Design & Technical Manual ASTG09-12KMTC; Fujitsu Lifestyle Range Brochure (AU)",
+   "edition": "DR_AS079EF_02 (2019.06.11)",
+   "page": "2-3; Lifestyle brochure 6, 10"
+  }
+ },
+ {
+  "model": "ASTG12KMTC",
+  "brand": "fujitsu",
+  "series": "ASTG-KMTC",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.7,
+  "capacity_code": 12,
+  "airflow_ls": 194,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 834,
+  "depth_mm": 222,
+  "height_mm": 270,
+  "sound_low_dba": 30,
+  "sound_high_dba": 40,
+  "weight_kg": 10.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Mounted Type Design & Technical Manual ASTG09-12KMTC; Fujitsu Lifestyle Range Brochure (AU)",
+   "edition": "DR_AS079EF_02 (2019.06.11)",
+   "page": "2-3; Lifestyle brochure 6, 10"
+  }
+ },
+ {
+  "model": "ASTH18KMTD",
+  "brand": "fujitsu",
+  "series": "ASTH-KMTD",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 18,
+  "airflow_ls": 283,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 980,
+  "depth_mm": 240,
+  "height_mm": 280,
+  "sound_high_dba": 46,
+  "weight_kg": 12.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu Lifestyle Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGALIFESTYLE09/24 (Sept 2024)",
+   "page": "6, 10; Multi brochure 6, 12; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ASTH22KMTD",
+  "brand": "fujitsu",
+  "series": "ASTH-KMTD",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 7.2,
+  "capacity_code": 22,
+  "airflow_ls": 294,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 980,
+  "depth_mm": 240,
+  "height_mm": 280,
+  "sound_high_dba": 48,
+  "weight_kg": 12.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu Lifestyle Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGALIFESTYLE09/24 (Sept 2024)",
+   "page": "6, 10; Multi brochure 6, 12; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ASTH24KMTD",
+  "brand": "fujitsu",
+  "series": "ASTH-KMTD",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 325,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 980,
+  "depth_mm": 240,
+  "height_mm": 280,
+  "sound_high_dba": 49,
+  "weight_kg": 12.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu Lifestyle Range Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGALIFESTYLE09/24 (Sept 2024)",
+   "page": "6, 11; DR_MU034ES_01 2"
+  }
+ },
+ {
+  "model": "ASTH24KMTE",
+  "brand": "fujitsu",
+  "series": "ASTH-KMTE",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 325,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 980,
+  "depth_mm": 240,
+  "height_mm": 280,
+  "sound_high_dba": 49,
+  "weight_kg": 12.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu Lifestyle Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "FGALIFESTYLE09/24 (Sept 2024)",
+   "page": "6, 11; Multi brochure 6, 12; DR_MU034ES_01 2"
+  }
+ }
+]

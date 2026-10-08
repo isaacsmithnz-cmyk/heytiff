@@ -1,0 +1,44 @@
+{
+ "brand": "fujitsu",
+ "version": "2026.1",
+ "packSchemaVersion": 1,
+ "name": "Fujitsu (AIRSTAGE, AU) — Lifestyle wall splits, bulkhead / mid / high static ducted, multi-split",
+ "updated": "2026-10-08",
+ "sources": [
+  {
+   "title": "Fujitsu AIRSTAGE Ducted Range Brochure (AU)",
+   "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
+   "access": "public"
+  },
+  {
+   "title": "Fujitsu AIRSTAGE Multi Systems Brochure (AU)",
+   "edition": "FGAMULTI08/25 (Aug 2025, J004120 v2)",
+   "access": "public"
+  },
+  {
+   "title": "Fujitsu Lifestyle Range Brochure (AU)",
+   "edition": "FGALIFESTYLE09/24 (Sept 2024)",
+   "access": "public"
+  },
+  {
+   "title": "Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB",
+   "edition": "DR_MU034ES_01 (2025.06.17)",
+   "access": "public"
+  },
+  {
+   "title": "Duct Type Design & Technical Manual ARTH65-90KHTA",
+   "edition": "DR_AR110ES_01 (2025.08.13)",
+   "access": "public"
+  },
+  {
+   "title": "Duct Type High Static Three Phase Design & Technical Manual ARTH36-60KHTA",
+   "edition": "DR_AR083EF_01 (2023.01.19)",
+   "access": "public"
+  },
+  {
+   "title": "Wall Mounted Type Design & Technical Manual ASTG09-12KMTC",
+   "edition": "DR_AS079EF_02 (2019.06.11)",
+   "access": "public"
+  }
+ ]
+}

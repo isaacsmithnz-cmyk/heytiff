@@ -32,6 +32,7 @@ jest.mock("../tools-server", () => ({
   linePricer: () => ({
     book: async () => BOOK,
     hourCost: async () => 11200,
+    supplier: async () => null,
     lineFor: async (l: { name: string }) => ({ ...l, costCents: 0 }),
   }),
 }));

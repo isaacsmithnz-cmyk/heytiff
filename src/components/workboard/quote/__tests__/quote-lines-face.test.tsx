@@ -361,3 +361,28 @@ it("opens compare from an indoor unit's line", async () => {
   });
   expect(await screen.findByLabelText("Compare")).toBeInTheDocument();
 });
+
+/* one supplier for the whole job (8 October) */
+it("picks the supplier the job buys from, and says where a line it doesn't sell comes from", async () => {
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (_u: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return {
+      json: async () => ({
+        ...view([indoor, line({ id: "tps", group: "Pipe, power and controls", name: "TPS 2.5 mm²", code: "CBT2.5TEWH", supplierKey: "rexel", kind: "material", costCents: 198 })]),
+        supplier: "aad",
+        suppliers: [
+          { key: "aad", name: "AAD" },
+          { key: "rexel", name: "Rexel" },
+        ],
+      }),
+    };
+  });
+  face();
+  expect(await screen.findByText("Not at AAD: Rexel")).toBeInTheDocument();
+  const pick = screen.getByLabelText("Buy from, for this job");
+  expect(pick).toHaveValue("aad");
+  await act(async () => {
+    fireEvent.change(pick, { target: { value: "rexel" } });
+  });
+  expect(posted).toContainEqual({ job: "job-3377", op: "supplier", key: "rexel" });
+});

@@ -6836,7 +6836,12 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt-in { flex:1; min-width:0; min-height:32px; max-height:160px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:none; }
 .fg .qt-in:focus { outline:none; }
 /* an option's name, under the option buttons (mock-up, 8 Oct) */
-.fg .ql-oname { display:flex; flex-direction:column; gap:4px; width:440px; max-width:100%; margin-top:12px; font-size:12px; font-weight:600; color:var(--q); }
+.fg .ql-sumrow { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; margin-top:12px; }
+.fg .ql-oname { display:flex; flex-direction:column; gap:4px; width:300px; max-width:100%; font-size:12px; font-weight:600; color:var(--q); }
+/* the supplier the whole job buys from (8 Oct) */
+.fg .ql-sup { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--q); }
+.fg .ql-sup select { height:36px; min-width:180px; font-size:14px; font-weight:600; color:var(--hd-ink); }
+.fg .ql-not { margin-left:8px; font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
 .fg .ql-oname input { height:36px; font-size:14px; font-weight:600; color:var(--hd-ink); }
 /* a hard job's loading: the Labour group's last line, hidden from the customer */
 .fg tr.ql-load td { background:var(--tint); }

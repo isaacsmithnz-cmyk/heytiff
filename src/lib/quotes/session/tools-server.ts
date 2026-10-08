@@ -3,7 +3,7 @@ import { bookProducts } from "../book-view-server";
 import type { Product } from "../families";
 import { addKit } from "../kits-server";
 import { addLine, changeLine, copyOption, readLines, removeLine } from "../lines-server";
-import { addCompared, nameOption } from "../lines-job-server";
+import { addCompared, nameOption, readByHand } from "../lines-job-server";
 import { lookupUnit } from "../lookups-server";
 import { readOrgDay } from "../org-day-server";
 import { hourCostOf } from "../profit";
@@ -24,6 +24,7 @@ export const TIFF = "tiff";
 export function dbStore(orgId: string, jobUuid: string): QuoteStore {
   let products: Promise<Product[]> | null = null;
   let hour: Promise<number | null> | null = null;
+  let supplier: Promise<string | null> | null = null;
   return {
     readLines: () => readLines(orgId, jobUuid),
     addLine: (row, why) => addLine(orgId, jobUuid, row, TIFF, why),
@@ -34,6 +35,7 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     compareWith: (lineId, code) => addCompared(orgId, jobUuid, lineId, code, TIFF),
     addKit: (kit, facts, at, unit) => addKit(orgId, jobUuid, kit, facts, at, unit, TIFF),
     book: () => (products ??= bookProducts(orgId)),
+    supplier: () => (supplier ??= jobUuid ? readByHand(orgId, jobUuid).then((b) => b.supplier) : Promise.resolve(null)),
     hourCost: () =>
       (hour ??= Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) =>
         d.rate ? hourCostOf(d.rate.perHourCents, s.profitTargetPct, s.labourCostCents) : null
@@ -49,10 +51,11 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
 }
 
 /** How a new line goes on for this business (a person's tapped answer
-    uses it too): the store's book and hour, and the line priced from them. */
-export function linePricer(orgId: string) {
-  const store = dbStore(orgId, "");
-  return { book: store.book, hourCost: store.hourCost, lineFor: (l: NewLine) => lineFor(store, l) };
+    uses it too): the store's book, hour and the job's supplier, and the
+    line priced from them. */
+export function linePricer(orgId: string, jobUuid = "") {
+  const store = dbStore(orgId, jobUuid);
+  return { book: store.book, hourCost: store.hourCost, supplier: store.supplier, lineFor: (l: NewLine) => lineFor(store, l) };
 }
 
 export function sessionTools(orgId: string, jobUuid: string) {

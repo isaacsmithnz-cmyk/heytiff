@@ -429,3 +429,15 @@ describe("watching her build it (5.2)", () => {
     expect(rows[2]).not.toHaveClass("done");
   });
 });
+
+it("on the proposal, reviews every option before it's approved (11.1)", async () => {
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const second = { ...core, id: "l3", optionIndex: 1, name: "Core hole 100 mm" };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => view([indoor, core, second]) }));
+  render(<QuoteLinesFace job="job-3377" price={price} actionsEl={el} onPriced={jest.fn()} onSwitchBack={jest.fn()} />);
+  fireEvent.click(await within(el).findByRole("button", { name: "Preview proposal" }));
+  expect(screen.getByRole("heading", { name: "Before you approve" })).toBeInTheDocument();
+  expect(screen.getByText("Option 1: Core hole 200 mm: not known yet")).toBeInTheDocument();
+  expect(screen.getByText("Option 2: Core hole 100 mm: not known yet")).toBeInTheDocument();
+});

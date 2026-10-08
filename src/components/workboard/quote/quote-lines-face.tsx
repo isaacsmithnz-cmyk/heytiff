@@ -769,27 +769,32 @@ export function QuoteLinesFace({
 
   /* what to look at before it goes: the non-Tiff half of the review (slice
      11.1) — what isn't known, what doesn't fit, and the profit */
-  const unknownHere = lines.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null);
-  const misfits = lines.filter((l) => fitOf.get(l.id)?.state === "misfit");
-  const assumedHere = lines.filter((l) => l.source === "assumed");
-  const checks: { tone: "due" | "info" | "ok"; text: string }[] = [
-    ...unknownHere.map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
-    ...misfits.map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
-    ...(o?.build.loadingNeedsReason ? [{ tone: "due" as const, text: "The loading isn't on the price until it says why" }] : []),
-    ...(assumedHere.length > 0 ? [{ tone: "info" as const, text: `${assumedHere.length} ${assumedHere.length === 1 ? "line" : "lines"} assumed` }] : []),
-    ...(view?.tasks?.[at]
-      ? [{ tone: "info" as const, text: `Your task hours make it ${view.tasks[at]!.hours} h for ${view.tasks[at]!.words}; the quote has ${view.tasks[at]!.quoted} h` }]
-      : []),
-    ...(o?.profit
-      ? [{ tone: o.profit.short ? ("due" as const) : ("ok" as const), text: `Profit ${o.profit.pct}%${o.profit.targetPct != null ? `, target ${o.profit.targetPct}%` : ""}` }]
-      : []),
-  ];
+  type Check = { tone: "due" | "info" | "ok"; text: string };
+  const checksFor = (i: number): Check[] => {
+    const mine = all.filter((l) => l.optionIndex === i);
+    const oi = price && price.ok ? price.options[i] : undefined;
+    const assumed = mine.filter((l) => l.source === "assumed");
+    const task = view?.tasks?.[i];
+    return [
+      ...mine.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
+      ...mine.filter((l) => fitOf.get(l.id)?.state === "misfit").map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
+      ...(oi?.build.loadingNeedsReason ? [{ tone: "due" as const, text: "The loading isn't on the price until it says why" }] : []),
+      ...(assumed.length > 0 ? [{ tone: "info" as const, text: `${assumed.length} ${assumed.length === 1 ? "line" : "lines"} assumed` }] : []),
+      ...(task ? [{ tone: "info" as const, text: `Your task hours make it ${task.hours} h for ${task.words}; the quote has ${task.quoted} h` }] : []),
+      ...(oi?.profit ? [{ tone: oi.profit.short ? ("due" as const) : ("ok" as const), text: `Profit ${oi.profit.pct}%${oi.profit.targetPct != null ? `, target ${oi.profit.targetPct}%` : ""}` }] : []),
+    ];
+  };
+  /* on the proposal, every option is reviewed before it's approved; on the
+     lines, the option open */
+  const checks: Check[] = paper
+    ? Array.from({ length: options }, (_, i) => checksFor(i).map((c) => (options > 1 ? { ...c, text: `Option ${i + 1}: ${c.text}` } : c))).flat()
+    : checksFor(at);
 
   const rail = (
     <div className="ql-rail">
       {checks.length > 0 && (
         <>
-          <h2 className="hd-ls-grp">To check</h2>
+          <h2 className="hd-ls-grp">{paper ? "Before you approve" : "To check"}</h2>
           <ul className="ql-checks">
             {checks.map((c, i) => (
               <li key={i} className={c.tone}>

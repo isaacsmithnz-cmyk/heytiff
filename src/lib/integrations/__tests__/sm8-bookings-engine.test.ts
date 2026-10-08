@@ -84,7 +84,7 @@ import { BOOKING_STATUS_WAIT_MS, BOOKING_WORDS, bookingLine, localNow, statusLin
 import { checkedIn } from "../sm8-booking-send";
 import { NOTE_WORDS } from "../sm8-note-words";
 import { WRITE_WORDS, offersSend, sendHold } from "../sm8-write-plan";
-import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder } from "@/app/actions/sm8-booking-queue";
+import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear, queueMakeWorkOrder, queueMarkUnsuccessful } from "@/app/actions/sm8-booking-queue";
 import { readBookingOverlay } from "../sm8-booking-overlay";
 
 const ORG = "org-1";
@@ -1271,6 +1271,46 @@ describe("Make it a work order: the one status change that goes alone", () => {
     Object.assign(cs[0], { status: "failed", last_error: BOOKING_WORDS.row.refused });
     await run();
     expect(s).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.statusAlone });
+    noRequest();
+  });
+});
+
+/* Isaac, 2026-10-08: "Owner only for the Mark Unsuccessful button" — a lost
+   Quote made Unsuccessful in ServiceM8 from Analytics */
+describe("Mark Unsuccessful: a Quote's other status change, alone", () => {
+  it("(F) queues one status row to Unsuccessful, marked alone, and it goes with nothing behind it", async () => {
+    const q = await queueMarkUnsuccessful(await pressAs(), await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    expect(q).toMatchObject({ ok: true });
+    const s = byId(q.ok && q.rowId);
+    expect(s).toMatchObject({ op: "update", job_status_from: "Quote", job_status_to: "Unsuccessful", payload: { alone: true } });
+    await run();
+    expect(postSm8JobStatus).toHaveBeenCalledTimes(1);
+    expect(postSm8JobStatus.mock.calls[0].slice(1)).toEqual([JOB, "Unsuccessful"]);
+    expect(s.status).toBe("sent");
+    expect(sm8.jobs.get(JOB)!.status).toBe("Unsuccessful");
+  });
+
+  it("(F) is its own row, never Make it a work order's for the same edit", async () => {
+    const press = await pressAs();
+    const wo = await queueMakeWorkOrder(press, await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    const lost = await queueMarkUnsuccessful(press, await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    expect(lost.ok && wo.ok && lost.rowId !== wo.rowId).toBe(true);
+  });
+
+  it("(F) a job made a Work Order since the press is cancelled in its own words, and nothing is posted", async () => {
+    const q = await queueMarkUnsuccessful(await pressAs(), await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    sm8.jobs.get(JOB)!.status = "Work Order";
+    await run();
+    const s = byId(q.ok && q.rowId);
+    expect(s).toMatchObject({ status: "cancelled", last_error: "The job is Work Order in ServiceM8 now, not a Quote, so it wasn't marked Unsuccessful." });
+    noRequest();
+  });
+
+  it("(F) a job ServiceM8 already has Unsuccessful is sent, and nothing is posted", async () => {
+    const q = await queueMarkUnsuccessful(await pressAs(), await state(), { jobUuid: JOB, verbId: randomUUID(), seenEditDate: SEEN });
+    sm8.jobs.get(JOB)!.status = "Unsuccessful";
+    await run();
+    expect(byId(q.ok && q.rowId).status).toBe("sent");
     noRequest();
   });
 });

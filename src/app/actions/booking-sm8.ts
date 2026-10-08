@@ -85,6 +85,7 @@ import {
 import {
   queueBookIn,
   queueMakeWorkOrder,
+  queueMarkUnsuccessful,
   queueBookingRetry,
   queueBookingTakeBack,
   queueClear,
@@ -604,6 +605,60 @@ export async function makeWorkOrder(input: { jobUuid: string; pressId: string })
   if (row.status === "trial") return { ok: true, state: "trial", rowId: queued.rowId };
   if (row.status === "queued" || row.status === "sending") return { ok: true, state: "waiting", rowId: queued.rowId };
   /* a row keeps its reason as the sentence itself */
+  return { ok: false, error: row.last_error ?? BOOKING_WORDS.press.unqueued };
+}
+
+/* ── Mark it Unsuccessful ── */
+
+const LOST_OWNER_ONLY = "Only an owner can mark a quote Unsuccessful in ServiceM8.";
+
+/** Mark a Quote Unsuccessful in ServiceM8, from Analytics' lost quotes
+    (Isaac, 2026-10-08: "Owner only for the Mark Unsuccessful button"). An
+    owner's, whoever else may book; the same checks as Make it a Work Order:
+    offered, the job a Quote in the mirror, its edit time as the mirror holds
+    it, and the sender reads the job live again and goes only if nothing
+    changed since. A job ServiceM8 already has Unsuccessful is done. */
+export async function markUnsuccessful(input: { jobUuid: string; pressId: string }): Promise<MakeWorkOrderAnswer> {
+  const startedAt = Date.now();
+  const g = await gate();
+  if (!g.ok) return g;
+  let role: Awaited<ReturnType<typeof getDbRole>>;
+  try {
+    role = await getDbRole();
+  } catch {
+    return { ok: false, error: BOOKING_WORDS.press.noManage };
+  }
+  if (role !== "owner") return { ok: false, error: LOST_OWNER_ONLY };
+  const { orgId, press } = g;
+  const state = await readSm8WriteState(orgId);
+  if (!offersSend(state, "booking")) return { ok: false, error: notOffered(state) };
+  const jobUuid = text(input?.jobUuid);
+  const pressId = text(input?.pressId);
+  if (!UUID.test(pressId)) return { ok: false, error: BOOKING_WORDS.press.unqueued };
+  if (!UUID.test(jobUuid)) return { ok: false, error: BOOKING_WORDS.press.jobGone };
+
+  const job = await readMirrorJob(orgId, jobUuid);
+  if (job === "failed") return { ok: false, error: BOOKING_WORDS.press.unqueued };
+  if (!job || job.active !== 1 || !job.status) return { ok: false, error: BOOKING_WORDS.press.jobGone };
+  if (job.status === "Unsuccessful") return { ok: true, state: "sent", rowId: "" };
+  if (job.status !== "Quote") return { ok: false, error: fillWords(BOOKING_WORDS.row.jobNotQuote, { status: job.status }) };
+  if (!job.editDate || !EDIT_STAMP.test(job.editDate)) return { ok: false, error: BOOKING_WORDS.press.changed };
+
+  const queued = await queueMarkUnsuccessful(press, state, { jobUuid: job.uuid, verbId: pressId, seenEditDate: job.editDate });
+  if (!queued.ok) return { ok: false, error: await refusedWords(orgId, state, queued, "book") };
+  revalidatePath("/dashboard/analytics");
+  await settle(orgId, [queued.rowId], startedAt);
+
+  const { data } = await supabaseAdmin.from("sm8_writes").select("status, last_error").eq("org_id", orgId).eq("id", queued.rowId).maybeSingle();
+  const row = data as { status: string; last_error: string | null } | null;
+  if (!row) return { ok: false, error: BOOKING_WORDS.press.unqueued };
+  if (row.status === "sent") {
+    /* the mirror says Quote until it reads the job again */
+    syncSm8AfterSend(orgId);
+    return { ok: true, state: "sent", rowId: queued.rowId };
+  }
+  if (row.status === "trial") return { ok: true, state: "trial", rowId: queued.rowId };
+  if (row.status === "queued" || row.status === "sending") return { ok: true, state: "waiting", rowId: queued.rowId };
   return { ok: false, error: row.last_error ?? BOOKING_WORDS.press.unqueued };
 }
 

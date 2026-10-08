@@ -409,6 +409,14 @@ async function sendBooking(
 
   const readJob = (after = false) => readLive((a) => readSm8Job(sm8CallOf(a, "write"), jobUuid), after);
 
+  /* A status row's target: a Work Order (Book in, Make it a Work Order), or
+     Unsuccessful (an owner's Mark Unsuccessful on Analytics). Both start
+     from a Quote and nothing else. */
+  const lost = row.job_status_to === "Unsuccessful";
+  const target: "Work Order" | "Unsuccessful" = lost ? "Unsuccessful" : "Work Order";
+  const notFromQuote = (status: string | null) =>
+    fillWords(lost ? BOOKING_WORDS.row.jobNotQuote : BOOKING_WORDS.row.jobNotBookable, { status: status ?? BOOKING_WORDS.fill.status });
+
   /* ── 0. a status row that may have landed: read the job before anything
      can end it ── */
   let jobRead: Sm8LiveJob | null = null;
@@ -419,10 +427,8 @@ async function sendBooking(
     const job = r.got.found ? r.got.job : null;
     const cleared: Partial<Finish> = { ownRuledOut: true, verifyUuids: [] };
     if (!job || job.active !== 1) return { finish: done("cancelled", BOOKING_WORDS.row.jobGone, cleared), access };
-    if (job.status === "Work Order") return { finish: done("sent", null, { landedEditDate: job.editDate }), access };
-    if (job.status !== "Quote") {
-      return { finish: done("cancelled", fillWords(BOOKING_WORDS.row.jobNotBookable, { status: job.status ?? BOOKING_WORDS.fill.status }), cleared), access };
-    }
+    if (job.status === target) return { finish: done("sent", null, { landedEditDate: job.editDate }), access };
+    if (job.status !== "Quote") return { finish: done("cancelled", notFromQuote(job.status), cleared), access };
     /* still a Quote: nothing landed, and the mark goes whatever the row
        finishes as — unless a POST in this attempt loses its answer again */
     jobRead = job;
@@ -525,7 +531,7 @@ async function sendBooking(
   if (op === "delete") return end(await sendDelete());
   return end(await sendCreate());
 
-  /* ── a Quote made a Work Order ── */
+  /* ── a Quote made a Work Order, or marked Unsuccessful ── */
   async function sendUpdate(): Promise<Finish> {
     /* 1. the job, live — rule 0's read when there was one */
     let job = jobRead;
@@ -535,8 +541,8 @@ async function sendBooking(
       job = r.got.found ? r.got.job : null;
     }
     if (!job || job.active !== 1) return done("cancelled", BOOKING_WORDS.row.jobGone);
-    if (job.status === "Work Order") return done("sent", null, { landedEditDate: job.editDate });
-    if (job.status !== "Quote") return done("cancelled", fillWords(BOOKING_WORDS.row.jobNotBookable, { status: job.status ?? BOOKING_WORDS.fill.status }));
+    if (job.status === target) return done("sent", null, { landedEditDate: job.editDate });
+    if (job.status !== "Quote") return done("cancelled", notFromQuote(job.status));
     if (!sameEditDate(job.editDate, row.seen_edit_date ?? null)) {
       /* our own last status change on this job left its edit time: that is
          as seen */
@@ -549,7 +555,7 @@ async function sendBooking(
     /* 2. the POST, with the last check inside every attempt */
     if (!sendInTime()) return letGo();
     const posted = await writeApp(
-      (a) => postSm8JobStatus(sm8CallOf(a, "write"), jobUuid, "Work Order"),
+      (a) => postSm8JobStatus(sm8CallOf(a, "write"), jobUuid, target),
       async () => {
         const c = pressedAlone ? await statusStillWantedAlone(orgId, row) : await statusStillWanted(orgId, row, zone, t.clock());
         if (c === "go") return null;
@@ -563,15 +569,15 @@ async function sendBooking(
 
     /* 3. a 2xx: read the job back */
     if (res.outcome.kind === "created") {
-      /* the fields guard: the job IS a Work Order, so it is sent — and one
-         that came back neither a Quote nor a Work Order failed, since it
+      /* the fields guard: the job IS the target, so it is sent — and one
+         that came back neither a Quote nor the target failed, since it
          isn't one — and either way Bookings goes off */
       const guarded = (j: Sm8LiveJob): Finish => ({
-        ...fromVerdict(verdictForGuard(j.status === "Work Order" ? "sent" : "failed", BOOKING_WORDS.row.fieldsNotKept), res.status),
+        ...fromVerdict(verdictForGuard(j.status === target ? "sent" : "failed", BOOKING_WORDS.row.fieldsNotKept), res.status),
         landedEditDate: j.editDate,
         guard: true,
       });
-      const kept = (j: Sm8LiveJob) => j.status === "Work Order" && fieldsMoved(seen, j).length === 0;
+      const kept = (j: Sm8LiveJob) => j.status === target && fieldsMoved(seen, j).length === 0;
       const first = await readJob(true);
       /* a read that failed: the 2xx stands */
       if ("finish" in first || !first.got.found) return done("sent", null, { httpStatus: res.status, landedEditDate: null });
@@ -589,7 +595,7 @@ async function sendBooking(
           return guarded(after);
         }
         after = second;
-        if (after.status === "Quote") return done("failed", BOOKING_WORDS.row.statusNotKept, { httpStatus: res.status });
+        if (after.status === "Quote") return done("failed", lost ? BOOKING_WORDS.row.lostNotKept : BOOKING_WORDS.row.statusNotKept, { httpStatus: res.status });
         if (!kept(after)) return guarded(after);
       }
       logLoggedFields(jobUuid, seen, after);
@@ -598,8 +604,10 @@ async function sendBooking(
 
     /* 4. other answers */
     if (res.status === 404) return done("cancelled", BOOKING_WORDS.row.jobGone, { httpStatus: 404 });
-    const v = verdictFor(res.outcome, attempts, ctx());
-    /* no answer, a 408 or a 5xx: it may have made the job a Work Order */
+    const said = verdictFor(res.outcome, attempts, ctx());
+    /* a refusal says which change it refused */
+    const v = lost && said.error === BOOKING_WORDS.row.statusRefused ? { ...said, error: BOOKING_WORDS.row.lostRefused } : said;
+    /* no answer, a 408 or a 5xx: it may have made the change */
     if (res.outcome.kind === "unavailable") return { ...fromVerdict(v, res.status), remote: res.remote, uploadLost: true };
     return { ...fromVerdict(v, res.status), remote: res.remote };
   }

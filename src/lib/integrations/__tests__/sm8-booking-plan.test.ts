@@ -70,7 +70,11 @@ describe("a booking row's subject", () => {
     expect(parseBookingSubject(slot)).toEqual({ via: "slot", staffUuid: ALEX, start: "2026-10-06 09:00:00", released: false });
     const status = bookingSubject.status("2026-09-26 22:05:45");
     expect(status).toBe("status:wo:2026-09-26T22:05:45");
-    expect(parseBookingSubject(status)).toEqual({ via: "status", seenEditDate: "2026-09-26 22:05:45", released: false });
+    expect(parseBookingSubject(status)).toEqual({ via: "status", seenEditDate: "2026-09-26 22:05:45", to: "Work Order", released: false });
+    // a Quote marked Unsuccessful has its own subject, never the Work Order's
+    const lost = bookingSubject.lost("2026-09-26 22:05:45");
+    expect(lost).toBe("status:un:2026-09-26T22:05:45");
+    expect(parseBookingSubject(lost)).toEqual({ via: "status", seenEditDate: "2026-09-26 22:05:45", to: "Unsuccessful", released: false });
     expect(parseBookingSubject(bookingSubject.undo("row-1"))).toEqual({ via: "undo", createRowId: "row-1", released: false });
     expect(parseBookingSubject(bookingSubject.clear("act-1"))).toEqual({ via: "clear", activityUuid: "act-1", released: false });
     for (const s of [slot, status, bookingSubject.undo("row-1"), bookingSubject.clear("act-1")]) expect(s).not.toMatch(/\s/);
@@ -860,6 +864,18 @@ describe("a stored reason", () => {
       ["sendingSwitchedOff", WRITE_WORDS.switchedOff],
     ];
     for (const [key, sentence] of sentences) expect(reasonsMatching(sentence)).toEqual([key]);
+  });
+});
+
+describe("a Quote marked Unsuccessful's line", () => {
+  const lost = (over: Partial<StatusRowIn> = {}) => statusRow({ job_status_to: "Unsuccessful", ...over });
+  it("says it in its own words: going, went, didn't, or may have", () => {
+    expect(statusLine(lost({ status: "queued" }), [], null)?.text).toBe("Marking it Unsuccessful in ServiceM8…");
+    expect(statusLine(lost(), [], null)).toEqual({ key: "line.lostSent", text: "Marked Unsuccessful in ServiceM8", tone: "ok", acts: [] });
+    expect(statusLine(lost({ status: "cancelled", last_error: W.row.changed }), [], null)?.text).toBe(
+      "Not marked Unsuccessful. Changed in ServiceM8. Look again.",
+    );
+    expect(statusLine(lost({ status: "failed", maybe_landed: true }), [], null)?.key).toBe("line.lostUnsure");
   });
 });
 

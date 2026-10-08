@@ -135,6 +135,12 @@ Isaac, 2026-10-07:
   - Of the 29 Unsuccessful jobs of two years that ServiceM8 dates a work order, 25 had visits booked after it: the work went ahead.
   - Such a job is read as the Work Order it was: won if it was quoted (a quote sent or made, a claim, or a Quote a day or more before the work order), else work that was never a quote. It is no longer asked "Won or lost?"; on the live account that is 4 jobs, $65k, now won.
 
+- **Mark Unsuccessful in ServiceM8 is the owner's** (Isaac, 2026-10-08: "Owner only for the Mark Unsuccessful button").
+  - On a lost quote ServiceM8 still has as a Quote: the Quotes tab's lost to review (with "Mark N Unsuccessful in ServiceM8" for them all), and a "Won or lost?" answered lost on To decide.
+  - Shown only to an owner, whoever else may book, and only while sending to ServiceM8 is on (or a trial run).
+  - One status change, Quote to Unsuccessful, alone: the same queue, live re-read, edit-time check and read-back as Make it a Work Order. A job no longer a Quote isn't touched, one already Unsuccessful is done, and the job card's Visits face says "Marked Unsuccessful in ServiceM8".
+  - ServiceM8's job permission now says HeyTiff changes three things: a Quote booked in becomes a Work Order, a Quote an owner marks lost becomes Unsuccessful, and a job's billing address.
+
 ## What the numbers stand on
 
 Most job data is the ServiceM8 mirror (`sm8_*`, docs/migrations/sm8_mirror.sql and sm8_jobs_money.sql):

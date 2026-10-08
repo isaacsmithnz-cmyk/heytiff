@@ -950,6 +950,13 @@ docs/job-analytics-plan.md is the design.
    `extend`) and adds the tender days to `analytics_settings`. It only widens
    a check and adds a nullable column, so applying it early is safe.
    **Applied to production 2026-10-08** (migration `analytics_tenders`).
+6. Apply `docs/migrations/sm8_writes_unsuccessful.sql` **before the deploy
+   that writes it**: it lets a booking status row go from Quote to
+   Unsuccessful as well as to Work Order, for an owner's Mark Unsuccessful
+   in ServiceM8 on Analytics. It widens that one clause of
+   `sm8_writes_shape_check`, rewritten from the database's own definition,
+   so applying it early is safe. **Applied to production 2026-10-08**
+   (migration `sm8_writes_unsuccessful`).
 
 ---
 

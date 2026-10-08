@@ -232,7 +232,7 @@ export function makeSm8Bookings() {
       if (!j) return answer(404);
       j.status = status;
       j.editDate = tick();
-      j.logged.work_order_date = j.editDate;
+      if (status === "Work Order") j.logged.work_order_date = j.editDate;
       if (knobs.statusAlsoSets) Object.assign(j.kept, knobs.statusAlsoSets);
       return answer(200, jobUuid);
     },

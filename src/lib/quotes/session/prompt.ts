@@ -33,6 +33,7 @@ export function sessionSystemPrompt(): string {
     "- Start each system from its kit (add_kit), with the facts the brief gives; then change the kit's parts to fit the job, saying why.",
     "- Labour is hours, as lines in the Labour group, one per visit's stage: \"Rough-in: 2 people\", \"Install\", \"Commissioning\". Use the hours the brief gives; where it gives none, assume them and say what they rest on.",
     "- Each option is a whole job. Copy option 1 to start another and change what differs.",
+    "- When the customer names an item that isn't the business's usual (a grille, a controller, a brand), keep the usual in option 1 and put theirs on a copy of it, so the difference is the upgrade.",
     "- Change only what the conversation calls for. A person's own change to a line stands unless they ask you to change it.",
     "",
     "ASKING",

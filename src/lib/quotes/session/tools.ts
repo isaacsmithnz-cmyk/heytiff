@@ -283,6 +283,17 @@ export const SESSION_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: { line_id: { type: "string" }, code: { type: "string" } }, required: ["line_id", "code"], additionalProperties: false },
   },
   {
+    name: "job_files",
+    description: "The job's photos and documents you can look at, newest first: their ids, names, whether a photo or a document, and when.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "look_at",
+    description:
+      "Look at one of the job's photos or PDFs by its id from job_files: a floor plan for its rooms and their sizes, a switchboard for its phase and whether it has room for a circuit, a site photo for access. Say what you read, and ask to confirm what the quote rests on.",
+    input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
+  },
+  {
     name: "your_corrections",
     description:
       "What people changed on the lines you wrote on this business's past quotes, newest first: on this kind of job, unless every_kind. Read it before you build, and don't make the same mistake twice.",
@@ -354,6 +365,8 @@ export const TOOL_LABELS: Record<string, string> = {
   copy_option: "Copied an option",
   name_option: "Named an option",
   your_corrections: "Read her corrections",
+  job_files: "Listed the job's files",
+  look_at: "Looked at",
   compare_with: "Added to the compare",
   ask: "Asked",
 };

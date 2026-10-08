@@ -4,6 +4,7 @@ import type { QuoteLine } from "../lines";
 import { stillUnknown } from "../lines-price";
 import { findInBook, offerFor, supplierOffer, type UnitLookup } from "../lookups";
 import type { TaskKey } from "../settings";
+import type { Correction } from "../corrections";
 import { taskCheck } from "../task-hours";
 import type { ToolOutcome } from "./turn";
 import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
@@ -33,6 +34,8 @@ export type QuoteStore = {
   totals: () => Promise<{ ok: true; options: number[] } | { ok: false }>;
   /** the supplier the job buys from, where it sells the item; null: any */
   supplier: () => Promise<string | null>;
+  /** people's changes to her lines on past quotes, this kind of job's or every kind's (13.1) */
+  corrections: (sameKind: boolean) => Promise<Correction[]>;
   /** the business's own task hours and working day (slice 8.1) */
   taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
 };
@@ -172,6 +175,16 @@ export function makeTools(store: QuoteStore) {
         if (!bookPrice(await store.book(), code, "")) return fail(`${code} isn't in the business's book.`);
         const res = await store.compareWith(lineId, code);
         return res.ok ? { ok: true, label, said: code, value: { added: code } } : fail(res.reason);
+      }
+      case "your_corrections": {
+        const sameKind = input.every_kind !== true;
+        const list = await store.corrections(sameKind);
+        return {
+          ok: true,
+          label,
+          said: `${list.length} ${list.length === 1 ? "correction" : "corrections"}`,
+          value: list.map((c) => ({ kind: c.kind, line: c.line, what: c.what, why: c.why || null, by: c.by })),
+        };
       }
       case "name_option": {
         const option = typeof input.option === "number" ? Math.max(0, Math.min(19, Math.round(input.option))) : 0;

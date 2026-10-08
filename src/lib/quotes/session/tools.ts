@@ -283,6 +283,12 @@ export const SESSION_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: { line_id: { type: "string" }, code: { type: "string" } }, required: ["line_id", "code"], additionalProperties: false },
   },
   {
+    name: "your_corrections",
+    description:
+      "What people changed on the lines you wrote on this business's past quotes, newest first: on this kind of job, unless every_kind. Read it before you build, and don't make the same mistake twice.",
+    input_schema: { type: "object", properties: { every_kind: { type: "boolean" } }, additionalProperties: false },
+  },
+  {
     name: "name_option",
     description: "Name an option as the proposal heads it and ServiceM8 gets it: short, what it is, \"Ducted upstairs, Cora 7.1 kW downstairs\".",
     input_schema: { type: "object", properties: { option: lineFields.option, name: { type: "string" } }, required: ["option", "name"], additionalProperties: false },
@@ -347,6 +353,7 @@ export const TOOL_LABELS: Record<string, string> = {
   add_kit: "Added a kit",
   copy_option: "Copied an option",
   name_option: "Named an option",
+  your_corrections: "Read her corrections",
   compare_with: "Added to the compare",
   ask: "Asked",
 };

@@ -4,6 +4,7 @@ import type { Product } from "../families";
 import { addKit } from "../kits-server";
 import { addLine, changeLine, copyOption, readLines, removeLine } from "../lines-server";
 import { addCompared, nameOption, readByHand } from "../lines-job-server";
+import { jobKind, readCorrections } from "../corrections-server";
 import { lookupUnit } from "../lookups-server";
 import { readOrgDay } from "../org-day-server";
 import { hourCostOf } from "../profit";
@@ -36,6 +37,7 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     addKit: (kit, facts, at, unit) => addKit(orgId, jobUuid, kit, facts, at, unit, TIFF),
     book: () => (products ??= bookProducts(orgId)),
     supplier: () => (supplier ??= jobUuid ? readByHand(orgId, jobUuid).then((b) => b.supplier) : Promise.resolve(null)),
+    corrections: async (sameKind) => readCorrections(orgId, { kind: sameKind && jobUuid ? await jobKind(orgId, jobUuid) : null }),
     hourCost: () =>
       (hour ??= Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) =>
         d.rate ? hourCostOf(d.rate.perHourCents, s.profitTargetPct, s.labourCostCents) : null

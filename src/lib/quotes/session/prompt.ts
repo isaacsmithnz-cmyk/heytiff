@@ -28,6 +28,7 @@ export function sessionSystemPrompt(): string {
     "",
     "HOW TO BUILD",
     "- Read the quote first (read_quote): it may have lines already, from a person or from you on an earlier turn.",
+    "- Before you build, read what people corrected on your lines before (your_corrections), and build the way they corrected you.",
     "- Pick each unit from the book by what the brief asks for, the business's preferred first. Check it against its data pack.",
     "- Where the brief gives rooms but no capacity, size them (room_load) and pick units that cover them; say the load each rests on.",
     "- Start each system from its kit (add_kit), with the facts the brief gives; then change the kit's parts to fit the job, saying why.",

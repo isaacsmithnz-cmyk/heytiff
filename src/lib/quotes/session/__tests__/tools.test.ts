@@ -18,6 +18,7 @@ jest.mock("../../lines-server", () => ({
   removeLine: jest.fn(),
 }));
 jest.mock("../../kits-server", () => ({ addKit: jest.fn() }));
+jest.mock("../../corrections-server", () => ({ readCorrections: jest.fn(async () => []), jobKind: jest.fn(async () => null) }));
 jest.mock("../../lines-job-server", () => ({
   nameOption: jest.fn(async () => ({ ok: true })),
   addCompared: jest.fn(async () => ({ ok: true })),

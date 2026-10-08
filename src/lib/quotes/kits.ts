@@ -26,6 +26,10 @@ export type KitKey = "split" | "ducted";
 
 export type PipeSize = "1/4+3/8" | "1/4+1/2" | "1/4+5/8" | "3/8+5/8" | "3/8+3/4";
 export const PIPE_SIZES: readonly PipeSize[] = ["1/4+3/8", "1/4+1/2", "1/4+5/8", "3/8+5/8", "3/8+3/4"];
+/** An old system's pipe can be bigger than any new split's: a 1/2" liquid
+    line (3304) is never the size a unit here takes. */
+export type OldPipe = PipeSize | "3/8+7/8" | "1/2+7/8";
+export const OLD_PIPES: readonly OldPipe[] = [...PIPE_SIZES, "3/8+7/8", "1/2+7/8"];
 
 export type KitFacts = {
   /** the unit's pipe, liquid + gas */
@@ -46,6 +50,9 @@ export type KitFacts = {
   outletMm?: number | null;
   /** an old system comes out: its refrigerant recovered, the pipe flushed */
   replacing?: boolean;
+  /** its pipe, to keep: kept only when it's the size the new unit's data
+      pack gives (slice 9.1); else new pipe is priced, saying why */
+  keptPipe?: OldPipe | null;
 };
 
 /** The business's own allowances (Quoting): at cost, null when not set. */
@@ -190,11 +197,19 @@ export function expandKit(
   const out: Partial<LineFields>[] = [];
   for (const part of KITS[kit].parts) {
     if (part.skip?.(f)) continue;
+    /* the old pipe kept: only at the size the unit's pack gives, as no
+       pack here says what else a unit will take */
+    let swap = "";
+    if (part.key === "pair-coil" && f.replacing && f.keptPipe) {
+      if (f.pipe === f.keptPipe) continue;
+      swap = f.pipe ? `the old ${f.keptPipe.replace("+", " + ")} isn't the ${f.pipe.replace("+", " + ")} the unit takes; ` : "";
+    }
     const q = part.qty(f);
     const s = part.search(f);
     const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const };
     if (!q || !s) {
-      out.push({ ...base, name: part.name, qty: q?.qty ?? 0, unit: q?.unit ?? "", costCents: 0, source: "unknown", why: !s ? "Needs the unit's details" : "Needs the run" });
+      const why = !s ? (part.key === "pair-coil" && f.keptPipe ? "Needs the unit's details to check the old pipe" : "Needs the unit's details") : "Needs the run";
+      out.push({ ...base, name: part.name, qty: q?.qty ?? 0, unit: q?.unit ?? "", costCents: 0, source: "unknown", why });
       continue;
     }
     const pool = s.pool ? s.pool(products) : products;
@@ -214,8 +229,8 @@ export function expandKit(
       qty: q.qty,
       unit: q.unit,
       costCents: cost,
-      source: "assumed",
-      why: `${q.why}; ${picked.why.toLowerCase()}`,
+      source: swap ? "fitted" : "assumed",
+      why: `${swap}${q.why}; ${picked.why.toLowerCase()}`,
     });
   }
   /* the business's own allowances, at what it set them at; one it hasn't
@@ -237,7 +252,11 @@ export function expandKit(
     allow("Consumables", allowances.consumables, "your allowance, a head");
     if (f.replacing) {
       allow("Refrigerant recovery and removal", allowances.recovery, "your allowance, a system");
-      allow("Pipe flush", allowances.flush, "your allowance, a system");
+      allow(
+        "Pipe flush",
+        allowances.flush,
+        f.keptPipe && f.pipe === f.keptPipe ? `your allowance, a system; the old ${f.keptPipe.replace("+", " + ")} kept, the size the unit takes` : "your allowance, a system"
+      );
     }
   }
   return out;
@@ -274,7 +293,8 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     drainM: n(r.drainM, 200),
     outlets: n(r.outlets, 40),
     outletMm: n(r.outletMm, 600),
-    replacing: r.replacing === true || r.replacing === "yes",
+    replacing: r.replacing === true || r.replacing === "yes" || r.replacing === "keep",
+    keptPipe: r.replacing === "keep" && (OLD_PIPES as readonly unknown[]).includes(r.keptPipe) ? (r.keptPipe as OldPipe) : null,
   };
 }
 

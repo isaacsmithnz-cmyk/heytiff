@@ -51,7 +51,7 @@ import {
 } from "@/lib/quotes/payment";
 import type { StoredProposal } from "@/lib/quotes/proposal-writer";
 import type { QuotePrice } from "@/lib/quotes/quote-price-server";
-import { quoteSteps, type StepKey } from "@/lib/quotes/quote-steps";
+import { acceptedWords, quoteSteps, type StepKey } from "@/lib/quotes/quote-steps";
 import { PriceLines, PriceSummary, QuoteStepsLine, leftOn, priceState } from "../quote/quote-parts";
 import { STANDARD_NOTES, standardTemplates, type PaymentTerms, type QuoteNote } from "@/lib/templates/settings";
 import { withCleanup } from "@/lib/ui/with-cleanup";
@@ -99,7 +99,7 @@ type Answer =
       /** the brief's labour, beside each option */
       labour?: QuoteLabour | null;
       /** a quote built by hand on its kept lines, and how many it holds */
-      byHand?: { lines: number } | null;
+      byHand?: { lines: number; accepted?: number[] } | null;
     }
   /** `proposal` comes back when the draft moved on underneath the change */
   | { ok: false; reason: string; proposal?: StoredProposal | null };
@@ -240,7 +240,7 @@ export function JobQuoteFace({
     </div>
   ) : null;
   const [loaded, setLoaded] = useState<StoredProposal | null | undefined>(undefined);
-  const [byHand, setByHand] = useState<{ lines: number } | null>(null);
+  const [byHand, setByHand] = useState<{ lines: number; accepted?: number[] } | null>(null);
   const [readFailed, setReadFailed] = useState(false);
   const [brief, setBrief] = useState("");
   const [change, setChange] = useState("");
@@ -515,7 +515,7 @@ export function JobQuoteFace({
     return (
       <>
         {sm8Block}
-        {proposal && (
+        {proposal && !byHand && (
           <div className="wb2-jcsec">
             <div className="wb2-jcdhead">
               <b>Quote</b>
@@ -526,11 +526,16 @@ export function JobQuoteFace({
             </div>
           </div>
         )}
-        {!proposal && byHand && (
+        {/* a quote brought across from Tiff's builder keeps its old proposal
+            underneath: its lines are the quote now */}
+        {byHand && (
           <div className="wb2-jcsec">
             <div className="wb2-jcdhead">
               <b>Quote</b>
-              <em>{`Built by hand, ${byHand.lines} ${byHand.lines === 1 ? "line" : "lines"}`}</em>
+              <em>
+                {`Built by hand, ${byHand.lines} ${byHand.lines === 1 ? "line" : "lines"}`}
+                {byHand.accepted?.length ? `, ${acceptedWords(byHand.accepted)} accepted` : ""}
+              </em>
             </div>
           </div>
         )}

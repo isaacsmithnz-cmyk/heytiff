@@ -5,6 +5,7 @@ import { normaliseDraft } from "@/lib/quotes/proposal";
 import { orgTemplates } from "@/lib/templates/query";
 import { readSm8QuoteBrief } from "@/lib/quotes/sm8-quote-brief-server";
 import { readEngine, readLines } from "@/lib/quotes/lines-server";
+import { readByHand } from "@/lib/quotes/lines-job-server";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
 import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";
@@ -69,8 +70,13 @@ export async function GET(req: Request) {
     readEngine(who.orgId, target.parentRemoteId).catch(() => "old" as const),
   ]);
   /* a quote built by hand on its kept lines (the engine rebuild): the card
-     says so, and how many lines it holds */
-  const byHand = engine === "lines" ? { lines: (await readLines(who.orgId, target.parentRemoteId).catch(() => [])).length } : null;
+     says so, how many lines it holds, and the option accepted */
+  const byHand =
+    engine === "lines"
+      ? await Promise.all([readLines(who.orgId, target.parentRemoteId).catch(() => []), readByHand(who.orgId, target.parentRemoteId).catch(() => ({ accepted: [] }))]).then(
+          ([lines, b]) => ({ lines: lines.length, accepted: b.accepted })
+        )
+      : null;
   /* showLines: the business's own default for what the customer sees;
      labour: what the brief gives, beside each option */
   return Response.json({

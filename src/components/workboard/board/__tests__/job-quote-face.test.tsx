@@ -477,6 +477,14 @@ describe("a quote ServiceM8 generated", () => {
     expect(screen.getByText("Built by hand, 12 lines")).toBeInTheDocument();
   });
 
+  it("a quote brought across shows its lines, not the proposal underneath, with the option accepted", async () => {
+    const proposal = { cardId: "j-1", draft: normaliseDraft({ options: [{ name: "Old", lines: ["A split."] }] }), brief: "", changes: [], updatedAt: "2026-10-01T00:00:00Z" };
+    fetchMock.mockImplementation(() => respond({ ok: true, proposal, byHand: { lines: 3, accepted: [1] } }));
+    render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
+    expect(await screen.findByText("Built by hand, 3 lines, Option 2 accepted")).toBeInTheDocument();
+    expect(screen.queryByText(/^Drafted/)).toBeNull();
+  });
+
   it("a job ServiceM8 never quoted shows Create a quote on the card", async () => {
     render(<JobQuoteFace job="j-1" address={null} visible onToast={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
     expect(await screen.findByRole("link", { name: "Create a quote" })).toBeInTheDocument();

@@ -25,6 +25,7 @@ type Ev = { id: number; turnId: string | null; kind: string; author: string; bod
 type QState = { deltas: (number | null)[]; answered: { index: number; label: string; by: string } | null };
 type View = { ok: boolean; on?: boolean; working?: boolean; spentUsd?: number; events?: Ev[]; names?: Record<string, string>; me?: string; questions?: Record<number, QState> };
 type Answer = { label: string };
+type Source = { id: string; label: string; text: string };
 
 /** A price difference as an answer shows it: nothing for none. */
 const deltaWords = (c: number | null | undefined) => (c == null || Math.round(c) === 0 ? "" : `${c > 0 ? "+" : "−"}${fmtAud(Math.abs(Math.round(c)))}`);
@@ -51,6 +52,9 @@ export function TiffPanel({
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  /* Read the job: its sources, and which are ticked */
+  const [sources, setSources] = useState<{ list: Source[]; left: number } | null>(null);
+  const [ticked, setTicked] = useState<Set<string>>(new Set());
   const last = useRef(0);
   const busyNow = useRef(false);
   const bottom = useRef<HTMLDivElement | null>(null);
@@ -104,12 +108,26 @@ export function TiffPanel({
 
   if (!on) return <>{children}</>;
 
-  const send = async () => {
+  const openSources = async () => {
+    setBusy(true);
+    const r = await fetch(`${ROUTE}?job=${encodeURIComponent(job)}&sources=1`).catch(() => null);
+    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; sources?: Source[]; left?: number } | null) : null;
+    setBusy(false);
+    if (!a?.ok) return setNote("The job couldn't be read just now. Try again.");
+    setSources({ list: a.sources ?? [], left: a.left ?? 0 });
+    setTicked(new Set((a.sources ?? []).map((s) => s.id)));
+  };
+
+  const send = async (readJob = false) => {
     const message = typed.trim();
-    if (!message || busy) return;
+    if ((!message && !readJob) || busy) return;
     setBusy(true);
     setNote(null);
-    const r = await fetch(ROUTE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ job, message }) }).catch(() => null);
+    const r = await fetch(ROUTE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job, message, ...(readJob ? { sources: [...ticked] } : {}) }),
+    }).catch(() => null);
     const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; reason?: string } | null) : null;
     setBusy(false);
     if (!a?.ok) return setNote(a?.reason ?? "That didn't send. Try again.");
@@ -150,8 +168,50 @@ export function TiffPanel({
         {events.length === 0 && (
           <div className="qt-hello">
             <TiffGlyph size={48} />
-            <b>Ready when you are</b>
+            <b>{names[me] ? `Hi ${names[me]!.split(/\s+/)[0]}` : "Hi"}</b>
+            <span>Ready when you are.</span>
+            {!sources && (
+              <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => void openSources()}>
+                Read the job
+              </button>
+            )}
           </div>
+        )}
+        {events.length === 0 && sources && (
+          <section aria-label="Read the job">
+            <h2 className="hd-ls-grp">Read the job</h2>
+            {sources.list.length === 0 && <p className="qt-did">Nothing on the job to read yet.</p>}
+            <ul className="qt-src">
+              {sources.list.map((s) => (
+                <li key={s.id}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={ticked.has(s.id)}
+                      onChange={(e) =>
+                        setTicked((t) => {
+                          const n = new Set(t);
+                          if (e.target.checked) n.add(s.id);
+                          else n.delete(s.id);
+                          return n;
+                        })
+                      }
+                    />
+                    <span>
+                      <b>{s.label}</b>
+                      <small>{s.text.length > 140 ? `${s.text.slice(0, 140)}…` : s.text}</small>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {sources.left > 0 && <p className="qt-did">{`${sources.left} older ${sources.left === 1 ? "note" : "notes"} left out: the job's notes are longer than she reads.`}</p>}
+            <div className="wb2-jqacts">
+              <button type="button" className="pbtn primary sm" disabled={busy || ticked.size === 0} onClick={() => void send(true)}>
+                Read it
+              </button>
+            </div>
+          </section>
         )}
         {open.length > 0 && (
           <section aria-label="Unknowns">
@@ -221,7 +281,7 @@ export function TiffPanel({
             className="qt-in"
             rows={1}
             value={typed}
-            placeholder="Message Tiff"
+            placeholder={events.length === 0 ? "Tell Tiff about the job" : "Message Tiff"}
             aria-label="Message Tiff"
             onChange={(e) => setTyped(e.target.value)}
             onKeyDown={(e) => {

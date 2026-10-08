@@ -60,7 +60,7 @@ it("puts the person's words in the thread at once, opens with the job's, and run
   const model = scripted([{ content: [{ type: "text", text: "On it." }], stopReason: "end_turn" }]);
   const started = await startTurn("org", "job", "u1", "Quote this", { modelName: "claude-opus-5-5", model, brief: "Split in the main bedroom, 3.5 kW." });
   expect(started.ok).toBe(true);
-  expect(addEvents).toHaveBeenCalledWith("org", "s1", "t1", [{ kind: "message", author: "u1", body: { text: "Quote this" } }]);
+  expect(addEvents).toHaveBeenCalledWith("org", "s1", "t1", [{ kind: "message", author: "u1", body: { text: "Quote this", read: true } }]);
   expect(model.calls).toHaveLength(0);
   const end = await (started as Extract<typeof started, { ok: true }>).run();
   expect(end.ended).toBe("done");

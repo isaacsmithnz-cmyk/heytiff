@@ -108,5 +108,38 @@ it("says why when she can't take the message", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
   });
   expect(screen.getByText("Tiff is still working on the last one.")).toBeInTheDocument();
-  expect(screen.getByText("Ready when you are")).toBeInTheDocument();
+  expect(screen.getByText("Ready when you are.")).toBeInTheDocument();
+});
+
+it("reads the job: every source listed to untick, and only the ticked ones sent", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string, init?: { body?: string }) => {
+    if (init?.body) {
+      posted.push(JSON.parse(init.body));
+      return respond({ ok: true, turn: "t1" });
+    }
+    if (String(url).includes("sources=1"))
+      return respond({
+        ok: true,
+        left: 2,
+        sources: [
+          { id: "description", label: "The job's description", text: "Ducted upstairs and down" },
+          { id: "note:n1", label: "Note, 6 Oct 2026, Luke Bennett", text: "Six floor grilles 350 x 150. Core hole through sandstone." },
+          { id: "note:n2", label: "Note, 7 Oct 2026, Luke Bennett", text: "Invoice the deposit" },
+        ],
+      });
+    return respond({ ...thread, events: [], names: { "u-isaac": "Isaac Smith" } });
+  });
+  render(<TiffPanel job="j" onChanged={jest.fn()}>{null}</TiffPanel>);
+  expect(await screen.findByText("Hi Isaac")).toBeInTheDocument();
+  expect(screen.getByLabelText("Message Tiff")).toHaveAttribute("placeholder", "Tell Tiff about the job");
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Read the job" }));
+  });
+  expect(screen.getByText("Note, 6 Oct 2026, Luke Bennett")).toBeInTheDocument();
+  expect(screen.getByText("2 older notes left out: the job's notes are longer than she reads.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("checkbox", { name: /Invoice the deposit/ }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Read it" }));
+  });
+  expect(posted).toContainEqual({ job: "j", message: "", sources: ["description", "note:n1"] });
 });

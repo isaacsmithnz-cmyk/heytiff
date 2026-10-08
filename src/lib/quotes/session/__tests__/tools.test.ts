@@ -132,3 +132,19 @@ describe("her tools, run", () => {
     expect(await run("drop_table", {})).toMatchObject({ ok: false, error: "There's no tool called drop_table." });
   });
 });
+
+/* sized from the rooms (slice 4.7): Studio's own load method */
+describe("a room's load", () => {
+  it("is Studio's: 145 W/m² in zone 5, a west wall heavier, an internal room lighter", async () => {
+    const { roomLoads } = await import("../tools");
+    const v = roomLoads({ rooms: [{ name: "Living", area_m2: 84 }, { name: "Bed 2", area_m2: 12, orientation: "W" }, { name: "Hall", area_m2: 6, internal: true }, { name: "Garage" }] });
+    expect(v.rooms).toEqual([
+      { name: "Living", area_m2: 84, load_kw: 12.18 },
+      { name: "Bed 2", area_m2: 12, load_kw: 2.262 },
+      { name: "Hall", area_m2: 6, load_kw: 0.74 },
+    ]);
+    expect(v.skipped).toEqual(["Garage: no area"]);
+    expect(v.climate_zone).toBe(5);
+    expect(roomLoads({ climate_zone: 2, rooms: [{ name: "Living", area_m2: 84 }] }).rooms[0]!.load_kw).toBe(13.44);
+  });
+});

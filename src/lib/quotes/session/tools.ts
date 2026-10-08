@@ -3,6 +3,7 @@ import { OLD_PIPES, PIPE_SIZES } from "../kits";
 import { rollMetresOf } from "../components";
 import type { Product } from "../families";
 import type { Offer } from "../price-book";
+import { DEFAULT_CLIMATE_ZONE, ORIENTATIONS, roomHeatLoadKw } from "@/lib/studio/loads";
 import type { ToolDef } from "./model";
 
 /* TIFF'S HANDS ON A QUOTE (slice 4.2) — the quote by hand's own actions as
@@ -178,6 +179,39 @@ export const SESSION_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: { brand: { type: "string", description: "e.g. mitsubishi-electric" }, model: { type: "string" } }, required: ["brand", "model"], additionalProperties: false },
   },
   {
+    name: "room_load",
+    description:
+      "Each room's design load in kW by Studio's own load method, when the brief gives rooms but no capacity: the area, the climate zone (5 for Sydney, Perth, Adelaide; 6 Melbourne, Canberra; 2 Brisbane), and what's known of the room. A unit covers a room when its rating is short by less than 0.1 kW. Pick the unit from the book, then check it on its data pack.",
+    input_schema: {
+      type: "object",
+      properties: {
+        climate_zone: { type: "integer", minimum: 1, maximum: 8 },
+        building_type: { type: "string", enum: ["residential", "light_commercial", "commercial"] },
+        rooms: {
+          type: "array",
+          maxItems: 30,
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              area_m2: { type: "number" },
+              glazing: { type: "string", enum: ["low", "moderate", "high"] },
+              condition: { type: "string", enum: ["well_insulated", "standard", "poor"] },
+              ceiling_height_m: { type: "number" },
+              orientation: { type: "string", enum: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] },
+              internal: { type: "boolean", description: "No external walls" },
+              room_above: { type: "boolean", description: "Another floor above, not a roof" },
+            },
+            required: ["name", "area_m2"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["rooms"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "add_lines",
     description: `Add up to ${MAX_ADD} lines. A line with a code is priced from the book; a code the book hasn't got is refused. Labour is hours (unit h, no code), named by its stage and crew: \"Rough-in: 2 people\".`,
     input_schema: {
@@ -294,6 +328,7 @@ export const TOOL_LABELS: Record<string, string> = {
   read_quote: "Read the quote",
   search_book: "Searched your book",
   unit_specs: "Read the data pack",
+  room_load: "Sized the rooms",
   add_lines: "Added lines",
   change_line: "Changed a line",
   remove_line: "Took a line off",
@@ -357,4 +392,36 @@ function priced(p: Product, o: Offer, unit: LineUnit) {
     costCents: roll && roll > 1 ? Math.round((o.netCents / roll) * 10) / 10 : o.netCents,
     kind: p.category === "units" ? ("unit" as const) : ("material" as const),
   };
+}
+
+/** Each room's load by Studio's load method (lib/studio/loads.ts), from what
+    she gave; a room with no area is left out, saying so. */
+export function roomLoads(raw: unknown): { rooms: { name: string; area_m2: number; load_kw: number }[]; total_kw: number; skipped: string[]; climate_zone: number } {
+  const r = obj(raw);
+  const zone = Math.max(1, Math.min(8, Math.round(num(r.climate_zone) ?? DEFAULT_CLIMATE_ZONE)));
+  const type = (["residential", "light_commercial", "commercial"] as const).find((t) => t === r.building_type) ?? "residential";
+  const out: { name: string; area_m2: number; load_kw: number }[] = [];
+  const skipped: string[] = [];
+  for (const raw2 of (Array.isArray(r.rooms) ? r.rooms : []).slice(0, 30)) {
+    const o = obj(raw2);
+    const name = str(o.name, 60) || "A room";
+    const area = num(o.area_m2);
+    if (area == null || area <= 0 || area > 2000) {
+      skipped.push(`${name}: no area`);
+      continue;
+    }
+    const load = roomHeatLoadKw({
+      areaM2: area,
+      climateZone: zone,
+      buildingType: type,
+      glazing: (["low", "moderate", "high"] as const).find((g) => g === o.glazing),
+      condition: (["well_insulated", "standard", "poor"] as const).find((c) => c === o.condition),
+      ceilingHeightM: num(o.ceiling_height_m) ?? undefined,
+      orientation: ORIENTATIONS.find((d) => d === o.orientation),
+      hasExternalWalls: o.internal === true ? false : true,
+      roomAbove: o.room_above === true,
+    });
+    out.push({ name, area_m2: area, load_kw: load });
+  }
+  return { rooms: out, total_kw: Math.round(out.reduce((n, x) => n + x.load_kw, 0) * 1000) / 1000, skipped, climate_zone: zone };
 }

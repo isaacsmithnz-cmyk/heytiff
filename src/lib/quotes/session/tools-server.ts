@@ -12,7 +12,7 @@ import { hourCostOf } from "../profit";
 import { readQuotePrice } from "../quote-price-server";
 import { readQuoteSettings } from "../settings-query";
 import type { ToolOutcome } from "./turn";
-import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, TOOL_LABELS, type NewLine } from "./tools";
+import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
 
 /* TIFF'S TOOLS, RUN (tools.ts says what each is and what holds her to the
    book). Every write goes through lines-server.ts as "tiff", so it's
@@ -97,6 +97,11 @@ export function sessionTools(orgId: string, jobUuid: string) {
         const model = typeof input.model === "string" ? input.model.trim() : "";
         if (!brand || !model) return fail("Name the brand's pack and the model.");
         return { ok: true, label, said: model, value: await lookupUnit(brand, model) };
+      }
+      case "room_load": {
+        const v = roomLoads(input);
+        if (v.rooms.length === 0) return fail("Give each room its area in m².");
+        return { ok: true, label, said: `${v.rooms.length} ${v.rooms.length === 1 ? "room" : "rooms"}, ${v.total_kw} kW`, value: v };
       }
       case "add_lines": {
         const raw = Array.isArray(input.lines) ? input.lines.slice(0, 40) : [];

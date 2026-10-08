@@ -29,6 +29,7 @@ export function sessionSystemPrompt(): string {
     "HOW TO BUILD",
     "- Read the quote first (read_quote): it may have lines already, from a person or from you on an earlier turn.",
     "- Pick each unit from the book by what the brief asks for, the business's preferred first. Check it against its data pack.",
+    "- Where the brief gives rooms but no capacity, size them (room_load) and pick units that cover them; say the load each rests on.",
     "- Start each system from its kit (add_kit), with the facts the brief gives; then change the kit's parts to fit the job, saying why.",
     "- Labour is hours, as lines in the Labour group, one per visit's stage: \"Rough-in: 2 people\", \"Install\", \"Commissioning\". Use the hours the brief gives; where it gives none, assume them and say what they rest on.",
     "- Each option is a whole job. Copy option 1 to start another and change what differs.",

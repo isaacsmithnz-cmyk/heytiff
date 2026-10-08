@@ -41,7 +41,10 @@ const view = (lines: QuoteLine[]) => ({
   ok: true,
   engine: "lines",
   lines,
-  changes: [{ id: 7, lineId: "l1", action: "change", before: { qty: 2 }, after: { qty: 1 }, why: "", madeBy: "u-luke", madeAt: "2026-10-08T00:00:00Z" }],
+  changes: [
+    { id: 7, lineId: "l1", action: "change", before: { qty: 2 }, after: { qty: 1 }, why: "", madeBy: "u-luke", madeAt: "2026-10-08T00:00:00Z" },
+    { id: 6, lineId: "l2", action: "add", before: null, after: { name: "Core hole 200 mm" }, why: "“thick sandstone”", madeBy: "tiff", madeAt: "2026-10-07T23:00:00Z" },
+  ],
   names: { "u-luke": "Luke Bennett" },
   me: "u-isaac",
 });
@@ -119,8 +122,10 @@ it("lists every change with who made it, and undoes one", async () => {
   face();
   expect(await screen.findByText("Luke Bennett")).toBeInTheDocument();
   expect(screen.getByText("changed qty")).toBeInTheDocument();
+  /* Tiff's own changes say they're hers */
+  expect(screen.getByText("Tiff")).toBeInTheDocument();
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Undo" })[0]!);
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "undo", change: 7 });
 });

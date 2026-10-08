@@ -600,7 +600,7 @@ export function QuoteLinesFace({
       {(view?.changes ?? []).length === 0 && <p className="qp-none">Nothing changed yet.</p>}
       <ul className="ql-chg">
         {(view?.changes ?? []).slice(0, 30).map((c) => {
-          const who = c.madeBy === view?.me ? "You" : (view?.names[c.madeBy] ?? "Someone");
+          const who = c.madeBy === view?.me ? "You" : c.madeBy === "tiff" ? "Tiff" : (view?.names[c.madeBy] ?? "Someone");
           const name = (c.after?.name ?? c.before?.name ?? "a line") as string;
           const what =
             c.action === "add"

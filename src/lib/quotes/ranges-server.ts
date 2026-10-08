@@ -9,7 +9,9 @@ import {
   cleanSize,
   inKind,
   lineLabel,
+  rangeKindOf,
   sizeWords,
+  wholeRange,
   type CandidateLine,
   type RangeKind,
   type RangeSize,
@@ -143,4 +145,21 @@ export async function saveRange(
   const all = (await readRanges(orgId)).filter((r) => r.kind === kind);
   const items = all.length ? await currentItemsByCode(orgId, all.map((r) => r.code)) : [];
   return viewsOf(all, items, suppliers).find((v) => v.kind === kind) ?? { kind, items: [] };
+}
+
+/** An item chosen as preferred fills its range (ranges.ts, wholeRange):
+    its product line at every size, over another line's item at those
+    sizes. Nothing when the item is no range's, or its size can't be read. */
+export async function preferRange(orgId: string, userId: string, supplierKey: string, code: string, wasName = ""): Promise<{ kind: RangeKind; sizes: number } | null> {
+  const [item] = await currentItemsByCode(orgId, [code]);
+  if (!item || item.supplierKey !== supplierKey) return null;
+  const kind = rangeKindOf(item.name, wasName);
+  if (!kind) return null;
+  const line = (await rangeCandidates(orgId, kind)).find((l) => l.supplierKey === supplierKey && l.items.some((i) => i.code === code));
+  if (!line) return null;
+  const held = (await readRanges(orgId)).filter((r) => r.kind === kind);
+  const { add, remove } = wholeRange(kind, line.items, supplierKey, held);
+  if (add.length === 0) return null;
+  const saved = await saveRange(orgId, userId, kind, add, remove);
+  return saved ? { kind, sizes: add.length } : null;
 }

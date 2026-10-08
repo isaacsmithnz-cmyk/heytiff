@@ -11,6 +11,7 @@ import {
   withLoading,
   withName,
   withProposal,
+  withResearched,
   withSupplier,
   type ByHand,
 } from "./lines-job";
@@ -21,6 +22,7 @@ import type { QuoteLine } from "./lines";
 import { readOrgDay } from "./org-day-server";
 import type { ProposalDraft } from "./proposal";
 import { readStoredProposal } from "./proposal-writer";
+import type { ResearchDetail } from "./research";
 
 /* THE QUOTE, AS THE JOB READS IT, whichever engine prices it (lines-job.ts
    says why): the proposal Tiff's builder wrote, or a switched quote's
@@ -75,6 +77,17 @@ export async function setSupplier(orgId: string, cardId: string, key: unknown, b
     if (c.ok) moved++;
   }
   return { ...r, moved };
+}
+
+/** A researched price used (12.2): the line sells at it, no markup, and
+    carries the page it rests on. */
+export async function putResearchedOn(orgId: string, cardId: string, by: string, r: ResearchDetail): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const line = (await readLines(orgId, cardId)).find((l) => l.id === r.lineId);
+  if (!line) return { ok: false, reason: "That line has gone since." };
+  const c = await changeLine(orgId, cardId, line.id, line.version, { sellCents: r.priceCents }, by, `From the web: ${r.source.title}`);
+  if (!c.ok) return { ok: false, reason: c.reason };
+  const m = await changeByHand(orgId, cardId, by, (b) => withResearched(b, line.id, r.source));
+  return m.ok ? { ok: true } : m;
 }
 
 /** The proposal's words changed (7.1), one set of words an option. */

@@ -160,3 +160,30 @@ it("tells the page her plan while she works on it, and nothing once she's done (
   await screen.findByText("Planned the quote: 2 parts");
   expect(onPlan).toHaveBeenLastCalledWith({ option: 0, parts: [{ system: "Downstairs", group: "Units", detail: "PEA-M125HAA" }, { system: "", group: "Labour", detail: "" }] });
 });
+
+it("shows a researched price with its page, and Use it puts it on the line (12.2)", async () => {
+  const research = { lineId: "l1", priceCents: 130000, per: "a hole", summary: "$400 to $800 a hole; $1,300 for sandstone.", source: { url: "https://quoteyard.com.au/coring", title: "The Quote Yard" } };
+  const withResearch = { ...thread, events: [{ id: 7, turnId: "t1", kind: "tool", author: "tiff", at: "", body: { name: "research_price", label: "Researched a price", ok: true, said: "$1300.00 a hole", detail: { research } } }] };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_u: string, init?: { body?: string }) => {
+    if (init?.body) {
+      posted.push(JSON.parse(init.body));
+      return respond({ ok: true });
+    }
+    return respond(withResearch);
+  });
+  const onChanged = jest.fn();
+  render(
+    <TiffPanel job="j" onChanged={onChanged}>
+      {null}
+    </TiffPanel>
+  );
+  expect(await screen.findByText("$400 to $800 a hole; $1,300 for sandstone.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "The Quote Yard" })).toHaveAttribute("href", "https://quoteyard.com.au/coring");
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Use $1,300" }));
+  });
+  /* the route reads the price back from the thread: only the event goes */
+  expect(posted.at(-1)).toEqual({ job: "j", op: "use", event: 7 });
+  expect(screen.getByText("On the line at $1,300 a hole")).toBeInTheDocument();
+  expect(onChanged).toHaveBeenCalled();
+});

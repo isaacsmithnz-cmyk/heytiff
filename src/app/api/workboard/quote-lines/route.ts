@@ -71,6 +71,7 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     optionNames: byHand.names,
     loading: byHand.loading,
     supplier: byHand.supplier,
+    researched: byHand.researched,
     suppliers,
     tasks,
     /* the proposal's words, whether an approval of them still stands, and

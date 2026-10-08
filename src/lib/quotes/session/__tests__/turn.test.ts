@@ -165,6 +165,15 @@ describe("the model's door", () => {
   });
 });
 
+it("counts what a tool spent on a call of its own with hers (12.2)", async () => {
+  const model = scripted([
+    { content: [use("t1", "research_price", { line_id: "l1", what: "x" })], stopReason: "tool_use", usage },
+    { content: [text("$1,300 a hole.")], stopReason: "end_turn", usage },
+  ]);
+  const { d } = deps(model, { runTool: async () => ({ ok: true, value: {}, label: "Researched a price", cost: { usd: 0.5, model: "claude-opus-5-5" } }) });
+  expect((await runTurn({ messages: [], summary: "" }, "Research the core holes", d)).spentUsd).toBe(8.5);
+});
+
 describe("what she looks at (4.6)", () => {
   it("hands a tool's picture back to her with its words", async () => {
     const model = scripted([

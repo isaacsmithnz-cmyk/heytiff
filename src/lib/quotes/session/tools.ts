@@ -305,6 +305,12 @@ export const SESSION_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: { option: lineFields.option, name: { type: "string" } }, required: ["option", "name"], additionalProperties: false },
   },
   {
+    name: "research_price",
+    description:
+      "Find a price on the web for a line the business's book hasn't got (a core hole, a crane, a brand they don't stock), when the person asks for it or agrees. One price, where it's from, and a short summary come back; the person presses Use it to put it on the line. Don't change the line's price yourself. Each research costs money: only when it's asked for.",
+    input_schema: { type: "object", properties: { line_id: { type: "string" }, what: { type: "string", description: "What to price, in a few words: \"200 mm core hole through sandstone, Sydney\"." } }, required: ["line_id", "what"], additionalProperties: false },
+  },
+  {
     name: "plan_parts",
     description:
       "Before you build, say the parts of the quote you'll build, in order: each a system and a group, as the lines will carry them (\"Downstairs\" + \"Units\", \"Downstairs\" + \"Ductwork and grilles\", \"\" + \"Labour\"), with a few words on what it is. The page shows them as you work. Plan again if the plan changes.",
@@ -406,6 +412,7 @@ export const TOOL_LABELS: Record<string, string> = {
   name_option: "Named an option",
   write_proposal: "Wrote the proposal",
   plan_parts: "Planned the quote",
+  research_price: "Researched a price",
   your_corrections: "Read her corrections",
   job_files: "Listed the job's files",
   look_at: "Looked at",

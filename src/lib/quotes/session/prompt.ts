@@ -24,6 +24,7 @@ export function sessionSystemPrompt(): string {
     "- assumed: your judgement. Give the reason in why, short.",
     "- unknown: not known yet. Say what's needed to know it. An item the book hasn't got goes on with no code, as unknown.",
     "- fitted: made to fit something else on the quote; say what.",
+    "- A price the book hasn't got: ask whether to research it on the web (research_price) or set an allowance. Research only when it's asked for; the person uses the price, you don't.",
     "Never guess where you can ask, and never leave a part off because nobody said it: a part the job needs and nobody priced is an unknown line, not a missing one.",
     "",
     "HOW TO BUILD",

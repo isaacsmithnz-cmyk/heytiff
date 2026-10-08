@@ -7,6 +7,8 @@ import { addCompared, nameOption, readByHand, saveProposal } from "../lines-job-
 import { jobKind, readCorrections } from "../corrections-server";
 import { jobFiles, lookAt } from "./job-files-server";
 import { lookupUnit } from "../lookups-server";
+import { runResearch } from "../research-server";
+import { sessionModelFor } from "./model-server";
 import { readOrgDay } from "../org-day-server";
 import { hourCostOf } from "../profit";
 import { readQuotePrice } from "../quote-price-server";
@@ -34,6 +36,13 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     removeLine: (id, version, why) => removeLine(orgId, jobUuid, id, version, TIFF, why),
     copyOption: (from, to) => copyOption(orgId, jobUuid, from, to, TIFF),
     nameOption: (option, name) => nameOption(orgId, jobUuid, option, name, TIFF),
+    research: async (lineId, what) => {
+      const model = sessionModelFor(orgId);
+      if (!model) return { ok: false, reason: "Research isn't switched on for this business.", usd: 0, model: "" };
+      const line = (await readLines(orgId, jobUuid)).find((l) => l.id === lineId);
+      if (!line) return { ok: false, reason: "That line has gone.", usd: 0, model: "" };
+      return runResearch(model, { what, line: { name: line.name, qty: line.qty, unit: line.unit, system: line.system } });
+    },
     proposal: () => (jobUuid ? readByHand(orgId, jobUuid).then((b) => b.proposal) : Promise.resolve(null)),
     writeProposal: async (patch) => {
       const res = await saveProposal(orgId, jobUuid, patch, TIFF);

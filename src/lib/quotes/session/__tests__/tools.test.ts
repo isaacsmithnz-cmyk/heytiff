@@ -28,6 +28,9 @@ jest.mock("../../lines-job-server", () => ({
   saveProposal: (...a: unknown[]) => saveProposal(...a),
 }));
 jest.mock("../../lookups-server", () => ({ lookupUnit: jest.fn() }));
+const runResearch = jest.fn();
+jest.mock("../../research-server", () => ({ runResearch: (...a: unknown[]) => runResearch(...a) }));
+jest.mock("../model-server", () => ({ sessionModelFor: () => "claude-opus-5-5" }));
 jest.mock("../../quote-price-server", () => ({ readQuotePrice: jest.fn() }));
 jest.mock("../../settings-query", () => ({ readQuoteSettings: jest.fn(async () => ({ profitTargetPct: 20, labourCostCents: null })) }));
 jest.mock("../../org-day-server", () => ({ readOrgDay: jest.fn(async () => ({ rate: { perHourCents: 14000, from: "quoting" }, hours: { hours: 8, from: "quoting" }, dayCents: 112000 })) }));
@@ -99,6 +102,16 @@ describe("a price from the book, never from her", () => {
 
 describe("her tools, run", () => {
   const run = sessionTools("org-1", "job-1");
+
+  it("researches a price for a line by its own call, and leaves the line for the person to use it on", async () => {
+    runResearch.mockResolvedValueOnce({ ok: true, research: { priceCents: 130000, per: "a hole", summary: "s", source: { url: "https://q.au", title: "Q" } }, usd: 0.06, model: "claude-opus-5-5", searches: 2 });
+    const out = await run("research_price", { line_id: "l1", what: "core hole" });
+    expect(out).toMatchObject({ ok: true, said: "$1300.00 a hole", detail: { research: { lineId: "l1", priceCents: 130000 } }, cost: { usd: 0.06, model: "claude-opus-5-5" } });
+    expect(changeLine).not.toHaveBeenCalledWith("org-1", "job-1", "l1", expect.anything(), expect.objectContaining({ sellCents: 130000 }), expect.anything(), expect.anything());
+    runResearch.mockResolvedValueOnce({ ok: false, reason: "Nothing found", usd: 0.02, model: "claude-opus-5-5", searches: 1 });
+    expect(await run("research_price", { line_id: "l1", what: "core hole" })).toMatchObject({ ok: false, error: "Nothing found", cost: { usd: 0.02 } });
+    expect(await run("research_price", { line_id: "nope", what: "x" })).toMatchObject({ ok: false });
+  });
 
   it("plans the parts she'll build, for the page to show as she works", async () => {
     const out = await run("plan_parts", { parts: [{ system: "Downstairs", group: "Units", detail: "PEA-M125HAA" }, { group: "Labour" }, { system: "x" }] });

@@ -78,6 +78,7 @@ export function memoryStore(opts: {
       names[option] = name;
       return { ok: true };
     },
+    research: async () => ({ ok: false, reason: "The bench doesn't search the web.", usd: 0, model: "" }),
     proposal: async () => proposal,
     writeProposal: async (patch) => {
       proposal = { ...proposalOf(proposal ?? {}), ...patch };

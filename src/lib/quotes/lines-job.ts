@@ -35,6 +35,8 @@ export type ByHand = {
   supplier: string | null;
   /** the proposal's words, written by Tiff or a person (7.1, lines-proposal.ts) */
   proposal: LinesProposal | null;
+  /** lines priced from the web, by id: the page the price rests on (12.2) */
+  researched: Record<string, { url: string; title: string }>;
 };
 
 /** Units a compare holds beside its suggestions, at most. */
@@ -79,7 +81,14 @@ export function byHandOf(draft: unknown): ByHand {
   }
   const supplier = said(o.supplier, 40) || null;
   const proposal = o.proposal && typeof o.proposal === "object" ? proposalOf(o.proposal) : null;
-  return { accepted, names, loading, compare, supplier, proposal };
+  const researched: ByHand["researched"] = {};
+  const rawResearched = o.researched && typeof o.researched === "object" ? (o.researched as Record<string, unknown>) : {};
+  for (const [id, v] of Object.entries(rawResearched).slice(0, 100)) {
+    const s = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+    const url = said(s.url, 500);
+    if (/^[\w-]{1,60}$/.test(id) && /^https?:\/\//.test(url)) researched[id] = { url, title: said(s.title, 200) || url };
+  }
+  return { accepted, names, loading, compare, supplier, proposal, researched };
 }
 
 /** The proposal's words changed: a patch over what's there (blocks left
@@ -100,6 +109,14 @@ export const withApproval = (b: ByHand, by: string, now: string): ByHand => ({
   ...b,
   proposal: { ...(b.proposal ?? { ...proposalOf({}), updatedAt: now }), approvedAt: now, approvedBy: by },
 });
+
+/** A line priced from the web, with the page it rests on; null takes the mark off. */
+export function withResearched(b: ByHand, lineId: string, source: { url: string; title: string } | null): ByHand {
+  const researched = { ...b.researched };
+  if (source) researched[lineId] = { url: source.url.slice(0, 500), title: source.title.slice(0, 200) };
+  else delete researched[lineId];
+  return { ...b, researched };
+}
 
 /** The job's supplier set, or any with none. */
 export const withSupplier = (b: ByHand, key: unknown): ByHand => ({ ...b, supplier: said(key, 40) || null });

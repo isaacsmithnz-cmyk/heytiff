@@ -13,7 +13,7 @@ import { linesSteps } from "@/lib/quotes/quote-steps";
 import { unsetWords } from "@/lib/quotes/build-settings";
 import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
-import { TiffPanel } from "./tiff-panel";
+import { Globe, TiffPanel } from "./tiff-panel";
 import { CompareCard } from "./compare-card";
 import { LinesProposalPaper } from "./lines-proposal-paper";
 import type { LinesProposal } from "@/lib/quotes/lines-proposal";
@@ -63,6 +63,8 @@ type View = {
   paymentTerms?: Record<PaymentPreset, { label: string; stages: PaymentStage[] }> | null;
   /** the supplier the whole job buys from, and the business's suppliers */
   supplier?: string | null;
+  /** lines priced from the web, by id: the page each rests on (12.2) */
+  researched?: Record<string, { url: string; title: string }>;
   suppliers?: { key: string; name: string }[];
   /** what marking it did to the job's own materials list */
   onJob?: { added: number; removed: number } | null;
@@ -557,6 +559,11 @@ export function QuoteLinesFace({
                                   </button>
                                 ) : (
                                   l.name
+                                )}
+                                {view?.researched?.[l.id] && (
+                                  <a className="ql-web" href={view.researched[l.id]!.url} target="_blank" rel="noopener noreferrer" title={`From the web: ${view.researched[l.id]!.title}`} aria-label={`From the web: ${view.researched[l.id]!.title}`}>
+                                    <Globe />
+                                  </a>
                                 )}
                                 {at > 0 && againstFirst(l, all) !== "same" && (
                                   <em className="ql-vs">{againstFirst(l, all) === "added" ? " Added" : " Changed"}</em>

@@ -5296,5 +5296,3845 @@
    "edition": "EDTAU042222B",
    "page": "8"
   }
+ },
+ {
+  "model": "FXMQ160PV1A",
+  "brand": "daikin",
+  "series": "VRV High Static Pressure Duct FXMQ-P",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 18.0,
+  "capacity_heat_kw": 20.0,
+  "capacity_index": 160,
+  "capacity_code": 160,
+  "airflow_ls": 1120,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1133,
+  "depth_mm": 919,
+  "height_mm": 470,
+  "weight_kg": 70,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PV1A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDAU391723",
+   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ180PV1A",
+  "brand": "daikin",
+  "series": "VRV High Static Pressure Duct FXMQ-P",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 20.0,
+  "capacity_heat_kw": 22.4,
+  "capacity_index": 180,
+  "capacity_code": 180,
+  "airflow_ls": 1160,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1133,
+  "depth_mm": 919,
+  "height_mm": 470,
+  "weight_kg": 70,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PV1A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDAU391723",
+   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ200PV1A",
+  "brand": "daikin",
+  "series": "VRV High Static Pressure Duct FXMQ-P",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 22.4,
+  "capacity_heat_kw": 25.0,
+  "capacity_code": 200,
+  "airflow_ls": 1200,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1333,
+  "depth_mm": 919,
+  "height_mm": 470,
+  "weight_kg": 79,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PV1A",
+   "edition": "EDAU391723",
+   "page": "4; R410A p.28"
+  }
+ },
+ {
+  "model": "FXMQ250PV1A",
+  "brand": "daikin",
+  "series": "VRV High Static Pressure Duct FXMQ-P",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 28.0,
+  "capacity_heat_kw": 31.5,
+  "capacity_code": 250,
+  "airflow_ls": 1400,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 22.2,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1333,
+  "depth_mm": 919,
+  "height_mm": 470,
+  "weight_kg": 85,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PV1A",
+   "edition": "EDAU391723",
+   "page": "4; R410A p.28"
+  }
+ },
+ {
+  "model": "FXDQ20TV1C",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 135,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ25TV1C",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ20TV1CA",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 135,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ25TV1CA",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ32TV1C",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ40TV1C",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 210,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 900,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ32TV1CA",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ40TV1CA",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 210,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 900,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ50TV1C",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 250,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 900,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ63TV1C",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 325,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1100,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ50TV1CA",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 250,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 900,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ63TV1CA",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Compact) FXDQ-T",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 325,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1100,
+  "depth_mm": 450,
+  "height_mm": 200,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDBFAU392101",
+   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDYQ80MAV1",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXDYQ-MA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 8.8,
+  "capacity_heat_kw": 9.9,
+  "capacity_index": 80,
+  "capacity_code": 80,
+  "airflow_ls": 510,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1168,
+  "depth_mm": 869,
+  "height_mm": 360,
+  "weight_kg": 50,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDYQ-MA; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391818",
+   "page": "3; R410A p.16; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDYQ100MAV1",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXDYQ-MA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 100,
+  "capacity_code": 100,
+  "airflow_ls": 778,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1478,
+  "depth_mm": 899,
+  "height_mm": 360,
+  "weight_kg": 60,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDYQ-MA; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391818",
+   "page": "3; R410A p.16; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDYQ125MAV1",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXDYQ-MA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 13.9,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 125,
+  "capacity_code": 125,
+  "airflow_ls": 852,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1478,
+  "depth_mm": 899,
+  "height_mm": 360,
+  "weight_kg": 65,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDYQ-MA; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391818",
+   "page": "4; R410A p.16; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDYQ145MAV1",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXDYQ-MA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.4,
+  "capacity_index": 145,
+  "capacity_code": 145,
+  "airflow_ls": 957,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1478,
+  "depth_mm": 899,
+  "height_mm": 360,
+  "weight_kg": 66,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDYQ-MA; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391818",
+   "page": "4; R410A p.16; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ20PDVE",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Standard) FXDQ-PD",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 133,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "weight_kg": 23,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391829",
+   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ25PDVE",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Standard) FXDQ-PD",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 133,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "weight_kg": 23,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391829",
+   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ32PDVE",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Standard) FXDQ-PD",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 133,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "weight_kg": 23,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391829",
+   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ40NDVE",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Standard) FXDQ-ND",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 175,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 900,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "weight_kg": 27,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391829",
+   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ50NDVE",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Standard) FXDQ-ND",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 208,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 900,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "weight_kg": 28,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391829",
+   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXDQ63NDVE",
+  "brand": "daikin",
+  "series": "VRV Slim Duct (Standard) FXDQ-ND",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 275,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1100,
+  "depth_mm": 620,
+  "height_mm": 200,
+  "weight_kg": 31,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFAU391829",
+   "page": "6; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXUQ71AVEB",
+  "brand": "daikin",
+  "series": "VRV 4-Way Flow Ceiling Suspended FXUQ-A",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 8.0,
+  "capacity_heat_kw": 9.0,
+  "capacity_index": 71,
+  "capacity_code": 71,
+  "airflow_ls": 375,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 950,
+  "depth_mm": 950,
+  "height_mm": 198,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXUQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391732",
+   "page": "3; R410A p.14; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXUQ100AVEB",
+  "brand": "daikin",
+  "series": "VRV 4-Way Flow Ceiling Suspended FXUQ-A",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 100,
+  "capacity_code": 100,
+  "airflow_ls": 517,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 950,
+  "depth_mm": 950,
+  "height_mm": 198,
+  "weight_kg": 27,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXUQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391732",
+   "page": "3; R410A p.14; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXEQ20AV36",
+  "brand": "daikin",
+  "series": "VRV Single Flow Cassette FXEQ-A",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 100,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 470,
+  "height_mm": 200,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391734",
+   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXEQ25AV36",
+  "brand": "daikin",
+  "series": "VRV Single Flow Cassette FXEQ-A",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 115,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 470,
+  "height_mm": 200,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391734",
+   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXEQ32AV36",
+  "brand": "daikin",
+  "series": "VRV Single Flow Cassette FXEQ-A",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 133,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 470,
+  "height_mm": 200,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391734",
+   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXEQ40AV36",
+  "brand": "daikin",
+  "series": "VRV Single Flow Cassette FXEQ-A",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 163,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 470,
+  "height_mm": 200,
+  "weight_kg": 18,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391734",
+   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXEQ50AV36",
+  "brand": "daikin",
+  "series": "VRV Single Flow Cassette FXEQ-A",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 208,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1240,
+  "depth_mm": 470,
+  "height_mm": 200,
+  "weight_kg": 23,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391734",
+   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXEQ63AV36",
+  "brand": "daikin",
+  "series": "VRV Single Flow Cassette FXEQ-A",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 250,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1240,
+  "depth_mm": 470,
+  "height_mm": 200,
+  "weight_kg": 23,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391734",
+   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ20PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 550,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "3; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ25PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 550,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "3; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ32PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 158,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 550,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "4; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ40PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 250,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 27,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "4; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ50PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 283,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1000,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 35,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "5; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ63PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 350,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1000,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 35,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "5; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ80PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 80,
+  "capacity_code": 80,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1000,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 37,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "6; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ100PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 100,
+  "capacity_code": 100,
+  "airflow_ls": 533,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 46,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "6; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ125PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 125,
+  "capacity_code": 125,
+  "airflow_ls": 617,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 47,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "7; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXSQ140PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle Static Pressure Duct FXSQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "capacity_index": 140,
+  "capacity_code": 140,
+  "airflow_ls": 650,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1550,
+  "depth_mm": 800,
+  "height_mm": 245,
+  "weight_kg": 52,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391737A",
+   "page": "7; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ20PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 550,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "3; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ25PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 550,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "3; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ32PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 158,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 550,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "4; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ40PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 267,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 700,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 27,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "4; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ50PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 300,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1000,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 35,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "5; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ63PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 325,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1000,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 35,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "5; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ80PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 80,
+  "capacity_code": 80,
+  "airflow_ls": 417,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1000,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 35,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "6; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ100PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 100,
+  "capacity_code": 100,
+  "airflow_ls": 533,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 45,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "6; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ125PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 125,
+  "capacity_code": 125,
+  "airflow_ls": 650,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 45,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "7; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXMQ140PAVE",
+  "brand": "daikin",
+  "series": "VRV Middle-High Static Pressure Duct FXMQ-PA",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "capacity_index": 140,
+  "capacity_code": 140,
+  "airflow_ls": 767,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 700,
+  "height_mm": 300,
+  "weight_kg": 46,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391738A",
+   "page": "7; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXLQ20MAVE",
+  "brand": "daikin",
+  "series": "VRV Floor Standing FXLQ-MA",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 116,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1000,
+  "depth_mm": 222,
+  "height_mm": 600,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXLQ25MAVE",
+  "brand": "daikin",
+  "series": "VRV Floor Standing FXLQ-MA",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 116,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1000,
+  "depth_mm": 222,
+  "height_mm": 600,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXLQ32MAVE",
+  "brand": "daikin",
+  "series": "VRV Floor Standing FXLQ-MA",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 133,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1140,
+  "depth_mm": 222,
+  "height_mm": 600,
+  "weight_kg": 30,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXLQ40MAVE",
+  "brand": "daikin",
+  "series": "VRV Floor Standing FXLQ-MA",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 183,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1140,
+  "depth_mm": 222,
+  "height_mm": 600,
+  "weight_kg": 30,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXLQ50MAVE",
+  "brand": "daikin",
+  "series": "VRV Floor Standing FXLQ-MA",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 233,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1420,
+  "depth_mm": 222,
+  "height_mm": 600,
+  "weight_kg": 36,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXLQ63MAVE",
+  "brand": "daikin",
+  "series": "VRV Floor Standing FXLQ-MA",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 266,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1420,
+  "depth_mm": 222,
+  "height_mm": 600,
+  "weight_kg": 36,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXNQ20MAVE",
+  "brand": "daikin",
+  "series": "VRV Concealed Floor Standing FXNQ-MA",
+  "form_factor": "floor-concealed",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 116,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "floor-cavity",
+  "allowed_planes": [
+   "floor-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 930,
+  "depth_mm": 220,
+  "height_mm": 610,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "6; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXNQ25MAVE",
+  "brand": "daikin",
+  "series": "VRV Concealed Floor Standing FXNQ-MA",
+  "form_factor": "floor-concealed",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 116,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "floor-cavity",
+  "allowed_planes": [
+   "floor-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 930,
+  "depth_mm": 220,
+  "height_mm": 610,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "6; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXNQ32MAVE",
+  "brand": "daikin",
+  "series": "VRV Concealed Floor Standing FXNQ-MA",
+  "form_factor": "floor-concealed",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 133,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "floor-cavity",
+  "allowed_planes": [
+   "floor-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1070,
+  "depth_mm": 220,
+  "height_mm": 610,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "7; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXNQ40MAVE",
+  "brand": "daikin",
+  "series": "VRV Concealed Floor Standing FXNQ-MA",
+  "form_factor": "floor-concealed",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 183,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "floor-cavity",
+  "allowed_planes": [
+   "floor-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1070,
+  "depth_mm": 220,
+  "height_mm": 610,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "7; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXNQ50MAVE",
+  "brand": "daikin",
+  "series": "VRV Concealed Floor Standing FXNQ-MA",
+  "form_factor": "floor-concealed",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 233,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "floor-cavity",
+  "allowed_planes": [
+   "floor-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1350,
+  "depth_mm": 220,
+  "height_mm": 610,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "8; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXNQ63MAVE",
+  "brand": "daikin",
+  "series": "VRV Concealed Floor Standing FXNQ-MA",
+  "form_factor": "floor-concealed",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 266,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "floor-cavity",
+  "allowed_planes": [
+   "floor-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1350,
+  "depth_mm": 220,
+  "height_mm": 610,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391742A",
+   "page": "8; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ25AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 217,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391769E",
+   "page": "3; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ32AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 217,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391769E",
+   "page": "3; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ40AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 283,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391769E",
+   "page": "4; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ50AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391769E",
+   "page": "4; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ63AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 392,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391769E",
+   "page": "5; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ80AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 80,
+  "capacity_code": 80,
+  "airflow_ls": 408,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391769E",
+   "page": "5; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ100AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 100,
+  "capacity_code": 100,
+  "airflow_ls": 558,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391769E",
+   "page": "6; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ125AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 125,
+  "capacity_code": 125,
+  "airflow_ls": 575,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391769E",
+   "page": "6; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ140AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 140,
+  "capacity_code": 140,
+  "airflow_ls": 592,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391769E",
+   "page": "7; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFSQ25CVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-C",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 317,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
+   "edition": "EDFMT391769E",
+   "page": "8; R410A p.37"
+  }
+ },
+ {
+  "model": "FXFSQ50CVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing FXFSQ-C",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 50,
+  "airflow_ls": 475,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
+   "edition": "EDFMT391769E",
+   "page": "8; R410A p.37"
+  }
+ },
+ {
+  "model": "FXFQ25AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette FXFQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 217,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391770D",
+   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFQ32AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette FXFQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 217,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391770D",
+   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFQ40AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette FXFQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 283,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391770D",
+   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFQ50AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette FXFQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 300,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391770D",
+   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFQ63AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette FXFQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 350,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391770D",
+   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFQ80AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette FXFQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 80,
+  "capacity_code": 80,
+  "airflow_ls": 375,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391770D",
+   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFQ100AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette FXFQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 100,
+  "capacity_code": 100,
+  "airflow_ls": 533,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391770D",
+   "page": "6; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFQ125AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette FXFQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 14.0,
+  "capacity_index": 125,
+  "capacity_code": 125,
+  "airflow_ls": 550,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391770D",
+   "page": "6; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFQ140AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette FXFQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 140,
+  "capacity_code": 140,
+  "airflow_ls": 592,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDFMT391770D",
+   "page": "7; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXHQ32MAVE",
+  "brand": "daikin",
+  "series": "VRV Ceiling Suspended FXHQ-MA",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 200,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 960,
+  "depth_mm": 680,
+  "height_mm": 195,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392147",
+   "page": "3; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXHQ50MAVE",
+  "brand": "daikin",
+  "series": "VRV Ceiling Suspended FXHQ-MA",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 250,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1160,
+  "depth_mm": 680,
+  "height_mm": 195,
+  "weight_kg": 28,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392147",
+   "page": "3; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXHQ63MAVE",
+  "brand": "daikin",
+  "series": "VRV Ceiling Suspended FXHQ-MA",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 291,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1160,
+  "depth_mm": 680,
+  "height_mm": 195,
+  "weight_kg": 28,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392147",
+   "page": "4; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXHQ80MAVE",
+  "brand": "daikin",
+  "series": "VRV Ceiling Suspended FXHQ-MA",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 80,
+  "capacity_code": 80,
+  "airflow_ls": 391,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 680,
+  "height_mm": 195,
+  "weight_kg": 33,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392147",
+   "page": "4; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXHQ100MAVE",
+  "brand": "daikin",
+  "series": "VRV Ceiling Suspended FXHQ-MA",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 100,
+  "capacity_code": 100,
+  "airflow_ls": 416,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1400,
+  "depth_mm": 680,
+  "height_mm": 195,
+  "weight_kg": 33,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392147",
+   "page": "5; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFTQ25AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing and Streamer FXFTQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 217,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392208",
+   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFTQ32AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing and Streamer FXFTQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 217,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392208",
+   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFTQ40AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing and Streamer FXFTQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 283,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392208",
+   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFTQ50AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing and Streamer FXFTQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 24,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392208",
+   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFTQ63AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing and Streamer FXFTQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 392,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392208",
+   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFTQ80AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing and Streamer FXFTQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 80,
+  "capacity_code": 80,
+  "airflow_ls": 408,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392208",
+   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFTQ100AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing and Streamer FXFTQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 100,
+  "capacity_code": 100,
+  "airflow_ls": 558,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392208",
+   "page": "6; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFTQ125AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing and Streamer FXFTQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 125,
+  "capacity_code": 125,
+  "airflow_ls": 575,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392208",
+   "page": "6; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXFTQ140AVM",
+  "brand": "daikin",
+  "series": "VRV Round Flow Cassette with Sensing and Streamer FXFTQ-A",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 140,
+  "capacity_code": 140,
+  "airflow_ls": 592,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "weight_kg": 26,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392208",
+   "page": "7; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXZQ20BVM",
+  "brand": "daikin",
+  "series": "VRV Compact Multi Flow Cassette FXZQ-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 145,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "weight_kg": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392234",
+   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXZQ25BVM",
+  "brand": "daikin",
+  "series": "VRV Compact Multi Flow Cassette FXZQ-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "weight_kg": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392234",
+   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXZQ32BVM",
+  "brand": "daikin",
+  "series": "VRV Compact Multi Flow Cassette FXZQ-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 167,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "weight_kg": 16.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392234",
+   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXZQ40BVM",
+  "brand": "daikin",
+  "series": "VRV Compact Multi Flow Cassette FXZQ-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 192,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "weight_kg": 16.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392234",
+   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXZQ50BVM",
+  "brand": "daikin",
+  "series": "VRV Compact Multi Flow Cassette FXZQ-B",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 242,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 260,
+  "weight_kg": 18.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392234",
+   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXCQ20BVM",
+  "brand": "daikin",
+  "series": "VRV Double Flow Cassette FXCQ-B",
+  "form_factor": "cassette-2way",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 175,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 775,
+  "depth_mm": 620,
+  "height_mm": 305,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392235",
+   "page": "3; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXCQ25BVM",
+  "brand": "daikin",
+  "series": "VRV Double Flow Cassette FXCQ-B",
+  "form_factor": "cassette-2way",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 192,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 775,
+  "depth_mm": 620,
+  "height_mm": 305,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392235",
+   "page": "3; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXCQ32BVM",
+  "brand": "daikin",
+  "series": "VRV Double Flow Cassette FXCQ-B",
+  "form_factor": "cassette-2way",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 192,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 775,
+  "depth_mm": 620,
+  "height_mm": 305,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392235",
+   "page": "4; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXCQ40BVM",
+  "brand": "daikin",
+  "series": "VRV Double Flow Cassette FXCQ-B",
+  "form_factor": "cassette-2way",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 200,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 775,
+  "depth_mm": 620,
+  "height_mm": 305,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392235",
+   "page": "4; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXCQ50BVM",
+  "brand": "daikin",
+  "series": "VRV Double Flow Cassette FXCQ-B",
+  "form_factor": "cassette-2way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 250,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 990,
+  "depth_mm": 620,
+  "height_mm": 305,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392235",
+   "page": "5; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXCQ63BVM",
+  "brand": "daikin",
+  "series": "VRV Double Flow Cassette FXCQ-B",
+  "form_factor": "cassette-2way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 267,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 990,
+  "depth_mm": 620,
+  "height_mm": 305,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392235",
+   "page": "5; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXCQ80BVM",
+  "brand": "daikin",
+  "series": "VRV Double Flow Cassette FXCQ-B",
+  "form_factor": "cassette-2way",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 80,
+  "capacity_code": 80,
+  "airflow_ls": 433,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1445,
+  "depth_mm": 620,
+  "height_mm": 305,
+  "weight_kg": 33,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392235",
+   "page": "6; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXCQ125BVM",
+  "brand": "daikin",
+  "series": "VRV Double Flow Cassette FXCQ-B",
+  "form_factor": "cassette-2way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 125,
+  "capacity_code": 125,
+  "airflow_ls": 533,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1445,
+  "depth_mm": 620,
+  "height_mm": 305,
+  "weight_kg": 38,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392235",
+   "page": "6; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXHQ125BVM",
+  "brand": "daikin",
+  "series": "VRV Ceiling Suspended FXHQ-B",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 14.1,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 125,
+  "capacity_code": 125,
+  "airflow_ls": 567,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1590,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "weight_kg": 41,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXHQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392236A",
+   "page": "3; R410A p.15; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXHQ140BVM",
+  "brand": "daikin",
+  "series": "VRV Ceiling Suspended FXHQ-B",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 15.5,
+  "capacity_heat_kw": 17.0,
+  "capacity_index": 140,
+  "capacity_code": 140,
+  "airflow_ls": 600,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1590,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "weight_kg": 41,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXHQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392236A",
+   "page": "3; R410A p.15; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXAQ20BVM",
+  "brand": "daikin",
+  "series": "VRV Wall Mounted FXAQ-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 20,
+  "capacity_code": 20,
+  "airflow_ls": 117,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 858,
+  "depth_mm": 245,
+  "height_mm": 295,
+  "weight_kg": 12,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392420A",
+   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXAQ25BVM",
+  "brand": "daikin",
+  "series": "VRV Wall Mounted FXAQ-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 25,
+  "capacity_code": 25,
+  "airflow_ls": 133,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 858,
+  "depth_mm": 245,
+  "height_mm": 295,
+  "weight_kg": 12,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392420A",
+   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXAQ32BVM",
+  "brand": "daikin",
+  "series": "VRV Wall Mounted FXAQ-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 31.25,
+  "capacity_code": 32,
+  "airflow_ls": 167,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 858,
+  "depth_mm": 245,
+  "height_mm": 295,
+  "weight_kg": 12,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392420A",
+   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXAQ40BVM",
+  "brand": "daikin",
+  "series": "VRV Wall Mounted FXAQ-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 40,
+  "capacity_code": 40,
+  "airflow_ls": 225,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 858,
+  "depth_mm": 245,
+  "height_mm": 295,
+  "weight_kg": 12,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392420A",
+   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXAQ50BVM",
+  "brand": "daikin",
+  "series": "VRV Wall Mounted FXAQ-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 50,
+  "capacity_code": 50,
+  "airflow_ls": 233,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1120,
+  "depth_mm": 245,
+  "height_mm": 295,
+  "weight_kg": 16,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392420A",
+   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXAQ63BVM",
+  "brand": "daikin",
+  "series": "VRV Wall Mounted FXAQ-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 62.5,
+  "capacity_code": 63,
+  "airflow_ls": 300,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1120,
+  "depth_mm": 245,
+  "height_mm": 295,
+  "weight_kg": 16,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392420A",
+   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXAQ71BVM",
+  "brand": "daikin",
+  "series": "VRV Wall Mounted FXAQ-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.0,
+  "capacity_heat_kw": 9.0,
+  "capacity_index": 71,
+  "capacity_code": 71,
+  "airflow_ls": 325,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1120,
+  "depth_mm": 245,
+  "height_mm": 295,
+  "weight_kg": 16,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392420A",
+   "page": "6; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXAQ80BVM",
+  "brand": "daikin",
+  "series": "VRV Wall Mounted FXAQ-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 80,
+  "capacity_code": 80,
+  "airflow_ls": 450,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1260,
+  "depth_mm": 260,
+  "height_mm": 325,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392420A",
+   "page": "6; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
+ },
+ {
+  "model": "FXAQ100BVM",
+  "brand": "daikin",
+  "series": "VRV Wall Mounted FXAQ-B",
+  "form_factor": "wall",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 11.2,
+  "capacity_index": 100,
+  "capacity_code": 100,
+  "airflow_ls": 517,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "width_mm": 1260,
+  "depth_mm": 260,
+  "height_mm": 325,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTFMT392420A",
+   "page": "7; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+  }
  }
 ]

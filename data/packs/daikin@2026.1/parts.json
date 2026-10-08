@@ -1,0 +1,60 @@
+[
+ {
+  "part_type": "joint",
+  "model": "BHRP26A22TA",
+  "brand": "daikin",
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTRAU332223A",
+   "page": "37, 49, 71, 86"
+  }
+ },
+ {
+  "part_type": "header",
+  "model": "KHRP26M22H",
+  "brand": "daikin",
+  "branches": 4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTRAU332223A",
+   "page": "37, 89"
+  }
+ },
+ {
+  "part_type": "header",
+  "model": "KHRP26M33H",
+  "brand": "daikin",
+  "branches": 8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTRAU332223A",
+   "page": "37, 89"
+  }
+ },
+ {
+  "part_type": "joint",
+  "model": "KHRP26A22T",
+  "brand": "daikin",
+  "index_max": 199.99,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RSUYQ7/8AYM",
+   "edition": "EDTRMT332101A",
+   "page": "44"
+  }
+ },
+ {
+  "part_type": "joint",
+  "model": "KHRP26A33T",
+  "brand": "daikin",
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RSUYQ7/8AYM",
+   "edition": "EDTRMT332101A",
+   "page": "44"
+  }
+ }
+]

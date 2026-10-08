@@ -14,6 +14,8 @@ import { unsetWords } from "@/lib/quotes/build-settings";
 import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
 import { TiffPanel } from "./tiff-panel";
+import { CompareCard } from "./compare-card";
+import { unitPartOf } from "@/lib/quotes/brands";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
    the mock-ups Isaac shaped on 7 October): the total in its own card, pinned
@@ -193,6 +195,8 @@ export function QuoteLinesFace({
   const [kitOpen, setKitOpen] = useState(false);
   /* the line whose pick list is open (Select preferred item, slice 2.4) */
   const [swapping, setSwapping] = useState<string | null>(null);
+  /* the unit line whose compare is open (compare-card.tsx) */
+  const [comparing, setComparing] = useState<string | null>(null);
   /* Tiff's questions still open (tiff-panel.tsx) */
   const [asked, setAsked] = useState(0);
 
@@ -395,6 +399,19 @@ export function QuoteLinesFace({
       )}
       {note && <p className="wb2-sherr">{note}</p>}
 
+      {comparing && lines.some((l) => l.id === comparing) && (
+        <CompareCard
+          key={comparing}
+          job={job}
+          lineId={comparing}
+          onClose={() => setComparing(null)}
+          onChanged={() => {
+            reload();
+            onPriced();
+          }}
+        />
+      )}
+
       <table className="ql-lt ql-colh">
         <Cols />
         <thead>
@@ -465,7 +482,16 @@ export function QuoteLinesFace({
                                   <em className="ql-vs">{againstFirst(l, all) === "added" ? " Added" : " Changed"}</em>
                                 )}
                               </span>
-                              {l.code && <span className="cd">{l.code}</span>}
+                              {l.code && (
+                                <span className="cd">
+                                  {l.code}
+                                  {l.kind === "unit" && unitPartOf(l.name, l.code) !== "outdoor" && (
+                                    <button type="button" className="ql-cmpbtn" aria-expanded={comparing === l.id} onClick={() => setComparing(comparing === l.id ? null : l.id)}>
+                                      Compare
+                                    </button>
+                                  )}
+                                </span>
+                              )}
                               {fitOf.get(l.id)?.state === "misfit" && <span className="ql-misfit">{fitOf.get(l.id)!.why}</span>}
 
                             </span>

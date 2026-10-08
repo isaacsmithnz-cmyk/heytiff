@@ -23,6 +23,7 @@ export type QuoteStore = {
   removeLine: (id: string, version: number, why: string) => Promise<LineWrite>;
   copyOption: (from: number, to: number) => Promise<LineWrite>;
   nameOption: (option: number, name: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
+  compareWith: (lineId: string, code: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
   addKit: (kit: KitKey, facts: KitFacts, at: { optionIndex: number; system: string }, unit: { brand: string; model: string } | null) => Promise<{ ok: true; added: number } | { ok: false; reason: string }>;
   book: () => Promise<Product[]>;
   /** an hour of labour's cost to the business; null when it isn't set */
@@ -158,6 +159,14 @@ export function makeTools(store: QuoteStore) {
         const n = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : -1);
         const res = await store.copyOption(n(input.from), n(input.to));
         return res.ok ? { ok: true, label, value: { copied: true } } : fail(res.reason);
+      }
+      case "compare_with": {
+        const lineId = typeof input.line_id === "string" ? input.line_id.slice(0, 60) : "";
+        const code = typeof input.code === "string" ? input.code.trim().slice(0, 80) : "";
+        if (!lineId || !code) return fail("Name the line and the unit's code.");
+        if (!bookPrice(await store.book(), code, "")) return fail(`${code} isn't in the business's book.`);
+        const res = await store.compareWith(lineId, code);
+        return res.ok ? { ok: true, label, said: code, value: { added: code } } : fail(res.reason);
       }
       case "name_option": {
         const option = typeof input.option === "number" ? Math.max(0, Math.min(19, Math.round(input.option))) : 0;

@@ -13,13 +13,14 @@ import { linesSteps } from "@/lib/quotes/quote-steps";
 import { unsetWords } from "@/lib/quotes/build-settings";
 import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
-import { TiffPanel } from "./tiff-panel";
+import { Globe, TiffPanel } from "./tiff-panel";
 import { CompareCard } from "./compare-card";
 import { LinesProposalPaper } from "./lines-proposal-paper";
 import type { LinesProposal } from "@/lib/quotes/lines-proposal";
 import type { PaymentPreset, PaymentStage } from "@/lib/quotes/payment";
 import type { QuoteNote } from "@/lib/templates/settings";
 import { unitPartOf } from "@/lib/quotes/brands";
+import { buildProgress, type PlannedPart } from "@/lib/quotes/build-progress";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
    the mock-ups Isaac shaped on 7 October): the total in its own card, pinned
@@ -62,6 +63,8 @@ type View = {
   paymentTerms?: Record<PaymentPreset, { label: string; stages: PaymentStage[] }> | null;
   /** the supplier the whole job buys from, and the business's suppliers */
   supplier?: string | null;
+  /** lines priced from the web, by id: the page each rests on (12.2) */
+  researched?: Record<string, { url: string; title: string }>;
   suppliers?: { key: string; name: string }[];
   /** what marking it did to the job's own materials list */
   onJob?: { added: number; removed: number } | null;
@@ -217,6 +220,8 @@ export function QuoteLinesFace({
   const [comparing, setComparing] = useState<string | null>(null);
   /* Tiff's questions still open (tiff-panel.tsx) */
   const [asked, setAsked] = useState(0);
+  /* the parts she said she'd build, while she builds them (5.2) */
+  const [plan, setPlan] = useState<{ option: number; parts: PlannedPart[] } | null>(null);
 
   const lines = (view?.lines ?? []).filter((l) => l.optionIndex === at);
   const options = Math.max(1, ...(view?.lines ?? []).map((l) => l.optionIndex + 1), price && price.ok ? price.options.length : 1);
@@ -327,6 +332,42 @@ export function QuoteLinesFace({
       </div>
     );
   }
+  /* ── watching her build it, under the total (5.2, mock-up screen 2) ── */
+  let building: ReactNode = null;
+  if (plan && plan.parts.length > 0) {
+    const theirs = (view?.lines ?? []).filter((l) => l.optionIndex === plan.option);
+    const each = sellEachOf(price && price.ok ? price.options[plan.option] : undefined, theirs);
+    const { parts, done } = buildProgress(plan.parts, theirs, (l) => Math.round((each.get(l.id) ?? 0) * l.qty));
+    building = (
+      <section className="qb" aria-label="Building the quote">
+        <header>
+          <b>Building the quote</b>
+          <span>{`${done} of ${parts.length} ${parts.length === 1 ? "part" : "parts"} done`}</span>
+        </header>
+        <div className="qb-bar" aria-hidden="true">
+          <i style={{ width: `${Math.round((done / parts.length) * 100)}%` }} />
+        </div>
+        <ol>
+          {parts.map((p) => {
+            /* "Downstairs units"; a system named for its group says it once */
+            const name = !p.system || p.system.toLowerCase() === p.group.toLowerCase() ? p.group : `${p.system} ${p.group.charAt(0).toLowerCase()}${p.group.slice(1)}`;
+            const small = p.state === "now" ? [p.detail, p.items ? `${p.items} ${p.items === 1 ? "item" : "items"} so far` : "Starting"].filter(Boolean).join(", ") : p.detail;
+            return (
+              <li key={`${p.system}|${p.group}`} className={p.state === "todo" ? undefined : p.state}>
+                <i aria-hidden="true" />
+                <span>
+                  <b>{name}</b>
+                  {small && <small>{small}</small>}
+                </span>
+                <em>{p.sellCents && p.state !== "todo" ? cents2(p.sellCents) : ""}</em>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    );
+  }
+
   /* who approved the proposal, in words */
   const approvedBy = view?.proposal?.approvedBy ?? "";
   const approver = !approvedBy ? "someone" : approvedBy === view?.me ? "you" : (view?.names[approvedBy] ?? "someone");
@@ -438,6 +479,7 @@ export function QuoteLinesFace({
         </p>
       )}
       {note && <p className="wb2-sherr">{note}</p>}
+      {building}
 
       {comparing && lines.some((l) => l.id === comparing) && (
         <CompareCard
@@ -517,6 +559,11 @@ export function QuoteLinesFace({
                                   </button>
                                 ) : (
                                   l.name
+                                )}
+                                {view?.researched?.[l.id] && (
+                                  <a className="ql-web" href={view.researched[l.id]!.url} target="_blank" rel="noopener noreferrer" title={`From the web: ${view.researched[l.id]!.title}`} aria-label={`From the web: ${view.researched[l.id]!.title}`}>
+                                    <Globe />
+                                  </a>
                                 )}
                                 {at > 0 && againstFirst(l, all) !== "same" && (
                                   <em className="ql-vs">{againstFirst(l, all) === "added" ? " Added" : " Changed"}</em>
@@ -729,27 +776,32 @@ export function QuoteLinesFace({
 
   /* what to look at before it goes: the non-Tiff half of the review (slice
      11.1) — what isn't known, what doesn't fit, and the profit */
-  const unknownHere = lines.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null);
-  const misfits = lines.filter((l) => fitOf.get(l.id)?.state === "misfit");
-  const assumedHere = lines.filter((l) => l.source === "assumed");
-  const checks: { tone: "due" | "info" | "ok"; text: string }[] = [
-    ...unknownHere.map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
-    ...misfits.map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
-    ...(o?.build.loadingNeedsReason ? [{ tone: "due" as const, text: "The loading isn't on the price until it says why" }] : []),
-    ...(assumedHere.length > 0 ? [{ tone: "info" as const, text: `${assumedHere.length} ${assumedHere.length === 1 ? "line" : "lines"} assumed` }] : []),
-    ...(view?.tasks?.[at]
-      ? [{ tone: "info" as const, text: `Your task hours make it ${view.tasks[at]!.hours} h for ${view.tasks[at]!.words}; the quote has ${view.tasks[at]!.quoted} h` }]
-      : []),
-    ...(o?.profit
-      ? [{ tone: o.profit.short ? ("due" as const) : ("ok" as const), text: `Profit ${o.profit.pct}%${o.profit.targetPct != null ? `, target ${o.profit.targetPct}%` : ""}` }]
-      : []),
-  ];
+  type Check = { tone: "due" | "info" | "ok"; text: string };
+  const checksFor = (i: number): Check[] => {
+    const mine = all.filter((l) => l.optionIndex === i);
+    const oi = price && price.ok ? price.options[i] : undefined;
+    const assumed = mine.filter((l) => l.source === "assumed");
+    const task = view?.tasks?.[i];
+    return [
+      ...mine.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
+      ...mine.filter((l) => fitOf.get(l.id)?.state === "misfit").map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
+      ...(oi?.build.loadingNeedsReason ? [{ tone: "due" as const, text: "The loading isn't on the price until it says why" }] : []),
+      ...(assumed.length > 0 ? [{ tone: "info" as const, text: `${assumed.length} ${assumed.length === 1 ? "line" : "lines"} assumed` }] : []),
+      ...(task ? [{ tone: "info" as const, text: `Your task hours make it ${task.hours} h for ${task.words}; the quote has ${task.quoted} h` }] : []),
+      ...(oi?.profit ? [{ tone: oi.profit.short ? ("due" as const) : ("ok" as const), text: `Profit ${oi.profit.pct}%${oi.profit.targetPct != null ? `, target ${oi.profit.targetPct}%` : ""}` }] : []),
+    ];
+  };
+  /* on the proposal, every option is reviewed before it's approved; on the
+     lines, the option open */
+  const checks: Check[] = paper
+    ? Array.from({ length: options }, (_, i) => checksFor(i).map((c) => (options > 1 ? { ...c, text: `Option ${i + 1}: ${c.text}` } : c))).flat()
+    : checksFor(at);
 
   const rail = (
     <div className="ql-rail">
       {checks.length > 0 && (
         <>
-          <h2 className="hd-ls-grp">To check</h2>
+          <h2 className="hd-ls-grp">{paper ? "Before you approve" : "To check"}</h2>
           <ul className="ql-checks">
             {checks.map((c, i) => (
               <li key={i} className={c.tone}>
@@ -871,6 +923,7 @@ export function QuoteLinesFace({
               <TiffPanel
                 job={job}
                 onOpen={setAsked}
+                onPlan={setPlan}
                 onChanged={() => {
                   reload();
                   onPriced();

@@ -2,6 +2,8 @@
 
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
+import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
+import { researchDetailOf } from "@/lib/quotes/research";
 import { fmtAud } from "@/lib/workboard/project-money";
 
 /* TIFF'S PANEL ON THE QUOTE (slice 5.1, mock-up screens 1 and 3): a rounded
@@ -27,6 +29,16 @@ type View = { ok: boolean; on?: boolean; working?: boolean; spentUsd?: number; e
 type Answer = { label: string };
 type Source = { id: string; label: string; text: string };
 
+/** The web's mark: on a price researched from it, and on the line that uses one (12.2). */
+export function Globe({ size = 14 }: { size?: number }) {
+  return (
+    <svg className="qt-globe" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" />
+    </svg>
+  );
+}
+
 /** A price difference as an answer shows it: nothing for none. */
 const deltaWords = (c: number | null | undefined) => (c == null || Math.round(c) === 0 ? "" : `${c > 0 ? "+" : "−"}${fmtAud(Math.abs(Math.round(c)))}`);
 
@@ -34,12 +46,15 @@ export function TiffPanel({
   job,
   onChanged,
   onOpen,
+  onPlan,
   children,
 }: {
   job: string;
   onChanged: () => void;
   /** how many of her questions are open, for the progress line's Unknowns */
   onOpen?: (n: number) => void;
+  /** the parts she said she'd build, while she builds them; null when she isn't (5.2) */
+  onPlan?: (plan: { option: number; parts: PlannedPart[] } | null) => void;
   children: ReactNode;
 }) {
   const [on, setOn] = useState(false);
@@ -52,6 +67,8 @@ export function TiffPanel({
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  /* researched prices put on their lines this visit */
+  const [used, setUsed] = useState<Set<number>>(new Set());
   /* Read the job: its sources, and which are ticked */
   const [sources, setSources] = useState<{ list: Source[]; left: number } | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
@@ -106,6 +123,16 @@ export function TiffPanel({
     tell(on ? openCount : 0);
   }, [on, openCount]);
 
+  /* her plan for this turn, while she works on it */
+  const turn = events.at(-1)?.turnId ?? null;
+  const planned = on && working ? events.findLast((e) => e.kind === "tool" && e.body.name === "plan_parts" && e.turnId === turn) : undefined;
+  const planDetail = (planned?.body.detail ?? null) as { option?: unknown; parts?: unknown } | null;
+  const planId = planned?.id ?? 0;
+  const tellPlan = useEffectEvent(() => onPlan?.(planDetail ? { option: typeof planDetail.option === "number" ? planDetail.option : 0, parts: planOf(planDetail.parts) } : null));
+  useEffect(() => {
+    tellPlan();
+  }, [planId]);
+
   if (!on) return <>{children}</>;
 
   const openSources = async () => {
@@ -146,6 +173,18 @@ export function TiffPanel({
     if (!a?.ok) setNote(a?.reason ?? "That didn't save. Try again.");
     onChanged();
     void read(true);
+  };
+
+  /* a researched price on its line: the route reads it back from the thread */
+  const putOn = async (event: number) => {
+    setBusy(true);
+    setNote(null);
+    const r = await fetch(ROUTE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ job, op: "use", event }) }).catch(() => null);
+    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; reason?: string } | null) : null;
+    setBusy(false);
+    if (!a?.ok) return setNote(a?.reason ?? "That didn't save. Try again.");
+    setUsed((s) => new Set(s).add(event));
+    onChanged();
   };
 
   const who = (author: string) => (author === me ? "You" : (names[author] ?? "Someone"));
@@ -253,6 +292,32 @@ export function TiffPanel({
               return (
                 <div key={e.id} className="qt-msg tf">
                   <div className="qt-bub tf">{String(e.body.text ?? "")}</div>
+                </div>
+              );
+            const research = e.kind === "tool" && e.body.ok !== false && e.body.name === "research_price" ? researchDetailOf((e.body.detail as { research?: unknown } | undefined)?.research) : null;
+            if (research)
+              return (
+                <div key={e.id} className="qt-msg tf">
+                  <div className="qt-bub tf">
+                    <span className="qt-web">
+                      <Globe /> Web search
+                    </span>
+                    {research.summary}
+                    <p className="qt-src">
+                      <a href={research.source.url} target="_blank" rel="noopener noreferrer">
+                        {research.source.title}
+                      </a>
+                    </p>
+                    <div className="qt-acts">
+                      {used.has(e.id) ? (
+                        <span className="qt-used">{`On the line at ${fmtAud(research.priceCents)} ${research.per}`}</span>
+                      ) : (
+                        <button type="button" className="pbtn primary sm" disabled={busy || working} onClick={() => void putOn(e.id)}>
+                          {`Use ${fmtAud(research.priceCents)}`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             if (e.kind === "tool")

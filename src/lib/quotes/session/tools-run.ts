@@ -6,6 +6,8 @@ import { findInBook, offerFor, supplierOffer, type UnitLookup } from "../lookups
 import type { TaskKey } from "../settings";
 import type { Correction } from "../corrections";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
+import { planOf } from "../build-progress";
+import type { Research } from "../research";
 import { taskCheck } from "../task-hours";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
@@ -29,6 +31,8 @@ export type QuoteStore = {
   removeLine: (id: string, version: number, why: string) => Promise<LineWrite>;
   copyOption: (from: number, to: number) => Promise<LineWrite>;
   nameOption: (option: number, name: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
+  /** a price from the web for a line, by its own call (12.2); what it spent either way */
+  research: (lineId: string, what: string) => Promise<({ ok: true; research: Research } | { ok: false; reason: string }) & { usd: number | null; model: string }>;
   /** the proposal's words as kept; null when none are written */
   proposal: () => Promise<LinesProposal | null>;
   /** the proposal's words, changed by the blocks given (7.1) */
@@ -217,6 +221,31 @@ export function makeTools(store: QuoteStore) {
         if (!name) return fail("Give the option a name.");
         const res = await store.nameOption(option, name);
         return res.ok ? { ok: true, label, said: name, value: { named: option } } : fail(res.reason);
+      }
+      case "research_price": {
+        const lineId = typeof input.line_id === "string" ? input.line_id : "";
+        const what = typeof input.what === "string" ? input.what.trim().slice(0, 400) : "";
+        if (!(await store.readLines()).some((l) => l.id === lineId)) return fail("There's no line with that id. Read the quote for its lines.");
+        if (!what) return fail("Say what to price.");
+        const run = await store.research(lineId, what);
+        const cost = run.model ? { usd: run.usd, model: run.model } : undefined;
+        if (!run.ok) return { ok: false, error: run.reason, label, cost };
+        const r = run.research;
+        const dollars = `$${(r.priceCents / 100).toFixed(2)}`;
+        return {
+          ok: true,
+          label,
+          said: `${dollars} ${r.per}`,
+          value: { price_ex_gst: dollars, per: r.per, summary: r.summary, source: r.source.title, use: "The person presses Use it to put it on the line. Don't change the line's price yourself." },
+          detail: { research: { lineId, ...r } },
+          cost,
+        };
+      }
+      case "plan_parts": {
+        const parts = planOf(input.parts);
+        if (parts.length === 0) return fail("Give the parts in order, each with its group.");
+        const option = typeof input.option === "number" ? Math.max(0, Math.min(19, Math.round(input.option))) : 0;
+        return { ok: true, label, said: `${parts.length} ${parts.length === 1 ? "part" : "parts"}`, value: { planned: parts.length }, detail: { option, parts } };
       }
       case "write_proposal": {
         const patch: Partial<LinesProposal> = {};

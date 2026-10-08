@@ -408,3 +408,36 @@ describe("the proposal (7.1)", () => {
     expect(screen.queryByRole("article", { name: "The proposal" })).not.toBeInTheDocument();
   });
 });
+
+describe("watching her build it (5.2)", () => {
+  it("lists her parts under the total: done with its price, the one she's on, what's to come", async () => {
+    const plan = { name: "plan_parts", label: "Planned the quote", ok: true, detail: { option: 0, parts: [{ system: "Downstairs", group: "Units", detail: "PEA-M125HAA" }, { system: "Core holes", group: "Core holes" }, { system: "", group: "Labour" }] } };
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => ({
+      json: async () =>
+        String(url).startsWith("/api/workboard/quote-session")
+          ? { ok: true, on: true, working: true, spentUsd: 0, me: "u-isaac", names: {}, events: [{ id: 1, turnId: "t1", kind: "tool", author: "tiff", at: "", body: plan }] }
+          : view([indoor, core]),
+    }));
+    face();
+    const list = await screen.findByRole("region", { name: "Building the quote" });
+    expect(list).toHaveTextContent("1 of 3 parts done");
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows[0]).toHaveClass("done");
+    expect(rows[0]).toHaveTextContent("$1,334.38");
+    expect(rows[1]).toHaveClass("now");
+    expect(rows[1]).toHaveTextContent("1 item so far");
+    expect(rows[2]).not.toHaveClass("done");
+  });
+});
+
+it("on the proposal, reviews every option before it's approved (11.1)", async () => {
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  const second = { ...core, id: "l3", optionIndex: 1, name: "Core hole 100 mm" };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => view([indoor, core, second]) }));
+  render(<QuoteLinesFace job="job-3377" price={price} actionsEl={el} onPriced={jest.fn()} onSwitchBack={jest.fn()} />);
+  fireEvent.click(await within(el).findByRole("button", { name: "Preview proposal" }));
+  expect(screen.getByRole("heading", { name: "Before you approve" })).toBeInTheDocument();
+  expect(screen.getByText("Option 1: Core hole 200 mm: not known yet")).toBeInTheDocument();
+  expect(screen.getByText("Option 2: Core hole 100 mm: not known yet")).toBeInTheDocument();
+});

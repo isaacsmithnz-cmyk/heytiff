@@ -7,6 +7,8 @@ import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
 import { holding, readThread } from "@/lib/quotes/session/store-server";
 import { answerQuestion, priceQuestions } from "@/lib/quotes/session/answers-server";
+import { researchDetailOf } from "@/lib/quotes/research";
+import { putResearchedOn } from "@/lib/quotes/lines-job-server";
 import { briefOf } from "@/lib/quotes/session/job-sources";
 import { readJobSources } from "@/lib/quotes/session/job-sources-server";
 
@@ -73,6 +75,17 @@ export async function POST(req: Request) {
     const { events } = await readThread(g.orgId, target.parentRemoteId);
     const r = await answerQuestion(g.orgId, target.parentRemoteId, g.userId, event, index, events);
     return Response.json(r, { status: r.ok ? 200 : 409 });
+  }
+  /* a researched price used: read back from her saved thread, never from
+     what the page sends (12.2) */
+  if (body.op === "use") {
+    const event = typeof body.event === "number" ? body.event : -1;
+    const { events } = await readThread(g.orgId, target.parentRemoteId);
+    const ev = events.find((e) => e.id === event && e.kind === "tool" && e.body.name === "research_price");
+    const r = researchDetailOf((ev?.body.detail as { research?: unknown } | undefined)?.research);
+    if (!r) return Response.json({ ok: false, reason: "That price has gone." }, { status: 409 });
+    const used = await putResearchedOn(g.orgId, target.parentRemoteId, g.userId, r);
+    return Response.json(used, { status: used.ok ? 200 : 409 });
   }
   /* Read the job: the brief is built here from the sources left ticked,
      never taken as text from the page */

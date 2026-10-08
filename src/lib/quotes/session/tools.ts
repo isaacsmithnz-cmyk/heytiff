@@ -305,6 +305,30 @@ export const SESSION_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: { option: lineFields.option, name: { type: "string" } }, required: ["option", "name"], additionalProperties: false },
   },
   {
+    name: "research_price",
+    description:
+      "Find a price on the web for a line the business's book hasn't got (a core hole, a crane, a brand they don't stock), when the person asks for it or agrees. One price, where it's from, and a short summary come back; the person presses Use it to put it on the line. Don't change the line's price yourself. Each research costs money: only when it's asked for.",
+    input_schema: { type: "object", properties: { line_id: { type: "string" }, what: { type: "string", description: "What to price, in a few words: \"200 mm core hole through sandstone, Sydney\"." } }, required: ["line_id", "what"], additionalProperties: false },
+  },
+  {
+    name: "plan_parts",
+    description:
+      "Before you build, say the parts of the quote you'll build, in order: each a system and a group, as the lines will carry them (\"Downstairs\" + \"Units\", \"Downstairs\" + \"Ductwork and grilles\", \"\" + \"Labour\"), with a few words on what it is. The page shows them as you work. Plan again if the plan changes.",
+    input_schema: {
+      type: "object",
+      properties: {
+        option: lineFields.option,
+        parts: {
+          type: "array",
+          maxItems: 20,
+          items: { type: "object", properties: { system: { type: "string" }, group: { type: "string" }, detail: { type: "string" } }, required: ["group"], additionalProperties: false },
+        },
+      },
+      required: ["parts"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "write_proposal",
     description:
       "Write the proposal's words, the way the client reads them: the title and an introduction of two or three sentences, and for an option its summary (what it is and why, in plain words), the work by area and what's included. What isn't included and how the client chooses (one option, or any they tick) are the whole proposal's. Give only what you're writing; the rest stays. Never a price or a figure: those come from the lines. A person approves it before it goes.",
@@ -387,6 +411,8 @@ export const TOOL_LABELS: Record<string, string> = {
   copy_option: "Copied an option",
   name_option: "Named an option",
   write_proposal: "Wrote the proposal",
+  plan_parts: "Planned the quote",
+  research_price: "Researched a price",
   your_corrections: "Read her corrections",
   job_files: "Listed the job's files",
   look_at: "Looked at",

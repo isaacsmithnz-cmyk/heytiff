@@ -36,6 +36,8 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
         d.rate ? hourCostOf(d.rate.perHourCents, s.profitTargetPct, s.labourCostCents) : null
       )),
     lookupUnit: (brand, model) => lookupUnit(brand, model),
+    taskHours: () =>
+      Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) => ({ hours: s.taskHours, dayHours: d.hours?.hours ?? null })),
     totals: async () => {
       const p = await readQuotePrice(orgId, jobUuid);
       return p.ok ? { ok: true, options: p.options.map((o) => o.build.exGstCents) } : { ok: false };

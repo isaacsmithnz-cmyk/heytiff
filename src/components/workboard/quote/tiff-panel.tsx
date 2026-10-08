@@ -261,6 +261,12 @@ export function TiffPanel({
                   {`${String(e.body.label ?? "")}${e.body.said ? `: ${String(e.body.said)}` : ""}`}
                 </p>
               );
+            if (e.kind === "milestone")
+              return (
+                <p key={e.id} className="qt-mile">
+                  {`${String(e.body.text ?? "")} by ${e.author === me ? "you" : who(e.author)}`}
+                </p>
+              );
             if (e.kind === "error")
               return (
                 <p key={e.id} className="wb2-sherr">

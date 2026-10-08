@@ -17,6 +17,7 @@ const thread = {
     { id: 2, turnId: "t1", kind: "tool", author: "tiff", at: "", body: { name: "add_kit", label: "Added a kit", ok: true, said: "Ducted, 12 parts" } },
     { id: 3, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "Single or three phase?", answers: [{ label: "Single phase" }, { label: "Three phase" }] } },
     { id: 4, turnId: "t1", kind: "reply", author: "tiff", at: "", body: { text: "A 12.5 kW ducted, priced from your book." } },
+    { id: 5, turnId: null, kind: "milestone", author: "u-isaac", at: "", body: { text: "Option 1 accepted" } },
   ],
   questions: { 3: { deltas: [0, 51996], answered: null } },
 };
@@ -54,6 +55,8 @@ it("shows her thread, who said what, what she did and what it cost", async () =>
   expect(screen.getByText("Luke Bennett")).toBeInTheDocument();
   expect(screen.getByText("Added a kit: Ducted, 12 parts")).toBeInTheDocument();
   expect(screen.getByText("$0.71 on this quote")).toBeInTheDocument();
+  /* the quote's history in her thread */
+  expect(screen.getByText("Option 1 accepted by you")).toBeInTheDocument();
   expect(screen.getByText("Ready")).toBeInTheDocument();
 });
 

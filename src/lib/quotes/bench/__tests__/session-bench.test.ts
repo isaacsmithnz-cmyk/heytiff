@@ -23,6 +23,14 @@ describe("the bench's own quote", () => {
     expect((await s.totals()).ok).toBe(true);
   });
 
+  it("shows her the business's own task hours, and what they make an option's labour", async () => {
+    const { makeTools } = await import("../../session/tools-run");
+    const s = memoryStore({ products: book, settings: c75.settings, hourCostCents: 11200, taskHours: { zone: null, grille: 1.5, metre: null, visit: null } });
+    await s.addLine({ optionIndex: 0, group: "Ductwork", name: "Round ceiling diffuser 250", qty: 3, costCents: 1887, source: "assumed", why: "w" }, "w");
+    const out = await makeTools(s)("read_quote", {});
+    expect(out.ok && (out.value as Record<string, unknown>[])[0]).toMatchObject({ your_task_hours: { grille: 1.5 }, by_your_task_hours: { hours: 4.5, words: "3 outlets", quoted: 0 } });
+  });
+
   it("books every part a person built a case with, allowances aside", () => {
     expect(book.some((p) => p.name === "Rubber feet")).toBe(true);
     expect(book.some((p) => p.name === "TPS 2.5 mm²")).toBe(true);

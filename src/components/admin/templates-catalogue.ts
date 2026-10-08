@@ -34,6 +34,14 @@ export const TEMPLATES = [
     icon: "mail",
   },
   {
+    key: "letterhead",
+    who: "Every letter the business writes goes out on it: an employment confirmation for a visa, a letter for a loan.",
+    group: "Letters",
+    title: "Letterhead",
+    sub: "Your logo and details at the top of every letter, and how it's signed off",
+    icon: "file",
+  },
+  {
     key: "certificate",
     who: "Goes to the builder or certifier, as a PDF filed on the job.",
     group: "Builders and certifiers",
@@ -62,7 +70,7 @@ export const TEMPLATES = [
 export type TemplateKey = (typeof TEMPLATES)[number]["key"];
 export type TemplateEntry = (typeof TEMPLATES)[number];
 
-export const TEMPLATE_GROUPS = ["Customers", "Builders and certifiers", "Your team"] as const;
+export const TEMPLATE_GROUPS = ["Customers", "Builders and certifiers", "Letters", "Your team"] as const;
 
 /** A template by its key, or null when the key names none. */
 export function templateFor(key: unknown): TemplateEntry | null {

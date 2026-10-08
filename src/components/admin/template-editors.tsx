@@ -33,7 +33,7 @@ import type { ChecklistSeed } from "@/lib/workboard/stages";
 const FAILED: TemplateResult = { ok: false, error: "Couldn't save it. Try again." };
 
 /** Save and reset for one template, and the line that says how it went. */
-function useTemplate(key: TemplateSetting) {
+export function useTemplate(key: TemplateSetting) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ text: string; bad: boolean } | null>(null);
@@ -62,7 +62,7 @@ function useTemplate(key: TemplateSetting) {
   return { busy, note, save, reset, setNote };
 }
 
-function Foot({
+export function Foot({
   busy,
   note,
   dirty,

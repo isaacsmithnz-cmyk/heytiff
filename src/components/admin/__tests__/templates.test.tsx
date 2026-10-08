@@ -47,6 +47,7 @@ describe("the list", () => {
       "/dashboard/admin/templates/documents-email",
       "/dashboard/admin/templates/certificate",
       "/dashboard/admin/templates/swms",
+      "/dashboard/admin/templates/letterhead",
       "/dashboard/admin/templates/project-checklist",
     ]);
     expect(screen.getByRole("link", { name: /Mechanical Compliance Certificate/ })).toHaveTextContent("Waiting for your approval");

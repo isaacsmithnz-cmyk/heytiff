@@ -9,6 +9,7 @@ import {
   TEMPLATE_SETTINGS,
   normaliseChecklist,
   normaliseEmail,
+  normaliseLetterhead,
   normaliseNotes,
   normaliseTerms,
   templateProblems,
@@ -29,12 +30,14 @@ const PAGES: Record<TemplateSetting, string[]> = {
   payment_terms: ["quote"],
   project_checklist: ["project-checklist", "handover"],
   documents_email: ["documents-email"],
+  letterhead: ["letterhead"],
 };
 
 function stored(key: TemplateSetting, value: unknown): unknown {
   if (key === "quote_notes") return normaliseNotes(value);
   if (key === "payment_terms") return normaliseTerms(value);
   if (key === "project_checklist") return normaliseChecklist(value);
+  if (key === "letterhead") return normaliseLetterhead(value);
   return normaliseEmail(value);
 }
 

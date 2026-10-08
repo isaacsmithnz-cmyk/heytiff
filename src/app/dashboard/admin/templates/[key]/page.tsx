@@ -8,6 +8,11 @@ import { hasMinRole } from "@/lib/roles-shared";
 import { templateFor } from "@/components/admin/templates-catalogue";
 import { CertificateTemplate, SwmsTemplate } from "@/components/admin/approved-templates";
 import { DocumentsEmailTemplate, HandoverTemplate, ProjectChecklistTemplate, QuoteTemplate } from "@/components/admin/fixed-templates";
+import { LetterheadTemplate } from "@/components/admin/letterhead-template";
+import { letterheadFacts, letterSigner } from "@/lib/letters/query";
+import { staffIdFor } from "@/lib/workboard/projects-query";
+import { todayInAu } from "@/lib/au-dates";
+import { longDay } from "@/lib/certs/mechanical";
 import { approvalStatus, templateApprovals } from "../approvals";
 import "@/components/swms/swms.css";
 
@@ -38,6 +43,25 @@ export default async function TemplatePage({ params }: { params: Promise<{ key: 
   if (t.key === "swms") {
     const a = await templateApprovals(orgId);
     return <SwmsTemplate approved={a.swms} isOwner={a.isOwner} ownerName={a.ownerName} status={approvalStatus(a.swms, a.isOwner)} />;
+  }
+  if (t.key === "letterhead") {
+    const userId = session.user?.sub as string | undefined;
+    const [facts, templates, role, staffId] = await Promise.all([
+      letterheadFacts(orgId),
+      orgTemplates(orgId),
+      getDbRole(),
+      userId ? staffIdFor(orgId, userId) : Promise.resolve(null),
+    ]);
+    return (
+      <LetterheadTemplate
+        facts={facts}
+        letterhead={templates.letterhead}
+        changed={!!templates.changed.letterhead}
+        isOwner={hasMinRole(role, "owner")}
+        signer={staffId ? await letterSigner(orgId, staffId) : null}
+        today={longDay(todayInAu())}
+      />
+    );
   }
   const [brand, templates, role] = await Promise.all([orgBrand(orgId), orgTemplates(orgId), getDbRole()]);
   const props = { brand, templates, isOwner: hasMinRole(role, "owner") };

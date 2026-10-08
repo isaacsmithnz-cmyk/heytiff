@@ -6787,6 +6787,45 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-kf { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:500; color:var(--q); }
 .fg .ql-kin { display:flex; align-items:center; gap:8px; }
 .fg .ql-kin em { font-style:normal; font-size:13px; color:var(--q); }
+/* Tiff's panel on the quote (slice 5.1, mock-up screens 1 and 3): a rounded
+   grey card inset on the white page, her still mark in the header, the body
+   scrolling between it and the message box */
+.fg .hd-list.qp-rail:has(> .qt) { display:flex; padding:16px 24px 24px 0; border-left:0; overflow:hidden; }
+.fg .qt { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--bg); border-radius:var(--r-card); overflow:hidden; }
+.fg .qt-h { flex:none; display:flex; align-items:center; gap:12px; padding:16px 16px 12px; border-bottom:1px solid var(--hd-rule); }
+.fg .qt-t { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.fg .qt-t b { font-size:16px; font-weight:600; line-height:1.25; color:var(--hd-ink); }
+.fg .qt-t span { font-size:12px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .qt-state { margin-left:auto; display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:var(--r-pill); background:var(--paper); border:1px solid var(--hd-edge); font-size:12px; font-weight:600; color:var(--hd-body); }
+.fg .qt-state i { width:8px; height:8px; border-radius:50%; background:var(--hd-today); }
+.fg .qt-state.work i { background:var(--info-t); }
+.fg .qt-b { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:12px 16px 4px; }
+.fg .qt-hello { display:flex; flex-direction:column; align-items:center; gap:12px; padding:32px 0; font-size:14px; color:var(--hd-ink); }
+.fg .qt-qa { display:flex; flex-direction:column; gap:8px; padding:12px 0; }
+.fg .qt-qa + .qt-qa { border-top:1px solid var(--hd-rule2); }
+.fg .qt-q { margin:0; font-size:14px; font-weight:600; line-height:1.4; color:var(--hd-ink); }
+.fg .qt-ans { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
+.fg .qt-ans button { display:inline-flex; align-items:center; gap:8px; min-height:32px; padding:4px 12px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); font:inherit; font-size:13px; color:var(--hd-ink); cursor:pointer; }
+.fg .qt-ans button:hover:not(:disabled) { border-color:var(--ink); }
+.fg .qt-ans button:disabled { color:var(--q); cursor:default; }
+.fg .qt-ans button:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .qt-ans b { font-weight:500; }
+.fg .qt-ans em { font-style:normal; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .qt-thread { display:flex; flex-direction:column; gap:12px; padding:8px 0; }
+.fg .qt-msg { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+.fg .qt-msg.me { align-items:flex-end; }
+.fg .qt-bub { max-width:90%; padding:8px 12px; border-radius:var(--r-button); font-size:14px; line-height:1.5; white-space:pre-wrap; }
+.fg .qt-bub.tf, .fg .qt-bub.them { background:var(--paper); color:var(--hd-ink); border:1px solid var(--hd-edge); }
+.fg .qt-bub.me { background:var(--hd-ink); color:var(--paper); }
+.fg .qt-meta { font-size:12px; color:var(--q); }
+.fg .qt-did { margin:0; font-size:13px; line-height:1.45; color:var(--hd-body); }
+.fg .qt-did.off { color:var(--q); }
+.fg .qt-working { margin:0; font-size:13px; font-weight:600; color:var(--info-t); }
+.fg .qt-c { flex:none; padding:8px 16px 16px; }
+.fg .qt-box { display:flex; align-items:flex-end; gap:8px; padding:4px 4px 4px 12px; border:1px solid var(--hd-edge); border-radius:var(--r-card); background:var(--paper); }
+.fg .qt-box:focus-within { border-color:var(--ink); }
+.fg .qt-in { flex:1; min-width:0; min-height:32px; max-height:160px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:none; }
+.fg .qt-in:focus { outline:none; }
 .fg .ql-checks { list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; }
 .fg .ql-checks li { display:grid; grid-template-columns:16px minmax(0, 1fr); gap:8px; padding:4px 0; font-size:13px; line-height:1.45; color:var(--hd-ink); }
 .fg .ql-checks li > i { width:8px; height:8px; margin-top:4px; border-radius:50%; background:var(--hd-today); }

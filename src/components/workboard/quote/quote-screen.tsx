@@ -190,6 +190,7 @@ export function QuoteScreen({
           {engine === "lines" ? (
             <QuoteLinesFace
               job={job}
+              meta={{ title: proposalTitle(address), client: detail.clientName ?? null, site: address ?? null, jobNumber: detail.jobNumber ?? null }}
               price={price}
               actionsEl={actionsEl}
               onPriced={() => setLinesRev((n) => n + 1)}

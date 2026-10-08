@@ -6,7 +6,9 @@ import { addKit } from "@/lib/quotes/kits-server";
 import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
-import { markAccepted, nameOption, readByHand, setLoading, setSupplier } from "@/lib/quotes/lines-job-server";
+import { approveProposal, markAccepted, nameOption, readByHand, saveProposal, setLoading, setSupplier } from "@/lib/quotes/lines-job-server";
+import { approvalStands } from "@/lib/quotes/lines-proposal";
+import { orgTemplates } from "@/lib/templates/query";
 import { readSuppliers } from "@/lib/quotes/price-book-server";
 import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { readStoredProposal } from "@/lib/quotes/proposal-writer";
@@ -40,7 +42,7 @@ async function bookSuppliers(orgId: string) {
 }
 
 async function view(orgId: string, jobUuid: string, userId: string) {
-  const [engine, lines, changes, byHand, settings, day, suppliers] = await Promise.all([
+  const [engine, lines, changes, byHand, settings, day, suppliers, templates] = await Promise.all([
     readEngine(orgId, jobUuid),
     readLines(orgId, jobUuid),
     readChanges(orgId, jobUuid, 50),
@@ -48,15 +50,36 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     readQuoteSettings(orgId),
     readOrgDay(orgId),
     bookSuppliers(orgId),
+    orgTemplates(orgId).catch(() => null),
   ]);
   /* the business's own task hours, beside each option's (slice 8.1) */
   const options = Math.max(0, ...lines.map((l) => l.optionIndex + 1));
   const tasks = Array.from({ length: options }, (_, i) => taskCheck(lines.filter((l) => l.optionIndex === i), settings.taskHours, day.hours?.hours ?? null));
   const [names, fits] = await Promise.all([
-    namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy)]),
+    namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy), userId, ...(byHand.proposal?.approvedBy ? [byHand.proposal.approvedBy] : [])]),
     linesFit(lines).catch(() => []),
   ]);
-  return { ok: true as const, engine, lines, changes, names, me: userId, fits, accepted: byHand.accepted, optionNames: byHand.names, loading: byHand.loading, supplier: byHand.supplier, suppliers, tasks };
+  return {
+    ok: true as const,
+    engine,
+    lines,
+    changes,
+    names,
+    me: userId,
+    fits,
+    accepted: byHand.accepted,
+    optionNames: byHand.names,
+    loading: byHand.loading,
+    supplier: byHand.supplier,
+    suppliers,
+    tasks,
+    /* the proposal's words, whether an approval of them still stands, and
+       the business's notes and payment terms it's set from (7.1) */
+    proposal: byHand.proposal,
+    approved: byHand.proposal ? approvalStands(byHand.proposal, lines.map((l) => l.updatedAt)) : false,
+    noteLibrary: templates?.quoteNotes ?? [],
+    paymentTerms: templates?.paymentTerms ?? null,
+  };
 }
 
 export async function GET(req: Request) {
@@ -150,6 +173,12 @@ export async function POST(req: Request) {
       result = await setSupplier(g.orgId, jobUuid, key, g.userId, known?.name ?? "");
       break;
     }
+    case "proposal":
+      result = await saveProposal(g.orgId, jobUuid, body.patch, g.userId);
+      break;
+    case "approve":
+      result = await approveProposal(g.orgId, jobUuid, g.userId);
+      break;
     case "loading":
       result = await setLoading(g.orgId, jobUuid, opt(body.option), { pct: body.pct, reason: body.reason }, g.userId);
       break;

@@ -15,6 +15,10 @@ import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
 import { TiffPanel } from "./tiff-panel";
 import { CompareCard } from "./compare-card";
+import { LinesProposalPaper } from "./lines-proposal-paper";
+import type { LinesProposal } from "@/lib/quotes/lines-proposal";
+import type { PaymentPreset, PaymentStage } from "@/lib/quotes/payment";
+import type { QuoteNote } from "@/lib/templates/settings";
 import { unitPartOf } from "@/lib/quotes/brands";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
@@ -50,6 +54,12 @@ type View = {
   /** each option's name, and its loading on labour (lines-job.ts) */
   optionNames?: string[];
   loading?: Record<number, { pct: number; reason: string }>;
+  /** the proposal's words, whether an approval of them stands, and the
+      business's notes and payment terms (7.1) */
+  proposal?: LinesProposal | null;
+  approved?: boolean;
+  noteLibrary?: QuoteNote[];
+  paymentTerms?: Record<PaymentPreset, { label: string; stages: PaymentStage[] }> | null;
   /** the supplier the whole job buys from, and the business's suppliers */
   supplier?: string | null;
   suppliers?: { key: string; name: string }[];
@@ -177,6 +187,7 @@ export function QuoteLinesFace({
   onSwitchBack,
   onToast,
   send,
+  meta,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
@@ -184,6 +195,8 @@ export function QuoteLinesFace({
   onToast?: (message: string) => void;
   /** what goes to ServiceM8 once an option is accepted (job-quote-send.tsx) */
   send?: ReactNode;
+  /** who and where, for the proposal's heading */
+  meta?: { title: string; client: string | null; site: string | null; jobNumber: string | null };
   /** read the price again: a line changed */
   onPriced: () => void;
   onSwitchBack: () => void;
@@ -198,6 +211,8 @@ export function QuoteLinesFace({
   const [kitOpen, setKitOpen] = useState(false);
   /* the line whose pick list is open (Select preferred item, slice 2.4) */
   const [swapping, setSwapping] = useState<string | null>(null);
+  /* the proposal, previewed in place of the lines (7.1) */
+  const [paper, setPaper] = useState(false);
   /* the unit line whose compare is open (compare-card.tsx) */
   const [comparing, setComparing] = useState<string | null>(null);
   /* Tiff's questions still open (tiff-panel.tsx) */
@@ -213,6 +228,7 @@ export function QuoteLinesFace({
   const accepted = view?.accepted ?? [];
   const steps = linesSteps({
     accepted,
+    approved: view?.approved ?? false,
     lines: all.length,
     /* the lines nobody knows yet, and Tiff's questions still open */
     unknown: all.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).length + asked,
@@ -311,6 +327,9 @@ export function QuoteLinesFace({
       </div>
     );
   }
+  /* who approved the proposal, in words */
+  const approvedBy = view?.proposal?.approvedBy ?? "";
+  const approver = !approvedBy ? "someone" : approvedBy === view?.me ? "you" : (view?.names[approvedBy] ?? "someone");
   const units = o ? o.build.groups.filter((g) => g.lines.some((l) => l.kind === "unit")).reduce((n, g) => n + g.sellCents, 0) : 0;
   const materials = o ? o.build.exGstCents - units - o.build.labour.sellCents : 0;
   const hours = lines.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0);
@@ -778,9 +797,31 @@ export function QuoteLinesFace({
       {actionsEl &&
         createPortal(
           <>
-            <button type="button" className="pbtn ghost" onClick={onSwitchBack}>
-              Use Tiff&apos;s builder
-            </button>
+            {paper ? (
+              <>
+                <button type="button" className="pbtn ghost" onClick={() => setPaper(false)}>
+                  Back to the lines
+                </button>
+                {view?.approved ? (
+                  <span className="qp-approved">{`Approved by ${approver}`}</span>
+                ) : (
+                  <button type="button" className="pbtn primary" disabled={busy || all.length === 0} onClick={() => void act({ op: "approve" })}>
+                    Approve
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button type="button" className="pbtn ghost" onClick={onSwitchBack}>
+                  Use Tiff&apos;s builder
+                </button>
+                {all.length > 0 && (
+                  <button type="button" className="pbtn ghost" onClick={() => setPaper(true)}>
+                    Preview proposal
+                  </button>
+                )}
+              </>
+            )}
             {all.length > 0 && (
               <button
                 type="button"
@@ -802,7 +843,29 @@ export function QuoteLinesFace({
         <div className="hd-fx">
           <div className="hd-main">
             <div className="hd-col">
-              <div className="hd-face qp-face ql-face">{flow}</div>
+              <div className="hd-face qp-face ql-face">
+                {paper ? (
+                  <div className="lp-desk">
+                    <LinesProposalPaper
+                      proposal={view?.proposal ?? null}
+                      lines={all}
+                      price={price}
+                      optionNames={view?.optionNames ?? []}
+                      noteLibrary={view?.noteLibrary ?? []}
+                      paymentTerms={view?.paymentTerms ?? null}
+                      title={meta?.title ?? "Quote"}
+                      client={meta?.client ?? null}
+                      site={meta?.site ?? null}
+                      jobNumber={meta?.jobNumber ?? null}
+                      preparedBy={view?.names[view?.me ?? ""] ?? null}
+                      busy={busy}
+                      onSave={(patch) => void act({ op: "proposal", patch })}
+                    />
+                  </div>
+                ) : (
+                  flow
+                )}
+              </div>
             </div>
             <aside className="hd-list qp-rail" aria-label="Changes">
               <TiffPanel

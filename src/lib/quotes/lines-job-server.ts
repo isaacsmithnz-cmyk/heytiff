@@ -1,7 +1,19 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { unitSpecsOf } from "./fit-server";
-import { byHandOf, linesDraft, optionNames, toggleAccepted, withCompared, withLoading, withName, withSupplier, type ByHand } from "./lines-job";
+import {
+  byHandOf,
+  linesDraft,
+  optionNames,
+  toggleAccepted,
+  withApproval,
+  withCompared,
+  withLoading,
+  withName,
+  withProposal,
+  withSupplier,
+  type ByHand,
+} from "./lines-job";
 import { changeLine, readEngine, readLines } from "./lines-server";
 import { bookProducts } from "./book-view-server";
 import { bookPrice } from "./session/tools";
@@ -64,6 +76,14 @@ export async function setSupplier(orgId: string, cardId: string, key: unknown, b
   }
   return { ...r, moved };
 }
+
+/** The proposal's words changed (7.1), one set of words an option. */
+export async function saveProposal(orgId: string, cardId: string, patch: unknown, by: string) {
+  const options = Math.max(1, ...(await readLines(orgId, cardId)).map((l) => l.optionIndex + 1));
+  return changeByHand(orgId, cardId, by, (b) => withProposal(b, patch, new Date().toISOString(), options));
+}
+/** A person saying this version of the proposal is right to go. */
+export const approveProposal = (orgId: string, cardId: string, by: string) => changeByHand(orgId, cardId, by, (b) => withApproval(b, by, new Date().toISOString()));
 
 /** Sets option `i`'s loading, or takes it off. */
 export const setLoading = (orgId: string, cardId: string, i: number, loading: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withLoading(b, i, loading));

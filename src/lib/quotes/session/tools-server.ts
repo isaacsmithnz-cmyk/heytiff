@@ -3,7 +3,7 @@ import { bookProducts } from "../book-view-server";
 import type { Product } from "../families";
 import { addKit } from "../kits-server";
 import { addLine, changeLine, copyOption, readLines, removeLine } from "../lines-server";
-import { addCompared, nameOption, readByHand } from "../lines-job-server";
+import { addCompared, nameOption, readByHand, saveProposal } from "../lines-job-server";
 import { jobKind, readCorrections } from "../corrections-server";
 import { jobFiles, lookAt } from "./job-files-server";
 import { lookupUnit } from "../lookups-server";
@@ -34,6 +34,11 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     removeLine: (id, version, why) => removeLine(orgId, jobUuid, id, version, TIFF, why),
     copyOption: (from, to) => copyOption(orgId, jobUuid, from, to, TIFF),
     nameOption: (option, name) => nameOption(orgId, jobUuid, option, name, TIFF),
+    proposal: () => (jobUuid ? readByHand(orgId, jobUuid).then((b) => b.proposal) : Promise.resolve(null)),
+    writeProposal: async (patch) => {
+      const res = await saveProposal(orgId, jobUuid, patch, TIFF);
+      return res.ok ? { ok: true } : res;
+    },
     compareWith: (lineId, code) => addCompared(orgId, jobUuid, lineId, code, TIFF),
     addKit: (kit, facts, at, unit) => addKit(orgId, jobUuid, kit, facts, at, unit, TIFF),
     book: () => (products ??= bookProducts(orgId)),

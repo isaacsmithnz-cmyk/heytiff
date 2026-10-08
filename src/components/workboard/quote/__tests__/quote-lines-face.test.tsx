@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { priceBuildUp } from "@/lib/quotes/buildup";
 import type { QuoteLine } from "@/lib/quotes/lines";
 import { buildLineOf } from "@/lib/quotes/lines-price";
@@ -385,4 +385,26 @@ it("picks the supplier the job buys from, and says where a line it doesn't sell 
     fireEvent.change(pick, { target: { value: "rexel" } });
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "supplier", key: "rexel" });
+});
+
+describe("the proposal (7.1)", () => {
+  const corner = () => {
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    render(<QuoteLinesFace job="job-3377" price={price} actionsEl={el} onPriced={jest.fn()} onSwitchBack={jest.fn()} meta={{ title: "Air conditioning for 12 Smith St", client: "Jo Bloggs", site: "12 Smith St", jobNumber: "3377" }} />);
+    return el;
+  };
+
+  it("Preview proposal shows the paper, Approve says this version is right", async () => {
+    const el = corner();
+    fireEvent.click(await within(el).findByRole("button", { name: "Preview proposal" }));
+    expect(screen.getByRole("article", { name: "The proposal" })).toHaveTextContent("Jo Bloggs");
+    expect(screen.getByRole("heading", { name: "Air conditioning for 12 Smith St" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(within(el).getByRole("button", { name: "Approve" }));
+    });
+    expect(posted.at(-1)).toMatchObject({ op: "approve" });
+    fireEvent.click(within(el).getByRole("button", { name: "Back to the lines" }));
+    expect(screen.queryByRole("article", { name: "The proposal" })).not.toBeInTheDocument();
+  });
 });

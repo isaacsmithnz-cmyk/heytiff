@@ -118,7 +118,7 @@ export function quoteSteps(input: {
     build-up is priced when nothing is left to price. Approved and Sent
     wait for the proposal, which these quotes don't write yet; Accepted is
     the option a person marked. */
-export function linesSteps(input: { lines: number; unknown: number; price: PriceState; accepted?: readonly number[] }): QuoteStep[] {
+export function linesSteps(input: { lines: number; unknown: number; price: PriceState; accepted?: readonly number[]; approved?: boolean }): QuoteStep[] {
   const step = (key: StepKey, state: StepState, words: string): QuoteStep => ({ key, label: LABELS[key], state, words });
   const { lines, unknown, price } = input;
   const built =
@@ -136,7 +136,7 @@ export function linesSteps(input: { lines: number; unknown: number; price: Price
     /* his word for them on the new quote page (7 Oct): Unknowns */
     { ...step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} unknown` : lines > 0 ? "None" : ""), label: "Unknowns" },
     built,
-    step("approved", "todo", ""),
+    input.approved ? step("approved", "done", "Approved") : step("approved", "todo", ""),
     step("sent", "todo", ""),
     input.accepted?.length ? step("accepted", "done", acceptedWords(input.accepted)) : step("accepted", "todo", ""),
   ];

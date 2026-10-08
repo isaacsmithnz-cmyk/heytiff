@@ -4,7 +4,7 @@ import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { askCompare, compareView, putComparedOn } from "@/lib/quotes/compare-server";
 import { addCompared } from "@/lib/quotes/lines-job-server";
-import { chosenModel } from "@/lib/quotes/session/model-server";
+import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
 
 /* Compare on a quote's unit line (slice 10.2, compare.ts): GET the columns;
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     return Response.json(r.ok ? { ok: true, added: found.indoor.code } : r, { status: r.ok ? 200 : 409 });
   }
   /* it needs judgement: Tiff picks from the book, when she's on */
-  if (!chosenModel()) return Response.json({ ok: false, reason: "Nothing in your book matched that. Ask by a model, or a brand and a size." }, { status: 409 });
+  if (!sessionModelFor(g.orgId)) return Response.json({ ok: false, reason: "Nothing in your book matched that. Ask by a model, or a brand and a size." }, { status: 409 });
   const started = await startTurn(
     g.orgId,
     jobUuid,

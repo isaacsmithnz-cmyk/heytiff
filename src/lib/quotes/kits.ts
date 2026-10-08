@@ -53,6 +53,9 @@ export type KitFacts = {
   outletMm?: number | null;
   /** an old system comes out: its refrigerant recovered, the pipe flushed */
   replacing?: boolean;
+  /** ducted: the indoor goes under the floor, hung on springs, its outlets
+      floor grilles on boots (3377) */
+  underfloor?: boolean;
   /** its pipe, to keep: kept only when it's the size the new unit's data
       pack gives (slice 9.1); else new pipe is priced, saying why */
   keptPipe?: OldPipe | null;
@@ -198,9 +201,35 @@ const DUCTED: KitPart[] = [
     key: "outlets",
     group: "Ductwork and grilles",
     name: "Outlet diffuser",
+    skip: (f) => !!f.underfloor,
     search: (f) => (f.outletMm ? { text: "diffuser", sizeMm: f.outletMm } : null),
     range: (f) => (f.outletMm ? { kind: "round_diffuser", need: { mm: f.outletMm } } : null),
     qty: (f) => (f.outlets ? { qty: f.outlets, unit: "", why: `${f.outlets} outlets` } : null),
+  },
+  /* under the floor: a floor grille on a boot at each outlet, the indoor on springs */
+  {
+    key: "floor-grilles",
+    group: "Ductwork and grilles",
+    name: "Floor grille",
+    skip: (f) => !f.underfloor,
+    search: () => ({ text: "floor grille" }),
+    qty: (f) => (f.outlets ? { qty: f.outlets, unit: "", why: `${f.outlets} outlets in the floor` } : null),
+  },
+  {
+    key: "boots",
+    group: "Ductwork and grilles",
+    name: "Floor boot",
+    skip: (f) => !f.underfloor,
+    search: () => ({ text: "boot" }),
+    qty: (f) => (f.outlets ? { qty: f.outlets, unit: "", why: `one under each floor grille` } : null),
+  },
+  {
+    key: "hangers",
+    group: "Mounting and drain",
+    name: "Spring hangers",
+    skip: (f) => !f.underfloor,
+    search: () => ({ text: "spring hanger" }),
+    qty: () => ({ qty: 4, unit: "", why: "one at each of the indoor's four hanging points" }),
   },
   {
     key: "return",
@@ -208,6 +237,22 @@ const DUCTED: KitPart[] = [
     name: "Return air grille, filtered",
     search: () => ({ text: "return filter" }),
     qty: one("one return, its size to confirm"),
+  },
+  {
+    key: "return-box",
+    group: "Ductwork and grilles",
+    name: "Return air box",
+    search: () => ({ text: "return box" }),
+    component: () => "return_box",
+    qty: one("behind the return grille, its size to confirm"),
+  },
+  {
+    key: "controller",
+    group: "Pipe, power and controls",
+    name: "Wall controller",
+    search: () => ({ text: "wired controller" }),
+    component: () => "wall_controller",
+    qty: one("for the indoor"),
   },
 ];
 
@@ -355,6 +400,7 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     outlets: n(r.outlets, 40),
     outletMm: n(r.outletMm, 600),
     replacing: r.replacing === true || r.replacing === "yes" || r.replacing === "keep",
+    underfloor: r.underfloor === true || r.underfloor === "yes",
     keptPipe: r.replacing === "keep" && (OLD_PIPES as readonly unknown[]).includes(r.keptPipe) ? (r.keptPipe as OldPipe) : null,
   };
 }

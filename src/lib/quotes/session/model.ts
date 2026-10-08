@@ -14,7 +14,17 @@ import { costOf, type TokenUsage } from "@/lib/tiff/usage";
 
 export type TextBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
 export type ToolUseBlock = { type: "tool_use"; id: string; name: string; input: Record<string, unknown> };
-export type ToolResultBlock = { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean; cache_control?: { type: "ephemeral" } };
+/** What a tool can hand back besides words: a picture or a document she looks at (4.6). */
+export type MediaBlock =
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
+  | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } };
+export type ToolResultBlock = {
+  type: "tool_result";
+  tool_use_id: string;
+  content: string | (TextBlock | MediaBlock)[];
+  is_error?: boolean;
+  cache_control?: { type: "ephemeral" };
+};
 /** Thinking and anything else the model returns: kept as it came, and sent
     back as it came, as the API asks of a tool loop. */
 export type OtherBlock = { type: string; [k: string]: unknown };

@@ -164,3 +164,16 @@ describe("the model's door", () => {
     expect(requestKey(req)).not.toBe(requestKey({ ...req, effort: "low" }));
   });
 });
+
+describe("what she looks at (4.6)", () => {
+  it("hands a tool's picture back to her with its words", async () => {
+    const model = scripted([
+      { content: [use("t1", "look_at", { id: "plan" })], stopReason: "tool_use" },
+      { content: [text("Four bedrooms upstairs.")], stopReason: "end_turn" },
+    ]);
+    const picture = { type: "image" as const, source: { type: "base64" as const, media_type: "image/jpeg", data: "AAAA" } };
+    const { d } = deps(model, { runTool: async () => ({ ok: true, value: { looking_at: "Plan.pdf" }, label: "Looked at", media: [picture] }) });
+    await runTurn({ messages: [], summary: "" }, "What's on the plan?", d);
+    expect(model.calls[1]!.messages.at(-1)!.content[0]).toMatchObject({ type: "tool_result", content: [picture, { type: "text", text: '{"looking_at":"Plan.pdf"}' }] });
+  });
+});

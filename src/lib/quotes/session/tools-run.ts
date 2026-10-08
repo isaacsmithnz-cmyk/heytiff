@@ -4,8 +4,10 @@ import type { QuoteLine } from "../lines";
 import { stillUnknown } from "../lines-price";
 import { findInBook, offerFor, supplierOffer, type UnitLookup } from "../lookups";
 import type { TaskKey } from "../settings";
+import type { Correction } from "../corrections";
 import { taskCheck } from "../task-hours";
 import type { ToolOutcome } from "./turn";
+import type { MediaBlock } from "./model";
 import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
 
 /* TIFF'S TOOLS, RUN (tools.ts says what each is and what holds her to the
@@ -13,6 +15,9 @@ import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, 
    app (tools-server.ts), or a quote held in memory on the bench, so a
    recorded run replays against exactly the tools the app runs. Every write
    is the store's, as "tiff". Pure, given the store. */
+
+/** A file on the job she can ask to look at. */
+export type JobFile = { id: string; name: string; kind: "photo" | "document"; taken: string | null; from: string | null };
 
 export type LineWrite = { ok: true; line: QuoteLine | null } | { ok: false; reason: string; stale?: true };
 
@@ -33,6 +38,12 @@ export type QuoteStore = {
   totals: () => Promise<{ ok: true; options: number[] } | { ok: false }>;
   /** the supplier the job buys from, where it sells the item; null: any */
   supplier: () => Promise<string | null>;
+  /** people's changes to her lines on past quotes, this kind of job's or every kind's (13.1) */
+  corrections: (sameKind: boolean) => Promise<Correction[]>;
+  /** the job's photos and documents she can look at, newest first (4.6) */
+  jobFiles: () => Promise<JobFile[]>;
+  /** one of them as she sees it, or why she can't */
+  look: (id: string) => Promise<MediaBlock[] | string>;
   /** the business's own task hours and working day (slice 8.1) */
   taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
 };
@@ -172,6 +183,28 @@ export function makeTools(store: QuoteStore) {
         if (!bookPrice(await store.book(), code, "")) return fail(`${code} isn't in the business's book.`);
         const res = await store.compareWith(lineId, code);
         return res.ok ? { ok: true, label, said: code, value: { added: code } } : fail(res.reason);
+      }
+      case "job_files": {
+        const files = await store.jobFiles();
+        return { ok: true, label, said: `${files.length} ${files.length === 1 ? "file" : "files"}`, value: files };
+      }
+      case "look_at": {
+        const id = typeof input.id === "string" ? input.id.slice(0, 120) : "";
+        if (!id) return fail("Name the file by its id from job_files.");
+        const seen = await store.look(id);
+        if (typeof seen === "string") return fail(seen);
+        const name = (await store.jobFiles()).find((f) => f.id === id)?.name ?? id;
+        return { ok: true, label, said: name, value: { looking_at: name }, media: seen };
+      }
+      case "your_corrections": {
+        const sameKind = input.every_kind !== true;
+        const list = await store.corrections(sameKind);
+        return {
+          ok: true,
+          label,
+          said: `${list.length} ${list.length === 1 ? "correction" : "corrections"}`,
+          value: list.map((c) => ({ kind: c.kind, line: c.line, what: c.what, why: c.why || null, by: c.by })),
+        };
       }
       case "name_option": {
         const option = typeof input.option === "number" ? Math.max(0, Math.min(19, Math.round(input.option))) : 0;

@@ -540,7 +540,11 @@ export function JobQuoteFace({
           </div>
         )}
         <div className="wb2-jqacts">
-          <Link className={proposal || byHand ? "pbtn primary" : "pbtn ghost"} href={`/dashboard/workboard/quotes/${encodeURIComponent(job)}`}>
+          <Link
+            className={proposal || byHand ? "pbtn primary" : "pbtn ghost"}
+            /* a quote not started yet starts with Tiff where she's on (4.4) */
+            href={`/dashboard/workboard/quotes/${encodeURIComponent(job)}${proposal || byHand ? "" : "?start=1"}`}
+          >
             {!proposal && !byHand && <Icon name="plus" size={15} />}
             {proposal || byHand ? "Continue quote" : sm8Quoted ? "Update ServiceM8 quote" : "Create a quote"}
           </Link>

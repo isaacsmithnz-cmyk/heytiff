@@ -8,6 +8,8 @@ import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 import { markAccepted, nameOption, readByHand, setLoading, setSupplier } from "@/lib/quotes/lines-job-server";
 import { readSuppliers } from "@/lib/quotes/price-book-server";
+import { sessionModelFor } from "@/lib/quotes/session/model-server";
+import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { addEvents, readSession } from "@/lib/quotes/session/store-server";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
@@ -63,7 +65,10 @@ export async function GET(req: Request) {
   const job = (new URL(req.url).searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(g.orgId, job);
-  return Response.json(await view(g.orgId, target.parentRemoteId, g.userId));
+  /* whether Create a quote starts Tiff here (slice 4.4): she's on for the
+     business, and nothing is drafted the old way */
+  const [now, drafted] = await Promise.all([view(g.orgId, target.parentRemoteId, g.userId), readStoredProposal(g.orgId, target.parentRemoteId).catch(() => null)]);
+  return Response.json({ ...now, tiff: sessionModelFor(g.orgId) != null, drafted: drafted != null });
 }
 
 export async function POST(req: Request) {

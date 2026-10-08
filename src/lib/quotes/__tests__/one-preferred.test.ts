@@ -60,3 +60,14 @@ describe("a kit picks what the business chose first", () => {
     expect(chosenFor(coil, f, BOOK, { ranges: new Map(), components: {} }, null)).toBeNull();
   });
 });
+
+describe("the ducted kit's sizeless parts, as Quoting keeps them", () => {
+  it("knows a return box and a wall controller by their names, never a grille or a zone controller", async () => {
+    const { matchesComponent } = await import("../components");
+    expect(matchesComponent("return_box", "MTL R/A BX 900X550-2X400 INS IM NSW")).toBe(true);
+    expect(matchesComponent("return_box", "Return air box")).toBe(true);
+    expect(matchesComponent("return_box", "RETURN AIR GRILLE 600X400 FILTERED")).toBe(false);
+    expect(matchesComponent("wall_controller", "PAR-41MAAM WIRED REMOTE CONTROLLER")).toBe(true);
+    expect(matchesComponent("wall_controller", "AIRTOUCH 5 ZONE CONTROLLER")).toBe(false);
+  });
+});

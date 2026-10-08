@@ -1,4 +1,4 @@
-import { isText, isToolUse, replyCost, type Block, type Effort, type ModelCall, type Msg, type ToolDef, type ToolResultBlock } from "./model";
+import { isText, isToolUse, replyCost, type Block, type Effort, type MediaBlock, type ModelCall, type Msg, type ToolDef, type ToolResultBlock } from "./model";
 
 /* ONE TURN OF TIFF'S SESSION (slice 4.1) — a person says something, she
    works until she's answered: reading, looking things up, changing lines,
@@ -31,7 +31,9 @@ export type EventDraft =
 export type SessionState = { messages: Msg[]; summary: string };
 
 /** What a tool did: its answer for the model, and what the thread says. */
-export type ToolOutcome = { ok: true; value: unknown; label: string; said?: string; event?: EventDraft } | { ok: false; error: string; label: string };
+export type ToolOutcome =
+  | { ok: true; value: unknown; label: string; said?: string; event?: EventDraft; media?: MediaBlock[] }
+  | { ok: false; error: string; label: string };
 
 export type TurnDeps = {
   model: ModelCall;
@@ -98,6 +100,10 @@ const FOLD_SYSTEM = [
   "model and measurement exactly as given. Plain sentences, no headings. Nothing else.",
 ].join(" ");
 
+/** A tool's answer in words, its pictures said as what they were. */
+const resultWords = (b: ToolResultBlock) =>
+  typeof b.content === "string" ? b.content : b.content.map((c) => (c.type === "text" ? c.text : c.type === "image" ? "[a picture]" : "[a document]")).join(" ");
+
 /** The earlier conversation folded into the summary, by one model call. */
 async function fold(deps: TurnDeps, state: SessionState, at: number): Promise<{ state: SessionState; usd: number | null; model: string }> {
   const old = state.messages.slice(0, at);
@@ -105,7 +111,7 @@ async function fold(deps: TurnDeps, state: SessionState, at: number): Promise<{ 
     .map((m) =>
       m.content
         .map((b) =>
-          isText(b) ? `${m.role === "user" ? "Them" : "You"}: ${b.text}` : isToolUse(b) ? `You used ${b.name}: ${JSON.stringify(b.input)}` : b.type === "tool_result" ? `It answered: ${String((b as ToolResultBlock).content).slice(0, 2000)}` : ""
+          isText(b) ? `${m.role === "user" ? "Them" : "You"}: ${b.text}` : isToolUse(b) ? `You used ${b.name}: ${JSON.stringify(b.input)}` : b.type === "tool_result" ? `It answered: ${resultWords(b as ToolResultBlock).slice(0, 2000)}` : ""
         )
         .filter(Boolean)
         .join("\n")
@@ -195,10 +201,12 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
         const out = await deps.runTool(call.name, call.input ?? {}).catch((): ToolOutcome => ({ ok: false, error: "That couldn't be done just now.", label: call.name }));
         events.push({ kind: "tool", author: "tiff", body: { name: call.name, label: out.label, ok: out.ok, ...(out.ok && out.said ? { said: out.said } : {}) } });
         if (out.ok && out.event) events.push(out.event);
+        const words = out.ok ? JSON.stringify(out.value ?? null).slice(0, MAX_RESULT) : out.error;
         results.push({
           type: "tool_result",
           tool_use_id: call.id,
-          content: out.ok ? JSON.stringify(out.value ?? null).slice(0, MAX_RESULT) : out.error,
+          /* a picture or a document she asked to look at rides with its words */
+          content: out.ok && out.media?.length ? [...out.media, { type: "text", text: words }] : words,
           ...(out.ok ? {} : { is_error: true }),
         });
       }

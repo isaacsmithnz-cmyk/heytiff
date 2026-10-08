@@ -21,7 +21,7 @@ jest.mock("../store-server", () => ({
 }));
 jest.mock("../tools-server", () => ({ sessionTools: () => async () => ({ ok: true, value: null, label: "x" }) }));
 jest.mock("../model-server", () => ({
-  chosenModel: () => process.env.QUOTE_SESSION_MODEL ?? null,
+  sessionModelFor: () => process.env.QUOTE_SESSION_MODEL ?? null,
   anthropicModel: () => {
     throw new Error("the real model is never reached in a test");
   },

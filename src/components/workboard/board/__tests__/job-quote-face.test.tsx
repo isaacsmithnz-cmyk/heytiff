@@ -421,7 +421,7 @@ describe("a quote ServiceM8 generated", () => {
     expect(screen.getByText("Sent Thu 1 Oct, $45,430 inc GST")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Diamond Air Solutions Pty LTD Quote #3386/ }));
     expect(onOpenPaper).toHaveBeenCalledWith(paper);
-    expect(screen.getByRole("link", { name: "Update ServiceM8 quote" })).toHaveAttribute("href", "/dashboard/workboard/quotes/j-1");
+    expect(screen.getByRole("link", { name: "Update ServiceM8 quote" })).toHaveAttribute("href", "/dashboard/workboard/quotes/j-1?start=1");
   });
 
   it("opens the page on the box that drafts one, from what ServiceM8's quote says; Cancel goes back", async () => {

@@ -4,7 +4,8 @@ import { useEffect } from "react";
 /* Isaac, 2026-10-05: "it should have opened up the proper quote screen not a
    section below" */
 const push = jest.fn();
-jest.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+let search = new URLSearchParams();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push }), useSearchParams: () => search }));
 const readJobFiles = jest.fn();
 const readJobRecord = jest.fn();
 const cacheJobFiles = jest.fn();
@@ -180,4 +181,40 @@ it("opens a quote already switched on its lines", async () => {
   }));
   render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
   expect(await screen.findByText(/Lines builder/)).toBeInTheDocument();
+});
+
+/* Create a quote starts Tiff (slice 4.4): only where she's on and nothing is drafted */
+describe("Create a quote, from the job card", () => {
+  const screenWith = (answer: Record<string, unknown>) => {
+    let engine = "old";
+    const fetchMock = jest.fn(async (url: string, init?: { body?: string }) => ({
+      json: async () => {
+        if (String(url).startsWith("/api/workboard/quote-lines")) {
+          if (init?.body) engine = JSON.parse(init.body).engine;
+          return { ok: true, engine, lines: [], changes: [], names: {}, me: "u", ...answer };
+        }
+        return { ok: true, price: { ok: true, options: [] } };
+      },
+    }));
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+    render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
+    return fetchMock;
+  };
+  afterEach(() => {
+    search = new URLSearchParams();
+  });
+
+  it("starts the quote on its lines, with Tiff, where she's on", async () => {
+    search = new URLSearchParams("start=1");
+    const fetchMock = screenWith({ tiff: true, drafted: false });
+    expect(await screen.findByText(/Lines builder/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/workboard/quote-lines", expect.objectContaining({ body: JSON.stringify({ job: JOB, op: "switch", engine: "lines" }) }));
+  });
+
+  it("opens the builder as always where she's off, or a quote is drafted", async () => {
+    search = new URLSearchParams("start=1");
+    const fetchMock = screenWith({ tiff: false, drafted: false });
+    await screen.findByText("Builder, page, $64,790 inc GST");
+    expect(fetchMock.mock.calls.some((c) => (c[1] as { method?: string } | undefined)?.method === "POST")).toBe(false);
+  });
 });

@@ -270,6 +270,7 @@ export const SESSION_TOOLS: ToolDef[] = [
         outlets: { type: "integer" },
         outlet_mm: { type: "number" },
         replacing: { type: "string", enum: ["no", "yes", "keep"], description: "An old system comes out; keep: and its pipe is kept" },
+        underfloor: { type: "boolean", description: "Ducted: the indoor goes under the floor, its outlets floor grilles on boots" },
         kept_pipe: { type: "string", enum: [...OLD_PIPES] },
       },
       required: ["kit", "option", "system"],
@@ -280,6 +281,23 @@ export const SESSION_TOOLS: ToolDef[] = [
     name: "compare_with",
     description: "Add a unit from the book to the compare on a unit line, when the person asked to compare it with something: the indoor's code as search_book gave it; its outdoor is paired from the book.",
     input_schema: { type: "object", properties: { line_id: { type: "string" }, code: { type: "string" } }, required: ["line_id", "code"], additionalProperties: false },
+  },
+  {
+    name: "job_files",
+    description: "The job's photos and documents you can look at, newest first: their ids, names, whether a photo or a document, and when.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "look_at",
+    description:
+      "Look at one of the job's photos or PDFs by its id from job_files: a floor plan for its rooms and their sizes, a switchboard for its phase and whether it has room for a circuit, a site photo for access. Say what you read, and ask to confirm what the quote rests on.",
+    input_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
+  },
+  {
+    name: "your_corrections",
+    description:
+      "What people changed on the lines you wrote on this business's past quotes, newest first: on this kind of job, unless every_kind. Read it before you build, and don't make the same mistake twice.",
+    input_schema: { type: "object", properties: { every_kind: { type: "boolean" } }, additionalProperties: false },
   },
   {
     name: "name_option",
@@ -346,6 +364,9 @@ export const TOOL_LABELS: Record<string, string> = {
   add_kit: "Added a kit",
   copy_option: "Copied an option",
   name_option: "Named an option",
+  your_corrections: "Read her corrections",
+  job_files: "Listed the job's files",
+  look_at: "Looked at",
   compare_with: "Added to the compare",
   ask: "Asked",
 };
@@ -371,6 +392,7 @@ export function kitAskOf(raw: unknown): { kit: "split" | "ducted"; at: { optionI
       outletMm: r.outlet_mm,
       replacing: r.replacing === "yes" || r.replacing === "keep" ? r.replacing : "",
       keptPipe: r.kept_pipe,
+      underfloor: r.underfloor === true,
     },
   };
 }

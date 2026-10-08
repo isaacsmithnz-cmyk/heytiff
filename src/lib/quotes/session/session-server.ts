@@ -1,7 +1,7 @@
 import "server-only";
 import { readEngine } from "../lines-server";
 import type { ModelCall } from "./model";
-import { anthropicModel, chosenModel } from "./model-server";
+import { anthropicModel, sessionModelFor } from "./model-server";
 import { openingMessage, sessionSystemPrompt } from "./prompt";
 import { addEvents, beginTurn, endTurn, saveRound, takeAnswers } from "./store-server";
 import { SESSION_TOOLS } from "./tools";
@@ -14,7 +14,7 @@ import { runTurn, type TurnEnd } from "./turn";
    it as it happens and a reload or a deploy loses nothing. Service role, by
    org; the route gates. */
 
-export const SESSION_OFF = "Tiff's session isn't switched on yet: her model hasn't been chosen.";
+export const SESSION_OFF = "Tiff's session isn't switched on for this business yet.";
 
 export type Started = { ok: true; turnId: string; run: () => Promise<TurnEnd> } | { ok: false; reason: string; status: number };
 
@@ -25,7 +25,7 @@ export async function startTurn(
   words: string,
   opts: { brief?: string; model?: ModelCall; modelName?: string } = {}
 ): Promise<Started> {
-  const modelName = opts.modelName ?? chosenModel();
+  const modelName = opts.modelName ?? sessionModelFor(orgId);
   if (!modelName) return { ok: false, reason: SESSION_OFF, status: 409 };
   const text = words.trim().slice(0, 8000);
   if (!text && !opts.brief?.trim()) return { ok: false, reason: "Say what the job is.", status: 400 };

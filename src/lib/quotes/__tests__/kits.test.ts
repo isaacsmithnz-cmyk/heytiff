@@ -78,11 +78,26 @@ it("a part the book hasn't got stays on the quote, saying so", () => {
 });
 
 it("the ducted kit adds flex and an outlet to each outlet, and a return", () => {
-  expect(KITS.ducted.parts.map((p) => p.key)).toEqual(["pair-coil", "interconnect", "power", "breaker", "isolator", "mount", "drain", "trunking", "flex", "outlets", "return"]);
+  expect(KITS.ducted.parts.map((p) => p.key)).toEqual([
+    "pair-coil", "interconnect", "power", "breaker", "isolator", "mount", "drain", "trunking",
+    "flex", "outlets", "floor-grilles", "boots", "hangers", "return", "return-box", "controller",
+  ]);
   const lines = expandKit("ducted", { ...facts, outlets: 5, outletMm: 250 }, [...book, product("VORTEX FLEX R1.0 250MM X 6M", 3045), product("CONE DIFFUSER 250MM", 1887)], at);
   expect(lines.find((l) => l.name === "VORTEX FLEX R1.0 250MM X 6M")).toMatchObject({ qty: 5, costCents: 3045 });
   expect(lines.find((l) => l.name === "CONE DIFFUSER 250MM")).toMatchObject({ qty: 5 });
   expect(lines.find((l) => l.name === "Return air grille, filtered")).toMatchObject({ source: "unknown", why: "Not in your book" });
+  /* every hand-built ducted quote had a return box and a wall controller */
+  expect(lines.find((l) => l.name === "Return air box")).toMatchObject({ qty: 1, source: "unknown" });
+  expect(lines.find((l) => l.name === "Wall controller")).toMatchObject({ qty: 1, source: "unknown" });
+  expect(lines.some((l) => l.name === "Floor boot")).toBe(false);
+});
+
+it("a ducted kit under the floor takes floor grilles on boots and hangs the indoor on springs (3377)", () => {
+  const lines = expandKit("ducted", { ...facts, outlets: 6, outletMm: 200, underfloor: true }, [...book, product("FLOOR GRILLE 350X150 ANODISED", 3500), product("UNI BOOT 350X150 200MM", 2800), product("SPRING HANGER 15-30KG", 2286)], at);
+  expect(lines.find((l) => l.name === "FLOOR GRILLE 350X150 ANODISED")).toMatchObject({ qty: 6 });
+  expect(lines.find((l) => l.name === "UNI BOOT 350X150 200MM")).toMatchObject({ qty: 6 });
+  expect(lines.find((l) => l.name === "SPRING HANGER 15-30KG")).toMatchObject({ qty: 4 });
+  expect(lines.some((l) => /DIFFUSER/i.test(l.name ?? ""))).toBe(false);
 });
 
 it("reads a unit's pipe off its data pack's connections, and makes a person's facts safe", async () => {
@@ -102,6 +117,7 @@ it("reads a unit's pipe off its data pack's connections, and makes a person's fa
     outletMm: null,
     replacing: false,
     keptPipe: null,
+    underfloor: false,
   });
   expect(normaliseKitFacts({ replacing: "keep", keptPipe: "3/8+5/8" })).toMatchObject({ replacing: true, keptPipe: "3/8+5/8" });
   expect(normaliseKitFacts({ replacing: "yes", keptPipe: "3/8+5/8" })).toMatchObject({ replacing: true, keptPipe: null });

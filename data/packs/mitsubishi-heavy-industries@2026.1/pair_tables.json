@@ -1,0 +1,1346 @@
+[
+ {
+  "idu_model": "SRK20ZSXA-WF",
+  "odu_model": "SRC20ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 25,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 2.0,
+  "rated_heat_kw": 2.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
+   "page": "20; 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK25ZSXA-WF",
+  "odu_model": "SRC25ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 25,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 2.5,
+  "rated_heat_kw": 3.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
+   "page": "20; 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK35ZSXA-WF",
+  "odu_model": "SRC35ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 25,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 3.5,
+  "rated_heat_kw": 4.3,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
+   "page": "20; 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK50ZSXA-WF",
+  "odu_model": "SRC50ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.0,
+  "rated_heat_kw": 6.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
+   "page": "20; 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK60ZSXA-WF",
+  "odu_model": "SRC60ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 6.1,
+  "rated_heat_kw": 6.8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
+   "page": "20; 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK20ZSA-WF1",
+  "odu_model": "SRC20ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 2.0,
+  "rated_heat_kw": 2.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
+   "page": "21; 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK25ZSA-WF1",
+  "odu_model": "SRC25ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 2.5,
+  "rated_heat_kw": 3.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
+   "page": "21; 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK35ZSA-WF1",
+  "odu_model": "SRC35ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 3.5,
+  "rated_heat_kw": 3.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
+   "page": "21; 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK50ZSA-WF1",
+  "odu_model": "SRC50ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 25,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.0,
+  "rated_heat_kw": 5.8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
+   "page": "21; 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK63ZRA-WF1",
+  "odu_model": "SRC63ZRA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 6.3,
+  "rated_heat_kw": 7.1,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
+   "page": "22; 36 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK71ZRA-WF1",
+  "odu_model": "SRC71ZRA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 25
+  },
+  "rated_cool_kw": 7.1,
+  "rated_heat_kw": 8.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
+   "page": "22; 36 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK80ZRA-WF1",
+  "odu_model": "SRC80ZRA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 25
+  },
+  "rated_cool_kw": 8.0,
+  "rated_heat_kw": 9.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
+   "page": "22; 36 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK95ZRA-WF1",
+  "odu_model": "SRC95ZRA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 9.5,
+  "rated_heat_kw": 10.3,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual SRK-ZRA-W / SRK-YRA-W (outdoor installation manual RCR012A212B)",
+   "edition": "Split Systems April 2026 AU; '17 SRK-T-232",
+   "page": "22; 41 (PDF p.11): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK100ZRA-WF",
+  "odu_model": "FDCA100VNA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Split Systems April 2026 AU; '23 PAC-DB-446",
+   "page": "22; 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRK100ZRA-WF1",
+  "odu_model": "FDCA100VSA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Split Systems April 2026 AU; '23 PAC-DB-446",
+   "page": "22; 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "DXK05ZTLA-WFJ",
+  "odu_model": "DXC05ZTLA-WJ",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 10,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 1.5,
+  "rated_heat_kw": 2.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
+   "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
+   "page": "24; 53 (PDF p.54): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "DXK07ZTLA-WFJ",
+  "odu_model": "DXC07ZTLA-WJ",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 10,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 2.0,
+  "rated_heat_kw": 2.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
+   "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
+   "page": "24; 53 (PDF p.54): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "DXK09ZTLA-WFJ",
+  "odu_model": "DXC09ZTLA-WJ",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 10,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 2.5,
+  "rated_heat_kw": 3.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
+   "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
+   "page": "24; 53 (PDF p.54): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "DXK12ZTLA-WFJ",
+  "odu_model": "DXC12ZTLA-WJ",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 10,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 3.3,
+  "rated_heat_kw": 3.8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
+   "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
+   "page": "24; 53 (PDF p.54): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "DXK18ZTLA-WFJ",
+  "odu_model": "DXC18ZTLA-WJ",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 25,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.0,
+  "rated_heat_kw": 5.8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
+   "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
+   "page": "24; 53 (PDF p.54): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "DXK21ZTLA-WFJ",
+  "odu_model": "DXC21ZTLA-WJ",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 6.3,
+  "rated_heat_kw": 7.1,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK21-24ZTLA-WFJ (Wall Mounted Residential)",
+   "edition": "Split Systems April 2026 AU; '25 DXK-DB-455",
+   "page": "24; 31 (PDF p.32): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "DXK24ZTLA-WFJ",
+  "odu_model": "DXC24ZTLA-WJ",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 7.1,
+  "rated_heat_kw": 8.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK21-24ZTLA-WFJ (Wall Mounted Residential)",
+   "edition": "Split Systems April 2026 AU; '25 DXK-DB-455",
+   "page": "24; 31 (PDF p.32): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRF25ZS-W",
+  "odu_model": "SRC25ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 2.5,
+  "rated_heat_kw": 3.4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
+   "page": "25; 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRF35ZS-W",
+  "odu_model": "SRC35ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 3.5,
+  "rated_heat_kw": 4.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
+   "page": "25; 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRF50ZSX-W",
+  "odu_model": "SRC50ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.0,
+  "rated_heat_kw": 6.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
+   "page": "25; 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRR25ZS-W",
+  "odu_model": "SRC25ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 2.5,
+  "rated_heat_kw": 3.4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
+   "page": "26; 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRR35ZS-W",
+  "odu_model": "SRC35ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 3.5,
+  "rated_heat_kw": 4.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
+   "page": "26; 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRR50ZS-W",
+  "odu_model": "SRC50ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.0,
+  "rated_heat_kw": 5.4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
+   "page": "26; 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "SRR60ZS-W",
+  "odu_model": "SRC60ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.6,
+  "rated_heat_kw": 6.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
+   "page": "26; 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDTC25VH1",
+  "odu_model": "SRC25ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 2.5,
+  "rated_heat_kw": 3.4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Ceiling Systems September 2026 AU; '24 DXK-T-419",
+   "page": "13 (PDF p.7); 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDTC35VH1",
+  "odu_model": "SRC35ZSA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 3.5,
+  "rated_heat_kw": 4.25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+   "edition": "Ceiling Systems September 2026 AU; '24 DXK-T-419",
+   "page": "13 (PDF p.7); 31 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDTC50VH",
+  "odu_model": "SRC50ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.0,
+  "rated_heat_kw": 5.4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Ceiling Systems September 2026 AU; '23 SRK-DB-390",
+   "page": "13 (PDF p.7); 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDTC60VH",
+  "odu_model": "SRC60ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.6,
+  "rated_heat_kw": 6.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Ceiling Systems September 2026 AU; '23 SRK-DB-390",
+   "page": "13 (PDF p.7); 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDT60VH",
+  "odu_model": "SRC60ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.6,
+  "rated_heat_kw": 6.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Ceiling Systems September 2026 AU; '23 SRK-DB-390",
+   "page": "12 (PDF p.7); 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDT71VH",
+  "odu_model": "FDCA71VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 7.1,
+  "rated_heat_kw": 8.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Data Book FDUA/FDU with FDCA71VNX-W, FDCA125-140VNX-W",
+   "edition": "Ceiling Systems September 2026 AU; '24 PAC-DB-460",
+   "page": "12 (PDF p.7); 95 (PDF p.38), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDT100VH",
+  "odu_model": "FDCA100VNA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Ceiling Systems September 2026 AU; '23 PAC-DB-446",
+   "page": "12 (PDF p.7); 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDT125VH",
+  "odu_model": "FDCA125VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 12.5,
+  "rated_heat_kw": 14.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ceiling Systems September 2026 AU; '21 PAC-T-390",
+   "page": "12 (PDF p.7); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDT140VH",
+  "odu_model": "FDCA140VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ceiling Systems September 2026 AU; '21 PAC-T-390",
+   "page": "12 (PDF p.7); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDT100VH",
+  "odu_model": "FDCA100VSA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Ceiling Systems September 2026 AU; '23 PAC-DB-446",
+   "page": "12 (PDF p.7); 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDT125VH",
+  "odu_model": "FDCA125VSX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 12.5,
+  "rated_heat_kw": 14.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ceiling Systems September 2026 AU; '21 PAC-T-390",
+   "page": "12 (PDF p.7); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDT140VH",
+  "odu_model": "FDCA140VSX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ceiling Systems September 2026 AU; '21 PAC-T-390",
+   "page": "12 (PDF p.7); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDE71VH",
+  "odu_model": "FDCA71VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 7.1,
+  "rated_heat_kw": 8.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Data Book FDUA/FDU with FDCA71VNX-W, FDCA125-140VNX-W",
+   "edition": "Ceiling Systems September 2026 AU; '24 PAC-DB-460",
+   "page": "14 (PDF p.8); 95 (PDF p.38), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDE100VH",
+  "odu_model": "FDCA100VNA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Ceiling Systems September 2026 AU; '23 PAC-DB-446",
+   "page": "14 (PDF p.8); 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDE125VH",
+  "odu_model": "FDCA125VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 12.5,
+  "rated_heat_kw": 14.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ceiling Systems September 2026 AU; '21 PAC-T-390",
+   "page": "14 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDE140VH",
+  "odu_model": "FDCA140VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ceiling Systems September 2026 AU; '21 PAC-T-390",
+   "page": "14 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDE100VH",
+  "odu_model": "FDCA100VSA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Ceiling Systems September 2026 AU; '23 PAC-DB-446",
+   "page": "14 (PDF p.8); 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDE125VH",
+  "odu_model": "FDCA125VSX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 12.5,
+  "rated_heat_kw": 14.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ceiling Systems September 2026 AU; '21 PAC-T-390",
+   "page": "14 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDE140VH",
+  "odu_model": "FDCA140VSX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ceiling Systems September 2026 AU; '21 PAC-T-390",
+   "page": "14 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUM50VH",
+  "odu_model": "SRC50ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.0,
+  "rated_heat_kw": 5.4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Ducted System September 2026 AU; '23 SRK-DB-390",
+   "page": "14 (PDF p.8); 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUM60VH",
+  "odu_model": "SRC60ZSXA-W",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 20
+  },
+  "rated_cool_kw": 5.6,
+  "rated_heat_kw": 6.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+   "edition": "Ducted System September 2026 AU; '23 SRK-DB-390",
+   "page": "14 (PDF p.8); 47 (PDF p.7): additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDU71VH",
+  "odu_model": "FDCA71VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 7.1,
+  "rated_heat_kw": 8.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book FDUA/FDU with FDCA71VNX-W, FDCA125-140VNX-W",
+   "edition": "Ducted System September 2026 AU; '24 PAC-DB-460",
+   "page": "14 (PDF p.8); 95 (PDF p.38), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDU100VH",
+  "odu_model": "FDCA100VNA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Ducted System September 2026 AU; '23 PAC-DB-446",
+   "page": "14 (PDF p.8); 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDU125VH",
+  "odu_model": "FDCA125VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 12.5,
+  "rated_heat_kw": 14.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ducted System September 2026 AU; '21 PAC-T-390",
+   "page": "14 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDU140VH",
+  "odu_model": "FDCA140VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ducted System September 2026 AU; '21 PAC-T-390",
+   "page": "14 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDU100VH",
+  "odu_model": "FDCA100VSA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Ducted System September 2026 AU; '23 PAC-DB-446",
+   "page": "14 (PDF p.8); 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDU125VH",
+  "odu_model": "FDCA125VSX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 12.5,
+  "rated_heat_kw": 14.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ducted System September 2026 AU; '21 PAC-T-390",
+   "page": "14 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDU140VH",
+  "odu_model": "FDCA140VSX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ducted System September 2026 AU; '21 PAC-T-390",
+   "page": "14 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUA100VH",
+  "odu_model": "FDCA100VNA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Ducted System September 2026 AU; '23 PAC-DB-446",
+   "page": "15 (PDF p.8); 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUA125VH",
+  "odu_model": "FDCA125VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 12.5,
+  "rated_heat_kw": 14.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ducted System September 2026 AU; '21 PAC-T-390",
+   "page": "15 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUA140VH",
+  "odu_model": "FDCA140VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ducted System September 2026 AU; '21 PAC-T-390",
+   "page": "15 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUA160VH",
+  "odu_model": "FDCA160VNX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 16.0,
+  "rated_heat_kw": 18.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book FDUA160VH with FDCA160VNX-W",
+   "edition": "Ducted System September 2026 AU; '23 PAC-DB-435",
+   "page": "15 (PDF p.8); 51 (PDF p.29), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUA100VH",
+  "odu_model": "FDCA100VSA-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+   "edition": "Ducted System September 2026 AU; '23 PAC-DB-446",
+   "page": "15 (PDF p.8); 38 (PDF p.19), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUA125VH",
+  "odu_model": "FDCA125VSX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 12.5,
+  "rated_heat_kw": 14.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ducted System September 2026 AU; '21 PAC-T-390",
+   "page": "15 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUA140VH",
+  "odu_model": "FDCA140VSX-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 100,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 54
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+   "edition": "Ducted System September 2026 AU; '21 PAC-T-390",
+   "page": "15 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ }
+]

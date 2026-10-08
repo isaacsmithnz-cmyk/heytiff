@@ -31,8 +31,63 @@
       "access": "public"
     },
     {
-      "title": "MHI Data Book, Inverter Multi-Split System SCM40ZS-W / SCM45ZS-W",
-      "edition": "'19 SCM-DB-273",
+      "title": "MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+      "edition": "'23 SRK-DB-390",
+      "access": "public"
+    },
+    {
+      "title": "MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+      "edition": "'24 DXK-T-419",
+      "access": "public"
+    },
+    {
+      "title": "MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+      "edition": "'24 DXK-T-422",
+      "access": "public"
+    },
+    {
+      "title": "MHI Technical Manual SRK-ZRA-W / SRK-YRA-W (outdoor installation manual RCR012A212B)",
+      "edition": "'17 SRK-T-232",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+      "edition": "'23 PAC-DB-446",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
+      "edition": "'25 DXK-DB-454",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book DXK21-24ZTLA-WFJ (Wall Mounted Residential)",
+      "edition": "'25 DXK-DB-455",
+      "access": "public"
+    },
+    {
+      "title": "MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+      "edition": "'21 PAC-T-390",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book FDUA/FDU with FDCA71VNX-W, FDCA125-140VNX-W",
+      "edition": "'24 PAC-DB-460",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book FDUA160VH with FDCA160VNX-W",
+      "edition": "'23 PAC-DB-435",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book Inverter Multi-Split SCM40-80ZS-W",
+      "edition": "'21 SCM-DB-330C",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book Inverter Multi-Split SCM40-100ZS-W (outdoor installation manuals)",
+      "edition": "'21 SCM-DB-332",
       "access": "public"
     },
     {

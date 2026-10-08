@@ -3,7 +3,8 @@
    no ServiceM8 to read. */
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
-jest.mock("@/app/actions/analytics-decide", () => ({ decideJob: jest.fn() }));
+const decideJob = jest.fn();
+jest.mock("@/app/actions/analytics-decide", () => ({ decideJob: (...a: unknown[]) => decideJob(...a) }));
 jest.mock("@/app/actions/booking-sm8", () => ({ makeWorkOrder: jest.fn() }));
 
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -37,13 +38,13 @@ const data = analyse(
 );
 
 describe("AnalyticsScreen", () => {
-  it("leads with the win rate and counts the 180-day quotes as lost", () => {
+  it("leads with the win rate and counts the 60-day quotes as lost", () => {
     render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false }} period="12m" />);
     expect(screen.getByRole("heading", { level: 1, name: "Analytics" })).toBeInTheDocument();
     // 2 won of 4 decided: the Unsuccessful and the one past 180 days
     expect(screen.getAllByText("50%")[0]).toHaveClass("an-big");
     expect(screen.getByText("2 won of 4 decided quotes")).toBeInTheDocument();
-    expect(screen.getByText("1 quote with no answer after 180 days counts as lost, $3,000 of work.")).toBeInTheDocument();
+    expect(screen.getByText("1 quote with no answer after 60 days counts as lost, $3,000 of work.")).toBeInTheDocument();
     expect(screen.getByText(/Quotes on jobs raised 8 October 2025 to 7 October 2026/)).toBeInTheDocument();
   });
 
@@ -59,10 +60,10 @@ describe("AnalyticsScreen", () => {
     render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false }} period="12m" />);
     fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));
     expect(
-      screen.getByText("At 180 days with no answer. 1 of the 2 wins came inside that, and the 1 that came later count as won."),
+      screen.getByText("At 60 days with no answer. 1 of the 2 wins came inside that, and the 1 that came later count as won."),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "The 2 lost" })).toBeInTheDocument();
-    expect(screen.getByText("No answer after 180 days, still a Quote in ServiceM8")).toBeInTheDocument();
+    expect(screen.getByText("No answer after 60 days, still a Quote in ServiceM8")).toBeInTheDocument();
   });
 
   it("says the read was cut short when the cap bound", () => {
@@ -108,7 +109,21 @@ describe("AnalyticsScreen", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));
     fireEvent.click(screen.getByRole("button", { name: "Review the 2 lost" }));
     const labels = [...document.querySelectorAll(".an-qwhat .an-label")].map((e) => e.textContent);
-    expect(labels).toEqual(["Marked Unsuccessful in ServiceM8", "No answer after 180 days"]);
+    expect(labels).toEqual(["Marked Unsuccessful in ServiceM8", "No answer after 60 days"]);
     expect(screen.getAllByRole("button", { name: "Void" })).toHaveLength(2);
+    // only a quote nobody marked lost can be kept open as a tender
+    expect(screen.getAllByRole("button", { name: "Tender, keep open" })).toHaveLength(1);
+  });
+
+  it("keeps a lost quote open as a tender, to the tender days, and takes it back", async () => {
+    decideJob.mockResolvedValue({ ok: true });
+    render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false, names: {}, canDecide: true }} period="12m" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review the 2 lost" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tender, keep open" }));
+    expect(decideJob).toHaveBeenCalledWith(expect.any(String), "extend", "tender");
+    expect(await screen.findByText("Kept open as a tender, to 180 days.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(decideJob).toHaveBeenLastCalledWith(expect.any(String), "extend", null);
   });
 });

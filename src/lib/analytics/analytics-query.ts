@@ -279,7 +279,7 @@ export type SettingsRead = { settings: AnalyticsSettings; ready: boolean };
 export async function readAnalyticsSettings(orgId: string): Promise<SettingsRead> {
   const { data, error } = await supabaseAdmin
     .from("analytics_settings")
-    .select("lapse_after_days, quote_from_cents, auto_close_days, category_roles, not_customers")
+    .select("*")
     .eq("org_id", orgId)
     .maybeSingle();
   if (error) {

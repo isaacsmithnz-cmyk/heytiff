@@ -3,6 +3,8 @@
 import {
   analyse,
   analyticsKindOf,
+  placeJob,
+  DEFAULT_RULES,
   yesOn,
   wasQuoted,
   change,
@@ -159,21 +161,43 @@ describe("the figures", () => {
     ]);
   });
 
-  it("counts the days to a yes, and a win after 180 days in the last column", () => {
+  it("counts the days to a yes, and a win after the 60 days in the last column", () => {
+    expect(a.quotes.daysToYes.map((b) => b.label)).toEqual(["0–7", "8–14", "15–30", "31–60", "Over 60"]);
     const counts = Object.fromEntries(a.quotes.daysToYes.map((b) => [b.label, b.count]));
     expect(counts["8–14"]).toBe(1);
     expect(counts["15–30"]).toBe(1);
-    expect(counts["Over 180"]).toBe(1);
+    expect(counts["Over 60"]).toBe(1);
     expect(a.quotes.lateWins).toBe(1);
     expect(a.quotes.winsDated).toBe(3);
   });
 
-  it("splits the lost into Unsuccessful and past 180 days", () => {
+  it("splits the lost into Unsuccessful and past 60 days", () => {
     expect(a.quotes.unsuccessful).toEqual({ count: 1, cents: 800_000 });
     expect(a.quotes.lapsed).toEqual({ count: 1, cents: 300_000 });
   });
 
-  it("groups today's open quotes as the board does", () => {
+  it("groups today's open quotes as the board does: going cold at half the 60 days, reaching them in the next 15", () => {
+    const near = job({ id: "near", raisedOn: "2026-08-20", valueCents: 300_000 });
+    const open = analyse(
+      [
+        job({ raisedOn: "2026-10-01", valueCents: null }),
+        job({ raisedOn: "2026-09-25", valueCents: 100_000 }),
+        job({ raisedOn: "2026-09-01", valueCents: 200_000 }),
+        near,
+        job({ raisedOn: "2026-06-01", valueCents: 400_000 }),
+      ],
+      TODAY,
+      "12m",
+    ).quotes.openNow;
+    expect(open).toMatchObject({ coldAfter: 30, soonDays: 15, toPrice: 1 });
+    expect(open.waiting).toEqual({ count: 1, cents: 100_000 });
+    expect(open.cold).toEqual({ count: 2, cents: 500_000 });
+    // 20 August is 48 days back: it reaches 60 inside the next 15
+    expect(open.lapsingSoon).toEqual({ count: 1, cents: 300_000 });
+    expect(open.lapsing.map((j) => j.id)).toEqual(["near"]);
+  });
+
+  it("keeps a long limit's groups at 60 days cold and 30 to go", () => {
     const open = analyse(
       [
         job({ raisedOn: "2026-10-01", valueCents: null }),
@@ -184,11 +208,12 @@ describe("the figures", () => {
       ],
       TODAY,
       "12m",
+      undefined,
+      { ...DEFAULT_RULES, lapseAfterDays: 180 },
     ).quotes.openNow;
-    expect(open.toPrice).toBe(1);
+    expect(open).toMatchObject({ coldAfter: 60, soonDays: 30, toPrice: 1 });
     expect(open.waiting).toEqual({ count: 1, cents: 100_000 });
     expect(open.cold).toEqual({ count: 2, cents: 500_000 });
-    // 20 April is 170 days back: it reaches 180 inside the next 30
     expect(open.lapsingSoon).toEqual({ count: 1, cents: 300_000 });
   });
 
@@ -385,8 +410,9 @@ describe("what the live account taught the rules", () => {
     expect(yesOn(updated)).toBe("2026-08-28");
     expect(yesOn(job({ wonOn: "2026-05-01", claimedOn: "2026-06-01" }))).toBe("2026-05-01");
     expect(yesOn(job({ wonOn: null, claimedOn: null }))).toBeNull();
-    // 161 days to the deposit, not 189 to the last work order, which would read as a late win
-    expect(analyse([updated], TODAY, "12m").quotes.daysToYes.map((b) => b.count)).toEqual([0, 0, 0, 0, 0, 1, 0]);
+    // under a 180-day rule: 161 days to the deposit, not 189 to the last work order, which would read as a late win
+    const long = { ...DEFAULT_RULES, lapseAfterDays: 180 };
+    expect(analyse([updated], TODAY, "12m", undefined, long).quotes.daysToYes.map((b) => b.count)).toEqual([0, 0, 0, 0, 0, 1, 0]);
 
     // mid-update: a Quote again, a year old, with a deposit on it — won, never lapsed
     const midUpdate = job({ status: "Quote", raisedOn: "2025-10-20", quoteSentOn: "2025-10-21", claimedOn: "2026-01-10" });
@@ -432,6 +458,37 @@ describe("what the live account taught the rules", () => {
     expect(kind("Install AC", ["As Per Quote"])).toBeNull();
     // the category still comes first
     expect(kind("Exhaust fan rattling", [], "Service Call")).toBe("service");
+  });
+
+  it("counts a quote lost at 60 days, and a tender kept open until 180, ServiceM8 closing it or not", () => {
+    const at = (days: number) => {
+      const d = new Date(`${TODAY}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() - days);
+      return d.toISOString().slice(0, 10);
+    };
+    const quote = (id: string, days: number, over: Partial<AnalyticsJob> = {}) =>
+      job({ id, status: "Quote", raisedOn: at(days), quoteSentOn: at(days), valueCents: 500_000, ...over });
+    const jobs = [
+      quote("q59", 59),
+      quote("q61", 61),
+      quote("tender100", 100),
+      quote("tender200", 200),
+      quote("closedTender", 90, { status: "Unsuccessful", closedUnanswered: true }),
+      quote("markedTender", 90, { status: "Unsuccessful" }),
+    ];
+    const kept = new Map(["tender100", "tender200", "closedTender", "markedTender"].map((id) => [id, { extend: "tender" }]));
+    const outcome = (id: string) => placeJob(jobs.find((j) => j.id === id)!, TODAY, kept.get(id)).outcome;
+    expect(outcome("q59")).toBe("open");
+    expect(outcome("q61")).toBe("lapsed");
+    expect(outcome("tender100")).toBe("open");
+    expect(outcome("tender200")).toBe("lapsed");
+    // ServiceM8 closed it at 60 days with no answer: a tender is still waiting
+    expect(outcome("closedTender")).toBe("open");
+    // a person marked it lost: kept open or not, it is lost
+    expect(outcome("markedTender")).toBe("lost");
+    const a = analyse(jobs, TODAY, "12m", kept);
+    expect(a.quotes.kept.map((j) => j.id).sort()).toEqual(["closedTender", "markedTender", "tender100", "tender200"]);
+    expect(a.top.open).toBe(3);
   });
 
   it("reads what an Unsuccessful job was: a quote lost, a work order called off, an enquiry never quoted, or a question", () => {

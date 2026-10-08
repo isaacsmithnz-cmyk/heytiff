@@ -12,7 +12,7 @@ export type JobKind = WorkKind | "ventilation";
    understand. Kept in job_analytics_decisions, one row per job and
    question. Pure and client-safe. */
 
-export type Question = "quote" | "outcome" | "kind" | "price" | "void";
+export type Question = "quote" | "outcome" | "kind" | "price" | "void" | "extend";
 
 /** The order the tab asks them in: what moves the win rate first. Void is
     not asked: it can be said of any job (Isaac, 2026-10-07: "i also need a
@@ -20,6 +20,11 @@ export type Question = "quote" | "outcome" | "kind" | "price" | "void";
     jobs"). A void job is not a job at all, a duplicate, a test, spam or one
     raised by mistake, and is left out of every figure, enquiries included. */
 export const QUESTIONS: readonly Question[] = ["quote", "outcome", "kind", "price"];
+
+/* KEPT OPEN (Isaac, 2026-10-08: "Do 60 days with option to extend if it's a
+   tender etc"). Not asked either: said of a quote that waits longer by its
+   nature, a tender or a builder's project, which then stays open until the
+   tender days (settings) rather than the lost-after days. */
 
 export const KINDS: readonly JobKind[] = ["split", "multi", "ducted", "vrf", "ventilation", "service", "maintenance"];
 
@@ -29,10 +34,11 @@ export const ANSWERS: Record<Question, readonly string[]> = {
   kind: KINDS,
   price: ["count", "leave_out"],
   void: ["void"],
+  extend: ["tender"],
 };
 
 export function isQuestion(v: unknown): v is Question {
-  return v === "quote" || v === "outcome" || v === "kind" || v === "price" || v === "void";
+  return v === "quote" || v === "outcome" || v === "kind" || v === "price" || v === "void" || v === "extend";
 }
 
 /** Whether `answer` is one the question takes. */
@@ -80,6 +86,10 @@ export const QUESTION_WORDS: Record<Question, { title: string; why: string }> = 
   },
   price: { title: "Does this price belong?", why: "Far from what won jobs of the kind usually cost." },
   void: { title: "Void", why: "Not real jobs: duplicates, tests, spam, raised by mistake. Left out of every figure." },
+  extend: {
+    title: "Kept open",
+    why: "Tenders and builders' projects, which wait longer for an answer: open until the tender days, not the lost-after days.",
+  },
 };
 
 /** Why a question is asked, with the business's quote line in it. */
@@ -98,6 +108,7 @@ export function answerLabel(question: Question, answer: string): string {
       count: "Count it",
       leave_out: "Leave it out of prices",
       void: "Void",
+      tender: "Tender, keep open",
     }[answer] ?? answer
   );
 }
@@ -114,6 +125,7 @@ export function answerSaid(question: Question, answer: string): string {
       count: "Counted in prices.",
       leave_out: "Left out of prices. Still counts as won.",
       void: "Void. Left out of every figure.",
+      tender: "Kept open as a tender.",
     }[answer] ?? ""
   );
 }

@@ -392,6 +392,7 @@ function evidence(a: Ask): { label: string; said: string; hint: string | null } 
       };
     case "kind":
     case "void":
+    case "extend":
       return { label: "Job description", said: brief, hint: null };
     case "price": {
       const kind = kindLabel(a.kind).replace(/^(?!VRF)./, (c) => c.toLowerCase());

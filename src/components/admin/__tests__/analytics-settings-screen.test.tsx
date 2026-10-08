@@ -33,7 +33,8 @@ const show = (over: Partial<Parameters<typeof AnalyticsSettingsScreen>[0]> = {})
 describe("AnalyticsSettingsScreen", () => {
   it("shows what stands in for each setting never saved", () => {
     show();
-    expect(screen.getByLabelText("Days with no answer before a quote counts as lost")).toHaveAttribute("placeholder", "180");
+    expect(screen.getByLabelText("Days with no answer before a quote counts as lost")).toHaveAttribute("placeholder", "60");
+    expect(screen.getByLabelText("Days with no answer before a quote kept open as a tender counts as lost")).toHaveAttribute("placeholder", "180");
     expect(screen.getByRole("option", { name: "As found in your jobs: at 60 days" })).toBeInTheDocument();
     expect(screen.getByText("35 Unsuccessful quotes were closed 60 days to the hour after they became one.")).toBeInTheDocument();
     expect(screen.getByLabelText("What Install jobs are")).toHaveValue("install");
@@ -46,12 +47,12 @@ describe("AnalyticsSettingsScreen", () => {
     show();
     fireEvent.change(screen.getByLabelText("Days with no answer before a quote counts as lost"), { target: { value: "120" } });
     fireEvent.click(within(screen.getByRole("heading", { name: "Counting quotes" }).closest("section")!).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ ...DEFAULT_SETTINGS, lapseAfterDays: 120, quoteFromCents: null }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ ...DEFAULT_SETTINGS, lapseAfterDays: 120, tenderAfterDays: null, quoteFromCents: null }));
   });
 
-  it("won't save a lost-after under 91 days", () => {
+  it("won't save a lost-after under 30 days", () => {
     show();
-    fireEvent.change(screen.getByLabelText("Days with no answer before a quote counts as lost"), { target: { value: "30" } });
+    fireEvent.change(screen.getByLabelText("Days with no answer before a quote counts as lost"), { target: { value: "20" } });
     const section = screen.getByRole("heading", { name: "Counting quotes" }).closest("section")!;
     expect(within(section).getByRole("button", { name: "Save" })).toBeDisabled();
   });

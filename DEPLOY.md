@@ -945,6 +945,11 @@ docs/job-analytics-plan.md is the design.
    It is additive, so applying it early is safe. Without it, the page counts
    by its defaults and the settings page says its choices can't be kept yet.
    **Applied to production 2026-10-07** (migration `analytics_settings`).
+5. Apply `docs/migrations/analytics_tenders.sql` **before the deploy that
+   writes it**: it lets a quote be kept open as a tender (a sixth question,
+   `extend`) and adds the tender days to `analytics_settings`. It only widens
+   a check and adds a nullable column, so applying it early is safe.
+   **Applied to production 2026-10-08** (migration `analytics_tenders`).
 
 ---
 

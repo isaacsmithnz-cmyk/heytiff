@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { saveAnalyticsSettings } from "@/app/actions/analytics-settings";
-import { LAPSE_AFTER_DAYS, QUOTE_LIKELY_FROM_CENTS } from "@/lib/analytics/job-analytics";
+import { LAPSE_AFTER_DAYS, QUOTE_LIKELY_FROM_CENTS, TENDER_AFTER_DAYS } from "@/lib/analytics/job-analytics";
 import {
   CATEGORY_ROLES,
   guessRole,
@@ -78,6 +78,7 @@ export function AnalyticsSettingsScreen({
   const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
 
   const [lapse, setLapse] = useState(field(initial.lapseAfterDays));
+  const [tender, setTender] = useState(field(initial.tenderAfterDays));
   const [quoteFrom, setQuoteFrom] = useState(dollars(initial.quoteFromCents));
   const [closeMode, setCloseMode] = useState<"found" | "days" | "never">(
     initial.autoCloseDays === null ? "found" : initial.autoCloseDays === 0 ? "never" : "days",
@@ -105,9 +106,12 @@ export function AnalyticsSettingsScreen({
   };
 
   const typedLapse = whole(lapse);
+  const typedTender = whole(tender);
   const typedFrom = cents(quoteFrom);
-  const countingValid = inRange(typedLapse, MIN_LAPSE_DAYS, MAX_LAPSE_DAYS) && inRange(typedFrom, 0, MAX_QUOTE_FROM_CENTS);
-  const countingChanged = typedLapse !== saved.lapseAfterDays || typedFrom !== saved.quoteFromCents;
+  const countingValid =
+    inRange(typedLapse, MIN_LAPSE_DAYS, MAX_LAPSE_DAYS) && inRange(typedTender, MIN_LAPSE_DAYS, MAX_LAPSE_DAYS) && inRange(typedFrom, 0, MAX_QUOTE_FROM_CENTS);
+  const countingChanged =
+    typedLapse !== saved.lapseAfterDays || typedTender !== saved.tenderAfterDays || typedFrom !== saved.quoteFromCents;
 
   const typedClose = closeMode === "found" ? null : closeMode === "never" ? 0 : whole(closeDays);
   const closeValid = closeMode !== "days" || (typedClose !== null && inRange(typedClose, 1, MAX_AUTO_CLOSE_DAYS));
@@ -156,6 +160,22 @@ export function AnalyticsSettingsScreen({
                   <em className="qs-share">{`Blank is ${LAPSE_AFTER_DAYS}. ${MIN_LAPSE_DAYS} to ${MAX_LAPSE_DAYS}.`}</em>
                 </label>
                 <label className="qs-field">
+                  <span>A quote kept open as a tender, after</span>
+                  <span className="qs-in">
+                    <input
+                      className="wb2-fi"
+                      inputMode="numeric"
+                      value={tender}
+                      placeholder={String(TENDER_AFTER_DAYS)}
+                      disabled={busy}
+                      onChange={(e) => setTender(e.target.value)}
+                      aria-label="Days with no answer before a quote kept open as a tender counts as lost"
+                    />
+                    <em>days</em>
+                  </span>
+                  <em className="qs-share">{`Blank is ${TENDER_AFTER_DAYS}. Keep one open from Analytics, Quotes.`}</em>
+                </label>
+                <label className="qs-field">
                   <span>Ask if a work order is a quote from</span>
                   <span className="qs-in">
                     <em>$</em>
@@ -178,7 +198,7 @@ export function AnalyticsSettingsScreen({
                   type="button"
                   className="pbtn primary"
                   disabled={busy || !ready || !countingChanged || !countingValid}
-                  onClick={() => void save({ ...saved, lapseAfterDays: typedLapse, quoteFromCents: typedFrom }, "Saved")}
+                  onClick={() => void save({ ...saved, lapseAfterDays: typedLapse, tenderAfterDays: typedTender, quoteFromCents: typedFrom }, "Saved")}
                 >
                   Save
                 </button>

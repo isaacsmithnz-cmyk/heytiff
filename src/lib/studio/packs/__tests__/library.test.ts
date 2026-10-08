@@ -20,6 +20,12 @@ import {
   type LibraryManifest,
 } from "../library";
 
+/** Mitsubishi Electric's split group: the shipped reference these cases
+    pin, found by id so another installed brand can sort ahead of it */
+function mitsubishiSplit(m: LibraryManifest) {
+  return m.brands.find((b) => b.id === "mitsubishi-electric")!.systems.find((s) => s.system === "split")!;
+}
+
 async function shipped() {
   const refs = await installedPacks();
   const loaded = [];
@@ -37,12 +43,15 @@ describe("the library manifest", () => {
     /* and the day it last changed, as the pack says it (the gate in
        installed-packs.test.ts is what requires the pack to say) */
     expect(me?.updated).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(libraryUpdatedOn(m)).toBe(me?.updated);
+    /* the library's date is its newest pack's, whichever brand that is */
+    const newest = m.brands.map((b) => b.updated!).sort().at(-1);
+    expect(libraryUpdatedOn(m)).toBe(newest);
   });
 
   it("lists under split exactly the indoor and outdoor units a pair would propose", async () => {
     const packs = await shipped();
     const m = libraryManifest(packs);
+    let listed = 0;
     for (const { meta, pack } of packs) {
       const brand = m.brands.find((b) => b.id === meta.brand)!;
       const split = brand.systems.find((s) => s.system === "split")!;
@@ -53,8 +62,11 @@ describe("the library manifest", () => {
       const listedOdu = split.series.filter((s) => s.side === "outdoor").flatMap((s) => s.models);
       expect(new Set(listedIdu)).toEqual(idu);
       expect(new Set(listedOdu)).toEqual(odu);
-      expect(listedIdu.length).toBeGreaterThan(0);
+      listed += listedIdu.length;
     }
+    /* a pack may list no splits yet (its pairs wait on a book), but the
+       library as a whole does */
+    expect(listed).toBeGreaterThan(0);
   });
 
   it("lists under multi the outdoors the engine proposes and the indoors their rules accept", async () => {
@@ -107,7 +119,7 @@ describe("the library manifest", () => {
           }
           expect(s.models.length).toBeGreaterThan(0);
         }
-    const split = m.brands[0].systems[0];
+    const split = mitsubishiSplit(m);
     expect(split.series.find((s) => s.series === "MSZ-AP")?.form).toBe("Wall-mounted");
     /* indoor before outdoor; indoor in the schema's form order (wall first,
        bulkhead last), by name within a form */
@@ -120,7 +132,7 @@ describe("the library manifest", () => {
 
   it("lines the indoor series up by form, in that order, for the start screen", async () => {
     const m = libraryManifest(await shipped());
-    const split = m.brands[0].systems[0];
+    const split = mitsubishiSplit(m);
     const lineup = indoorByForm(split.series);
     expect(lineup[0].form).toBe("Wall-mounted");
     expect(lineup[0].series.map((s) => s.series)).toEqual(

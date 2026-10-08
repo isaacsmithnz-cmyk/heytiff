@@ -75,6 +75,7 @@ export function memoryStore(opts: {
       names[option] = name;
       return { ok: true };
     },
+    compareWith: async () => ({ ok: true }),
     book: async () => opts.products,
     hourCost: async () => opts.hourCostCents,
     lookupUnit: async (_brand, model) => opts.units?.[model.toUpperCase()] ?? { found: false, reason: "no data pack" },

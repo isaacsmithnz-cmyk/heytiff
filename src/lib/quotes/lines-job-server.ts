@@ -1,7 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { unitSpecsOf } from "./fit-server";
-import { byHandOf, linesDraft, optionNames, toggleAccepted, withLoading, withName, type ByHand } from "./lines-job";
+import { byHandOf, linesDraft, optionNames, toggleAccepted, withCompared, withLoading, withName, type ByHand } from "./lines-job";
 import { readEngine, readLines } from "./lines-server";
 import type { QuoteLine } from "./lines";
 import { readOrgDay } from "./org-day-server";
@@ -41,6 +41,8 @@ export async function readByHand(orgId: string, cardId: string): Promise<ByHand>
 export const markAccepted = (orgId: string, cardId: string, i: number, by: string) => changeByHand(orgId, cardId, by, (b) => toggleAccepted(b, i));
 /** Names option `i`; blank takes the name off. */
 export const nameOption = (orgId: string, cardId: string, i: number, name: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withName(b, i, name));
+/** A unit kept beside a line's compare (10.2), by its book code. */
+export const addCompared = (orgId: string, cardId: string, lineId: string, code: string, by: string) => changeByHand(orgId, cardId, by, (b) => withCompared(b, lineId, code));
 /** Sets option `i`'s loading, or takes it off. */
 export const setLoading = (orgId: string, cardId: string, i: number, loading: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withLoading(b, i, loading));
 

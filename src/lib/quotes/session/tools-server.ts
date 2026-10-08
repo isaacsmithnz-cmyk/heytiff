@@ -3,7 +3,7 @@ import { bookProducts } from "../book-view-server";
 import type { Product } from "../families";
 import { addKit } from "../kits-server";
 import { addLine, changeLine, copyOption, readLines, removeLine } from "../lines-server";
-import { nameOption } from "../lines-job-server";
+import { addCompared, nameOption } from "../lines-job-server";
 import { lookupUnit } from "../lookups-server";
 import { readOrgDay } from "../org-day-server";
 import { hourCostOf } from "../profit";
@@ -31,6 +31,7 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     removeLine: (id, version, why) => removeLine(orgId, jobUuid, id, version, TIFF, why),
     copyOption: (from, to) => copyOption(orgId, jobUuid, from, to, TIFF),
     nameOption: (option, name) => nameOption(orgId, jobUuid, option, name, TIFF),
+    compareWith: (lineId, code) => addCompared(orgId, jobUuid, lineId, code, TIFF),
     addKit: (kit, facts, at, unit) => addKit(orgId, jobUuid, kit, facts, at, unit, TIFF),
     book: () => (products ??= bookProducts(orgId)),
     hourCost: () =>

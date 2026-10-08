@@ -7,7 +7,7 @@ import { byHandOf, labourVisits, linesDraft, linesHours, linesMaterials, linesUn
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
-const bh = (accepted: number[]) => ({ accepted, names: [] as string[], loading: {} });
+const bh = (accepted: number[]) => ({ accepted, names: [] as string[], loading: {}, compare: {} });
 const line = (o: Partial<QuoteLine>): QuoteLine => ({
   id: "x", version: 1, updatedAt: "", updatedBy: "", optionIndex: 0, system: "", group: "Materials", position: 0, name: "x",
   code: null, supplierKey: null, kind: "material", qty: 1, unit: "", costCents: 0, sellCents: null, source: "by_hand", why: "", duct: false, ...o,
@@ -40,7 +40,7 @@ describe("each option's name and loading", () => {
     expect(withLoading(bh([]), 0, { pct: 12, reason: "Parapet access" }).loading).toEqual({ 0: { pct: 12, reason: "Parapet access" } });
     expect(withLoading(bh([]), 0, { pct: 90, reason: "" }).loading[0]!.pct).toBe(50);
     expect(withLoading({ ...bh([]), loading: { 0: { pct: 12, reason: "x" } } }, 0, { pct: 0 }).loading).toEqual({});
-    expect(byHandOf({ byHand: { names: ["Good"], loading: { "1": { pct: "10", reason: "Two storeys" }, x: { pct: 5 } } } })).toEqual({ accepted: [], names: ["Good"], loading: { 1: { pct: 10, reason: "Two storeys" } } });
+    expect(byHandOf({ byHand: { names: ["Good"], loading: { "1": { pct: "10", reason: "Two storeys" }, x: { pct: 5 } } } })).toEqual({ accepted: [], names: ["Good"], loading: { 1: { pct: 10, reason: "Two storeys" } }, compare: {} });
   });
 });
 

@@ -26,7 +26,12 @@ export type ByHand = {
   names: string[];
   /** each option's loading on its labour, by index */
   loading: Record<number, OptionLoading>;
+  /** the units asked to be compared with a unit line, by its id: codes (10.2) */
+  compare: Record<string, string[]>;
 };
+
+/** Units a compare holds beside its suggestions, at most. */
+export const MAX_COMPARED = 4;
 
 export const MAX_OPTION_NAME = 120;
 /** 50% on the labour: a typo's ceiling, not a guide */
@@ -59,7 +64,19 @@ export function byHandOf(draft: unknown): ByHand {
     const l = loadingOf(v);
     if (Number.isInteger(i) && i >= 0 && i < 20 && l) loading[i] = l;
   }
-  return { accepted, names, loading };
+  const compare: Record<string, string[]> = {};
+  const rawCompare = o.compare && typeof o.compare === "object" ? (o.compare as Record<string, unknown>) : {};
+  for (const [id, codes] of Object.entries(rawCompare).slice(0, 50)) {
+    const list = (Array.isArray(codes) ? codes : []).map((c) => said(c, 80)).filter(Boolean).slice(0, MAX_COMPARED);
+    if (/^[\w-]{1,60}$/.test(id) && list.length) compare[id] = list;
+  }
+  return { accepted, names, loading, compare };
+}
+
+/** A unit added to a line's compare: once, the newest kept. */
+export function withCompared(b: ByHand, lineId: string, code: string): ByHand {
+  const now = (b.compare[lineId] ?? []).filter((c) => c.toUpperCase() !== code.toUpperCase());
+  return { ...b, compare: { ...b.compare, [lineId]: [...now, code].slice(-MAX_COMPARED) } };
 }
 
 /** Each option's name: as named on the quote, else, on a quote brought

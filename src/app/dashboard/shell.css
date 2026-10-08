@@ -6847,6 +6847,23 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-why span { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 .fg .ql-why input { width:420px; max-width:100%; height:32px; font-size:13px; }
 .fg .ql-pct { display:inline-flex; align-items:center; gap:4px; font-size:13px; color:var(--hd-body); }
+/* compare on a unit line (slice 10.2, the mock-up of 8 October) */
+.fg .ql-cmpbtn { margin-left:8px; padding:0; border:0; background:none; font:inherit; font-size:12px; font-weight:600; color:var(--info-t); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.fg .ql-cmpbtn:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.fg .ql-cmpw { flex:none; display:flex; flex-direction:column; gap:8px; margin-top:16px; padding:16px; border:1px solid var(--ink); border-radius:var(--r-button); background:var(--paper); box-shadow:var(--ring); }
+.fg .ql-cmpw-h b { font-size:16px; font-weight:600; color:var(--hd-ink); }
+.fg .ql-cmpx { overflow-x:auto; }
+.fg .ql-cmp { width:100%; border-collapse:collapse; font-size:13px; color:var(--hd-ink); }
+.fg .ql-cmp th, .fg .ql-cmp td { text-align:left; padding:8px 12px; border-top:1px solid var(--hd-rule); vertical-align:top; }
+.fg .ql-cmp thead th { border-top:0; font-size:14px; font-weight:600; }
+.fg .ql-cmp thead th small { display:block; font-size:12px; font-weight:500; color:var(--q); }
+.fg .ql-cmp td:first-child { width:120px; color:var(--q); font-weight:500; }
+.fg .ql-cmp td.np { color:var(--warn-t); }
+.fg .ql-cmp .on { background:var(--hd-fresh); }
+.fg .ql-chosen { font-size:13px; font-weight:600; color:var(--hd-today); }
+.fg .ql-cmpnote { margin:0; font-size:13px; color:var(--info-t); }
+.fg .ql-ask { display:flex; gap:8px; align-items:center; padding-top:8px; }
+.fg .ql-ask input { flex:1; min-width:0; height:36px; font-size:14px; color:var(--hd-ink); }
 .fg .ql-checks { list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; }
 .fg .ql-checks li { display:grid; grid-template-columns:16px minmax(0, 1fr); gap:8px; padding:4px 0; font-size:13px; line-height:1.45; color:var(--hd-ink); }
 .fg .ql-checks li > i { width:8px; height:8px; margin-top:4px; border-radius:50%; background:var(--hd-today); }

@@ -53,3 +53,17 @@ export async function unitSpecsOf(lines: readonly QuoteLine[]): Promise<Map<stri
   }
   return out;
 }
+
+/** Each code's specs off its maker's pack, by code: null where the brand
+    has no pack or the pack hasn't the model. */
+export async function specsOfCodes(units: readonly { code: string; name: string }[]): Promise<Map<string, UnitSpecs | null>> {
+  const out = new Map<string, UnitSpecs | null>();
+  for (const u of units) {
+    if (out.has(u.code)) continue;
+    const brand = brandOfCode(u.code, u.name);
+    const pack = brand ? PACK_OF[brand] : undefined;
+    const r = pack ? await lookupUnit(pack, u.code).catch((): UnitLookup => ({ found: false, reason: "not in the pack" })) : null;
+    out.set(u.code, r?.found ? r.specs : null);
+  }
+  return out;
+}

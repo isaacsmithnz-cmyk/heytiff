@@ -276,6 +276,11 @@ export const SESSION_TOOLS: ToolDef[] = [
     },
   },
   {
+    name: "compare_with",
+    description: "Add a unit from the book to the compare on a unit line, when the person asked to compare it with something: the indoor's code as search_book gave it; its outdoor is paired from the book.",
+    input_schema: { type: "object", properties: { line_id: { type: "string" }, code: { type: "string" } }, required: ["line_id", "code"], additionalProperties: false },
+  },
+  {
     name: "name_option",
     description: "Name an option as the proposal heads it and ServiceM8 gets it: short, what it is, \"Ducted upstairs, Cora 7.1 kW downstairs\".",
     input_schema: { type: "object", properties: { option: lineFields.option, name: { type: "string" } }, required: ["option", "name"], additionalProperties: false },
@@ -340,6 +345,7 @@ export const TOOL_LABELS: Record<string, string> = {
   add_kit: "Added a kit",
   copy_option: "Copied an option",
   name_option: "Named an option",
+  compare_with: "Added to the compare",
   ask: "Asked",
 };
 

@@ -345,3 +345,19 @@ it("adds a loading to the labour, keeps it with its reason, and takes it off", a
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "loading", option: 0, pct: null, reason: "" });
 });
+
+/* compare (slice 10.2): from a unit line, never its outdoor */
+it("opens compare from an indoor unit's line", async () => {
+  const outdoor = line({ id: "od", name: "Outdoor, single phase", code: "PUZ-M125VKA2", kind: "unit", costCents: 222320 });
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (url: string) => ({
+    json: async () => (String(url).startsWith("/api/workboard/quote-compare") ? { ok: false, reason: "Compare works from a unit on the quote." } : view([indoor, outdoor])),
+  }));
+  face();
+  await screen.findByText("Ducted indoor, under the floor");
+  const buttons = screen.getAllByRole("button", { name: "Compare" });
+  expect(buttons).toHaveLength(1);
+  await act(async () => {
+    fireEvent.click(buttons[0]!);
+  });
+  expect(await screen.findByLabelText("Compare")).toBeInTheDocument();
+});

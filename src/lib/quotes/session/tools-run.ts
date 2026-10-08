@@ -5,6 +5,7 @@ import { stillUnknown } from "../lines-price";
 import { findInBook, offerFor, supplierOffer, type UnitLookup } from "../lookups";
 import type { TaskKey } from "../settings";
 import type { Correction } from "../corrections";
+import { proposalOf, type LinesProposal } from "../lines-proposal";
 import { taskCheck } from "../task-hours";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
@@ -28,6 +29,10 @@ export type QuoteStore = {
   removeLine: (id: string, version: number, why: string) => Promise<LineWrite>;
   copyOption: (from: number, to: number) => Promise<LineWrite>;
   nameOption: (option: number, name: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
+  /** the proposal's words as kept; null when none are written */
+  proposal: () => Promise<LinesProposal | null>;
+  /** the proposal's words, changed by the blocks given (7.1) */
+  writeProposal: (patch: Partial<LinesProposal>) => Promise<{ ok: true } | { ok: false; reason: string }>;
   compareWith: (lineId: string, code: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
   addKit: (kit: KitKey, facts: KitFacts, at: { optionIndex: number; system: string }, unit: { brand: string; model: string } | null) => Promise<{ ok: true; added: number } | { ok: false; reason: string }>;
   book: () => Promise<Product[]>;
@@ -212,6 +217,30 @@ export function makeTools(store: QuoteStore) {
         if (!name) return fail("Give the option a name.");
         const res = await store.nameOption(option, name);
         return res.ok ? { ok: true, label, said: name, value: { named: option } } : fail(res.reason);
+      }
+      case "write_proposal": {
+        const patch: Partial<LinesProposal> = {};
+        if (typeof input.title === "string") patch.title = input.title;
+        if (typeof input.intro === "string") patch.intro = input.intro;
+        if (Array.isArray(input.not_included)) patch.notIncluded = input.not_included as string[];
+        if (input.choice === "one" || input.choice === "any") patch.choice = input.choice;
+        const words = { summary: input.summary, areas: Array.isArray(input.work) ? input.work.map((w) => ({ name: (w as { area?: unknown }).area, items: (w as { items?: unknown }).items })) : undefined, included: input.included };
+        const forOption = Object.values(words).some((v) => v !== undefined);
+        if (forOption) {
+          if (typeof input.option !== "number") return fail("Say which option the summary, work or included are for.");
+          const options = Math.max(1, ...(await store.readLines()).map((l) => l.optionIndex + 1));
+          const i = Math.round(input.option);
+          if (i < 0 || i >= options) return fail(`The quote has ${options} ${options === 1 ? "option" : "options"}; there's no option ${i + 1}.`);
+          const was = proposalOf((await store.proposal()) ?? {});
+          const kept = Array.from({ length: options }, (_, j) => was.options[j] ?? { summary: "", areas: [], included: [] });
+          /* made clean as the rest of the proposal is, by the same reader */
+          const given = proposalOf({ options: [{ ...kept[i], ...Object.fromEntries(Object.entries(words).filter(([, v]) => v !== undefined)) }] }).options[0]!;
+          patch.options = kept.map((o, j) => (j === i ? given : o));
+        }
+        if (Object.keys(patch).length === 0) return fail("Give the words to write: a title, an introduction, an option's summary, work or included, what isn't included, or how the client chooses.");
+        const res = await store.writeProposal(patch);
+        const what = [patch.title !== undefined && "title", patch.intro !== undefined && "introduction", forOption && `option ${Math.round(input.option as number) + 1}`, patch.notIncluded && "not included", patch.choice && "choice"].filter(Boolean).join(", ");
+        return res.ok ? { ok: true, label, said: what, value: { written: what } } : fail(res.reason);
       }
       case "ask": {
         const q = questionOf(input);

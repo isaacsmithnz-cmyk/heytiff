@@ -327,6 +327,9 @@ export function QuoteLinesFace({
       </div>
     );
   }
+  /* who approved the proposal, in words */
+  const approvedBy = view?.proposal?.approvedBy ?? "";
+  const approver = !approvedBy ? "someone" : approvedBy === view?.me ? "you" : (view?.names[approvedBy] ?? "someone");
   const units = o ? o.build.groups.filter((g) => g.lines.some((l) => l.kind === "unit")).reduce((n, g) => n + g.sellCents, 0) : 0;
   const materials = o ? o.build.exGstCents - units - o.build.labour.sellCents : 0;
   const hours = lines.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0);
@@ -800,7 +803,7 @@ export function QuoteLinesFace({
                   Back to the lines
                 </button>
                 {view?.approved ? (
-                  <span className="qp-approved">{`Approved by ${view?.proposal?.approvedBy === view?.me ? "you" : (view?.names[view?.proposal?.approvedBy ?? ""] ?? "someone")}`}</span>
+                  <span className="qp-approved">{`Approved by ${approver}`}</span>
                 ) : (
                   <button type="button" className="pbtn primary" disabled={busy || all.length === 0} onClick={() => void act({ op: "approve" })}>
                     Approve

@@ -36,6 +36,7 @@ export function sessionSystemPrompt(): string {
     "- Labour is hours, as lines in the Labour group, one per visit's stage: \"Rough-in: 2 people\", \"Install\", \"Commissioning\". Use the hours the brief gives; where it gives none, use the business's own task hours (read_quote shows them and what they make it) and say so; where it has none, assume them and say what they rest on.",
     "- Each option is a whole job. Copy option 1 to start another and change what differs.",
     "- When the customer names an item that isn't the business's usual (a grille, a controller, a brand), keep the usual in option 1 and put theirs on a copy of it, so the difference is the upgrade.",
+    "- When the quote is built, write the proposal's words (write_proposal) if they aren't written: what each option is and why, the work by area, what's included and what isn't, in the client's plain words. Rewrite what a change to the lines has made wrong; a person's own words stand unless they ask.",
     "- Change only what the conversation calls for. A person's own change to a line stands unless they ask you to change it.",
     "",
     "ASKING",

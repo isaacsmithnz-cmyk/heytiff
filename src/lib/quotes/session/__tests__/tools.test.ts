@@ -17,13 +17,15 @@ jest.mock("../../lines-server", () => ({
   readLines: jest.fn(async () => [{ id: "l1", unit: "m", optionIndex: 0 }]),
   removeLine: jest.fn(),
 }));
+const saveProposal = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
 jest.mock("../../kits-server", () => ({ addKit: jest.fn() }));
 jest.mock("../job-files-server", () => ({ jobFiles: jest.fn(async () => []), lookAt: jest.fn() }));
 jest.mock("../../corrections-server", () => ({ readCorrections: jest.fn(async () => []), jobKind: jest.fn(async () => null) }));
 jest.mock("../../lines-job-server", () => ({
   nameOption: jest.fn(async () => ({ ok: true })),
   addCompared: jest.fn(async () => ({ ok: true })),
-  readByHand: jest.fn(async () => ({ supplier: null })),
+  readByHand: jest.fn(async () => ({ supplier: null, proposal: { options: [{ summary: "Kept", areas: [], included: ["Commissioning"] }] } })),
+  saveProposal: (...a: unknown[]) => saveProposal(...a),
 }));
 jest.mock("../../lookups-server", () => ({ lookupUnit: jest.fn() }));
 jest.mock("../../quote-price-server", () => ({ readQuotePrice: jest.fn() }));
@@ -97,6 +99,20 @@ describe("a price from the book, never from her", () => {
 
 describe("her tools, run", () => {
   const run = sessionTools("org-1", "job-1");
+
+  it("writes an option's words into the proposal, leaving what she didn't give", async () => {
+    const out = await run("write_proposal", { option: 0, summary: "A wall split in the living room.", work: [{ area: "Living", items: ["Unit above the window"] }] });
+    expect(out).toMatchObject({ ok: true, said: "option 1" });
+    expect(saveProposal).toHaveBeenCalledWith(
+      "org-1",
+      "job-1",
+      { options: [{ summary: "A wall split in the living room.", areas: [{ name: "Living", items: ["Unit above the window"] }], included: ["Commissioning"] }] },
+      "tiff"
+    );
+    expect(await run("write_proposal", { option: 3, summary: "x" })).toMatchObject({ ok: false, error: "The quote has 1 option; there's no option 4." });
+    expect(await run("write_proposal", { summary: "x" })).toMatchObject({ ok: false });
+    expect(await run("write_proposal", {})).toMatchObject({ ok: false });
+  });
 
   it("adds book items at the book's price, labour at the hour, and refuses a code the book hasn't got", async () => {
     const out = await run("add_lines", {

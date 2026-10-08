@@ -3,6 +3,7 @@ import type { Product } from "../families";
 import { expandKit, type KitAllowances } from "../kits";
 import { applyPatch, lineFromRow, lineRow, normaliseLine, sortLines, type QuoteLine } from "../lines";
 import { priceLines } from "../lines-price";
+import { proposalOf, type LinesProposal } from "../lines-proposal";
 import type { UnitLookup } from "../lookups";
 import type { TaskKey } from "../settings";
 import type { ModelCall } from "../session/model";
@@ -32,6 +33,7 @@ export function memoryStore(opts: {
 }): QuoteStore & { lines: () => QuoteLine[] } {
   let lines: QuoteLine[] = [];
   const names: string[] = [];
+  let proposal: LinesProposal | null = null;
   let n = 0;
   const add = (row: Record<string, unknown>) => {
     const f = normaliseLine(row);
@@ -74,6 +76,11 @@ export function memoryStore(opts: {
     },
     nameOption: async (option, name) => {
       names[option] = name;
+      return { ok: true };
+    },
+    proposal: async () => proposal,
+    writeProposal: async (patch) => {
+      proposal = { ...proposalOf(proposal ?? {}), ...patch };
       return { ok: true };
     },
     compareWith: async () => ({ ok: true }),

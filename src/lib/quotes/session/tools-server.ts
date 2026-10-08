@@ -24,8 +24,10 @@ export const TIFF = "tiff";
 
 const SEARCH_LIMIT = 12;
 
-export function sessionTools(orgId: string, jobUuid: string) {
-  /* the book and the hour, read once a turn and only when asked for */
+/** How a new line goes on for this business: a book item priced from its
+    book, labour at its hour, anything else not known yet. The book and the
+    hour are read once, and only when asked for. */
+export function linePricer(orgId: string) {
   let products: Promise<Product[]> | null = null;
   const book = () => (products ??= bookProducts(orgId));
   let hour: Promise<number | null> | null = null;
@@ -47,6 +49,11 @@ export function sessionTools(orgId: string, jobUuid: string) {
     /* no code: an allowance nobody has priced, so not known yet */
     return { ...base, name: l.name, code: null, supplierKey: null, costCents: 0, source: "unknown" };
   };
+  return { book, hourCost, lineFor };
+}
+
+export function sessionTools(orgId: string, jobUuid: string) {
+  const { book, lineFor } = linePricer(orgId);
 
   return async function runTool(name: string, input: Record<string, unknown>): Promise<ToolOutcome> {
     const label = TOOL_LABELS[name] ?? name;

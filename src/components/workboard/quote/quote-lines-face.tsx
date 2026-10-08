@@ -13,6 +13,7 @@ import { linesSteps } from "@/lib/quotes/quote-steps";
 import { unsetWords } from "@/lib/quotes/build-settings";
 import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
+import { TiffPanel } from "./tiff-panel";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
    the mock-ups Isaac shaped on 7 October): the total in its own card, pinned
@@ -51,6 +52,8 @@ type View = {
 /** The quote's kept lines, read once and after every change. */
 export function useQuoteLines(job: string, enabled: boolean) {
   const [view, setView] = useState<View | null>(null);
+  /* read again on asking: Tiff changed the lines */
+  const [rev, setRev] = useState(0);
   useEffect(() => {
     if (!enabled) return;
     let live = true;
@@ -61,14 +64,14 @@ export function useQuoteLines(job: string, enabled: boolean) {
     return () => {
       live = false;
     };
-  }, [job, enabled]);
+  }, [job, enabled, rev]);
   const post = async (body: Record<string, unknown>): Promise<View | null> => {
     const r = await fetch(ROUTE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ job, ...body }) }).catch(() => null);
     const v = r ? ((await r.json().catch(() => null)) as View | null) : null;
     if (v && Array.isArray(v.lines)) setView(v);
     return v;
   };
-  return { view, post };
+  return { view, post, reload: () => setRev((n) => n + 1) };
 }
 
 const SOURCE_WORDS: Record<LineFields["source"], string> = {
@@ -149,7 +152,7 @@ export function QuoteLinesFace({
   onPriced: () => void;
   onSwitchBack: () => void;
 }) {
-  const { view, post } = useQuoteLines(job, true);
+  const { view, post, reload } = useQuoteLines(job, true);
   const [at, setAt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -159,6 +162,8 @@ export function QuoteLinesFace({
   const [kitOpen, setKitOpen] = useState(false);
   /* the line whose pick list is open (Select preferred item, slice 2.4) */
   const [swapping, setSwapping] = useState<string | null>(null);
+  /* Tiff's questions still open (tiff-panel.tsx) */
+  const [asked, setAsked] = useState(0);
 
   const lines = (view?.lines ?? []).filter((l) => l.optionIndex === at);
   const options = Math.max(1, ...(view?.lines ?? []).map((l) => l.optionIndex + 1), price && price.ok ? price.options.length : 1);
@@ -171,7 +176,8 @@ export function QuoteLinesFace({
   const steps = linesSteps({
     accepted,
     lines: all.length,
-    unknown: all.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).length,
+    /* the lines nobody knows yet, and Tiff's questions still open */
+    unknown: all.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).length + asked,
     price: priceState(price),
   });
 
@@ -659,7 +665,16 @@ export function QuoteLinesFace({
               <div className="hd-face qp-face ql-face">{flow}</div>
             </div>
             <aside className="hd-list qp-rail" aria-label="Changes">
-              {rail}
+              <TiffPanel
+                job={job}
+                onOpen={setAsked}
+                onChanged={() => {
+                  reload();
+                  onPriced();
+                }}
+              >
+                {rail}
+              </TiffPanel>
             </aside>
           </div>
         </div>

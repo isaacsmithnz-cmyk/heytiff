@@ -3,7 +3,7 @@ import { readEngine } from "../lines-server";
 import type { ModelCall } from "./model";
 import { anthropicModel, chosenModel } from "./model-server";
 import { openingMessage, sessionSystemPrompt } from "./prompt";
-import { addEvents, beginTurn, endTurn, saveRound } from "./store-server";
+import { addEvents, beginTurn, endTurn, saveRound, takeAnswers } from "./store-server";
 import { SESSION_TOOLS } from "./tools";
 import { sessionTools } from "./tools-server";
 import { runTurn, type TurnEnd } from "./turn";
@@ -34,8 +34,14 @@ export async function startTurn(
   const begun = await beginTurn(orgId, jobUuid);
   if (!begun.ok) return { ok: false, reason: begun.reason, status: 409 };
   const { session, turnId } = begun;
-  /* the job's words open the session's first turn only */
-  const message = session.messages.length === 0 ? openingMessage(opts.brief ?? "", text) : text;
+  /* the job's words open the session's first turn only; what was answered
+     since her last turn, and already put on the quote, comes first */
+  const answers = await takeAnswers(orgId, session.id, turnId);
+  const answered = answers.length
+    ? `They answered, and the quote was changed to match:\n${answers.map((a) => `- ${a.question} ${a.answer}`).join("\n")}`
+    : "";
+  const said = [answered, text].filter(Boolean).join("\n\n");
+  const message = session.messages.length === 0 ? openingMessage(opts.brief ?? "", said) : said;
   await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job" } }]);
 
   const model = opts.model ?? anthropicModel();

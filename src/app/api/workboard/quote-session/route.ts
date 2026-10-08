@@ -6,6 +6,7 @@ import { namesBySignIn } from "@/lib/quotes/lines-server";
 import { chosenModel } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
 import { holding, readThread } from "@/lib/quotes/session/store-server";
+import { answerQuestion, priceQuestions } from "@/lib/quotes/session/answers-server";
 
 /* Tiff's session on a quote (slice 4.1): GET reads the thread as a person
    reads it, after an event id, with whether she's working and what the
@@ -38,6 +39,9 @@ export async function GET(req: Request) {
   const since = Math.max(0, Number(url.searchParams.get("since")) || 0);
   const target = await resolveJobCard(g.orgId, job);
   const { session, events } = await readThread(g.orgId, target.parentRemoteId, since);
+  /* her questions' answers priced, asked for once she's done rather than
+     every poll: it reads the book */
+  const questions = url.searchParams.get("questions") === "1" ? await priceQuestions(g.orgId, target.parentRemoteId, since ? (await readThread(g.orgId, target.parentRemoteId)).events : events) : undefined;
   const names = await namesBySignIn(g.orgId, [...new Set(events.map((e) => e.author).filter((a) => a !== "tiff"))]);
   return Response.json({
     ok: true,
@@ -47,6 +51,7 @@ export async function GET(req: Request) {
     events,
     names,
     me: g.userId,
+    ...(questions ? { questions } : {}),
   });
 }
 
@@ -57,6 +62,14 @@ export async function POST(req: Request) {
   const job = typeof body?.job === "string" ? body.job.trim().slice(0, 80) : "";
   if (!body || !job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(g.orgId, job);
+  /* a tapped answer: its line changes, made as the person, no call to her */
+  if (body.op === "answer") {
+    const event = typeof body.event === "number" ? body.event : -1;
+    const index = typeof body.answer === "number" ? body.answer : -1;
+    const { events } = await readThread(g.orgId, target.parentRemoteId);
+    const r = await answerQuestion(g.orgId, target.parentRemoteId, g.userId, event, index, events);
+    return Response.json(r, { status: r.ok ? 200 : 409 });
+  }
   const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, typeof body.message === "string" ? body.message : "", {
     brief: typeof body.brief === "string" ? body.brief.slice(0, 40_000) : undefined,
   });

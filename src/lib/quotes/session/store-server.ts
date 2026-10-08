@@ -111,3 +111,21 @@ export async function readThread(orgId: string, jobUuid: string, since = 0): Pro
   }));
   return { session, events };
 }
+
+/** The answers given since her last turn, taken into this one: each marked
+    with the turn that told her. */
+export async function takeAnswers(orgId: string, sessionId: string, turnId: string): Promise<{ question: string; answer: string }[]> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id, body")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .eq("kind", "message")
+    .is("turn_id", null)
+    .not("body->answered", "is", null)
+    .order("id", { ascending: true });
+  const rows = (data ?? []) as { id: number; body: Record<string, unknown> }[];
+  if (rows.length === 0) return [];
+  await supabaseAdmin.from("quote_session_events").update({ turn_id: turnId }).in("id", rows.map((r) => r.id));
+  return rows.map((r) => ({ question: String(r.body.question ?? ""), answer: String(r.body.text ?? "") }));
+}

@@ -16,28 +16,81 @@ import { normaliseDraft, type ProposalDraft, type UnitLine, type UnitRole } from
    reader, and a quote brought across from Tiff's builder keeps its old
    proposal, and its old accepted mark, untouched underneath. Pure. */
 
+/** A hard job's loading on an option's labour, with its reason (9.2). */
+export type OptionLoading = { pct: number; reason: string };
+
 export type ByHand = {
   /** the options the client took, by index; one, as a client picks one */
   accepted: number[];
+  /** each option's name, as the proposal and ServiceM8 give it; "" unnamed */
+  names: string[];
+  /** each option's loading on its labour, by index */
+  loading: Record<number, OptionLoading>;
 };
 
+export const MAX_OPTION_NAME = 120;
+/** 50% on the labour: a typo's ceiling, not a guide */
+export const MAX_LOADING_PCT = 50;
+
 const whole = (v: unknown) => (typeof v === "number" ? v : Number(v));
+const said = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
+
+/** One loading as given, made safe; null for none (no percent). */
+export function loadingOf(raw: unknown): OptionLoading | null {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const pct = whole(o.pct);
+  if (!Number.isFinite(pct) || pct <= 0) return null;
+  return { pct: Math.min(MAX_LOADING_PCT, Math.round(pct * 10) / 10), reason: said(o.reason, 200) };
+}
 
 /** The by-hand record a stored draft holds; empty when it holds none. */
 export function byHandOf(draft: unknown): ByHand {
   const r = draft && typeof draft === "object" ? (draft as Record<string, unknown>).byHand : null;
-  const raw = r && typeof r === "object" ? (r as Record<string, unknown>).accepted : null;
-  const accepted = (Array.isArray(raw) ? raw : [])
+  const o = r && typeof r === "object" ? (r as Record<string, unknown>) : {};
+  const accepted = (Array.isArray(o.accepted) ? o.accepted : [])
     .map(whole)
     .filter((v, i, all) => Number.isInteger(v) && v >= 0 && v < 20 && all.indexOf(v) === i)
     .slice(0, 1);
-  return { accepted };
+  const names = (Array.isArray(o.names) ? o.names : []).slice(0, 20).map((n) => said(n, MAX_OPTION_NAME));
+  const loading: Record<number, OptionLoading> = {};
+  const rawLoading = o.loading && typeof o.loading === "object" ? (o.loading as Record<string, unknown>) : {};
+  for (const [k, v] of Object.entries(rawLoading)) {
+    const i = whole(k);
+    const l = loadingOf(v);
+    if (Number.isInteger(i) && i >= 0 && i < 20 && l) loading[i] = l;
+  }
+  return { accepted, names, loading };
+}
+
+/** Each option's name: as named on the quote, else, on a quote brought
+    across, its old option's. */
+export function optionNames(raw: unknown, byHand: ByHand): string[] {
+  const old = (normaliseDraft(raw)?.options ?? []).map((o) => o.name);
+  return Array.from({ length: Math.max(old.length, byHand.names.length) }, (_, i) => byHand.names[i] || old[i] || "");
 }
 
 /** Marking option `i` accepted, or taking the mark off: a client who picks
     one option has accepted only that one. */
 export function toggleAccepted(b: ByHand, i: number): ByHand {
-  return { accepted: b.accepted.includes(i) ? [] : [i] };
+  return { ...b, accepted: b.accepted.includes(i) ? [] : [i] };
+}
+
+/** Option `i` named; blank takes the name off. */
+export function withName(b: ByHand, i: number, name: unknown): ByHand {
+  const names = [...b.names];
+  while (names.length <= i) names.push("");
+  names[i] = said(name, MAX_OPTION_NAME);
+  while (names.length && !names[names.length - 1]) names.pop();
+  return { ...b, names };
+}
+
+/** Option `i`'s loading set, or taken off with no percent. */
+export function withLoading(b: ByHand, i: number, raw: unknown): ByHand {
+  const loading = { ...b.loading };
+  const l = loadingOf(raw);
+  if (l) loading[i] = l;
+  else delete loading[i];
+  return { ...b, loading };
 }
 
 /** What a unit line is: its maker's pack says, else its own words; a unit

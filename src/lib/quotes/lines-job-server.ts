@@ -1,11 +1,11 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { unitSpecsOf } from "./fit-server";
-import { byHandOf, linesDraft, toggleAccepted, type ByHand } from "./lines-job";
+import { byHandOf, linesDraft, optionNames, toggleAccepted, withLoading, withName, type ByHand } from "./lines-job";
 import { readEngine, readLines } from "./lines-server";
 import type { QuoteLine } from "./lines";
 import { readOrgDay } from "./org-day-server";
-import { normaliseDraft, type ProposalDraft } from "./proposal";
+import type { ProposalDraft } from "./proposal";
 import { readStoredProposal } from "./proposal-writer";
 
 /* THE QUOTE, AS THE JOB READS IT, whichever engine prices it (lines-job.ts
@@ -26,9 +26,8 @@ export async function readJobQuote(orgId: string, cardId: string): Promise<JobQu
     readOrgDay(orgId),
   ]);
   const raw = (row.data as { draft: unknown } | null)?.draft ?? null;
-  /* a quote brought across keeps its old options' names */
-  const names = (normaliseDraft(raw)?.options ?? []).map((o) => o.name);
-  const draft = linesDraft(lines, names, byHandOf(raw), await unitSpecsOf(lines), day.hours?.hours ?? null);
+  const byHand = byHandOf(raw);
+  const draft = linesDraft(lines, optionNames(raw, byHand), byHand, await unitSpecsOf(lines), day.hours?.hours ?? null);
   return draft ? { draft, lines } : null;
 }
 
@@ -38,10 +37,17 @@ export async function readByHand(orgId: string, cardId: string): Promise<ByHand>
   return byHandOf((data as { draft: unknown } | null)?.draft ?? null);
 }
 
-/** Marks option `i` of a switched quote accepted, or takes the mark off.
-    Written against the draft as it was read, so a proposal saved meanwhile
-    is never overwritten; refused then, to be pressed again. */
-export async function markAccepted(orgId: string, cardId: string, i: number, by: string): Promise<{ ok: true; byHand: ByHand } | { ok: false; reason: string }> {
+/** Marks option `i` of a switched quote accepted, or takes the mark off. */
+export const markAccepted = (orgId: string, cardId: string, i: number, by: string) => changeByHand(orgId, cardId, by, (b) => toggleAccepted(b, i));
+/** Names option `i`; blank takes the name off. */
+export const nameOption = (orgId: string, cardId: string, i: number, name: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withName(b, i, name));
+/** Sets option `i`'s loading, or takes it off. */
+export const setLoading = (orgId: string, cardId: string, i: number, loading: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withLoading(b, i, loading));
+
+/** A change to a switched quote's by-hand record, written against the
+    draft as it was read, so a proposal saved meanwhile is never
+    overwritten; refused then, to be pressed again. */
+async function changeByHand(orgId: string, cardId: string, by: string, change: (b: ByHand) => ByHand): Promise<{ ok: true; byHand: ByHand } | { ok: false; reason: string }> {
   const { data } = await supabaseAdmin
     .from("quote_drafts")
     .select("draft, updated_at, engine")
@@ -50,7 +56,7 @@ export async function markAccepted(orgId: string, cardId: string, i: number, by:
     .maybeSingle();
   const row = data as { draft: unknown; updated_at: string; engine: string } | null;
   if (!row || row.engine !== "lines") return { ok: false, reason: "This quote isn't built on its lines." };
-  const byHand = toggleAccepted(byHandOf(row.draft), i);
+  const byHand = change(byHandOf(row.draft));
   const draft = { ...(row.draft && typeof row.draft === "object" ? (row.draft as Record<string, unknown>) : {}), byHand };
   const { data: saved, error } = await supabaseAdmin
     .from("quote_drafts")

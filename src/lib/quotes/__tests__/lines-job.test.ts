@@ -3,10 +3,11 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, labourVisits, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted } from "../lines-job";
+import { byHandOf, labourVisits, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withLoading, withName } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
+const bh = (accepted: number[]) => ({ accepted, names: [] as string[], loading: {} });
 const line = (o: Partial<QuoteLine>): QuoteLine => ({
   id: "x", version: 1, updatedAt: "", updatedBy: "", optionIndex: 0, system: "", group: "Materials", position: 0, name: "x",
   code: null, supplierKey: null, kind: "material", qty: 1, unit: "", costCents: 0, sellCents: null, source: "by_hand", why: "", duct: false, ...o,
@@ -17,15 +18,29 @@ const spec = (role: "indoor" | "outdoor", coolKw: number): UnitSpecs => ({
 
 describe("the accepted mark", () => {
   it("is read from the draft's own key, one option, and nothing else", () => {
-    expect(byHandOf({})).toEqual({ accepted: [] });
-    expect(byHandOf(null)).toEqual({ accepted: [] });
-    expect(byHandOf({ accepted: [1], byHand: { accepted: ["2", 3, -1] } })).toEqual({ accepted: [2] });
+    expect(byHandOf({})).toEqual(bh([]));
+    expect(byHandOf(null)).toEqual(bh([]));
+    expect(byHandOf({ accepted: [1], byHand: { accepted: ["2", 3, -1] } })).toEqual(bh([2]));
   });
 
   it("moves to the option pressed, and comes off when pressed again", () => {
-    expect(toggleAccepted({ accepted: [] }, 1)).toEqual({ accepted: [1] });
-    expect(toggleAccepted({ accepted: [1] }, 0)).toEqual({ accepted: [0] });
-    expect(toggleAccepted({ accepted: [0] }, 0)).toEqual({ accepted: [] });
+    expect(toggleAccepted(bh([]), 1)).toEqual(bh([1]));
+    expect(toggleAccepted(bh([1]), 0)).toEqual(bh([0]));
+    expect(toggleAccepted(bh([0]), 0)).toEqual(bh([]));
+  });
+});
+
+describe("each option's name and loading", () => {
+  it("names an option, and blank takes the name off", () => {
+    expect(withName(bh([]), 1, "  With a zone for each bedroom ").names).toEqual(["", "With a zone for each bedroom"]);
+    expect(withName({ ...bh([]), names: ["A", "B"] }, 1, "").names).toEqual(["A"]);
+  });
+
+  it("keeps a loading with its percent, capped, and takes it off with none", () => {
+    expect(withLoading(bh([]), 0, { pct: 12, reason: "Parapet access" }).loading).toEqual({ 0: { pct: 12, reason: "Parapet access" } });
+    expect(withLoading(bh([]), 0, { pct: 90, reason: "" }).loading[0]!.pct).toBe(50);
+    expect(withLoading({ ...bh([]), loading: { 0: { pct: 12, reason: "x" } } }, 0, { pct: 0 }).loading).toEqual({});
+    expect(byHandOf({ byHand: { names: ["Good"], loading: { "1": { pct: "10", reason: "Two storeys" }, x: { pct: 5 } } } })).toEqual({ accepted: [], names: ["Good"], loading: { 1: { pct: 10, reason: "Two storeys" } } });
   });
 });
 
@@ -100,7 +115,7 @@ describe("the quote as the job reads it", () => {
   ];
 
   it("is an option for each, named as the quote names it, with its units, labour and the mark", () => {
-    const draft = linesDraft(lines, ["Good"], { accepted: [1] }, new Map(), 8)!;
+    const draft = linesDraft(lines, ["Good"], bh([1]), new Map(), 8)!;
     expect(draft.options.map((o) => o.name)).toEqual(["Good", "Option 2"]);
     expect(draft.accepted).toEqual([1]);
     expect(draft.options[0]!.units.map((u) => [u.role, u.model])).toEqual([
@@ -109,11 +124,11 @@ describe("the quote as the job reads it", () => {
     ]);
     expect(draft.options[0]!.labour).toEqual({ visits: [{ stage: "Install", people: 1, days: 1 }], from: "you" });
     expect(acceptedOptions(draft).map((o) => o.name)).toEqual(["Option 2"]);
-    expect(linesDraft([], [], { accepted: [] }, new Map(), 8)).toBeNull();
+    expect(linesDraft([], [], bh([]), new Map(), 8)).toBeNull();
   });
 
   it("gives the certificate its systems, and the job its parts", () => {
-    const draft = linesDraft(lines, [], { accepted: [0] }, new Map(), 8)!;
+    const draft = linesDraft(lines, [], bh([0]), new Map(), 8)!;
     const reading = readingFromQuote(acceptedOptions(draft));
     expect(reading.systems).toHaveLength(1);
     expect(reading.systems[0]!.outdoor.model).toBe("MUZ-AP50VG");

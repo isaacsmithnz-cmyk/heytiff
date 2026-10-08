@@ -65,10 +65,12 @@ export function optionLines(draft: ProposalDraft, i: number, build: BuildUp, sho
   );
   if (build.contingency) out.push({ name: "Duct contingency", quantity: 1, unitPriceCents: build.contingency.sellCents, unitCostCents: build.contingency.buyCents });
   /* labour by the person-day at the business's own day, as its ServiceM8
-     lines already carry it; the contingency's hours on their own line */
+     lines already carry it; the contingency's hours on their own line. A
+     loading is never a line the customer sees: it rides in the labour */
   const visitsCents = build.labour.visits.reduce((n, v) => n + v.sellCents, 0);
-  if (build.labour.personDays > 0 && visitsCents > 0) {
-    out.push({ name: "Labour", quantity: build.labour.personDays, unitPriceCents: visitsCents / build.labour.personDays, unitCostCents: null });
+  const loadedCents = visitsCents + (build.loading?.sellCents ?? 0);
+  if (build.labour.personDays > 0 && loadedCents > 0) {
+    out.push({ name: "Labour", quantity: build.labour.personDays, unitPriceCents: loadedCents / build.labour.personDays, unitCostCents: null });
   }
   const extraCents = build.labour.sellCents - visitsCents;
   if (build.labour.hours > 0 && extraCents > 0) {

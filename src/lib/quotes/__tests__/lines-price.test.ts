@@ -90,3 +90,14 @@ it("a provisional sum is still to price until it has one, then sells at its cost
   expect(o!.build.exGstCents).toBe(130000);
   expect(o!.profit).toMatchObject({ profitCents: 0, costCents: 130000 });
 });
+
+/* a hard job's loading (slice 9.2): a percent of the option's labour, with its reason */
+it("adds an option's loading on its labour, and none without a reason", () => {
+  const [plain] = priceLines([indoor, install], [], s, { pct: null, labourCostCents: null });
+  const [loaded] = priceLines([indoor, install], [], s, { pct: null, labourCostCents: null }, { 0: { pct: 12, reason: "Parapet access" } });
+  /* 80 h at $140 is $11,200; 12% of it is $1,344 */
+  expect(loaded!.build.exGstCents - plain!.build.exGstCents).toBe(134400);
+  const [unsaid] = priceLines([indoor, install], [], s, { pct: null, labourCostCents: null }, { 0: { pct: 12, reason: "" } });
+  expect(unsaid!.build.exGstCents).toBe(plain!.build.exGstCents);
+  expect(unsaid!.build.loadingNeedsReason).toBe(true);
+});

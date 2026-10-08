@@ -50,7 +50,14 @@ it("saves the business's row, anything unreadable as not set", async () => {
   });
   expect(res).toEqual({
     ok: true,
-    settings: { lapseAfterDays: 120, quoteFromCents: null, autoCloseDays: 0, categoryRoles: { "c-1": "warranty" }, notCustomers: ["co-1"] },
+    settings: {
+      lapseAfterDays: 120,
+      tenderAfterDays: null,
+      quoteFromCents: null,
+      autoCloseDays: 0,
+      categoryRoles: { "c-1": "warranty" },
+      notCustomers: ["co-1"],
+    },
   });
   expect(upserts).toEqual([
     {
@@ -58,6 +65,7 @@ it("saves the business's row, anything unreadable as not set", async () => {
       row: {
         org_id: "org-1",
         lapse_after_days: 120,
+        tender_after_days: null,
         quote_from_cents: null,
         auto_close_days: 0,
         category_roles: { "c-1": "warranty" },

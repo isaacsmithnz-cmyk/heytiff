@@ -108,3 +108,11 @@ it("says plainly when the table's question check is from before void", async () 
   writeError = { code: "23514", message: "violates check constraint" };
   expect(await decideJob("job-1", "void", "void")).toEqual({ ok: false, error: "Answers can't be kept until the database is updated for them." });
 });
+
+it("keeps a quote open as a tender, the one answer its question takes", async () => {
+  expect(await decideJob("job-1", "extend", "tender")).toEqual({ ok: true });
+  expect(calls).toContain(
+    `job_analytics_decisions.upsert {"org_id":"org-1","sm8_job_uuid":"job-1","question":"extend","answer":"tender","decided_by":"user-1"} {"onConflict":"org_id,sm8_job_uuid,question"} at:string`,
+  );
+  expect(await decideJob("job-1", "extend", "void")).toEqual({ ok: false, error: "That isn't one of the answers." });
+});

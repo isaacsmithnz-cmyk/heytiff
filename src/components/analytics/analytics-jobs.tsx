@@ -38,11 +38,12 @@ export function JobCell({ job, client }: { job: AnalyticsJob; client: string | n
   );
 }
 
-/** Void and Undo for any job, drawn at once and put back with the action's
-    words when refused. `server` is what the page says; a press on this visit
-    goes ahead of it until the page catches up. The jobs pressed on stay
-    known, so a list that would drop them keeps them in place. */
-export function useVoids() {
+/** One answer said of a job, and Undo, drawn at once and put back with the
+    action's words when refused: Void, or kept open as a tender. `server` is
+    what the page says; a press on this visit goes ahead of it until the page
+    catches up. The jobs pressed on stay known, so a list that would drop
+    them keeps them in place. */
+function useMark(question: "void" | "extend", answer: string) {
   const router = useRouter();
   const [, startRefresh] = useTransition();
   const [local, setLocal] = useState<Record<string, boolean>>({});
@@ -50,11 +51,11 @@ export function useVoids() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pressed, setPressed] = useState<Record<string, AnalyticsJob>>({});
 
-  const isVoid = (job: AnalyticsJob, server: boolean) => (job.id in local ? local[job.id]! : server);
+  const isOn = (job: AnalyticsJob, server: boolean) => (job.id in local ? local[job.id]! : server);
 
-  async function setVoid(job: AnalyticsJob, on: boolean, server: boolean) {
+  async function setOn(job: AnalyticsJob, on: boolean, server: boolean) {
     const id = job.id;
-    const was = isVoid(job, server);
+    const was = isOn(job, server);
     setLocal((m) => ({ ...m, [id]: on }));
     setPressed((m) => ({ ...m, [id]: job }));
     setBusy((b) => ({ ...b, [id]: true }));
@@ -63,7 +64,7 @@ export function useVoids() {
       delete out[id];
       return out;
     });
-    const r = await decideJob(id, "void", on ? "void" : null);
+    const r = await decideJob(id, question, on ? answer : null);
     setBusy((b) => {
       const out = { ...b };
       delete out[id];
@@ -77,10 +78,48 @@ export function useVoids() {
     startRefresh(() => router.refresh());
   }
 
-  return { isVoid, setVoid, busy, errors, pressed };
+  return { isOn, setOn, busy, errors, pressed };
+}
+
+export type Mark = ReturnType<typeof useMark>;
+
+/** Void and Undo. */
+export function useVoids() {
+  const m = useMark("void", "void");
+  return { ...m, isVoid: m.isOn, setVoid: m.setOn };
 }
 
 export type Voids = ReturnType<typeof useVoids>;
+
+/** Kept open as a tender, and Undo (Isaac, 2026-10-08: "Do 60 days with
+    option to extend if it's a tender etc"). */
+export const useKeptOpen = () => useMark("extend", "tender");
+
+/** A kept tender's line: what it does, and Undo. */
+export function KeptSaid({ days, busy, onUndo }: { days: number; busy: boolean; onUndo: () => void }) {
+  return (
+    <>
+      <span className="an-said">
+        <i aria-hidden="true" />
+        {`Kept open as a tender, to ${days} days.`}
+      </span>
+      <button type="button" className="an-undo" disabled={busy} onClick={onUndo}>
+        Undo
+      </button>
+    </>
+  );
+}
+
+/** What a list offers besides Void: keeping a quote open as a tender. */
+export type KeepOpen = {
+  marks: Mark;
+  /** whether the page says the job is kept open */
+  server: (job: AnalyticsJob) => boolean;
+  /** whether the job can be: a quote, not one a person marked lost */
+  can: (job: AnalyticsJob) => boolean;
+  /** the tender days */
+  days: number;
+};
 
 /** A void job's line: what it did, Undo, and ServiceM8, which still has it. */
 export function VoidSaid({ job, busy, onUndo }: { job: AnalyticsJob; busy: boolean; onUndo: () => void }) {
@@ -115,6 +154,7 @@ export function VoidList({
   serverVoid,
   what,
   canDecide,
+  keep,
 }: {
   jobs: AnalyticsJob[];
   names: Record<string, string>;
@@ -124,17 +164,25 @@ export function VoidList({
   /** the line under the job: why it is in this list */
   what: (job: AnalyticsJob) => string;
   canDecide: boolean;
+  /** offer "Tender, keep open" beside Void */
+  keep?: KeepOpen;
 }) {
   const [all, setAll] = useState(false);
   /* a job pressed on stays where it was, though the page drops it */
-  const shown = [...jobs, ...Object.values(voids.pressed).filter((p) => !jobs.some((j) => j.id === p.id) && voids.isVoid(p, serverVoid) !== serverVoid)];
+  const pressedAway = [
+    ...Object.values(voids.pressed).filter((p) => voids.isVoid(p, serverVoid) !== serverVoid),
+    ...(keep ? Object.values(keep.marks.pressed).filter((p) => keep.marks.isOn(p, keep.server(p)) !== keep.server(p)) : []),
+  ];
+  const shown = [...jobs, ...pressedAway.filter((p, i) => !jobs.some((j) => j.id === p.id) && pressedAway.findIndex((q) => q.id === p.id) === i)];
   const rows = all ? shown : shown.slice(0, 20);
   return (
     <>
       <div className="an-qlist">
         {rows.map((job) => {
           const isVoid = voids.isVoid(job, serverVoid);
-          const busy = !!voids.busy[job.id];
+          const kept = keep ? keep.marks.isOn(job, keep.server(job)) : false;
+          const busy = !!voids.busy[job.id] || !!keep?.marks.busy[job.id];
+          const error = voids.errors[job.id] ?? keep?.marks.errors[job.id];
           return (
             <div className="an-qrow" key={job.id}>
               <JobCell job={job} client={job.clientId ? (names[job.clientId] ?? null) : null} />
@@ -145,14 +193,23 @@ export function VoidList({
               <div className="an-qact">
                 {isVoid ? (
                   <VoidSaid job={job} busy={busy} onUndo={() => voids.setVoid(job, false, serverVoid)} />
+                ) : kept && keep ? (
+                  <KeptSaid days={keep.days} busy={busy} onUndo={() => keep.marks.setOn(job, false, keep.server(job))} />
                 ) : (
-                  <button type="button" className="an-choice" disabled={busy || !canDecide} onClick={() => voids.setVoid(job, true, serverVoid)}>
-                    Void
-                  </button>
+                  <>
+                    {keep?.can(job) && (
+                      <button type="button" className="an-choice" disabled={busy || !canDecide} onClick={() => keep.marks.setOn(job, true, keep.server(job))}>
+                        Tender, keep open
+                      </button>
+                    )}
+                    <button type="button" className="an-choice" disabled={busy || !canDecide} onClick={() => voids.setVoid(job, true, serverVoid)}>
+                      Void
+                    </button>
+                  </>
                 )}
-                {voids.errors[job.id] && (
+                {error && (
                   <p className="an-err" role="alert">
-                    {voids.errors[job.id]}
+                    {error}
                   </p>
                 )}
               </div>

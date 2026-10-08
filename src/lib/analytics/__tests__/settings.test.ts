@@ -19,6 +19,7 @@ describe("normaliseSettings", () => {
     expect(
       normaliseSettings({
         lapse_after_days: 120,
+        tender_after_days: 365,
         quote_from_cents: 250_000,
         auto_close_days: 0,
         category_roles: { "c-1": "warranty", "c-2": "heat pump", "": "install" },
@@ -26,6 +27,7 @@ describe("normaliseSettings", () => {
       }),
     ).toEqual({
       lapseAfterDays: 120,
+      tenderAfterDays: 365,
       quoteFromCents: 250_000,
       autoCloseDays: 0,
       categoryRoles: { "c-1": "warranty" },
@@ -34,8 +36,8 @@ describe("normaliseSettings", () => {
   });
 
   it("leaves a number out of range, or not whole, unset", () => {
-    const s = normaliseSettings({ lapseAfterDays: 30, quoteFromCents: -1, autoCloseDays: 60.5 });
-    expect(s).toMatchObject({ lapseAfterDays: null, quoteFromCents: null, autoCloseDays: null });
+    const s = normaliseSettings({ lapseAfterDays: 20, tenderAfterDays: 9999, quoteFromCents: -1, autoCloseDays: 60.5 });
+    expect(s).toMatchObject({ lapseAfterDays: null, tenderAfterDays: null, quoteFromCents: null, autoCloseDays: null });
   });
 
   it("tells a list never saved from an empty one", () => {
@@ -51,7 +53,7 @@ describe("normaliseSettings", () => {
 
 describe("the rules", () => {
   it("uses the live account's rules until the business sets its own", () => {
-    expect(rulesOf(DEFAULT_SETTINGS)).toEqual({ lapseAfterDays: 180, quoteFromCents: 300_000, closeAfterDays: null });
+    expect(rulesOf(DEFAULT_SETTINGS)).toEqual({ lapseAfterDays: 60, tenderAfterDays: 180, quoteFromCents: 300_000, closeAfterDays: null });
     expect(rulesOf(DEFAULT_SETTINGS, 60).closeAfterDays).toBe(60);
   });
 

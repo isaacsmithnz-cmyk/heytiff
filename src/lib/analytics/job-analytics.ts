@@ -52,8 +52,13 @@ export { kindLabel, type JobKind };
    before anything is counted, so it is in no figure at all, enquiries
    included, and is listed apart so it can be undone. */
 
-/** A quote with no answer this long after the job was raised counts as lost. */
-export const LAPSE_AFTER_DAYS = 180;
+/** A quote with no answer this long after the job was raised counts as lost
+    (Isaac, 2026-10-08: "Do 60 days", the age ServiceM8 closes them at; it was
+    180 from 2026-10-07). */
+export const LAPSE_AFTER_DAYS = 60;
+/** A quote kept open as a tender is lost only this long after it was raised
+    ("with option to extend if it's a tender etc"). */
+export const TENDER_AFTER_DAYS = 180;
 
 /** One ServiceM8 job, as the figures need it. Days are YYYY-MM-DD. */
 export type AnalyticsJob = {
@@ -108,7 +113,11 @@ export const daysBetween = (from: string, to: string) =>
     account a job a Quote a day or more before its work order is worth $5,400
     at the median, and one with no quote date $428: installs against call-outs. */
 export function wasQuoted(j: AnalyticsJob): boolean {
-  if (norm(j.status) === "unsuccessful") return unsuccessfulQuote(j);
+  if (norm(j.status) === "unsuccessful") {
+    if (stageOf(j) === "unsuccessful") return unsuccessfulQuote(j);
+    /* a work order the techs marked Unsuccessful: quoted as a work order is, or its quote went out */
+    return unsuccessfulQuote(j) || (!!j.quotedOn && j.wonOn! > j.quotedOn);
+  }
   if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) === "quote") return true;
   return !!j.quotedOn && !!j.wonOn && j.wonOn > j.quotedOn;
 }
@@ -120,13 +129,24 @@ export function wasQuoted(j: AnalyticsJob): boolean {
      made (21 marked by hand, $284k);
    - a quote ServiceM8 closed itself, 60 days to the hour after it became a
      Quote, with no answer (32, $229k): still lost, and said apart;
-   - a work order called off before anything was quoted: a call-out the
-     tenant cancelled, a maintenance visit cut short (13): not a quote;
-   - an enquiry never priced or quoted (9): not a quote.
-   A job that was a Work Order and also had a quote sent or a claim invoiced
-   is asked (4, $65k), and one priced at $3,000 or more with no sign of a
-   quote leaving is asked whether it was a quote (1, $208k). */
+   - an enquiry never priced or quoted (9): not a quote;
+   - a WORK ORDER THE TECHS MARKED UNSUCCESSFUL (Isaac, 2026-10-08: "The boys
+     sometimes mark a job unsecessful if they have not completed it that
+     day. So it would have gone quote, work order then marked
+     unsuccessful"): of the 29 in two years, 25 had visits booked after the
+     work order, so the work went ahead. An Unsuccessful job ServiceM8 dates
+     a work order is read as the Work Order it was: won if it was quoted,
+     else work that was never a quote (a call-out, a visit cut short).
+   One priced at $3,000 or more with no sign of a quote leaving and no work
+   order is asked whether it was a quote (1, $208k). */
 const quoteWentOut = (j: AnalyticsJob) => !!j.quoteSentOn || !!j.quoteDocOn;
+
+/** ServiceM8's status as the figures read it: an Unsuccessful job that was a
+    Work Order is still the Work Order it was. */
+export function stageOf(j: AnalyticsJob): string {
+  const s = norm(j.status);
+  return s === "unsuccessful" && j.wonOn ? "work order" : s;
+}
 
 function unsuccessfulQuote(j: AnalyticsJob): boolean {
   return quoteWentOut(j) || !!j.claimedOn;
@@ -148,13 +168,14 @@ export function yesOn(j: AnalyticsJob): string | null {
 }
 
 /** Where a quote stands today; null for a job that isn't a quote. */
-export function outcomeOf(j: AnalyticsJob, today: string, lapseAfterDays: number = LAPSE_AFTER_DAYS): Outcome | null {
+export function outcomeOf(j: AnalyticsJob, today: string, lapseAfterDays: number = LAPSE_AFTER_DAYS, keptOpen = false): Outcome | null {
   if (!wasQuoted(j)) return null;
-  const s = norm(j.status);
+  const s = stageOf(j);
   if (s === "work order" || s === "completed") return "won";
   if (s === "quote" && j.claimedOn) return "won";
-  if (s === "unsuccessful") return "lost";
-  if (s !== "quote") return null;
+  /* a tender ServiceM8 closed with no answer is still open, for as long as a tender is */
+  if (s === "unsuccessful" && !(keptOpen && j.closedUnanswered)) return "lost";
+  if (s !== "quote" && s !== "unsuccessful") return null;
   if (!j.raisedOn) return "open";
   return daysBetween(j.raisedOn, today) > lapseAfterDays ? "lapsed" : "open";
 }
@@ -166,7 +187,16 @@ export function outcomeOf(j: AnalyticsJob, today: string, lapseAfterDays: number
 export const QUOTE_LIKELY_FROM_CENTS = 300_000;
 
 /** The rules a business hasn't set: the live account's (settings). */
-export const DEFAULT_RULES: Rules = { lapseAfterDays: LAPSE_AFTER_DAYS, quoteFromCents: QUOTE_LIKELY_FROM_CENTS, closeAfterDays: null };
+export const DEFAULT_RULES: Rules = {
+  lapseAfterDays: LAPSE_AFTER_DAYS,
+  tenderAfterDays: TENDER_AFTER_DAYS,
+  quoteFromCents: QUOTE_LIKELY_FROM_CENTS,
+  closeAfterDays: null,
+};
+
+/** The days a quote has before it counts as lost: a tender's, or the rule's. */
+export const limitOf = (d: JobDecisions | undefined, rules: Rules) =>
+  d?.extend === "tender" ? Math.max(rules.tenderAfterDays, rules.lapseAfterDays) : rules.lapseAfterDays;
 /** A won price this many times its kind's median, or this fraction of it, is
     asked about once the kind has PRICE_SAMPLE priced wins. */
 export const PRICE_OUTLIER_TIMES = 4;
@@ -179,7 +209,7 @@ const INSTALL: ReadonlySet<JobKind> = new Set(["split", "multi", "ducted", "vrf"
     ServiceM8, or done and charged? */
 function mightBeQuote(j: AnalyticsJob, quoteFromCents: number): boolean {
   if (wasQuoted(j)) return false;
-  if (norm(j.status) === "unsuccessful") return !j.wonOn && (j.valueCents ?? 0) >= quoteFromCents;
+  if (stageOf(j) === "unsuccessful") return (j.valueCents ?? 0) >= quoteFromCents;
   const installCategory = j.role ? j.role === "install" : /install|construction/i.test(j.category ?? "");
   const install = (j.kind !== null && INSTALL.has(j.kind)) || installCategory;
   return install && (j.valueCents ?? 0) >= quoteFromCents;
@@ -270,13 +300,13 @@ export function analyticsKindOf(
   return null;
 }
 
-/** ServiceM8's status and the money or the proposal disagree: Unsuccessful
-    but paid, with a claim invoiced, or once a Work Order on a quote that went
-    out; or accepted in HeyTiff and still a Quote. */
+/** ServiceM8's status and the money or the proposal disagree: Unsuccessful,
+    never a Work Order, but paid or with a claim invoiced; or accepted in
+    HeyTiff and still a Quote. */
 function disputed(j: AnalyticsJob): boolean {
-  const s = norm(j.status);
+  const s = stageOf(j);
   return (
-    (s === "unsuccessful" && (!!j.paid || !!j.claimedOn || (!!j.wonOn && quoteWentOut(j)))) ||
+    (s === "unsuccessful" && (!!j.paid || !!j.claimedOn)) ||
     (s === "quote" && !!j.acceptedInHeyTiff && !j.claimedOn)
   );
 }
@@ -302,7 +332,7 @@ export function placeJob(j: AnalyticsJob, today: string, d: JobDecisions = {}, r
     raises.push("outcome");
     outcome = d.outcome === "won" ? "won" : d.outcome === "lost" ? "lost" : null;
   } else {
-    outcome = outcomeOf(j, today, rules.lapseAfterDays);
+    outcome = outcomeOf(j, today, limitOf(d, rules), d.extend === "tender");
   }
   if (outcome !== null && outcome !== "open" && j.kind === null) raises.push("kind");
   return { outcome, kind, raises };
@@ -534,18 +564,18 @@ function speedBucketOf(p: Placed): string | null {
 
 /* ── the Quotes tab ── */
 
-/** Days from raised to a yes, in bins; the last two either side of the
-    business's lost-after days (91 at the least). */
-export const yesBins = (lapseAfterDays: number = LAPSE_AFTER_DAYS) =>
-  [
-    { label: "0–7", upTo: 7 },
-    { label: "8–14", upTo: 14 },
-    { label: "15–30", upTo: 30 },
-    { label: "31–60", upTo: 60 },
-    { label: "61–90", upTo: 90 },
-    { label: `91–${lapseAfterDays}`, upTo: lapseAfterDays },
-    { label: `Over ${lapseAfterDays}`, upTo: Infinity },
-  ] as const;
+/** Days from raised to a yes, in bins up to the business's lost-after
+    days, and the wins after them. */
+const YES_EDGES = [7, 14, 30, 60, 90, 180, 365];
+export const yesBins = (lapseAfterDays: number = LAPSE_AFTER_DAYS) => {
+  let from = 0;
+  const bins = [...YES_EDGES.filter((e) => e < lapseAfterDays), lapseAfterDays].map((upTo) => {
+    const bin = { label: `${from}–${upTo}`, upTo };
+    from = upTo + 1;
+    return bin;
+  });
+  return [...bins, { label: `Over ${lapseAfterDays}`, upTo: Infinity }];
+};
 
 /** A lost quote, for the review that voids the ones that weren't real jobs. */
 /** Why a lost quote is lost: marked Unsuccessful by hand, closed by
@@ -566,8 +596,15 @@ export type QuotesFigures = {
   lapsed: { count: number; cents: number };
   /** every lost quote in the span, newest first, to review */
   lostJobs: LostJob[];
+  /** the span's quotes kept open as tenders */
+  kept: AnalyticsJob[];
   /** open quotes today, whatever the period: the board's groups */
   openNow: {
+    /** "going cold" after this many days; "reaching" the limit within `soonDays` */
+    coldAfter: number;
+    soonDays: number;
+    /** the quotes reaching their limit soon, oldest first: to keep open, or let go */
+    lapsing: AnalyticsJob[];
     toPrice: number;
     waiting: { count: number; cents: number };
     cold: { count: number; cents: number };
@@ -576,8 +613,10 @@ export type QuotesFigures = {
   };
 };
 
-const COLD_AFTER = 60;
-const SOON = 30;
+/** When an open quote is going cold, and when its limit is near: halfway and
+    a quarter of the way for a short limit, 60 and 30 days for a long one. */
+const coldAfterOf = (limit: number) => (limit >= 120 ? 60 : Math.round(limit / 2));
+const soonOf = (limit: number) => (limit >= 120 ? 30 : Math.max(7, Math.round(limit / 4)));
 
 function lostWhy(p: Placed): LostWhy | null {
   if (p.outcome === "lapsed") return "lapsed";
@@ -585,7 +624,7 @@ function lostWhy(p: Placed): LostWhy | null {
   return p.job.closedUnanswered && norm(p.job.status) === "unsuccessful" ? "closed" : "marked";
 }
 
-function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: string, decisions: Decisions, rules: Rules): QuotesFigures {
+function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: string, decisions: Decisions, rules: Rules, span: Span): QuotesFigures {
   const bins = yesBins(rules.lapseAfterDays);
   const counts = bins.map(() => 0);
   let winsDated = 0;
@@ -598,17 +637,29 @@ function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: stri
   }
   const pack = (ps: Placed[]) => ({ count: ps.length, cents: sum(ps.map(valueOf)) });
 
-  const open = { toPrice: 0, waiting: { count: 0, cents: 0 }, cold: { count: 0, cents: 0 }, lapsingSoon: { count: 0, cents: 0 } };
+  const coldAfter = coldAfterOf(rules.lapseAfterDays);
+  const soonDays = soonOf(rules.lapseAfterDays);
+  const open = {
+    coldAfter,
+    soonDays,
+    lapsing: [] as { job: AnalyticsJob; age: number }[],
+    toPrice: 0,
+    waiting: { count: 0, cents: 0 },
+    cold: { count: 0, cents: 0 },
+    lapsingSoon: { count: 0, cents: 0 },
+  };
   for (const job of jobs) {
-    if (placeJob(job, today, decisions.get(job.id), rules).outcome !== "open" || !job.raisedOn) continue;
+    const d = decisions.get(job.id);
+    if (placeJob(job, today, d, rules).outcome !== "open" || !job.raisedOn) continue;
     const age = Math.max(0, daysBetween(job.raisedOn, today));
     const cents = job.valueCents ?? 0;
-    if (age > rules.lapseAfterDays - SOON) {
+    if (age > limitOf(d, rules) - soonDays) {
       open.lapsingSoon.count++;
       open.lapsingSoon.cents += cents;
+      open.lapsing.push({ job, age });
     }
     if (job.valueCents === null) open.toPrice++;
-    else if (age > COLD_AFTER) {
+    else if (age > coldAfter) {
       open.cold.count++;
       open.cold.cents += cents;
     } else {
@@ -627,7 +678,8 @@ function quotesFigures(jobs: readonly AnalyticsJob[], now: Placed[], today: stri
       .filter((p) => p.outcome === "lost" || p.outcome === "lapsed")
       .sort((a, b) => (b.job.raisedOn ?? "").localeCompare(a.job.raisedOn ?? ""))
       .map((p) => ({ job: p.job, why: lostWhy(p)! })),
-    openNow: open,
+    openNow: { ...open, lapsing: open.lapsing.sort((a, b) => b.age - a.age).map((l) => l.job) },
+    kept: jobs.filter((j) => decisions.get(j.id)?.extend === "tender" && inSpan(j.raisedOn, span)),
   };
 }
 
@@ -763,7 +815,7 @@ export function analyse(
     byKind: bars(now, KIND_KEYS, (p) => p.kind ?? "unknown"),
     byPrice: bars(now, PRICE_BANDS, (p) => bandOf(p.job.valueCents)),
     bySpeed: bars(now, SPEED_BUCKETS, speedBucketOf),
-    quotes: quotesFigures(jobs, now, today, decisions, rules),
+    quotes: quotesFigures(jobs, now, today, decisions, rules, span),
     prices: priceRows(now),
     enquiries: weeksOf(jobs, span, before),
     toDecide: toDecideOf(asks),

@@ -384,14 +384,13 @@ function evidence(a: Ask): { label: string; said: string; hint: string | null } 
           (j.status ?? "").trim().toLowerCase() === "unsuccessful"
             ? j.paid
               ? "Unsuccessful in ServiceM8, but marked paid."
-              : j.claimedOn
-                ? "Unsuccessful in ServiceM8, but a claim was invoiced on it."
-                : "Unsuccessful in ServiceM8, but it was a Work Order once its quote went out."
+              : "Unsuccessful in ServiceM8, but a claim was invoiced on it."
             : "Accepted on the proposal, and still a Quote in ServiceM8.",
         hint: null,
       };
     case "kind":
     case "void":
+    case "extend":
       return { label: "Job description", said: brief, hint: null };
     case "price": {
       const kind = kindLabel(a.kind).replace(/^(?!VRF)./, (c) => c.toLowerCase());

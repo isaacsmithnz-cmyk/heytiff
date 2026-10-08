@@ -11,7 +11,7 @@
 
    Pure: the server reads the row (settings-query.ts) and the jobs. */
 
-import { LAPSE_AFTER_DAYS, QUOTE_LIKELY_FROM_CENTS } from "./job-analytics";
+import { LAPSE_AFTER_DAYS, QUOTE_LIKELY_FROM_CENTS, TENDER_AFTER_DAYS } from "./job-analytics";
 
 /** What a ServiceM8 category's jobs are, for the figures. */
 export type CategoryRole = "install" | "service" | "maintenance" | "warranty" | "not_job" | "other";
@@ -19,8 +19,10 @@ export type CategoryRole = "install" | "service" | "maintenance" | "warranty" | 
 export const CATEGORY_ROLES: readonly CategoryRole[] = ["install", "service", "maintenance", "warranty", "other", "not_job"];
 
 export type AnalyticsSettings = {
-  /** a Quote with no answer this many days after it was raised counts as lost; null: 180 */
+  /** a Quote with no answer this many days after it was raised counts as lost; null: 60 */
   lapseAfterDays: number | null;
+  /** a quote kept open as a tender is lost only this many days after; null: 180 */
+  tenderAfterDays: number | null;
   /** a work order this big with no quote sent is asked about; cents ex GST; null: $3,000 */
   quoteFromCents: number | null;
   /** ServiceM8 closes an unanswered Quote this many days after it became one;
@@ -35,13 +37,14 @@ export type AnalyticsSettings = {
 
 export const DEFAULT_SETTINGS: AnalyticsSettings = {
   lapseAfterDays: null,
+  tenderAfterDays: null,
   quoteFromCents: null,
   autoCloseDays: null,
   categoryRoles: {},
   notCustomers: null,
 };
 
-export const MIN_LAPSE_DAYS = 91;
+export const MIN_LAPSE_DAYS = 30;
 export const MAX_LAPSE_DAYS = 730;
 export const MAX_QUOTE_FROM_CENTS = 10_000_000;
 export const MAX_AUTO_CLOSE_DAYS = 365;
@@ -64,6 +67,7 @@ export function normaliseSettings(input: unknown): AnalyticsSettings {
   const rawClients = pick("notCustomers", "not_customers");
   return {
     lapseAfterDays: wholeIn(pick("lapseAfterDays", "lapse_after_days"), MIN_LAPSE_DAYS, MAX_LAPSE_DAYS),
+    tenderAfterDays: wholeIn(pick("tenderAfterDays", "tender_after_days"), MIN_LAPSE_DAYS, MAX_LAPSE_DAYS),
     quoteFromCents: wholeIn(pick("quoteFromCents", "quote_from_cents"), 0, MAX_QUOTE_FROM_CENTS),
     autoCloseDays: wholeIn(pick("autoCloseDays", "auto_close_days"), 0, MAX_AUTO_CLOSE_DAYS),
     categoryRoles: roles,
@@ -74,6 +78,7 @@ export function normaliseSettings(input: unknown): AnalyticsSettings {
 /** The row as the table keeps it. */
 export const settingsRow = (s: AnalyticsSettings) => ({
   lapse_after_days: s.lapseAfterDays,
+  tender_after_days: s.tenderAfterDays,
   quote_from_cents: s.quoteFromCents,
   auto_close_days: s.autoCloseDays,
   category_roles: s.categoryRoles,
@@ -83,6 +88,7 @@ export const settingsRow = (s: AnalyticsSettings) => ({
 /** The rules the figures are worked out by. */
 export type Rules = {
   lapseAfterDays: number;
+  tenderAfterDays: number;
   quoteFromCents: number;
   /** the age ServiceM8 closes an unanswered Quote at; null: it doesn't, or none was found */
   closeAfterDays: number | null;
@@ -91,6 +97,7 @@ export type Rules = {
 /** The business's rules; the close age is its setting, else what was found in the jobs. */
 export const rulesOf = (s: AnalyticsSettings, found: number | null = null): Rules => ({
   lapseAfterDays: s.lapseAfterDays ?? LAPSE_AFTER_DAYS,
+  tenderAfterDays: s.tenderAfterDays ?? TENDER_AFTER_DAYS,
   quoteFromCents: s.quoteFromCents ?? QUOTE_LIKELY_FROM_CENTS,
   closeAfterDays: s.autoCloseDays === null ? found : s.autoCloseDays === 0 ? null : s.autoCloseDays,
 });

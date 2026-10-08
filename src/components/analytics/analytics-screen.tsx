@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import {
   change,
+  daysBetween,
   longDay,
   money,
   pct,
@@ -15,7 +16,7 @@ import {
 } from "@/lib/analytics/job-analytics";
 import { DaysToYes, EnquiriesChart, KIND_COLOUR, PriceTable, RateBars, STEP_COLOUR } from "./analytics-charts";
 import { ToDecide } from "./analytics-decide";
-import { useVoids, VoidList } from "./analytics-jobs";
+import { useKeptOpen, useVoids, VoidList, type KeepOpen } from "./analytics-jobs";
 import "./analytics.css";
 
 /* ANALYTICS — the business's own jobs, read off ServiceM8's copy
@@ -304,8 +305,15 @@ function ToDecideLine({ a, onDecide }: { a: JobAnalytics; onDecide: () => void }
 
 function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string, string>; canDecide: boolean }) {
   const voids = useVoids();
+  const keptOpen = useKeptOpen();
   const [review, setReview] = useState(false);
+  const [reviewNear, setReviewNear] = useState(false);
+  const [showKept, setShowKept] = useState(false);
   const q = a.quotes;
+  /* a tender waits longer (Isaac, 2026-10-08: "Do 60 days with option to extend if it's a tender etc") */
+  const keptIds = new Set(q.kept.map((j) => j.id));
+  const keep = (can: KeepOpen["can"]): KeepOpen => ({ marks: keptOpen, server: (j) => keptIds.has(j.id), can, days: a.rules.tenderAfterDays });
+  const whyLost = (id: string) => q.lostJobs.find((l) => l.job.id === id)?.why ?? "marked";
   const t = a.top;
   const lost = q.unsuccessful.count + q.closed.count + q.lapsed.count;
   const inside = q.winsDated - q.lateWins;
@@ -368,8 +376,9 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
               names={names}
               voids={voids}
               serverVoid={false}
-              what={(job) => lostWords(q.lostJobs.find((l) => l.job.id === job.id)?.why ?? "marked", a)}
+              what={(job) => lostWords(whyLost(job.id), a)}
               canDecide={canDecide}
+              keep={keep((job) => whyLost(job.id) !== "marked")}
             />
           )}
         </section>
@@ -379,15 +388,62 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
         <h2 id="an-h-open">Open quotes today</h2>
         <div className="an-top">
           <Fig label="To price" value={open.toPrice.toLocaleString("en-AU")} note={{ words: "Nothing priced yet", tone: "" }} />
-          <Fig label="Waiting, under 60 days" value={open.waiting.count.toLocaleString("en-AU")} note={{ words: money(open.waiting.cents), tone: "" }} />
-          <Fig label={`Going cold, 60 to ${a.rules.lapseAfterDays} days`} value={open.cold.count.toLocaleString("en-AU")} note={{ words: money(open.cold.cents), tone: "" }} />
           <Fig
-            label={`Reach ${a.rules.lapseAfterDays} days in the next 30`}
+            label={`Waiting, under ${open.coldAfter} days`}
+            value={open.waiting.count.toLocaleString("en-AU")}
+            note={{ words: money(open.waiting.cents), tone: "" }}
+          />
+          <Fig
+            label={`Going cold, ${open.coldAfter} to ${a.rules.lapseAfterDays} days`}
+            value={open.cold.count.toLocaleString("en-AU")}
+            note={{ words: money(open.cold.cents), tone: "" }}
+          />
+          <Fig
+            label={`Reach ${a.rules.lapseAfterDays} days in the next ${open.soonDays}`}
             value={open.lapsingSoon.count.toLocaleString("en-AU")}
             note={{ words: money(open.lapsingSoon.cents), tone: open.lapsingSoon.count > 0 ? "warn" : "" }}
           />
         </div>
+        {open.lapsing.length > 0 && (
+          <>
+            <button type="button" className="an-more" onClick={() => setReviewNear((r) => !r)} aria-expanded={reviewNear}>
+              {reviewNear ? "Hide them" : `Review the ${open.lapsing.length.toLocaleString("en-AU")} nearly lost`}
+            </button>
+            {reviewNear && (
+              <VoidList
+                jobs={open.lapsing}
+                names={names}
+                voids={voids}
+                serverVoid={false}
+                what={(job) => `Open ${daysBetween(job.raisedOn ?? a.span.to, a.span.to)} days, lost at ${keptIds.has(job.id) ? a.rules.tenderAfterDays : a.rules.lapseAfterDays}`}
+                canDecide={canDecide}
+                keep={keep(() => true)}
+              />
+            )}
+          </>
+        )}
       </section>
+
+      {q.kept.length > 0 && (
+        <section className="an-sec" aria-labelledby="an-h-kept">
+          <h2 id="an-h-kept">Kept open as tenders</h2>
+          <p className="an-say">{`Lost only after ${a.rules.tenderAfterDays} days with no answer, ServiceM8 closing them or not.`}</p>
+          <button type="button" className="an-more" onClick={() => setShowKept((s) => !s)} aria-expanded={showKept}>
+            {showKept ? "Hide them" : `Show the ${q.kept.length.toLocaleString("en-AU")} kept open`}
+          </button>
+          {showKept && (
+            <VoidList
+              jobs={q.kept}
+              names={names}
+              voids={voids}
+              serverVoid={false}
+              what={() => "Kept open as a tender"}
+              canDecide={canDecide}
+              keep={keep(() => true)}
+            />
+          )}
+        </section>
+      )}
     </div>
   );
 }

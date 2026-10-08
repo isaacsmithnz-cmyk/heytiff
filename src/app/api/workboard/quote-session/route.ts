@@ -7,6 +7,8 @@ import { chosenModel } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
 import { holding, readThread } from "@/lib/quotes/session/store-server";
 import { answerQuestion, priceQuestions } from "@/lib/quotes/session/answers-server";
+import { briefOf } from "@/lib/quotes/session/job-sources";
+import { readJobSources } from "@/lib/quotes/session/job-sources-server";
 
 /* Tiff's session on a quote (slice 4.1): GET reads the thread as a person
    reads it, after an event id, with whether she's working and what the
@@ -38,11 +40,13 @@ export async function GET(req: Request) {
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const since = Math.max(0, Number(url.searchParams.get("since")) || 0);
   const target = await resolveJobCard(g.orgId, job);
+  /* Read the job: what she'd be given, each source to untick */
+  if (url.searchParams.get("sources") === "1") return Response.json({ ok: true, ...(await readJobSources(g.orgId, target.parentRemoteId)) });
   const { session, events } = await readThread(g.orgId, target.parentRemoteId, since);
   /* her questions' answers priced, asked for once she's done rather than
      every poll: it reads the book */
   const questions = url.searchParams.get("questions") === "1" ? await priceQuestions(g.orgId, target.parentRemoteId, since ? (await readThread(g.orgId, target.parentRemoteId)).events : events) : undefined;
-  const names = await namesBySignIn(g.orgId, [...new Set(events.map((e) => e.author).filter((a) => a !== "tiff"))]);
+  const names = await namesBySignIn(g.orgId, [...new Set([g.userId, ...events.map((e) => e.author).filter((a) => a !== "tiff")])]);
   return Response.json({
     ok: true,
     on: chosenModel() != null,
@@ -70,9 +74,15 @@ export async function POST(req: Request) {
     const r = await answerQuestion(g.orgId, target.parentRemoteId, g.userId, event, index, events);
     return Response.json(r, { status: r.ok ? 200 : 409 });
   }
-  const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, typeof body.message === "string" ? body.message : "", {
-    brief: typeof body.brief === "string" ? body.brief.slice(0, 40_000) : undefined,
-  });
+  /* Read the job: the brief is built here from the sources left ticked,
+     never taken as text from the page */
+  let brief: string | undefined;
+  if (Array.isArray(body.sources)) {
+    const ticked = new Set(body.sources.filter((s): s is string => typeof s === "string"));
+    brief = briefOf((await readJobSources(g.orgId, target.parentRemoteId)).sources, ticked);
+    if (!brief) return Response.json({ ok: false, reason: "Tick something for her to read." }, { status: 400 });
+  }
+  const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, typeof body.message === "string" ? body.message : "", { brief });
   if (!started.ok) return Response.json({ ok: false, reason: started.reason }, { status: started.status });
   after(started.run);
   return Response.json({ ok: true, turn: started.turnId });

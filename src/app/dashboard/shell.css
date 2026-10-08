@@ -6801,6 +6801,13 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt-state.work i { background:var(--info-t); }
 .fg .qt-b { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:12px 16px 4px; }
 .fg .qt-hello { display:flex; flex-direction:column; align-items:center; gap:12px; padding:32px 0; font-size:14px; color:var(--hd-ink); }
+.fg .qt-hello span { font-size:13px; color:var(--q); }
+.fg .qt-src { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-direction:column; }
+.fg .qt-src li + li { border-top:1px solid var(--hd-rule2); }
+.fg .qt-src label { display:grid; grid-template-columns:16px minmax(0, 1fr); gap:8px; padding:8px 0; cursor:pointer; }
+.fg .qt-src input { margin:2px 0 0; }
+.fg .qt-src b { display:block; font-size:13px; font-weight:600; color:var(--hd-ink); }
+.fg .qt-src small { display:block; font-size:12px; line-height:1.45; color:var(--hd-body); }
 .fg .qt-qa { display:flex; flex-direction:column; gap:8px; padding:12px 0; }
 .fg .qt-qa + .qt-qa { border-top:1px solid var(--hd-rule2); }
 .fg .qt-q { margin:0; font-size:14px; font-weight:600; line-height:1.4; color:var(--hd-ink); }

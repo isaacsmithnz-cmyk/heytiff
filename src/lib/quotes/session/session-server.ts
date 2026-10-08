@@ -42,7 +42,7 @@ export async function startTurn(
     : "";
   const said = [answered, text].filter(Boolean).join("\n\n");
   const message = session.messages.length === 0 ? openingMessage(opts.brief ?? "", said) : said;
-  await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job" } }]);
+  await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job", ...(opts.brief ? { read: true } : {}) } }]);
 
   const model = opts.model ?? anthropicModel();
   const run = async () => {

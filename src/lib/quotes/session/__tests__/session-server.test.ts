@@ -11,11 +11,13 @@ const beginTurn = jest.fn();
 const addEvents = jest.fn(async () => undefined);
 const saveRound = jest.fn(async () => true);
 const endTurn = jest.fn(async () => undefined);
+const takeAnswers = jest.fn(async () => [] as { question: string; answer: string }[]);
 jest.mock("../store-server", () => ({
   beginTurn: (...a: unknown[]) => beginTurn(...a),
   addEvents: (...a: unknown[]) => (addEvents as jest.Mock)(...a),
   saveRound: (...a: unknown[]) => (saveRound as jest.Mock)(...a),
   endTurn: (...a: unknown[]) => (endTurn as jest.Mock)(...a),
+  takeAnswers: (...a: unknown[]) => (takeAnswers as jest.Mock)(...a),
 }));
 jest.mock("../tools-server", () => ({ sessionTools: () => async () => ({ ok: true, value: null, label: "x" }) }));
 jest.mock("../model-server", () => ({
@@ -73,4 +75,13 @@ it("lets the turn go when it fails", async () => {
   const started = await startTurn("org", "job", "u1", "Quote this", { modelName: "m", model });
   await (started as Extract<typeof started, { ok: true }>).run();
   expect(endTurn).toHaveBeenCalledWith("s1", "t1");
+});
+
+it("tells her what was answered since her last turn, already on the quote", async () => {
+  beginTurn.mockResolvedValue({ ok: true, session: { ...session, messages: [{ role: "user", content: [{ type: "text", text: "Quote a split" }] }, { role: "assistant", content: [{ type: "text", text: "Done." }] }] }, turnId: "t2" });
+  takeAnswers.mockResolvedValueOnce([{ question: "Single or three phase?", answer: "Three phase" }]);
+  const model = scripted([{ content: [{ type: "text", text: "Noted." }], stopReason: "end_turn" }]);
+  const started = await startTurn("org", "job", "u1", "Carry on", { modelName: "m", model });
+  await (started as Extract<typeof started, { ok: true }>).run();
+  expect(model.calls[0]!.messages.at(-1)!.content).toEqual([{ type: "text", text: "They answered, and the quote was changed to match:\n- Single or three phase? Three phase\n\nCarry on" }]);
 });

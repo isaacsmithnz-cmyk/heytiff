@@ -18,21 +18,6 @@
     "method": "capacity_combination_table",
     "combos": [
      [
-      20
-     ],
-     [
-      25
-     ],
-     [
-      35
-     ],
-     [
-      46
-     ],
-     [
-      50
-     ],
-     [
       20,
       20
      ],
@@ -135,7 +120,7 @@
      "kind": "extracted",
      "source": "Super Multi NX Multi-Split Brochure (AU)",
      "edition": "PCRAU1729B",
-     "page": "45"
+     "page": "45, 58"
     }
    }
   ],
@@ -173,24 +158,6 @@
     "method": "capacity_combination_table",
     "combos": [
      [
-      20
-     ],
-     [
-      25
-     ],
-     [
-      35
-     ],
-     [
-      46
-     ],
-     [
-      50
-     ],
-     [
-      60
-     ],
-     [
       20,
       20
      ],
@@ -462,7 +429,7 @@
      "kind": "extracted",
      "source": "Super Multi NX Multi-Split Brochure (AU)",
      "edition": "PCRAU1729B",
-     "page": "45-47"
+     "page": "45-47, 58"
     }
    }
   ],
@@ -500,27 +467,6 @@
     "method": "capacity_combination_table",
     "combos": [
      [
-      20
-     ],
-     [
-      25
-     ],
-     [
-      35
-     ],
-     [
-      46
-     ],
-     [
-      50
-     ],
-     [
-      60
-     ],
-     [
-      71
-     ],
-     [
       20,
       20
      ],
@@ -1217,7 +1163,7 @@
      "kind": "extracted",
      "source": "Super Multi NX Multi-Split Brochure (AU)",
      "edition": "PCRAU1729B",
-     "page": "47-51"
+     "page": "47-51, 58"
     }
    }
   ],
@@ -1255,33 +1201,6 @@
     "method": "capacity_combination_table",
     "combos": [
      [
-      20
-     ],
-     [
-      25
-     ],
-     [
-      35
-     ],
-     [
-      46
-     ],
-     [
-      50
-     ],
-     [
-      60
-     ],
-     [
-      71
-     ],
-     [
-      85
-     ],
-     [
-      95
-     ],
-     [
       20,
       20
      ],
@@ -2609,7 +2528,7 @@
      "kind": "extracted",
      "source": "Super Multi NX Multi-Split Brochure (AU)",
      "edition": "PCRAU1729B",
-     "page": "51-57"
+     "page": "51-57, 58"
     }
    }
   ],
@@ -2659,21 +2578,6 @@
    {
     "method": "capacity_combination_table",
     "combos": [
-     [
-      20
-     ],
-     [
-      25
-     ],
-     [
-      35
-     ],
-     [
-      46
-     ],
-     [
-      50
-     ],
      [
       20,
       20
@@ -2831,24 +2735,6 @@
    {
     "method": "capacity_combination_table",
     "combos": [
-     [
-      20
-     ],
-     [
-      25
-     ],
-     [
-      35
-     ],
-     [
-      46
-     ],
-     [
-      50
-     ],
-     [
-      60
-     ],
      [
       20,
       20
@@ -3175,27 +3061,6 @@
    {
     "method": "capacity_combination_table",
     "combos": [
-     [
-      20
-     ],
-     [
-      25
-     ],
-     [
-      35
-     ],
-     [
-      46
-     ],
-     [
-      50
-     ],
-     [
-      60
-     ],
-     [
-      71
-     ],
      [
       20,
       20
@@ -3951,33 +3816,6 @@
    {
     "method": "capacity_combination_table",
     "combos": [
-     [
-      20
-     ],
-     [
-      25
-     ],
-     [
-      35
-     ],
-     [
-      46
-     ],
-     [
-      50
-     ],
-     [
-      60
-     ],
-     [
-      71
-     ],
-     [
-      85
-     ],
-     [
-      95
-     ],
      [
       20,
       20

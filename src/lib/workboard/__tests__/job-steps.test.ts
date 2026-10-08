@@ -152,6 +152,15 @@ describe("where a job is up to", () => {
     expect(jobSteps({ ...base, ...j }, true).map((s) => s.label)).toEqual(["Enquiry", "Quoted", "Declined"]);
   });
 
+  it("a declined quote with a booking left on it keeps Installation, to clear it", () => {
+    expect(line({ status: "Unsuccessful", quoteSentOn: "2026-08-27", leftover: true }, true)).toEqual([
+      "enquiry:done:20 Aug",
+      "quoted:done:Sent 27 Aug",
+      "accepted:bad",
+      "installation:warn:Still booked",
+    ]);
+  });
+
   it("without the money grant the two money steps are absent", () => {
     const keys = jobSteps({ ...base, family: family([claim({})]) }, false).map((s) => s.key);
     expect(keys).not.toContain("deposit");

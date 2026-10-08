@@ -1107,6 +1107,7 @@ export function JobSheet({
             : null,
           family,
           noDeposit,
+          leftover: (detail?.booked ?? []).some((b) => b.leftover),
         },
         moneyVisible
       ),

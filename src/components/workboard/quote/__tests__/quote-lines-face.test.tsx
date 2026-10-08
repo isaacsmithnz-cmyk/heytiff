@@ -242,3 +242,30 @@ it("lists what to check: what isn't known yet, and the profit against the target
   expect(screen.getByText("To check")).toBeInTheDocument();
   expect(screen.getByText("Profit 20%, target 20%")).toBeInTheDocument();
 });
+
+it("marks the option accepted from the corner, says its parts went on the job, and shows what goes to ServiceM8", async () => {
+  const corner = document.createElement("div");
+  document.body.appendChild(corner);
+  const onToast = jest.fn();
+  let accepted: number[] = [];
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    if (init?.body) {
+      posted.push(JSON.parse(init.body));
+      accepted = [0];
+    }
+    return { json: async () => ({ ...view([indoor]), accepted, onJob: init?.body ? { added: 1, removed: 0 } : null }) };
+  });
+  render(
+    <QuoteLinesFace job="job-3377" price={price} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} onToast={onToast} send={<p>To ServiceM8</p>} />
+  );
+  expect(screen.queryByText("To ServiceM8")).not.toBeInTheDocument();
+  const mark = await screen.findByRole("button", { name: "Mark accepted" });
+  await act(async () => {
+    fireEvent.click(mark);
+  });
+  expect(posted).toContainEqual({ job: "job-3377", op: "accept", option: 0 });
+  expect(onToast).toHaveBeenCalledWith("The accepted option's parts are on the job's materials list");
+  expect(screen.getByRole("button", { name: "Accepted" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByText("To ServiceM8")).toBeInTheDocument();
+  corner.remove();
+});

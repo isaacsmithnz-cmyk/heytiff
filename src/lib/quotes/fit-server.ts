@@ -2,7 +2,7 @@ import "server-only";
 import { brandOfCode } from "./brand";
 import { fitChecks, type Fit } from "./fit";
 import type { QuoteLine } from "./lines";
-import type { UnitLookup } from "./lookups";
+import type { UnitLookup, UnitSpecs } from "./lookups";
 import { lookupUnit } from "./lookups-server";
 
 /* Each system's parts checked against its outdoor unit (fit.ts), read off
@@ -37,6 +37,19 @@ export async function linesFit(lines: QuoteLine[]): Promise<Fit[]> {
   for (const [key, unit] of outdoor) {
     const parts = lines.filter((l) => `${l.optionIndex}|${l.system}` === key && l.kind !== "labour");
     out.push(...fitChecks(parts.map((l) => ({ key: l.id, system: key, name: l.name, code: l.code })), new Map([[key, unit]])));
+  }
+  return out;
+}
+
+/** Each unit line's specs off its maker's pack, by line id: null where the
+    brand has no pack or the pack hasn't the model. */
+export async function unitSpecsOf(lines: readonly QuoteLine[]): Promise<Map<string, UnitSpecs | null>> {
+  const out = new Map<string, UnitSpecs | null>();
+  for (const u of lines.filter((l) => l.kind === "unit" && l.code)) {
+    const brand = brandOfCode(u.code!, u.name);
+    const pack = brand ? PACK_OF[brand] : undefined;
+    const r = pack ? await lookupUnit(pack, u.code!).catch((): UnitLookup => ({ found: false, reason: "not in the pack" })) : null;
+    out.set(u.id, r?.found ? r.specs : null);
   }
   return out;
 }

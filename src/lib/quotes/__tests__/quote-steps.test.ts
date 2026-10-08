@@ -114,4 +114,7 @@ describe("a quote built on its kept lines", () => {
   it("asks for Quoting when the business hasn't set what pricing needs", () => {
     expect(linesSteps({ lines: 3, unknown: 0, price: { kind: "unset" } })[2]).toMatchObject({ state: "due", words: "Set Quoting to price it" });
   });
+  it("shows the option a person marked accepted", () => {
+    expect(linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, accepted: [1] })[5]).toMatchObject({ key: "accepted", state: "done", words: "Option 2" });
+  });
 });

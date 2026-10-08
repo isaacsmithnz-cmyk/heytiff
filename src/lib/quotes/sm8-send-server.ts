@@ -1,7 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { stillToPrice } from "./job-price";
-import { readStoredProposal } from "./proposal-writer";
+import { readJobQuote } from "./lines-job-server";
 import { readQuotePrice } from "./quote-price-server";
 import { readQuoteSettings } from "./settings-query";
 import { sendPlan, usualTaxRate, type SendPlan } from "./sm8-send-plan";
@@ -22,8 +22,8 @@ export async function readSm8SendPlan(orgId: string, cardId: string): Promise<Se
 }
 
 export async function readSm8SendView(orgId: string, cardId: string): Promise<SendView> {
-  const [proposal, price, settings, job, lines, rates] = await Promise.all([
-    readStoredProposal(orgId, cardId),
+  const [quote, price, settings, job, lines, rates] = await Promise.all([
+    readJobQuote(orgId, cardId),
     readQuotePrice(orgId, cardId),
     readQuoteSettings(orgId),
     supabaseAdmin.from("sm8_jobs").select("status, invoice_sent, edit_date").eq("org_id", orgId).eq("uuid", cardId).maybeSingle(),
@@ -32,21 +32,21 @@ export async function readSm8SendView(orgId: string, cardId: string): Promise<Se
   ]);
   const row = job.data as { status: string | null; invoice_sent: number | boolean | null; edit_date: string | null } | null;
   const editDate = row?.edit_date ?? null;
-  if (!proposal) return { plan: { ok: false, why: "There's no quote on this job." }, editDate };
+  if (!quote) return { plan: { ok: false, why: "There's no quote on this job." }, editDate };
   if (!price.ok) return { plan: { ok: false, why: "The quote can't be priced yet: set what Quoting asks for." }, editDate };
   if (!row) return { plan: { ok: false, why: "That job isn't in HeyTiff's copy of ServiceM8." }, editDate };
-  const accepted = proposal.draft.accepted.length
-    ? proposal.draft.accepted
-    : proposal.draft.options.length === 1
+  const accepted = quote.draft.accepted.length
+    ? quote.draft.accepted
+    : quote.draft.options.length === 1
       ? [0]
       : [];
   const plan = sendPlan({
-    draft: proposal.draft,
+    draft: quote.draft,
     accepted: accepted.flatMap((index) => {
       const o = price.options[index];
       return o ? [{ index, build: o.build, left: stillToPrice({ unpriced: o.unpriced, labourFrom: o.labourFrom, labourCents: o.build.labour.sellCents }).length }] : [];
     }),
-    showLines: proposal.draft.showLines ?? settings.showLines,
+    showLines: quote.draft.showLines ?? settings.showLines,
     job: { status: row.status, invoiced: row.invoice_sent === true || row.invoice_sent === 1 },
     existing: ((lines.data ?? []) as { uuid: string; name: string | null; active: number | boolean | null }[])
       .filter((l) => l.active !== 0 && l.active !== false)

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { decideJob } from "@/app/actions/analytics-decide";
 import { makeWorkOrder } from "@/app/actions/booking-sm8";
+import { MarkLostPress, useMarkLost, type MarkLost } from "./analytics-jobs";
 import { ANSWERS, QUESTIONS, QUESTION_WORDS, answerLabel, answerSaid, cleanupFor, kindLabel, questionWhy, type Question } from "@/lib/analytics/decisions";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { money, QUOTE_LIKELY_FROM_CENTS, type AnalyticsJob, type Ask } from "@/lib/analytics/job-analytics";
@@ -52,6 +53,7 @@ export function ToDecide({
   names,
   canDecide,
   workOrders = null,
+  lostWrites = null,
   voided = [],
   quoteFromCents = QUOTE_LIKELY_FROM_CENTS,
 }: {
@@ -60,6 +62,8 @@ export function ToDecide({
   canDecide: boolean;
   /** a Quote can be made a Work Order in ServiceM8 from here */
   workOrders?: "on" | "trial" | null;
+  /** an owner may mark a Quote Unsuccessful in ServiceM8 from here */
+  lostWrites?: "on" | "trial" | null;
   /** jobs of the period already void */
   voided?: AnalyticsJob[];
   /** the business's line for "Is it a quote?" */
@@ -116,6 +120,8 @@ export function ToDecide({
     setSm8((m) => ({ ...m, [k]: r.ok ? { state: r.state } : { error: r.error } }));
     if (r.ok && r.state === "sent") startRefresh(() => router.refresh());
   }
+
+  const marks = useMarkLost();
 
   /* the won Quotes still waiting on their change, one after another */
   const waitingWorkOrders = workOrders
@@ -194,6 +200,7 @@ export function ToDecide({
                   workOrders={workOrders}
                   sm8={sm8[keyOf(a)] ?? null}
                   onWorkOrder={() => toWorkOrder(a)}
+                  marks={lostWrites ? marks : null}
                   voids={voids}
                   onVoid={() => remember(a)}
                 />
@@ -238,6 +245,7 @@ function Row({
   workOrders,
   sm8,
   onWorkOrder,
+  marks,
   voids,
   onVoid,
 }: {
@@ -251,6 +259,7 @@ function Row({
   workOrders: "on" | "trial" | null;
   sm8: Sm8Step | null;
   onWorkOrder: () => void;
+  marks: MarkLost | null;
   voids: Voids;
   onVoid: () => void;
 }) {
@@ -303,7 +312,7 @@ function Row({
                 Undo
               </button>
             )}
-            <Cleanup ask={ask} answer={answer} workOrders={workOrders} sm8={sm8} onWorkOrder={onWorkOrder} />
+            <Cleanup ask={ask} answer={answer} workOrders={workOrders} sm8={sm8} onWorkOrder={onWorkOrder} marks={marks} />
           </>
         )}
         {(error ?? voids.errors[j.id]) && (
@@ -324,14 +333,17 @@ function Cleanup({
   workOrders,
   sm8,
   onWorkOrder,
+  marks,
 }: {
   ask: Ask;
   answer: string;
   workOrders: "on" | "trial" | null;
   sm8: Sm8Step | null;
   onWorkOrder: () => void;
+  marks: MarkLost | null;
 }) {
   const need = cleanupFor(ask.question, answer, ask.job.status);
+  if (need === "unsuccessful" && marks) return <MarkLostPress job={ask.job} marks={marks} />;
   if (!need) return null;
   const url = sm8JobUrl(ask.job.id);
   if (need === "work_order" && workOrders) {

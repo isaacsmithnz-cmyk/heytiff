@@ -132,6 +132,7 @@ jest.mock("@/app/actions/sm8-booking-queue", () => {
 import {
   bookJobIn,
   clearLeftoverBooking,
+  markUnsuccessful,
   readBookingStates,
   readBookInContext,
   retryBooking,
@@ -442,6 +443,23 @@ describe("the gates (C-4)", () => {
 });
 
 /* ── the panel's live read ── */
+
+/* Isaac, 2026-10-08: "Owner only for the Mark Unsuccessful button" */
+describe("Mark Unsuccessful, from Analytics: the owner's", () => {
+  it("(F) an owner's press makes the Quote Unsuccessful in ServiceM8, its status alone", async () => {
+    const r = await markUnsuccessful({ jobUuid: JOB, pressId: randomUUID() });
+    expect(r).toMatchObject({ ok: true, state: "sent" });
+    expect(postSm8JobStatus.mock.calls.map((c) => c.slice(1))).toEqual([[JOB, "Unsuccessful"]]);
+    expect(writes()).toEqual([expect.objectContaining({ op: "update", job_status_from: "Quote", job_status_to: "Unsuccessful" })]);
+  });
+
+  it("(F) anyone but an owner is refused, and nothing is read or queued", async () => {
+    as(COOWNER, "admin");
+    expect((await markUnsuccessful({ jobUuid: JOB, pressId: randomUUID() })).ok).toBe(false);
+    expect(writes()).toEqual([]);
+    expect(postSm8JobStatus).not.toHaveBeenCalled();
+  });
+});
 
 describe("the panel's read", () => {
   it("(F) checks ServiceM8 itself: the job, its bookings and the day's, who can be booked — you first — and the account's clock", async () => {

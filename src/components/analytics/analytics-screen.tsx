@@ -10,13 +10,14 @@ import {
   money,
   pct,
   PERIODS,
+  type AnalyticsJob,
   type JobAnalytics,
   type LostWhy,
   type PeriodKey,
 } from "@/lib/analytics/job-analytics";
 import { DaysToYes, EnquiriesChart, KIND_COLOUR, PriceTable, RateBars, STEP_COLOUR } from "./analytics-charts";
 import { ToDecide } from "./analytics-decide";
-import { useKeptOpen, useVoids, VoidList, type KeepOpen } from "./analytics-jobs";
+import { useKeptOpen, useMarkLost, useVoids, VoidList, type KeepOpen } from "./analytics-jobs";
 import "./analytics.css";
 
 /* ANALYTICS — the business's own jobs, read off ServiceM8's copy
@@ -39,6 +40,8 @@ export type AnalyticsState =
       canDecide?: boolean;
       /** a Quote can be made a Work Order in ServiceM8 from here (cleanup-offer) */
       workOrders?: "on" | "trial" | null;
+      /** an owner may mark a Quote Unsuccessful in ServiceM8 */
+      lostWrites?: "on" | "trial" | null;
     };
 
 type Tab = "overview" | "quotes" | "decide";
@@ -90,7 +93,7 @@ export function AnalyticsScreen({ state, period }: { state: AnalyticsState; peri
                   <Overview a={state.data} truncated={state.truncated} onDecide={() => setTab("decide")} />
                 )}
                 {state.kind === "ready" && tab === "quotes" && (
-                  <Quotes a={state.data} names={state.names ?? {}} canDecide={state.canDecide ?? false} />
+                  <Quotes a={state.data} names={state.names ?? {}} canDecide={state.canDecide ?? false} lostWrites={state.lostWrites ?? null} />
                 )}
                 {state.kind === "ready" && tab === "decide" && (
                   <ToDecide
@@ -98,6 +101,7 @@ export function AnalyticsScreen({ state, period }: { state: AnalyticsState; peri
                     names={state.names ?? {}}
                     canDecide={state.canDecide ?? false}
                     workOrders={state.workOrders ?? null}
+                    lostWrites={state.lostWrites ?? null}
                     voided={state.data.voided}
                     quoteFromCents={state.data.rules.quoteFromCents}
                   />
@@ -303,8 +307,20 @@ function ToDecideLine({ a, onDecide }: { a: JobAnalytics; onDecide: () => void }
 
 /* ── Quotes ── */
 
-function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string, string>; canDecide: boolean }) {
+function Quotes({
+  a,
+  names,
+  canDecide,
+  lostWrites,
+}: {
+  a: JobAnalytics;
+  names: Record<string, string>;
+  canDecide: boolean;
+  /** an owner may mark a lost Quote Unsuccessful in ServiceM8 */
+  lostWrites: "on" | "trial" | null;
+}) {
   const voids = useVoids();
+  const marks = useMarkLost();
   const keptOpen = useKeptOpen();
   const [review, setReview] = useState(false);
   const [reviewNear, setReviewNear] = useState(false);
@@ -314,6 +330,12 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
   const keptIds = new Set(q.kept.map((j) => j.id));
   const keep = (can: KeepOpen["can"]): KeepOpen => ({ marks: keptOpen, server: (j) => keptIds.has(j.id), can, days: a.rules.tenderAfterDays });
   const whyLost = (id: string) => q.lostJobs.find((l) => l.job.id === id)?.why ?? "marked";
+  /* lost with no answer and still a Quote in ServiceM8: the owner can make it Unsuccessful there */
+  const stillQuote = (job: AnalyticsJob) => whyLost(job.id) === "lapsed" && (job.status ?? "").trim().toLowerCase() === "quote";
+  const toMark = lostWrites ? q.lostJobs.map((l) => l.job).filter((j) => stillQuote(j) && marks.waiting(j) && !keptIds.has(j.id)) : [];
+  async function markAll() {
+    for (const j of toMark) await marks.mark(j);
+  }
   const t = a.top;
   const lost = q.unsuccessful.count + q.closed.count + q.lapsed.count;
   const inside = q.winsDated - q.lateWins;
@@ -370,6 +392,11 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
           <button type="button" className="an-more" onClick={() => setReview((r) => !r)} aria-expanded={review}>
             {review ? "Hide the lost quotes" : `Review the ${q.lostJobs.length.toLocaleString("en-AU")} lost`}
           </button>
+          {review && toMark.length > 1 && (
+            <button type="button" className="an-choice" onClick={() => void markAll()}>
+              {`Mark ${toMark.length.toLocaleString("en-AU")} Unsuccessful in ServiceM8`}
+            </button>
+          )}
           {review && (
             <VoidList
               jobs={q.lostJobs.map((l) => l.job)}
@@ -379,6 +406,7 @@ function Quotes({ a, names, canDecide }: { a: JobAnalytics; names: Record<string
               what={(job) => lostWords(whyLost(job.id), a)}
               canDecide={canDecide}
               keep={keep((job) => whyLost(job.id) !== "marked")}
+              markLost={lostWrites ? { marks, can: stillQuote } : undefined}
             />
           )}
         </section>

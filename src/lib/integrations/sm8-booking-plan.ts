@@ -129,13 +129,16 @@ export const bookingSubject = {
   slot: (staffUuid: string, start: string) =>
     `slot:${staffUuid.trim().toLowerCase()}:${start.slice(0, 10)}T${start.slice(11, 16)}`,
   status: (seenEditDate: string) => `status:wo:${seenEditDate.trim().replace(/\s+/g, "T")}`,
+  /** A Quote marked Unsuccessful (Analytics): its own subject, so it never
+      dedupes against a Make it a Work Order seen at the same edit time. */
+  lost: (seenEditDate: string) => `status:un:${seenEditDate.trim().replace(/\s+/g, "T")}`,
   undo: (createRowId: string) => `undo:${createRowId}`,
   clear: (activityUuid: string) => `clear:${activityUuid}`,
 };
 
 export type ParsedBookingSubject =
   | { via: "slot"; staffUuid: string; start: string; released: boolean }
-  | { via: "status"; seenEditDate: string; released: boolean }
+  | { via: "status"; seenEditDate: string; to: "Work Order" | "Unsuccessful"; released: boolean }
   | { via: "undo"; createRowId: string; released: boolean }
   | { via: "clear"; activityUuid: string; released: boolean };
 
@@ -145,8 +148,8 @@ export function parseBookingSubject(s: string): ParsedBookingSubject | null {
   const released = !!was;
   let m = /^slot:([^:]+):(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(subject);
   if (m) return { via: "slot", staffUuid: m[1], start: `${m[2]} ${m[3]}:00`, released };
-  m = /^status:wo:(\S+)$/.exec(subject);
-  if (m) return { via: "status", seenEditDate: m[1].replace("T", " "), released };
+  m = /^status:(wo|un):(\S+)$/.exec(subject);
+  if (m) return { via: "status", seenEditDate: m[2].replace("T", " "), to: m[1] === "un" ? "Unsuccessful" : "Work Order", released };
   m = /^undo:(\S+)$/.exec(subject);
   if (m) return { via: "undo", createRowId: m[1], released };
   m = /^clear:(\S+)$/.exec(subject);
@@ -512,10 +515,12 @@ export type BookingRowIn = {
   booking_start?: string | null;
   booking_end?: string | null;
   landed_edit_date?: string | null;
+  /** a status row's: "Work Order", or "Unsuccessful" for one an owner marked lost */
+  job_status_to?: string | null;
 };
 
 /** A status row, as far as a line reads it. */
-export type StatusRowIn = Pick<BookingRowIn, "status" | "last_error" | "taken_back_at" | "maybe_landed" | "verify_uuids">;
+export type StatusRowIn = Pick<BookingRowIn, "status" | "last_error" | "taken_back_at" | "maybe_landed" | "verify_uuids" | "job_status_to">;
 
 /** A take-back (an Undo's delete row), as far as a line reads it. */
 export type TakeBackIn = Pick<BookingRowIn, "status" | "last_error">;
@@ -818,6 +823,25 @@ export function statusLine(
   _hold: SendHold
 ): BookingState | null {
   const st = statusRow.status;
+  /* a Quote an owner marked lost says so in its own words; it has no bookings */
+  if (statusRow.job_status_to === "Unsuccessful") {
+    if (st === "queued" || st === "sending") return line("line.lostSending", BOOKING_WORDS.line.lostSending, null, []);
+    if (st === "sent") {
+      if (reasonOf(statusRow.last_error) === "fieldsNotKept") {
+        return line("line.lostSent", `${BOOKING_WORDS.line.lostSent}. ${statusRow.last_error}`, "bad", []);
+      }
+      return line("line.lostSent", BOOKING_WORDS.line.lostSent, "ok", []);
+    }
+    if (mayHaveLanded(statusRow)) return line("line.lostUnsure", BOOKING_WORDS.line.lostUnsure, null, []);
+    if (statusRow.taken_back_at) return null;
+    if (st === "failed" || st === "cancelled") {
+      const text = statusRow.last_error
+        ? fillWords(BOOKING_WORDS.line.lostNotSent, { reason: statusRow.last_error })
+        : BOOKING_WORDS.line.lostNotSent.replace(/\s*\{reason\}$/, "");
+      return line("line.lostNotSent", text, "bad", []);
+    }
+    return null;
+  }
   if (st === "queued" || st === "sending") return line("line.statusSending", BOOKING_WORDS.line.statusSending, null, []);
   if (st === "sent") {
     if (reasonOf(statusRow.last_error) === "fieldsNotKept") {

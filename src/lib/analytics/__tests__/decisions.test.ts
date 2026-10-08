@@ -37,7 +37,7 @@ describe("the clean-up in ServiceM8", () => {
   it("makes a won Quote a work order, and sends the rest of a disagreement to ServiceM8 by hand", () => {
     expect(cleanupFor("outcome", "won", "Quote")).toBe("work_order");
     expect(cleanupFor("outcome", "won", "Unsuccessful")).toBe("by_hand");
-    expect(cleanupFor("outcome", "lost", "Quote")).toBe("by_hand");
+    expect(cleanupFor("outcome", "lost", "Quote")).toBe("unsuccessful");
     // ServiceM8 already agrees
     expect(cleanupFor("outcome", "lost", "Unsuccessful")).toBeNull();
     // HeyTiff's own reading: nothing in ServiceM8 to change

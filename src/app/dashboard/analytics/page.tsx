@@ -7,7 +7,7 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { analyse, DEFAULT_PERIOD, isPeriodKey, periodSpan, spanBefore } from "@/lib/analytics/job-analytics";
 import { readAnalyticsJobs, readAnalyticsSettings, readClientNames, readDecisions } from "@/lib/analytics/analytics-query";
 import { rulesOf } from "@/lib/analytics/settings";
-import { workOrderOffer } from "@/lib/analytics/cleanup-offer";
+import { lostOffer, workOrderOffer } from "@/lib/analytics/cleanup-offer";
 import { AnalyticsScreen } from "@/components/analytics/analytics-screen";
 
 /* Analytics — what the business's own jobs say about its quoting: win rate,
@@ -40,10 +40,11 @@ export default async function AnalyticsPage({
   /* how this business counts its jobs (Admin, Analytics), before the jobs are read by it */
   const [zone, { settings }] = await Promise.all([getSm8Timezone(orgId), readAnalyticsSettings(orgId)]);
   const today = todayInZone(zone);
-  const [read, kept, workOrders] = await Promise.all([
+  const [read, kept, workOrders, lostWrites] = await Promise.all([
     readAnalyticsJobs(orgId, spanBefore(periodSpan(period, today)).from, settings),
     readDecisions(orgId),
     workOrderOffer(orgId),
+    lostOffer(orgId),
   ]);
   if (!read) return <AnalyticsScreen state={{ kind: "unread" }} period={period} />;
   const data = analyse(read.jobs, today, period, kept.decisions, rulesOf(settings, read.found.closeAge?.days ?? null));
@@ -56,7 +57,7 @@ export default async function AnalyticsPage({
   );
   return (
     <AnalyticsScreen
-      state={{ kind: "ready", data, truncated: read.truncated, names, canDecide: kept.ready, workOrders }}
+      state={{ kind: "ready", data, truncated: read.truncated, names, canDecide: kept.ready, workOrders, lostWrites }}
       period={period}
     />
   );

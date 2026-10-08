@@ -5,7 +5,8 @@ const refresh = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 const decideJob = jest.fn();
 jest.mock("@/app/actions/analytics-decide", () => ({ decideJob: (...a: unknown[]) => decideJob(...a) }));
-jest.mock("@/app/actions/booking-sm8", () => ({ makeWorkOrder: jest.fn() }));
+const markUnsuccessful = jest.fn();
+jest.mock("@/app/actions/booking-sm8", () => ({ makeWorkOrder: jest.fn(), markUnsuccessful: (...a: unknown[]) => markUnsuccessful(...a) }));
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { analyse, type AnalyticsJob } from "@/lib/analytics/job-analytics";
@@ -113,6 +114,25 @@ describe("AnalyticsScreen", () => {
     expect(screen.getAllByRole("button", { name: "Void" })).toHaveLength(2);
     // only a quote nobody marked lost can be kept open as a tender
     expect(screen.getAllByRole("button", { name: "Tender, keep open" })).toHaveLength(1);
+  });
+
+  it("lets an owner mark a lost quote still a Quote Unsuccessful in ServiceM8, and nobody else", async () => {
+    markUnsuccessful.mockResolvedValue({ ok: true, state: "sent", rowId: "r" });
+    const { unmount } = render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false, names: {}, canDecide: true }} period="12m" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review the 2 lost" }));
+    expect(screen.queryByRole("button", { name: "Mark Unsuccessful in ServiceM8" })).not.toBeInTheDocument();
+    unmount();
+
+    render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false, names: {}, canDecide: true, lostWrites: "on" }} period="12m" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review the 2 lost" }));
+    // the one already Unsuccessful in ServiceM8 has nothing to change there
+    const press = screen.getAllByRole("button", { name: "Mark Unsuccessful in ServiceM8" });
+    expect(press).toHaveLength(1);
+    fireEvent.click(press[0]!);
+    expect(markUnsuccessful).toHaveBeenCalledWith({ jobUuid: expect.any(String), pressId: expect.any(String) });
+    expect(await screen.findByText("Marked Unsuccessful in ServiceM8.")).toBeInTheDocument();
   });
 
   it("keeps a lost quote open as a tender, to the tender days, and takes it back", async () => {

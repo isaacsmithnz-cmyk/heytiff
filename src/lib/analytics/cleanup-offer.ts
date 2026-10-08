@@ -18,6 +18,19 @@ import { BOOKINGS_OPEN_TO_MANAGERS } from "@/lib/integrations/sm8-booking-plan";
 
 export type WorkOrderOffer = "on" | "trial" | null;
 
+/** Mark Unsuccessful in ServiceM8, on the same terms, and the owner's only
+    (Isaac, 2026-10-08: "Owner only for the Mark Unsuccessful button"),
+    whoever else may book. */
+export async function lostOffer(orgId: string): Promise<WorkOrderOffer> {
+  const offer = await workOrderOffer(orgId);
+  if (!offer) return null;
+  try {
+    return (await getDbRole()) === "owner" ? offer : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function workOrderOffer(orgId: string): Promise<WorkOrderOffer> {
   if (!sm8BookingsAllowed()) return null;
   try {

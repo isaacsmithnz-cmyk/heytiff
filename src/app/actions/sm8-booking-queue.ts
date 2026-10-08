@@ -349,6 +349,62 @@ export async function queueMakeWorkOrder(
   return { ok: true, rowId: row.id };
 }
 
+/** Mark a Quote Unsuccessful (Isaac, 2026-10-08: "Owner only for the Mark
+    Unsuccessful button"): Analytics' lost quote, made so in ServiceM8. One
+    status row alone, from Quote to Unsuccessful, with the job's edit time
+    as the press saw it; the sender reads the job live again and goes only
+    if nothing changed since. Its subject is its own, so it never dedupes
+    against a Make it a Work Order seen at the same time. */
+export async function queueMarkUnsuccessful(
+  press: Sm8Press,
+  state: Sm8WriteState,
+  input: { jobUuid: string; verbId: string; seenEditDate: string }
+): Promise<MakeWorkOrderResult> {
+  if (!isSm8Press(press)) {
+    console.error("[sm8] refused to queue a status change that nobody pressed for (no press, or a stale one)");
+    return { ok: false, refusal: "unqueued" };
+  }
+  const orgId = press.orgId;
+  const { jobUuid: given, verbId, seenEditDate } = input ?? ({} as never);
+  if (typeof given !== "string" || !UUID.test(given) || typeof verbId !== "string" || !UUID.test(verbId) || !EDIT_STAMP.test(seenEditDate ?? "")) {
+    return { ok: false, refusal: "unqueued" };
+  }
+  if (!state.readable) return { ok: false, refusal: "unreadable" };
+  if (!offersSend(state, "booking")) return { ok: false, refusal: "not_offered" };
+  const jobUuid = given.toLowerCase();
+
+  const subject = bookingSubject.lost(seenEditDate);
+  const key = dedupeKey("booking", jobUuid, subject);
+  const there = await readByKeys(orgId, [key]);
+  if (!there) return { ok: false, refusal: "unqueued" };
+  const old = there.get(key);
+  if (old?.taken_back_at) {
+    if (old.status === "sending" && leaseLive(old, Date.now())) return { ok: false, refusal: "in_flight" };
+    if (!(await release(orgId, old))) return { ok: false, refusal: "unqueued" };
+  }
+  const queued = await enqueueSm8Writes(press, state, [
+    {
+      kind: "booking",
+      op: "update",
+      jobUuid,
+      subject,
+      payload: { name: BOOKING_WORDS.label.lost, alone: true },
+      ref: subject,
+      targetUuid: jobUuid,
+      statusFrom: "Quote",
+      statusTo: "Unsuccessful",
+      seenEditDate,
+      verbId,
+    },
+  ]);
+  if (!queued) return { ok: false, refusal: "unqueued" };
+  if (queued.capped) return { ok: false, refusal: "capped" };
+  const made = await readByKeys(orgId, [key]);
+  const row = made?.get(key);
+  if (!row) return { ok: false, refusal: "unqueued" };
+  return { ok: true, rowId: row.id };
+}
+
 /* ── Book in ── */
 
 /** Book one job in, as the person pressing: one row per person and time,

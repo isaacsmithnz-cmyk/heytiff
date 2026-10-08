@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { decideJob } from "@/app/actions/analytics-decide";
+import { markUnsuccessful } from "@/app/actions/booking-sm8";
 import { answerSaid } from "@/lib/analytics/decisions";
 import { longDay, money, type AnalyticsJob } from "@/lib/analytics/job-analytics";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
@@ -110,6 +111,56 @@ export function KeptSaid({ days, busy, onUndo }: { days: number; busy: boolean; 
   );
 }
 
+/* MARK UNSUCCESSFUL IN SERVICEM8 (Isaac, 2026-10-08: "Owner only for the
+   Mark Unsuccessful button"). A lost quote ServiceM8 still has as a Quote,
+   made Unsuccessful there by an owner's press: one status change, checked
+   live before it goes (actions/booking-sm8 markUnsuccessful). */
+
+export type LostStep = { busy: true } | { state: "sent" | "waiting" | "trial" } | { error: string };
+
+const LOST_SAID = {
+  sent: "Marked Unsuccessful in ServiceM8.",
+  waiting: "On its way to ServiceM8.",
+  trial: "Trial run: checked, and nothing sent.",
+} as const;
+
+/** The owner's presses, one job at a time, each with what came of it. */
+export function useMarkLost() {
+  const router = useRouter();
+  const [, startRefresh] = useTransition();
+  const [steps, setSteps] = useState<Record<string, LostStep>>({});
+  async function mark(job: AnalyticsJob) {
+    setSteps((m) => ({ ...m, [job.id]: { busy: true } }));
+    const r = await markUnsuccessful({ jobUuid: job.id, pressId: crypto.randomUUID() });
+    setSteps((m) => ({ ...m, [job.id]: r.ok ? { state: r.state } : { error: r.error } }));
+    if (r.ok && r.state === "sent") startRefresh(() => router.refresh());
+  }
+  /** whether a job is still waiting on a press: never pressed, or refused */
+  const waiting = (job: AnalyticsJob) => !steps[job.id] || "error" in steps[job.id]!;
+  return { steps, mark, waiting };
+}
+
+export type MarkLost = ReturnType<typeof useMarkLost>;
+
+/** The press, or what came of it. */
+export function MarkLostPress({ job, marks }: { job: AnalyticsJob; marks: MarkLost }) {
+  const step = marks.steps[job.id];
+  if (step && "state" in step) return <span className="an-note">{LOST_SAID[step.state]}</span>;
+  const busy = !!step && "busy" in step;
+  return (
+    <>
+      <button type="button" className="an-choice" disabled={busy} onClick={() => void marks.mark(job)}>
+        {busy ? "Marking it Unsuccessful" : "Mark Unsuccessful in ServiceM8"}
+      </button>
+      {step && "error" in step && (
+        <p className="an-err" role="alert">
+          {step.error}
+        </p>
+      )}
+    </>
+  );
+}
+
 /** What a list offers besides Void: keeping a quote open as a tender. */
 export type KeepOpen = {
   marks: Mark;
@@ -155,6 +206,7 @@ export function VoidList({
   what,
   canDecide,
   keep,
+  markLost,
 }: {
   jobs: AnalyticsJob[];
   names: Record<string, string>;
@@ -166,6 +218,8 @@ export function VoidList({
   canDecide: boolean;
   /** offer "Tender, keep open" beside Void */
   keep?: KeepOpen;
+  /** an owner's Mark Unsuccessful in ServiceM8, for the jobs it can be */
+  markLost?: { marks: MarkLost; can: (job: AnalyticsJob) => boolean };
 }) {
   const [all, setAll] = useState(false);
   /* a job pressed on stays where it was, though the page drops it */
@@ -205,6 +259,7 @@ export function VoidList({
                     <button type="button" className="an-choice" disabled={busy || !canDecide} onClick={() => voids.setVoid(job, true, serverVoid)}>
                       Void
                     </button>
+                    {markLost?.can(job) && <MarkLostPress job={job} marks={markLost.marks} />}
                   </>
                 )}
                 {error && (

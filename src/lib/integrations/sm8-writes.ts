@@ -416,9 +416,11 @@ export type Sm8WriteToQueue = {
   end?: string;
   /** The zone the times were chosen in (a create). */
   zone?: string;
-  /** A status change: Quote to Work Order, and nothing else. */
+  /** A status change from a Quote: to a Work Order (Book in, Make it a Work
+      Order), or to Unsuccessful (an owner's Mark Unsuccessful on Analytics),
+      and nothing else. */
   statusFrom?: "Quote";
-  statusTo?: "Work Order";
+  statusTo?: "Work Order" | "Unsuccessful";
   /* LEAVE'S DETAILS (docs/migrations/sm8_leave_queue.sql) go in columns of
      their own, leave_staff_uuid, leave_start and leave_end, from staffUuid,
      start and end above: written only for kind "leave", so every other

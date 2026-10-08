@@ -634,6 +634,28 @@
   }
  },
  {
+  "model": "AOTH18KMTD",
+  "brand": "fujitsu",
+  "series": "AOTH-KMTD",
+  "system_type": "split",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "phase": "1",
+  "power_supply": "220-240 V, 1 ph, 50 Hz",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "refrigerant": "R32",
+  "precharged_kg": 1.27,
+  "weight_kg": 41.0,
+  "sound_high_dba": 47,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Fujitsu Lifestyle Range Brochure (AU); Outdoor Unit Installation Manual AOTH18/22/24KM*D",
+   "edition": "FGALIFESTYLE09/24 (Sept 2024)",
+   "page": "7, 10; IM 9319205809-01 En-4, En-5"
+  }
+ },
+ {
   "model": "AOTH22KMTD",
   "brand": "fujitsu",
   "series": "AOTH-KMTD",
@@ -645,6 +667,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
+  "precharged_kg": 1.27,
   "width_mm": 820,
   "depth_mm": 315,
   "height_mm": 716,
@@ -652,9 +675,9 @@
   "sound_high_dba": 49,
   "provenance": {
    "kind": "extracted",
-   "source": "Fujitsu Lifestyle Range Brochure (AU)",
+   "source": "Fujitsu Lifestyle Range Brochure (AU); Outdoor Unit Installation Manual AOTH18/22/24KM*D",
    "edition": "FGALIFESTYLE09/24 (Sept 2024)",
-   "page": "7, 10"
+   "page": "7, 10; IM 9319205809-01 En-4, En-5"
   }
  },
  {
@@ -669,6 +692,7 @@
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
+  "precharged_kg": 1.27,
   "width_mm": 820,
   "depth_mm": 315,
   "height_mm": 716,
@@ -676,9 +700,9 @@
   "sound_high_dba": 54,
   "provenance": {
    "kind": "extracted",
-   "source": "Fujitsu Lifestyle Range Brochure (AU)",
+   "source": "Fujitsu Lifestyle Range Brochure (AU); Outdoor Unit Installation Manual AOTH18/22/24KM*D",
    "edition": "FGALIFESTYLE09/24 (Sept 2024)",
-   "page": "7, 11"
+   "page": "7, 11; IM 9319205809-01 En-4, En-5"
   }
  },
  {

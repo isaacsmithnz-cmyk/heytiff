@@ -110,7 +110,7 @@ export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
 
   steps.push(
     declined
-      ? { key: "accepted", state: "bad", fact: "Declined" }
+      ? { key: "accepted", state: "bad", fact: "" }
       : accepted
         ? { key: "accepted", state: "done", fact: day(j.workOrderDate) }
         : { key: "accepted", state: "next", fact: "" }
@@ -152,13 +152,23 @@ export function jobSteps(j: StepInput, moneyVisible: boolean): JobStep[] {
      Otherwise it is at the first step it hasn't done or skipped; a warning
      or a refusal there is already its own state. */
   if (!declined) markNow(steps);
-  /* a declined quote stops the line there: nothing after it is to come */
-  if (declined) for (let i = 3; i < steps.length; i++) steps[i] = { ...steps[i]!, state: "next", fact: "" };
+  /* A DECLINED QUOTE ENDS THE LINE (Isaac, 2026-10-08: "say Declined and end
+     the line there"). The step says Declined, not "Accepted · Declined", and
+     nothing after it is drawn: none of it is to come. */
+  if (declined) steps.length = 3;
 
   /* a deposit ticked as not needed was never paid: the step says Deposit,
      and its fact says why it's done (Isaac, 2026-10-03: "it says deposit
      paid when i tick not needed") */
-  return steps.map((s) => ({ ...s, label: s.key === "deposit" && s.fact === "Not needed" ? "Deposit" : LABEL[s.key] }));
+  return steps.map((s) => ({
+    ...s,
+    label:
+      s.key === "deposit" && s.fact === "Not needed"
+        ? "Deposit"
+        : s.key === "accepted" && s.state === "bad"
+          ? "Declined"
+          : LABEL[s.key],
+  }));
 }
 
 /** Paid, on either line: settled across the family, or invoiced and not

@@ -146,14 +146,10 @@ describe("where a job is up to", () => {
     expect(currentStep(s)).toMatchObject({ key: "paid", state: "warn", fact: "Invoiced, not paid" });
   });
 
-  it("a declined quote stops the line at Accepted", () => {
-    expect(line({ status: "Unsuccessful", quoteSentOn: "2026-08-27" }, false)).toEqual([
-      "enquiry:done:20 Aug",
-      "quoted:done:Sent 27 Aug",
-      "accepted:bad:Declined",
-      "materials:next",
-      "installation:next",
-    ]);
+  it("a declined quote says Declined and the line ends there", () => {
+    const j = { status: "Unsuccessful", quoteSentOn: "2026-08-27" };
+    expect(line(j, true)).toEqual(["enquiry:done:20 Aug", "quoted:done:Sent 27 Aug", "accepted:bad"]);
+    expect(jobSteps({ ...base, ...j }, true).map((s) => s.label)).toEqual(["Enquiry", "Quoted", "Declined"]);
   });
 
   it("without the money grant the two money steps are absent", () => {

@@ -7358,6 +7358,17 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-bill .wb2-jmclaim > i { grid-column:2; justify-self:start; }
 .jcl-bill .wb2-jmclaim > span { grid-column:3; text-align:right; }
 .jcl-bill button.wb2-jmclaim:first-of-type { border-top:0; }
+/* A NARROW CARD CAN'T HOLD THREE COLUMNS: 160 + 180 + two gaps outgrew it and
+   the balance due spilled past the card's edge. Bill to and the balance due
+   share the top row; the terms take the full width under them. */
+.jcl-bill { container-type:inline-size; }
+@container (max-width:600px) {
+  .jcl-billhead { grid-template-columns:minmax(0,1fr) auto; row-gap:16px; }
+  .jcl-terms { grid-column:1 / -1; grid-row:2; }
+  .jcl-terms:empty { display:none; }
+  .jcl-bill .wb2-jmhead { min-width:0; }
+  .jcl-billval { flex-wrap:wrap; justify-content:flex-end; }
+}
 /* NEW JOB — a job off the phone: who first, then where, then the rest, a
    label on the left and the field on the right */
 .wb2-newmodal.njob { width:min(760px, calc(100vw - 40px)); }

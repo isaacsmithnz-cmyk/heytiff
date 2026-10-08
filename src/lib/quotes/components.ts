@@ -100,6 +100,21 @@ export const QUOTE_COMPONENTS = {
     match: [/condensate\s*pump/i],
     not: [/adaptor|adapter|sensor|kit|tube|spare/i],
   },
+  /* a ducted system's return: the box behind its grille ("MTL R/A BX", AAD's
+     metal return air box), never the grille alone or a supply plenum */
+  return_box: {
+    label: "Return air box",
+    unit: "each",
+    match: [/\breturn\b|\br\/a\b|\br\/air\b/i, /\bbox\b|\bbx\b/i],
+    not: [/grille|filter|plenum|damper/i],
+  },
+  /* the indoor's own wired controller, never a zone controller or a remote's spares */
+  wall_controller: {
+    label: "Wall controller",
+    unit: "each",
+    match: [/controller|\bcontrol\s*panel\b|\bwired\s*remote\b/i],
+    not: [/zone|airtouch|damper|cable|bracket|cover|wifi|wi-fi|interface|battery|holder/i],
+  },
 } as const satisfies Record<string, QuoteComponent>;
 
 export type ComponentKey = keyof typeof QUOTE_COMPONENTS;

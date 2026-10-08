@@ -3,6 +3,9 @@ import { can } from "@/lib/permissions-server";
 import { readSuppliers } from "@/lib/quotes/price-book-server";
 import { setPreferred } from "@/lib/quotes/book-view-server";
 import { preferRange } from "@/lib/quotes/ranges-server";
+import { COMPONENT_KEYS, matchesComponent, type ComponentKey } from "@/lib/quotes/components";
+import { setComponentPreferred } from "@/lib/quotes/settings-query";
+import { currentItemsByCode } from "@/lib/quotes/price-book-server";
 
 /* An item put forward in the price book, or taken back: POST {ref, on},
    ref "supplier|code". The part's other codes lose the preference — the
@@ -30,6 +33,16 @@ const refIn = (v: unknown, keys: Set<string>): string | null => {
   return key && keys.has(key) && code && code.length <= 80 ? `${key}|${code}` : null;
 };
 
+/** The kit part a swapped line was, by its name, and the item chosen for
+    it kept as Quoting's for that part. Null: no part's. */
+async function preferPart(orgId: string, supplierKey: string, code: string, was: string): Promise<ComponentKey | null> {
+  const key = COMPONENT_KEYS.find((k) => matchesComponent(k, was));
+  if (!key) return null;
+  const [item] = await currentItemsByCode(orgId, [code]);
+  if (!item || item.supplierKey !== supplierKey || !matchesComponent(key, item.name)) return null;
+  return (await setComponentPreferred(orgId, key, supplierKey, code)) ? key : null;
+}
+
 export async function POST(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
@@ -40,6 +53,9 @@ export async function POST(req: Request) {
   const ok = await setPreferred(who.orgId, who.userId, ref, body.on);
   if (!ok) return Response.json({ ok: false, reason: "That couldn't be saved. Try again." }, { status: 500 });
   const [key, ...code] = ref.split("|");
-  const range = body.on ? await preferRange(who.orgId, who.userId, key!, code.join("|"), typeof body.was === "string" ? body.was.slice(0, 200) : "").catch(() => null) : null;
-  return Response.json({ ok: true, range });
+  const was = typeof body.was === "string" ? body.was.slice(0, 200) : "";
+  const range = body.on ? await preferRange(who.orgId, who.userId, key!, code.join("|"), was).catch(() => null) : null;
+  /* a part with no sizes, swapped on a quote's line: Quoting's item for it */
+  const part = body.on && !range && was ? await preferPart(who.orgId, key!, code.join("|"), was).catch(() => null) : null;
+  return Response.json({ ok: true, range, part });
 }

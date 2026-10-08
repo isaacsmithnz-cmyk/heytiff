@@ -921,7 +921,7 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
   const [sys, setSys] = useState(system || "");
   const [brand, setBrand] = useState("mitsubishi-electric");
   const [model, setModel] = useState("");
-  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "", replacing: "", keptPipe: "" });
+  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "", replacing: "", keptPipe: "", underfloor: "" });
   const set = (k: string) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const num = (k: string, label: string, unit: string) => (
     <label className="ql-kf">
@@ -998,6 +998,15 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
                   {p.replace("+", " + ")}
                 </option>
               ))}
+            </select>
+          </label>
+        )}
+        {kit === "ducted" && (
+          <label className="ql-kf">
+            <span>Indoor goes</span>
+            <select className="wb2-fi" value={f.underfloor} onChange={set("underfloor")} aria-label="Where the indoor goes">
+              <option value="">In the roof</option>
+              <option value="yes">Under the floor</option>
             </select>
           </label>
         )}

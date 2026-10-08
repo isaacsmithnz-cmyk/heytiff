@@ -270,6 +270,7 @@ export const SESSION_TOOLS: ToolDef[] = [
         outlets: { type: "integer" },
         outlet_mm: { type: "number" },
         replacing: { type: "string", enum: ["no", "yes", "keep"], description: "An old system comes out; keep: and its pipe is kept" },
+        underfloor: { type: "boolean", description: "Ducted: the indoor goes under the floor, its outlets floor grilles on boots" },
         kept_pipe: { type: "string", enum: [...OLD_PIPES] },
       },
       required: ["kit", "option", "system"],
@@ -371,6 +372,7 @@ export function kitAskOf(raw: unknown): { kit: "split" | "ducted"; at: { optionI
       outletMm: r.outlet_mm,
       replacing: r.replacing === "yes" || r.replacing === "keep" ? r.replacing : "",
       keptPipe: r.kept_pipe,
+      underfloor: r.underfloor === true,
     },
   };
 }

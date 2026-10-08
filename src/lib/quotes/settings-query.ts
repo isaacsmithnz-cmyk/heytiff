@@ -13,7 +13,7 @@ import { netCents } from "./price-book";
 import { currentItems, readPreferred, readSameDecisions, readSuppliers, type BookItem, type SupplierView } from "./price-book-server";
 import { productsOf, refOf } from "./same-items";
 import { quotesByCode } from "./book-view-server";
-import { normaliseQuoteSettings, type QuoteSettings } from "./settings";
+import { normaliseQuoteSettings, quoteSettingsRow, type QuoteSettings } from "./settings";
 
 /* The Quoting page's reads: the business's settings, and for each component
    Tiff's shortlist from HeyTiff's own price book (every supplier's current
@@ -191,4 +191,15 @@ export async function componentShortlists(
     }
     return { key, label: c.label, unit: c.unit, chosen: pick, groups: groups.slice(0, SHORTLIST) };
   });
+}
+
+/** Quoting's preferred item for one part, set from a quote (slice 1.2): a
+    sizeless kit part (a return box, a wall controller) chosen on a line
+    is the part's item from the next quote, as Quoting would keep it. */
+export async function setComponentPreferred(orgId: string, key: ComponentKey, supplierKey: string, code: string): Promise<boolean> {
+  const s = await readQuoteSettings(orgId);
+  const preferred = { ...s.preferred, [key]: { supplierKey, code, rollM: s.preferred[key]?.code === code ? s.preferred[key]!.rollM : null } };
+  const row = quoteSettingsRow({ ...s, preferred });
+  const { error } = await supabaseAdmin.from("quote_settings").upsert({ org_id: orgId, preferred: row.preferred }, { onConflict: "org_id" });
+  return !error;
 }

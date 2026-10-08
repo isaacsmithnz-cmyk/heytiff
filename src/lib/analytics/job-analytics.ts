@@ -113,7 +113,11 @@ export const daysBetween = (from: string, to: string) =>
     account a job a Quote a day or more before its work order is worth $5,400
     at the median, and one with no quote date $428: installs against call-outs. */
 export function wasQuoted(j: AnalyticsJob): boolean {
-  if (norm(j.status) === "unsuccessful") return unsuccessfulQuote(j);
+  if (norm(j.status) === "unsuccessful") {
+    if (stageOf(j) === "unsuccessful") return unsuccessfulQuote(j);
+    /* a work order the techs marked Unsuccessful: quoted as a work order is, or its quote went out */
+    return unsuccessfulQuote(j) || (!!j.quotedOn && j.wonOn! > j.quotedOn);
+  }
   if (lineOf({ status: j.status, quoteSentOn: j.quoteSentOn }) === "quote") return true;
   return !!j.quotedOn && !!j.wonOn && j.wonOn > j.quotedOn;
 }
@@ -125,13 +129,24 @@ export function wasQuoted(j: AnalyticsJob): boolean {
      made (21 marked by hand, $284k);
    - a quote ServiceM8 closed itself, 60 days to the hour after it became a
      Quote, with no answer (32, $229k): still lost, and said apart;
-   - a work order called off before anything was quoted: a call-out the
-     tenant cancelled, a maintenance visit cut short (13): not a quote;
-   - an enquiry never priced or quoted (9): not a quote.
-   A job that was a Work Order and also had a quote sent or a claim invoiced
-   is asked (4, $65k), and one priced at $3,000 or more with no sign of a
-   quote leaving is asked whether it was a quote (1, $208k). */
+   - an enquiry never priced or quoted (9): not a quote;
+   - a WORK ORDER THE TECHS MARKED UNSUCCESSFUL (Isaac, 2026-10-08: "The boys
+     sometimes mark a job unsecessful if they have not completed it that
+     day. So it would have gone quote, work order then marked
+     unsuccessful"): of the 29 in two years, 25 had visits booked after the
+     work order, so the work went ahead. An Unsuccessful job ServiceM8 dates
+     a work order is read as the Work Order it was: won if it was quoted,
+     else work that was never a quote (a call-out, a visit cut short).
+   One priced at $3,000 or more with no sign of a quote leaving and no work
+   order is asked whether it was a quote (1, $208k). */
 const quoteWentOut = (j: AnalyticsJob) => !!j.quoteSentOn || !!j.quoteDocOn;
+
+/** ServiceM8's status as the figures read it: an Unsuccessful job that was a
+    Work Order is still the Work Order it was. */
+export function stageOf(j: AnalyticsJob): string {
+  const s = norm(j.status);
+  return s === "unsuccessful" && j.wonOn ? "work order" : s;
+}
 
 function unsuccessfulQuote(j: AnalyticsJob): boolean {
   return quoteWentOut(j) || !!j.claimedOn;
@@ -155,7 +170,7 @@ export function yesOn(j: AnalyticsJob): string | null {
 /** Where a quote stands today; null for a job that isn't a quote. */
 export function outcomeOf(j: AnalyticsJob, today: string, lapseAfterDays: number = LAPSE_AFTER_DAYS, keptOpen = false): Outcome | null {
   if (!wasQuoted(j)) return null;
-  const s = norm(j.status);
+  const s = stageOf(j);
   if (s === "work order" || s === "completed") return "won";
   if (s === "quote" && j.claimedOn) return "won";
   /* a tender ServiceM8 closed with no answer is still open, for as long as a tender is */
@@ -194,7 +209,7 @@ const INSTALL: ReadonlySet<JobKind> = new Set(["split", "multi", "ducted", "vrf"
     ServiceM8, or done and charged? */
 function mightBeQuote(j: AnalyticsJob, quoteFromCents: number): boolean {
   if (wasQuoted(j)) return false;
-  if (norm(j.status) === "unsuccessful") return !j.wonOn && (j.valueCents ?? 0) >= quoteFromCents;
+  if (stageOf(j) === "unsuccessful") return (j.valueCents ?? 0) >= quoteFromCents;
   const installCategory = j.role ? j.role === "install" : /install|construction/i.test(j.category ?? "");
   const install = (j.kind !== null && INSTALL.has(j.kind)) || installCategory;
   return install && (j.valueCents ?? 0) >= quoteFromCents;
@@ -285,13 +300,13 @@ export function analyticsKindOf(
   return null;
 }
 
-/** ServiceM8's status and the money or the proposal disagree: Unsuccessful
-    but paid, with a claim invoiced, or once a Work Order on a quote that went
-    out; or accepted in HeyTiff and still a Quote. */
+/** ServiceM8's status and the money or the proposal disagree: Unsuccessful,
+    never a Work Order, but paid or with a claim invoiced; or accepted in
+    HeyTiff and still a Quote. */
 function disputed(j: AnalyticsJob): boolean {
-  const s = norm(j.status);
+  const s = stageOf(j);
   return (
-    (s === "unsuccessful" && (!!j.paid || !!j.claimedOn || (!!j.wonOn && quoteWentOut(j)))) ||
+    (s === "unsuccessful" && (!!j.paid || !!j.claimedOn)) ||
     (s === "quote" && !!j.acceptedInHeyTiff && !j.claimedOn)
   );
 }

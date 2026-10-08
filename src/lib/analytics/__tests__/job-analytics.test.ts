@@ -491,24 +491,25 @@ describe("what the live account taught the rules", () => {
     expect(a.top.open).toBe(3);
   });
 
-  it("reads what an Unsuccessful job was: a quote lost, a work order called off, an enquiry never quoted, or a question", () => {
+  it("reads what an Unsuccessful job was: a quote lost, a work order the techs marked, an enquiry never quoted, or a question", () => {
     const at = { raisedOn: "2026-05-01", valueCents: 0 };
     const lostQuote = job({ ...at, id: "lost", status: "Unsuccessful", quoteDocOn: "2026-05-02", valueCents: 600_000 });
-    const calledOff = job({ ...at, id: "off", status: "Unsuccessful", wonOn: "2026-05-01", valueCents: 28_000 });
+    // a call-out the techs marked Unsuccessful: work, never a quote
+    const calledOut = job({ ...at, id: "out", status: "Unsuccessful", wonOn: "2026-05-01", valueCents: 28_000 });
     const neverQuoted = job({ ...at, id: "enq", status: "Unsuccessful", valueCents: null });
     const smallUnsent = job({ ...at, id: "small", status: "Unsuccessful", valueCents: 95_000 });
     const bigUnsent = job({ ...at, id: "big", status: "Unsuccessful", valueCents: 20_800_000 });
-    const acceptedThenOff = job({ ...at, id: "acc", status: "Unsuccessful", quoteSentOn: "2026-05-03", wonOn: "2026-06-01", valueCents: 2_238_000 });
-    const a = analyse([lostQuote, calledOff, neverQuoted, smallUnsent, bigUnsent, acceptedThenOff], TODAY, "12m");
-    expect(a.top.quotes).toBe(1);
+    // quote, work order, then marked Unsuccessful when it wasn't finished that day: won
+    const unfinished = job({ ...at, id: "unf", status: "Unsuccessful", quoteSentOn: "2026-05-03", wonOn: "2026-06-01", valueCents: 2_238_000 });
+    const quotedByDate = job({ ...at, id: "qd", status: "Unsuccessful", quotedOn: "2026-05-01", wonOn: "2026-05-20", valueCents: 900_000 });
+    const a = analyse([lostQuote, calledOut, neverQuoted, smallUnsent, bigUnsent, unfinished, quotedByDate], TODAY, "12m");
+    expect(a.top.quotes).toBe(3);
+    expect(a.top.winRate).toMatchObject({ won: 2, decided: 3 });
     expect(a.quotes.lostJobs.map((l) => l.job.id)).toEqual(["lost"]);
-    expect(a.toDecide.asks.map((x) => [x.job.id, x.question])).toEqual([
-      ["big", "quote"],
-      ["acc", "outcome"],
-    ]);
-    // answered: a quote, so lost; won, so won
-    const answered = analyse([bigUnsent, acceptedThenOff], TODAY, "12m", new Map([["big", { quote: "quote" }], ["acc", { outcome: "won" }]]));
-    expect(answered.top.winRate).toMatchObject({ won: 1, decided: 2 });
+    expect(a.toDecide.asks.map((x) => [x.job.id, x.question])).toEqual([["big", "quote"]]);
+    // answered a quote: one that never became a work order, so lost
+    const answered = analyse([bigUnsent], TODAY, "12m", new Map([["big", { quote: "quote" }]]));
+    expect(answered.top.winRate).toMatchObject({ won: 0, decided: 1 });
   });
 
   it("says apart a quote ServiceM8 closed itself with no answer", () => {

@@ -131,6 +131,10 @@ Isaac, 2026-10-07:
   - **Tender, keep open** on a quote (Analytics, Quotes: the lost to review, the nearly lost, and the kept): it is lost only after the tender days, 180 unless Admin, Analytics says otherwise, and one ServiceM8 closed at 60 days stays open with it. One a person marked Unsuccessful can't be kept open. Undo takes it back.
   - The days to a yes are binned up to the rule's days; an open quote goes cold at half of them and is "nearly lost" in its last quarter (60 and 30 days for a limit of 120 or more).
 
+- **A work order the techs marked Unsuccessful is still a work order** (Isaac, 2026-10-08: "The boys sometimes mark a job unsecessful if they have not completed it that day. So it would have gone quote, work order then marked unsuccessful").
+  - Of the 29 Unsuccessful jobs of two years that ServiceM8 dates a work order, 25 had visits booked after it: the work went ahead.
+  - Such a job is read as the Work Order it was: won if it was quoted (a quote sent or made, a claim, or a Quote a day or more before the work order), else work that was never a quote. It is no longer asked "Won or lost?"; on the live account that is 4 jobs, $65k, now won.
+
 ## What the numbers stand on
 
 Most job data is the ServiceM8 mirror (`sm8_*`, docs/migrations/sm8_mirror.sql and sm8_jobs_money.sql):

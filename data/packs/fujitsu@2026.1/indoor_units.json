@@ -285,12 +285,12 @@
   "height_mm": 240,
   "sound_low_dba": 25,
   "sound_high_dba": 33,
-  "weight_kg": 31.0,
+  "weight_kg": 32.0,
   "provenance": {
    "kind": "extracted",
    "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB; Duct Type Installation Manual ARTH18/24/30/36/45/54KMTAP; Duct Type Design & Technical Manual ARTH18-24KMTAP",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "12, 22; Multi brochure 6, 13; DR_MU034ES_01 2; IM 9381386291-01 En-7, En-8; DR_AR056EF_01 f.4"
+   "page": "12, 22; Multi brochure 6, 13; DR_MU034ES_01 2; IM 9381386291-01 En-7, En-8; DR_AR056EF_01 f.2, f.4"
   }
  },
  {
@@ -301,7 +301,7 @@
   "capacity_cool_kw": 7.1,
   "capacity_heat_kw": 8.0,
   "capacity_code": 24,
-  "airflow_ls": 416,
+  "airflow_ls": 417,
   "static_pressure_pa": 150,
   "supply_opening": {
    "w_mm": 790,
@@ -327,12 +327,12 @@
   "height_mm": 240,
   "sound_low_dba": 30,
   "sound_high_dba": 38,
-  "weight_kg": 31.0,
+  "weight_kg": 32.0,
   "provenance": {
    "kind": "extracted",
-   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB; Duct Type Installation Manual ARTH18/24/30/36/45/54KMTAP; Duct Type Design & Technical Manual ARTH18-24KMTAP",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Fujitsu AIRSTAGE Multi Systems Brochure (AU); Multi-split Outdoor Unit Design & Technical Manual AOTH24-45KB; Duct Type Installation Manual ARTH18/24/30/36/45/54KMTAP; Duct Type Design & Technical Manual ARTH18-24KMTAP; Duct Type Design & Technical Manual ARTH24KMTAP / AOTH24KCTA",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "12, 22; Multi brochure 6, 13; DR_MU034ES_01 2; IM 9381386291-01 En-7, En-8; DR_AR056EF_01 f.4"
+   "page": "12, 22; Multi brochure 6, 13; DR_MU034ES_01 2; IM 9381386291-01 En-7, En-8; DR_AR056EF_01 f.2, f.4; DR_AR057EF_01 f.2"
   }
  },
  {
@@ -343,7 +343,7 @@
   "capacity_cool_kw": 8.5,
   "capacity_heat_kw": 10.0,
   "capacity_code": 30,
-  "airflow_ls": 541,
+  "airflow_ls": 542,
   "static_pressure_pa": 150,
   "supply_opening": {
    "w_mm": 1190,
@@ -366,13 +366,14 @@
   "width_mm": 1400,
   "depth_mm": 700,
   "height_mm": 240,
+  "sound_low_dba": 31,
   "sound_high_dba": 38,
   "weight_kg": 42.0,
   "provenance": {
    "kind": "extracted",
    "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH18/24/30/36/45/54KMTAP; Duct Type Design & Technical Manual ARTH30-54KMTAP",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "12, 22; IM 9381386291-01 En-7, En-8; DR_AR058EF_02 f.6"
+   "page": "12, 22; IM 9381386291-01 En-7, En-8; DR_AR058EF_02 f.2, f.6"
   }
  },
  {
@@ -406,13 +407,14 @@
   "width_mm": 1400,
   "depth_mm": 700,
   "height_mm": 240,
+  "sound_low_dba": 31,
   "sound_high_dba": 38,
   "weight_kg": 42.0,
   "provenance": {
    "kind": "extracted",
    "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH18/24/30/36/45/54KMTAP; Duct Type Design & Technical Manual ARTH30-54KMTAP",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "12, 22; IM 9381386291-01 En-7, En-8; DR_AR058EF_02 f.6"
+   "page": "12, 22; IM 9381386291-01 En-7, En-8; DR_AR058EF_02 f.2, f.6"
   }
  },
  {
@@ -446,13 +448,14 @@
   "width_mm": 1400,
   "depth_mm": 700,
   "height_mm": 240,
+  "sound_low_dba": 32,
   "sound_high_dba": 40,
   "weight_kg": 42.0,
   "provenance": {
    "kind": "extracted",
    "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH18/24/30/36/45/54KMTAP; Duct Type Design & Technical Manual ARTH30-54KMTAP",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "12, 22; IM 9381386291-01 En-7, En-8; DR_AR058EF_02 f.6"
+   "page": "12, 22; IM 9381386291-01 En-7, En-8; DR_AR058EF_02 f.4, f.6"
   }
  },
  {
@@ -486,13 +489,14 @@
   "width_mm": 1400,
   "depth_mm": 700,
   "height_mm": 240,
+  "sound_low_dba": 32,
   "sound_high_dba": 40,
   "weight_kg": 42.0,
   "provenance": {
    "kind": "extracted",
    "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH18/24/30/36/45/54KMTAP; Duct Type Design & Technical Manual ARTH30-54KMTAP",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "12, 22; IM 9381386291-01 En-7, En-8; DR_AR058EF_02 f.6"
+   "page": "12, 22; IM 9381386291-01 En-7, En-8; DR_AR058EF_02 f.4, f.6"
   }
  },
  {
@@ -526,13 +530,14 @@
   "width_mm": 1050,
   "depth_mm": 500,
   "height_mm": 400,
+  "sound_low_dba": 27,
   "sound_high_dba": 34,
   "weight_kg": 38.0,
   "provenance": {
    "kind": "extracted",
-   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH24/30/36KHTA",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH24/30/36KHTA; Duct Type Design & Technical Manual High Static Single Phase ARTH24-60KHTA",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "14, 24; IM 9381386345-02 En-7"
+   "page": "14, 24; IM 9381386345-02 En-7; DR_AR082EF_01 f.2"
   }
  },
  {
@@ -566,13 +571,14 @@
   "width_mm": 1050,
   "depth_mm": 500,
   "height_mm": 400,
+  "sound_low_dba": 36,
   "sound_high_dba": 41,
   "weight_kg": 39.0,
   "provenance": {
    "kind": "extracted",
-   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH24/30/36KHTA",
+   "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH24/30/36KHTA; Duct Type Design & Technical Manual High Static Single Phase ARTH24-60KHTA",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "14, 24; IM 9381386345-02 En-7"
+   "page": "14, 24; IM 9381386345-02 En-7; DR_AR082EF_01 f.2"
   }
  },
  {
@@ -770,13 +776,14 @@
   "width_mm": 1400,
   "depth_mm": 850,
   "height_mm": 360,
+  "sound_low_dba": 39,
   "sound_high_dba": 44,
   "weight_kg": 69.0,
   "provenance": {
    "kind": "extracted",
    "source": "Fujitsu AIRSTAGE Ducted Range Brochure (AU); Duct Type Installation Manual ARTH60KHTB, ARTH65/72/90KHTA; Duct Type Design & Technical Manual High Static Single Phase High Performance ARTH30-54KHTA, ARTH60KHTB",
    "edition": "FGADUCTED09/25 (Sept 2025, J004132)",
-   "page": "14, 25; IM 9381386680-01 En-6, En-7; DR_AR081EF_01 f.6"
+   "page": "14, 25; IM 9381386680-01 En-6, En-7; DR_AR081EF_01 f.3, f.6"
   }
  },
  {

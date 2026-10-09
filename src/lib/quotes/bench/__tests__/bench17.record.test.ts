@@ -23,6 +23,8 @@ import type { QuoteLine } from "../../lines";
 const DIR = process.env.BENCH17_DIR ?? "";
 const ON = !!DIR && !!process.env.QUOTE_SESSION_MODEL && !!process.env.ANTHROPIC_API_KEY;
 const ORG = "91e33ca2-4847-408d-8ec5-c7cc0fa7a576";
+/* the bench scores the price, not the proposal's words: asked for neither them nor a parts plan, to spend less */
+const PRICE_ONLY = "Quote this job. Price it only: no proposal words and no parts plan.";
 const CAP_USD = Number(process.env.BENCH17_CAP ?? 60);
 const ONLY = (process.env.BENCH17_ONLY ?? "").split(",").filter(Boolean);
 /* which cases, and which run they're written as */
@@ -93,7 +95,7 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
       };
       /* read the job, as the app does, or the person's own words */
       const read = c.brief.startsWith("From the job in ServiceM8");
-      const first = read ? openingMessage(c.brief.replace(/^From the job in ServiceM8 \(read the job\):\n/, ""), "") : c.brief;
+      const first = read ? openingMessage(c.brief.replace(/^From the job in ServiceM8 \(read the job\):\n/, ""), PRICE_ONLY) : `${c.brief}\n\n${PRICE_ONLY}`;
       const t1 = await runTurn({ messages: [], summary: "" }, first, deps);
       const turn1 = { ended: t1.ended, spentUsd: t1.spentUsd, events: [...events], lines: store.lines(), totals: totals(store.lines()) };
       events.length = 0;

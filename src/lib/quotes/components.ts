@@ -131,7 +131,9 @@ export function matchesComponent(key: ComponentKey, name: string | null | undefi
     and "48mm" are sizes, not lengths. */
 export function rollMetresOf(name: string | null | undefined): number | null {
   if (!name) return null;
-  if (/per\s*met(er|re)|\/\s*m\b|per\s*m\b/i.test(name)) return 1;
+  /* sold by the metre: "per metre", "/m", and a supplier's unit tag "(MTR)",
+     which a "50MT" roll size in the same name must not override */
+  if (/per\s*met(er|re)|\/\s*m\b|per\s*m\b|\((?:mtr|mtrs|m|lm)\)/i.test(name)) return 1;
   const found = [...name.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*(?:m(?![m²a-z0-9])|mt\b|mtrs?\b|metres?\b|meters?\b)/gi)];
   const last = found.at(-1);
   if (!last) return null;

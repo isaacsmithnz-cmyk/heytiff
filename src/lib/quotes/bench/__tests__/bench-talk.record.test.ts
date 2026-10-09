@@ -26,6 +26,8 @@ const DIR = process.env.BENCH17_DIR ?? "";
 const JOB = process.env.BENCH_TALK_JOB ?? "";
 const ON = !!DIR && !!JOB && !!process.env.QUOTE_SESSION_MODEL && !!process.env.ANTHROPIC_API_KEY;
 const ORG = "91e33ca2-4847-408d-8ec5-c7cc0fa7a576";
+/* the bench scores the price, not the proposal's words: asked for neither them nor a parts plan, to spend less */
+const PRICE_ONLY = "Quote this job. Price it only: no proposal words and no parts plan.";
 const FRESH = process.env.BENCH17_FRESH === "1";
 /* how hard she thinks: the app's medium, or high to test it */
 const EFFORT = process.env.BENCH_EFFORT === "high" ? "high" : "medium";
@@ -71,7 +73,7 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
     let message: string;
     if (!talk) {
       const read = c.brief.startsWith("From the job in ServiceM8");
-      message = read ? openingMessage(c.brief.replace(/^From the job in ServiceM8 \(read the job\):\n/, ""), "") : c.brief;
+      message = read ? openingMessage(c.brief.replace(/^From the job in ServiceM8 \(read the job\):\n/, ""), PRICE_ONLY) : `${c.brief}\n\n${PRICE_ONLY}`;
     } else message = fs.readFileSync(path.join(dir, `${JOB}-${n}.txt`), "utf8").trim();
 
     const events: EventDraft[] = [];

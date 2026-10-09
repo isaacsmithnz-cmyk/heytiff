@@ -69,6 +69,8 @@ describe("a roll's length, read off the name", () => {
     ["2.5MMSQ 7/.67 T&E TPS 450/750V 90C WHITE 100M", 100],
     ["FLEX DRAIN HOSE 50M 16-18mm", 50],
     ["DURA FLEX COND DRAIN HOSE(16/18MM) 50MT (COIL)", 50],
+    /* the same hose cut by the metre: its unit tag beats the roll size */
+    ["DURA FLEX COND DRAIN HOSE(16/18MM) 50MT (MTR)", 1],
     ["2.5mm Twin and Earth Flat Cable (Per Meter)", 1],
     ["Pair Coil - 1/4 + 1/2", null],
   ])("%s → %s", (name, m) => expect(rollMetresOf(name)).toBe(m));

@@ -1,0 +1,239 @@
+{
+  "brand": "daikin",
+  "version": "2026.1",
+  "packSchemaVersion": 1,
+  "name": "Daikin — splits (Zena, Alira X, Cora, XL, Lite, Floor Standing) + ducted (FDYAN, FDYA, FDYQ, FDYQN, FBA, FDYBA bulkhead) + SkyAir + multi (Super Multi NX, 2MXF) + VRF (VRV IV-S RXYMQ, VRV S RSUYQ)",
+  "updated": "2026-10-09",
+  "sources": [
+    {
+      "title": "Split Systems Brochure (AU)",
+      "edition": "PCSPAU0626",
+      "access": "public"
+    },
+    {
+      "title": "Ducted Systems Brochure (AU)",
+      "edition": "PCDUAU0126",
+      "access": "public"
+    },
+    {
+      "title": "Super Multi NX Multi-Split Brochure (AU)",
+      "edition": "PCRAU1729B",
+      "access": "public"
+    },
+    {
+      "title": "SkyAir Brochure (AU)",
+      "edition": "PCSAU2313",
+      "access": "public"
+    },
+    {
+      "title": "Lite Reverse Cycle Split System Flyer (AU)",
+      "edition": "PFLRAU0921",
+      "access": "public"
+    },
+    {
+      "title": "Engineering Data, SkyAir RZAC Series",
+      "edition": "EDAU282223A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYAN + RZA Series",
+      "edition": "EDAU282225A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYQN + RZQ Series",
+      "edition": "EDAU282226",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FFA + RZAC Series",
+      "edition": "EDAU282227",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYBA + RZAC Series",
+      "edition": "EDAU282228",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYQ + RZYQ-TA(2) Series",
+      "edition": "EDAU282301",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYQ + RZYQ-T(2) Series",
+      "edition": "EDAU282302",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir RZAV Series",
+      "edition": "EDAU282318",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYA-AV19 + RZAS-C2V1 Series",
+      "edition": "EDAU282388",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYA-AV1 + RZAS-DV1/DY1 Series",
+      "edition": "EDAU282514A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXMQ-PV1A",
+      "edition": "EDAU391723",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXDQ-TV1C(A)",
+      "edition": "EDBFAU392101",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXDYQ-MA",
+      "edition": "EDFAU391818",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXDQ-PD/ND",
+      "edition": "EDFAU391829",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXUQ-A",
+      "edition": "EDFMT391732",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXEQ-A",
+      "edition": "EDFMT391734",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXSQ-PAVE",
+      "edition": "EDFMT391737A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXMQ-PAVE",
+      "edition": "EDFMT391738A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
+      "edition": "EDFMT391742A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
+      "edition": "EDFMT391769E",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXFQ-AVM",
+      "edition": "EDFMT391770D",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
+      "edition": "EDTAU042221B",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
+      "edition": "EDTAU042222B",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, Split Type Air Conditioners FTK(X)M-W Series",
+      "edition": "EDTAU042229",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, Split Type Air Conditioners FTXV-W Series (80/90)",
+      "edition": "EDTAU042230",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
+      "edition": "EDTAU042238",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, Split Type Air Conditioners FVXM-Y Series",
+      "edition": "EDTAU062411",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+      "edition": "EDTAU122219A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+      "edition": "EDTAU122301",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+      "edition": "EDTAU332336A-Ginfo",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXHQ-MAVE",
+      "edition": "EDTFMT392147",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXFTQ-AVM",
+      "edition": "EDTFMT392208",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXZQ-BVM",
+      "edition": "EDTFMT392234",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXCQ-BVM",
+      "edition": "EDTFMT392235",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXHQ-BVM",
+      "edition": "EDTFMT392236A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data FXAQ-BVM",
+      "edition": "EDTFMT392420A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, Split Type Air Conditioners FTXM-A Series",
+      "edition": "EDTMT042601",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data RSUYQ4/5/6AVMA",
+      "edition": "EDTRAU332025A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+      "edition": "EDTRAU332223A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data RSUYQ4/5/6A2VMA",
+      "edition": "EDTRAU332224A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data RSUYQ7/8AYM",
+      "edition": "EDTRMT332101A",
+      "access": "dealer-portal"
+    }
+  ]
+}

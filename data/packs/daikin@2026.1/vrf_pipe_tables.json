@@ -1,0 +1,350 @@
+[
+ {
+  "series": "RXYMQ-A2V4A",
+  "pipe_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 50,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "joint_selection": {
+   "steps": [
+    {
+     "index_max": 99999,
+     "part_ref": "BHRP26A22TA"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 250,
+   "max_farthest_actual_m": 70,
+   "max_farthest_equiv_m": 90,
+   "max_after_first_joint_m": 40,
+   "max_lift_odu_above_m": 30,
+   "max_lift_odu_below_m": 30,
+   "max_lift_idu_idu_m": 10
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "9.52": 54,
+      "6.35": 22
+     }
+    }
+   ]
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTRAU332223A",
+   "page": "49"
+  }
+ },
+ {
+  "series": "RXYMQ-B2VM",
+  "pipe_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 50,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "joint_selection": {
+   "steps": [
+    {
+     "index_max": 99999,
+     "part_ref": "BHRP26A22TA"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 300,
+   "max_farthest_actual_m": 70,
+   "max_farthest_equiv_m": 90,
+   "max_after_first_joint_m": 40,
+   "max_lift_odu_above_m": 30,
+   "max_lift_odu_below_m": 30,
+   "max_lift_idu_idu_m": 15
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "9.52": 54,
+      "6.35": 22
+     }
+    }
+   ]
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "edition": "EDTRAU332223A",
+   "page": "71"
+  }
+ },
+ {
+  "series": "RSUYQ4A",
+  "pipe_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 50,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "joint_selection": {
+   "steps": [
+    {
+     "index_max": 99999,
+     "part_ref": "BHRP26A22TA"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 300,
+   "max_farthest_actual_m": 120,
+   "max_farthest_equiv_m": 150,
+   "max_after_first_joint_m": 40,
+   "max_lift_odu_above_m": 50,
+   "max_lift_odu_below_m": 40,
+   "max_lift_idu_idu_m": 10
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "9.52": 54,
+      "6.35": 22
+     }
+    }
+   ]
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RSUYQ4/5/6AVMA",
+   "edition": "EDTRAU332025A",
+   "page": "50 (also EDTRAU332224A p.48)"
+  }
+ },
+ {
+  "series": "RSUYQ5-6A",
+  "pipe_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 50,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "joint_selection": {
+   "steps": [
+    {
+     "index_max": 99999,
+     "part_ref": "BHRP26A22TA"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 300,
+   "max_farthest_actual_m": 120,
+   "max_farthest_equiv_m": 150,
+   "max_after_first_joint_m": 40,
+   "max_lift_odu_above_m": 50,
+   "max_lift_odu_below_m": 40,
+   "max_lift_idu_idu_m": 15
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "9.52": 54,
+      "6.35": 22
+     }
+    }
+   ]
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RSUYQ4/5/6AVMA",
+   "edition": "EDTRAU332025A",
+   "page": "50 (also EDTRAU332224A p.48)"
+  }
+ },
+ {
+  "series": "RSUYQ-AYM",
+  "pipe_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 149.99,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    },
+    {
+     "index_max": 199.99,
+     "liquid_mm": 9.52,
+     "gas_mm": 19.05
+    },
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 22.2
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 50,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 99999,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "joint_selection": {
+   "steps": [
+    {
+     "index_max": 199.99,
+     "part_ref": "KHRP26A22T"
+    },
+    {
+     "index_max": 99999,
+     "part_ref": "KHRP26A33T"
+    }
+   ],
+   "first_joint_by_odu": {
+    "RSUYQ7AYM": "KHRP26A33T",
+    "RSUYQ8AYM": "KHRP26A33T"
+   }
+  },
+  "header_selection": {
+   "steps": [
+    {
+     "branches_max": 4,
+     "index_max": 199.99,
+     "part_ref": "KHRP26M22H"
+    },
+    {
+     "branches_max": 8,
+     "index_max": 99999,
+     "part_ref": "KHRP26M33H"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 300,
+   "max_farthest_actual_m": 120,
+   "max_farthest_equiv_m": 150,
+   "max_after_first_joint_m": 40,
+   "max_lift_odu_above_m": 50,
+   "max_lift_odu_below_m": 40,
+   "max_lift_idu_idu_m": 15
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "12.7": 120,
+      "9.52": 59,
+      "6.35": 22
+     }
+    }
+   ]
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Engineering Data RSUYQ7/8AYM",
+   "edition": "EDTRMT332101A",
+   "page": "44"
+  }
+ }
+]

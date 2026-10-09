@@ -7,12 +7,12 @@ import { VISIT_STAGES, type Visit, type VisitStage } from "@/lib/quotes/buildup"
 import { CHECKLIST } from "@/lib/quotes/checklist";
 import { acceptedOptions, type ProposalOption } from "@/lib/quotes/proposal";
 import { FALLBACK_MODEL, MODEL } from "@/lib/quotes/proposal-writer";
-import { linesHours } from "@/lib/quotes/lines-job";
+import { labourTasks, linesHours } from "@/lib/quotes/lines-job";
 import { readJobQuote } from "@/lib/quotes/lines-job-server";
 import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";
 import { getSm8Timezone } from "./query";
 import { todayInZone } from "./dates";
-import { TASKS_SCHEMA, TASKS_SYSTEM, parseTasks, plannedVisits, tasksPrompt, unitsOf } from "./task-plan";
+import { TASKS_SCHEMA, TASKS_SYSTEM, parseTasks, plannedVisits, tasksFromQuote, tasksPrompt, unitsOf, type QuoteVisit } from "./task-plan";
 import { PLATE_PROMPT, PLATE_SCHEMA, parsePlate, plateCode } from "./plate-read";
 import {
   MAX_NOTE,
@@ -43,6 +43,7 @@ type TaskRow = {
   serial: string | null;
   model_read: string | null;
   source: string;
+  hours: number | string | null;
 };
 type UpdateRow = { id: string; task_id: string; day: string; pct_from: number; pct_to: number; note: string; by_name: string | null; created_at: string };
 
@@ -58,6 +59,7 @@ const taskOf = (r: TaskRow): JobTask => ({
   serial: r.serial,
   modelRead: r.model_read,
   source: r.source === "person" ? "person" : "quote",
+  hours: r.hours == null ? null : Number(r.hours),
 });
 const updateOf = (r: UpdateRow): TaskUpdate => ({ id: r.id, taskId: r.task_id, day: r.day, from: r.pct_from, to: r.pct_to, note: r.note, by: r.by_name, at: r.created_at });
 
@@ -68,7 +70,7 @@ export async function readJobTasks(orgId: string, cardId: string): Promise<{ tas
   const [{ data: tasks }, { data: updates }] = await Promise.all([
     supabaseAdmin
       .from("job_tasks")
-      .select("id, name, stage, kind, unit, visit, sort, progress, serial, model_read, source")
+      .select("id, name, stage, kind, unit, visit, sort, progress, serial, model_read, source, hours")
       .eq("org_id", orgId)
       .eq("sm8_job_uuid", cardId)
       .order("sort", { ascending: true }),
@@ -196,6 +198,10 @@ export type QuotePlan = {
   /** the labour in person-hours, as priced; null when nothing gives hours */
   hours: number | null;
   facts: string[];
+  /** the same visits with the tasks the quote worked them out from (8.2);
+      null when the quote has none to hand over */
+  quoteVisits: QuoteVisit[] | null;
+  dayHours: number | null;
 };
 
 /** The accepted options and their labour, option by option as the price is
@@ -224,6 +230,9 @@ export async function quotePlan(orgId: string, cardId: string): Promise<QuotePla
     if (!e.own && labour?.brief?.personHours != null) return labour.brief.personHours;
     return dayHours ? personDays * dayHours : null;
   };
+  /* the tasks each accepted option's labour lines hold, line for visit */
+  const tasksOwn = quote.lines ? taken.map((i) => labourTasks(quote.lines!.filter((l) => l.optionIndex === i))) : null;
+  const quoteVisits: QuoteVisit[] = each.flatMap((e, k) => e.visits.map((v, j) => ({ ...v, tasks: (e.own && tasksOwn?.[k]?.[j]) || [] })));
   const hours = each.map(hoursOf).filter((h): h is number => h != null);
   const total = hours.length === each.length ? Math.round(hours.reduce((a, h) => a + h, 0) * 10) / 10 : null;
   return {
@@ -231,6 +240,8 @@ export async function quotePlan(orgId: string, cardId: string): Promise<QuotePla
     labour: each.flatMap((e) => e.visits),
     hours: total && total > 0 ? total : null,
     facts: quote.draft.checklist.filter((i) => i.state === "known" && i.answer.trim()).map((i) => `${CHECKLIST[i.key].label}: ${i.answer.trim()}`),
+    quoteVisits: quoteVisits.some((v) => v.tasks.length > 0) ? quoteVisits : null,
+    dayHours,
   };
 }
 
@@ -241,27 +252,36 @@ export function quotedHours(plan: QuotePlan | null): { hours: number; people: nu
   return { hours: plan.hours, people: Math.max(...plan.labour.map((v) => v.people)), visits: plannedVisits(plan.labour).length };
 }
 
-/** Tiff's task list from the accepted quote, onto a job with none yet. */
+/** The accepted quote's tasks onto a job with none yet: the tasks its
+    labour was worked out from, placed on its visits (tasksFromQuote), or,
+    for a quote with none, the list Tiff writes from it — a paid call, never
+    made when `quoteOnly` (an option being accepted). */
 export async function makeTasksFromQuote(
   orgId: string,
   userId: string,
   cardId: string,
-  client?: Anthropic
+  opts: { client?: Anthropic; quoteOnly?: boolean } = {}
 ): Promise<{ ok: true; made: number } | { ok: false; reason: string }> {
   if ((await taskCount(orgId, cardId)) > 0) return { ok: false, reason: "This job already has its tasks." };
   const plan = await quotePlan(orgId, cardId);
   if (!plan) return { ok: false, reason: "No option is marked accepted on the quote yet." };
-  const { data: job } = await supabaseAdmin.from("sm8_jobs").select("job_address").eq("org_id", orgId).eq("uuid", cardId).maybeSingle();
-  const visits = plannedVisits(plan.labour);
-  const site = (job as { job_address: string | null } | null)?.job_address ?? null;
-  const raw = await askClaude({ system: TASKS_SYSTEM, content: tasksPrompt({ site, options: plan.options, facts: plan.facts, visits }), schema: TASKS_SCHEMA }, client);
-  const tasks = parseTasks(raw, unitsOf(plan.options), visits);
-  if (tasks.length === 0) return { ok: false, reason: "Tiff couldn't write the tasks for this one. Add them yourself." };
+  const units = unitsOf(plan.options);
+  let tasks = plan.quoteVisits ? tasksFromQuote(plan.quoteVisits, plan.dayHours, units) : [];
+  if (tasks.length === 0) {
+    if (opts.quoteOnly) return { ok: false, reason: "The quote has no tasks of its own." };
+    if (!opts.client && !process.env.ANTHROPIC_API_KEY) return { ok: false, reason: "Tiff is offline: no API key is configured." };
+    const { data: job } = await supabaseAdmin.from("sm8_jobs").select("job_address").eq("org_id", orgId).eq("uuid", cardId).maybeSingle();
+    const visits = plannedVisits(plan.labour);
+    const site = (job as { job_address: string | null } | null)?.job_address ?? null;
+    const raw = await askClaude({ system: TASKS_SYSTEM, content: tasksPrompt({ site, options: plan.options, facts: plan.facts, visits }), schema: TASKS_SCHEMA }, opts.client);
+    tasks = parseTasks(raw, units, visits);
+    if (tasks.length === 0) return { ok: false, reason: "Tiff couldn't write the tasks for this one. Add them yourself." };
+  }
   /* asked again after the call: a second press, or a second manager, may
      have made them meanwhile */
   if ((await taskCount(orgId, cardId)) > 0) return { ok: false, reason: "This job already has its tasks." };
   const { error } = await supabaseAdmin.from("job_tasks").insert(
-    tasks.map((t) => ({ org_id: orgId, sm8_job_uuid: cardId, name: t.name, stage: t.stage, kind: t.kind, unit: t.unit, visit: t.visit, sort: t.sort, source: "quote", created_by: userId }))
+    tasks.map((t) => ({ org_id: orgId, sm8_job_uuid: cardId, name: t.name, stage: t.stage, kind: t.kind, unit: t.unit, visit: t.visit, sort: t.sort, hours: t.hours, source: "quote", created_by: userId }))
   );
   if (error) {
     console.error(`[visit-tasks] couldn't store job ${cardId}'s tasks:`, error);

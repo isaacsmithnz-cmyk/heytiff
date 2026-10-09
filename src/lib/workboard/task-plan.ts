@@ -22,14 +22,61 @@ type PlannedVisit = { n: number; stage: VisitStage; people: number };
     labour runs in the order of the work, stage by stage. */
 export function plannedVisits(labour: readonly Visit[]): PlannedVisit[] {
   const out: PlannedVisit[] = [];
-  const work = labour
+  for (const v of inWorkOrder(labour)) {
+    for (let i = 0; i < daysOf(v) && out.length < MAX_VISITS; i++) out.push({ n: out.length + 1, stage: v.stage, people: v.people });
+  }
+  return out;
+}
+
+const MAX_VISITS = 60;
+/** the list Tiff writes when the quote has no tasks of its own */
+const TIFF_TASKS = 40;
+/** a part day is a visit of its own */
+const daysOf = (v: Visit) => Math.max(1, Math.ceil(v.days - 1e-9));
+
+/** The labour in the order the work happens, stage by stage; no site measure. */
+function inWorkOrder<V extends Visit>(labour: readonly V[]): V[] {
+  return labour
     .filter((v) => v.stage !== "Site measure")
     .map((v, i) => ({ v, i }))
     .sort((a, b) => VISIT_STAGES.indexOf(a.v.stage) - VISIT_STAGES.indexOf(b.v.stage) || a.i - b.i)
     .map((x) => x.v);
-  for (const v of work) {
-    const days = Math.max(1, Math.ceil(v.days - 1e-9));
-    for (let i = 0; i < days && out.length < 60; i++) out.push({ n: out.length + 1, stage: v.stage, people: v.people });
+}
+
+/** A visit the quote's labour plans, with the tasks it was worked out from. */
+export type QuoteVisit = Visit & { tasks: readonly { task: string; hours: number }[] };
+
+/** THE QUOTE'S OWN TASKS, STRAIGHT ONTO THE JOB (slice 8.2; Isaac,
+    2026-10-09: "those tasks then get put straight on to the job"). Each
+    labour line's tasks in their order, a day's work to a visit: a crew's day
+    is its people times the working day, and a task goes on the day most
+    of it falls on. Each keeps its hours. The units still get their own tasks, for
+    their photos and plates, on the first install visit. No call to Tiff. */
+export function tasksFromQuote(labour: readonly QuoteVisit[], dayHours: number | null, units: readonly OptionUnit[]): NewTask[] {
+  const out: NewTask[] = [];
+  let before = 0;
+  let installVisit: number | null = null;
+  for (const v of inWorkOrder(labour)) {
+    const days = daysOf(v);
+    const crewDay = dayHours && dayHours > 0 ? v.people * dayHours : null;
+    if (v.stage === "Install" && installVisit == null && before < MAX_VISITS) installVisit = before + 1;
+    let done = 0;
+    for (const t of v.tasks) {
+      const name = clean(t.task);
+      if (!name || out.length >= MAX_TASKS) continue;
+      /* the day most of it falls on */
+      const day = crewDay ? Math.min(days - 1, Math.floor((done + t.hours / 2) / crewDay)) : 0;
+      const n = before + day + 1;
+      out.push({ name, stage: v.stage, kind: "tick", unit: null, visit: n <= MAX_VISITS ? n : null, sort: out.length, hours: t.hours > 0 ? t.hours : null });
+      done += t.hours;
+    }
+    before += days;
+  }
+  if (out.length === 0) return out;
+  const first = installVisit ?? (before > 0 ? 1 : null);
+  for (const u of units) {
+    if (out.length >= MAX_TASKS) break;
+    out.push({ name: unitTaskName(u), stage: "Install", kind: "unit", unit: taskUnitOf(u), visit: first, sort: out.length, hours: null });
   }
   return out;
 }
@@ -97,7 +144,7 @@ The fields:
 - unit: the unit's number for a unit task; 0 otherwise.
 - visit: the visit it is planned for, from the visits listed, spreading the work across them in order the way the crew would do it, a stage's work on that stage's visits. 0 when no visits are listed.
 
-Only work the quote says or plainly needs (every install is commissioned and handed over). No prices, no materials lists, nothing for the office (ordering, invoicing). At most ${MAX_TASKS} tasks. Never invent a model, a room or a fact.`;
+Only work the quote says or plainly needs (every install is commissioned and handed over). No prices, no materials lists, nothing for the office (ordering, invoicing). At most ${TIFF_TASKS} tasks. Never invent a model, a room or a fact.`;
 
 /** The user turn: the job, the accepted options and their units, the site's
     known facts, and the visits planned. */
@@ -124,7 +171,7 @@ export function tasksPrompt(input: {
   return `${parts.filter(Boolean).join("\n\n")}\n\nWrite the task list.`;
 }
 
-type NewTask = { name: string; stage: VisitStage; kind: TaskKind; unit: TaskUnit | null; visit: number | null; sort: number };
+type NewTask = { name: string; stage: VisitStage; kind: TaskKind; unit: TaskUnit | null; visit: number | null; sort: number; hours: number | null };
 
 const clean = (s: unknown) =>
   typeof s === "string" ? s.replace(/^[-*•–]\s*/, "").replace(/\s+/g, " ").trim().slice(0, MAX_TASK_NAME) : "";
@@ -136,7 +183,7 @@ export function parseTasks(raw: unknown, units: readonly OptionUnit[], visits: r
   const out: NewTask[] = [];
   const covered = new Set<number>();
   for (const x of list) {
-    if (out.length >= MAX_TASKS) break;
+    if (out.length >= TIFF_TASKS) break;
     if (!x || typeof x !== "object") continue;
     const o = x as Record<string, unknown>;
     const name = clean(o.name);
@@ -149,13 +196,13 @@ export function parseTasks(raw: unknown, units: readonly OptionUnit[], visits: r
     if (unit && kind === "unit") covered.add(unitN);
     const v = typeof o.visit === "number" && Number.isInteger(o.visit) ? o.visit : 0;
     const visit = v >= 1 && v <= visits.length ? v : null;
-    out.push({ name, stage, kind, unit: kind === "unit" && unit ? taskUnitOf(unit) : null, visit, sort: out.length });
+    out.push({ name, stage, kind, unit: kind === "unit" && unit ? taskUnitOf(unit) : null, visit, sort: out.length, hours: null });
   }
   /* a unit Tiff left out still gets its task, on the first install visit */
   const installVisit = visits.find((v) => v.stage === "Install")?.n ?? null;
   units.forEach((u, i) => {
-    if (covered.has(i + 1) || out.length >= MAX_TASKS) return;
-    out.push({ name: unitTaskName(u), stage: "Install", kind: "unit", unit: taskUnitOf(u), visit: installVisit, sort: out.length });
+    if (covered.has(i + 1) || out.length >= TIFF_TASKS) return;
+    out.push({ name: unitTaskName(u), stage: "Install", kind: "unit", unit: taskUnitOf(u), visit: installVisit, sort: out.length, hours: null });
   });
   return out;
 }

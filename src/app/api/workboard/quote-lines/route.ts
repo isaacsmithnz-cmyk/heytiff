@@ -14,6 +14,7 @@ import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { addEvents, readSession } from "@/lib/quotes/session/store-server";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
+import { makeTasksFromQuote } from "@/lib/workboard/visit-tasks-server";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { readOrgDay } from "@/lib/quotes/org-day-server";
 import { taskCheck } from "@/lib/quotes/task-hours";
@@ -158,6 +159,9 @@ export async function POST(req: Request) {
       if (marked.ok && marked.byHand.accepted.length > 0) {
         const put = await putAcceptedOnJob(g.orgId, g.userId, jobUuid);
         onJob = put.ok ? { added: put.added, removed: put.removed } : null;
+        /* the tasks its labour was worked out from go straight onto the job
+           (8.2), when it has none yet; never a call to Tiff */
+        await makeTasksFromQuote(g.orgId, g.userId, jobUuid, { quoteOnly: true }).catch(() => null);
       }
       break;
     }

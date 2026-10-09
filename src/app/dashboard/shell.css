@@ -7277,6 +7277,10 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .fg .jcl-tbox:disabled { cursor:default; }
 .fg .jcl-tbox:focus-visible { outline:none; box-shadow:var(--ring); }
 .jcl-ttx { display:flex; flex-direction:column; gap:2px; min-width:0; }
+/* a task from the quote's labour, with the hours it was quoted at (8.2) */
+.jcl-thead { display:flex; align-items:baseline; gap:8px; min-width:0; }
+.fg .jcl-thead > .jcl-tname { flex:1 1 auto; min-width:0; }
+.jcl-thr { flex:none; margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; font-variant-numeric:tabular-nums; }
 .fg .jcl-tname { padding:0; border:0; background:none; font:inherit; font-size:13px; text-align:left; color:var(--ink); cursor:pointer; }
 .fg .jcl-tname:hover { text-decoration:underline; text-underline-offset:2px; }
 .fg .jcl-tname:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }

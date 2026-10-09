@@ -28,6 +28,9 @@ const ONLY = (process.env.BENCH17_ONLY ?? "").split(",").filter(Boolean);
 /* which cases, and which run they're written as */
 const CASES = process.env.BENCH17_CASES ?? "cases.json";
 const RUN = path.join(DIR, process.env.BENCH17_RUN ?? "");
+/* as a business that has just started: its suppliers' lists and nothing it
+   has learned (no preferred items, no ranges, no quotes, no task hours) */
+const FRESH = process.env.BENCH17_FRESH === "1";
 
 type Case = { job: string; title: string; brief: string; followUp: string | null };
 
@@ -45,7 +48,8 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
       import("../../profit"),
     ]);
     const modelName = process.env.QUOTE_SESSION_MODEL!;
-    const [products, settings, day, ranges] = await Promise.all([bookProducts(ORG), readQuoteSettings(ORG), readOrgDay(ORG), readRangeOffers(ORG)]);
+    const [book, settings, day, ranges] = await Promise.all([bookProducts(ORG), readQuoteSettings(ORG), readOrgDay(ORG), readRangeOffers(ORG)]);
+    const products = FRESH ? book.map((p) => ({ ...p, preferred: null, quotes: 0 })) : book;
     const built = buildSettingsOf(settings, day);
     if (!built.ok) throw new Error(`settings unset: ${built.unset.join(", ")}`);
     const hourCostCents = hourCostOf(built.settings.chargeOutCents, settings.profitTargetPct, settings.labourCostCents);
@@ -71,9 +75,9 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
         settings: built.settings,
         hourCostCents,
         allowances: { consumables: settings.allowances.consumables, flush: settings.allowances.flush, recovery: settings.allowances.recovery },
-        taskHours: settings.taskHours,
+        taskHours: FRESH ? undefined : settings.taskHours,
         lookup: lookupUnit,
-        kitPrefs: { ranges, components: settings.preferred },
+        kitPrefs: FRESH ? null : { ranges, components: settings.preferred },
       });
       const events: EventDraft[] = [];
       const deps = {

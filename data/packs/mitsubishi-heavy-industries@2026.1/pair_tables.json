@@ -204,7 +204,7 @@
   "rated_heat_kw": 7.1,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
    "page": "22; 36 (PDF p.7): additional refrigerant charge"
   }
@@ -225,7 +225,7 @@
   "rated_heat_kw": 8.0,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
    "page": "22; 36 (PDF p.7): additional refrigerant charge"
   }
@@ -246,7 +246,7 @@
   "rated_heat_kw": 9.0,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
    "page": "22; 36 (PDF p.7): additional refrigerant charge"
   }
@@ -267,9 +267,9 @@
   "rated_heat_kw": 10.3,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual SRK-ZRA-W / SRK-YRA-W (outdoor installation manual RCR012A212B)",
-   "edition": "Split Systems April 2026 AU; '17 SRK-T-232",
-   "page": "22; 41 (PDF p.11): additional refrigerant charge"
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
+   "page": "22; 40 (PDF p.11): additional refrigerant charge"
   }
  },
  {
@@ -1341,6 +1341,90 @@
    "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
    "edition": "Ducted System September 2026 AU; '21 PAC-T-390",
    "page": "15 (PDF p.8); 116 (PDF p.51), single type: additional refrigerant charge"
+  }
+ },
+ {
+  "idu_model": "FDUA200VH",
+  "odu_model": "FDCA200VSA-W",
+  "pipe_liquid_mm": 12.7,
+  "pipe_gas_mm": 25.4,
+  "max_length_m": 70,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "stepped_by_length",
+   "precharged_up_to_m": 30,
+   "bands": [
+    {
+     "up_to_m": 40,
+     "add_g": 440
+    },
+    {
+     "up_to_m": 50,
+     "add_g": 1310
+    },
+    {
+     "up_to_m": 60,
+     "add_g": 2180
+    },
+    {
+     "up_to_m": 70,
+     "add_g": 2850
+    }
+   ],
+   "length_weights": {
+    "12.7": 1,
+    "9.52": 0.52
+   }
+  },
+  "rated_cool_kw": 20.0,
+  "rated_heat_kw": 22.4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book FDUA250VH with FDCA160-250VSA-W",
+   "edition": "Ducted System September 2026 AU; '24 PAC-DB-450",
+   "page": "15 (PDF p.8); 44 (PDF p.25): limits, pipe sizes (gas 25.4 past 35 m); 45 (PDF p.26): additional charge by equivalent length"
+  }
+ },
+ {
+  "idu_model": "FDUA250VH",
+  "odu_model": "FDCA250VSA-W",
+  "pipe_liquid_mm": 12.7,
+  "pipe_gas_mm": 25.4,
+  "max_length_m": 70,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "stepped_by_length",
+   "precharged_up_to_m": 30,
+   "bands": [
+    {
+     "up_to_m": 40,
+     "add_g": 440
+    },
+    {
+     "up_to_m": 50,
+     "add_g": 1310
+    },
+    {
+     "up_to_m": 60,
+     "add_g": 2180
+    },
+    {
+     "up_to_m": 70,
+     "add_g": 2850
+    }
+   ],
+   "length_weights": {
+    "12.7": 1,
+    "9.52": 0.52
+   }
+  },
+  "rated_cool_kw": 23.5,
+  "rated_heat_kw": 28.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book FDUA250VH with FDCA160-250VSA-W",
+   "edition": "Ducted System September 2026 AU; '24 PAC-DB-450",
+   "page": "15 (PDF p.8); 44 (PDF p.25): limits, pipe sizes (gas 25.4 past 35 m); 45 (PDF p.26): additional charge by equivalent length"
   }
  }
 ]

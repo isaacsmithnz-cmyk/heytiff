@@ -26,8 +26,8 @@
       "access": "public"
     },
     {
-      "title": "MHI Data Book, Inverter Packaged Air-Conditioners with Zone Control (FDUA/FDUM/FDU)",
-      "edition": "'19 PAC-DB-324",
+      "title": "MHI Data Book FDUA250VH with FDCA160-250VSA-W",
+      "edition": "'24 PAC-DB-450",
       "access": "public"
     },
     {
@@ -41,18 +41,8 @@
       "access": "public"
     },
     {
-      "title": "MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+      "title": "MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
       "edition": "'24 DXK-T-422",
-      "access": "public"
-    },
-    {
-      "title": "MHI Technical Manual SRK-ZRA-W / SRK-YRA-W (outdoor installation manual RCR012A212B)",
-      "edition": "'17 SRK-T-232",
-      "access": "public"
-    },
-    {
-      "title": "MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
-      "edition": "'23 PAC-DB-446",
       "access": "public"
     },
     {
@@ -66,21 +56,6 @@
       "access": "public"
     },
     {
-      "title": "MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
-      "edition": "'21 PAC-T-390",
-      "access": "public"
-    },
-    {
-      "title": "MHI Data Book FDUA/FDU with FDCA71VNX-W, FDCA125-140VNX-W",
-      "edition": "'24 PAC-DB-460",
-      "access": "public"
-    },
-    {
-      "title": "MHI Data Book FDUA160VH with FDCA160VNX-W",
-      "edition": "'23 PAC-DB-435",
-      "access": "public"
-    },
-    {
       "title": "MHI Data Book Inverter Multi-Split SCM40-80ZS-W",
       "edition": "'21 SCM-DB-330C",
       "access": "public"
@@ -91,18 +66,28 @@
       "access": "public"
     },
     {
-      "title": "MHIAA Split Systems Brochure (AU)",
-      "edition": "Split Systems March 2025 AU",
+      "title": "MHIAA Multi Split Systems Indoor Units Compatibility Chart (AU)",
+      "edition": "undated, PDF of 28 Feb 2025",
       "access": "public"
     },
     {
-      "title": "MHIAA Multi-Split Systems Brochure (AU)",
-      "edition": "Multi-Split Systems May 2025 AU",
+      "title": "MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+      "edition": "'23 PAC-DB-446",
       "access": "public"
     },
     {
-      "title": "MHIAA Ducted Systems Brochure (AU)",
-      "edition": "Ducted Systems May 2023 AU",
+      "title": "MHI Data Book FDUA/FDU with FDCA71VNX-W, FDCA125-140VNX-W",
+      "edition": "'24 PAC-DB-460",
+      "access": "public"
+    },
+    {
+      "title": "MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+      "edition": "'21 PAC-T-390",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book FDUA160VH with FDCA160VNX-W",
+      "edition": "'23 PAC-DB-435",
       "access": "public"
     }
   ]

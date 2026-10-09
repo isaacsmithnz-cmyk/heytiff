@@ -264,7 +264,7 @@
   "max_amps_a": 14.5,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
    "page": "22; 36 (PDF p.7): factory + maximum charge"
   }
@@ -291,7 +291,7 @@
   "max_amps_a": 17.0,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
    "page": "22; 36 (PDF p.7): factory + maximum charge"
   }
@@ -318,7 +318,7 @@
   "max_amps_a": 17.0,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manual RCT012A211)",
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
    "page": "22; 36 (PDF p.7): factory + maximum charge"
   }
@@ -345,9 +345,9 @@
   "max_amps_a": 17.5,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual SRK-ZRA-W / SRK-YRA-W (outdoor installation manual RCR012A212B)",
-   "edition": "Split Systems April 2026 AU; '17 SRK-T-232",
-   "page": "22; 41 (PDF p.11): factory + maximum charge"
+   "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
+   "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
+   "page": "22; 40 (PDF p.11): factory + maximum charge"
   }
  },
  {
@@ -574,7 +574,7 @@
   "capacity_heat_kw": 10.0,
   "phase": "1",
   "power_supply": "1 Phase 240V 50Hz",
-  "conn_liquid_mm": 6.35,
+  "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
   "precharged_kg": 1.7,
@@ -797,6 +797,58 @@
    "source": "MHIAA Ducted Systems Brochure (AU)",
    "edition": "Ducted System September 2026 AU",
    "page": "14 (PDF p.8)"
+  }
+ },
+ {
+  "model": "FDCA200VSA-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDCA",
+  "system_type": "split",
+  "capacity_cool_kw": 20.0,
+  "capacity_heat_kw": 22.4,
+  "phase": "3",
+  "power_supply": "3 Phase 380-415V 50Hz",
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 22.22,
+  "refrigerant": "R32",
+  "precharged_kg": 5.1,
+  "width_mm": 970,
+  "depth_mm": 370,
+  "height_mm": 1505,
+  "weight_kg": 145,
+  "sound_high_dba": 58,
+  "max_amps_a": 27,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book FDUA250VH with FDCA160-250VSA-W",
+   "edition": "Ducted System September 2026 AU; '24 PAC-DB-450",
+   "page": "15 (PDF p.8); 44 (PDF p.25): outdoor unit connected, gas 22.22 brazing / liquid 12.7 flare"
+  }
+ },
+ {
+  "model": "FDCA250VSA-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDCA",
+  "system_type": "split",
+  "capacity_cool_kw": 23.5,
+  "capacity_heat_kw": 28.0,
+  "phase": "3",
+  "power_supply": "3 Phase 380-415V 50Hz",
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 22.22,
+  "refrigerant": "R32",
+  "precharged_kg": 5.1,
+  "width_mm": 970,
+  "depth_mm": 370,
+  "height_mm": 1505,
+  "weight_kg": 145,
+  "sound_high_dba": 58,
+  "max_amps_a": 27,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Data Book FDUA250VH with FDCA160-250VSA-W",
+   "edition": "Ducted System September 2026 AU; '24 PAC-DB-450",
+   "page": "15 (PDF p.8); 44 (PDF p.25): outdoor unit connected, gas 22.22 brazing / liquid 12.7 flare"
   }
  },
  {

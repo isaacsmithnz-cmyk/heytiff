@@ -114,3 +114,13 @@ describe("logUsage", () => {
     expect(() => logUsage("answer:research", "claude-opus-5", hostile)).not.toThrow();
   });
 });
+
+describe("a cache read at the model's own rate", () => {
+  it("is a twentieth of input on Opus 5.5 and Sonnet 5.5, a fortieth on Fable 5.1, a tenth otherwise", () => {
+    const read = { cache_read_input_tokens: 1_000_000 };
+    expect(costOf("claude-opus-5-5", read)).toBeCloseTo(0.2);
+    expect(costOf("claude-sonnet-5-5", read)).toBeCloseTo(0.1);
+    expect(costOf("claude-fable-5-1", read)).toBeCloseTo(0.25);
+    expect(costOf("claude-opus-5", read)).toBeCloseTo(0.5);
+  });
+});

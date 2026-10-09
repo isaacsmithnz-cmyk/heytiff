@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { withCache, type Block, type ModelCall } from "./model";
+import { withCache, type Block, type Effort, type ModelCall } from "./model";
 
 /* THE REAL MODEL (model.ts says why it sits behind a door). Only a route
    that found a chosen model reaches this; every test and every replayed
@@ -22,6 +22,15 @@ export function sessionModelFor(orgId: string): string | null {
   if (!model) return null;
   const orgs = (process.env.QUOTE_SESSION_ORGS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   return orgs.includes(orgId) ? model : null;
+}
+
+/** How hard she thinks on a quote, as chosen for the deployment
+    (QUOTE_SESSION_EFFORT). The bench of 9 October, five jobs talked through
+    with the business's own answers: medium 5.5% from the hand-built price at
+    $0.64 a job, high 4.7% at $1.01, xhigh 7.2% at $1.75. Unset: medium. */
+export function chosenEffort(): Effort {
+  const e = (process.env.QUOTE_SESSION_EFFORT ?? "").trim();
+  return (["low", "medium", "high", "xhigh", "max"] as const).find((x) => x === e) ?? "medium";
 }
 
 export function anthropicModel(): ModelCall {

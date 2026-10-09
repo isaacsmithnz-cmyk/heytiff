@@ -30,7 +30,8 @@ const ORG = "91e33ca2-4847-408d-8ec5-c7cc0fa7a576";
 const PRICE_ONLY = "Quote this job. Price it only: no proposal words and no parts plan.";
 const FRESH = process.env.BENCH17_FRESH === "1";
 /* how hard she thinks: the app's medium, or high to test it */
-const EFFORT = process.env.BENCH_EFFORT === "high" ? "high" : "medium";
+const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+const EFFORT = EFFORTS.find((e) => e === process.env.BENCH_EFFORT) ?? "medium";
 
 type Case = { job: string; brief: string };
 type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; usd: number; ended: string; totals: number[] }[] };
@@ -52,7 +53,8 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
     const built = buildSettingsOf(settings, day);
     if (!built.ok) throw new Error("settings unset");
     const products = FRESH ? book.map((p) => ({ ...p, preferred: null, quotes: 0 })) : book;
-    const dir = path.join(DIR, "talk");
+    /* one folder a run of the conversation: the same replies, another model or effort */
+    const dir = path.join(DIR, process.env.BENCH_TALK_DIR ?? "talk");
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, `${JOB}.json`);
     const talk: Talk | null = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;

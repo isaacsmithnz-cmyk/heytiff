@@ -33,6 +33,10 @@ const RUN = path.join(DIR, process.env.BENCH17_RUN ?? "");
 /* as a business that has just started: its suppliers' lists and nothing it
    has learned (no preferred items, no ranges, no quotes, no task hours) */
 const FRESH = process.env.BENCH17_FRESH === "1";
+/* how hard she thinks (the app's medium, or high), and whether the corrections follow the brief */
+const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+const EFFORT = EFFORTS.find((e) => e === process.env.BENCH_EFFORT) ?? "medium";
+const FIRST_ONLY = process.env.BENCH17_TURNS === "1";
 
 type Case = { job: string; title: string; brief: string; followUp: string | null };
 
@@ -87,6 +91,7 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
         modelName,
         system: sessionSystemPrompt(),
         tools: SESSION_TOOLS,
+        effort: EFFORT,
         runTool: makeTools(store),
         save: async (_s: unknown, ev: EventDraft[]) => {
           events.push(...ev);
@@ -100,7 +105,7 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
       const turn1 = { ended: t1.ended, spentUsd: t1.spentUsd, events: [...events], lines: store.lines(), totals: totals(store.lines()) };
       events.length = 0;
       let turn2 = null;
-      if (c.followUp) {
+      if (c.followUp && !FIRST_ONLY) {
         const t2 = await runTurn(t1.state, c.followUp, deps);
         turn2 = { ended: t2.ended, spentUsd: t2.spentUsd, events: [...events], lines: store.lines(), totals: totals(store.lines()) };
       }

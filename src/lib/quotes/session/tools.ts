@@ -165,7 +165,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "search_book",
     description:
-      "Search the business's own price book: the items it buys, its preferred first, then what's on most of its quotes, then the cheapest. Words in the name or code; a size in mm narrows to items that come in it. Only items found here can go on the quote.",
+      "Search the business's own price book: the items it buys, its preferred first, then what's on most of its quotes, then the cheapest. Names are the suppliers' own and often abbreviated (\"TRUNK CAP 2.4M SHALE GREY\", \"DAI WIRED 7 DAY PROG CONTROL\"), so search one or two key words or a code, not a description; when nothing has every word, the items with most of them come back. A size in mm narrows to items that come in it. Only items found here can go on the quote.",
     input_schema: {
       type: "object",
       properties: { text: { type: "string" }, size_mm: { type: "number" }, brand: { type: "string" } },

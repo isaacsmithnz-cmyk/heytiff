@@ -27,6 +27,7 @@ export async function GET(req: Request) {
     text,
     sizeMm: Number.isFinite(size) && size > 0 && size < 2000 ? size : null,
     brand: (p.get("brand") ?? "").trim().slice(0, 60) || null,
+    loose: true,
   });
   return Response.json({ ok: true, hits });
 }

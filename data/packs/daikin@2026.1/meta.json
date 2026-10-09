@@ -3,7 +3,7 @@
   "version": "2026.1",
   "packSchemaVersion": 1,
   "name": "Daikin — splits (Zena, Alira X, Cora, XL, Lite, Floor Standing) + ducted (FDYAN, FDYA, FDYQ, FDYQN, FBA, FDYBA bulkhead) + SkyAir + multi (Super Multi NX, 2MXF) + VRF (VRV IV-S RXYMQ, VRV S RSUYQ)",
-  "updated": "2026-10-08",
+  "updated": "2026-10-09",
   "sources": [
     {
       "title": "Split Systems Brochure (AU)",
@@ -31,6 +31,11 @@
       "access": "public"
     },
     {
+      "title": "Engineering Data, SkyAir FDYAN + RZA Series",
+      "edition": "EDAU282225A",
+      "access": "dealer-portal"
+    },
+    {
       "title": "Engineering Data, SkyAir FFA + RZAC Series",
       "edition": "EDAU282227",
       "access": "dealer-portal"
@@ -38,6 +43,11 @@
     {
       "title": "Engineering Data, SkyAir FDYBA + RZAC Series",
       "edition": "EDAU282228",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYA-AV19 + RZAS-C2V1 Series",
+      "edition": "EDAU282388",
       "access": "dealer-portal"
     },
     {

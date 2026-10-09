@@ -56,6 +56,32 @@ describe("the book, as the business buys", () => {
     expect(findInBook(book, { text: "nothing like it" })).toEqual([]);
   });
 
+  it("finds a word as a supplier writes it: no punctuation, its first letters, the trade's short forms", () => {
+    const trunk = product("TCAPSG", "TRUNK CAP 2.4M SHALE GREY NSW", 3030);
+    const wifi = product("MAC-588IF-E", "Wi-Fi Interface", 6650);
+    const ctrl = product("BRC1E63", "DAI WIRED 7 DAY PROG CONTROL", 10101);
+    const inter = product("ELCAC7504", "Flat TPS 3C +E A/ C 7/0. 5 1.5mm PVC/ PVC Blue 450/ 750V per metre", 180);
+    const rag = product("ECF6040", "EGGCRATE W/FILTER 600X400 ALUM", 4862);
+    const all = [...book, trunk, wifi, ctrl, inter, rag];
+    const codes = (text: string) => findInBook(all, { text }).map((h) => h.product.offers[0]!.code);
+    expect(codes("shale grey trunking")).toEqual(["TCAPSG"]);
+    expect(codes("wifi")).toEqual(["MAC-588IF-E"]);
+    expect(codes("wired controller")).toEqual(["BRC1E63"]);
+    expect(codes("interconnect")).toEqual(["ELCAC7504"]);
+    expect(codes("return grille filter")).toEqual(["ECF6040"]);
+    /* what has every word as typed still comes first, and alone */
+    expect(codes("acoustic 250")).toEqual(["VH250"]);
+  });
+
+  it("for a person's search, the items with most of the words when none has them all", () => {
+    const rag = product("ECF6040", "EGGCRATE W/FILTER 600X400 ALUM", 4862);
+    const hits = findInBook([...book, rag], { text: "filtered return air grille", loose: true });
+    expect(hits[0]!.product.offers[0]!.code).toBe("ECF6040");
+    /* a kit's pick stays strict */
+    expect(findInBook([...book, rag], { text: "filtered return air grille" })).toEqual([]);
+    expect(findInBook(book, { text: "nothing like it", loose: true })).toEqual([]);
+  });
+
   it("stops at the limit", () => {
     expect(findInBook(book, { text: "vortex", limit: 2 })).toHaveLength(2);
   });

@@ -1,6 +1,6 @@
 import type { BuildSettings } from "../buildup";
 import type { Product } from "../families";
-import { expandKit, type KitAllowances } from "../kits";
+import { expandKit, pipeFromMm, type KitAllowances, type KitPreferences } from "../kits";
 import { applyPatch, lineFromRow, lineRow, normaliseLine, sortLines, type QuoteLine } from "../lines";
 import { priceLines } from "../lines-price";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
@@ -30,6 +30,10 @@ export function memoryStore(opts: {
   allowances?: KitAllowances | null;
   taskHours?: Record<TaskKey, number | null>;
   supplier?: string | null;
+  /** the makers' data packs, as the app reads them; else the case's units */
+  lookup?: (brand: string, model: string) => Promise<UnitLookup>;
+  /** the business's ranges and preferred parts, for a kit to pick from */
+  kitPrefs?: KitPreferences | null;
 }): QuoteStore & { lines: () => QuoteLine[] } {
   let lines: QuoteLine[] = [];
   const names: string[] = [];
@@ -69,8 +73,17 @@ export function memoryStore(opts: {
       for (const l of mine) add({ ...l, optionIndex: to, position: l.position });
       return { ok: true, line: null };
     },
-    addKit: async (kit, facts, at) => {
-      const made = expandKit(kit, facts, opts.products, at, opts.allowances ?? null, opts.supplier ?? null);
+    addKit: async (kit, facts, at, unit) => {
+      /* the outdoor's pack fills what wasn't said, as kits-server.ts does */
+      const f = { ...facts };
+      if (unit && opts.lookup) {
+        const u = await opts.lookup(unit.brand, unit.model);
+        if (u.found && u.specs.role === "outdoor") {
+          if (!f.pipe && u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
+          if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
+        }
+      }
+      const made = expandKit(kit, f, opts.products, at, opts.allowances ?? null, opts.supplier ?? null, opts.kitPrefs ?? null);
       for (const l of made) add(l as Record<string, unknown>);
       return { ok: true, added: made.length };
     },
@@ -91,7 +104,7 @@ export function memoryStore(opts: {
     look: async () => "The bench has no files.",
     book: async () => opts.products,
     hourCost: async () => opts.hourCostCents,
-    lookupUnit: async (_brand, model) => opts.units?.[model.toUpperCase()] ?? { found: false, reason: "no data pack" },
+    lookupUnit: async (brand, model) => (opts.lookup ? opts.lookup(brand, model) : (opts.units?.[model.toUpperCase()] ?? { found: false, reason: "no data pack" })),
     totals: async () => ({ ok: true, options: priceLines(lines, [], opts.settings, { pct: null, labourCostCents: null }).map((o) => o.build.exGstCents) }),
     taskHours: async () => ({ hours: opts.taskHours ?? { zone: null, grille: null, metre: null, visit: null }, dayHours: opts.settings.dayHours }),
   };

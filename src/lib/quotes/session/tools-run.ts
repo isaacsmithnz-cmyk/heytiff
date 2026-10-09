@@ -105,7 +105,7 @@ export function makeTools(store: QuoteStore) {
         const size = typeof input.size_mm === "number" ? input.size_mm : null;
         const brand = typeof input.brand === "string" && input.brand.trim() ? input.brand.trim() : null;
         const supplier = await store.supplier();
-        const found = findInBook(await store.book(), { text, sizeMm: size, brand, limit: SEARCH_LIMIT * 2 });
+        const found = findInBook(await store.book(), { text, sizeMm: size, brand, limit: SEARCH_LIMIT * 2, loose: true });
         /* the job's supplier's items first */
         const hits = (supplier ? [...found.filter((h) => supplierOffer(h.product, supplier)), ...found.filter((h) => !supplierOffer(h.product, supplier))] : found).slice(0, SEARCH_LIMIT);
         return {

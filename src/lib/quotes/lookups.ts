@@ -27,6 +27,9 @@ export type BookQuery = {
   brand?: string | null;
   category?: CategoryKey | null;
   limit?: number;
+  /** when nothing has every word, the items with most of them (a person's
+      or Tiff's search, not a kit's pick) */
+  loose?: boolean;
 };
 
 export type BookHit = {
@@ -39,18 +42,83 @@ export type BookHit = {
 
 export const BOOK_LIMIT = 20;
 
+/* ── the words as suppliers write them ──
+   A book's names are its suppliers' own: "TRUNK CAP 2.4M SHALE GREY", "DAI
+   WIRED 7 DAY PROG CONTROL", "Wi-Fi", "Flat TPS 3C +E A/C" for interconnect.
+   A search that wants every word as typed found none of them (the bench of
+   8 October: 171 searches came back empty for parts the book has). So a
+   word also matches with its punctuation gone ("wifi", "wi-fi"), by its
+   stem ("trunking", "TRUNK"), and by the trade's own short
+   forms. Universal words, no business's own. */
+const SHORT_FORMS: Record<string, string[]> = {
+  interconnect: ["3c+e", "4c+e", "3ce", "4ce", "intcon"],
+  controller: ["control", "remote"],
+  control: ["controller", "remote"],
+  remote: ["controller", "control"],
+  wifi: ["wlan", "wireless lan"],
+  isolator: ["isol", "isolating"],
+  bracket: ["brkt"],
+  brackets: ["brkt", "bracket"],
+  damper: ["damp"],
+  motorised: ["mtr", "motor"],
+  motorized: ["mtr", "motor"],
+  condensate: ["cond"],
+  feet: ["mount", "foot"],
+  return: ["ret", "eggcrate"],
+  grille: ["grill", "eggcrate"],
+  grill: ["grille"],
+  filter: ["filt"],
+  filtered: ["filter", "filt"],
+  diffuser: ["diff"],
+  outdoor: ["o/u", "odu", "out"],
+  indoor: ["i/u", "idu", "ind"],
+  cable: ["cbl"],
+  coil: ["pair coil", "copper"],
+};
+const STOP = new Set(["a", "an", "and", "the", "for", "of", "to", "with", "in", "on", "x"]);
+const squash = (s: string) => s.replace(/[^a-z0-9+]/g, "");
+
+/** Whether a product carries a word, as a supplier might write it. */
+function carries(hay: { plain: string; squashed: string }, w: string): boolean {
+  if (hay.plain.includes(w)) return true;
+  const sw = squash(w);
+  if (sw.length >= 2 && hay.squashed.includes(sw)) return true;
+  /* its stem: "trunking" is TRUNK, "controller" CONTROL, but "interconnect" isn't INTERface */
+  if (w.length >= 6 && hay.plain.includes(w.slice(0, Math.max(5, w.length - 3)))) return true;
+  return (SHORT_FORMS[w] ?? []).some((f) => hay.plain.includes(f) || hay.squashed.includes(squash(f)));
+}
+/* its maker too: Mitsubishi's own names never say "Mitsubishi" */
+const hayOf = (p: Product) => {
+  const plain = `${p.brand ?? ""} ${p.offers.map((o) => `${o.code} ${o.name}`).join(" ")}`.toLowerCase();
+  return { plain, squashed: squash(plain) };
+};
+
 export function findInBook(products: Product[], q: BookQuery): BookHit[] {
   const words = searchWords(q.text);
-  const hits = products.filter(
-    (p) =>
-      (words.length === 0 || matchesWords(p, words)) &&
-      (q.sizeMm == null || sizesOf(p.name).includes(q.sizeMm) || p.offers.some((o) => sizesOf(o.code).includes(q.sizeMm!))) &&
-      (q.brand == null || (p.brand ?? "").toLowerCase() === q.brand.toLowerCase()) &&
-      (q.category == null || p.category === q.category)
-  );
+  const fits = (p: Product) =>
+    (q.sizeMm == null || sizesOf(p.name).includes(q.sizeMm) || p.offers.some((o) => sizesOf(o.code).includes(q.sizeMm!))) &&
+    (q.brand == null || (p.brand ?? "").toLowerCase() === q.brand.toLowerCase()) &&
+    (q.category == null || p.category === q.category);
+  let hits = products.filter((p) => (words.length === 0 || matchesWords(p, words)) && fits(p));
+  /* nothing as typed: every word, as a supplier might write it */
+  if (hits.length === 0 && words.length > 0) hits = products.filter((p) => fits(p) && words.every((w) => carries(hayOf(p), w)));
+  /* still nothing, for a person's search: the items with most of the words */
+  let matched = new Map<Product, number>();
+  if (hits.length === 0 && q.loose) {
+    const content = words.filter((w) => w.length >= 3 && !STOP.has(w));
+    const need = Math.max(1, Math.ceil(content.length / 2));
+    for (const p of products) {
+      if (!fits(p)) continue;
+      const hay = hayOf(p);
+      const n = content.filter((w) => carries(hay, w)).length;
+      if (n >= need) matched.set(p, n);
+    }
+    hits = [...matched.keys()];
+  } else matched = new Map();
   const price = (p: Product) => (p.preferred ?? p.cheapest)?.netCents ?? null;
   const ranked = [...hits].sort(
     (a, b) =>
+      (matched.get(b) ?? 0) - (matched.get(a) ?? 0) ||
       (a.preferred ? 0 : 1) - (b.preferred ? 0 : 1) ||
       usesOf(b) - usesOf(a) ||
       (price(a) ?? Number.MAX_SAFE_INTEGER) - (price(b) ?? Number.MAX_SAFE_INTEGER) ||

@@ -282,9 +282,9 @@
   "weight_kg": 13,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
-   "edition": "PCSPAU0626",
-   "page": "26"
+   "source": "Engineering Data, Split Type Air Conditioners FTXM-A Series",
+   "edition": "EDTMT042601",
+   "page": "5 (also Split Systems Brochure PCSPAU0626 p.26)"
   }
  },
  {
@@ -314,9 +314,9 @@
   "weight_kg": 13,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
-   "edition": "PCSPAU0626",
-   "page": "26"
+   "source": "Engineering Data, Split Type Air Conditioners FTXM-A Series",
+   "edition": "EDTMT042601",
+   "page": "5 (also Split Systems Brochure PCSPAU0626 p.26)"
   }
  },
  {
@@ -346,9 +346,9 @@
   "weight_kg": 13,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
-   "edition": "PCSPAU0626",
-   "page": "26"
+   "source": "Engineering Data, Split Type Air Conditioners FTXM-A Series",
+   "edition": "EDTMT042601",
+   "page": "6 (also Split Systems Brochure PCSPAU0626 p.26)"
   }
  },
  {
@@ -378,9 +378,9 @@
   "weight_kg": 14,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
-   "edition": "PCSPAU0626",
-   "page": "26"
+   "source": "Engineering Data, Split Type Air Conditioners FTXM-A Series",
+   "edition": "EDTMT042601",
+   "page": "6 (also Split Systems Brochure PCSPAU0626 p.26)"
   }
  },
  {
@@ -410,9 +410,9 @@
   "weight_kg": 16,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
-   "edition": "PCSPAU0626",
-   "page": "26 (width_mm: EDTMT042601 p.7)"
+   "source": "Engineering Data, Split Type Air Conditioners FTXM-A Series",
+   "edition": "EDTMT042601",
+   "page": "7 (also Split Systems Brochure PCSPAU0626 p.26, width there 1101)"
   }
  },
  {
@@ -442,9 +442,9 @@
   "weight_kg": 16,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
-   "edition": "PCSPAU0626",
-   "page": "26 (width_mm: EDTMT042601 p.7)"
+   "source": "Engineering Data, Split Type Air Conditioners FTXM-A Series",
+   "edition": "EDTMT042601",
+   "page": "7 (also Split Systems Brochure PCSPAU0626 p.26, width there 1101)"
   }
  },
  {
@@ -474,9 +474,9 @@
   "weight_kg": 16,
   "provenance": {
    "kind": "extracted",
-   "source": "Split Systems Brochure (AU)",
-   "edition": "PCSPAU0626",
-   "page": "26 (width_mm: EDTMT042601 p.8)"
+   "source": "Engineering Data, Split Type Air Conditioners FTXM-A Series",
+   "edition": "EDTMT042601",
+   "page": "8 (also Split Systems Brochure PCSPAU0626 p.26, width there 1101)"
   }
  },
  {
@@ -892,7 +892,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (sound_low_dba: EDTAU062411 p.4)"
+   "page": "30 (also EDTAU062411 p.4)"
   }
  },
  {
@@ -1282,9 +1282,9 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+   "page": "30 (also PCSAU2313 p.60)"
   }
  },
  {
@@ -1322,9 +1322,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+   "page": "30 (also PCSAU2313 p.60)"
   }
  },
  {
@@ -1362,9 +1362,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+   "page": "30 (also PCSAU2313 p.60)"
   }
  },
  {
@@ -1402,9 +1402,9 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+   "page": "30 (also PCSAU2313 p.60)"
   }
  },
  {
@@ -1442,9 +1442,9 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30; SkyAir Brochure PCSAU2313 p.60"
+   "page": "30 (also PCSAU2313 p.60)"
   }
  },
  {
@@ -1485,9 +1485,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYAN + RZA Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26; return spigot EDAU282225A p.15 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot)",
+   "page": "26 (also return spigot EDAU282225A p.15 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -1530,9 +1530,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYAN + RZA Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26; return spigot EDAU282225A p.15 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot)",
+   "page": "26 (also return spigot EDAU282225A p.15 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -1575,9 +1575,9 @@
   "weight_kg": 40,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYAN + RZA Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26-27; return spigot EDAU282225A p.16 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot)",
+   "page": "26-27 (also return spigot EDAU282225A p.16 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -1620,9 +1620,9 @@
   "weight_kg": 40,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYAN + RZA Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26-27; return spigot EDAU282225A p.16 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot)",
+   "page": "26-27 (also return spigot EDAU282225A p.16 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -1665,9 +1665,9 @@
   "weight_kg": 45,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYAN + RZA Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26-27; return spigot EDAU282225A p.17 (\"TO SUIT Ø350 FLEXIBLE DUCT x 2\" read as a round spigot)",
+   "page": "26-27 (also return spigot EDAU282225A p.17 (\"TO SUIT Ø350 FLEXIBLE DUCT x 2\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -1710,9 +1710,9 @@
   "weight_kg": 55,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYAN + RZA Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26-27; return spigot EDAU282225A p.18 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot)",
+   "page": "26-27 (also return spigot EDAU282225A p.18 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -1755,9 +1755,9 @@
   "weight_kg": 55,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYAN + RZA Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26-27; return spigot EDAU282225A p.18 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot)",
+   "page": "26-27 (also return spigot EDAU282225A p.18 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -1800,9 +1800,9 @@
   "weight_kg": 56,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYAN + RZA Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26-27; return spigot EDAU282225A p.18 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot)",
+   "page": "26-27 (also return spigot EDAU282225A p.18 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -1962,9 +1962,9 @@
   "weight_kg": 40,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYA-AV19 + RZAS-C2V1 Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24; return spigot EDAU282388 p.11 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot)",
+   "page": "24 (also return spigot EDAU282388 p.11 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -2007,9 +2007,9 @@
   "weight_kg": 41,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYA-AV19 + RZAS-C2V1 Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24; return spigot EDAU282388 p.11 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot)",
+   "page": "24 (also return spigot EDAU282388 p.11 (\"TO SUIT Ø400 FLEXIBLE DUCT\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -2052,9 +2052,9 @@
   "weight_kg": 46,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYA-AV19 + RZAS-C2V1 Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24; return spigot EDAU282388 p.12 (\"TO SUIT Ø350 FLEXIBLE DUCT x 2\" read as a round spigot)",
+   "page": "24 (also return spigot EDAU282388 p.12 (\"TO SUIT Ø350 FLEXIBLE DUCT x 2\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -2097,9 +2097,9 @@
   "weight_kg": 56,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYA-AV19 + RZAS-C2V1 Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24; return spigot EDAU282388 p.13 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot)",
+   "page": "24 (also return spigot EDAU282388 p.13 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -2142,9 +2142,9 @@
   "weight_kg": 60,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYA-AV19 + RZAS-C2V1 Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24; return spigot EDAU282388 p.14 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot)",
+   "page": "24 (also return spigot EDAU282388 p.14 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -2187,9 +2187,9 @@
   "weight_kg": 60,
   "provenance": {
    "kind": "user-entered",
-   "source": "Ducted Systems Brochure (AU); Engineering Data, SkyAir FDYA-AV19 + RZAS-C2V1 Series",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24; return spigot EDAU282388 p.14 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot)",
+   "page": "24 (also return spigot EDAU282388 p.14 (\"TO SUIT Ø400 FLEXIBLE DUCT x 2\" read as a round spigot))",
    "by": "Isaac Smith",
    "at": "2026-10-09"
   }
@@ -2424,9 +2424,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+   "page": "28 (also PCSAU2313 p.61)"
   }
  },
  {
@@ -2464,9 +2464,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+   "page": "28 (also PCSAU2313 p.61)"
   }
  },
  {
@@ -2504,9 +2504,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+   "page": "28 (also PCSAU2313 p.61)"
   }
  },
  {
@@ -2544,9 +2544,9 @@
   "weight_kg": 47,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+   "page": "28 (also PCSAU2313 p.61)"
   }
  },
  {
@@ -2584,9 +2584,9 @@
   "weight_kg": 47,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+   "page": "28 (also PCSAU2313 p.61)"
   }
  },
  {
@@ -2624,9 +2624,9 @@
   "weight_kg": 47,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+   "page": "28 (also PCSAU2313 p.61)"
   }
  },
  {
@@ -2664,9 +2664,9 @@
   "weight_kg": 47,
   "provenance": {
    "kind": "extracted",
-   "source": "Ducted Systems Brochure (AU); SkyAir Brochure (AU)",
+   "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28; SkyAir Brochure PCSAU2313 p.61"
+   "page": "28 (also PCSAU2313 p.61)"
   }
  },
  {
@@ -3786,7 +3786,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "35; capacity tables 39-58"
+   "page": "35; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -3818,7 +3818,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "35; capacity tables 39-58"
+   "page": "35; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -3850,7 +3850,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "35; capacity tables 39-58"
+   "page": "35; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -3882,7 +3882,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "35; capacity tables 39-58"
+   "page": "35; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -3914,7 +3914,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -3946,7 +3946,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -3978,7 +3978,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4010,7 +4010,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4042,7 +4042,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4074,7 +4074,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4106,7 +4106,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4138,7 +4138,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4170,7 +4170,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4202,7 +4202,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4234,7 +4234,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4266,7 +4266,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4298,7 +4298,7 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "36; capacity tables 39-58"
+   "page": "36; capacity tables 39-58 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4331,9 +4331,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.68) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4366,9 +4366,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.68) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4401,9 +4401,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.68) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4436,9 +4436,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.68) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4471,9 +4471,9 @@
   "weight_kg": 27,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.68"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.68) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4506,9 +4506,9 @@
   "weight_kg": 30,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.69) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4541,9 +4541,9 @@
   "weight_kg": 30,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.69) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4582,9 +4582,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.69) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4623,9 +4623,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.69) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -4664,9 +4664,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Super Multi NX Multi-Split Brochure (AU); Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+   "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "37; capacity tables 39-58; EDTAU122219A p.69"
+   "page": "37, capacity tables 39-58 (also EDTAU122219A p.69) (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -5463,9 +5463,9 @@
   "weight_kg": 70,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PV1A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PV1A",
    "edition": "EDAU391723",
-   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5494,9 +5494,9 @@
   "weight_kg": 70,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PV1A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PV1A",
    "edition": "EDAU391723",
-   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5585,9 +5585,9 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5616,9 +5616,9 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5647,9 +5647,9 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5678,9 +5678,9 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5709,9 +5709,9 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5740,9 +5740,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5771,9 +5771,9 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5802,9 +5802,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5833,9 +5833,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5864,9 +5864,9 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5895,9 +5895,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5926,9 +5926,9 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-TV1C(A); Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5957,9 +5957,9 @@
   "weight_kg": 50,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDYQ-MA; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDYQ-MA",
    "edition": "EDFAU391818",
-   "page": "3; R410A p.16; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5988,9 +5988,9 @@
   "weight_kg": 60,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDYQ-MA; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDYQ-MA",
    "edition": "EDFAU391818",
-   "page": "3; R410A p.16; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6019,9 +6019,9 @@
   "weight_kg": 65,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDYQ-MA; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDYQ-MA",
    "edition": "EDFAU391818",
-   "page": "4; R410A p.16; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6050,9 +6050,9 @@
   "weight_kg": 66,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDYQ-MA; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDYQ-MA",
    "edition": "EDFAU391818",
-   "page": "4; R410A p.16; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6081,9 +6081,9 @@
   "weight_kg": 23,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-PD/ND",
    "edition": "EDFAU391829",
-   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6112,9 +6112,9 @@
   "weight_kg": 23,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-PD/ND",
    "edition": "EDFAU391829",
-   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6143,9 +6143,9 @@
   "weight_kg": 23,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-PD/ND",
    "edition": "EDFAU391829",
-   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6174,9 +6174,9 @@
   "weight_kg": 27,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-PD/ND",
    "edition": "EDFAU391829",
-   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6205,9 +6205,9 @@
   "weight_kg": 28,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-PD/ND",
    "edition": "EDFAU391829",
-   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6236,9 +6236,9 @@
   "weight_kg": 31,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXDQ-PD/ND; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXDQ-PD/ND",
    "edition": "EDFAU391829",
-   "page": "6; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6267,9 +6267,9 @@
   "weight_kg": 26,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXUQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXUQ-A",
    "edition": "EDFMT391732",
-   "page": "3; R410A p.14; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.14 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6298,9 +6298,9 @@
   "weight_kg": 27,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXUQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXUQ-A",
    "edition": "EDFMT391732",
-   "page": "3; R410A p.14; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.14 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6329,9 +6329,9 @@
   "weight_kg": 17,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXEQ-A",
    "edition": "EDFMT391734",
-   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6360,9 +6360,9 @@
   "weight_kg": 17,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXEQ-A",
    "edition": "EDFMT391734",
-   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6391,9 +6391,9 @@
   "weight_kg": 17,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXEQ-A",
    "edition": "EDFMT391734",
-   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6422,9 +6422,9 @@
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXEQ-A",
    "edition": "EDFMT391734",
-   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6453,9 +6453,9 @@
   "weight_kg": 23,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXEQ-A",
    "edition": "EDFMT391734",
-   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6484,9 +6484,9 @@
   "weight_kg": 23,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXEQ-A; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXEQ-A",
    "edition": "EDFMT391734",
-   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6515,9 +6515,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "3; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6546,9 +6546,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "3; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6577,9 +6577,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "4; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6608,9 +6608,9 @@
   "weight_kg": 27,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "4; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6639,9 +6639,9 @@
   "weight_kg": 35,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "5; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6670,9 +6670,9 @@
   "weight_kg": 35,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "5; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6701,9 +6701,9 @@
   "weight_kg": 37,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "6; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6732,9 +6732,9 @@
   "weight_kg": 46,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "6; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6763,9 +6763,9 @@
   "weight_kg": 47,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "7; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6794,9 +6794,9 @@
   "weight_kg": 52,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXSQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXSQ-PAVE",
    "edition": "EDFMT391737A",
-   "page": "7; R410A p.49; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.49 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6825,9 +6825,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "3; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6856,9 +6856,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "3; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6887,9 +6887,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "4; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6918,9 +6918,9 @@
   "weight_kg": 27,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "4; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6949,9 +6949,9 @@
   "weight_kg": 35,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "5; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6980,9 +6980,9 @@
   "weight_kg": 35,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "5; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7011,9 +7011,9 @@
   "weight_kg": 35,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "6; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7042,9 +7042,9 @@
   "weight_kg": 45,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "6; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7073,9 +7073,9 @@
   "weight_kg": 45,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "7; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7104,9 +7104,9 @@
   "weight_kg": 46,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXMQ-PAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXMQ-PAVE",
    "edition": "EDFMT391738A",
-   "page": "7; R410A p.46; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.46 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7135,9 +7135,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7166,9 +7166,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "3; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7197,9 +7197,9 @@
   "weight_kg": 30,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7228,9 +7228,9 @@
   "weight_kg": 30,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "4; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7259,9 +7259,9 @@
   "weight_kg": 36,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7290,9 +7290,9 @@
   "weight_kg": 36,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "5; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7321,9 +7321,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "6; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7352,9 +7352,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "6; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7383,9 +7383,9 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "7; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7414,9 +7414,9 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "7; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7445,9 +7445,9 @@
   "weight_kg": 29,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "8; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "8, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7476,9 +7476,9 @@
   "weight_kg": 29,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXLQ-MAVE, FXNQ-MAVE",
    "edition": "EDFMT391742A",
-   "page": "8; R410A p.30; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "8, R410A p.30 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7507,9 +7507,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
    "edition": "EDFMT391769E",
-   "page": "3; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.37 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7538,9 +7538,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
    "edition": "EDFMT391769E",
-   "page": "3; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.37 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7569,9 +7569,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
    "edition": "EDFMT391769E",
-   "page": "4; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.37 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7600,9 +7600,9 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
    "edition": "EDFMT391769E",
-   "page": "4; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.37 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7631,9 +7631,9 @@
   "weight_kg": 22,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
    "edition": "EDFMT391769E",
-   "page": "5; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.37 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7662,9 +7662,9 @@
   "weight_kg": 22,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
    "edition": "EDFMT391769E",
-   "page": "5; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.37 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7693,9 +7693,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
    "edition": "EDFMT391769E",
-   "page": "6; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.37 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7724,9 +7724,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
    "edition": "EDFMT391769E",
-   "page": "6; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.37 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7755,9 +7755,9 @@
   "weight_kg": 26,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFSQ-AVM, FXFSQ-CVM",
    "edition": "EDFMT391769E",
-   "page": "7; R410A p.37; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.37 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7846,9 +7846,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFQ-AVM",
    "edition": "EDFMT391770D",
-   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7877,9 +7877,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFQ-AVM",
    "edition": "EDFMT391770D",
-   "page": "3; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7908,9 +7908,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFQ-AVM",
    "edition": "EDFMT391770D",
-   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7939,9 +7939,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFQ-AVM",
    "edition": "EDFMT391770D",
-   "page": "4; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -7970,9 +7970,9 @@
   "weight_kg": 22,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFQ-AVM",
    "edition": "EDFMT391770D",
-   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8001,9 +8001,9 @@
   "weight_kg": 22,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFQ-AVM",
    "edition": "EDFMT391770D",
-   "page": "5; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8032,9 +8032,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFQ-AVM",
    "edition": "EDFMT391770D",
-   "page": "6; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8063,9 +8063,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFQ-AVM",
    "edition": "EDFMT391770D",
-   "page": "6; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8094,9 +8094,9 @@
   "weight_kg": 26,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFQ-AVM",
    "edition": "EDFMT391770D",
-   "page": "7; R410A p.32; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8125,9 +8125,9 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXHQ-MAVE",
    "edition": "EDTFMT392147",
-   "page": "3; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.22 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8156,9 +8156,9 @@
   "weight_kg": 28,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXHQ-MAVE",
    "edition": "EDTFMT392147",
-   "page": "3; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.22 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8187,9 +8187,9 @@
   "weight_kg": 28,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXHQ-MAVE",
    "edition": "EDTFMT392147",
-   "page": "4; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.22 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8218,9 +8218,9 @@
   "weight_kg": 33,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXHQ-MAVE",
    "edition": "EDTFMT392147",
-   "page": "4; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.22 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8249,9 +8249,9 @@
   "weight_kg": 33,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXHQ-MAVE; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXHQ-MAVE",
    "edition": "EDTFMT392147",
-   "page": "5; R410A p.22; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.22 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8280,9 +8280,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFTQ-AVM",
    "edition": "EDTFMT392208",
-   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8311,9 +8311,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFTQ-AVM",
    "edition": "EDTFMT392208",
-   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8342,9 +8342,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFTQ-AVM",
    "edition": "EDTFMT392208",
-   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8373,9 +8373,9 @@
   "weight_kg": 24,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFTQ-AVM",
    "edition": "EDTFMT392208",
-   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8404,9 +8404,9 @@
   "weight_kg": 22,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFTQ-AVM",
    "edition": "EDTFMT392208",
-   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8435,9 +8435,9 @@
   "weight_kg": 22,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFTQ-AVM",
    "edition": "EDTFMT392208",
-   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8466,9 +8466,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFTQ-AVM",
    "edition": "EDTFMT392208",
-   "page": "6; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8497,9 +8497,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFTQ-AVM",
    "edition": "EDTFMT392208",
-   "page": "6; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8528,9 +8528,9 @@
   "weight_kg": 26,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXFTQ-AVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXFTQ-AVM",
    "edition": "EDTFMT392208",
-   "page": "7; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8559,9 +8559,9 @@
   "weight_kg": 15.5,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXZQ-BVM",
    "edition": "EDTFMT392234",
-   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8590,9 +8590,9 @@
   "weight_kg": 15.5,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXZQ-BVM",
    "edition": "EDTFMT392234",
-   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8621,9 +8621,9 @@
   "weight_kg": 16.5,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXZQ-BVM",
    "edition": "EDTFMT392234",
-   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8652,9 +8652,9 @@
   "weight_kg": 16.5,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXZQ-BVM",
    "edition": "EDTFMT392234",
-   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8683,9 +8683,9 @@
   "weight_kg": 18.5,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXZQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXZQ-BVM",
    "edition": "EDTFMT392234",
-   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8714,9 +8714,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXCQ-BVM",
    "edition": "EDTFMT392235",
-   "page": "3; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.25 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8745,9 +8745,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXCQ-BVM",
    "edition": "EDTFMT392235",
-   "page": "3; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.25 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8776,9 +8776,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXCQ-BVM",
    "edition": "EDTFMT392235",
-   "page": "4; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.25 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8807,9 +8807,9 @@
   "weight_kg": 19,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXCQ-BVM",
    "edition": "EDTFMT392235",
-   "page": "4; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.25 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8838,9 +8838,9 @@
   "weight_kg": 22,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXCQ-BVM",
    "edition": "EDTFMT392235",
-   "page": "5; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.25 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8869,9 +8869,9 @@
   "weight_kg": 25,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXCQ-BVM",
    "edition": "EDTFMT392235",
-   "page": "5; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.25 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8900,9 +8900,9 @@
   "weight_kg": 33,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXCQ-BVM",
    "edition": "EDTFMT392235",
-   "page": "6; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.25 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8931,9 +8931,9 @@
   "weight_kg": 38,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXCQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXCQ-BVM",
    "edition": "EDTFMT392235",
-   "page": "6; R410A p.25; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.25 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8962,9 +8962,9 @@
   "weight_kg": 41,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXHQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXHQ-BVM",
    "edition": "EDTFMT392236A",
-   "page": "3; R410A p.15; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.15 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -8993,9 +8993,9 @@
   "weight_kg": 41,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXHQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXHQ-BVM",
    "edition": "EDTFMT392236A",
-   "page": "3; R410A p.15; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.15 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9024,9 +9024,9 @@
   "weight_kg": 12,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXAQ-BVM",
    "edition": "EDTFMT392420A",
-   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9055,9 +9055,9 @@
   "weight_kg": 12,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXAQ-BVM",
    "edition": "EDTFMT392420A",
-   "page": "3; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "3, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9086,9 +9086,9 @@
   "weight_kg": 12,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXAQ-BVM",
    "edition": "EDTFMT392420A",
-   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9117,9 +9117,9 @@
   "weight_kg": 12,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXAQ-BVM",
    "edition": "EDTFMT392420A",
-   "page": "4; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "4, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9148,9 +9148,9 @@
   "weight_kg": 16,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXAQ-BVM",
    "edition": "EDTFMT392420A",
-   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9179,9 +9179,9 @@
   "weight_kg": 16,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXAQ-BVM",
    "edition": "EDTFMT392420A",
-   "page": "5; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "5, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9210,9 +9210,9 @@
   "weight_kg": 16,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXAQ-BVM",
    "edition": "EDTFMT392420A",
-   "page": "6; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9241,9 +9241,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXAQ-BVM",
    "edition": "EDTFMT392420A",
-   "page": "6; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "6, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9272,9 +9272,9 @@
   "weight_kg": 21,
   "provenance": {
    "kind": "extracted",
-   "source": "Engineering Data FXAQ-BVM; Engineering Data, General Information for Australia RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
+   "source": "Engineering Data FXAQ-BVM",
    "edition": "EDTFMT392420A",
-   "page": "7; R410A p.28; capacity index EDTAU332336A-Ginfo p.5"
+   "page": "7, R410A p.28 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -9306,7 +9306,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
    "edition": "EDTAU122301",
-   "page": "6, 8-9"
+   "page": "6, 8-9 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -9338,7 +9338,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
    "edition": "EDTAU122301",
-   "page": "6, 8-9"
+   "page": "6, 8-9 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -9370,7 +9370,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
    "edition": "EDTAU122301",
-   "page": "6, 8-9"
+   "page": "6, 8-9 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  },
  {
@@ -9402,7 +9402,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
    "edition": "EDTAU122301",
-   "page": "6, 8-9"
+   "page": "6, 8-9 (capacity_cool/heat_kw: the single-room row of the capacity tables, a one-head set the book says cannot connect, the spec page printing only the kW class)"
   }
  }
 ]

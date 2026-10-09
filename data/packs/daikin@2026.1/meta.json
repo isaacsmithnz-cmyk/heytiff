@@ -31,8 +31,18 @@
       "access": "public"
     },
     {
+      "title": "Engineering Data, SkyAir RZAC Series",
+      "edition": "EDAU282223A",
+      "access": "dealer-portal"
+    },
+    {
       "title": "Engineering Data, SkyAir FDYAN + RZA Series",
       "edition": "EDAU282225A",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYQN + RZQ Series",
+      "edition": "EDAU282226",
       "access": "dealer-portal"
     },
     {
@@ -43,6 +53,21 @@
     {
       "title": "Engineering Data, SkyAir FDYBA + RZAC Series",
       "edition": "EDAU282228",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYQ + RZYQ-TA(2) Series",
+      "edition": "EDAU282301",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir FDYQ + RZYQ-T(2) Series",
+      "edition": "EDAU282302",
+      "access": "dealer-portal"
+    },
+    {
+      "title": "Engineering Data, SkyAir RZAV Series",
+      "edition": "EDAU282318",
       "access": "dealer-portal"
     },
     {

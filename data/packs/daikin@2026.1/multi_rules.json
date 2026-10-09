@@ -122,6 +122,27 @@
      "edition": "PCRAU1729B",
      "page": "45, 58"
     }
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Super Multi NX Multi-Split Brochure (AU)",
+     "edition": "PCRAU1729B",
+     "page": "58"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "max": 9.0,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Super Multi NX Multi-Split Brochure (AU)",
+     "edition": "PCRAU1729B",
+     "page": "58"
+    }
    }
   ],
   "max_total_pipe_m": 50,
@@ -136,8 +157,9 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "5-6, 35"
-  }
+   "page": "5-6, 35 (height between heads 7.5 m)"
+  },
+  "max_lift_idu_idu_m": 7.5
  },
  {
   "odu_model_ref": "4MXM68RVMA",
@@ -431,6 +453,27 @@
      "edition": "PCRAU1729B",
      "page": "45-47, 58"
     }
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Super Multi NX Multi-Split Brochure (AU)",
+     "edition": "PCRAU1729B",
+     "page": "58"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "max": 11.0,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Super Multi NX Multi-Split Brochure (AU)",
+     "edition": "PCRAU1729B",
+     "page": "58"
+    }
    }
   ],
   "max_total_pipe_m": 60,
@@ -445,8 +488,9 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "5-6, 35"
-  }
+   "page": "5-6, 35 (height between heads 7.5 m)"
+  },
+  "max_lift_idu_idu_m": 7.5
  },
  {
   "odu_model_ref": "4MXM80RVMA",
@@ -1165,6 +1209,27 @@
      "edition": "PCRAU1729B",
      "page": "47-51, 58"
     }
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Super Multi NX Multi-Split Brochure (AU)",
+     "edition": "PCRAU1729B",
+     "page": "58"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "max": 14.5,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Super Multi NX Multi-Split Brochure (AU)",
+     "edition": "PCRAU1729B",
+     "page": "58"
+    }
    }
   ],
   "max_total_pipe_m": 70,
@@ -1179,8 +1244,9 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "5-6, 35"
-  }
+   "page": "5-6, 35 (height between heads 7.5 m)"
+  },
+  "max_lift_idu_idu_m": 7.5
  },
  {
   "odu_model_ref": "5MXM100RVMA",
@@ -2530,6 +2596,27 @@
      "edition": "PCRAU1729B",
      "page": "51-57, 58"
     }
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Super Multi NX Multi-Split Brochure (AU)",
+     "edition": "PCRAU1729B",
+     "page": "58"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "max": 15.6,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Super Multi NX Multi-Split Brochure (AU)",
+     "edition": "PCRAU1729B",
+     "page": "58"
+    }
    }
   ],
   "max_total_pipe_m": 80,
@@ -2544,8 +2631,9 @@
    "kind": "extracted",
    "source": "Super Multi NX Multi-Split Brochure (AU)",
    "edition": "PCRAU1729B",
-   "page": "5-6, 35"
-  }
+   "page": "5-6, 35 (height between heads 7.5 m)"
+  },
+  "max_lift_idu_idu_m": 7.5
  },
  {
   "odu_model_ref": "3MXM52R2VMA",
@@ -2683,6 +2771,27 @@
      "edition": "EDTAU122219A",
      "page": "24-27"
     }
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+     "edition": "EDTAU122219A",
+     "page": "24"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "max": 9.0,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+     "edition": "EDTAU122219A",
+     "page": "24"
+    }
    }
   ],
   "max_total_pipe_m": 50,
@@ -2697,8 +2806,9 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "22, 91"
-  }
+   "page": "22, 91 (height between heads 7.5 m)"
+  },
+  "max_lift_idu_idu_m": 7.5
  },
  {
   "odu_model_ref": "4MXM68R2VMA",
@@ -3009,6 +3119,27 @@
      "edition": "EDTAU122219A",
      "page": "28-35"
     }
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+     "edition": "EDTAU122219A",
+     "page": "29"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "max": 11.0,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+     "edition": "EDTAU122219A",
+     "page": "29"
+    }
    }
   ],
   "max_total_pipe_m": 60,
@@ -3023,8 +3154,9 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "22, 91"
-  }
+   "page": "22, 91 (height between heads 7.5 m)"
+  },
+  "max_lift_idu_idu_m": 7.5
  },
  {
   "odu_model_ref": "4MXM80R2VMA",
@@ -3760,6 +3892,27 @@
      "edition": "EDTAU122219A",
      "page": "36-47"
     }
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+     "edition": "EDTAU122219A",
+     "page": "38"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "max": 14.5,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+     "edition": "EDTAU122219A",
+     "page": "38"
+    }
    }
   ],
   "max_total_pipe_m": 70,
@@ -3774,8 +3927,9 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "23, 92"
-  }
+   "page": "23, 92 (height between heads 7.5 m)"
+  },
+  "max_lift_idu_idu_m": 7.5
  },
  {
   "odu_model_ref": "5MXM100R2VMA",
@@ -5146,6 +5300,27 @@
      "edition": "EDTAU122219A",
      "page": "48-63"
     }
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+     "edition": "EDTAU122219A",
+     "page": "51"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "max": 15.6,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
+     "edition": "EDTAU122219A",
+     "page": "51"
+    }
    }
   ],
   "max_total_pipe_m": 80,
@@ -5160,8 +5335,9 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "23, 92"
-  }
+   "page": "23, 92 (height between heads 7.5 m)"
+  },
+  "max_lift_idu_idu_m": 7.5
  },
  {
   "odu_model_ref": "2MXF70T2VMA",
@@ -5225,6 +5401,27 @@
      "edition": "EDTAU122301",
      "page": "8-9"
     }
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+     "edition": "EDTAU122301",
+     "page": "8"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "max": 7.5,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
+     "edition": "EDTAU122301",
+     "page": "8"
+    }
    }
   ],
   "max_total_pipe_m": 30,
@@ -5239,7 +5436,8 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
    "edition": "EDTAU122301",
-   "page": "7, 14"
-  }
+   "page": "7, 14 (height between heads 7.5 m)"
+  },
+  "max_lift_idu_idu_m": 7.5
  }
 ]

@@ -1,0 +1,41 @@
+/* THE LETTER EDITOR'S OWN PARTS — the toolbar over the paper and the body
+   typed straight onto it. The paper is letter.css's; the page around it is
+   the template pages' (templates.css: the well, the side, the cards). */
+
+.lte-well { display: flex; flex-direction: column; gap: 16px; }
+
+/* the toolbar stays in reach as a long letter scrolls under it */
+.lte-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.lte-grp { display: flex; flex-wrap: wrap; gap: 2px; padding-right: 8px; border-right: 1px solid var(--line); }
+.lte-grp:last-child { padding-right: 0; border-right: 0; }
+.lte-btn {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.lte-btn:hover { background: var(--bg); }
+.lte-btn[aria-pressed="true"] { background: var(--tint-2); font-weight: 600; }
+
+/* the body, typed on the paper: the paper's own type, no box around it */
+.lte .lte-doc { min-height: 240px; outline: none; }
+.lte .lte-doc:focus-visible { outline: none; }
+.lte .lte-doc .selectedCell { background: var(--tint-2); }

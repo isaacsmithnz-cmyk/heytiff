@@ -103,6 +103,13 @@ describe("a price from the book, never from her", () => {
 describe("her tools, run", () => {
   const run = sessionTools("org-1", "job-1");
 
+  it("works the labour out task by task, as a line a visit, its tasks the reason", async () => {
+    const out = await run("build_labour", { option: 0, visits: [{ stage: "Install", people: 2, tasks: [{ task: "Mount indoor", hours: 2 }, { task: "Commission", hours: 2 }] }] });
+    expect(out).toMatchObject({ ok: true, said: "4 h over 1 visit" });
+    expect(lines.at(-1)).toMatchObject({ group: "Labour", kind: "labour", name: "Install: 2 people, half a day", qty: 4, unit: "h", costCents: 11200, source: "assumed", why: "Mount indoor 2 h; Commission 2 h" });
+    expect(await run("build_labour", { option: 0, visits: [] })).toMatchObject({ ok: false });
+  });
+
   it("researches a price for a line by its own call, and leaves the line for the person to use it on", async () => {
     runResearch.mockResolvedValueOnce({ ok: true, research: { priceCents: 130000, per: "a hole", summary: "s", source: { url: "https://q.au", title: "Q" } }, usd: 0.06, model: "claude-opus-5-5", searches: 2 });
     const out = await run("research_price", { line_id: "l1", what: "core hole" });

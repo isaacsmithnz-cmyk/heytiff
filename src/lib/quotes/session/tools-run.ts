@@ -8,6 +8,7 @@ import type { Correction } from "../corrections";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
 import { planOf } from "../build-progress";
 import type { Research } from "../research";
+import { labourVisitsOf, visitLine } from "../labour-build";
 import { taskCheck } from "../task-hours";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
@@ -221,6 +222,22 @@ export function makeTools(store: QuoteStore) {
         if (!name) return fail("Give the option a name.");
         const res = await store.nameOption(option, name);
         return res.ok ? { ok: true, label, said: name, value: { named: option } } : fail(res.reason);
+      }
+      case "build_labour": {
+        const option = typeof input.option === "number" ? Math.max(0, Math.min(19, Math.round(input.option))) : 0;
+        const visits = labourVisitsOf(input.visits);
+        if (typeof visits === "string") return fail(visits);
+        const [now, hour, day] = await Promise.all([store.readLines(), store.hourCost(), store.taskHours()]);
+        /* hers go; a person's own labour line stays */
+        for (const l of now.filter((x) => x.optionIndex === option && x.kind === "labour" && x.updatedBy === "tiff")) await store.removeLine(l.id, l.version, "Labour worked out again");
+        let hours = 0;
+        for (const v of visits) {
+          const line = visitLine(v, day.dayHours);
+          hours += line.qty;
+          const r = await store.addLine({ optionIndex: option, system: "", group: "Labour", name: line.name, kind: "labour", qty: line.qty, unit: "h", costCents: hour ?? 0, sellCents: null, source: "assumed", why: line.why }, "Labour, task by task");
+          if (!r.ok) return fail(r.reason);
+        }
+        return { ok: true, label, said: `${hours} h over ${visits.length} ${visits.length === 1 ? "visit" : "visits"}`, value: { hours, visits: visits.map((v) => visitLine(v, day.dayHours).name) } };
       }
       case "research_price": {
         const lineId = typeof input.line_id === "string" ? input.line_id : "";

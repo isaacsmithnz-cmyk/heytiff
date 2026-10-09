@@ -305,6 +305,41 @@ export const SESSION_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: { option: lineFields.option, name: { type: "string" } }, required: ["option", "name"], additionalProperties: false },
   },
   {
+    name: "build_labour",
+    description:
+      "Work out an option's labour task by task: the visits the job takes (rough-in, install, fit-off, commissioning, a return trip), the people on each, and every task in each visit with the person-hours an experienced crew takes for it in this job's conditions. Each visit becomes one labour line, named for its crew and days, its tasks as the reason. It replaces the labour lines you wrote on that option before; a person's own labour line stays.",
+    input_schema: {
+      type: "object",
+      properties: {
+        option: lineFields.option,
+        visits: {
+          type: "array",
+          maxItems: 12,
+          items: {
+            type: "object",
+            properties: {
+              stage: { type: "string", description: "\"Install\", \"Rough-in\", \"Fit-off and commissioning\", \"Return: grilles\"." },
+              people: { type: "integer" },
+              tasks: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { task: { type: "string" }, hours: { type: "number", description: "Person-hours: two people for 3 hours is 6." } },
+                  required: ["task", "hours"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["stage", "people", "tasks"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["option", "visits"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "research_price",
     description:
       "Find a price on the web for a line the business's book hasn't got (a core hole, a crane, a brand they don't stock), when the person asks for it or agrees. One price, where it's from, and a short summary come back; the person presses Use it to put it on the line. Don't change the line's price yourself. Each research costs money: only when it's asked for.",
@@ -413,6 +448,7 @@ export const TOOL_LABELS: Record<string, string> = {
   write_proposal: "Wrote the proposal",
   plan_parts: "Planned the quote",
   research_price: "Researched a price",
+  build_labour: "Worked out the labour",
   your_corrections: "Read her corrections",
   job_files: "Listed the job's files",
   look_at: "Looked at",

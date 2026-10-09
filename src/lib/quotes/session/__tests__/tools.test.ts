@@ -197,3 +197,13 @@ describe("a room's load", () => {
     expect(roomLoads({ climate_zone: 2, rooms: [{ name: "Living", area_m2: 84 }] }).rooms[0]!.load_kw).toBe(13.44);
   });
 });
+
+describe("a price the person gave", () => {
+  it("goes on as theirs, only when the line says so", () => {
+    expect(newLineOf({ name: "AirTouch upgrade", group: "Zoning", kind: "material", qty: 1, source: "said", why: "“adds $1,480 plus GST”", sell_each_cents: 148000 })).toMatchObject({ sellCents: 148000 });
+    /* her own judgement can't carry a price */
+    expect(newLineOf({ name: "AirTouch upgrade", group: "Zoning", kind: "material", qty: 1, source: "assumed", why: "guess", sell_each_cents: 148000 })).not.toHaveProperty("sellCents");
+    expect(patchOf({ id: "l1", version: 1, source: "said", why: "“$1,480”", sell_each_cents: 148000 })).toMatchObject({ patch: { sellCents: 148000 } });
+    expect(newLineOf({ name: "Flex 250", group: "Ductwork and grilles", kind: "material", qty: 5, source: "assumed", why: "a bag an outlet", duct: true })).toMatchObject({ duct: true });
+  });
+});

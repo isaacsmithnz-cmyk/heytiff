@@ -34,11 +34,13 @@ export function memoryStore(opts: {
   lookup?: (brand: string, model: string) => Promise<UnitLookup>;
   /** the business's ranges and preferred parts, for a kit to pick from */
   kitPrefs?: KitPreferences | null;
+  /** the quote as a conversation left it, to carry on from */
+  seed?: QuoteLine[];
 }): QuoteStore & { lines: () => QuoteLine[] } {
-  let lines: QuoteLine[] = [];
+  let lines: QuoteLine[] = [...(opts.seed ?? [])];
   const names: string[] = [];
   let proposal: LinesProposal | null = null;
-  let n = 0;
+  let n = Math.max(0, ...lines.map((l) => Number(l.id.replace(/^m/, "")) || 0));
   const add = (row: Record<string, unknown>) => {
     const f = normaliseLine(row);
     if (!f) return { ok: false as const, reason: "A line needs a name and a group." };

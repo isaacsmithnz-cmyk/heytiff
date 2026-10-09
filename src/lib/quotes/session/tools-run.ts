@@ -63,13 +63,15 @@ const SEARCH_LIMIT = 12;
 /** A new line as it goes on: a book item priced from the book, labour at
     the business's hour, anything else not known yet. */
 export async function lineFor(store: Pick<QuoteStore, "book" | "hourCost" | "supplier">, l: NewLine): Promise<Record<string, unknown> | string> {
-  const base = { optionIndex: l.optionIndex, system: l.system, group: l.group, kind: l.kind, qty: l.qty, unit: l.unit, source: l.source, why: l.why, sellCents: null };
+  const base = { optionIndex: l.optionIndex, system: l.system, group: l.group, kind: l.kind, qty: l.qty, unit: l.unit, source: l.source, why: l.why, sellCents: l.sellCents ?? null, duct: l.duct ?? false };
   if (l.kind === "labour") return { ...base, name: l.name, costCents: (await store.hourCost()) ?? 0 };
   if (l.code) {
     const p = bookPrice(await store.book(), l.code, l.unit, await store.supplier());
     if (!p) return `${l.name}: ${l.code} isn't in the business's book. Search the book for what it buys, or add it with no code as not known yet.`;
     return { ...base, name: p.name, code: p.code, supplierKey: p.supplierKey, kind: l.kind === "unit" || p.kind === "unit" ? "unit" : "material", costCents: p.costCents };
   }
+  /* no code and a price the person gave: theirs, as they said it */
+  if (l.sellCents) return { ...base, name: l.name, code: null, supplierKey: null, costCents: 0 };
   /* no code: an allowance nobody has priced, so not known yet */
   return { ...base, name: l.name, code: null, supplierKey: null, costCents: 0, source: "unknown" };
 }
@@ -156,13 +158,13 @@ export function makeTools(store: QuoteStore) {
       case "change_line": {
         const p = patchOf(input);
         if (isErr(p)) return fail(p.error);
+        /* the line's reason is the change's: an old one never stays behind it */
         const patch: Record<string, unknown> = { ...p.patch };
-        delete patch.why;
         if (p.patch.code) {
           const unit = p.patch.unit ?? (await store.readLines()).find((l) => l.id === p.id)?.unit ?? "";
           const priced = bookPrice(await store.book(), p.patch.code, unit, await store.supplier());
           if (!priced) return fail(`${p.patch.code} isn't in the business's book. Search the book for what it buys.`);
-          Object.assign(patch, { code: priced.code, name: priced.name, supplierKey: priced.supplierKey, costCents: priced.costCents, sellCents: null });
+          Object.assign(patch, { code: priced.code, name: priced.name, supplierKey: priced.supplierKey, costCents: priced.costCents, sellCents: p.patch.sellCents ?? null });
         }
         const res = await store.changeLine(p.id, p.version, patch, p.patch.why);
         if (!res.ok) return fail(res.reason);

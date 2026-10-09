@@ -36,9 +36,19 @@ export type NewLine = {
   unit: LineUnit;
   source: Exclude<LineSource, "by_hand">;
   why: string;
+  /** a price the person gave, each, ex GST, cents: only on a said line */
+  sellCents?: number | null;
+  /** ductwork, grilles and the return: what the duct contingency covers */
+  duct?: boolean;
 };
 
-export type LinePatch = { qty?: number; unit?: LineUnit; code?: string; name?: string; system?: string; group?: string; source: NewLine["source"]; why: string };
+export type LinePatch = { qty?: number; unit?: LineUnit; code?: string; name?: string; system?: string; group?: string; source: NewLine["source"]; why: string; sellCents?: number };
+
+/** A price the person gave, held to a line's: only when the line says it's theirs. */
+const saidPrice = (r: Record<string, unknown>, source: unknown) => {
+  const c = num(r.sell_each_cents);
+  return source === "said" && c != null && c > 0 && c < 100_000_000 ? Math.round(c) : null;
+};
 
 /** What a tapped answer does to the quote (applied by slice 6.1). */
 export type AnswerChange =
@@ -84,7 +94,8 @@ export function newLineOf(raw: unknown): NewLine | Err {
   const qty = num(r.qty);
   const code = kind === "labour" ? null : str(r.code, 80) || null;
   const unit = kind === "labour" ? "h" : (LINE_UNITS as readonly unknown[]).includes(r.unit) ? (r.unit as LineUnit) : "";
-  return { optionIndex: option(r.option), system: str(r.system, 60), group, name, code, kind, qty: qty != null && qty >= 0 ? Math.min(100_000, qty) : 0, unit, source, why };
+  const sellCents = kind === "labour" ? null : saidPrice(r, source);
+  return { optionIndex: option(r.option), system: str(r.system, 60), group, name, code, kind, qty: qty != null && qty >= 0 ? Math.min(100_000, qty) : 0, unit, source, why, ...(sellCents ? { sellCents } : {}), ...(r.duct === true ? { duct: true } : {}) };
 }
 
 export function patchOf(raw: unknown): { id: string; version: number; patch: LinePatch } | Err {
@@ -104,6 +115,8 @@ export function patchOf(raw: unknown): { id: string; version: number; patch: Lin
     const v = str(r[k], k === "name" ? 200 : k === "code" ? 80 : 60);
     if (v) patch[k] = v;
   }
+  const sell = saidPrice(r, source);
+  if (sell) patch.sellCents = sell;
   return { id, version: Math.round(version), patch };
 }
 
@@ -154,6 +167,8 @@ const lineFields = {
   unit: { type: "string", enum: [...LINE_UNITS], description: "\"m\" for a length, \"h\" for hours, \"\" for a count." },
   source: { type: "string", enum: [...SOURCES], description: "said: the brief or the person said it. assumed: your judgement. unknown: not known yet. fitted: made to fit something else on the quote." },
   why: { type: "string", description: "said: the words, quoted. assumed: the reason. unknown: what's needed to know it. fitted: what it was made to fit." },
+  sell_each_cents: { type: "integer", description: "A price the person gave you for one of it, ex GST, in cents: only with source said and their words in why. Never a price of your own." },
+  duct: { type: "boolean", description: "True for ductwork, grilles and the return: what the duct contingency covers." },
 };
 
 export const SESSION_TOOLS: ToolDef[] = [

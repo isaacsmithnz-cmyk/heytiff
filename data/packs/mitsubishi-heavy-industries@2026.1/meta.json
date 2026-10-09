@@ -1,0 +1,94 @@
+{
+  "brand": "mitsubishi-heavy-industries",
+  "version": "2026.1",
+  "packSchemaVersion": 1,
+  "name": "Mitsubishi Heavy Industries — split (Avanti, Bronte, Ciara, Wera, Akari), ducted (FDUM, FDU, FDUA), ceiling (FDT, FDTC, FDE), SCM multi",
+  "updated": "2026-10-08",
+  "sources": [
+    {
+      "title": "MHIAA Split Systems Brochure (AU)",
+      "edition": "Split Systems April 2026 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Multi-Split Systems Brochure (AU)",
+      "edition": "Multi-Split Systems March 2026 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Ducted Systems Brochure (AU)",
+      "edition": "Ducted System September 2026 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Ceiling Systems Brochure (AU)",
+      "edition": "Ceiling Systems September 2026 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book FDUA250VH with FDCA160-250VSA-W",
+      "edition": "'24 PAC-DB-450",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
+      "edition": "'23 SRK-DB-390",
+      "access": "public"
+    },
+    {
+      "title": "MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
+      "edition": "'24 DXK-T-419",
+      "access": "public"
+    },
+    {
+      "title": "MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
+      "edition": "'24 DXK-T-422",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
+      "edition": "'25 DXK-DB-454",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book DXK21-24ZTLA-WFJ (Wall Mounted Residential)",
+      "edition": "'25 DXK-DB-455",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book Inverter Multi-Split SCM40-80ZS-W",
+      "edition": "'21 SCM-DB-330C",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book Inverter Multi-Split SCM40-100ZS-W (outdoor installation manuals)",
+      "edition": "'21 SCM-DB-332",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Multi Split Systems Indoor Units Compatibility Chart (AU)",
+      "edition": "undated, PDF of 28 Feb 2025",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book SRK100ZR-WF with FDCA100VNA-W / FDCA100VSA-W",
+      "edition": "'23 PAC-DB-446",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book FDUA/FDU with FDCA71VNX-W, FDCA125-140VNX-W",
+      "edition": "'24 PAC-DB-460",
+      "access": "public"
+    },
+    {
+      "title": "MHI Technical Manual FDT/FDE/FDU/FDUA125-140VH with FDCA125-140VNX-W / VSX-W",
+      "edition": "'21 PAC-T-390",
+      "access": "public"
+    },
+    {
+      "title": "MHI Data Book FDUA160VH with FDCA160VNX-W",
+      "edition": "'23 PAC-DB-435",
+      "access": "public"
+    }
+  ]
+}

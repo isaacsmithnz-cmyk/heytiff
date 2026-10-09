@@ -402,7 +402,7 @@
    "split-pair"
   ],
   "refrigerant": "R32",
-  "width_mm": 1101,
+  "width_mm": 1103,
   "depth_mm": 280,
   "height_mm": 299,
   "sound_low_dba": 28,
@@ -412,7 +412,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26 (width_mm: EDTMT042601 p.7)"
   }
  },
  {
@@ -434,7 +434,7 @@
    "split-pair"
   ],
   "refrigerant": "R32",
-  "width_mm": 1101,
+  "width_mm": 1103,
   "depth_mm": 280,
   "height_mm": 299,
   "sound_low_dba": 29,
@@ -444,7 +444,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26 (width_mm: EDTMT042601 p.7)"
   }
  },
  {
@@ -466,7 +466,7 @@
    "split-pair"
   ],
   "refrigerant": "R32",
-  "width_mm": 1101,
+  "width_mm": 1103,
   "depth_mm": 280,
   "height_mm": 299,
   "sound_low_dba": 30,
@@ -476,7 +476,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26"
+   "page": "26 (width_mm: EDTMT042601 p.8)"
   }
  },
  {
@@ -885,14 +885,14 @@
   "width_mm": 750,
   "depth_mm": 238,
   "height_mm": 600,
-  "sound_low_dba": 24,
+  "sound_low_dba": 20,
   "sound_high_dba": 39,
   "weight_kg": 18,
   "provenance": {
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30"
+   "page": "30 (sound_low_dba: EDTAU062411 p.4)"
   }
  },
  {

@@ -91,6 +91,17 @@ export const SECTIONS: AdminGroup[] = [
         show: anyone,
       },
       {
+        /* Anything somebody asks to have on company letterhead (2026-10-09):
+           an employment confirmation for a visa, a letter for a car loan.
+           Each admin sees the letters they wrote or sign; the owner, all. */
+        title: "Letters",
+        sub: "Write on your letterhead: employment, references, anything else",
+        icon: "file",
+        accent: "#0E9F6E",
+        href: "/dashboard/admin/letters",
+        show: anyone,
+      },
+      {
         title: "Compliance",
         sub: "Incidents, corrective actions & QA",
         icon: "shield",

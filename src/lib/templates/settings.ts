@@ -7,16 +7,17 @@ import { DEFAULT_CHECKLIST, type ChecklistSeed } from "@/lib/workboard/stages";
    Until a business changes one, it gets the standard wording below, and
    going back to it deletes the row.
 
-   Four templates, and only these: the quote's notes, its payment terms, the
+   Five templates, and only these: the quote's notes, its payment terms, the
    checklist every new project starts with (its Handover section prints on
-   the handover sheet), and the documents email. The certificate and the
+   the handover sheet), the documents email, and the letterhead every letter
+   is written on (Admin → Letters). The certificate and the
    SWMS are not here: their wording is checked against the standards and
    approved, never edited (lib/certs/mechanical, lib/swms/library).
 
    Pure, so the editors in the browser and the readers on the server agree
    on what a valid template is. */
 
-export const TEMPLATE_SETTINGS = ["quote_notes", "payment_terms", "project_checklist", "documents_email"] as const;
+export const TEMPLATE_SETTINGS = ["quote_notes", "payment_terms", "project_checklist", "documents_email", "letterhead"] as const;
 export type TemplateSetting = (typeof TEMPLATE_SETTINGS)[number];
 
 export type QuoteNote = {
@@ -31,11 +32,34 @@ export type QuoteNote = {
 export type PaymentTerms = Record<PaymentPreset, { label: string; stages: PaymentStage[] }>;
 export type DocumentsEmail = { subject: string; message: string };
 
+/* THE LETTERHEAD — what a business puts at the top and bottom of every
+   letter it writes on its own paper (an employment confirmation for a visa,
+   a letter for a car loan). Its facts are the business's own, from Admin →
+   Organisation; the template only says which of them show, where the logo
+   sits, the line along the foot, and how a letter is signed off. */
+export const LETTERHEAD_LAYOUTS = ["left", "centre", "right"] as const;
+export type LetterheadLayout = (typeof LETTERHEAD_LAYOUTS)[number];
+export const LETTERHEAD_DETAILS = ["legalName", "abn", "acn", "address", "phone", "email", "website", "licences"] as const;
+export type LetterheadDetail = (typeof LETTERHEAD_DETAILS)[number];
+export type Letterhead = {
+  /** Where the logo sits: left with the details opposite, centred over
+      them, or right with the details opposite. */
+  layout: LetterheadLayout;
+  show: Record<LetterheadDetail, boolean>;
+  /** One line along the foot of every page; none when empty. */
+  footer: string;
+  /** "Yours sincerely", above the signature. */
+  closing: string;
+  /** Whether the signer's drawn signature goes on by default. */
+  signature: boolean;
+};
+
 export type OrgTemplates = {
   quoteNotes: QuoteNote[];
   paymentTerms: PaymentTerms;
   projectChecklist: ChecklistSeed[];
   documentsEmail: DocumentsEmail;
+  letterhead: Letterhead;
   /** When each was last changed (ISO), for the ones the business has
       changed; absent means the standard wording. */
   changed: Partial<Record<TemplateSetting, string>>;
@@ -48,6 +72,8 @@ export const MAX_HEADING = 80;
 export const MAX_ITEMS = 40;
 export const MAX_SUBJECT = 200;
 export const MAX_MESSAGE = 2000;
+export const MAX_FOOTER = 160;
+export const MAX_CLOSING = 60;
 
 /* ── the standard wording ──────────────────────────────────────────────── */
 
@@ -63,6 +89,16 @@ export const STANDARD_EMAIL: DocumentsEmail = {
   message: "Hi,\n\nPlease find our documents for this job attached.\n\nKind regards,\n[your name]\n[your business]",
 };
 
+export const STANDARD_LETTERHEAD: Letterhead = {
+  layout: "left",
+  show: { legalName: false, abn: true, acn: false, address: true, phone: true, email: true, website: true, licences: true },
+  footer: "",
+  closing: "Yours sincerely",
+  signature: true,
+};
+
+const copyLetterhead = (l: Letterhead): Letterhead => ({ ...l, show: { ...l.show } });
+
 const copyTerms = (t: PaymentTerms): PaymentTerms =>
   Object.fromEntries(PAYMENT_PRESET_KEYS.map((k) => [k, { label: t[k].label, stages: t[k].stages.map((s) => ({ ...s })) }])) as PaymentTerms;
 
@@ -72,6 +108,7 @@ export function standardTemplates(): OrgTemplates {
     paymentTerms: copyTerms(PAYMENT_PRESETS),
     projectChecklist: DEFAULT_CHECKLIST.map((i) => ({ ...i })),
     documentsEmail: { ...STANDARD_EMAIL },
+    letterhead: copyLetterhead(STANDARD_LETTERHEAD),
     changed: {},
   };
 }
@@ -150,6 +187,23 @@ export function normaliseEmail(raw: unknown): DocumentsEmail | null {
   return subject && message ? { subject, message } : null;
 }
 
+export function normaliseLetterhead(raw: unknown): Letterhead | null {
+  const o = rec(raw);
+  if (Object.keys(o).length === 0) return null;
+  const show = rec(o.show);
+  const layout = (LETTERHEAD_LAYOUTS as readonly string[]).includes(o.layout as string) ? (o.layout as LetterheadLayout) : STANDARD_LETTERHEAD.layout;
+  return {
+    layout,
+    show: Object.fromEntries(
+      LETTERHEAD_DETAILS.map((k) => [k, typeof show[k] === "boolean" ? (show[k] as boolean) : STANDARD_LETTERHEAD.show[k]])
+    ) as Record<LetterheadDetail, boolean>,
+    footer: text(o.footer, MAX_FOOTER),
+    /* a letter is always signed off with something */
+    closing: text(o.closing, MAX_CLOSING) || STANDARD_LETTERHEAD.closing,
+    signature: typeof o.signature === "boolean" ? o.signature : STANDARD_LETTERHEAD.signature,
+  };
+}
+
 /** Every template, from the stored rows: each row that reads back as a
     valid template replaces the standard one. */
 export function templatesFrom(rows: readonly { key: string; value: unknown; updated_at: string }[]): OrgTemplates {
@@ -179,6 +233,12 @@ export function templatesFrom(rows: readonly { key: string; value: unknown; upda
         t.documentsEmail = v;
         t.changed.documents_email = r.updated_at;
       }
+    } else if (r.key === "letterhead") {
+      const v = normaliseLetterhead(r.value);
+      if (v) {
+        t.letterhead = v;
+        t.changed.letterhead = r.updated_at;
+      }
     }
   }
   return t;
@@ -196,6 +256,7 @@ export function templateProblems(key: TemplateSetting, value: unknown): string[]
     return PAYMENT_PRESET_KEYS.flatMap((k) => paymentTermProblems(k, v[k].stages).map((p) => `${v[k].label}: ${p}`));
   }
   if (key === "project_checklist") return normaliseChecklist(value) ? [] : ["Give the checklist at least one item."];
+  if (key === "letterhead") return normaliseLetterhead(value) ? [] : ["That letterhead couldn't be read."];
   return normaliseEmail(value) ? [] : ["Give the email a subject and a message."];
 }
 

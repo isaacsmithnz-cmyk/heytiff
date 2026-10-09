@@ -49,26 +49,7 @@ export function DocPaper({
   const figsStyle = { "--cer-n": figures.length } as React.CSSProperties;
 
   return (
-    <article className={`dsd cer${plain ? " cer-plain" : ""}`} style={themeVars(brand.color)}>
-      <div className="dsd-bband" aria-hidden="true" />
-      <div className="dsd-bwell" aria-hidden="true" />
-      {/* the design sheet's frame table: on paper it holds the frame's space
-          open on every page; on screen it is blocks (sheet-doc.tsx says why) */}
-      <table className="dsd-frame" role="presentation">
-        <thead>
-          <tr>
-            <td className="dsd-fr-t" />
-          </tr>
-        </thead>
-        <tfoot>
-          <tr>
-            <td className="dsd-fr-b" />
-          </tr>
-        </tfoot>
-        <tbody>
-          <tr>
-            <td className="dsd-fr-c">
-              <div className="dsd-fr-w">
+    <DocFrame brand={brand} className={`cer${plain ? " cer-plain" : ""}`}>
                 <div className="dsd-mast">
                   <div className="dsd-mast-job">
                     {eyebrow && <p className="dsd-eyebrow">{eyebrow}</p>}
@@ -118,7 +99,34 @@ export function DocPaper({
                 )}
 
                 {children}
-              </div>
+    </DocFrame>
+  );
+}
+
+/** The business's paper without a masthead: the frame in its colour, and
+    the frame table that holds the frame's space open on every printed page
+    (sheet-doc.tsx says why). The certificate's and the quote's masthead go
+    inside it, and so does a letter's letterhead. */
+export function DocFrame({ brand, className, children }: { brand: OrgBrand; className?: string; children: ReactNode }) {
+  return (
+    <article className={className ? `dsd ${className}` : "dsd"} style={themeVars(brand.color)}>
+      <div className="dsd-bband" aria-hidden="true" />
+      <div className="dsd-bwell" aria-hidden="true" />
+      <table className="dsd-frame" role="presentation">
+        <thead>
+          <tr>
+            <td className="dsd-fr-t" />
+          </tr>
+        </thead>
+        <tfoot>
+          <tr>
+            <td className="dsd-fr-b" />
+          </tr>
+        </tfoot>
+        <tbody>
+          <tr>
+            <td className="dsd-fr-c">
+              <div className="dsd-fr-w">{children}</div>
             </td>
           </tr>
         </tbody>

@@ -40,7 +40,7 @@ describe("AdminIndex", () => {
       expect(text).toContain(title);
     }
     // named, but not as something you can click or mistake for a row
-    expect(document.querySelectorAll(".adm-row")).toHaveLength(8);
+    expect(document.querySelectorAll(".adm-row")).toHaveLength(9);
   });
 
   it("keeps the owner's doors out of an admin's sight", () => {
@@ -72,7 +72,7 @@ describe("AdminIndex", () => {
     }
   });
 
-  it("gives an owner eight rows, all of them openable", () => {
+  it("gives an owner nine rows, all of them openable", () => {
     render(<AdminIndex isOwner canFinancials kbQueueCount={0} />);
 
     expect(linkHrefs()).toEqual([
@@ -80,6 +80,8 @@ describe("AdminIndex", () => {
       "/dashboard/admin/integrations",
       /* every document and message the business sends from fixed wording */
       "/dashboard/admin/templates",
+      /* anything somebody asks to have on company letterhead */
+      "/dashboard/admin/letters",
       "/dashboard/admin/knowledge",
       "/dashboard/admin/rate-calculator",
       /* quoting's own settings, not the calculator's: markup and the
@@ -90,7 +92,7 @@ describe("AdminIndex", () => {
       "/dashboard/admin/tax",
     ]);
     // the seven that are coming are named in two lines, not seven rows
-    expect(document.querySelectorAll(".adm-row")).toHaveLength(8);
+    expect(document.querySelectorAll(".adm-row")).toHaveLength(9);
     expect(document.querySelectorAll(".adm-coming")).toHaveLength(2);
     expect(screen.queryByText("Planned")).not.toBeInTheDocument();
   });
@@ -119,7 +121,7 @@ describe("AdminIndex", () => {
     render(<AdminIndex isOwner={false} canFinancials={false} kbQueueCount={0} />);
 
     /* the business's own templates, readable by any admin */
-    expect(linkHrefs()).toEqual(["/dashboard/admin/templates", "/dashboard/admin/knowledge"]);
+    expect(linkHrefs()).toEqual(["/dashboard/admin/templates", "/dashboard/admin/letters", "/dashboard/admin/knowledge"]);
     expect(screen.queryByText("Nothing here for you yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Rate Calculator")).not.toBeInTheDocument();
     expect(screen.queryByText("Organisation")).not.toBeInTheDocument();

@@ -65,3 +65,6 @@
 .tpl-row > .tpl-suggest { flex: none; white-space: nowrap; }
 .tpl-link { flex: none; background: none; border: 0; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .tpl-fills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* a detail ticked on or off the letterhead: the whole row is the label */
+.tpl-tick { cursor: pointer; }
+.tpl-tick input { flex: none; margin: 0; }

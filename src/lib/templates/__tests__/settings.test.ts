@@ -87,3 +87,26 @@ describe("the email, filled in from the job", () => {
     expect(fillEmail(STANDARD_EMAIL.message, { ...facts, yourName: null })).toBe("Hi,\n\nPlease find our documents for this job attached.\n\nKind regards,\nCoolbreeze Air");
   });
 });
+
+describe("the letterhead", () => {
+  const { normaliseLetterhead, STANDARD_LETTERHEAD, templatesFrom, templateProblems } = jest.requireActual("../settings") as typeof import("../settings");
+
+  it("starts from the standard paper, and reads a stored one back", () => {
+    expect(templatesFrom([]).letterhead).toEqual(STANDARD_LETTERHEAD);
+    const t = templatesFrom([{ key: "letterhead", value: { layout: "right", show: { abn: false }, footer: "  DAS   Pty Ltd ", closing: "" }, updated_at: "2026-10-08T00:00:00Z" }]);
+    expect(t.letterhead.layout).toBe("right");
+    expect(t.letterhead.show.abn).toBe(false);
+    /* a detail it didn't say keeps the standard */
+    expect(t.letterhead.show.address).toBe(true);
+    expect(t.letterhead.footer).toBe("DAS Pty Ltd");
+    /* a letter is always signed off with something */
+    expect(t.letterhead.closing).toBe("Yours sincerely");
+    expect(t.changed.letterhead).toBe("2026-10-08T00:00:00Z");
+  });
+
+  it("refuses what isn't a letterhead, and an unknown layout falls back", () => {
+    expect(normaliseLetterhead(null)).toBeNull();
+    expect(templateProblems("letterhead", "x")).toEqual(["That letterhead couldn't be read."]);
+    expect(normaliseLetterhead({ layout: "diagonal" })?.layout).toBe("left");
+  });
+});

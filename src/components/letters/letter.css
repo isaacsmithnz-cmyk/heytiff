@@ -1,0 +1,105 @@
+/* A LETTER'S OWN PARTS — the letterhead, the date and who it is to, the
+   body, the sign-off and the line along the foot. The frame is the design
+   sheet's (sheet-doc.css), worn through DocFrame.
+
+   UNDER THE DESIGN LAWS, like certificate.css: type on the scale, weights to
+   700, spacing on the scale, colour from the sheet's own variables. 14px is
+   a letter's body on A4, and 12px its floor. */
+
+.ltr-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  gap: 24px;
+  align-items: start;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--dsd-rule-2);
+}
+.ltr-mark { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.ltr-logo { height: 64px; width: auto; max-width: 200px; object-fit: contain; object-position: left center; }
+.ltr-logo.org-initials { width: 64px; font-size: 20px; }
+.ltr-name { font-size: 20px; font-weight: 700; line-height: 1.2; color: var(--dsd-ink); }
+.ltr-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--dsd-ink-3);
+}
+.ltr-lines li { overflow-wrap: anywhere; }
+
+/* the logo on the right: the details read first, from the left */
+.ltr-head.right { grid-template-columns: minmax(0, auto) minmax(0, 1fr); }
+.ltr-head.right .ltr-mark { order: 2; align-items: flex-end; text-align: right; }
+.ltr-head.right .ltr-logo { object-position: right center; }
+.ltr-head.right .ltr-lines { order: 1; text-align: left; }
+
+/* centred: the logo over the name over the details, one column */
+.ltr-head.centre { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+.ltr-head.centre .ltr-mark { align-items: center; }
+.ltr-head.centre .ltr-logo { object-position: center; }
+.ltr-head.centre .ltr-lines { text-align: center; }
+
+.ltr-date { margin: 32px 0 0; font-size: 14px; color: var(--dsd-ink); }
+.ltr-to {
+  display: flex;
+  flex-direction: column;
+  margin-top: 24px;
+  font-style: normal;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--dsd-ink);
+}
+.ltr-re { margin: 24px 0 0; font-size: 14px; font-weight: 600; color: var(--dsd-ink); }
+
+/* THE BODY — whatever was written, as it was written: paragraphs, headings,
+   lists, a simple table, each aligned as the writer set it */
+.ltr-body { margin-top: 24px; font-size: 14px; line-height: 1.6; color: var(--dsd-ink); overflow-wrap: anywhere; }
+.ltr-body p { margin: 0 0 12px; }
+.ltr-body p:empty { min-height: 1.6em; }
+.ltr-body h2 { margin: 24px 0 8px; font-size: 16px; font-weight: 600; line-height: 1.3; }
+.ltr-body h3 { margin: 16px 0 8px; font-size: 14px; font-weight: 600; line-height: 1.3; }
+.ltr-body ul,
+.ltr-body ol { margin: 0 0 12px; padding-left: 24px; }
+.ltr-body li > p { margin: 0 0 4px; }
+.ltr-body table { width: 100%; margin: 0 0 12px; border-collapse: collapse; table-layout: fixed; }
+.ltr-body th,
+.ltr-body td { padding: 4px 8px; border: 1px solid var(--dsd-rule-2); vertical-align: top; text-align: left; }
+.ltr-body th { font-weight: 600; }
+.ltr-body th > p,
+.ltr-body td > p { margin: 0; }
+
+.ltr-sign { display: flex; flex-direction: column; margin-top: 32px; font-size: 14px; line-height: 1.5; color: var(--dsd-ink); break-inside: avoid; }
+.ltr-sign p { margin: 0; }
+.ltr-sig { height: 56px; margin: 8px 0 4px; }
+.ltr-sig img { display: block; height: 100%; width: auto; max-width: 240px; }
+.ltr-sign b { font-weight: 600; }
+.ltr-sign span { font-size: 13px; color: var(--dsd-ink-3); }
+
+.ltr-foot {
+  margin-top: 48px;
+  padding-top: 8px;
+  border-top: 1px solid var(--dsd-rule);
+  text-align: center;
+  font-size: 12px;
+  color: var(--dsd-ink-3);
+}
+
+/* ON PAPER the foot repeats on every page, at its bottom: a letter that
+   runs to a second page carries the business's line on both. The frame's
+   own spacer at the foot of each page (sheet-doc.css, `.dsd-fr-b`) holds
+   the band's space open; a letter with a foot holds 12mm more, and the line
+   sits in it, inside the white, clear of the band and of the body. */
+@media print {
+  @page { size: A4; margin: 0; }
+  .ltr.has-foot .dsd-frame > tfoot > tr > td.dsd-fr-b { height: calc(var(--dsd-edge) + var(--doc-gutter, 0px) + 12mm); }
+  .ltr-foot {
+    position: fixed;
+    right: calc(var(--dsd-edge) + var(--doc-gutter, 0px) + var(--doc-clear, 6mm));
+    bottom: calc(var(--dsd-edge) + var(--doc-gutter, 0px) + 4mm);
+    left: calc(var(--dsd-edge) + var(--doc-gutter, 0px) + var(--doc-clear, 6mm));
+    margin: 0;
+  }
+}

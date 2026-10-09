@@ -9,6 +9,7 @@ import { proposalOf, type LinesProposal } from "../lines-proposal";
 import { planOf } from "../build-progress";
 import type { Research } from "../research";
 import { labourVisitsOf, visitLine } from "../labour-build";
+import { keepPeoplesTasks, visitHours, visitName, type LineVisit } from "../line-visit";
 import { taskCheck } from "../task-hours";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
@@ -76,6 +77,13 @@ export async function lineFor(store: Pick<QuoteStore, "book" | "hourCost" | "sup
   return { ...base, name: l.name, code: null, supplierKey: null, costCents: 0, source: "unknown" };
 }
 
+/** A visit's tasks as she reads them: what a person changed, said so. */
+const visitRead = (v: LineVisit) => ({
+  stage: v.stage,
+  people: v.people,
+  tasks: v.tasks.map((t) => ({ task: t.task, hours: t.hours, ...(t.byHand ? (t.was != null ? { person_changed_from: t.was } : { person_added: true }) : {}) })),
+});
+
 export function makeTools(store: QuoteStore) {
   return async function runTool(name: string, input: Record<string, unknown>): Promise<ToolOutcome> {
     const label = TOOL_LABELS[name] ?? name;
@@ -97,7 +105,20 @@ export function makeTools(store: QuoteStore) {
             still_to_price: lines.filter((l) => l.optionIndex === i && stillUnknown(l)).map((l) => l.name),
             lines: lines
               .filter((l) => l.optionIndex === i)
-              .map((l) => ({ id: l.id, version: l.version, system: l.system, group: l.group, name: l.name, code: l.code, kind: l.kind, qty: l.qty, unit: l.unit, cost_each_cents: l.costCents, source: l.source, why: l.why })),
+              .map((l) => ({
+                id: l.id,
+                version: l.version,
+                system: l.system,
+                group: l.group,
+                name: l.name,
+                code: l.code,
+                kind: l.kind,
+                qty: l.qty,
+                unit: l.unit,
+                cost_each_cents: l.costCents,
+                source: l.source,
+                ...(l.visit ? { visit: visitRead(l.visit) } : { why: l.why }),
+              })),
           })),
           ...(price.ok ? {} : { said: "Quoting isn't set up to price it yet" }),
         };
@@ -230,16 +251,22 @@ export function makeTools(store: QuoteStore) {
         const visits = labourVisitsOf(input.visits);
         if (typeof visits === "string") return fail(visits);
         const [now, hour, day] = await Promise.all([store.readLines(), store.hourCost(), store.taskHours()]);
-        /* hers go; a person's own labour line stays */
-        for (const l of now.filter((x) => x.optionIndex === option && x.kind === "labour" && x.updatedBy === "tiff")) await store.removeLine(l.id, l.version, "Labour worked out again");
+        /* hers go, and every line worked out task by task, with what people
+           did to its tasks kept (keepPeoplesTasks); a person's own labour
+           line stays */
+        const old = now.filter((x) => x.optionIndex === option && x.kind === "labour" && (x.updatedBy === "tiff" || x.visit));
+        for (const l of old) await store.removeLine(l.id, l.version, "Labour worked out again");
+        const built = keepPeoplesTasks(
+          visits.map((v) => visitLine(v, day.dayHours).visit),
+          old.flatMap((l) => (l.visit ? [l.visit] : []))
+        );
         let hours = 0;
-        for (const v of visits) {
-          const line = visitLine(v, day.dayHours);
-          hours += line.qty;
-          const r = await store.addLine({ optionIndex: option, system: "", group: "Labour", name: line.name, kind: "labour", qty: line.qty, unit: "h", costCents: hour ?? 0, sellCents: null, source: "assumed", why: line.why }, "Labour, task by task");
+        for (const visit of built) {
+          hours += visitHours(visit);
+          const r = await store.addLine({ optionIndex: option, system: "", group: "Labour", name: visitName(visit), kind: "labour", unit: "h", costCents: hour ?? 0, sellCents: null, source: "assumed", why: "Worked out task by task", visit }, "Labour, task by task");
           if (!r.ok) return fail(r.reason);
         }
-        return { ok: true, label, said: `${hours} h over ${visits.length} ${visits.length === 1 ? "visit" : "visits"}`, value: { hours, visits: visits.map((v) => visitLine(v, day.dayHours).name) } };
+        return { ok: true, label, said: `${hours} h over ${built.length} ${built.length === 1 ? "visit" : "visits"}`, value: { hours, visits: built.map(visitName) } };
       }
       case "research_price": {
         const lineId = typeof input.line_id === "string" ? input.line_id : "";

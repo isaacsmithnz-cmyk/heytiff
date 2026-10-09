@@ -6782,6 +6782,20 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-pop { display:flex; flex-direction:column; gap:8px; padding:12px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
 .fg .ql-prefer { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--hd-ink); }
 .fg .ql-vs { font-style:normal; font-size:12px; font-weight:600; color:var(--info-t); }
+/* a labour line's tasks under it (slice 8.2): each with its hours typed in
+   place, the line's hours and days at the foot */
+.fg .ql-lt .ql-tk td { padding:0 0 12px 24px; border-top:0; }
+.fg .ql-tasks { list-style:none; margin:0; padding:4px 0 0 12px; border-left:1px solid var(--hd-rule); display:flex; flex-direction:column; }
+.fg .ql-tasks li { display:grid; grid-template-columns:7px minmax(0, 1fr) 88px 24px; gap:8px; align-items:center; padding:4px 0; font-size:13px; line-height:1.4; color:var(--hd-body); }
+.fg .ql-tn em { display:block; font-style:normal; font-size:12px; color:var(--q); }
+.fg .ql-th .ql-f, .fg .ql-tasks .ql-f { height:28px; }
+.fg .ql-tasks .ql-tname { text-align:left; }
+.fg .ql-tfoot { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:8px 32px 0 12px; font-size:13px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .ql-tadd { padding:0; border:0; background:none; font:inherit; font-size:13px; font-weight:600; color:var(--hd-ink); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.fg .ql-tadd:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.fg .ql-tadd:disabled { color:var(--q); cursor:default; }
+/* a qty that is its tasks' hours: read, not typed, where a box's figure sits */
+.fg .ql-fq { display:inline-block; padding:0 8px; border:1px solid transparent; font-size:13px; }
 .fg .ql-kit { display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
 .fg .ql-kgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px 16px; }
 .fg .ql-kf { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:500; color:var(--q); }

@@ -216,13 +216,100 @@ export type CompatibilityRule =
       max_idus: number;
       index_min?: number;
       index_max?: number;
+    }
+  /* ── multi limits a book prints beside (or instead of) its table ──
+     Each is optional and each composes with the rest: a brand that doesn't
+     publish one leaves it out, and an absent block passes and refuses
+     nothing. Where the rule also carries a combination table, the table is
+     the capacity authority: a set it accepts is never refused by a head
+     count's or a connected total's MAXIMUM, and a set it lists outright is
+     never refused by their MINIMUM. The per-model limits (max_matching,
+     excluded_combinations) are the book's own exceptions to its table and
+     apply on top of it. Minimums are amber on a set still being built (it
+     can grow into them); the verdict holds them against the system. */
+  | {
+      /** how many heads the outdoor takes. Daikin Super Multi NX: "A single
+          indoor unit cannot be connected for the reverse cycle type"
+          (PCRAU1729B p.58 note 4) → { min: 2 }. MHI SCM100ZS-W: "normally
+          requires a minimum of 3", up to 5 → { min: 3, max: 5 } with the
+          two-head sets its chart allows in `fewer_allowed`. */
+      method: "head_count";
+      min?: number;
+      max?: number;
+      /** sets the book allows BELOW `min`, each one head per slot: a set
+          passes when its heads pair off one-to-one with an entry's slots. A
+          slot is a HeadMatch; `{}` is any head. MHI SCM100 (compatibility
+          chart, Jan 2026): 2 × SRK-ZSXA, or 1 × SRK-ZSXA + 1 × SRF35ZS, or
+          1 × SRK71/80ZRA (DXK24/28ZRA) + any. */
+      fewer_allowed?: HeadMatch[][];
+      provenance?: Provenance;
+    }
+  | {
+      /** the heads' capacities added up, within the book's bounds. Daikin
+          4MXM80: "Total capacity of connected indoor units is … up to 14.5
+          kW" (PCRAU1729B p.58 note 3) → { basis: "class_kw", max: 14.5 }.
+          MHI SCM100: 9.0–16.0 kW → { basis: "class_kw", min: 9, max: 16 }.
+          `class_kw` adds the size classes read as kW (capacity_code ÷ 10:
+          a 25 is 2.5 kW, a 46 is 4.6), the form Daikin and MHI print ("2.5 kW
+          Class", "Indoor Unit Standard Capacity"); `rated_cool_kw` adds the
+          heads' rated cooling capacity, for a book that sums those. Never a
+          ratio — a book that prints a ratio uses index_ratio_band. */
+      method: "connected_capacity";
+      basis: "class_kw" | "rated_cool_kw";
+      min?: number;
+      max?: number;
+      provenance?: Provenance;
+    }
+  | {
+      /** at most `max` heads of a kind on the outdoor. Fujitsu AOTH36/45KBTA5:
+          "Up to 2 units of Medium static pressure duct are connectable to the
+          combination. However, in the combination marked with *, only 1"
+          (DR_MU034ES_01 f.10, f.16) → { match: { models: ["ARTH18KMTAP",
+          "ARTH24KMTAP"] }, max: 2, in_combos: [{ combo: […], max: 1 }] }.
+          MHI SCM100: in a 5-head set "SRK-ZSXA-W/WF, SRF35ZS-W, SRF50ZSX-W
+          must be 4 or less" → { …, max: 4, from_heads: 5 }. */
+      method: "max_matching";
+      match: HeadMatch;
+      /** the most such heads, wherever no `in_combos` entry applies; absent
+          = no general limit */
+      max?: number;
+      /** the limit holds only on a set of this many heads or more */
+      from_heads?: number;
+      /** a combination's own limit: when the set's size classes are exactly
+          this combo, its `max` applies instead (Fujitsu's "*" rows; on
+          AOTH24KBCA3 combos 19, 23 and 30 take none, `max: 0`) */
+      in_combos?: { combo: number[]; max: number }[];
+      /** how a finding names these heads ("medium-static ducted") */
+      label?: string;
+      provenance?: Provenance;
+    }
+  | {
+      /** sets the book rules out by size class, matched exactly — a set still
+          being built can grow past them. MHI SCM100 "Combination of indoor
+          units that are Not Possible": 20+20+20+20+71, 20+20+20+20+80,
+          20+20+20+25+71, 20+20+20+50+50. */
+      method: "excluded_combinations";
+      combos: number[][];
+      provenance?: Provenance;
     };
+
+/** which heads a multi limit counts: model patterns (an exact model, or a
+    prefix ending in `*`, model-glob.ts) and/or form factors. Every criterion
+    given must hold; `{}` matches any head. */
+export interface HeadMatch {
+  models?: string[];
+  form_factors?: FormFactor[];
+}
 
 export const COMPATIBILITY_METHODS = [
   "explicit_combination_table",
   "capacity_combination_table",
   "family_whitelist_with_limits",
   "index_ratio_band",
+  "head_count",
+  "connected_capacity",
+  "max_matching",
+  "excluded_combinations",
 ] as const;
 
 /** Refrigerant pipe size for a segment, by what the book keys off. */
@@ -483,6 +570,12 @@ export interface MultiRule {
   max_total_pipe_m: number;
   max_per_branch_m: number;
   max_lift_m: number;
+  /** the most height between any two of this outdoor's heads, as printed:
+      Daikin Super Multi NX "7.5 (between Indoor Units)" (EDTAU122219A),
+      Fujitsu AOTH24–45KB 10 m (DR_MU034ES_01). Judged on where
+      the heads are placed on the plan (floor + height on it); heads not
+      placed aren't judged. Absent = not recorded, nothing checked. */
+  max_lift_idu_idu_m?: number;
   additional_charge: AdditionalChargeRule;
   /** branch-box part models (→ parts.model) */
   branch_box_refs?: string[];

@@ -18,7 +18,7 @@ import { newId, type DesignDocument, type DesignObject, type DesignSystem, type 
 import type { DataPack, IndoorUnit, OutdoorUnit, PairTable } from "./packs/schema";
 import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
 import { roomAtPoint, roomCoverage, systemCover, type CoverageCap } from "./coverage";
-import { checkMultiCompatibility, multiCapableIdus } from "./multi";
+import { checkMultiCompatibility, multiCapableIdus, UNDER_MINIMUM } from "./multi";
 import { vrfOutdoorsListing } from "./vrf";
 import { outdoorReadiness } from "./packs/ready";
 import { deleteRoomWithContents, releaseRoomsFromSystems, stripAttachesTo } from "./attach";
@@ -136,8 +136,16 @@ const UNCHECKABLE = new Set(["index-unknown", "capacity-code-unknown", "no-rule"
 
 /** Multi outdoors whose book lists this set of heads, smallest first. Every
     head must be one the outdoor's rule accepts, and nothing about the set can
-    be red or unverifiable. Port sizes never enter into it (spec R5). */
-export function outdoorsListing(pack: DataPack, heads: IndoorUnit[]): OutdoorUnit[] {
+    be red or unverifiable. Port sizes never enter into it (spec R5). A set
+    under one of the outdoor's minimums (UNDER_MINIMUM: one head on a Daikin
+    Super Multi) isn't listed — the picker says Fails — unless `proposing`,
+    when it still is, so a system being built is proposed its outdoor and can
+    grow into it (the VRF listing's `proposing`, vrf.ts). */
+export function outdoorsListing(
+  pack: DataPack,
+  heads: IndoorUnit[],
+  opts: { proposing?: boolean } = {}
+): OutdoorUnit[] {
   const out: OutdoorUnit[] = [];
   for (const odu of pack.outdoor_units) {
     if (odu.system_type !== "multi") continue;
@@ -149,7 +157,12 @@ export function outdoorsListing(pack: DataPack, heads: IndoorUnit[]): OutdoorUni
       if (!heads.every((h) => capable.has(h.model))) continue;
     }
     const findings = checkMultiCompatibility(rule, odu, heads);
-    if (findings.some((f) => f.severity === "red" || UNCHECKABLE.has(f.code))) continue;
+    if (
+      findings.some(
+        (f) => f.severity === "red" || UNCHECKABLE.has(f.code) || (!opts.proposing && UNDER_MINIMUM.has(f.code))
+      )
+    )
+      continue;
     out.push(odu);
   }
   /* two outdoors of one size: the one with more ports, then the longer pipe run */
@@ -191,7 +204,7 @@ export function proposedOutdoorModel(doc: DesignDocument, pack: DataPack, system
     return vrfOutdoorsListing(pack, heads, { proposing: true, load })[0]?.model ?? "";
   }
   if (sys.type !== "ducted" && (heads.length >= 2 || familyOf(sys) === "multi")) {
-    return outdoorsListing(pack, heads)[0]?.model ?? "";
+    return outdoorsListing(pack, heads, { proposing: true })[0]?.model ?? "";
   }
   const pair = pairFor(pack, heads[0].model, current ? oduRow(pack, current.model) : null);
   return pair?.odu_model ?? "";

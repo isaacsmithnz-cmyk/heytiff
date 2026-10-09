@@ -431,4 +431,79 @@ describe("validator catches broken packs", () => {
       ])
     );
   });
+
+  /* the multi limits: each kind's shape, and the height between heads */
+  function multiWith(blocks: DataPack["multi_rules"][number]["compatibility"], extra: Partial<DataPack["multi_rules"][number]> = {}): DataPack {
+    const p = base();
+    p.outdoor_units.push({
+      model: "M1",
+      brand: "acme",
+      series: "S",
+      system_type: "multi",
+      capacity_cool_kw: 8,
+      capacity_heat_kw: 9.4,
+      phase: "1",
+      conn_liquid_mm: 6.35,
+      conn_gas_mm: 9.52,
+      refrigerant: "R32",
+      provenance: prov,
+    });
+    p.multi_rules.push({
+      odu_model_ref: "M1",
+      port_pipe_sizes: [],
+      compatibility: blocks,
+      max_total_pipe_m: 70,
+      max_per_branch_m: 25,
+      max_lift_m: 15,
+      additional_charge: { method: "none_required" },
+      provenance: prov,
+      ...extra,
+    });
+    return p;
+  }
+
+  it("accepts each multi limit as a book fills it", () => {
+    const res = validatePack(
+      multiWith(
+        [
+          { method: "capacity_combination_table", combos: [[25, 35]] },
+          { method: "head_count", min: 3, max: 5, fewer_allowed: [[{ models: ["SRK25ZSXA*"] }, {}]] },
+          { method: "connected_capacity", basis: "class_kw", min: 9, max: 16 },
+          { method: "max_matching", match: { models: ["ARTH18KMTAP"], form_factors: ["ducted"] }, max: 2, in_combos: [{ combo: [7, 7, 18], max: 0 }] },
+          { method: "excluded_combinations", combos: [[20, 20, 20, 20, 71]] },
+        ],
+        { max_lift_idu_idu_m: 7.5 }
+      )
+    );
+    expect(res.errors).toEqual([]);
+  });
+
+  it("flags a broken multi limit", () => {
+    const res = validatePack(
+      multiWith(
+        [
+          { method: "head_count", min: 3, max: 2, fewer_allowed: [[{}, {}, {}]] },
+          { method: "connected_capacity", basis: "kw" as "class_kw" },
+          { method: "max_matching", match: {}, max: -1 },
+          { method: "max_matching", match: { models: ["SRK*ZSXA"], form_factors: ["wall-ish" as "wall"] }, max: 1 },
+          { method: "excluded_combinations", combos: [] },
+        ],
+        { max_lift_idu_idu_m: 0 }
+      )
+    );
+    expect(res.errors.map((e) => e.message)).toEqual(
+      expect.arrayContaining([
+        "compatibility[0] head_count min > max",
+        "compatibility[0] head_count.fewer_allowed[0] has 3 heads, not fewer than min 3",
+        'compatibility[1] connected_capacity.basis must be "class_kw" or "rated_cool_kw"',
+        "compatibility[1] connected_capacity has neither min nor max",
+        "compatibility[2] max_matching.match matches every head (give models or form_factors)",
+        "compatibility[2] max_matching.max not a whole number ≥ 0",
+        "compatibility[3] max_matching.match model pattern invalid: SRK*ZSXA (an exact model, or a prefix ending in *)",
+        "compatibility[3] max_matching.match form_factor invalid: wall-ish",
+        "compatibility[4] excluded combinations empty",
+        "max_lift_idu_idu_m not a positive number",
+      ])
+    );
+  });
 });

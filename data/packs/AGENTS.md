@@ -153,6 +153,35 @@ Rules for the stepped form:
 - A table for **re-used or one-size-up pipe** is a different installation, not
   the pair's rule — the pair row takes the standard-pipe table.
 
+### 3b. Multi limits — which kinds does the book print?
+
+A multi row's `compatibility` holds the combination table (or whitelist /
+ratio band) **plus** any limit the book prints beside it. Write each one the
+book prints, as its own block, and nothing it doesn't — an absent limit
+checks nothing, which is the safe answer:
+
+| The book prints… | Block | Example |
+|---|---|---|
+| "a single indoor unit cannot be connected" / "2 to 4 units" | `head_count` `{ min, max }` | Daikin Super Multi NX: `{ min: 2 }` |
+| two heads allowed only as named sets | `head_count.fewer_allowed` | MHI SCM100: `[[{models: ZSXA}, {models: ZSXA}], …, [{models: ["SRK80ZRA*", …]}, {}]]` |
+| "total capacity of connected indoor units up to 14.5 kW" | `connected_capacity` `{ basis: "class_kw", max }` | Daikin 4MXM80: `max: 14.5`; MHI SCM100 `min: 9, max: 16` |
+| "up to 2 units of medium static duct", "* only 1" | `max_matching` `{ match, max, in_combos, label }` | Fujitsu AOTH45KBTA5 |
+| "in a 5-unit set, X must be 4 or less" | `max_matching` + `from_heads` | MHI SCM100: `max: 4, from_heads: 5` |
+| "combinations that are not possible" | `excluded_combinations` | MHI SCM100's four 5-head sets |
+| "max height difference between indoor units" | `max_lift_idu_idu_m` on the rule | Daikin 7.5, Fujitsu 10 |
+| a model or type not connectable to one outdoor | narrow `family_whitelist_with_limits.families` to the models marked connectable — not a new block | Fujitsu: no AGTG on KBTA5 |
+
+- **Use the book's own basis.** `class_kw` is the size class as kW (25 → 2.5);
+  use it only where the book prints classes ("2.5 kW Class"). Fujitsu's
+  classes are kBtu, not kW — never `class_kw` there.
+- **Never a ratio on a Mitsubishi Electric row** and never a port-size limit
+  anywhere.
+- **The table still decides capacity.** If the book's total or count looks
+  stricter than a row its own table lists, transcribe both as printed and
+  report it (§9.4): the engine lets the listed set through.
+- **Store `port_pipe_sizes` in the book's port order, A first** — don't sort
+  them. Port A isn't always the largest (Daikin 3/4MXM vs 5MXM100).
+
 ## 4. Units and types
 
 Canonical units, converted on entry — the display layer handles imperial:

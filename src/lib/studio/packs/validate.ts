@@ -18,6 +18,7 @@ import {
   type DataPack,
   type AdditionalChargeRule,
   type CompatibilityRule,
+  type HeadMatch,
   type PipeSizingRule,
   type Provenance,
 } from "./schema";
@@ -203,7 +204,62 @@ function checkCompatibility(
       if (num(b.ratio_min_pct) && num(b.ratio_max_pct) && b.ratio_min_pct > b.ratio_max_pct)
         push(`compatibility[${i}] ratio_min > ratio_max`);
     }
+    if (b.method === "head_count") {
+      if (b.min == null && b.max == null) push(`compatibility[${i}] head_count has neither min nor max`);
+      for (const [k, v] of [["min", b.min], ["max", b.max]] as const)
+        if (v != null && (!Number.isInteger(v) || v < 1)) push(`compatibility[${i}] head_count.${k} not a whole number ≥ 1`);
+      if (num(b.min) && num(b.max) && b.min > b.max) push(`compatibility[${i}] head_count min > max`);
+      (b.fewer_allowed ?? []).forEach((slots, j) => {
+        if (!Array.isArray(slots) || slots.length === 0)
+          push(`compatibility[${i}] head_count.fewer_allowed[${j}] empty`);
+        else if (num(b.min) && slots.length >= b.min)
+          push(`compatibility[${i}] head_count.fewer_allowed[${j}] has ${slots.length} heads, not fewer than min ${b.min}`);
+        slots?.forEach((m, k) => checkHeadMatch(push, `compatibility[${i}] head_count.fewer_allowed[${j}][${k}]`, m, true));
+      });
+      if (b.fewer_allowed?.length && b.min == null) push(`compatibility[${i}] head_count.fewer_allowed without a min`);
+    }
+    if (b.method === "connected_capacity") {
+      if (b.basis !== "class_kw" && b.basis !== "rated_cool_kw")
+        push(`compatibility[${i}] connected_capacity.basis must be "class_kw" or "rated_cool_kw"`);
+      if (b.min == null && b.max == null) push(`compatibility[${i}] connected_capacity has neither min nor max`);
+      for (const [k, v] of [["min", b.min], ["max", b.max]] as const)
+        if (v != null && !pos(v)) push(`compatibility[${i}] connected_capacity.${k} not a positive number`);
+      if (num(b.min) && num(b.max) && b.min > b.max) push(`compatibility[${i}] connected_capacity min > max`);
+    }
+    if (b.method === "max_matching") {
+      checkHeadMatch(push, `compatibility[${i}] max_matching.match`, b.match, false);
+      if (b.max == null && !b.in_combos?.length) push(`compatibility[${i}] max_matching has neither max nor in_combos`);
+      if (b.max != null && (!Number.isInteger(b.max) || b.max < 0))
+        push(`compatibility[${i}] max_matching.max not a whole number ≥ 0`);
+      if (b.from_heads != null && (!Number.isInteger(b.from_heads) || b.from_heads < 1))
+        push(`compatibility[${i}] max_matching.from_heads not a whole number ≥ 1`);
+      (b.in_combos ?? []).forEach((e, j) => {
+        if (!Array.isArray(e.combo) || e.combo.length === 0 || e.combo.some((code) => !pos(code)))
+          push(`compatibility[${i}] max_matching.in_combos[${j}] has a bad combo`);
+        if (!Number.isInteger(e.max) || e.max < 0)
+          push(`compatibility[${i}] max_matching.in_combos[${j}].max not a whole number ≥ 0`);
+      });
+    }
+    if (b.method === "excluded_combinations") {
+      if (!Array.isArray(b.combos) || b.combos.length === 0)
+        push(`compatibility[${i}] excluded combinations empty`);
+      else if (b.combos.some((combo) => !Array.isArray(combo) || combo.length === 0 || combo.some((code) => !pos(code))))
+        push(`compatibility[${i}] excluded combinations has a bad combo`);
+    }
   });
+}
+
+/** a multi limit's head filter: model patterns as model-glob.ts reads them
+    (an exact model, or a prefix ending in `*`), and real form factors. `{}`
+    (any head) only where a slot may be any head. */
+function checkHeadMatch(push: (m: string) => void, label: string, m: HeadMatch | undefined, anyOk: boolean): void {
+  if (!m || typeof m !== "object") return push(`${label} missing`);
+  const models = m.models ?? [];
+  const forms = m.form_factors ?? [];
+  if (!anyOk && models.length === 0 && forms.length === 0) push(`${label} matches every head (give models or form_factors)`);
+  for (const p of models)
+    if (!str(p) || p.slice(0, -1).includes("*")) push(`${label} model pattern invalid: ${p} (an exact model, or a prefix ending in *)`);
+  for (const f of forms) if (!(FORM_FACTORS as readonly string[]).includes(f)) push(`${label} form_factor invalid: ${f}`);
 }
 
 function checkPipeSizing(
@@ -335,6 +391,8 @@ export function validatePack(pack: DataPack): ValidationResult {
     if (seenMultiOdu.has(r.odu_model_ref)) push(`duplicate multi_rules for ${r.odu_model_ref}`);
     seenMultiOdu.add(r.odu_model_ref);
     checkCompatibility(push, r.compatibility);
+    if (r.max_lift_idu_idu_m != null && !pos(r.max_lift_idu_idu_m))
+      push("max_lift_idu_idu_m not a positive number");
     checkAdditionalCharge(push, r.additional_charge);
     for (const ref of r.branch_box_refs ?? [])
       if (!partModels.has(ref)) push(`branch_box_ref not in parts[]: ${ref}`);

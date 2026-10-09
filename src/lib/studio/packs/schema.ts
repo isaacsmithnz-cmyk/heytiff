@@ -123,6 +123,56 @@ export type AdditionalChargeRule =
       plus_per_idu?: { models: string[]; add_g: number }[];
       round_up_g?: number;
     }
+  | {
+      /** a FIXED amount per length band, not a rate — the book prints a table
+          of kilograms by how long the pipe is. Daikin SkyAir R32 (EDAU282388
+          p.112, RZA/RZAS/RZAV/RZAC): "Length for which additional charging is
+          not required 30 m", then 40 m or less +0.35 kg, 50 m or less +0.70,
+          60 m or less +1.05, 75 m or less +1.40, and "Impossible" past the
+          last column. MHI FDCA160–250VSA-W ('24 PAC-DB-450 2.8): the same
+          table read on its equivalent length Le, 30 < Le ≤ 40 m +0.44 kg …
+          60 < Le ≤ 70 m +2.85 kg. */
+      method: "stepped_by_length";
+      /** at or under this many metres nothing is added (the factory charge
+          covers it) */
+      precharged_up_to_m: number;
+      /** ascending by up_to_m, each INCLUSIVE ("40 m or less", "Le ≤ 40 m");
+          a band runs from the one before it (or precharged_up_to_m) to its
+          own up_to_m. Past the last band the book prints no amount — the run
+          is outside the table, never extrapolated. */
+      bands: { up_to_m: number; add_g: number }[];
+      /** the liquid size the table is printed for (Daikin prints one per
+          row). A run in another size has no figure. Absent = any size. */
+      liquid_mm?: number;
+      /** the bands are read on a WEIGHTED length, not metres of pipe: liquid
+          mm (string key) → the weight each metre of that size counts for.
+          MHI's Le ("equivalent length", PAC-DB-450): Le = L(12.7) + 0.52 ×
+          L(9.52) → { "12.7": 1, "9.52": 0.52 }. It is a liquid-volume
+          weighting, NOT a bends-and-fittings allowance. A size not listed has
+          no figure. Absent = plain metres. */
+      length_weights?: Record<string, number>;
+    }
+  | {
+      /** a rate per metre of liquid pipe applied to the WHOLE length — never
+          the length past an allowance — optionally only once the run is past
+          a chargeless length, plus a fixed adder past a length. Daikin
+          SkyAir R410A: RZQ (EDAU282226 p.128) "in case of the liquid piping
+          lengths over chargeless piping length [30 m]", R = L(12.7) × 0.12 +
+          L(9.5) × 0.059 kg; RZYQ (EDAU282301 p.88) R = Σ L × rate per size +
+          A, where A = 0.7 kg (7–8 HP) or 1.0 kg (10 HP) once the piping is
+          over 30 m. Both "rounded off in units of 0.1 kg". */
+      method: "whole_length_by_liquid_size";
+      /** liquid mm (string key) → g per metre, on every metre of that size */
+      rates: Record<string, number>;
+      /** at or under this length nothing is added; past it the rates apply to
+          the whole length (RZQ 30). Absent = the rates always apply (RZYQ). */
+      chargeless_up_to_m?: number;
+      /** a fixed amount added once the run is past `over_m` (RZYQ's "A") */
+      plus_past?: { over_m: number; add_g: number };
+      /** the book rounds the result to the NEAREST step ("rounded off in units
+          of 0.1 kg" → 100) */
+      round_g?: number;
+    }
   | { method: "none_required" };
 
 export const ADDITIONAL_CHARGE_METHODS = [
@@ -131,6 +181,8 @@ export const ADDITIONAL_CHARGE_METHODS = [
   "threshold_then_rate",
   "fixed_per_idu",
   "per_meter_by_liquid_size_by_farthest",
+  "stepped_by_length",
+  "whole_length_by_liquid_size",
   "none_required",
 ] as const;
 

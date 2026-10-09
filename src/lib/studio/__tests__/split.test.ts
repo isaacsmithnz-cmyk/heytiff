@@ -385,3 +385,61 @@ describe("evaluateAdditionalCharge", () => {
     expect(evaluateAdditionalCharge({ method: "none_required" }, { liquidLengthM: 99 })).toBe(0);
   });
 });
+
+/* ═══════════ a stepped charge table on a pair (Daikin-shaped) ═══════════
+   The A1 document (a 30 m run) on a copy of the pack whose pair charges by
+   a stepped table: the top-up reaches the sheet, and a run past the table's
+   last band is red even though the pair's own maximum allows it. */
+
+describe("stepped_by_length on a split pair", () => {
+  const withRule = (rule: DataPack["pair_tables"][number]["additional_charge"]): DataPack => ({
+    ...pack,
+    pair_tables: pack.pair_tables.map((p) =>
+      p.idu_model === "PLA-M100EA2-A" && p.odu_model === "PUZ-M100VKA-A" ? { ...p, additional_charge: rule } : p
+    ),
+  });
+
+  it("a run inside a band takes the band's amount onto the sheet", () => {
+    const stepped = withRule({
+      method: "stepped_by_length",
+      precharged_up_to_m: 20,
+      bands: [{ up_to_m: 30, add_g: 350 }, { up_to_m: 40, add_g: 700 }],
+      liquid_mm: 9.52,
+    });
+    const v = validateSplitSystem(scenarioA1(), stepped, "sys_split");
+    expect(v.findings).toEqual([]);
+    const sys = buildSummaryModel(scenarioA1(), stepped).systems[0];
+    expect(sys.lines).toContainEqual(expect.objectContaining({ name: "Additional refrigerant", qty: "350 g" }));
+  });
+
+  it("a run past the table's last band is red, with no top-up guessed", () => {
+    const short = withRule({
+      method: "stepped_by_length",
+      precharged_up_to_m: 10,
+      bands: [{ up_to_m: 20, add_g: 350 }],
+      liquid_mm: 9.52,
+    });
+    const v = validateSplitSystem(scenarioA1(), short, "sys_split");
+    expect(v.findings.map((f) => f.code)).toEqual(["past-charge-table"]);
+    expect(v.findings[0].message).toBe("Run is 30.0 m — the book's charge table for this pair stops at 20 m");
+    expect(v.status).toBe("red");
+    const sys = buildSummaryModel(scenarioA1(), short).systems[0];
+    expect(sys.lines.some((l) => l.name === "Additional refrigerant")).toBe(false);
+  });
+
+  it("over the pair's own maximum says that, once", () => {
+    const short = withRule({
+      method: "stepped_by_length",
+      precharged_up_to_m: 10,
+      bands: [{ up_to_m: 20, add_g: 350 }],
+      liquid_mm: 9.52,
+    });
+    const tight: DataPack = {
+      ...short,
+      pair_tables: short.pair_tables.map((p) =>
+        p.idu_model === "PLA-M100EA2-A" && p.odu_model === "PUZ-M100VKA-A" ? { ...p, max_length_m: 25 } : p
+      ),
+    };
+    expect(validateSplitSystem(scenarioA1(), tight, "sys_split").findings.map((f) => f.code)).toEqual(["over-length"]);
+  });
+});

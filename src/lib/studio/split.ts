@@ -13,6 +13,7 @@ import { indoorReadiness } from "./packs/ready";
 import { buildSystemGraph, findPath, type SystemGraph } from "./graph";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { coversLoad } from "./fit";
+import { chargeTableEndM, pastChargeTable } from "./materials";
 
 /* ─────────────────────────── pair proposals ─────────────────────────── */
 
@@ -86,6 +87,7 @@ export interface Finding {
     | "orphan-run"
     | "over-length"
     | "over-lift"
+    | "past-charge-table"
     | "uncalibrated"
     | "under-capacity";
   message: string;
@@ -197,6 +199,19 @@ export function validateSplitSystem(
             code: "over-length",
             message: `Run is ${lengthM.toFixed(1)} m — max for this pair is ${pair.max_length_m} m`,
           });
+        /* a stepped charge table ends (Daikin prints "Impossible" past its
+           last column): a run the pair allows but the table doesn't reach
+           has no top-up the book will give, so it can't be installed by it */
+        else if (
+          pastChargeTable(pair.additional_charge, { liquidLengthM: lengthM, liquidSizeMm: pair.pipe_liquid_mm })
+        ) {
+          const end = chargeTableEndM(pair.additional_charge, pair.pipe_liquid_mm);
+          findings.push({
+            severity: "red",
+            code: "past-charge-table",
+            message: `Run is ${lengthM.toFixed(1)} m — the book's charge table for this pair stops at ${end != null ? +end.toFixed(1) : "?"} m`,
+          });
+        }
         if (liftM > pair.max_lift_m)
           findings.push({
             severity: "red",

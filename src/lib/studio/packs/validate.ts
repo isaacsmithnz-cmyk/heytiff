@@ -128,6 +128,55 @@ function checkAdditionalCharge(
       if (!num(s.add_g)) push(`additional_charge.plus_by_connected_index[${i}].add_g not numeric`);
     });
   }
+  if (c.method === "stepped_by_length") {
+    if (!num(c.precharged_up_to_m) || c.precharged_up_to_m < 0)
+      push("additional_charge.precharged_up_to_m missing");
+    if (!Array.isArray(c.bands) || c.bands.length === 0) return push("additional_charge.bands empty");
+    let prev = num(c.precharged_up_to_m) ? c.precharged_up_to_m : 0;
+    let prevG = 0;
+    c.bands.forEach((b, i) => {
+      if (!pos(b.up_to_m)) push(`additional_charge.bands[${i}].up_to_m not a positive number`);
+      else if (b.up_to_m <= prev)
+        push(`additional_charge.bands[${i}].up_to_m ${b.up_to_m} not above ${prev} (bands ascend from precharged_up_to_m)`);
+      if (!num(b.add_g) || b.add_g < 0) push(`additional_charge.bands[${i}].add_g not a number ≥ 0`);
+      else if (b.add_g < prevG) push(`additional_charge.bands[${i}].add_g ${b.add_g} less than the band before`);
+      if (num(b.up_to_m)) prev = b.up_to_m;
+      if (num(b.add_g)) prevG = b.add_g;
+    });
+    if (c.liquid_mm != null && !pos(c.liquid_mm)) push("additional_charge.liquid_mm not a positive number");
+    if (c.length_weights != null) {
+      if (Object.keys(c.length_weights).length === 0) push("additional_charge.length_weights empty");
+      for (const [k, v] of Object.entries(c.length_weights))
+        if (!pos(v)) push(`additional_charge.length_weights[${k}] not a positive number`);
+    }
+  }
+  if (c.method === "whole_length_by_liquid_size") {
+    if (!c.rates || Object.keys(c.rates).length === 0) push("additional_charge.rates empty");
+    else
+      for (const [k, v] of Object.entries(c.rates))
+        if (!num(v) || v < 0) push(`additional_charge.rates[${k}] not numeric`);
+    if (c.chargeless_up_to_m != null && (!num(c.chargeless_up_to_m) || c.chargeless_up_to_m < 0))
+      push("additional_charge.chargeless_up_to_m not a number ≥ 0");
+    if (c.plus_past != null && (!num(c.plus_past.over_m) || !num(c.plus_past.add_g)))
+      push("additional_charge.plus_past needs numeric over_m and add_g");
+    if (c.round_g != null && !pos(c.round_g)) push("additional_charge.round_g not a positive number");
+  }
+}
+
+/** a stepped table that stops short of the pair's own maximum length leaves
+    runs the pair allows with no amount the book will give — worth a look at
+    ingestion (it may be right: the book can say "Impossible" before the
+    pair's printed maximum), never a blocked pack */
+function steppedEndWarning(c: AdditionalChargeRule | undefined, liquidMm: number, maxLengthM: number): string | null {
+  if (c?.method !== "stepped_by_length" || !c.bands?.length || !num(maxLengthM)) return null;
+  const w = c.length_weights ? c.length_weights[String(liquidMm)] : 1;
+  if (w == null) return `stepped charge has no length weight for the pair's ${liquidMm} mm liquid`;
+  if (c.liquid_mm != null && c.liquid_mm !== liquidMm)
+    return `stepped charge is printed for ${c.liquid_mm} mm liquid, and the pair's is ${liquidMm} mm`;
+  const end = c.bands[c.bands.length - 1].up_to_m / w;
+  return end + 1e-9 < maxLengthM
+    ? `stepped charge table ends at ${+end.toFixed(1)} m, short of the pair's ${maxLengthM} m maximum`
+    : null;
 }
 
 function checkCompatibility(
@@ -273,6 +322,8 @@ export function validatePack(pack: DataPack): ValidationResult {
     if (!pos(pt.pipe_liquid_mm) || !pos(pt.pipe_gas_mm)) push("pipe sizes missing");
     if (!pos(pt.max_length_m) || !num(pt.max_lift_m)) push("length/lift limits missing");
     checkAdditionalCharge(push, pt.additional_charge);
+    const shortTable = steppedEndWarning(pt.additional_charge, pt.pipe_liquid_mm, pt.max_length_m);
+    if (shortTable) warn("pair_tables", `${pt.idu_model}+${pt.odu_model}`, shortTable);
     checkProvenance(push, pt.provenance);
   });
 

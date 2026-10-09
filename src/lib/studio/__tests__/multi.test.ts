@@ -133,25 +133,27 @@ describe("multiCapableIdus", () => {
   const capable = multiCapableIdus(pack);
   const models = capable.map((u) => u.model);
 
-  it("derives capability from the MXZ rules alone (34 whitelisted)", () => {
+  it("derives capability from the MXZ rules alone (32: the C-2 chart + three consoles)", () => {
     // PUMY is VRF (Isaac, 2026-09-28): its heads are City Multi and branch-box
-    // heads (vrf.ts), so no multi rule admits a City Multi head any more
-    expect(capable).toHaveLength(34);
+    // heads (vrf.ts), so no multi rule admits a City Multi head any more.
+    // 32 = the 29 pack rows M-P0922 p.C-2 marks on at least one MXZ, and the
+    // MFZ-KW25/35/50 floor consoles Isaac put on the multis (staff-entered)
+    expect(capable).toHaveLength(32);
     expect(models).toContain("MSZ-AP20VGD");
     expect(models).toContain("PEAD-M50JAA(D)"); // a ducted IDU among the hi-walls
     expect(models).not.toContain("PEFY-P40VMHS-E"); // City Multi: a VRF head
   });
 
-  it("excludes family models over every rule's per-port limit", () => {
-    // PEAD-M100 is 10 kW — the biggest per-port allowance is 7.8 kW (6F120)
+  it("excludes models the C-2 chart doesn't list on any MXZ", () => {
+    // C-2 stops PEAD-M at 71; the 100 and 125 aren't rows on it at all
     expect(models).not.toContain("PEAD-M100JAA(D)");
     expect(models).not.toContain("PEAD-M125JAA(D)");
   });
 
   it("admits nothing a rule doesn't actually reach", () => {
     // every capable unit is authorised by one of the two mechanisms: an MXZ
-    // family prefix, or a capacity_index inside some rule's index band
-    const families = ["MSZ-LN", "MSZ-EF", "MSZ-AP", "MFZ-KW", "MLZ-KP", "SLZ-M", "SEZ-M", "PEAD-M"];
+    // model list, or a capacity_index inside some rule's index band
+    const families = ["MSZ-LN", "MSZ-EF", "MSZ-AP", "MFXZ-KW", "MFZ-KW", "MLZ-KP", "SLZ-M", "SEZ-M", "PEAD-M"];
     const bands = pack.multi_rules
       .flatMap((r) => r.compatibility)
       .filter((c) => c.method === "index_ratio_band");
@@ -175,7 +177,7 @@ describe("proposeMultiIdus", () => {
   it("1.74 kW room: the whole capable catalogue, labelled, smallest fit best", () => {
     const props = proposeMultiIdus(pack, 1.74, basis);
     // a load never shortens the list — it only labels it
-    expect(props).toHaveLength(34);
+    expect(props).toHaveLength(32);
     for (const p of props) {
       if (p.fit === "fits") {
         expect(p.capacityKw).toBeGreaterThanOrEqual(1.74);
@@ -200,14 +202,14 @@ describe("proposeMultiIdus", () => {
 
   it("a load nothing can cover leaves every row undersized and no best fit", () => {
     const props = proposeMultiIdus(pack, 999, basis);
-    expect(props).toHaveLength(34);
+    expect(props).toHaveLength(32);
     expect(props.every((p) => p.fit === "undersized")).toBe(true);
     expect(props.some((p) => p.bestFit)).toBe(false);
   });
 
   it("null load = the full capable catalogue, nothing flagged", () => {
     const props = proposeMultiIdus(pack, null, basis);
-    expect(props).toHaveLength(34);
+    expect(props).toHaveLength(32);
     expect(props.some((p) => p.bestFit)).toBe(false);
     expect(props.every((p) => p.fit === "fits")).toBe(true);
   });
@@ -239,11 +241,11 @@ describe("checkMultiCompatibility", () => {
     expect(f.some((x) => x.code === "not-in-whitelist" && x.severity === "red")).toBe(true);
   });
 
-  it("flags a per-port breach red (10 kW PEAD on a 5 kW port)", () => {
+  it("refuses a head the chart doesn't list (10 kW PEAD on the 3F54)", () => {
     const f = checkMultiCompatibility(rule("MXZ-3F54VGD"), odu("MXZ-3F54VGD"), [
       idu("PEAD-M100JAA(D)"),
     ]);
-    expect(f.some((x) => x.code === "over-per-port" && x.severity === "red")).toBe(true);
+    expect(f.some((x) => x.code === "not-in-whitelist" && x.severity === "red")).toBe(true);
   });
 
   it("flags too many units red (count + ports)", () => {
@@ -637,35 +639,150 @@ describe("capacity_combination_table", () => {
   });
 });
 
-/* ── the floor console: three sizes go on a multi, the other two don't ──
-   The guide prints the multi-capable consoles as MFXZ-KW25VG/35VG/50VG; the
-   pack's rows, from the data book, are MFZ-KW25…KW60VG. Owner's call that
-   these are the same unit, so the whitelist names the three approved models
-   by prefix — never the bare family, which would sweep in the 42 and 60. */
-describe("floor consoles on a multi", () => {
-  const odu = pack.outdoor_units.find((o) => o.model === "MXZ-6F120VGD")!;
-  const rule = pack.multi_rules.find((r) => r.odu_model_ref === odu.model)!;
+/* ── which heads each MXZ takes: the book's chart, model by model ──
+   Isaac, 2026-10-09: "The combination table wins over everything except for
+   the certain rules if a unit isn't compatible with it. But the combination
+   table should always decide capacity for MXZ." So the MODELS an MXZ takes
+   are M-P0922 p.C-2's "MXZ Combination Chart", exactly, and the SIZES they
+   come to are the capacity table's alone: no per-port kW cap, no ratio. */
+describe("MXZ heads follow the C-2 chart", () => {
+  const MXZ = [
+    "MXZ-2F52VF", "MXZ-2F52VGD", "MXZ-3F54VGD", "MXZ-4F71VGD",
+    "MXZ-4F80VGD", "MXZ-5F100VGD", "MXZ-6F120VGD",
+  ];
+  const odu = (m: string) => pack.outdoor_units.find((o) => o.model === m)!;
+  const rule = (m: string) => pack.multi_rules.find((r) => r.odu_model_ref === m)!;
   const unit = (m: string) => pack.indoor_units.find((u) => u.model === m)!;
+  const takes = (o: string) => multiCapableIdus(pack, [rule(o)]).map((u) => u.model).sort();
 
-  it("offers exactly the 2.5, 3.5 and 5.0", () => {
-    expect(
-      multiCapableIdus(pack)
-        .filter((u) => u.model.startsWith("MFZ-"))
-        .map((u) => u.model)
-    ).toEqual(["MFZ-KW25VG", "MFZ-KW35VG", "MFZ-KW50VG"]);
+  /* the pack's rows C-2 marks on each outdoor (the chart also lists
+     MSZ-EF22, MSZ-AP15 and MFXZ-KW25/35/50, which have no indoor row yet),
+     and the floor consoles Isaac put on the MXZs (below) */
+  const TWO_PORT = [
+    "MFZ-KW25VG", "MFZ-KW35VG",
+    "MLZ-KP25VF", "MLZ-KP35VF",
+    "MSZ-AP20VGD", "MSZ-AP25VGD2", "MSZ-AP35VGD2", "MSZ-AP42VGD2", "MSZ-AP50VGD2",
+    "MSZ-EF25VGW", "MSZ-EF35VGW", "MSZ-EF42VGW", "MSZ-EF50VGW",
+    "MSZ-LN25VG2V", "MSZ-LN35VG2V",
+    "SEZ-M25DA(L)", "SEZ-M35DA(L)",
+    "SLZ-M25FA-A", "SLZ-M35FA-A",
+  ];
+  const F54 = [...TWO_PORT, "MFZ-KW50VG", "MLZ-KP50VF", "MSZ-LN50VG3V", "PEAD-M50JAA(D)", "SEZ-M50DA(L)", "SLZ-M50FA-A"];
+  const F71 = [...F54, "MSZ-AP60VGD2", "PEAD-M60JAA(D)", "SEZ-M60DA(L)"];
+  const F80 = [...F71, "MSZ-AP71VGD2", "PEAD-M71JAA(D)", "SEZ-M71DA(L)"];
+  const F120 = [...F80, "MSZ-AP80VGD2"];
+
+  it.each([
+    ["MXZ-2F52VF", TWO_PORT],
+    ["MXZ-2F52VGD", TWO_PORT],
+    ["MXZ-3F54VGD", F54],
+    ["MXZ-4F71VGD", F71],
+    ["MXZ-4F80VGD", F80],
+    ["MXZ-5F100VGD", F80],
+    ["MXZ-6F120VGD", F120],
+  ])("%s takes exactly the heads C-2 marks", (o, heads) => {
+    expect(takes(o)).toEqual([...heads].sort());
+  });
+
+  it("no MXZ rule carries a per-port kW cap — no book prints one", () => {
+    for (const m of MXZ)
+      for (const c of rule(m).compatibility)
+        if (c.method === "family_whitelist_with_limits")
+          expect(c.per_port_max_kw).toBeUndefined();
+  });
+
+  it.each(MXZ)("refuses MSZ-LN60 on %s — its C-2 row is blank", (o) => {
+    expect(checkMultiCompatibility(rule(o), odu(o), [unit("MSZ-LN60VG3V")])).toEqual(
+      expect.arrayContaining([expect.objectContaining({ severity: "red", code: "not-in-whitelist" })])
+    );
+  });
+
+  it.each(MXZ)("refuses SLZ-M60FA on %s — it isn't on C-2", (o) => {
+    expect(checkMultiCompatibility(rule(o), odu(o), [unit("SLZ-M60FA-A")])).toEqual(
+      expect.arrayContaining([expect.objectContaining({ severity: "red", code: "not-in-whitelist" })])
+    );
+  });
+
+  it.each(["MSZ-LN50VG3V", "MLZ-KP50VF", "SLZ-M50FA-A", "SEZ-M50DA(L)"])(
+    "%s: refused on the 2F52s, taken from the 3F54 — where C-2 starts it",
+    (m) => {
+      for (const o of ["MXZ-2F52VF", "MXZ-2F52VGD"])
+        expect(checkMultiCompatibility(rule(o), odu(o), [unit(m)])).toEqual(
+          expect.arrayContaining([expect.objectContaining({ severity: "red", code: "not-in-whitelist" })])
+        );
+      expect(checkMultiCompatibility(rule("MXZ-3F54VGD"), odu("MXZ-3F54VGD"), [unit(m)])).toEqual([]);
+    }
+  );
+
+  it("a 50-class wall unit C-2 marks on the 2F52 goes on it", () => {
+    const o = "MXZ-2F52VGD";
+    expect(checkMultiCompatibility(rule(o), odu(o), [unit("MSZ-AP50VGD2"), unit("MSZ-EF25VGW")])).toEqual([]);
+  });
+
+  it.each(["MSZ-AP60VGD2", "SEZ-M60DA(L)", "PEAD-M60JAA(D)"])(
+    "%s goes on the 4F71, 60+60 included — the table lists it (guide p.26)",
+    (m) => {
+      const o = "MXZ-4F71VGD";
+      expect(checkMultiCompatibility(rule(o), odu(o), [unit(m)])).toEqual([]);
+      expect(checkMultiCompatibility(rule(o), odu(o), [unit(m), unit("MSZ-AP60VGD2")])).toEqual([]);
+      // and not on the 3F54, where C-2 doesn't mark it
+      expect(checkMultiCompatibility(rule("MXZ-3F54VGD"), odu("MXZ-3F54VGD"), [unit(m)])).toEqual(
+        expect.arrayContaining([expect.objectContaining({ severity: "red", code: "not-in-whitelist" })])
+      );
+    }
+  );
+
+  it("the table, not a cap, refuses six 3.5 kW heads on the 6F120", () => {
+    const o = "MXZ-6F120VGD";
+    const six = Array.from({ length: 6 }, () => unit("MSZ-AP35VGD2"));
+    expect(checkMultiCompatibility(rule(o), odu(o), six)).toEqual([
+      expect.objectContaining({ severity: "red", code: "not-in-combination-table" }),
+    ]);
+  });
+
+  /* the floor console. C-2 marks MFXZ-KW25/35/50VG, "for MXZ connection
+     only" (C-1), with its own spec page (C-297: no outdoor, 0.020 kW indoor
+     input); MFZ-KW25…60VG pair with MUFZ outdoors (C-1, C-294) and their C-2
+     rows are blank, so the book never ties MFZ-KW to the chart. Isaac's call
+     (2026-09-16, 2026-10-09): the 2.5, 3.5 and 5.0 go on a multi, the 42
+     and 60 are split-only; and (2026-10-09) the 5.0 starts at the 3F54, as
+     C-2 starts MFXZ-KW50. The rule says it is staff-entered. */
+  it("offers the 2.5 and 3.5 consoles on every MXZ, the 5.0 from the 3F54", () => {
+    for (const o of MXZ)
+      expect(takes(o).filter((m) => m.startsWith("MFZ-"))).toEqual(
+        o.startsWith("MXZ-2F52")
+          ? ["MFZ-KW25VG", "MFZ-KW35VG"]
+          : ["MFZ-KW25VG", "MFZ-KW35VG", "MFZ-KW50VG"]
+      );
+  });
+
+  it("refuses MFZ-KW50 on the 2F52s — C-2 starts the 5.0 console at the 3F54", () => {
+    for (const o of ["MXZ-2F52VF", "MXZ-2F52VGD"])
+      expect(checkMultiCompatibility(rule(o), odu(o), [unit("MFZ-KW50VG")])).toEqual([
+        expect.objectContaining({ severity: "red", code: "not-in-whitelist" }),
+      ]);
+  });
+
+  it("labels the consoles staff-entered, not the book's", () => {
+    for (const o of MXZ) {
+      expect(rule(o).provenance).toMatchObject({ kind: "user-entered", by: "isaacsmithnz" });
+      expect(rule(o).provenance.source).toContain("MFZ-KW25VG/35VG/50VG staff-entered");
+    }
   });
 
   it("takes a console alongside wall units in a listed combination", () => {
+    const o = "MXZ-6F120VGD";
     const set = [
       unit("MFZ-KW35VG"), unit("MFZ-KW35VG"),
       unit("MSZ-AP25VGD2"), unit("MSZ-AP25VGD2"),
     ];
-    expect(checkMultiCompatibility(rule, odu, set)).toEqual([]);
+    expect(checkMultiCompatibility(rule(o), odu(o), set)).toEqual([]);
   });
 
-  it.each(["MFZ-KW42VG", "MFZ-KW60VG"])("refuses %s, which is split-only", (model) => {
-    expect(checkMultiCompatibility(rule, odu, [unit(model)])).toEqual([
-      expect.objectContaining({ severity: "red", code: "not-in-whitelist" }),
-    ]);
+  it.each(["MFZ-KW42VG", "MFZ-KW60VG"])("refuses %s on every MXZ — split-only", (m) => {
+    for (const o of MXZ)
+      expect(checkMultiCompatibility(rule(o), odu(o), [unit(m)])).toEqual(
+        expect.arrayContaining([expect.objectContaining({ severity: "red", code: "not-in-whitelist" })])
+      );
   });
 });

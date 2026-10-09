@@ -57,7 +57,66 @@ export function evaluateAdditionalCharge(
       return null; // needs an idu-size key — no consumer yet
     case "per_meter_by_liquid_size_by_farthest":
       return null; // a whole network's lengths — evaluateVrfCharge
+    case "stepped_by_length": {
+      const L = steppedLengthM(rule, ctx);
+      if (L == null) return null;
+      if (L <= rule.precharged_up_to_m + EPS) return 0;
+      // past the last band the book prints no amount ("Impossible"): no figure
+      return rule.bands.find((b) => L <= b.up_to_m + EPS)?.add_g ?? null;
+    }
+    case "whole_length_by_liquid_size": {
+      if (ctx.liquidSizeMm == null) return null;
+      const rate = rule.rates[String(ctx.liquidSizeMm)];
+      if (rate == null) return null;
+      const L = ctx.liquidLengthM;
+      const chargeless = rule.chargeless_up_to_m != null && L <= rule.chargeless_up_to_m + EPS;
+      let g = chargeless ? 0 : L * rate;
+      if (rule.plus_past && L > rule.plus_past.over_m + EPS) g += rule.plus_past.add_g;
+      const step = rule.round_g ?? 0;
+      // "rounded off in units of 0.1 kg": to the NEAREST step, not up
+      return step > 0 ? Math.round(Math.round(g * 1000) / 1000 / step) * step : g;
+    }
   }
+}
+
+/** a run measured to the millimetre must not fall out of the band it reads
+    as ("40 m or less" at 40.0000000001) */
+const EPS = 1e-9;
+
+type SteppedRule = Extract<AdditionalChargeRule, { method: "stepped_by_length" }>;
+
+/** the length a stepped table is read on: metres of pipe, or the book's
+    weighted length (MHI's Le). Null when the run's liquid size is one the
+    table isn't printed for, or isn't known while the table names one. */
+function steppedLengthM(rule: SteppedRule, ctx: { liquidLengthM: number; liquidSizeMm?: number }): number | null {
+  const size = ctx.liquidSizeMm;
+  if (rule.liquid_mm != null && (size == null || size !== rule.liquid_mm)) return null;
+  if (!rule.length_weights) return ctx.liquidLengthM;
+  if (size == null) return null;
+  const w = rule.length_weights[String(size)];
+  return w == null ? null : ctx.liquidLengthM * w;
+}
+
+/** Is the run longer than the book's charge table goes? Only a stepped table
+    has an end: past its last band the book prints no amount (Daikin's
+    "Impossible"), so the run can't be charged by the book — never a figure
+    carried on from the last band. False when the length can't be read. */
+export function pastChargeTable(
+  rule: AdditionalChargeRule,
+  ctx: { liquidLengthM: number; liquidSizeMm?: number }
+): boolean {
+  if (rule.method !== "stepped_by_length" || rule.bands.length === 0) return false;
+  const L = steppedLengthM(rule, ctx);
+  return L != null && L > rule.bands[rule.bands.length - 1].up_to_m + EPS;
+}
+
+/** the metres of pipe (in this liquid size) at which a stepped table ends —
+    its last band, turned back from a weighted length where the book reads
+    one. Null for every other method, or a size the table has no figure for. */
+export function chargeTableEndM(rule: AdditionalChargeRule, liquidSizeMm?: number): number | null {
+  if (rule.method !== "stepped_by_length" || rule.bands.length === 0) return null;
+  const per = steppedLengthM(rule, { liquidLengthM: 1, ...(liquidSizeMm != null ? { liquidSizeMm } : {}) });
+  return per == null || per <= 0 ? null : rule.bands[rule.bands.length - 1].up_to_m / per;
 }
 
 type VrfChargeRule = Extract<AdditionalChargeRule, { method: "per_meter_by_liquid_size_by_farthest" }>;

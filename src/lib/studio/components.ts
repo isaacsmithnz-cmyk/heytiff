@@ -20,7 +20,7 @@ import type { AdditionalChargeRule, DataPack, OutdoorUnit, Phase } from "./packs
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemPairKw } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
-import { evaluateAdditionalCharge } from "./materials";
+import { evaluateAdditionalCharge, pastChargeTable } from "./materials";
 import { moduleFor } from "./modules";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { systemVrfTree } from "./vrf-tree";
@@ -281,12 +281,17 @@ function chargeRow(
      only a rule that never needs one can answer with no pipe on the plan */
   const notDrawn = charge != null && !hasRuns && charge.method !== "none_required";
   let topupKg: number | null = null;
+  let pastTable = false;
   if (charge && !notDrawn) {
-    const grams = evaluateAdditionalCharge(charge, {
+    const ctx = {
       liquidLengthM: lengthM ?? 0,
       ...(liquidSizeMm != null ? { liquidSizeMm } : {}),
-    });
+    };
+    const grams = evaluateAdditionalCharge(charge, ctx);
     topupKg = grams == null ? null : grams / 1000;
+    /* a stepped table ends: past its last band the book prints no amount,
+       and the row says so rather than reading as plain pre-charged */
+    pastTable = lengthM != null && pastChargeTable(charge, ctx);
   }
 
   // value: prefer a full charge total; else the top-up alone; else unknown
@@ -304,6 +309,8 @@ function chargeRow(
     sub = "Pre-charged, pipe not drawn";
   } else if (charge && hasRuns && lengthM == null) {
     sub = "Pre-charged, run length unknown";
+  } else if (pastTable) {
+    sub = "Run is longer than the book's charge table";
   } else if (topupKg != null && topupKg > 0) {
     sub = `Pre-charged + ${topupKg.toFixed(2)} kg top-up`;
   } else if (topupKg === 0) {

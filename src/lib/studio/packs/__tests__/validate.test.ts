@@ -309,4 +309,126 @@ describe("validator catches broken packs", () => {
     const res = validatePack(p);
     expect(res.errors.some((e) => e.message.includes("part_ref not in parts"))).toBe(true);
   });
+
+  /* the stepped and whole-length charge methods (Daikin SkyAir, MHI
+     FDCA160–250): a sound table passes, a broken one is an error, and a table
+     that stops short of the pair's own maximum is a warning to look at */
+  function pairWith(charge: DataPack["pair_tables"][number]["additional_charge"], maxM = 75): DataPack {
+    const p = base();
+    const unit = {
+      brand: "acme",
+      series: "S",
+      capacity_cool_kw: 7.1,
+      capacity_heat_kw: 8,
+      conn_liquid_mm: 9.52,
+      conn_gas_mm: 15.88,
+      refrigerant: "R32" as const,
+      provenance: prov,
+    };
+    p.indoor_units.push({
+      ...unit,
+      model: "I1",
+      form_factor: "ducted",
+      default_plane: "ceiling-cavity",
+      allowed_planes: ["ceiling-cavity"],
+      system_roles: ["split-pair"],
+      width_mm: 1000,
+      depth_mm: 700,
+      height_mm: 245,
+    });
+    p.outdoor_units.push({ ...unit, model: "O1", system_type: "split", phase: "1" });
+    p.pair_tables.push({
+      idu_model: "I1",
+      odu_model: "O1",
+      pipe_liquid_mm: 9.52,
+      pipe_gas_mm: 15.88,
+      max_length_m: maxM,
+      max_lift_m: 30,
+      additional_charge: charge,
+      provenance: prov,
+    });
+    return p;
+  }
+  const stepped = {
+    method: "stepped_by_length" as const,
+    precharged_up_to_m: 30,
+    bands: [
+      { up_to_m: 40, add_g: 350 },
+      { up_to_m: 50, add_g: 700 },
+      { up_to_m: 60, add_g: 1050 },
+      { up_to_m: 75, add_g: 1400 },
+    ],
+    liquid_mm: 9.52,
+  };
+
+  it("accepts a stepped table that reaches the pair's maximum", () => {
+    const res = validatePack(pairWith(stepped));
+    expect(res.errors).toEqual([]);
+    expect(res.warnings).toEqual([]);
+  });
+
+  it("flags bands that don't ascend from the pre-charged length, and a falling amount", () => {
+    const res = validatePack(
+      pairWith({
+        ...stepped,
+        bands: [
+          { up_to_m: 25, add_g: 350 },
+          { up_to_m: 50, add_g: 700 },
+          { up_to_m: 45, add_g: 600 },
+        ],
+      })
+    );
+    const msgs = res.errors.map((e) => e.message);
+    expect(msgs).toContain("additional_charge.bands[0].up_to_m 25 not above 30 (bands ascend from precharged_up_to_m)");
+    expect(msgs).toContain("additional_charge.bands[2].up_to_m 45 not above 50 (bands ascend from precharged_up_to_m)");
+    expect(msgs).toContain("additional_charge.bands[2].add_g 600 less than the band before");
+  });
+
+  it("flags an empty stepped table and a bad length weight", () => {
+    const res = validatePack(
+      pairWith({ method: "stepped_by_length", precharged_up_to_m: 30, bands: [], length_weights: { "9.52": 0 } })
+    );
+    expect(res.errors.map((e) => e.message)).toContain("additional_charge.bands empty");
+    const res2 = validatePack(pairWith({ ...stepped, liquid_mm: undefined, length_weights: { "9.52": 0 } }));
+    expect(res2.errors.map((e) => e.message)).toContain("additional_charge.length_weights[9.52] not a positive number");
+  });
+
+  it("warns when the table stops short of the pair's maximum (RZA: 'Impossible' past 50 m)", () => {
+    const res = validatePack(pairWith({ ...stepped, bands: stepped.bands.slice(0, 2) }, 75));
+    expect(res.errors).toEqual([]);
+    expect(res.warnings.map((w) => w.message)).toEqual([
+      "stepped charge table ends at 50 m, short of the pair's 75 m maximum",
+    ]);
+    // the same table on a pair whose own maximum is 50 m is consistent
+    expect(validatePack(pairWith({ ...stepped, bands: stepped.bands.slice(0, 2) }, 50)).warnings).toEqual([]);
+  });
+
+  it("warns when the table is printed for another liquid size than the pair's", () => {
+    const res = validatePack(pairWith({ ...stepped, liquid_mm: 6.35 }));
+    expect(res.warnings.map((w) => w.message)).toEqual([
+      "stepped charge is printed for 6.35 mm liquid, and the pair's is 9.52 mm",
+    ]);
+  });
+
+  it("accepts the whole-length method and flags its broken parts", () => {
+    const ok = validatePack(
+      pairWith({
+        method: "whole_length_by_liquid_size",
+        rates: { "9.52": 57, "12.7": 110 },
+        plus_past: { over_m: 30, add_g: 700 },
+        round_g: 100,
+      })
+    );
+    expect(ok.errors).toEqual([]);
+    const bad = validatePack(
+      pairWith({ method: "whole_length_by_liquid_size", rates: {}, chargeless_up_to_m: -1, round_g: 0 })
+    );
+    expect(bad.errors.map((e) => e.message)).toEqual(
+      expect.arrayContaining([
+        "additional_charge.rates empty",
+        "additional_charge.chargeless_up_to_m not a number ≥ 0",
+        "additional_charge.round_g not a positive number",
+      ])
+    );
+  });
 });

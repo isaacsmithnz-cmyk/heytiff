@@ -124,6 +124,35 @@ it as a schema-extension request** — describe the method and the parameters it
 needs. Do not force the data into the nearest existing shape; a wrong method is
 silently wrong for every model in the range.
 
+### 3a. Additional charge — which method is the book's?
+
+Read the charge page and match its *form*, not its numbers:
+
+| The book prints… | Method | Example |
+|---|---|---|
+| a free length, then one g/m rate past it | `threshold_then_rate` | ME Mr Slim: 30 m, then 40 g/m |
+| g/m by liquid size, on the metres past a pre-charged length | `per_meter_by_liquid_size` (+ `precharged_allowance_m`) | Daikin RZAS-D: past 30 m, 9.5 → 53 g/m |
+| **kilograms by length band** ("40 m or less 0.35 kg, 50 m or less 0.70 …", "Impossible" past the last) | `stepped_by_length` | Daikin RZAS: `precharged_up_to_m: 30`, `bands: [{up_to_m: 40, add_g: 350}, …, {up_to_m: 75, add_g: 1400}]`, `liquid_mm: 9.52` |
+| the same, read on a **weighted** length ("Le = L(φ12.7) + 0.52 × L(φ9.52)") | `stepped_by_length` + `length_weights` | MHI FDCA160–250VSA-W: `length_weights: {"12.7": 1, "9.52": 0.52}` |
+| g/m by size on the **whole** length once past a chargeless length | `whole_length_by_liquid_size` + `chargeless_up_to_m` | Daikin RZQ: `rates: {"12.7": 120, "9.52": 59}`, `chargeless_up_to_m: 30`, `round_g: 100` |
+| g/m by size from the first metre, plus a fixed "A" past a length | `whole_length_by_liquid_size` + `plus_past` | Daikin RZYQ 7–8 HP: `plus_past: {over_m: 30, add_g: 700}` |
+| a VRF network formula (rates by farthest length, + by index/outdoor/head) | `per_meter_by_liquid_size_by_farthest` | ME PUHY |
+| "no additional charge" (and the max length is the chargeless length) | `none_required` | |
+
+Rules for the stepped form:
+- **Every band the book prints, as printed.** Each `up_to_m` is the column's
+  top, inclusive ("40 m or less" → 40). Bands needn't be even (Daikin's run
+  60 → 75, and the re-use tables 80 → 85).
+- **Stop where the book stops.** A column marked "Impossible", or a table that
+  simply ends, means the last band you write is the last the book prints. Never
+  add a band by continuing the step. The validator warns when the table ends
+  before the pair's `max_length_m` — check the page, and leave it if the book
+  really does stop short.
+- `add_g` is grams (0.35 kg → 350). `liquid_mm` is the size printed in the
+  row; leave it out only when the page prints none.
+- A table for **re-used or one-size-up pipe** is a different installation, not
+  the pair's rule — the pair row takes the standard-pipe table.
+
 ## 4. Units and types
 
 Canonical units, converted on entry — the display layer handles imperial:

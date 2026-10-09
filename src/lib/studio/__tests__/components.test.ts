@@ -164,6 +164,47 @@ describe("systemComponents — charge with pre-charge + run length", () => {
     expect(charge.sub).toBe("Pre-charged + 0.40 kg top-up");
     expect(charge.value).toBe("3.50 kg");
   });
+
+  /* a stepped table (Daikin's form) ends: a run past its last band has no
+     amount in the book, and the row says so instead of "Factory pre-charged" */
+  it("a stepped table: the band's amount, and past its end the row says so", () => {
+    const steppedPack = (lastM: number): DataPack => ({
+      ...pack,
+      pair_tables: pack.pair_tables.map((p) =>
+        p.idu_model === IDU && p.odu_model === ODU
+          ? {
+              ...p,
+              additional_charge: {
+                method: "stepped_by_length" as const,
+                precharged_up_to_m: 30,
+                bands: [{ up_to_m: lastM, add_g: 350 }],
+                liquid_mm: p.pipe_liquid_mm,
+              },
+            }
+          : p
+      ),
+    });
+    const { doc, system } = docWith({ pairIdu: IDU, pairOdu: ODU });
+    doc.objects = [
+      unit("u_idu", "idu", IDU),
+      unit("u_odu", "odu", ODU),
+      {
+        id: "run1",
+        type: "pipe-run",
+        systemId: "sys1",
+        floorId: "flr",
+        geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }] },
+        plane: "room",
+        props: { startAttach: { kind: "unit", id: "u_idu" }, endAttach: { kind: "unit", id: "u_odu" } },
+      },
+    ];
+    const inBand = systemComponents(doc, steppedPack(40), system, "cooling").find((r) => r.id === "charge")!;
+    expect(inBand.sub).toBe("Pre-charged + 0.35 kg top-up");
+    expect(inBand.value).toBe("3.45 kg");
+    const past = systemComponents(doc, steppedPack(35), system, "cooling").find((r) => r.id === "charge")!;
+    expect(past.sub).toBe("Run is longer than the book's charge table");
+    expect(past.charge!.topupKg).toBeNull();
+  });
 });
 
 describe("component choice rows", () => {

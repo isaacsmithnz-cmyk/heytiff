@@ -657,9 +657,9 @@ describe("MXZ heads follow the C-2 chart", () => {
 
   /* the pack's rows C-2 marks on each outdoor (the chart also lists
      MSZ-EF22, MSZ-AP15 and MFXZ-KW25/35/50, which have no indoor row yet),
-     and the three floor consoles Isaac put on every MXZ (below) */
+     and the floor consoles Isaac put on the MXZs (below) */
   const TWO_PORT = [
-    "MFZ-KW25VG", "MFZ-KW35VG", "MFZ-KW50VG",
+    "MFZ-KW25VG", "MFZ-KW35VG",
     "MLZ-KP25VF", "MLZ-KP35VF",
     "MSZ-AP20VGD", "MSZ-AP25VGD2", "MSZ-AP35VGD2", "MSZ-AP42VGD2", "MSZ-AP50VGD2",
     "MSZ-EF25VGW", "MSZ-EF35VGW", "MSZ-EF42VGW", "MSZ-EF50VGW",
@@ -667,7 +667,7 @@ describe("MXZ heads follow the C-2 chart", () => {
     "SEZ-M25DA(L)", "SEZ-M35DA(L)",
     "SLZ-M25FA-A", "SLZ-M35FA-A",
   ];
-  const F54 = [...TWO_PORT, "MLZ-KP50VF", "MSZ-LN50VG3V", "PEAD-M50JAA(D)", "SEZ-M50DA(L)", "SLZ-M50FA-A"];
+  const F54 = [...TWO_PORT, "MFZ-KW50VG", "MLZ-KP50VF", "MSZ-LN50VG3V", "PEAD-M50JAA(D)", "SEZ-M50DA(L)", "SLZ-M50FA-A"];
   const F71 = [...F54, "MSZ-AP60VGD2", "PEAD-M60JAA(D)", "SEZ-M60DA(L)"];
   const F80 = [...F71, "MSZ-AP71VGD2", "PEAD-M71JAA(D)", "SEZ-M71DA(L)"];
   const F120 = [...F80, "MSZ-AP80VGD2"];
@@ -745,12 +745,21 @@ describe("MXZ heads follow the C-2 chart", () => {
      input); MFZ-KW25…60VG pair with MUFZ outdoors (C-1, C-294) and their C-2
      rows are blank, so the book never ties MFZ-KW to the chart. Isaac's call
      (2026-09-16, 2026-10-09): the 2.5, 3.5 and 5.0 go on a multi, the 42
-     and 60 are split-only. So the three go on every MXZ whose table has
-     their size class (all seven), and the rule says it is staff-entered. */
-  it("offers exactly the 2.5, 3.5 and 5.0 consoles, on every MXZ", () => {
+     and 60 are split-only; and (2026-10-09) the 5.0 starts at the 3F54, as
+     C-2 starts MFXZ-KW50. The rule says it is staff-entered. */
+  it("offers the 2.5 and 3.5 consoles on every MXZ, the 5.0 from the 3F54", () => {
     for (const o of MXZ)
-      expect(takes(o).filter((m) => m.startsWith("MFZ-"))).toEqual([
-        "MFZ-KW25VG", "MFZ-KW35VG", "MFZ-KW50VG",
+      expect(takes(o).filter((m) => m.startsWith("MFZ-"))).toEqual(
+        o.startsWith("MXZ-2F52")
+          ? ["MFZ-KW25VG", "MFZ-KW35VG"]
+          : ["MFZ-KW25VG", "MFZ-KW35VG", "MFZ-KW50VG"]
+      );
+  });
+
+  it("refuses MFZ-KW50 on the 2F52s — C-2 starts the 5.0 console at the 3F54", () => {
+    for (const o of ["MXZ-2F52VF", "MXZ-2F52VGD"])
+      expect(checkMultiCompatibility(rule(o), odu(o), [unit("MFZ-KW50VG")])).toEqual([
+        expect.objectContaining({ severity: "red", code: "not-in-whitelist" }),
       ]);
   });
 

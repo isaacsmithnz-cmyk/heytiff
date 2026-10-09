@@ -16,7 +16,15 @@
       can't say whether a SET of indoor units is legal. Signals 1 and 2 can't
       see this — the book IS cited, the families DO match; what went missing is
       the whole-set bound the book prints (a combination table for ME, a ratio
-      band or total-kW cap for brands that publish one instead).
+      band or total-kW cap — connected_capacity — for brands that publish one
+      instead).
+   4. Multi limits the brand records on some outdoors and not others: the
+      height between indoor units, a head count, a connected total. Absent is
+      safe — nothing is checked — and for a brand that never prints one it is
+      the book's own answer (ME takes one head; its guide prints no height
+      between indoor units), so a pack where NO row carries a limit is never
+      flagged. A row missing what its siblings carry is: the same book, or
+      its sibling, printed it.
 
    Manual watch items (staff-entered, pack_watchlist table) are the IO side —
    see hq-watchlist actions. */
@@ -33,7 +41,8 @@ export interface WatchSignal {
     | "unextracted-source"
     | "unmatched-family"
     | "dangling-part-ref"
-    | "no-combination-rule";
+    | "no-combination-rule"
+    | "unrecorded-multi-limit";
   title: string;
   detail: string;
 }
@@ -131,6 +140,13 @@ function boundsTheSet(block: CompatibilityRule): boolean {
       return true; // connected index vs outdoor, with a max count
     case "family_whitelist_with_limits":
       return false; // per-unit family, capacity, index and per-port bounds only
+    case "connected_capacity":
+      return block.max != null; // a total-kW cap — the form other brands print instead of a table
+    case "head_count":
+      return false; // a count is not a capacity
+    case "max_matching":
+    case "excluded_combinations":
+      return false; // the book's exceptions to its table, never the bound itself
   }
 }
 
@@ -159,11 +175,37 @@ export function unboundedMultiRules(pack: DataPack): WatchSignal[] {
   return out;
 }
 
+/** the per-outdoor multi limits signal 4 compares across a pack's rows */
+const MULTI_LIMITS: { label: string; has: (r: DataPack["multi_rules"][number]) => boolean }[] = [
+  { label: "a height limit between indoor units", has: (r) => r.max_lift_idu_idu_m != null },
+  { label: "a head count", has: (r) => (r.compatibility ?? []).some((b) => b.method === "head_count") },
+  { label: "a connected capacity", has: (r) => (r.compatibility ?? []).some((b) => b.method === "connected_capacity") },
+];
+
+/** Multi rules missing a limit their sibling rows carry (signal 4). */
+export function unrecordedMultiLimits(pack: DataPack): WatchSignal[] {
+  const out: WatchSignal[] = [];
+  for (const rule of pack.multi_rules) {
+    const missing = MULTI_LIMITS.filter((l) => !l.has(rule) && pack.multi_rules.some(l.has));
+    if (!missing.length) continue;
+    const cite = rowProvenance(rule);
+    const where = cite ? `${cite.source}${cite.page ? ` p.${cite.page}` : ""}` : "its source book";
+    const what = missing.map((l) => l.label).join(", ");
+    out.push({
+      kind: "unrecorded-multi-limit",
+      title: rule.odu_model_ref,
+      detail: `Other multi outdoors in this pack record ${what}; this one doesn't, so nothing checks it — extract it from ${where}, or confirm the book prints none.`,
+    });
+  }
+  return out;
+}
+
 /** All auto signals for a pack. */
 export function packWatchSignals(pack: DataPack): WatchSignal[] {
   return [
     ...unextractedSources(pack),
     ...unmatchedRuleReferences(pack),
     ...unboundedMultiRules(pack),
+    ...unrecordedMultiLimits(pack),
   ];
 }

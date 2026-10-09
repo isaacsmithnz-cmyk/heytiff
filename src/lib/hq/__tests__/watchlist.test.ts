@@ -13,6 +13,7 @@ import {
   unextractedSources,
   unboundedMultiRules,
   unmatchedRuleReferences,
+  unrecordedMultiLimits,
 } from "../watchlist";
 
 // fresh meta per pack — emptyPack() keeps the reference, and one test mutates
@@ -229,5 +230,66 @@ describe("unextractedSources — provenance carried on a rule block", () => {
     expect(unextractedSources(p).map((s) => s.title)).not.toContain(
       "Multi Split Guide 2021-01"
     );
+  });
+});
+
+/* ── the multi limits other brands print (head counts, connected totals,
+   the height between heads) ── */
+describe("unboundedMultiRules — the new limit kinds", () => {
+  it("is silent when a connected-capacity cap bounds the set (Daikin's 14.5 kW)", () => {
+    const p = pack();
+    p.multi_rules[0].compatibility.push({ method: "connected_capacity", basis: "class_kw", max: 14.5 });
+    expect(unboundedMultiRules(p)).toEqual([]);
+  });
+
+  it("still flags a connected MINIMUM alone, a head count, a cap on a kind or banned sets", () => {
+    for (const block of [
+      { method: "connected_capacity" as const, basis: "class_kw" as const, min: 9 },
+      { method: "head_count" as const, min: 2, max: 5 },
+      { method: "max_matching" as const, match: { models: ["ARTH18KMTAP"] }, max: 2 },
+      { method: "excluded_combinations" as const, combos: [[20, 20, 20, 20, 71]] },
+    ]) {
+      const p = pack();
+      p.multi_rules[0].compatibility.push(block);
+      expect(unboundedMultiRules(p).map((s) => s.kind)).toEqual(["no-combination-rule"]);
+    }
+  });
+});
+
+describe("unrecordedMultiLimits", () => {
+  const two = (): DataPack => {
+    const p = pack();
+    p.multi_rules.push({ ...p.multi_rules[0], odu_model_ref: "MXZ-3F54VGD" });
+    return p;
+  };
+
+  it("is silent when no row in the pack records the limit — absent can be the book's answer", () => {
+    expect(unrecordedMultiLimits(two())).toEqual([]);
+  });
+
+  it("flags the row missing what its siblings record, naming each limit and the page", () => {
+    const p = two();
+    p.multi_rules[0] = {
+      ...p.multi_rules[0],
+      max_lift_idu_idu_m: 7.5,
+      compatibility: [...p.multi_rules[0].compatibility, { method: "head_count", min: 2 }],
+    };
+    const signals = unrecordedMultiLimits(p);
+    expect(signals).toHaveLength(1);
+    expect(signals[0]).toMatchObject({ kind: "unrecorded-multi-limit", title: "MXZ-3F54VGD" });
+    expect(signals[0].detail).toContain("a height limit between indoor units, a head count");
+    expect(signals[0].detail).toContain("p.C-2");
+    expect(packWatchSignals(p).map((s) => s.kind)).toContain("unrecorded-multi-limit");
+  });
+
+  it("is silent on the shipped Mitsubishi pack, which records none of them", () => {
+    const dir = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
+    const m = JSON.parse(readFileSync(join(dir, "meta.json"), "utf8")) as PackMeta;
+    const sections: PackSource["sections"] = {};
+    for (const s of PACK_SECTIONS) {
+      const f = join(dir, `${s}.json`);
+      if (existsSync(f)) sections[s] = JSON.parse(readFileSync(f, "utf8"));
+    }
+    expect(unrecordedMultiLimits(assemblePack({ meta: m, sections }))).toEqual([]);
   });
 });

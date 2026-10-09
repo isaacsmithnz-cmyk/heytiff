@@ -8,7 +8,8 @@ import type { SaveResult } from "./edit-types";
 /* "Waiting on extraction" — the standing brief for future book uploads.
 
    Auto signals are computed from the pack itself (declared-but-unextracted
-   sources, unmatched rule references, multi rules with no combination rule)
+   sources, unmatched rule references, multi rules with no combination rule,
+   a multi limit every book prints but the row doesn't carry)
    and can't be dismissed — they clear only
    when an extraction closes them. Manual items are staff-entered and resolvable.
    Nothing here is ever answered from the internet: unknowns stay visible until
@@ -27,6 +28,7 @@ const KIND_LABEL: Record<WatchSignal["kind"], string> = {
   "unmatched-family": "unmatched family",
   "dangling-part-ref": "missing part",
   "no-combination-rule": "no combination rule",
+  "unrecorded-multi-limit": "multi limit not recorded",
 };
 
 export function WatchlistPanel({

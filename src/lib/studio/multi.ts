@@ -13,6 +13,7 @@ import type {
   CompatibilityRule,
   DataPack,
   FormFactor,
+  HeadMatch,
   IndoorUnit,
   MultiRule,
   OutdoorUnit,
@@ -85,8 +86,108 @@ function iduEligibleForRule(rule: MultiRule, idu: IndoorUnit): boolean {
         if (c.index_min != null && idu.capacity_index < c.index_min) return false;
         if (c.index_max != null && idu.capacity_index > c.index_max) return false;
         return true;
+      /* the set limits judge a SET: one unit is eligible unless the limit
+         could never take it in any set */
+      case "head_count":
+      case "excluded_combinations":
+        return true;
+      case "connected_capacity": {
+        if (c.max == null) return true;
+        const own = connectedOf(c.basis, [idu]);
+        return own == null || own <= c.max + EPS;
+      }
+      case "max_matching":
+        // a kind the outdoor takes none of, in any set
+        return !(c.max === 0 && c.from_heads == null && headMatches(idu, c.match));
     }
   });
+}
+
+const EPS = 1e-9;
+
+/** does this head match a limit's filter? Every criterion given must hold;
+    `{}` is any head. Model patterns read as model-glob.ts does. */
+export function headMatches(u: IndoorUnit, m: HeadMatch): boolean {
+  if (m.models?.length && !m.models.some((p) => matchesModelGlob(u.model, p))) return false;
+  if (m.form_factors?.length && !m.form_factors.includes(u.form_factor)) return false;
+  return true;
+}
+
+/** the heads' connected capacity on the book's basis: size classes read as
+    kW (capacity_code ÷ 10), or rated cooling kW. Null when a head has no
+    size class recorded and the basis needs one. */
+function connectedOf(basis: "class_kw" | "rated_cool_kw", idus: IndoorUnit[]): number | null {
+  if (basis === "rated_cool_kw") return idus.reduce((t, u) => t + (u.capacity_cool_kw ?? 0), 0);
+  if (idus.some((u) => u.capacity_code == null)) return null;
+  // add the classes as integers, then read them as kW: 25 + 35 → 6.0, not 5.999…
+  return idus.reduce((t, u) => t + (u.capacity_code ?? 0), 0) / 10;
+}
+
+/** do the heads pair off one-to-one with these slots? (n ≤ the outdoor's
+    ports — a handful — so trying each head in each free slot is plenty) */
+function fillsSlots(idus: IndoorUnit[], slots: HeadMatch[]): boolean {
+  if (idus.length !== slots.length) return false;
+  const used = new Array<boolean>(slots.length).fill(false);
+  const place = (i: number): boolean => {
+    if (i === idus.length) return true;
+    for (let j = 0; j < slots.length; j++) {
+      if (used[j] || !headMatches(idus[i], slots[j])) continue;
+      used[j] = true;
+      if (place(i + 1)) return true;
+      used[j] = false;
+    }
+    return false;
+  };
+  return place(0);
+}
+
+/** the set's size classes, sorted; null when a head has none recorded */
+function codesOf(idus: IndoorUnit[]): number[] | null {
+  if (idus.some((u) => u.capacity_code == null)) return null;
+  return idus.map((u) => u.capacity_code as number).sort((a, b) => a - b);
+}
+
+const sameCodes = (a: number[], b: readonly number[]): boolean =>
+  a.length === b.length && [...b].sort((x, y) => x - y).every((v, i) => v === a[i]);
+
+/** how a rule's combination table (by model or by size class) stands on a
+    set: `accepts` — the set is one of its combos or can still grow into one
+    (the table arm's own test); `lists` — the set IS one of its combos. Both
+    false without a table. */
+export function tableStanding(rule: MultiRule, idus: IndoorUnit[]): { accepts: boolean; lists: boolean } {
+  let accepts = false;
+  let lists = false;
+  for (const c of rule.compatibility) {
+    if (c.method === "explicit_combination_table") {
+      const models = idus.map((u) => u.model).sort();
+      for (const combo of c.combos) {
+        const left = [...combo];
+        const fits = models.every((m) => {
+          const i = left.indexOf(m);
+          if (i < 0) return false;
+          left.splice(i, 1);
+          return true;
+        });
+        if (fits) accepts = true;
+        if (fits && left.length === 0) lists = true;
+      }
+    } else if (c.method === "capacity_combination_table") {
+      const codes = codesOf(idus);
+      if (!codes) continue;
+      for (const combo of c.combos) {
+        const left = [...combo];
+        const fits = codes.every((code) => {
+          const i = left.indexOf(code);
+          if (i < 0) return false;
+          left.splice(i, 1);
+          return true;
+        });
+        if (fits) accepts = true;
+        if (fits && left.length === 0) lists = true;
+      }
+    }
+  }
+  return { accepts, lists };
 }
 
 const hasNum = (n: number | undefined): boolean =>
@@ -210,14 +311,32 @@ export interface MultiFinding {
     | "index-unknown"
     | "capacity-code-unknown"
     | "over-ports"
-    | "no-rule";
+    | "no-rule"
+    | "under-min-count"
+    | "over-connected"
+    | "under-connected"
+    | "over-matching"
+    | "excluded-combination";
   message: string;
+}
+
+/** the minimums a set still being built can grow into: amber on the set,
+    held against a system once its outdoor is chosen (verdict.ts), and a
+    reason a finished set's outdoor doesn't fit (proposeMultiOdus) */
+export const UNDER_MINIMUM: ReadonlySet<MultiFinding["code"]> = new Set(["under-min-count", "under-connected"]);
+
+/** how the rule's combination table stands on the set — passed to the set
+    limits so the table stays the capacity authority (CompatibilityRule) */
+export interface TableStanding {
+  accepts: boolean;
+  lists: boolean;
 }
 
 export function checkBlock(
   c: CompatibilityRule,
   odu: OutdoorUnit,
-  idus: IndoorUnit[]
+  idus: IndoorUnit[],
+  table: TableStanding = { accepts: false, lists: false }
 ): MultiFinding[] {
   const out: MultiFinding[] = [];
   switch (c.method) {
@@ -374,6 +493,95 @@ export function checkBlock(
       }
       return out;
     }
+    case "head_count": {
+      const n = idus.length;
+      // a set the table accepts is never over a count; one it lists is never under
+      if (c.max != null && n > c.max && !table.accepts)
+        out.push({
+          severity: "red",
+          code: "over-max-count",
+          message: `${n} indoor units — ${odu.model} takes up to ${c.max}`,
+        });
+      if (
+        c.min != null &&
+        n > 0 &&
+        n < c.min &&
+        !table.lists &&
+        !(c.fewer_allowed ?? []).some((slots) => fillsSlots(idus, slots))
+      )
+        out.push({
+          severity: "amber",
+          code: "under-min-count",
+          message: `${n} indoor unit${n === 1 ? "" : "s"} — ${odu.model} needs at least ${c.min}`,
+        });
+      return out;
+    }
+    case "connected_capacity": {
+      if (idus.length === 0) return out;
+      const total = connectedOf(c.basis, idus);
+      if (total == null) {
+        const missing = idus.filter((u) => u.capacity_code == null).length;
+        out.push({
+          severity: "amber",
+          code: "capacity-code-unknown",
+          message: `No size class recorded for ${missing} unit${missing === 1 ? "" : "s"} — connected capacity unchecked`,
+        });
+        return out;
+      }
+      const kw = +total.toFixed(2);
+      if (c.max != null && total > c.max + EPS && !table.accepts)
+        out.push({
+          severity: "red",
+          code: "over-connected",
+          message: `The heads come to ${kw} kW connected — ${odu.model} takes up to ${c.max} kW`,
+        });
+      if (c.min != null && total < c.min - EPS && !table.lists)
+        out.push({
+          severity: "amber",
+          code: "under-connected",
+          message: `The heads come to ${kw} kW connected — ${odu.model} needs at least ${c.min} kW`,
+        });
+      return out;
+    }
+    case "max_matching": {
+      const codes = codesOf(idus);
+      const own = codes ? c.in_combos?.find((e) => sameCodes(codes, e.combo)) : undefined;
+      const limit = own ? own.max : c.from_heads != null && idus.length < c.from_heads ? undefined : c.max;
+      if (limit == null) return out;
+      const matching = idus.filter((u) => headMatches(u, c.match));
+      if (matching.length > limit) {
+        const what = c.label ?? "of these heads";
+        out.push({
+          severity: "red",
+          code: "over-matching",
+          message:
+            limit === 0
+              ? `${odu.model} can't take ${c.label ? `a ${c.label} head` : matching[0].model} in this combination`
+              : `${matching.length} ${what} — ${odu.model} takes up to ${limit}${own ? " in this combination" : ""}`,
+        });
+      }
+      return out;
+    }
+    case "excluded_combinations": {
+      if (idus.length === 0) return out;
+      const codes = codesOf(idus);
+      if (!codes) {
+        const missing = idus.filter((u) => u.capacity_code == null).length;
+        out.push({
+          severity: "amber",
+          code: "capacity-code-unknown",
+          message: `No size class recorded for ${missing} unit${missing === 1 ? "" : "s"} — combination unchecked`,
+        });
+        return out;
+      }
+      if (c.combos.some((combo) => sameCodes(codes, combo)))
+        out.push({
+          severity: "red",
+          code: "excluded-combination",
+          message: `${codes.join(" + ")} is a combination ${odu.model}'s book rules out`,
+        });
+      return out;
+    }
   }
 }
 
@@ -383,7 +591,11 @@ export function checkMultiCompatibility(
   odu: OutdoorUnit,
   idus: IndoorUnit[]
 ): MultiFinding[] {
-  const findings = rule.compatibility.flatMap((c) => checkBlock(c, odu, idus));
+  const table = tableStanding(rule, idus);
+  const findings: MultiFinding[] = [];
+  for (const f of rule.compatibility.flatMap((c) => checkBlock(c, odu, idus, table)))
+    // two blocks that can't read a size class say so once
+    if (f.code !== "capacity-code-unknown" || !findings.some((g) => g.code === f.code)) findings.push(f);
   if (odu.ports != null && idus.length > odu.ports)
     findings.push({
       severity: "red",
@@ -403,7 +615,8 @@ export interface MultiOduProposal {
   ports: number;
   /** findings against the CURRENT indoor set (empty = clean fit) */
   findings: MultiFinding[];
-  /** no red findings for the current indoor set */
+  /** no red findings for the current indoor set, and none of its minimums
+      unmet (UNDER_MINIMUM) — the set proposed for is taken as finished */
   fits: boolean;
   /** smallest clean fit that also covers the summed room load (when known) */
   recommended: boolean;
@@ -432,7 +645,8 @@ export function proposeMultiOdus(
       capacityKw: sizingCapacityKw(odu, basis),
       ports: odu.ports,
       findings,
-      fits: !findings.some((f) => f.severity === "red"),
+      // the set offered is the whole set: a minimum it is under is a misfit
+      fits: !findings.some((f) => f.severity === "red" || UNDER_MINIMUM.has(f.code)),
       recommended: false,
     });
   }

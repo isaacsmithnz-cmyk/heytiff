@@ -14,12 +14,12 @@
 import type { DesignDocument, DesignSystem } from "./document";
 import type { DataPack, IndoorUnit, OutdoorUnit } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
-import { checkMultiCompatibility } from "./multi";
+import { checkMultiCompatibility, UNDER_MINIMUM } from "./multi";
 import { outdoorsListing, pairFor } from "./builder";
 import { checkVrfSet, joinsVrf, vrfBand, vrfLoadCeilingKw, vrfOutdoorsListing, vrfRatio, vrfTakesLoad } from "./vrf";
 import { systemCover } from "./coverage";
 import { systemVrfTree } from "./vrf-tree";
-import { attachOf } from "./graph";
+import { attachOf, floorBasesM, mountOf } from "./graph";
 
 export interface SystemFinding {
   severity: "red" | "amber";
@@ -169,7 +169,8 @@ function combinationFindings(doc: DesignDocument, pack: DataPack, sys: DesignSys
           fix: "Take a head out, or make one smaller",
         });
     } else if (sys.type === "multi-split") {
-      if (outdoorsListing(pack, heads).length === 0) {
+      // a set still under an outdoor's minimum can grow into it: not "no outdoor"
+      if (outdoorsListing(pack, heads, { proposing: true }).length === 0) {
         out.push({
           severity: "red",
           code: "no-outdoor-lists-set",
@@ -199,17 +200,20 @@ function combinationFindings(doc: DesignDocument, pack: DataPack, sys: DesignSys
       out.push({ severity: "red", code: "no-rule", message: `${odu.model} has no combination rule in the book` });
     } else if (heads.length) {
       for (const f of checkMultiCompatibility(rule, oduSpec, heads)) {
-        if (f.severity !== "red") continue;
+        /* a minimum the set is under is amber while it is being built (it
+           can grow); with the outdoor chosen it is held against the system,
+           as a VRF's under-ratio is — one head on a Daikin Super Multi is
+           not an installation */
+        if (f.severity !== "red" && !UNDER_MINIMUM.has(f.code)) continue;
         out.push({
           severity: "red",
           code: f.code,
           message: f.message.replace(/\.$/, ""),
-          fix:
-            f.code === "not-in-combination-table" || f.code === "over-max-count" || f.code === "over-per-port"
-              ? "Pick an outdoor that takes them all, or take a head out"
-              : undefined,
+          fix: multiFix(f.code, heads.length),
         });
       }
+      const height = headHeightFinding(doc, sys, odu.model, rule.max_lift_idu_idu_m);
+      if (height) out.push(height);
     }
     return out;
   }
@@ -335,5 +339,56 @@ export function connectionRatio(
     outdoorKw: oduSpec.capacity_cool_kw,
     pct: index ? index.pct : Math.round((connectedKw / oduSpec.capacity_cool_kw) * 100),
     heads: heads.length,
+  };
+}
+
+/** what would fix a multi finding, when the finding knows */
+function multiFix(code: string, heads: number): string | undefined {
+  switch (code) {
+    case "not-in-combination-table":
+    case "over-max-count":
+    case "over-per-port":
+    case "over-connected":
+      return "Pick an outdoor that takes them all, or take a head out";
+    case "under-min-count":
+      return heads === 1 ? "Add a head, or make this zone a split" : "Add a head, or pick an outdoor that takes fewer";
+    case "under-connected":
+      return "Add a head or a bigger one, or pick a smaller outdoor";
+    case "over-matching":
+      return "Swap one for another type, or pick another outdoor";
+    case "excluded-combination":
+      return "Change a head's size, or pick another outdoor";
+    default:
+      return undefined;
+  }
+}
+
+/* THE HEIGHT BETWEEN HEADS (MultiRule.max_lift_idu_idu_m: Daikin's "7.5 m
+   between indoor units"). Judged on where the heads are placed — their
+   floor's height in the stack plus their own height on it (graph.ts), the
+   same reading the VRF tree makes. A head not on the plan isn't judged, and
+   a rule that records no figure checks nothing. It is about placement, not
+   the units chosen, so it never keeps the builder's Done off. */
+function headHeightFinding(
+  doc: DesignDocument,
+  sys: DesignSystem,
+  oduModel: string,
+  limitM: number | undefined
+): SystemFinding | null {
+  if (limitM == null) return null;
+  const base = floorBasesM(doc.floors);
+  const ids = new Set(allocationsOf(sys).filter((a) => a.role === "idu" && a.model).map((a) => a.id));
+  const levels = doc.objects
+    .filter((o) => ids.has(o.id) && o.type === "unit")
+    .map((o) => (base.get(o.floorId) ?? 0) + mountOf(o));
+  if (levels.length < 2) return null;
+  const spread = Math.max(...levels) - Math.min(...levels);
+  if (spread <= limitM + 1e-9) return null;
+  return {
+    severity: "red",
+    code: "head-height-over",
+    drawing: true,
+    message: `Two heads are ${+spread.toFixed(1)} m apart in height, over ${oduModel}'s ${limitM} m between indoor units`,
+    fix: "Move a head, or put the far one on its own system",
   };
 }

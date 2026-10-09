@@ -154,7 +154,8 @@ export function settled(state: SessionState): SessionState {
 export type TurnEnd = { state: SessionState; spentUsd: number; ended: "done" | "cap" | "error" | "lost" };
 
 export async function runTurn(start: SessionState, message: string, deps: TurnDeps): Promise<TurnEnd> {
-  let state: SessionState = { ...start, messages: withMessage(start.messages, message) };
+  /* a session left with calls unanswered (one saved before that was fixed) is settled first */
+  let state: SessionState = { ...start, messages: withMessage(settled(start).messages, message) };
   let spent = 0;
   let priced = true;
   const models = new Set<string>();
@@ -190,7 +191,11 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
       const calls = reply.content.filter(isToolUse);
       state = { ...state, messages: [...state.messages, { role: "assistant", content: reply.content }] };
 
-      if (reply.stopReason !== "tool_use" || calls.length === 0) {
+      /* every call she made is answered, however the round stopped: one that
+         ran out of room mid-calls ("max_tokens") left calls the next request
+         must answer, or the API refuses the whole conversation (the bench,
+         9 October: 18 calls cut off at xhigh, the quote left at $1,061) */
+      if (calls.length === 0) {
         events.push(usage());
         await deps.save(state, events, spent);
         return { state, spentUsd: spent, ended: atCap ? "cap" : "done" };

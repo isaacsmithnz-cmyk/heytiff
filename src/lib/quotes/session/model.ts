@@ -34,7 +34,7 @@ export type Msg = { role: "user" | "assistant"; content: Block[] };
 
 export type ToolDef = { name: string; description: string; input_schema: Record<string, unknown> };
 
-export type Effort = "low" | "medium" | "high";
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 export type ModelRequest = {
   model: string;

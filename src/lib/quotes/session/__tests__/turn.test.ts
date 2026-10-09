@@ -81,6 +81,18 @@ describe("a turn", () => {
   });
 });
 
+it("answers the calls of a round that ran out of room, and carries on", async () => {
+  const model = scripted([
+    { content: [text("Looking up the parts."), use("t1", "read_quote"), use("t2", "read_quote")], stopReason: "max_tokens" },
+    { content: [text("Built.")], stopReason: "end_turn" },
+  ]);
+  const { d, ran } = deps(model);
+  const end = await runTurn({ messages: [], summary: "" }, "Quote it", d);
+  expect(ran).toEqual(["read_quote", "read_quote"]);
+  expect(end.ended).toBe("done");
+  expect(model.calls[1]!.messages.at(-1)!.content.map((b) => (b as { tool_use_id?: string }).tool_use_id)).toEqual(["t1", "t2"]);
+});
+
 describe("a turn that dies (a deploy, a closed function)", () => {
   it("keeps every round it saved, and the next turn carries on from there", async () => {
     const dying = scripted([{ content: [text("Reading."), use("t1", "read_quote")], stopReason: "tool_use" }]);

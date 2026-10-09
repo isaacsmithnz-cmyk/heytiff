@@ -18,15 +18,18 @@
    introductory and reverts to $3/$15 after 2026-08-31, which will move a
    prepared question from about half a cent to nearer one. */
 
-/** USD per million tokens, [input, output]. */
-const PRICES: Record<string, readonly [number, number]> = {
+/** USD per million tokens, [input, output, a cache read as a share of
+    input]; the share is a tenth unless the model's own differs. Opus 5.5,
+    Sonnet 5.5 and Fable 5.1 read off platform.claude.com/docs/en/about-claude/pricing
+    on 2026-10-09: their cache reads are a twentieth, a twentieth and a
+    fortieth of input. */
+const PRICES: Record<string, readonly [number, number, number?]> = {
   "claude-opus-5": [5, 25],
   "claude-opus-4-8": [5, 25],
-  /* Added 2026-09-27 for the universal-Tiff probes and evals. Its cache read
-     is $0.20, a twentieth of input, not the tenth `costOf` assumes, so a
-     cached Opus 5.5 round reads slightly high here — the safe direction. */
-  "claude-opus-5-5": [4, 20],
+  "claude-opus-5-5": [4, 20, 0.05],
   "claude-sonnet-5": [2, 10],
+  "claude-sonnet-5-5": [2, 10, 0.05],
+  "claude-fable-5-1": [10, 50, 0.025],
 };
 
 /** The shape both `messages.create` and a finished stream hand back.
@@ -61,7 +64,7 @@ export function costOf(model: string, usage: TokenUsage): number | null {
   const written = Number(usage.cache_creation_input_tokens) || 0;
   return (
     (input * price[0]) +
-    (cached * price[0] * 0.1) +
+    (cached * price[0] * (price[2] ?? 0.1)) +
     (written * price[0] * 1.25) +
     (output * price[1])
   ) / 1_000_000;

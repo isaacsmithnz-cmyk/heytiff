@@ -1127,6 +1127,12 @@
   "precharged_kg": 4.2,
   "ratio_min_pct": 80,
   "ratio_max_pct": 150,
+  "ratio_max_pct_by_heads": [
+   {
+    "min_heads": 9,
+    "max_pct": 110
+   }
+  ],
   "max_idus": 10,
   "idu_index_min": 15,
   "idu_index_max": 160,
@@ -1141,7 +1147,7 @@
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14)"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*')"
   }
  },
  {
@@ -1160,6 +1166,12 @@
   "precharged_kg": 4.2,
   "ratio_min_pct": 80,
   "ratio_max_pct": 150,
+  "ratio_max_pct_by_heads": [
+   {
+    "min_heads": 9,
+    "max_pct": 100
+   }
+  ],
   "max_idus": 10,
   "idu_index_min": 15,
   "idu_index_max": 160,
@@ -1174,7 +1186,7 @@
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14)"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*')"
   }
  },
  {
@@ -1226,6 +1238,12 @@
   "precharged_kg": 4.2,
   "ratio_min_pct": 80,
   "ratio_max_pct": 150,
+  "ratio_max_pct_by_heads": [
+   {
+    "min_heads": 9,
+    "max_pct": 110
+   }
+  ],
   "max_idus": 10,
   "idu_index_min": 15,
   "idu_index_max": 160,
@@ -1240,7 +1258,7 @@
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14)"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*')"
   }
  },
  {
@@ -1259,6 +1277,12 @@
   "precharged_kg": 4.2,
   "ratio_min_pct": 80,
   "ratio_max_pct": 150,
+  "ratio_max_pct_by_heads": [
+   {
+    "min_heads": 9,
+    "max_pct": 100
+   }
+  ],
   "max_idus": 10,
   "idu_index_min": 15,
   "idu_index_max": 160,
@@ -1273,7 +1297,7 @@
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14)"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*')"
   }
  },
  {

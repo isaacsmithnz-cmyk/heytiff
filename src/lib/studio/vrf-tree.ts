@@ -36,7 +36,7 @@ import { buildSystemGraph, floorBasesM, mountOf } from "./graph";
 import type { DataPack, IndoorUnit, OutdoorUnit, PipeSizingRule, VrfPipeTable } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { zoneIdsOf } from "./zones";
-import { evaluateVrfCharge } from "./materials";
+import { evaluateVrfCharge, isVrfChargeRule } from "./materials";
 import { isBoxHead, isVrfHead } from "./vrf";
 
 export interface VrfTreeNode {
@@ -818,7 +818,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
   /* the charge to add, and the outdoor's maximum */
   let chargeG: number | null = null;
   const rule = table.additional_charge;
-  if (drawn && farthestM != null && rule.method === "per_meter_by_liquid_size_by_farthest") {
+  if (drawn && farthestM != null && isVrfChargeRule(rule)) {
     chargeG = evaluateVrfCharge(rule, {
       liquidM,
       farthestM,
@@ -826,6 +826,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
       connectedKw: belowKw.get(root.id) ?? 0,
       oduModel: odu.model,
       iduModels: heads.map((h) => h.model ?? ""),
+      ...(odu.capacity_index != null ? { oduIndex: odu.capacity_index } : {}),
     });
     if (chargeG != null && odu.max_charge_kg != null && odu.precharged_kg != null) {
       const total = odu.precharged_kg + chargeG / 1000;

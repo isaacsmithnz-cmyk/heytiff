@@ -7,7 +7,7 @@ const flex = { optionIndex: 0, system: "Upstairs", group: "Ductwork and grilles"
 
 describe("a line, made safe", () => {
   it("keeps what a line is, and where it came from", () => {
-    expect(normaliseLine(flex)).toEqual({ ...flex, position: 0, unit: "", sellCents: null });
+    expect(normaliseLine(flex)).toEqual({ ...flex, position: 0, unit: "", sellCents: null, visit: null });
   });
 
   it("needs a name and a group", () => {
@@ -78,6 +78,38 @@ describe("a change to a line", () => {
 
   it("is kept as before and after, the changed fields only", () => {
     expect(diffOf(line, { ...line, qty: 6, source: "by_hand" })).toEqual({ before: { qty: 5, source: "assumed" }, after: { qty: 6, source: "by_hand" } });
+  });
+});
+
+describe("a labour line worked out task by task (slice 8.2)", () => {
+  const visit = { stage: "Rough-in", people: 2, dayHours: 8, tasks: [{ task: "Set up", hours: 4, was: null, byHand: false }, { task: "Core hole", hours: 4, was: null, byHand: false }] };
+  const line = normaliseLine({ optionIndex: 0, system: "", group: "Labour", name: "Rough-in: 2 people, half a day", kind: "labour", qty: 99, unit: "h", costCents: 11200, source: "assumed", why: "Worked out task by task", visit })!;
+
+  it("has its tasks' hours, whatever qty it's given; any other line has no tasks", () => {
+    expect(line).toMatchObject({ qty: 8, visit });
+    expect(normaliseLine({ ...flex, visit })!.visit).toBeNull();
+  });
+
+  it("an hour changed follows into its hours and its days, and makes it theirs", () => {
+    const more = { ...visit, tasks: [visit.tasks[0], { task: "Core hole", hours: 12, was: 4, byHand: true }] };
+    const r = applyPatch(line, { visit: more })!;
+    expect(r.next).toMatchObject({ qty: 16, name: "Rough-in: 2 people, 1 day", source: "by_hand", visit: more });
+    expect(r.changed).toEqual(["name", "qty", "visit", "source"]);
+    expect(diffOf(line, r.next).after).toEqual({ name: "Rough-in: 2 people, 1 day", qty: 16, source: "by_hand", visit: more });
+  });
+
+  it("keeps a name a person gave it, and its qty is never typed over its tasks", () => {
+    const named = applyPatch(line, { name: "Rough-in, two trips" })!.next;
+    expect(applyPatch(named, { visit: { ...visit, tasks: [visit.tasks[0]] } })!.next.name).toBe("Rough-in, two trips");
+    expect(applyPatch(line, { qty: 20 })!.changed).toEqual([]);
+  });
+
+  it("the same tasks are no change", () => {
+    expect(applyPatch(line, { visit: JSON.parse(JSON.stringify(visit)) })!.changed).toEqual([]);
+  });
+
+  it("reads back from its row", () => {
+    expect(lineFromRow({ ...lineRow(line), id: "l1", version: 1, updated_at: "", updated_by: "tiff" })!.visit).toEqual(visit);
   });
 });
 

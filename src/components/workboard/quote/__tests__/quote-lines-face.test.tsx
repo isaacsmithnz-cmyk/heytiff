@@ -441,3 +441,67 @@ it("on the proposal, reviews every option before it's approved (11.1)", async ()
   expect(screen.getByText("Option 1: Core hole 200 mm: not known yet")).toBeInTheDocument();
   expect(screen.getByText("Option 2: Core hole 100 mm: not known yet")).toBeInTheDocument();
 });
+
+describe("a labour line's tasks under it (slice 8.2)", () => {
+  const visit = {
+    stage: "Rough-in",
+    people: 2,
+    dayHours: 8,
+    tasks: [
+      { task: "Travel and setup", hours: 5, was: null, byHand: false },
+      { task: "Sandstone core hole", hours: 6, was: 4, byHand: true },
+    ],
+  };
+  const rough = line({ id: "l9", system: "", group: "Labour", name: "Rough-in: 2 people, 1 day", code: null, supplierKey: null, kind: "labour", qty: 11, unit: "h", costCents: 11200, source: "assumed", why: "Worked out task by task", visit });
+  const labourOnly = () => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+      if (init?.body) posted.push(JSON.parse(init.body));
+      return { json: async () => view([rough]) };
+    });
+  };
+
+  it("shows each task with its hours, says what a person changed, and the line's hours are its tasks'", async () => {
+    labourOnly();
+    face();
+    const list = await screen.findByRole("list", { name: "The tasks in Rough-in: 2 people, 1 day" });
+    expect(within(list).getByLabelText("Hours for Travel and setup")).toHaveValue("5 h");
+    expect(within(list).getByText("Changed, was 4 h")).toBeInTheDocument();
+    expect(screen.getByText("11 h, 2 people for half a day")).toBeInTheDocument();
+    /* read, not typed: a change is to a task */
+    expect(screen.queryByLabelText("Quantity of Rough-in: 2 people, 1 day")).toBeNull();
+  });
+
+  it("an hour typed changes the line's tasks, keeping what Tiff had", async () => {
+    labourOnly();
+    face();
+    const hours = await screen.findByLabelText("Hours for Travel and setup");
+    fireEvent.change(hours, { target: { value: "7" } });
+    await act(async () => {
+      fireEvent.blur(hours);
+    });
+    expect(posted).toContainEqual({
+      job: "job-3377",
+      op: "change",
+      id: "l9",
+      version: 1,
+      patch: { visit: { ...visit, tasks: [{ task: "Travel and setup", hours: 7, was: 5, byHand: true }, visit.tasks[1]] } },
+    });
+  });
+
+  it("adds a task with its hours, and takes one off", async () => {
+    labourOnly();
+    face();
+    fireEvent.click(await screen.findByRole("button", { name: "Add a task" }));
+    fireEvent.change(screen.getByLabelText("The task"), { target: { value: "Scaffold" } });
+    const h = screen.getByLabelText("Its hours");
+    fireEvent.change(h, { target: { value: "3" } });
+    await act(async () => {
+      fireEvent.keyDown(h, { key: "Enter" });
+    });
+    expect(posted).toContainEqual(expect.objectContaining({ op: "change", id: "l9", patch: { visit: { ...visit, tasks: [...visit.tasks, { task: "Scaffold", hours: 3, was: null, byHand: true }] } } }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Take Travel and setup off" }));
+    });
+    expect(posted).toContainEqual(expect.objectContaining({ op: "change", id: "l9", patch: { visit: { ...visit, tasks: [visit.tasks[1]] } } }));
+  });
+});

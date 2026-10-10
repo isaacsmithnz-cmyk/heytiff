@@ -116,7 +116,7 @@ describe("making the tasks from the quote", () => {
         { name: "Hang the Hallway unit", stage: "Install", kind: "unit", unit: 1, visit: 2 },
       ],
     });
-    const res = await makeTasksFromQuote("org-1", "user-1", "job-1", client);
+    const res = await makeTasksFromQuote("org-1", "user-1", "job-1", { client });
     expect(res).toEqual({ ok: true, made: 2 });
     const turn = (create.mock.calls[0] as unknown as [{ messages: { content: string }[] }])[0].messages[0].content;
     expect(turn).toContain("1. Install, 2 people");
@@ -129,13 +129,42 @@ describe("making the tasks from the quote", () => {
     expect(insert[1]!.unit).toMatchObject({ room: "Hallway", model: "PEA-M100" });
   });
 
+  it("puts the quote's own tasks straight on, each with its hours, with no call (8.2)", async () => {
+    const { client, create } = clientSaying({ tasks: [] });
+    const t = (task: string, hours: number) => ({ task, hours, was: null, byHand: false });
+    const visit = { stage: "Install and commissioning", people: 2, dayHours: 8, tasks: [t("Set the outdoor", 3), t("Hang the indoor", 5), t("Circuits", 6), t("Commission", 4)] };
+    const lines: QuoteLine[] = [
+      { id: "u", version: 1, updatedAt: "", updatedBy: "", optionIndex: 0, system: "", group: "Units", position: 0, name: "Ducted 10 kW", code: "PEA-M100", supplierKey: null, kind: "unit", qty: 1, unit: "", costCents: 0, sellCents: null, source: "said", why: "", duct: false },
+      { id: "l", version: 1, updatedAt: "", updatedBy: "tiff", optionIndex: 0, system: "", group: "Labour", position: 1, name: "Install and commissioning: 2 people, 1 day", code: null, supplierKey: null, kind: "labour", qty: 18, unit: "h", costCents: 0, sellCents: null, source: "assumed", why: "", duct: false, visit },
+    ];
+    linesQuote.mockReturnValue({ draft: linesDraft(lines, [], { accepted: [0], names: [], loading: {}, compare: {}, supplier: null, proposal: null, researched: {} }, new Map(), 8)!, lines });
+    expect(await makeTasksFromQuote("org-1", "user-1", "job-1", { client, quoteOnly: true })).toEqual({ ok: true, made: 5 });
+    expect(create).not.toHaveBeenCalled();
+    const insert = calls.find((c) => c.table === "job_tasks" && c.op === "insert")!.row as { name: string; stage: string; visit: number | null; hours: number | null; source: string }[];
+    /* on no visit: the person puts them on the days */
+    expect(insert.map((r) => [r.name, r.stage, r.visit, r.hours, r.source])).toEqual([
+      ["Set the outdoor", "Install", null, 3, "quote"],
+      ["Hang the indoor", "Install", null, 5, "quote"],
+      ["Circuits", "Install", null, 6, "quote"],
+      ["Commission", "Install", null, 4, "quote"],
+      /* the unit keeps its own task, for its photos and plate */
+      ["Hang the indoor unit", "Install", null, null, "quote"],
+    ]);
+  });
+
+  it("an option accepted on a quote with no tasks of its own makes no call", async () => {
+    const { client, create } = clientSaying({ tasks: [] });
+    expect(await makeTasksFromQuote("org-1", "user-1", "job-1", { client, quoteOnly: true })).toEqual({ ok: false, reason: "The quote has no tasks of its own." });
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it("costs no call on a job that has its tasks, or a quote with nothing accepted", async () => {
     const { client, create } = clientSaying({ tasks: [] });
     tables.job_tasks = { count: 3 };
-    expect(await makeTasksFromQuote("org-1", "user-1", "job-1", client)).toEqual({ ok: false, reason: "This job already has its tasks." });
+    expect(await makeTasksFromQuote("org-1", "user-1", "job-1", { client })).toEqual({ ok: false, reason: "This job already has its tasks." });
     tables.job_tasks = { count: 0 };
     readStoredProposal.mockResolvedValue({ draft: { ...draft, accepted: [], options: [...draft.options, draft.options[0]!] }, brief: "", changes: [], updatedAt: "x", cardId: "job-1" });
-    expect(await makeTasksFromQuote("org-1", "user-1", "job-1", client)).toEqual({ ok: false, reason: "No option is marked accepted on the quote yet." });
+    expect(await makeTasksFromQuote("org-1", "user-1", "job-1", { client })).toEqual({ ok: false, reason: "No option is marked accepted on the quote yet." });
     expect(create).not.toHaveBeenCalled();
   });
 });

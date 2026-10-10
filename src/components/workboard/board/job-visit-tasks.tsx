@@ -415,6 +415,11 @@ function TaskItem({
   const { task, mark, pct } = line;
   /* a task measured in how far it's got opens to say how far; the rest tick */
   const measured = task.kind === "progress" && mark !== "done";
+  const name = (
+    <button type="button" className="jcl-tname" onClick={onOpen}>
+      {task.name}
+    </button>
+  );
   return (
     <li className={`jcl-task ${mark}`}>
       <button
@@ -431,9 +436,15 @@ function TaskItem({
         {mark === "part" && <i aria-hidden="true" />}
       </button>
       <span className="jcl-ttx">
-        <button type="button" className="jcl-tname" onClick={onOpen}>
-          {task.name}
-        </button>
+        {/* the hours the quote gave it (slice 8.2) */}
+        {task.hours != null ? (
+          <span className="jcl-thead">
+            {name}
+            <em className="jcl-thr">{`${task.hours} h`}</em>
+          </span>
+        ) : (
+          name
+        )}
         {(line.pctWords || line.meta) && (
           <span className="jcl-tmeta">
             {line.pctWords && <b>{line.pctWords}</b>}

@@ -14,8 +14,13 @@ it("holds visits to what a line can carry, and says what's missing", () => {
   expect(labourVisitsOf([install])).toEqual([install]);
 });
 
-it("adds every person's hours, names the crew and its days, and keeps the tasks as the reason", () => {
-  expect(visitLine(install, 8)).toEqual({ name: "Install: 2 people, half a day", qty: 6, why: "Set up and protect 1 h; Mount indoor 2 h; Core hole 1 h; Vacuum and commission 2 h" });
+it("adds every person's hours, names the crew and its days, and keeps the tasks on the line", () => {
+  expect(visitLine(install, 8)).toEqual({
+    name: "Install: 2 people, half a day",
+    qty: 5.75,
+    why: "Worked out task by task",
+    visit: { stage: "Install", people: 2, dayHours: 8, tasks: install.tasks.map((t) => ({ ...t, was: null, byHand: false })) },
+  });
   expect(visitLine({ stage: "Rough-in", people: 3, tasks: [{ task: "Duct runs", hours: 40 }, { task: "Units", hours: 8 }] }, 8).name).toBe("Rough-in: 3 people, 2 days");
   /* no working day set: the crew alone */
   expect(visitLine(install, null).name).toBe("Install: 2 people");

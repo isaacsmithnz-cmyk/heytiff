@@ -68,12 +68,12 @@ export async function GET(req: Request) {
   return Response.json(await answer(who.orgId, target.parentRemoteId, who.manage));
 }
 
-/** {job, make: true}: Tiff's task list from the accepted quote. */
+/** {job, make: true}: the accepted quote's tasks, or Tiff's list from it
+    when it has none of its own (makeTasksFromQuote). */
 export async function POST(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
   if (!who.manage) return Response.json({ ok: false, reason: "Making the task list needs Workboard manage access." }, { status: 403 });
-  if (!process.env.ANTHROPIC_API_KEY) return Response.json({ ok: false, reason: "Tiff is offline: no API key is configured." });
   const body = (await req.json().catch(() => ({}))) as { job?: unknown; make?: unknown };
   const job = jobOf(body.job);
   if (!job || body.make !== true) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });

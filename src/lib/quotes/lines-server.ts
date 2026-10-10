@@ -24,7 +24,7 @@ import {
    line carries a cost. */
 
 const COLS =
-  "id, option_index, system, grp, position, name, code, supplier_key, kind, qty, unit, cost_cents, sell_cents, source, why, duct, version, updated_at, updated_by";
+  "id, option_index, system, grp, position, name, code, supplier_key, kind, qty, unit, cost_cents, sell_cents, source, why, duct, visit, version, updated_at, updated_by";
 
 export type LineResult = { ok: true; line: QuoteLine | null } | { ok: false; reason: string; stale?: true };
 

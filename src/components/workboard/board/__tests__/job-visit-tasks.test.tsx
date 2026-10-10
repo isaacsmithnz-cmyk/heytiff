@@ -273,3 +273,12 @@ it("leaves what was said about one view behind when another is opened", async ()
   fireEvent.click(screen.getAllByRole("button", { name: "Drains for Level 3" })[0]!);
   expect(screen.queryByText("That couldn't be saved. Try again.")).toBeNull();
 });
+
+it("a task from the quote's labour shows the hours it was quoted at (8.2)", async () => {
+  fetchMock.mockImplementation(async () => ({ json: async () => answer({ tasks: [task("core", "Sandstone core hole, rear living", { visit: 2, hours: 6 }), ...TASKS.slice(1)] }) }));
+  mount();
+  await screen.findByRole("button", { name: "Sandstone core hole, rear living" });
+  const v2 = within(card("Visit 2"));
+  expect(v2.getByRole("button", { name: "Sandstone core hole, rear living" })).toBeInTheDocument();
+  expect(v2.getByText("6 h")).toBeInTheDocument();
+});

@@ -14,6 +14,8 @@
 
    Pure: the gate every edit and every stored row passes through. */
 
+import { sameVisit, visitHours, visitName, visitOf, type LineVisit } from "./line-visit";
+
 export type LineKind = "unit" | "material" | "labour";
 export type LineUnit = "" | "m" | "h";
 export type LineSource = "said" | "assumed" | "unknown" | "fitted" | "by_hand";
@@ -42,6 +44,8 @@ export type LineFields = {
   source: LineSource;
   why: string;
   duct: boolean;
+  /** a labour line worked out task by task: its visit and tasks (line-visit.ts); null otherwise */
+  visit?: LineVisit | null;
 };
 
 export type QuoteLine = LineFields & {
@@ -81,6 +85,7 @@ export function normaliseLine(raw: unknown): LineFields | null {
   const sell = num(r.sellCents ?? r.sell_cents);
   const code = text(r.code, 80) || null;
   const supplier = text(r.supplierKey ?? r.supplier_key, 40) || null;
+  const visit = r.kind === "labour" ? visitOf(r.visit) : null;
   return {
     optionIndex: Math.min(MAX_OPTIONS - 1, Math.max(0, Math.round(opt))),
     system: text(r.system, MAX_SYSTEM),
@@ -90,13 +95,15 @@ export function normaliseLine(raw: unknown): LineFields | null {
     code,
     supplierKey: code ? supplier : null,
     kind: oneOf(r.kind, LINE_KINDS, "material"),
-    qty: qty == null ? 0 : Math.min(MAX_QTY, Math.max(0, Math.round(qty * 1000) / 1000)),
+    /* a line worked out task by task is its tasks' hours */
+    qty: visit ? visitHours(visit) : qty == null ? 0 : Math.min(MAX_QTY, Math.max(0, Math.round(qty * 1000) / 1000)),
     unit: oneOf(r.unit, LINE_UNITS, ""),
     costCents: cost == null ? 0 : Math.min(MAX_EACH_CENTS, Math.max(0, tenth(cost))),
     sellCents: sell == null ? null : Math.min(MAX_EACH_CENTS, Math.max(0, tenth(sell))),
     source: oneOf(r.source, LINE_SOURCES, "by_hand"),
     why: text(r.why, MAX_WHY),
     duct: (r.duct ?? false) === true,
+    visit,
   };
 }
 
@@ -132,8 +139,12 @@ export function lineRow(f: LineFields) {
     source: f.source,
     why: f.why,
     duct: f.duct,
+    visit: f.visit ?? null,
   };
 }
+
+/** Two values of a field the same: a visit task for task, the rest as they are. */
+const same = (k: keyof LineFields, a: unknown, b: unknown) => (k === "visit" ? sameVisit(a as LineVisit | null, b as LineVisit | null) : a === b);
 
 /** A change to a line: only the fields it names, each made safe against the
     line as it stands. Returns the line as it would be, and what changed. */
@@ -143,10 +154,13 @@ export function applyPatch(line: LineFields, patch: unknown): { next: LineFields
   if (!merged) return null;
   /* a person setting the sell back to blank means "at the markup" */
   if ("sellCents" in p && (p.sellCents === null || p.sellCents === "")) merged.sellCents = null;
-  const changed = (Object.keys(merged) as (keyof LineFields)[]).filter((k) => merged[k] !== line[k]);
+  /* a line worked out task by task has its tasks' hours (normaliseLine), so
+     a change is to a task; its name keeps its days, unless a person named it */
+  if (merged.visit && !("name" in p) && line.visit && line.name === visitName(line.visit)) merged.name = visitName(merged.visit);
+  const changed = (Object.keys(merged) as (keyof LineFields)[]).filter((k) => !same(k, merged[k], line[k]));
   /* a line a person changed is theirs: it says so, unless the change itself
      says where it came from */
-  if (changed.length > 0 && !("source" in p) && changed.some((k) => k === "qty" || k === "costCents" || k === "sellCents" || k === "code")) {
+  if (changed.length > 0 && !("source" in p) && changed.some((k) => k === "qty" || k === "costCents" || k === "sellCents" || k === "code" || k === "visit")) {
     merged.source = "by_hand";
     if (line.source !== "by_hand") changed.push("source");
   }
@@ -158,7 +172,7 @@ export function diffOf(before: LineFields, after: LineFields): { before: Partial
   const b: Partial<LineFields> = {};
   const a: Partial<LineFields> = {};
   for (const k of Object.keys(after) as (keyof LineFields)[]) {
-    if (before[k] !== after[k]) {
+    if (!same(k, before[k], after[k])) {
       (b as Record<string, unknown>)[k] = before[k];
       (a as Record<string, unknown>)[k] = after[k];
     }

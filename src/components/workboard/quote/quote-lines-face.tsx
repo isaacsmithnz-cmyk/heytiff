@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { fmtAud } from "@/lib/workboard/project-money";
 import type { LineChange } from "@/lib/quotes/lines-server";
@@ -21,6 +21,7 @@ import type { PaymentPreset, PaymentStage } from "@/lib/quotes/payment";
 import type { QuoteNote } from "@/lib/templates/settings";
 import { unitPartOf } from "@/lib/quotes/brands";
 import { buildProgress, type PlannedPart } from "@/lib/quotes/build-progress";
+import { visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
    the mock-ups Isaac shaped on 7 October): the total in its own card, pinned
@@ -165,6 +166,86 @@ function TextBox({ value, label, onCommit, disabled, className }: { value: strin
         }}
       />
     </label>
+  );
+}
+
+/** hours as typed ("5 h", "2.5"); null when they aren't any */
+const hoursOf = (typed: string): number | null => {
+  const n = Number(typed.replace(/[^\d.]/g, ""));
+  return typed.trim() && Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/** A task a person adds: its words and its hours, kept when both are there,
+    on Enter or on leaving the row; Escape lets it go. */
+function AddTask({ busy, onAdd, onDone }: { busy: boolean; onAdd: (task: string, hours: number) => void; onDone: () => void }) {
+  const [task, setTask] = useState("");
+  const [hours, setHours] = useState("");
+  const keep = () => {
+    const h = hoursOf(hours);
+    if (task.trim() && h != null) onAdd(task.trim(), h);
+    onDone();
+  };
+  const keys = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") keep();
+    if (e.key === "Escape") onDone();
+  };
+  return (
+    <li
+      className="ql-tnew"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) keep();
+      }}
+    >
+      <i className="ql-d by_hand" aria-hidden="true" />
+      <input className="ql-f ql-tname" value={task} aria-label="The task" placeholder="The task" autoFocus disabled={busy} onChange={(e) => setTask(e.target.value)} onKeyDown={keys} />
+      <input className="ql-f ql-th" inputMode="decimal" value={hours} aria-label="Its hours" placeholder="Hours" disabled={busy} onChange={(e) => setHours(e.target.value)} onKeyDown={keys} />
+      <span />
+    </li>
+  );
+}
+
+/** A labour line's tasks under it (slice 8.2): each with its person-hours,
+    typed in place, and the line's hours and days follow; a task a person
+    changed says what Tiff had. */
+function LabourTasks({ line, visit, busy, onChange }: { line: QuoteLine; visit: LineVisit; busy: boolean; onChange: (v: LineVisit) => void }) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <tr className="ql-tk">
+      <td colSpan={6}>
+        <ul className="ql-tasks" aria-label={`The tasks in ${line.name}`}>
+          {visit.tasks.map((t, i) => (
+            <li key={`${i}-${t.task}`}>
+              <i className={`ql-d ${t.byHand ? "by_hand" : "assumed"}`} aria-hidden="true" />
+              <span className="ql-tn">
+                {t.task}
+                {t.byHand && <em>{t.was != null ? `Changed, was ${t.was} h` : "Added"}</em>}
+              </span>
+              <span className="ql-th">
+                <Field
+                  value={`${t.hours} h`}
+                  label={`Hours for ${t.task}`}
+                  disabled={busy}
+                  onCommit={(typed) => {
+                    const h = hoursOf(typed);
+                    if (h != null) onChange(withHours(visit, i, h));
+                  }}
+                />
+              </span>
+              <button type="button" className="ql-x" aria-label={`Take ${t.task} off`} disabled={busy || visit.tasks.length === 1} onClick={() => onChange(withoutTask(visit, i))}>
+                ×
+              </button>
+            </li>
+          ))}
+          {adding && <AddTask busy={busy} onAdd={(task, h) => onChange(withTask(visit, task, h))} onDone={() => setAdding(false)} />}
+        </ul>
+        <div className="ql-tfoot">
+          <button type="button" className="ql-tadd" disabled={busy || adding} onClick={() => setAdding(true)}>
+            Add a task
+          </button>
+          <span>{visitSummary(visit)}</span>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -587,15 +668,20 @@ export function QuoteLinesFace({
                             </span>
                           </td>
                           <td className="n">
-                            <Field
-                              value={qtyWords(l)}
-                              label={`Quantity of ${l.name}`}
-                              disabled={busy}
-                              onCommit={(t) => {
-                                const n = Number(t.replace(/[^\d.]/g, ""));
-                                if (Number.isFinite(n) && n >= 0) change(l, { qty: n });
-                              }}
-                            />
+                            {l.visit ? (
+                              /* its hours are its tasks', changed below */
+                              <span className="ql-fq">{qtyWords(l)}</span>
+                            ) : (
+                              <Field
+                                value={qtyWords(l)}
+                                label={`Quantity of ${l.name}`}
+                                disabled={busy}
+                                onCommit={(t) => {
+                                  const n = Number(t.replace(/[^\d.]/g, ""));
+                                  if (Number.isFinite(n) && n >= 0) change(l, { qty: n });
+                                }}
+                              />
+                            )}
                           </td>
                           <td className="n">
                             <Field
@@ -645,6 +731,7 @@ export function QuoteLinesFace({
                             </button>
                           </td>
                         </tr>,
+                        l.visit ? <LabourTasks key={`${l.id}-tasks`} line={l} visit={l.visit} busy={busy} onChange={(visit) => change(l, { visit })} /> : null,
                         swapping === l.id ? (
                           <tr key={`${l.id}-pick`} className="ql-pickrow">
                             <td colSpan={6}>

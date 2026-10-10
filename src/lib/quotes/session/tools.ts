@@ -322,7 +322,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "build_labour",
     description:
-      "Work out an option's labour task by task: the visits the job takes (rough-in, install, fit-off, commissioning, a return trip), the people on each, and every task in each visit with the person-hours an experienced crew takes for it in this job's conditions. Each visit becomes one labour line, named for its crew and days, its tasks as the reason. It replaces the labour lines you wrote on that option before; a person's own labour line stays.",
+      "Work out an option's labour task by task: the visits the job takes (rough-in, install, fit-off, commissioning, a return trip), the people on each, and every task in each visit with the person-hours an experienced crew takes for it in this job's conditions. Each visit becomes one labour line, named for its crew and days, with its tasks on it for the person to see and change. It replaces the labour worked out before on that option: a task whose hours a person changed keeps their hours, and a task they added stays; a person's own labour line stays.",
     input_schema: {
       type: "object",
       properties: {

@@ -8,10 +8,11 @@ import { fmtAud } from "@/lib/workboard/project-money";
 
 /* TIFF'S PANEL ON THE QUOTE (slice 5.1, mock-up screens 1 and 3): a rounded
    grey card on the white page. Its header is her still mark, her name, what
-   the quote has cost and whether she's working. Its body is what's To confirm
-   she asked, each answer priced, then the conversation, then whatever the
-   page puts in it (To check, the changes). The message box is at the
-   bottom. Before the first message, her moving mark and a hello.
+   the quote has cost and whether she's working. Its body is what's To
+   confirm (her questions, each answer priced, then what the page has to
+   confirm), then the page's own (what goes to ServiceM8, the changes),
+   then the conversation, down to the message box at the bottom (Isaac,
+   2026-10-11). Before the first message, her moving mark and a hello.
 
    While she works the page reads her saved thread every second and a half
    (slice 5.2), and the quote's lines with it, so they appear as she adds
@@ -47,6 +48,8 @@ export function TiffPanel({
   onChanged,
   onOpen,
   onPlan,
+  confirm,
+  confirmTitle = "To confirm",
   children,
 }: {
   job: string;
@@ -55,6 +58,12 @@ export function TiffPanel({
   onOpen?: (n: number) => void;
   /** the parts she said she'd build, while she builds them; null when she isn't (5.2) */
   onPlan?: (plan: { option: number; parts: PlannedPart[] } | null) => void;
+  /** what the page has to confirm, under her questions (lines it can't
+      price, assumptions, a loading with no reason); null when nothing */
+  confirm?: ReactNode;
+  /** the list's name: on the proposal, "Before you approve" */
+  confirmTitle?: string;
+  /** the page's own (what goes to ServiceM8, the changes), above the conversation */
   children: ReactNode;
 }) {
   const [on, setOn] = useState(false);
@@ -133,7 +142,18 @@ export function TiffPanel({
     tellPlan();
   }, [planId]);
 
-  if (!on) return <>{children}</>;
+  if (!on)
+    return (
+      <>
+        {confirm && (
+          <section aria-label={confirmTitle}>
+            <h2 className="hd-ls-grp">{confirmTitle}</h2>
+            {confirm}
+          </section>
+        )}
+        {children}
+      </>
+    );
 
   const openSources = async () => {
     setBusy(true);
@@ -252,9 +272,9 @@ export function TiffPanel({
             </div>
           </section>
         )}
-        {open.length > 0 && (
-          <section aria-label="To confirm">
-            <h2 className="hd-ls-grp">To confirm</h2>
+        {(open.length > 0 || confirm) && (
+          <section aria-label={confirmTitle}>
+            <h2 className="hd-ls-grp">{confirmTitle}</h2>
             {open.map((q) => {
               const answers = (Array.isArray(q.body.answers) ? q.body.answers : []) as Answer[];
               const deltas = questions[q.id]?.deltas ?? [];
@@ -274,8 +294,10 @@ export function TiffPanel({
                 </div>
               );
             })}
+            {confirm}
           </section>
         )}
+        {children}
         <div className="qt-thread">
           {events.map((e) => {
             if (e.kind === "message") {
@@ -343,7 +365,6 @@ export function TiffPanel({
           {working && <p className="qt-working">Working on the quote</p>}
           <div ref={bottom} />
         </div>
-        {children}
       </div>
       <div className="qt-c">
         {note && <p className="wb2-sherr">{note}</p>}

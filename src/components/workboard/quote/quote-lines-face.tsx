@@ -914,7 +914,8 @@ export function QuoteLinesFace({
       ...(oi?.build.loadingNeedsReason ? [{ tone: "due" as const, text: "The loading isn't on the price until it says why" }] : []),
       ...(assumed.length > 0 ? [{ tone: "info" as const, text: `${assumed.length} ${assumed.length === 1 ? "line" : "lines"} assumed` }] : []),
       ...(task ? [{ tone: "info" as const, text: `Your task hours make it ${task.hours} h for ${task.words}; the quote has ${task.quoted} h` }] : []),
-      ...(oi?.profit ? [{ tone: oi.profit.short ? ("due" as const) : ("ok" as const), text: `Profit ${oi.profit.pct}%${oi.profit.targetPct != null ? `, target ${oi.profit.targetPct}%` : ""}` }] : []),
+      /* the head says the open option's profit; the proposal's review says every option's */
+      ...(paper && oi?.profit ? [{ tone: oi.profit.short ? ("due" as const) : ("ok" as const), text: `Profit ${oi.profit.pct}%${oi.profit.targetPct != null ? `, target ${oi.profit.targetPct}%` : ""}` }] : []),
     ];
   };
   /* on the proposal, every option is reviewed before it's approved; on the
@@ -923,21 +924,22 @@ export function QuoteLinesFace({
     ? Array.from({ length: options }, (_, i) => checksFor(i).map((c) => (options > 1 ? { ...c, text: `Option ${i + 1}: ${c.text}` } : c))).flat()
     : checksFor(at);
 
+  /* what the page has to confirm: under Tiff's questions, one list (Isaac,
+     2026-10-11: the conversation runs down to the message box) */
+  const confirm =
+    checks.length > 0 ? (
+      <ul className="ql-checks">
+        {checks.map((c, i) => (
+          <li key={i} className={c.tone}>
+            <i aria-hidden="true" />
+            <span>{c.text}</span>
+          </li>
+        ))}
+      </ul>
+    ) : null;
+
   const rail = (
     <div className="ql-rail">
-      {checks.length > 0 && (
-        <>
-          <h2 className="hd-ls-grp">{paper ? "Before you approve" : "To check"}</h2>
-          <ul className="ql-checks">
-            {checks.map((c, i) => (
-              <li key={i} className={c.tone}>
-                <i aria-hidden="true" />
-                <span>{c.text}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
       {accepted.length > 0 && send}
       <h2 className="hd-ls-grp">Changes</h2>
       {(view?.changes ?? []).length === 0 && <p className="qp-none">Nothing changed yet.</p>}
@@ -1050,6 +1052,8 @@ export function QuoteLinesFace({
                 job={job}
                 onOpen={setAsked}
                 onPlan={setPlan}
+                confirm={confirm}
+                confirmTitle={paper ? "Before you approve" : "To confirm"}
                 onChanged={() => {
                   reload();
                   onPriced();

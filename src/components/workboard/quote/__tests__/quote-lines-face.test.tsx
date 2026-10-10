@@ -243,11 +243,11 @@ it("says under a part why it doesn't fit its system's outdoor unit", async () =>
 });
 
 /* the review's own half, slice 11.1 */
-it("lists what to check: what isn't known yet, and the profit against the target", async () => {
+it("lists what to confirm: what isn't known yet; the profit is the head's to say", async () => {
   face();
   expect(await screen.findByText("Core hole 200 mm: not known yet")).toBeInTheDocument();
-  expect(screen.getByText("To check")).toBeInTheDocument();
-  expect(screen.getByText("Profit 20%, target 20%")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "To confirm" })).toBeInTheDocument();
+  expect(screen.queryByText("Profit 20%, target 20%")).toBeNull();
 });
 
 it("marks the option accepted from the corner, says its parts went on the job, and shows what goes to ServiceM8", async () => {
@@ -303,7 +303,7 @@ it("offers the same item from each supplier, and takes the one picked over the c
   );
 });
 
-/* the business's own task hours, a check in To check (slice 8.1) */
+/* the business's own task hours, a check in To confirm (slice 8.1) */
 it("sets the business's task hours beside the quote's own", async () => {
   (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([indoor]), tasks: [{ hours: 18, words: "3 zones and 4 outlets", quoted: 24 }] }) }));
   face();
@@ -505,6 +505,8 @@ describe("a labour line's tasks under it (slice 8.2)", () => {
       fireEvent.click(screen.getByRole("button", { name: "Take Travel and setup off" }));
     });
     expect(posted).toContainEqual(expect.objectContaining({ op: "change", id: "l9", patch: { visit: { ...visit, tasks: [visit.tasks[1]] } } }));
+  });
+});
 
 describe("the head (Isaac, 10 Oct: one ledger, as Analytics draws its top line)", () => {
   const only = (lines: QuoteLine[], extra: Record<string, unknown> = {}) => {

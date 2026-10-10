@@ -32,12 +32,33 @@ beforeEach(() => {
 it("is only what the page gives it while Tiff is off", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond({ ok: true, on: false, events: [] }));
   render(
-    <TiffPanel job="j" onChanged={jest.fn()}>
-      <p>To check</p>
+    <TiffPanel job="j" onChanged={jest.fn()} confirm={<p>Core hole: not known yet</p>}>
+      <p>Changes</p>
     </TiffPanel>
   );
-  expect(await screen.findByText("To check")).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "To confirm" })).toBeInTheDocument();
+  expect(screen.getByText("Core hole: not known yet")).toBeInTheDocument();
+  expect(screen.getByText("Changes")).toBeInTheDocument();
   expect(screen.queryByLabelText("Message Tiff")).toBeNull();
+});
+
+it("puts what's to confirm first, the page's own next, and the conversation last, down to the message box", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
+  render(
+    <TiffPanel job="j" onChanged={jest.fn()} confirm={<p>Core hole: not known yet</p>}>
+      <p>Changes</p>
+    </TiffPanel>
+  );
+  const said = await screen.findByText("A 12.5 kW ducted, priced from your book.");
+  const confirm = screen.getByText("Core hole: not known yet");
+  const changes = screen.getByText("Changes");
+  const box = screen.getByLabelText("Message Tiff");
+  /* her question and the page's list, under one heading */
+  expect(screen.getByRole("heading", { name: "To confirm" }).parentElement).toContainElement(confirm);
+  const before = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  expect(before(confirm, changes)).toBe(true);
+  expect(before(changes, said)).toBe(true);
+  expect(before(said, box)).toBe(true);
 });
 
 it("shows her thread, who said what, what she did and what it cost", async () => {

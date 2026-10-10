@@ -1,0 +1,1199 @@
+[
+ {
+  "model": "EVV13BS",
+  "brand": "actron-air",
+  "series": "Advance B Series (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 13.0,
+  "capacity_heat_kw": 12.85,
+  "airflow_ls": 650,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 300
+  },
+  "return_opening": {
+   "w_mm": 900,
+   "h_mm": 340
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1090,
+  "depth_mm": 615,
+  "height_mm": 412,
+  "sound_high_dba": 39.5,
+  "weight_kg": 44,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
+   "page": "4-5 (nett rated, airflow nominal, indoor SPL @1.5 m), 6-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+  }
+ },
+ {
+  "model": "EVV15BS",
+  "brand": "actron-air",
+  "series": "Advance B Series (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.8,
+  "capacity_heat_kw": 15.0,
+  "airflow_ls": 770,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 300
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1290,
+  "depth_mm": 615,
+  "height_mm": 412,
+  "sound_high_dba": 42.4,
+  "weight_kg": 53,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
+   "page": "4-5 (nett rated, airflow nominal, indoor SPL @1.5 m), 6-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+  }
+ },
+ {
+  "model": "EVV17BS",
+  "brand": "actron-air",
+  "series": "Advance B Series (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 17.0,
+  "capacity_heat_kw": 17.2,
+  "airflow_ls": 890,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 300
+  },
+  "return_opening": {
+   "w_mm": 1140,
+   "h_mm": 360
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1420,
+  "depth_mm": 680,
+  "height_mm": 435,
+  "sound_high_dba": 44.4,
+  "weight_kg": 61,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
+   "page": "4-5 (nett rated, airflow nominal, indoor SPL @1.5 m), 6-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+  }
+ },
+ {
+  "model": "EVV19BS",
+  "brand": "actron-air",
+  "series": "Advance B Series (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 19.0,
+  "capacity_heat_kw": 19.0,
+  "airflow_ls": 1000,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 380
+  },
+  "return_opening": {
+   "w_mm": 1190,
+   "h_mm": 410
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 22.22,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1470,
+  "depth_mm": 695,
+  "height_mm": 485,
+  "sound_high_dba": 42.1,
+  "weight_kg": 75,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
+   "page": "5 (nett rated, airflow nominal, indoor SPL @1.5 m), 8-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+  }
+ },
+ {
+  "model": "EVV22BS",
+  "brand": "actron-air",
+  "series": "Advance B Series (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 22.0,
+  "capacity_heat_kw": 23.0,
+  "airflow_ls": 1150,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 380
+  },
+  "return_opening": {
+   "w_mm": 1190,
+   "h_mm": 410
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 22.22,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1470,
+  "depth_mm": 695,
+  "height_mm": 485,
+  "sound_high_dba": 44.5,
+  "weight_kg": 76,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
+   "page": "5 (nett rated, airflow nominal, indoor SPL @1.5 m), 8-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+  }
+ },
+ {
+  "model": "EVV25BS",
+  "brand": "actron-air",
+  "series": "Advance B Series (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 25.0,
+  "capacity_heat_kw": 26.0,
+  "airflow_ls": 1300,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 380
+  },
+  "return_opening": {
+   "w_mm": 1290,
+   "h_mm": 410
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 22.22,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1570,
+  "depth_mm": 695,
+  "height_mm": 485,
+  "sound_high_dba": 44.5,
+  "weight_kg": 79,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
+   "page": "5 (nett rated, airflow nominal, indoor SPL @1.5 m), 8-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+  }
+ },
+ {
+  "model": "EVA10AS",
+  "brand": "actron-air",
+  "series": "AIRES (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 10.52,
+  "airflow_ls": 500,
+  "supply_opening": {
+   "w_mm": 235,
+   "h_mm": 175
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 340
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 850,
+  "depth_mm": 595,
+  "height_mm": 410,
+  "weight_kg": 36,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data",
+   "edition": "9590-0027-01 Ver. 17 260305",
+   "page": "4 (nett rated with the single-phase outdoor, airflow nominal, indoor D/H/W, weight), 7 (connections, filters by others); 24 (EVA10AS: supply 175 x 235 no flange, return 340 x 660)"
+  }
+ },
+ {
+  "model": "EVA13AS",
+  "brand": "actron-air",
+  "series": "AIRES (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 13.02,
+  "capacity_heat_kw": 15.0,
+  "airflow_ls": 650,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 300
+  },
+  "return_opening": {
+   "w_mm": 900,
+   "h_mm": 340
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1090,
+  "depth_mm": 615,
+  "height_mm": 412,
+  "weight_kg": 44,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data",
+   "edition": "9590-0027-01 Ver. 17 260305",
+   "page": "4 (nett rated with the single-phase outdoor, airflow nominal, indoor D/H/W, weight), 7 (connections, filters by others); 25 (supply H-SD x W-SD, return H-RD x W-RD)"
+  }
+ },
+ {
+  "model": "EVA15AS",
+  "brand": "actron-air",
+  "series": "AIRES (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 15.4,
+  "capacity_heat_kw": 16.74,
+  "airflow_ls": 770,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 300
+  },
+  "return_opening": {
+   "w_mm": 1100,
+   "h_mm": 340
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1290,
+  "depth_mm": 615,
+  "height_mm": 412,
+  "weight_kg": 53,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data",
+   "edition": "9590-0027-01 Ver. 17 260305",
+   "page": "4 (nett rated with the single-phase outdoor, airflow nominal, indoor D/H/W, weight), 7 (connections, filters by others); 25 (supply H-SD x W-SD, return H-RD x W-RD)"
+  }
+ },
+ {
+  "model": "EVA17AS",
+  "brand": "actron-air",
+  "series": "AIRES (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 17.0,
+  "capacity_heat_kw": 19.29,
+  "airflow_ls": 890,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 300
+  },
+  "return_opening": {
+   "w_mm": 1140,
+   "h_mm": 360
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1420,
+  "depth_mm": 680,
+  "height_mm": 435,
+  "weight_kg": 61,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data",
+   "edition": "9590-0027-01 Ver. 17 260305",
+   "page": "4 (nett rated with the single-phase outdoor, airflow nominal, indoor D/H/W, weight), 7 (connections, filters by others); 25 (supply H-SD x W-SD, return H-RD x W-RD)"
+  }
+ },
+ {
+  "model": "EVA20AS",
+  "brand": "actron-air",
+  "series": "AIRES (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 19.8,
+  "capacity_heat_kw": 22.0,
+  "airflow_ls": 1050,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 380
+  },
+  "return_opening": {
+   "w_mm": 1190,
+   "h_mm": 410
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 22.22,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1470,
+  "depth_mm": 695,
+  "height_mm": 485,
+  "weight_kg": 72,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data",
+   "edition": "9590-0027-01 Ver. 17 260305",
+   "page": "5 (nett rated, airflow nominal, indoor D/H/W, weight), 9 (connections, filters by others); 25 (supply H-SD x W-SD, return H-RD x W-RD)"
+  }
+ },
+ {
+  "model": "EVA23AS",
+  "brand": "actron-air",
+  "series": "AIRES (R-32)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 22.6,
+  "capacity_heat_kw": 24.5,
+  "airflow_ls": 1200,
+  "supply_opening": {
+   "w_mm": 715,
+   "h_mm": 380
+  },
+  "return_opening": {
+   "w_mm": 1290,
+   "h_mm": 410
+  },
+  "filter": "field-supplied",
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 22.22,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "230V / 1Ph+N / 50Hz",
+  "width_mm": 1570,
+  "depth_mm": 695,
+  "height_mm": 485,
+  "weight_kg": 81,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data",
+   "edition": "9590-0027-01 Ver. 17 260305",
+   "page": "5 (nett rated, airflow nominal, indoor D/H/W, weight), 9 (connections, filters by others); 25 (supply H-SD x W-SD, return H-RD x W-RD)"
+  }
+ },
+ {
+  "model": "LRE-071DS",
+  "brand": "actron-air",
+  "series": "Aspire DS Series",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.3,
+  "capacity_heat_kw": 7.5,
+  "airflow_ls": 451,
+  "static_pressure_pa": 160,
+  "supply_opening": {
+   "w_mm": 827,
+   "h_mm": 178
+  },
+  "return_opening": {
+   "w_mm": 892,
+   "h_mm": 212
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "220 - 240V / 1Ph / 50Hz",
+  "width_mm": 1000,
+  "depth_mm": 750,
+  "height_mm": 245,
+  "weight_kg": 31.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data",
+   "edition": "9590-0031-01 Ver. 7 260922",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, spigot dimensions, rated indoor air volume, external static range), 3 (connections); 28 (outline: supply E x F, return G x H)"
+  }
+ },
+ {
+  "model": "LRE-100DS",
+  "brand": "actron-air",
+  "series": "Aspire DS Series",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.2,
+  "capacity_heat_kw": 12.0,
+  "airflow_ls": 571,
+  "static_pressure_pa": 160,
+  "supply_opening": {
+   "w_mm": 1027,
+   "h_mm": 178
+  },
+  "return_opening": {
+   "w_mm": 1092,
+   "h_mm": 212
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "220 - 240V / 1Ph / 50Hz",
+  "width_mm": 1200,
+  "depth_mm": 750,
+  "height_mm": 245,
+  "weight_kg": 40.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data",
+   "edition": "9590-0031-01 Ver. 7 260922",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, spigot dimensions, rated indoor air volume, external static range), 3 (connections); 28 (outline: supply E x F, return G x H)"
+  }
+ },
+ {
+  "model": "LRE-125DS",
+  "brand": "actron-air",
+  "series": "Aspire DS Series",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.6,
+  "capacity_heat_kw": 14.5,
+  "airflow_ls": 674,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1027,
+   "h_mm": 233
+  },
+  "return_opening": {
+   "w_mm": 1092,
+   "h_mm": 267
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "220 - 240V / 1Ph / 50Hz",
+  "width_mm": 1200,
+  "depth_mm": 750,
+  "height_mm": 300,
+  "weight_kg": 45,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data",
+   "edition": "9590-0031-01 Ver. 7 260922",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, spigot dimensions, rated indoor air volume, external static range), 3 (connections); 28 (outline: supply E x F, return G x H)"
+  }
+ },
+ {
+  "model": "LRE-140DS",
+  "brand": "actron-air",
+  "series": "Aspire DS Series",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 15.5,
+  "airflow_ls": 787,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1027,
+   "h_mm": 233
+  },
+  "return_opening": {
+   "w_mm": 1092,
+   "h_mm": 267
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "220 - 240V / 1Ph / 50Hz",
+  "width_mm": 1200,
+  "depth_mm": 750,
+  "height_mm": 300,
+  "weight_kg": 45,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data",
+   "edition": "9590-0031-01 Ver. 7 260922",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, spigot dimensions, rated indoor air volume, external static range), 3 (connections); 28 (outline: supply E x F, return G x H)"
+  }
+ },
+ {
+  "model": "LRE-170DS",
+  "brand": "actron-air",
+  "series": "Aspire DS Series",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 17.0,
+  "capacity_heat_kw": 18.0,
+  "airflow_ls": 858,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 295
+  },
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "220 - 240V / 1Ph / 50Hz",
+  "width_mm": 1400,
+  "depth_mm": 870,
+  "height_mm": 380,
+  "weight_kg": 67,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data",
+   "edition": "9590-0031-01 Ver. 7 260922",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, spigot dimensions, rated indoor air volume, external static range), 3 (connections); 29 (LRE-170DS outline: supply 295 x 1152, return 2 x 400 oval)"
+  }
+ },
+ {
+  "model": "CRE-100DS",
+  "brand": "actron-air",
+  "series": "Cascade Cassette DS Series",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 10.5,
+  "airflow_ls": 556,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "220 - 240V / 1Ph / 50Hz",
+  "width_mm": 830,
+  "depth_mm": 830,
+  "height_mm": 287,
+  "weight_kg": 29.3,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Cascade Cassette DS Series, Technical Selection Data",
+   "edition": "9590-0032-01 Ver. 2 260331",
+   "page": "3 (operating capacity, indoor unit H/W/D without the 950 x 950 x 55 panel, net weight, airflow High), 4 (connections)"
+  }
+ },
+ {
+  "model": "CRE-125DS",
+  "brand": "actron-air",
+  "series": "Cascade Cassette DS Series",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 12.9,
+  "capacity_heat_kw": 13.3,
+  "airflow_ls": 556,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "220 - 240V / 1Ph / 50Hz",
+  "width_mm": 830,
+  "depth_mm": 830,
+  "height_mm": 287,
+  "weight_kg": 29.3,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Cascade Cassette DS Series, Technical Selection Data",
+   "edition": "9590-0032-01 Ver. 2 260331",
+   "page": "3 (operating capacity, indoor unit H/W/D without the 950 x 950 x 55 panel, net weight, airflow High), 4 (connections)"
+  }
+ },
+ {
+  "model": "CRE-140DS",
+  "brand": "actron-air",
+  "series": "Cascade Cassette DS Series",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.1,
+  "capacity_heat_kw": 14.5,
+  "airflow_ls": 556,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "phase": "1",
+  "power_supply": "220 - 240V / 1Ph / 50Hz",
+  "width_mm": 830,
+  "depth_mm": 830,
+  "height_mm": 287,
+  "weight_kg": 29.3,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Cascade Cassette DS Series, Technical Selection Data",
+   "edition": "9590-0032-01 Ver. 2 260331",
+   "page": "3 (operating capacity, indoor unit H/W/D without the 950 x 950 x 55 panel, net weight, airflow High), 4 (connections)"
+  }
+ },
+ {
+  "model": "WRE-026DS",
+  "brand": "actron-air",
+  "series": "Serene DS Series",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.63,
+  "capacity_heat_kw": 2.7,
+  "capacity_code": 26,
+  "airflow_ls": 161,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 795,
+  "depth_mm": 225,
+  "height_mm": 295,
+  "sound_low_dba": 23,
+  "sound_high_dba": 38.5,
+  "weight_kg": 10.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-0036-01 Ver. 7 260702",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, airflow High, indoor SPL @1 m Low/High), 3 (connections); MultiElite 9590-0036-01 p.6 (listed as a MultiElite indoor unit)"
+  }
+ },
+ {
+  "model": "WRE-035DS",
+  "brand": "actron-air",
+  "series": "Serene DS Series",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.9,
+  "capacity_code": 35,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 795,
+  "depth_mm": 225,
+  "height_mm": 295,
+  "sound_low_dba": 30.5,
+  "sound_high_dba": 40.5,
+  "weight_kg": 9.99,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-0036-01 Ver. 7 260702",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, airflow High, indoor SPL @1 m Low/High), 3 (connections); MultiElite 9590-0036-01 p.6 (listed as a MultiElite indoor unit)"
+  }
+ },
+ {
+  "model": "WRE-050DS",
+  "brand": "actron-air",
+  "series": "Serene DS Series",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.05,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 229,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 965,
+  "depth_mm": 239,
+  "height_mm": 319,
+  "sound_low_dba": 33,
+  "sound_high_dba": 42,
+  "weight_kg": 11.8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-0036-01 Ver. 7 260702",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, airflow High, indoor SPL @1 m Low/High), 3 (connections); MultiElite 9590-0036-01 p.6 (listed as a MultiElite indoor unit)"
+  }
+ },
+ {
+  "model": "WRE-060DS",
+  "brand": "actron-air",
+  "series": "Serene DS Series",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 6.6,
+  "capacity_code": 60,
+  "airflow_ls": 229,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 965,
+  "depth_mm": 239,
+  "height_mm": 319,
+  "sound_low_dba": 33,
+  "sound_high_dba": 42,
+  "weight_kg": 11.8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-0036-01 Ver. 7 260702",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, airflow High, indoor SPL @1 m Low/High), 3 (connections); MultiElite 9590-0036-01 p.6 (listed as a MultiElite indoor unit)"
+  }
+ },
+ {
+  "model": "WRE-072DS",
+  "brand": "actron-air",
+  "series": "Serene DS Series",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.2,
+  "capacity_heat_kw": 8.2,
+  "capacity_code": 72,
+  "airflow_ls": 432,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1140,
+  "depth_mm": 275,
+  "height_mm": 370,
+  "sound_low_dba": 37,
+  "sound_high_dba": 50,
+  "weight_kg": 17.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-0036-01 Ver. 7 260702",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, airflow High, indoor SPL @1 m Low/High), 3 (connections); MultiElite 9590-0036-01 p.6 (listed as a MultiElite indoor unit)"
+  }
+ },
+ {
+  "model": "WRE-080DS",
+  "brand": "actron-air",
+  "series": "Serene DS Series",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.0,
+  "capacity_heat_kw": 9.0,
+  "capacity_code": 80,
+  "airflow_ls": 432,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1140,
+  "depth_mm": 275,
+  "height_mm": 370,
+  "sound_low_dba": 37,
+  "sound_high_dba": 50,
+  "weight_kg": 17.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-0036-01 Ver. 7 260702",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, airflow High, indoor SPL @1 m Low/High), 3 (connections); MultiElite 9590-0036-01 p.6 (listed as a MultiElite indoor unit)"
+  }
+ },
+ {
+  "model": "WRE-090DS",
+  "brand": "actron-air",
+  "series": "Serene DS Series",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 9.8,
+  "capacity_code": 90,
+  "airflow_ls": 342,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1140,
+  "depth_mm": 275,
+  "height_mm": 370,
+  "sound_low_dba": 35,
+  "sound_high_dba": 47,
+  "weight_kg": 18.9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data",
+   "edition": "9590-0037-01 Ver. 4 251120",
+   "page": "2 (operating capacity, indoor H/W/D, net weight, airflow High, indoor SPL @1 m Low/High), 3 (connections)"
+  }
+ },
+ {
+  "model": "BRE-026DS",
+  "brand": "actron-air",
+  "series": "MultiElite DS Bulkhead",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 2.6,
+  "capacity_heat_kw": 2.9,
+  "capacity_code": 26,
+  "airflow_ls": 172,
+  "supply_opening": {
+   "w_mm": 537,
+   "h_mm": 152
+  },
+  "return_opening": {
+   "w_mm": 599,
+   "h_mm": 186
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 700,
+  "depth_mm": 506,
+  "height_mm": 200,
+  "sound_low_dba": 31,
+  "sound_high_dba": 35,
+  "weight_kg": 16.6,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0036-01 Ver. 7 260702",
+   "page": "7 (Bulkhead Units: operating capacity, airflow High, SPL cooling H/L, unit H/W/depth, net weight, connections); 17 (outline: supply E x F, return G x H; total depth D)"
+  }
+ },
+ {
+  "model": "BRE-035DS",
+  "brand": "actron-air",
+  "series": "MultiElite DS Bulkhead",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.8,
+  "capacity_code": 35,
+  "airflow_ls": 183,
+  "supply_opening": {
+   "w_mm": 537,
+   "h_mm": 152
+  },
+  "return_opening": {
+   "w_mm": 599,
+   "h_mm": 186
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 700,
+  "depth_mm": 506,
+  "height_mm": 200,
+  "sound_low_dba": 31,
+  "sound_high_dba": 35,
+  "weight_kg": 16.6,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0036-01 Ver. 7 260702",
+   "page": "7 (Bulkhead Units: operating capacity, airflow High, SPL cooling H/L, unit H/W/depth, net weight, connections); 17 (outline: supply E x F, return G x H; total depth D)"
+  }
+ },
+ {
+  "model": "BRE-050DS",
+  "brand": "actron-air",
+  "series": "MultiElite DS Bulkhead",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.5,
+  "capacity_code": 50,
+  "airflow_ls": 253,
+  "supply_opening": {
+   "w_mm": 706,
+   "h_mm": 136
+  },
+  "return_opening": {
+   "w_mm": 782,
+   "h_mm": 190
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 880,
+  "depth_mm": 674,
+  "height_mm": 210,
+  "sound_low_dba": 35,
+  "sound_high_dba": 42,
+  "weight_kg": 24.4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0036-01 Ver. 7 260702",
+   "page": "7 (Bulkhead Units: operating capacity, airflow High, SPL cooling H/L, unit H/W/depth, net weight, connections); 17 (outline: supply E x F, return G x H; total depth D)"
+  }
+ },
+ {
+  "model": "MRE-035DS",
+  "brand": "actron-air",
+  "series": "MultiElite DS Mini Cassette",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 3.8,
+  "capacity_code": 35,
+  "airflow_ls": 180,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 245,
+  "sound_low_dba": 31.5,
+  "sound_high_dba": 42,
+  "weight_kg": 16.1,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0036-01 Ver. 7 260702",
+   "page": "8 (Mini Cassette Units: operating capacity, airflow High, SPL cooling H/L, unit H/W/D, net weight, connections)"
+  }
+ },
+ {
+  "model": "MRE-053DS",
+  "brand": "actron-air",
+  "series": "MultiElite DS Mini Cassette",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 5.3,
+  "capacity_heat_kw": 5.57,
+  "capacity_code": 53,
+  "airflow_ls": 183,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 245,
+  "sound_low_dba": 31.5,
+  "sound_high_dba": 44,
+  "weight_kg": 16.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0036-01 Ver. 7 260702",
+   "page": "8 (Mini Cassette Units: operating capacity, airflow High, SPL cooling H/L, unit H/W/D, net weight, connections)"
+  }
+ }
+]

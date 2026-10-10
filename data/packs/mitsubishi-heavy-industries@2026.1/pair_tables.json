@@ -1426,5 +1426,89 @@
    "edition": "Ducted System September 2026 AU; '24 PAC-DB-450",
    "page": "15 (PDF p.8); 44 (PDF p.25): limits, pipe sizes (gas 25.4 past 35 m); 45 (PDF p.26): additional charge by equivalent length"
   }
+ },
+ {
+  "idu_model": "FDU90KXE6F-W",
+  "odu_model": "FDC90KXZEN1-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 50
+  },
+  "rated_cool_kw": 9.0,
+  "rated_heat_kw": 9.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "Ducted System September 2026 AU; '21 KX-T-374",
+   "page": "16 (PDF p.9); 19 (PDF p.21): additional charge, 20 m covered by the factory charge"
+  }
+ },
+ {
+  "idu_model": "FDU112KXE6F-W",
+  "odu_model": "FDC112KXZEN1-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 50
+  },
+  "rated_cool_kw": 11.2,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "Ducted System September 2026 AU; '21 KX-T-374",
+   "page": "16 (PDF p.9); 19 (PDF p.21): additional charge, 20 m covered by the factory charge"
+  }
+ },
+ {
+  "idu_model": "FDU140KXE6F-W",
+  "odu_model": "FDC140KXZEN1-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 50
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 14.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "Ducted System September 2026 AU; '21 KX-T-374",
+   "page": "16 (PDF p.9); 19 (PDF p.21): additional charge, 20 m covered by the factory charge"
+  }
+ },
+ {
+  "idu_model": "FDU112KXE6F-W",
+  "odu_model": "FDC112KXZES1-W",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 50
+  },
+  "rated_cool_kw": 11.2,
+  "rated_heat_kw": 11.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Ducted Systems Brochure (AU); MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "Ducted System September 2026 AU; '21 KX-T-374",
+   "page": "16 (PDF p.9); 19 (PDF p.21): additional charge, 20 m covered by the factory charge"
+  }
  }
 ]

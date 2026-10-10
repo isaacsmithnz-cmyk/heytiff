@@ -2,8 +2,8 @@
   "brand": "mitsubishi-heavy-industries",
   "version": "2026.1",
   "packSchemaVersion": 1,
-  "name": "Mitsubishi Heavy Industries — split (Avanti, Bronte, Ciara, Wera, Akari), ducted (FDUM, FDU, FDUA), ceiling (FDT, FDTC, FDE), SCM multi",
-  "updated": "2026-10-08",
+  "name": "Mitsubishi Heavy Industries — split (Avanti, Bronte, Ciara, Wera, Akari), ducted (FDUM, FDU, FDUA), ceiling (FDT, FDTC, FDE), SCM multi, KX Micro VRF, Elouera",
+  "updated": "2026-10-10",
   "sources": [
     {
       "title": "MHIAA Split Systems Brochure (AU)",
@@ -88,6 +88,21 @@
     {
       "title": "MHI Data Book FDUA160VH with FDCA160VNX-W",
       "edition": "'23 PAC-DB-435",
+      "access": "public"
+    },
+    {
+      "title": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+      "edition": "'21 KX-T-374",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA R32 KX Systems Brochure (AU)",
+      "edition": "R32 KX Systems Brochure Feb 2026 AU",
+      "access": "public"
+    },
+    {
+      "title": "MHIAA Elouera ZTA Series Brochure (AU)",
+      "edition": "Elouera Brochure June 2026 AU",
       "access": "public"
     }
   ]

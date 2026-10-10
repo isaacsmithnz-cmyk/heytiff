@@ -1,0 +1,52 @@
+[
+ {
+  "part_type": "joint",
+  "model": "DIS-22-1G",
+  "brand": "mitsubishi-heavy-industries",
+  "index_max": 179,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
+   "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
+   "page": "5 (PDF p.7): 'less than 180' / '180 or more but less than 371'; 28-29 (PDF p.15)"
+  }
+ },
+ {
+  "part_type": "joint",
+  "model": "DIS-180-1G",
+  "brand": "mitsubishi-heavy-industries",
+  "index_max": 370,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
+   "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
+   "page": "5 (PDF p.7): 'less than 180' / '180 or more but less than 371'; 28-29 (PDF p.15)"
+  }
+ },
+ {
+  "part_type": "header",
+  "model": "HEAD4-22-1G",
+  "brand": "mitsubishi-heavy-industries",
+  "index_max": 179,
+  "branches": 4,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
+   "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
+   "page": "5 (PDF p.7): 'less than 180' / '180 or more but less than 371'; 28-29 (PDF p.15)"
+  }
+ },
+ {
+  "part_type": "header",
+  "model": "HEAD6-180-1G",
+  "brand": "mitsubishi-heavy-industries",
+  "index_max": 370,
+  "branches": 6,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
+   "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
+   "page": "5 (PDF p.7): 'less than 180' / '180 or more but less than 371'; 28-29 (PDF p.15)"
+  }
+ }
+]

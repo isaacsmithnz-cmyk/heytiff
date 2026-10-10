@@ -1870,5 +1870,1937 @@
    "edition": "Ducted System September 2026 AU; '24 PAC-DB-450",
    "page": "15 (PDF p.8); type: 8 (PDF p.5); drain pump: 4 (PDF p.3); 22 (PDF p.3): brazing port sizes, type 250"
   }
+ },
+ {
+  "model": "FDT28KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-KXZE1-W",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 28,
+  "airflow_ls": 333,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 236,
+  "sound_low_dba": 28,
+  "sound_high_dba": 40,
+  "weight_kg": 20,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "34 (PDF p.36); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDT36KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-KXZE1-W",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 36,
+  "airflow_ls": 333,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 236,
+  "sound_low_dba": 28,
+  "sound_high_dba": 40,
+  "weight_kg": 20,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "34 (PDF p.36); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDT45KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-KXZE1-W",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 45,
+  "airflow_ls": 333,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 236,
+  "sound_low_dba": 28,
+  "sound_high_dba": 40,
+  "weight_kg": 20,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "34 (PDF p.36); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDT56KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-KXZE1-W",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 56,
+  "airflow_ls": 433,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 236,
+  "sound_low_dba": 28,
+  "sound_high_dba": 44,
+  "weight_kg": 21.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "34 (PDF p.36); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDT71KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-KXZE1-W",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 71,
+  "airflow_ls": 467,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 236,
+  "sound_low_dba": 28,
+  "sound_high_dba": 47,
+  "weight_kg": 21.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "34 (PDF p.36); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDT90KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-KXZE1-W",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 90,
+  "airflow_ls": 617,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 31,
+  "sound_high_dba": 49,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "35 (PDF p.37); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDT112KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-KXZE1-W",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 112,
+  "airflow_ls": 633,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 31,
+  "sound_high_dba": 49,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "35 (PDF p.37); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDT140KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-KXZE1-W",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 140,
+  "airflow_ls": 633,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 32,
+  "sound_high_dba": 49,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "35 (PDF p.37); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDT160KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDT-KXZE1-W",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "capacity_index": 160,
+  "airflow_ls": 633,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 298,
+  "sound_low_dba": 32,
+  "sound_high_dba": 49,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "35 (PDF p.37); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDTC15KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-KXZE1-W",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 1.5,
+  "capacity_heat_kw": 1.7,
+  "capacity_index": 15,
+  "airflow_ls": 133,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 25,
+  "sound_high_dba": 33,
+  "weight_kg": 12.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "36 (PDF p.38); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDTC22KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-KXZE1-W",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 22,
+  "airflow_ls": 150,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 25,
+  "sound_high_dba": 35,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "36 (PDF p.38); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDTC28KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-KXZE1-W",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 28,
+  "airflow_ls": 150,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 25,
+  "sound_high_dba": 35,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "36 (PDF p.38); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDTC36KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-KXZE1-W",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 36,
+  "airflow_ls": 167,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 26,
+  "sound_high_dba": 39,
+  "weight_kg": 14,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "36 (PDF p.38); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDTC45KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-KXZE1-W",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 45,
+  "airflow_ls": 200,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 28,
+  "sound_high_dba": 43,
+  "weight_kg": 14,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "36 (PDF p.38); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDTC56KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDTC-KXZE1-W",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 56,
+  "airflow_ls": 233,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 248,
+  "sound_low_dba": 31,
+  "sound_high_dba": 47,
+  "weight_kg": 14,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "36 (PDF p.38); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDU45KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 45,
+  "airflow_ls": 217,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 680,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 420,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 25,
+  "sound_high_dba": 34,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "37 (PDF p.39); drawing 49 (PDF p.51); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDU56KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 56,
+  "airflow_ls": 217,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 680,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 420,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 25,
+  "sound_high_dba": 34,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "37 (PDF p.39); drawing 49 (PDF p.51); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDU71KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 71,
+  "airflow_ls": 400,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 880,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 740,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 22,
+  "sound_high_dba": 37,
+  "weight_kg": 34,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "37 (PDF p.39); drawing 50 (PDF p.52); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDU90KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 90,
+  "airflow_ls": 400,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 880,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 740,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf",
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 22,
+  "sound_high_dba": 37,
+  "weight_kg": 34,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA Ducted Systems Brochure (AU)",
+   "edition": "'21 KX-T-374; Ducted System September 2026 AU",
+   "page": "37 (PDF p.39); drawing 50 (PDF p.52); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17); 16 (PDF p.9): KX 1:1"
+  }
+ },
+ {
+  "model": "FDU112KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 112,
+  "airflow_ls": 600,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 1280,
+   "h_mm": 235
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf",
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1368,
+  "depth_mm": 740,
+  "height_mm": 280,
+  "sound_low_dba": 28,
+  "sound_high_dba": 40,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA Ducted Systems Brochure (AU)",
+   "edition": "'21 KX-T-374; Ducted System September 2026 AU",
+   "page": "38 (PDF p.40); drawing 51 (PDF p.53); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17); 16 (PDF p.9): KX 1:1"
+  }
+ },
+ {
+  "model": "FDU140KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 140,
+  "airflow_ls": 650,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 1280,
+   "h_mm": 235
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf",
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1368,
+  "depth_mm": 740,
+  "height_mm": 280,
+  "sound_low_dba": 28,
+  "sound_high_dba": 41,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA Ducted Systems Brochure (AU)",
+   "edition": "'21 KX-T-374; Ducted System September 2026 AU",
+   "page": "38 (PDF p.40); drawing 51 (PDF p.53); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17); 16 (PDF p.9): KX 1:1"
+  }
+ },
+ {
+  "model": "FDU160KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDU-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "capacity_index": 160,
+  "airflow_ls": 800,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 1280,
+   "h_mm": 235
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf",
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1368,
+  "depth_mm": 740,
+  "height_mm": 280,
+  "sound_low_dba": 29,
+  "sound_high_dba": 45,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA Ducted Systems Brochure (AU)",
+   "edition": "'21 KX-T-374; Ducted System September 2026 AU",
+   "page": "38 (PDF p.40); drawing 51 (PDF p.53); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17); 16 (PDF p.9): KX 1:1"
+  }
+ },
+ {
+  "model": "FDUM22KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 22,
+  "airflow_ls": 217,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 680,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 23,
+  "sound_high_dba": 33,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "39 (PDF p.41); drawing 52 (PDF p.54); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUM28KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 28,
+  "airflow_ls": 217,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 680,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 23,
+  "sound_high_dba": 33,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "39 (PDF p.41); drawing 52 (PDF p.54); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUM36KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 36,
+  "airflow_ls": 217,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 680,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 25,
+  "sound_high_dba": 34,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "39 (PDF p.41); drawing 52 (PDF p.54); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUM45KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 45,
+  "airflow_ls": 217,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 680,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 25,
+  "sound_high_dba": 34,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "39 (PDF p.41); drawing 52 (PDF p.54); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUM56KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 56,
+  "airflow_ls": 217,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 680,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 25,
+  "sound_high_dba": 34,
+  "weight_kg": 29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "39 (PDF p.41); drawing 52 (PDF p.54); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUM71KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 71,
+  "airflow_ls": 400,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 880,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 860,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 22,
+  "sound_high_dba": 37,
+  "weight_kg": 34,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "40 (PDF p.42); drawing 53 (PDF p.55); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUM90KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 90,
+  "airflow_ls": 400,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 880,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 860,
+   "h_mm": 200
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 635,
+  "height_mm": 280,
+  "sound_low_dba": 22,
+  "sound_high_dba": 37,
+  "weight_kg": 34,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "40 (PDF p.42); drawing 53 (PDF p.55); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUM112KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_index": 112,
+  "airflow_ls": 600,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 1280,
+   "h_mm": 235
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1368,
+  "depth_mm": 740,
+  "height_mm": 280,
+  "sound_low_dba": 28,
+  "sound_high_dba": 40,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "40 (PDF p.42); drawing 54 (PDF p.56); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUM140KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_index": 140,
+  "airflow_ls": 650,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 1280,
+   "h_mm": 235
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1368,
+  "depth_mm": 740,
+  "height_mm": 280,
+  "sound_low_dba": 28,
+  "sound_high_dba": 41,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "40 (PDF p.42); drawing 54 (PDF p.56); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUM160KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUM-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "capacity_index": 160,
+  "airflow_ls": 800,
+  "static_pressure_pa": 100,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 170
+  },
+  "return_opening": {
+   "w_mm": 1280,
+   "h_mm": 235
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1368,
+  "depth_mm": 740,
+  "height_mm": 280,
+  "sound_low_dba": 29,
+  "sound_high_dba": 45,
+  "weight_kg": 54,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "40 (PDF p.42); drawing 54 (PDF p.56); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUT15KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUT-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 1.5,
+  "capacity_heat_kw": 1.7,
+  "capacity_index": 15,
+  "airflow_ls": 100,
+  "static_pressure_pa": 35,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 99
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 160
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 21,
+  "sound_high_dba": 28,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "41 (PDF p.43); drawing 55 (PDF p.57); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUT22KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUT-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 22,
+  "airflow_ls": 125,
+  "static_pressure_pa": 35,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 99
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 160
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 22,
+  "sound_high_dba": 28,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "41 (PDF p.43); drawing 55 (PDF p.57); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUT28KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUT-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 28,
+  "airflow_ls": 125,
+  "static_pressure_pa": 35,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 99
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 160
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 22,
+  "sound_high_dba": 28,
+  "weight_kg": 21,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "41 (PDF p.43); drawing 55 (PDF p.57); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUT36KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUT-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 36,
+  "airflow_ls": 142,
+  "static_pressure_pa": 35,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 99
+  },
+  "return_opening": {
+   "w_mm": 660,
+   "h_mm": 160
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 24,
+  "sound_high_dba": 30,
+  "weight_kg": 22,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "41 (PDF p.43); drawing 55 (PDF p.57); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUT45KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUT-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 45,
+  "airflow_ls": 192,
+  "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 99
+  },
+  "return_opening": {
+   "w_mm": 860,
+   "h_mm": 160
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 24,
+  "sound_high_dba": 30,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "42 (PDF p.44); drawing 56 (PDF p.58); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUT56KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUT-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.0,
+  "capacity_index": 56,
+  "airflow_ls": 208,
+  "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 99
+  },
+  "return_opening": {
+   "w_mm": 860,
+   "h_mm": 160
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 950,
+  "depth_mm": 500,
+  "height_mm": 200,
+  "sound_low_dba": 24,
+  "sound_high_dba": 31,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "42 (PDF p.44); drawing 56 (PDF p.58); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDUT71KXE6F-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDUT-KXE6F-W",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 71,
+  "airflow_ls": 267,
+  "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 99
+  },
+  "return_opening": {
+   "w_mm": 1060,
+   "h_mm": 160
+  },
+  "filter": "field-supplied",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1150,
+  "depth_mm": 565,
+  "height_mm": 200,
+  "sound_low_dba": 27,
+  "sound_high_dba": 32,
+  "weight_kg": 31,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "42 (PDF p.44); drawing 57 (PDF p.59); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDK15KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDK-KXZE1-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 1.5,
+  "capacity_heat_kw": 1.7,
+  "capacity_index": 15,
+  "airflow_ls": 95,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 28,
+  "sound_high_dba": 38,
+  "weight_kg": 11.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "43 (PDF p.45); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDK22KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDK-KXZE1-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.5,
+  "capacity_index": 22,
+  "airflow_ls": 142,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 27,
+  "sound_high_dba": 38,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "43 (PDF p.45); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDK28KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDK-KXZE1-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_index": 28,
+  "airflow_ls": 142,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 27,
+  "sound_high_dba": 38,
+  "weight_kg": 11,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "43 (PDF p.45); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDK36KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDK-KXZE1-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_index": 36,
+  "airflow_ls": 183,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 28,
+  "sound_high_dba": 40,
+  "weight_kg": 11.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "43 (PDF p.45); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDK45KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDK-KXZE1-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_index": 45,
+  "airflow_ls": 200,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 33,
+  "sound_high_dba": 43,
+  "weight_kg": 11.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "43 (PDF p.45); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDK56KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDK-KXZE1-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_index": 56,
+  "airflow_ls": 200,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "sound_low_dba": 33,
+  "sound_high_dba": 43,
+  "weight_kg": 11.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "44 (PDF p.46); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDK71KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDK-KXZE1-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_index": 71,
+  "airflow_ls": 350,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1197,
+  "depth_mm": 262,
+  "height_mm": 339,
+  "sound_low_dba": 35,
+  "sound_high_dba": 42,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "44 (PDF p.46); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "FDK90KXZE1-W",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "FDK-KXZE1-W",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_index": 90,
+  "airflow_ls": 383,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1197,
+  "depth_mm": 262,
+  "height_mm": 339,
+  "sound_low_dba": 35,
+  "sound_high_dba": 44,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
+   "edition": "'21 KX-T-374",
+   "page": "44 (PDF p.46); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+  }
+ },
+ {
+  "model": "SRK20ZTA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZTA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.0,
+  "capacity_heat_kw": 2.7,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "weight_kg": 10,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
+   "edition": "Elouera Brochure June 2026 AU",
+   "page": "2: spec (printed 'SRK20ZTA-WF / SRK20ZTA-WFB'); 4: indoor dimensions + connections; type: 1 'Wall Split Systems'"
+  }
+ },
+ {
+  "model": "SRK25ZTA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZTA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "airflow_ls": 167,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "weight_kg": 10,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
+   "edition": "Elouera Brochure June 2026 AU",
+   "page": "2: spec (printed 'SRK20ZTA-WF / SRK20ZTA-WFB'); 4: indoor dimensions + connections; type: 1 'Wall Split Systems'"
+  }
+ },
+ {
+  "model": "SRK35ZTA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZTA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.0,
+  "airflow_ls": 167,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "weight_kg": 10.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
+   "edition": "Elouera Brochure June 2026 AU",
+   "page": "2: spec (printed 'SRK20ZTA-WF / SRK20ZTA-WFB'); 4: indoor dimensions + connections; type: 1 'Wall Split Systems'"
+  }
+ },
+ {
+  "model": "SRK42ZTA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZTA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.2,
+  "capacity_heat_kw": 5.4,
+  "airflow_ls": 222,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "weight_kg": 10.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
+   "edition": "Elouera Brochure June 2026 AU",
+   "page": "2: spec (printed 'SRK20ZTA-WF / SRK20ZTA-WFB'); 4: indoor dimensions + connections; type: 1 'Wall Split Systems'"
+  }
+ },
+ {
+  "model": "SRK50ZTA-WF",
+  "brand": "mitsubishi-heavy-industries",
+  "series": "SRK-ZTA-WF",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.8,
+  "airflow_ls": 222,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 870,
+  "depth_mm": 230,
+  "height_mm": 290,
+  "weight_kg": 10.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
+   "edition": "Elouera Brochure June 2026 AU",
+   "page": "2: spec (printed 'SRK20ZTA-WF / SRK20ZTA-WFB'); 4: indoor dimensions + connections; type: 1 'Wall Split Systems'"
+  }
  }
 ]

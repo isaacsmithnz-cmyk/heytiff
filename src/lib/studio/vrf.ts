@@ -21,14 +21,26 @@ export { isBoxHead } from "./multi";
 
 type IndexBand = Extract<CompatibilityRule, { method: "index_ratio_band" }>;
 
+/** the tier that lowers the ratio's top for this many heads, if one applies
+    (OutdoorUnit.ratio_max_pct_by_heads): the lowest of those reached */
+export function ratioTier(odu: OutdoorUnit, heads: number): { min_heads: number; max_pct: number } | null {
+  let tier: { min_heads: number; max_pct: number } | null = null;
+  for (const t of odu.ratio_max_pct_by_heads ?? [])
+    if (heads >= t.min_heads && (tier == null || t.max_pct < tier.max_pct)) tier = t;
+  return tier;
+}
+
 /** the outdoor's connection envelope as a ratio band, or null when the book
-    gives it none */
-export function vrfBand(odu: OutdoorUnit): IndexBand | null {
+    gives it none. With `heads`, the ratio's top is the one for that many
+    heads (a KX Micro FDC140 takes 150%, 110% with 9 heads or more); without,
+    the outdoor's own top — the most it ever takes. */
+export function vrfBand(odu: OutdoorUnit, heads?: number): IndexBand | null {
   if (odu.ratio_min_pct == null || odu.ratio_max_pct == null || odu.max_idus == null) return null;
+  const tier = heads != null ? ratioTier(odu, heads) : null;
   return {
     method: "index_ratio_band",
     ratio_min_pct: odu.ratio_min_pct,
-    ratio_max_pct: odu.ratio_max_pct,
+    ratio_max_pct: tier ? Math.min(tier.max_pct, odu.ratio_max_pct) : odu.ratio_max_pct,
     max_idus: odu.max_idus,
     index_min: odu.idu_index_min,
     index_max: odu.idu_index_max,
@@ -67,7 +79,15 @@ const boxPorts = (pack: DataPack): number =>
     band, over the ratio, and UNDER the ratio are all red — below 50% the
     system is not compatible (Isaac, 2026-09-28: "under 50% should block"). */
 export function checkVrfSet(pack: DataPack, odu: OutdoorUnit, heads: IndoorUnit[]): MultiFinding[] {
-  return envelope(pack, odu, heads).map((f) => (f.code === "ratio-under" ? underCapacity(odu, heads) : f));
+  const tier = ratioTier(odu, heads.length);
+  return envelope(pack, odu, heads).map((f) =>
+    f.code === "ratio-under"
+      ? underCapacity(odu, heads)
+      : /* a top lowered by the head count says why */
+        f.code === "ratio-over" && tier && tier.max_pct < (odu.ratio_max_pct ?? Infinity)
+        ? { ...f, message: `${f.message} with ${tier.min_heads} or more heads (${odu.ratio_max_pct}% with fewer)` }
+        : f
+  );
 }
 
 /** the one wording for a set under the outdoor's minimum */
@@ -89,7 +109,7 @@ function envelope(pack: DataPack, odu: OutdoorUnit, heads: IndoorUnit[]): MultiF
     else if (odu.branch_boxes && isBoxHead(pack, odu, u)) box.push(u);
     else out.push({ severity: "red", code: "not-vrf-head", message: `${u.model} can't join ${odu.model}` });
   }
-  const band = vrfBand(odu);
+  const band = vrfBand(odu, heads.length);
   if (!band) {
     out.push({ severity: "red", code: "no-rule", message: `${odu.model} has no connection limits in the book` });
     return out;
@@ -172,7 +192,8 @@ export function vrfIndexRatio(
 const UNCHECKABLE = new Set(["index-unknown", "no-rule"]);
 
 /** the most load a VRF outdoor can take on: its rating on the design's basis
-    times its top connection ratio — past it, no set of heads it takes can
+    times its top connection ratio (the outdoor's own top: a head-count tier
+    only lowers it for big sets, and fewer, bigger heads reach the top) — past it, no set of heads it takes can
     cover the zones (Isaac, 2026-09-29: 26.1 kW on a PUMY-SP140, whose 130%
     is 20.15 kW). Null when the book gives no band. */
 export function vrfLoadCeilingKw(odu: OutdoorUnit, basis: SizingBasis): number | null {

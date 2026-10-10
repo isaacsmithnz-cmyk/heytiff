@@ -18,7 +18,7 @@ Data books agree on *what* must be answered (how much extra refrigerant? which I
 
 **`additional_charge` rule block** (used in §4 pair tables, §5 multi rules, §6 VRF tables):
 - `{ method: "per_meter_by_liquid_size", rates: {6.35: 20, 9.52: 50, ...}, precharged_allowance_m }` — the common Mitsubishi shape
-- `{ method: "formula_coefficients", terms: [{liquid_mm, coeff_g_per_m}...], deduction_g, min_charge }` — Daikin-style computed charge
+- `{ method: "formula_coefficients", terms: [{liquid_mm, coeff_g_per_m}...], deduction_g?, min_charge_g?, plus_per_index_over_odu_g?, round_g? }` — a computed charge: metres per liquid size × coefficient, less `deduction_g`, never under `min_charge_g`. On a pair the run's one size; **on a VRF network every size's metres added up** (the VRF tree evaluates it, like the City Multi method). `plus_per_index_over_odu_g` is a network's heads term, added after the floor: grams per point by which the connected heads' capacity indexes added up exceed the outdoor's own index, nothing when they don't (a pair has no connected index, so a rule carrying it gives no one-run figure). `round_g` rounds the total to the **nearest** step. MHI KX Micro (KX-T-374 p.21: "Additional fill quantity = P + I", P = standard 3.2 kg + L(φ9.52) × 0.050 + L(φ6.35) × 0.020 − factory 4.2 kg, nothing when negative; I = D × 0.005 with D = total indoor capacity − outdoor capacity, 0 when D ≤ 0; "rounding to the nearest 0.1kg") → `{ terms: [{ liquid_mm: 9.52, coeff_g_per_m: 50 }, { liquid_mm: 6.35, coeff_g_per_m: 20 }], deduction_g: 1000, min_charge_g: 0, plus_per_index_over_odu_g: 5, round_g: 100 }` — the book's example, FDC140 with FDT45 × 4: D = 40, I = 0.2 kg
 - `{ method: "threshold_then_rate", free_up_to_m, g_per_m_beyond }` — common on 1:1 pairs
 - `{ method: "fixed_per_idu", table: {...} }` — some multi ranges
 - `{ method: "per_meter_by_liquid_size_by_farthest", bands: [{ farthest_m_max, rates }], plus_by_connected_index, plus_by_odu, plus_per_idu, round_up_g }` — a Mitsubishi VRF network (PUHY, MEES21K029 p.143): the g/m rates depend on the outdoor → farthest indoor length (≤ 30.5 m or longer), then a fixed amount by total connected index, per outdoor and per named indoor unit, rounded up to 100 g. Needs the whole network's lengths per liquid size, so it is evaluated by `evaluateVrfCharge`, not the one-run evaluator
@@ -98,7 +98,8 @@ The largest section. One row per model.
 | `conn_liquid_mm`, `conn_gas_mm` | **R** | |
 | `refrigerant`, `precharged_kg`, `max_charge_kg` | R for charge calc | |
 | Multi only: `ports`, `min_connected` / `max_connected` (kW or index per brand), `branch_box_required` | **R** for multi role | |
-| VRF only: `ratio_min_pct`, `ratio_max_pct`, `max_idus` | **R** for VRF role | e.g. 50–130% |
+| VRF only: `ratio_min_pct`, `ratio_max_pct`, `max_idus` | **R** for VRF role | e.g. 50–130%; the bottom is the outdoor's own (KX Micro 80%, FDC90 100%), and under it is red |
+| VRF only: `ratio_max_pct_by_heads: [{ min_heads, max_pct }]` | O | a lower top once the system has `min_heads` heads or more (the lowest tier reached wins). MHI KX Micro (R32 VRF brochure Mar 2026, folio 25: "When connecting 9 units or more … 5HP : 110% or less, 6HP : 100% or less") → FDC140 `[{ min_heads: 9, max_pct: 110 }]`, FDCA155 `[{ min_heads: 9, max_pct: 100 }]`. Over it is red, saying the head count. The load ceiling (the most an outdoor can ever carry) stays `ratio_max_pct`: fewer, bigger heads still reach it. Absent = no effect |
 | `pipe_table_ref` | **R** for multi/VRF | → §6 — *this is the cross-reference the sizing engine follows* |
 | `width_mm`, `depth_mm`, `height_mm`, `weight_kg` | **R**/O | Footprint R |
 | `provenance` | **R** | |

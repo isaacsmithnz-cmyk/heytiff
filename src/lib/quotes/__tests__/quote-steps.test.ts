@@ -105,7 +105,7 @@ describe("a quote built on its kept lines", () => {
   });
   it("says what's unknown and what's left to price, then that every line is priced", () => {
     const due = linesSteps({ lines: 40, unknown: 2, price: { kind: "priced", left: 2 } });
-    expect(due[1]).toMatchObject({ state: "due", words: "2 unknown" });
+    expect(due[1]).toMatchObject({ state: "due", words: "2 to confirm" });
     expect(due[2]).toMatchObject({ state: "due", words: "2 to price" });
     const done = linesSteps({ lines: 40, unknown: 0, price: { kind: "priced", left: 0 } });
     expect(done[1]).toMatchObject({ state: "done", words: "None" });

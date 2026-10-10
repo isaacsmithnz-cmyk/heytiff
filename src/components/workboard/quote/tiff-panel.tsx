@@ -8,7 +8,7 @@ import { fmtAud } from "@/lib/workboard/project-money";
 
 /* TIFF'S PANEL ON THE QUOTE (slice 5.1, mock-up screens 1 and 3): a rounded
    grey card on the white page. Its header is her still mark, her name, what
-   the quote has cost and whether she's working. Its body is the Unknowns
+   the quote has cost and whether she's working. Its body is what's To confirm
    she asked, each answer priced, then the conversation, then whatever the
    page puts in it (To check, the changes). The message box is at the
    bottom. Before the first message, her moving mark and a hello.
@@ -51,7 +51,7 @@ export function TiffPanel({
 }: {
   job: string;
   onChanged: () => void;
-  /** how many of her questions are open, for the progress line's Unknowns */
+  /** how many of her questions are open, for the progress line's To confirm */
   onOpen?: (n: number) => void;
   /** the parts she said she'd build, while she builds them; null when she isn't (5.2) */
   onPlan?: (plan: { option: number; parts: PlannedPart[] } | null) => void;
@@ -253,8 +253,8 @@ export function TiffPanel({
           </section>
         )}
         {open.length > 0 && (
-          <section aria-label="Unknowns">
-            <h2 className="hd-ls-grp">Unknowns</h2>
+          <section aria-label="To confirm">
+            <h2 className="hd-ls-grp">To confirm</h2>
             {open.map((q) => {
               const answers = (Array.isArray(q.body.answers) ? q.body.answers : []) as Answer[];
               const deltas = questions[q.id]?.deltas ?? [];

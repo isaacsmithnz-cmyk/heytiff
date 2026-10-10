@@ -68,8 +68,10 @@ const face = (onPriced = jest.fn()) => render(<QuoteLinesFace job="job-3377" pri
 it("shows the total in its card, each system with its total, and every line's qty, cost and sell", async () => {
   face();
   expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
-  expect(document.querySelector(".ql-tot b")).toHaveTextContent("$1,334.38");
-  expect(screen.getByText("Profit $266.88, 20%")).toBeInTheDocument();
+  /* the head: one ledger, the total in its tinted cell, the profit's state in words */
+  expect(document.querySelector(".ql-lc.tot b")).toHaveTextContent("$1,334.38");
+  expect(screen.getByText("$266.88")).toBeInTheDocument();
+  expect(screen.getByText("20%, 1 to confirm")).toHaveClass("warn");
   expect(screen.getByRole("heading", { name: "Downstairs" })).toBeInTheDocument();
   expect(screen.getByLabelText("Quantity of Ducted indoor, under the floor")).toHaveValue("1");
   expect(screen.getByLabelText("What one Ducted indoor, under the floor costs you")).toHaveValue("1067.50");
@@ -78,7 +80,7 @@ it("shows the total in its card, each system with its total, and every line's qt
   expect(screen.getByRole("heading", { name: "Core holes" })).toBeInTheDocument();
   expect(screen.getAllByText("—")).toHaveLength(1);
   /* the progress line from the lines: the core hole, and labour nobody's set */
-  expect(screen.getByText("1 unknown")).toBeInTheDocument();
+  expect(screen.getByText("1 to confirm")).toBeInTheDocument();
   expect(screen.getByText("2 to price")).toBeInTheDocument();
 });
 
@@ -503,5 +505,23 @@ describe("a labour line's tasks under it (slice 8.2)", () => {
       fireEvent.click(screen.getByRole("button", { name: "Take Travel and setup off" }));
     });
     expect(posted).toContainEqual(expect.objectContaining({ op: "change", id: "l9", patch: { visit: { ...visit, tasks: [visit.tasks[1]] } } }));
+
+describe("the head (Isaac, 10 Oct: one ledger, as Analytics draws its top line)", () => {
+  const only = (lines: QuoteLine[], extra: Record<string, unknown> = {}) => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view(lines), ...extra }) }));
+  };
+
+  it("says the profit stands once nothing is left to confirm", async () => {
+    only([indoor]);
+    face();
+    expect(await screen.findByText("20%, at your 20%")).toHaveClass("ok");
+    expect(screen.getByText("Units").closest(".ql-lc")).toHaveTextContent("$1,334.38");
+  });
+
+  it("names each option on its button", async () => {
+    only([indoor, { ...indoor, id: "l3", optionIndex: 1 }], { optionNames: ["Mitsubishi Electric ducted", ""] });
+    face();
+    expect(await screen.findByRole("tab", { name: /1\. Mitsubishi Electric ducted/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Option 2/ })).toBeInTheDocument();
   });
 });

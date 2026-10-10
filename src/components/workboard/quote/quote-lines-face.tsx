@@ -142,8 +142,25 @@ function Field({ value, label, onCommit, disabled }: { value: string; label: str
   );
 }
 
-/** A box of words that commits on Enter or leaving it. */
-function TextBox({ value, label, onCommit, disabled, className }: { value: string; label: string; onCommit: (typed: string) => void; disabled: boolean; className: string }) {
+/** A box of words that commits on Enter or leaving it. `shown`: the label on
+    the page, when it's shorter than the one read aloud. */
+function TextBox({
+  value,
+  label,
+  shown,
+  placeholder,
+  onCommit,
+  disabled,
+  className,
+}: {
+  value: string;
+  label: string;
+  shown?: string;
+  placeholder?: string;
+  onCommit: (typed: string) => void;
+  disabled: boolean;
+  className: string;
+}) {
   const [typed, setTyped] = useState<string | null>(null);
   const done = () => {
     if (typed !== null && typed.trim() !== value) onCommit(typed.trim());
@@ -151,11 +168,12 @@ function TextBox({ value, label, onCommit, disabled, className }: { value: strin
   };
   return (
     <label className={className}>
-      <span>{label}</span>
+      <span>{shown ?? label}</span>
       <input
         className="wb2-fi"
         value={typed ?? value}
         aria-label={label}
+        placeholder={placeholder}
         disabled={disabled}
         onChange={(e) => setTyped(e.target.value)}
         onBlur={done}
@@ -311,27 +329,66 @@ export function QuoteLinesFace({
           : { optionIndex: at, system, group: "Materials", name: search.trim() || "A line by hand", kind: "material", qty: 1, costCents: 0, source: "by_hand" },
     });
 
-  /* ── the total, in its own card ── */
-  let total: ReactNode = null;
-  if (price && !price.ok) {
-    total = (
-      <div className="ql-tot unset">
-        <span>Price</span>
-        <b>Not set</b>
-        <small>{unsetWords(price.unset)}</small>
+  /* ── the head: every figure on one ledger (Isaac, 2026-10-10: "remove the
+     dark money header… the analytics pages does it well", then variant A):
+     the parts, the total, the profit, each label over value over note; the
+     parts' split under them in the chart colours; the profit's state in
+     words while anything is left to confirm ── */
+  const units = o ? o.build.groups.filter((g) => g.lines.some((l) => l.kind === "unit")).reduce((n, g) => n + g.sellCents, 0) : 0;
+  const materials = o ? o.build.exGstCents - units - o.build.labour.sellCents : 0;
+  const hours = lines.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0);
+  const priced = price && price.ok && o ? o : null;
+  const left = priced ? leftOn(priced).length > 0 : false;
+  const toConfirm = lines.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).length + asked;
+  const labourCents = priced ? priced.build.labour.sellCents : 0;
+  const whole = units + Math.max(0, materials) + labourCents;
+  const share = (c: number) => (whole > 0 ? Math.round((c / whole) * 100) : 0);
+  const parts = [
+    { key: "units", label: "Units", colour: "var(--chart-1)", cents: units, note: `${share(units)}%` },
+    { key: "materials", label: "Materials", colour: "var(--chart-3)", cents: Math.max(0, materials), note: `${share(Math.max(0, materials))}%` },
+    { key: "labour", label: "Labour", colour: "var(--chart-2)", cents: labourCents, note: `${hours} h, ${share(labourCents)}%` },
+  ];
+  const profit = priced?.profit ?? null;
+  const profitNote = !profit
+    ? null
+    : toConfirm > 0
+      ? { words: `${profit.pct}%, ${toConfirm} to confirm`, tone: "warn" }
+      : profit.short
+        ? { words: `${profit.pct}%, under your ${profit.targetPct}%`, tone: "warn" }
+        : profit.targetPct != null
+          ? { words: `${profit.pct}%, ${profit.pct > profit.targetPct ? "over" : "at"} your ${profit.targetPct}%`, tone: "ok" }
+          : { words: `${profit.pct}%`, tone: "" };
+  const ledger = (
+    <div className="ql-led" aria-label="The price">
+      {parts.map((p) => (
+        <div key={p.key} className="ql-lc">
+          <span className="ql-ll">
+            <i className="ql-key" style={{ background: p.colour }} aria-hidden="true" />
+            {p.label}
+          </span>
+          <b>{priced ? fmtAud(p.cents) : "–"}</b>
+          <em>{priced ? p.note : ""}</em>
+        </div>
+      ))}
+      <div className="ql-lc tot">
+        <span className="ql-ll">{price && !price.ok ? "Price" : `Total ex GST${left ? ", so far" : ""}`}</span>
+        <b>{price && !price.ok ? "Not set" : priced ? fmtAud(priced.build.exGstCents) : "–"}</b>
+        <em>{price && !price.ok ? unsetWords(price.unset) : priced ? `${fmtAud(priced.build.incGstCents)} inc GST` : ""}</em>
       </div>
-    );
-  } else if (o) {
-    const left = leftOn(o).length > 0;
-    total = (
-      <div className="ql-tot">
-        <span>{`Total ex GST${left ? ", so far" : ""}`}</span>
-        <b>{fmtAud(o.build.exGstCents)}</b>
-        <small>{`${fmtAud(o.build.incGstCents)} inc GST`}</small>
-        {o.profit && <em>{`Profit ${fmtAud(o.profit.profitCents)}, ${o.profit.pct}%`}</em>}
+      <div className="ql-lc">
+        <span className="ql-ll">Profit</span>
+        <b>{profit ? fmtAud(profit.profitCents) : "–"}</b>
+        <em className={profitNote?.tone || undefined}>{profitNote?.words ?? ""}</em>
       </div>
-    );
-  }
+      {priced && whole > 0 && (
+        <div className="ql-split" aria-hidden="true">
+          {parts.map((p) => (
+            <span key={p.key} style={{ flexGrow: p.cents, background: p.colour }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
   /* ── watching her build it, under the total (5.2, mock-up screen 2) ── */
   let building: ReactNode = null;
   if (plan && plan.parts.length > 0) {
@@ -371,9 +428,6 @@ export function QuoteLinesFace({
   /* who approved the proposal, in words */
   const approvedBy = view?.proposal?.approvedBy ?? "";
   const approver = !approvedBy ? "someone" : approvedBy === view?.me ? "you" : (view?.names[approvedBy] ?? "someone");
-  const units = o ? o.build.groups.filter((g) => g.lines.some((l) => l.kind === "unit")).reduce((n, g) => n + g.sellCents, 0) : 0;
-  const materials = o ? o.build.exGstCents - units - o.build.labour.sellCents : 0;
-  const hours = lines.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0);
   /* the job's supplier: a line it doesn't sell says where it comes from */
   const buyFrom = view?.supplier ?? null;
   const supplierName = (key: string) => view?.suppliers?.find((s) => s.key === key)?.name ?? key;
@@ -418,60 +472,45 @@ export function QuoteLinesFace({
 
   const flow = (
     <>
-      <div className="ql-sum">
-        <div className="ql-sum-l">
-          {options > 1 ? (
-            <div className="ql-opts" role="tablist" aria-label="Options">
-              {Array.from({ length: options }, (_, i) => (
-                <button key={i} type="button" role="tab" aria-selected={i === at} className={i === at ? "ql-opt on" : "ql-opt"} onClick={() => setAt(i)}>
-                  <span>{`Option ${i + 1}`}</span>
-                  <b>{price && price.ok && price.options[i] ? fmtAud(price.options[i]!.build.exGstCents) : "–"}</b>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <dl className="ql-stats">
-              <div>
-                <dt>Units</dt>
-                <dd>{fmtAud(units)}</dd>
-              </div>
-              <div>
-                <dt>Materials</dt>
-                <dd>{fmtAud(Math.max(0, materials))}</dd>
-              </div>
-              <div>
-                <dt>{`Labour, ${hours} h`}</dt>
-                <dd>{o ? fmtAud(o.build.labour.sellCents) : "–"}</dd>
-              </div>
-            </dl>
-          )}
-          <div className="ql-sumrow">
-            {all.length > 0 && (
-              <TextBox
-                key={`${at}|${view?.optionNames?.[at] ?? ""}`}
-                label={`Option ${at + 1}, as the proposal names it`}
-                value={view?.optionNames?.[at] ?? ""}
-                disabled={busy}
-                className="ql-oname"
-                onCommit={(name) => void act({ op: "name", option: at, name })}
-              />
-            )}
-            {(view?.suppliers ?? []).length > 0 && (
-              /* the whole job from one supplier where it sells the item
-                 (Isaac, 2026-10-08) */
-              <label className="ql-sup">
-                <span>Buy from, for this job</span>
-                <select className="wb2-fi" value={view?.supplier ?? ""} disabled={busy} onChange={(e) => void act({ op: "supplier", key: e.target.value })}>
-                  <option value="">Any supplier</option>
-                  {(view?.suppliers ?? []).map((s) => (
-                    <option key={s.key} value={s.key}>{`${s.name}, else the lowest`}</option>
-                  ))}
-                </select>
-              </label>
-            )}
+      <div className={options > 1 ? "ql-sum many" : "ql-sum"}>
+        {options > 1 && (
+          <div className="ql-opts" role="tablist" aria-label="Options">
+            {Array.from({ length: options }, (_, i) => (
+              <button key={i} type="button" role="tab" aria-selected={i === at} className={i === at ? "ql-opt on" : "ql-opt"} onClick={() => setAt(i)}>
+                <span>{view?.optionNames?.[i] ? `${i + 1}. ${view.optionNames[i]}` : `Option ${i + 1}`}</span>
+                <b>{price && price.ok && price.options[i] ? fmtAud(price.options[i]!.build.exGstCents) : "–"}</b>
+              </button>
+            ))}
           </div>
+        )}
+        <div className="ql-sumrow">
+          {all.length > 0 && (
+            <TextBox
+              key={`${at}|${view?.optionNames?.[at] ?? ""}`}
+              label={`Option ${at + 1}, as the proposal names it`}
+              shown={`Option ${at + 1}`}
+              placeholder="Name it for the proposal"
+              value={view?.optionNames?.[at] ?? ""}
+              disabled={busy}
+              className="ql-oname"
+              onCommit={(name) => void act({ op: "name", option: at, name })}
+            />
+          )}
+          {(view?.suppliers ?? []).length > 0 && (
+            /* the whole job from one supplier where it sells the item
+               (Isaac, 2026-10-08) */
+            <label className="ql-sup">
+              <span>Buy from, for this job</span>
+              <select className="wb2-fi" value={view?.supplier ?? ""} disabled={busy} onChange={(e) => void act({ op: "supplier", key: e.target.value })}>
+                <option value="">Any supplier</option>
+                {(view?.suppliers ?? []).map((s) => (
+                  <option key={s.key} value={s.key}>{`${s.name}, else the lowest`}</option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
-        {total}
+        {ledger}
       </div>
       {o?.profit?.short && leftOn(o).length === 0 && (
         <p className="qp-short" role="status">
@@ -494,7 +533,7 @@ export function QuoteLinesFace({
         />
       )}
 
-      <table className="ql-lt ql-colh">
+      <table className={options > 1 ? "ql-lt ql-colh many" : "ql-lt ql-colh"}>
         <Cols />
         <thead>
           <tr>

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { TiffPanel } from "../tiff-panel";
 
 /* Tiff's panel on the quote (slice 5.1): off until her model is chosen;
-   then her thread, her Unknowns with each answer priced, and the box to
+   then her thread, what's To confirm with each answer priced, and the box to
    message her. */
 
 const thread = {
@@ -49,7 +49,7 @@ it("shows her thread, who said what, what she did and what it cost", async () =>
     </TiffPanel>
   );
   expect(await screen.findByText("A 12.5 kW ducted, priced from your book.")).toBeInTheDocument();
-  /* her open question counts on the progress line's Unknowns */
+  /* her open question counts on the progress line's To confirm */
   expect(onOpen).toHaveBeenLastCalledWith(1);
   expect(screen.getByText("Ducted for the whole house")).toBeInTheDocument();
   expect(screen.getByText("Luke Bennett")).toBeInTheDocument();

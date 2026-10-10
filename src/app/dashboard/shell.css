@@ -6707,36 +6707,43 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* under the profit target: the warning in the bad colour, words not a badge */
 .fg .qp-short { margin:8px 0 0; font-size:13px; font-weight:600; line-height:1.45; color:var(--bad-t); }
 /* THE QUOTE BY HAND ON ITS KEPT LINES (quote-lines-face.tsx; the mock-ups
-   Isaac shaped on 2026-10-07): the total in its own ink card, pinned with
-   the column heads while the lines scroll; a card per system, a band per
+   Isaac shaped on 2026-10-07): the head pinned with the column heads while
+   the lines scroll, every figure on one ledger as Analytics draws its top
+   line (Isaac, 2026-10-10, variant A); a card per system, a band per
    group with its subtotal, a row per item; qty, cost and sell typed in
    place; every change on the right with who made it. */
 .fg .ql-face > * { flex:none; }
-.fg .ql-sum { position:sticky; top:0; z-index:10; display:flex; align-items:center; justify-content:space-between; gap:24px;
-  margin:0 -24px; padding:12px 24px; height:144px; box-sizing:border-box; background:var(--paper); border-bottom:1px solid var(--hd-rule); }
-.fg .ql-stats { display:flex; gap:32px; margin:0; }
-.fg .ql-stats div { display:flex; flex-direction:column; gap:2px; }
-.fg .ql-stats dt { font-size:12px; font-weight:500; color:var(--q); }
-.fg .ql-stats dd { margin:0; font-size:16px; font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
-.fg .ql-opts { display:flex; gap:8px; flex-wrap:wrap; }
-.fg .ql-opt { display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:4px 12px; border:1px solid var(--hd-edge);
+.fg .ql-sum { position:sticky; top:0; z-index:10; display:flex; flex-direction:column; justify-content:flex-end; gap:12px;
+  margin:0 -24px; padding:12px 24px; height:176px; box-sizing:border-box; background:var(--paper); border-bottom:1px solid var(--hd-rule); }
+.fg .ql-sum.many { height:240px; }
+/* the ledger: the parts, the total (a tint), the profit; the parts' split
+   under them; colour on the keys and the split, state in words */
+.fg .ql-led { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)) minmax(0, 1.3fr) minmax(0, 1.3fr); border-top:1px solid var(--line); }
+.fg .ql-lc { display:flex; flex-direction:column; gap:4px; min-width:0; padding:12px; border-left:1px solid var(--line); }
+.fg .ql-lc:first-child { padding-left:0; border-left:0; }
+.fg .ql-lc.tot { background:var(--tint); }
+.fg .ql-ll { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; }
+.fg .ql-key { flex:none; width:8px; height:8px; }
+.fg .ql-lc b { font-size:20px; font-weight:600; line-height:1.3; color:var(--hd-ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fg .ql-lc.tot b { font-size:24px; font-weight:700; }
+.fg .ql-lc em { min-height:18px; font-style:normal; font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .ql-lc em.ok { font-weight:600; color:var(--ok-t); }
+.fg .ql-lc em.warn { font-weight:600; color:var(--warn-t); }
+.fg .ql-split { grid-column:1 / 4; grid-row:2; display:flex; height:4px; }
+.fg .ql-split > span { flex-basis:0; }
+.fg .ql-opts { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; }
+.fg .ql-opt { flex:none; display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:4px 12px; border:1px solid var(--hd-edge);
   border-radius:var(--r-button); background:var(--paper); font:inherit; color:var(--hd-ink); cursor:pointer; }
 .fg .ql-opt span { font-size:12px; font-weight:500; color:var(--q); }
 .fg .ql-opt b { font-size:14px; font-weight:600; font-variant-numeric:tabular-nums; }
 .fg .ql-opt.on { border-color:var(--ink); box-shadow:var(--ring); }
-.fg .ql-tot { display:grid; justify-items:end; gap:2px; min-width:240px; padding:12px 24px; border-radius:var(--r-card); background:var(--hd-ink); color:var(--paper); }
-.fg .ql-tot span { font-size:12px; font-weight:500; color:var(--hd-dot); }
-.fg .ql-tot b { font-size:32px; font-weight:700; line-height:1.15; font-variant-numeric:tabular-nums; }
-.fg .ql-tot small { font-size:13px; color:var(--hd-dot); font-variant-numeric:tabular-nums; }
-.fg .ql-tot em { margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--mark-teal); font-variant-numeric:tabular-nums; }
-.fg .ql-tot.unset b { font-size:20px; }
-.fg .ql-tot.unset small { max-width:220px; text-align:right; }
 .fg .ql-lt { width:100%; table-layout:fixed; border-collapse:collapse; }
 .fg .ql-lt col.cq { width:80px; }
 .fg .ql-lt col.cc, .fg .ql-lt col.ce { width:100px; }
 .fg .ql-lt col.ct { width:108px; }
 .fg .ql-lt col.cx { width:36px; }
-.fg .ql-colh { position:sticky; top:144px; z-index:10; background:var(--paper); }
+.fg .ql-colh { position:sticky; top:176px; z-index:10; background:var(--paper); }
+.fg .ql-colh.many { top:240px; }
 .fg .ql-colh th { padding:12px 12px 8px 0; font-size:12px; font-weight:600; color:var(--q); text-align:left; border-bottom:1px solid var(--hd-rule); }
 .fg .ql-colh th:first-child { padding-left:16px; }
 .fg .ql-lt .n { text-align:right; }
@@ -6835,14 +6842,14 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt-box:focus-within { border-color:var(--ink); }
 .fg .qt-in { flex:1; min-width:0; min-height:32px; max-height:160px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:none; }
 .fg .qt-in:focus { outline:none; }
-/* an option's name, under the option buttons (mock-up, 8 Oct) */
-.fg .ql-sumrow { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; margin-top:12px; }
-.fg .ql-oname { display:flex; flex-direction:column; gap:4px; width:300px; max-width:100%; font-size:12px; font-weight:600; color:var(--q); }
+/* an option's name and the job's supplier, on one row over the ledger */
+.fg .ql-sumrow { display:flex; gap:24px; align-items:center; }
+.fg .ql-oname { display:flex; align-items:center; gap:12px; flex:0 1 400px; min-width:0; font-size:13px; font-weight:600; color:var(--hd-ink); white-space:nowrap; }
 /* the supplier the whole job buys from (8 Oct) */
-.fg .ql-sup { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--q); }
+.fg .ql-sup { display:flex; align-items:center; gap:12px; margin-left:auto; font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; }
 .fg .ql-sup select { height:36px; min-width:180px; font-size:14px; font-weight:600; color:var(--hd-ink); }
 .fg .ql-not { margin-left:8px; font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
-.fg .ql-oname input { height:36px; font-size:14px; font-weight:600; color:var(--hd-ink); }
+.fg .ql-oname input { flex:1; min-width:0; height:36px; font-size:14px; font-weight:600; color:var(--hd-ink); }
 /* a hard job's loading: the Labour group's last line, hidden from the customer */
 .fg tr.ql-load td { background:var(--tint); }
 .fg tr.ql-load .ql-n { align-items:baseline; }

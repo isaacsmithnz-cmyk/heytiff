@@ -133,8 +133,9 @@ export function linesSteps(input: { lines: number; unknown: number; price: Price
             : step("buildup", "next", "Pricing");
   return [
     step("brief", lines > 0 ? "done" : "next", "By hand"),
-    /* his word for them on the new quote page (7 Oct): Unknowns */
-    { ...step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} unknown` : lines > 0 ? "None" : ""), label: "Unknowns" },
+    /* Unknowns on the page of 7 Oct; To confirm since 10 Oct (Isaac: "an
+       unknown could just be something that we haven't told Tiff yet") */
+    { ...step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} to confirm` : lines > 0 ? "None" : ""), label: "To confirm" },
     built,
     input.approved ? step("approved", "done", "Approved") : step("approved", "todo", ""),
     step("sent", "todo", ""),

@@ -83,13 +83,15 @@
     }
    ],
    "deduction_g": 1000,
-   "min_charge_g": 0
+   "min_charge_g": 0,
+   "plus_per_index_over_odu_g": 5,
+   "round_g": 100
   },
   "provenance": {
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
    "edition": "'21 KX-T-374",
-   "page": "5 (PDF p.7): branch pipe sets and header sets; 16-17 (PDF p.18-19): limits, pipe size between branches ('less than 70' / '70 or more'), indoor connection sizes; 19 (PDF p.21): additional charge P = 3.2 kg + 0.050 kg/m x L(9.52) + 0.020 kg/m x L(6.35) - 4.2 kg (the I term for connected capacity over the outdoor's is not stored); 215 (PDF p.217)"
+   "page": "5 (PDF p.7): branch pipe sets and header sets; 16-17 (PDF p.18-19): limits, pipe size between branches ('less than 70' / '70 or more'), indoor connection sizes; 19 (PDF p.21): additional charge P = 3.2 kg + 0.050 kg/m x L(9.52) + 0.020 kg/m x L(6.35) - 4.2 kg + I = 0.005 kg x (total indoor capacity - outdoor capacity) when positive, rounded to the nearest 0.1 kg; 215 (PDF p.217)"
   }
  }
 ]

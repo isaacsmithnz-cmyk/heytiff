@@ -2654,7 +2654,8 @@
    "ceiling-cavity"
   ],
   "system_roles": [
-   "vrf"
+   "vrf",
+   "split-pair"
   ],
   "refrigerant": "R32",
   "width_mm": 1368,
@@ -2665,9 +2666,9 @@
   "weight_kg": 54,
   "provenance": {
    "kind": "extracted",
-   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro)",
-   "edition": "'21 KX-T-374",
-   "page": "38 (PDF p.40); drawing 51 (PDF p.53); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17)"
+   "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA Ducted Systems Brochure (AU)",
+   "edition": "'21 KX-T-374; Ducted System September 2026 AU",
+   "page": "38 (PDF p.40); drawing 51 (PDF p.53); type: 4 (PDF p.6); index = model capacity: 3, 15 (PDF p.5, 17); 16 (PDF p.9): KX 1:1"
   }
  },
  {

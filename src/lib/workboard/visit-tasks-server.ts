@@ -201,7 +201,6 @@ export type QuotePlan = {
   /** the same visits with the tasks the quote worked them out from (8.2);
       null when the quote has none to hand over */
   quoteVisits: QuoteVisit[] | null;
-  dayHours: number | null;
 };
 
 /** The accepted options and their labour, option by option as the price is
@@ -241,7 +240,6 @@ export async function quotePlan(orgId: string, cardId: string): Promise<QuotePla
     hours: total && total > 0 ? total : null,
     facts: quote.draft.checklist.filter((i) => i.state === "known" && i.answer.trim()).map((i) => `${CHECKLIST[i.key].label}: ${i.answer.trim()}`),
     quoteVisits: quoteVisits.some((v) => v.tasks.length > 0) ? quoteVisits : null,
-    dayHours,
   };
 }
 
@@ -253,7 +251,8 @@ export function quotedHours(plan: QuotePlan | null): { hours: number; people: nu
 }
 
 /** The accepted quote's tasks onto a job with none yet: the tasks its
-    labour was worked out from, placed on its visits (tasksFromQuote), or,
+    labour was worked out from, for the person to put on the days
+    (tasksFromQuote), or,
     for a quote with none, the list Tiff writes from it — a paid call, never
     made when `quoteOnly` (an option being accepted). */
 export async function makeTasksFromQuote(
@@ -266,7 +265,7 @@ export async function makeTasksFromQuote(
   const plan = await quotePlan(orgId, cardId);
   if (!plan) return { ok: false, reason: "No option is marked accepted on the quote yet." };
   const units = unitsOf(plan.options);
-  let tasks = plan.quoteVisits ? tasksFromQuote(plan.quoteVisits, plan.dayHours, units) : [];
+  let tasks = plan.quoteVisits ? tasksFromQuote(plan.quoteVisits, units) : [];
   if (tasks.length === 0) {
     if (opts.quoteOnly) return { ok: false, reason: "The quote has no tasks of its own." };
     if (!opts.client && !process.env.ANTHROPIC_API_KEY) return { ok: false, reason: "Tiff is offline: no API key is configured." };

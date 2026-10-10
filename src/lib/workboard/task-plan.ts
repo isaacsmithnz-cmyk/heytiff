@@ -48,35 +48,24 @@ export type QuoteVisit = Visit & { tasks: readonly { task: string; hours: number
 
 /** THE QUOTE'S OWN TASKS, STRAIGHT ONTO THE JOB (slice 8.2; Isaac,
     2026-10-09: "those tasks then get put straight on to the job"). Each
-    labour line's tasks in their order, a day's work to a visit: a crew's day
-    is its people times the working day, and a task goes on the day most
-    of it falls on. Each keeps its hours. The units still get their own tasks, for
-    their photos and plates, on the first install visit. No call to Tiff. */
-export function tasksFromQuote(labour: readonly QuoteVisit[], dayHours: number | null, units: readonly OptionUnit[]): NewTask[] {
+    labour line's tasks, in the order the work happens, each keeping its
+    hours. They go on no visit: the person puts them on the days (Isaac,
+    2026-10-10: "rather than just placing them on random days, because
+    obviously the order can change depending on the job"). The units still
+    get their own tasks, for their photos and plates. No call to Tiff. */
+export function tasksFromQuote(labour: readonly QuoteVisit[], units: readonly OptionUnit[]): NewTask[] {
   const out: NewTask[] = [];
-  let before = 0;
-  let installVisit: number | null = null;
   for (const v of inWorkOrder(labour)) {
-    const days = daysOf(v);
-    const crewDay = dayHours && dayHours > 0 ? v.people * dayHours : null;
-    if (v.stage === "Install" && installVisit == null && before < MAX_VISITS) installVisit = before + 1;
-    let done = 0;
     for (const t of v.tasks) {
       const name = clean(t.task);
       if (!name || out.length >= MAX_TASKS) continue;
-      /* the day most of it falls on */
-      const day = crewDay ? Math.min(days - 1, Math.floor((done + t.hours / 2) / crewDay)) : 0;
-      const n = before + day + 1;
-      out.push({ name, stage: v.stage, kind: "tick", unit: null, visit: n <= MAX_VISITS ? n : null, sort: out.length, hours: t.hours > 0 ? t.hours : null });
-      done += t.hours;
+      out.push({ name, stage: v.stage, kind: "tick", unit: null, visit: null, sort: out.length, hours: t.hours > 0 ? t.hours : null });
     }
-    before += days;
   }
   if (out.length === 0) return out;
-  const first = installVisit ?? (before > 0 ? 1 : null);
   for (const u of units) {
     if (out.length >= MAX_TASKS) break;
-    out.push({ name: unitTaskName(u), stage: "Install", kind: "unit", unit: taskUnitOf(u), visit: first, sort: out.length, hours: null });
+    out.push({ name: unitTaskName(u), stage: "Install", kind: "unit", unit: taskUnitOf(u), visit: null, sort: out.length, hours: null });
   }
   return out;
 }

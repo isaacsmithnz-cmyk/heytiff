@@ -129,7 +129,7 @@ describe("making the tasks from the quote", () => {
     expect(insert[1]!.unit).toMatchObject({ room: "Hallway", model: "PEA-M100" });
   });
 
-  it("puts the quote's own tasks straight on, each on its day with its hours, with no call (8.2)", async () => {
+  it("puts the quote's own tasks straight on, each with its hours, with no call (8.2)", async () => {
     const { client, create } = clientSaying({ tasks: [] });
     const t = (task: string, hours: number) => ({ task, hours, was: null, byHand: false });
     const visit = { stage: "Install and commissioning", people: 2, dayHours: 8, tasks: [t("Set the outdoor", 3), t("Hang the indoor", 5), t("Circuits", 6), t("Commission", 4)] };
@@ -140,14 +140,15 @@ describe("making the tasks from the quote", () => {
     linesQuote.mockReturnValue({ draft: linesDraft(lines, [], { accepted: [0], names: [], loading: {}, compare: {}, supplier: null, proposal: null, researched: {} }, new Map(), 8)!, lines });
     expect(await makeTasksFromQuote("org-1", "user-1", "job-1", { client, quoteOnly: true })).toEqual({ ok: true, made: 5 });
     expect(create).not.toHaveBeenCalled();
-    const insert = calls.find((c) => c.table === "job_tasks" && c.op === "insert")!.row as { name: string; stage: string; visit: number; hours: number | null; source: string }[];
+    const insert = calls.find((c) => c.table === "job_tasks" && c.op === "insert")!.row as { name: string; stage: string; visit: number | null; hours: number | null; source: string }[];
+    /* on no visit: the person puts them on the days */
     expect(insert.map((r) => [r.name, r.stage, r.visit, r.hours, r.source])).toEqual([
-      ["Set the outdoor", "Install", 1, 3, "quote"],
-      ["Hang the indoor", "Install", 1, 5, "quote"],
-      ["Circuits", "Install", 1, 6, "quote"],
-      ["Commission", "Install", 2, 4, "quote"],
+      ["Set the outdoor", "Install", null, 3, "quote"],
+      ["Hang the indoor", "Install", null, 5, "quote"],
+      ["Circuits", "Install", null, 6, "quote"],
+      ["Commission", "Install", null, 4, "quote"],
       /* the unit keeps its own task, for its photos and plate */
-      ["Hang the indoor unit", "Install", 1, null, "quote"],
+      ["Hang the indoor unit", "Install", null, null, "quote"],
     ]);
   });
 

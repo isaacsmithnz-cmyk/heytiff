@@ -140,31 +140,25 @@ describe("the quote's own tasks, straight onto the job (slice 8.2)", () => {
     { stage: "Rough-in" as const, people: 2, days: 3.5625, tasks: rough },
   ];
 
-  it("puts each visit's tasks on its days in order, on the day most of it falls on, every task keeping its hours", () => {
-    const tasks = tasksFromQuote(quote, 8, []);
-    expect(plannedVisits(quote)).toHaveLength(6);
-    const on = (n: number) => tasks.filter((x) => x.visit === n).map((x) => x.name);
-    expect(on(1)).toEqual(["Travel and setup", "Downstairs indoor", "Six floor boots"]);
-    expect(on(2)).toEqual(["Six flex runs", "Floor return", "Kitchen cores", "Sandstone core"]);
-    expect(on(3)).toEqual(["Upstairs indoor", "Ceiling cut-ins", "Upstairs return", "Downstairs pipe"]);
-    expect(on(4)).toEqual(["Upstairs pipe", "Drains", "Clean up"]);
-    expect(on(5)).toEqual(["Travel and setup", "Set two outdoors", "Connect pipe", "Two circuits", "Controllers"]);
-    expect(on(6)).toEqual(["Test and vacuum", "Commission", "Clean up"]);
-    expect(tasks[0]).toEqual({ name: "Travel and setup", stage: "Rough-in", kind: "tick", unit: null, visit: 1, sort: 0, hours: 5 });
+  it("hands every visit's tasks over in the order the work happens, each keeping its hours, on no visit yet", () => {
+    const tasks = tasksFromQuote(quote, []);
+    expect(tasks.map((x) => x.name)).toEqual([...rough, ...install].map((x) => x.task));
+    expect(tasks.every((x) => x.visit === null)).toBe(true);
+    expect(tasks[0]).toEqual({ name: "Travel and setup", stage: "Rough-in", kind: "tick", unit: null, visit: null, sort: 0, hours: 5 });
+    expect(tasks.at(-1)).toMatchObject({ stage: "Install", sort: 21 });
     expect(tasks.reduce((n, x) => n + (x.hours ?? 0), 0)).toBe(81);
   });
 
-  it("the units keep their own tasks, for their photos and plates, on the first install visit", () => {
-    const tasks = tasksFromQuote(quote, 8, unitsOf(option));
+  it("the units keep their own tasks, for their photos and plates", () => {
+    const tasks = tasksFromQuote(quote, unitsOf(option));
     expect(tasks.filter((x) => x.kind === "unit").map((x) => [x.name, x.visit, x.hours])).toEqual([
-      ["Set the outdoor unit, Garage", 5, null],
-      ["Hang the Level 1 Dining/Kitchen unit", 5, null],
-      ["Hang the Level 2 Bedroom 3 unit", 5, null],
+      ["Set the outdoor unit, Garage", null, null],
+      ["Hang the Level 1 Dining/Kitchen unit", null, null],
+      ["Hang the Level 2 Bedroom 3 unit", null, null],
     ]);
   });
 
-  it("with no working day, a visit's tasks all go on its first day; a quote with no tasks hands over none", () => {
-    expect(new Set(tasksFromQuote([{ stage: "Install", people: 2, days: 1, tasks: install }], null, []).map((x) => x.visit))).toEqual(new Set([1]));
-    expect(tasksFromQuote([{ stage: "Install", people: 2, days: 1, tasks: [] }], 8, unitsOf(option))).toEqual([]);
+  it("a quote with no tasks hands over none", () => {
+    expect(tasksFromQuote([{ stage: "Install", people: 2, days: 1, tasks: [] }], unitsOf(option))).toEqual([]);
   });
 });

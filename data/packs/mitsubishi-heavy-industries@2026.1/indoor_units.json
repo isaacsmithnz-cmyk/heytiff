@@ -2688,6 +2688,7 @@
    "w_mm": 660,
    "h_mm": 200
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
@@ -2730,6 +2731,7 @@
    "w_mm": 660,
    "h_mm": 200
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
@@ -2772,6 +2774,7 @@
    "w_mm": 660,
    "h_mm": 200
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -2814,6 +2817,7 @@
    "w_mm": 660,
    "h_mm": 200
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -2856,6 +2860,7 @@
    "w_mm": 660,
    "h_mm": 200
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -2898,6 +2903,7 @@
    "w_mm": 860,
    "h_mm": 200
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -2940,6 +2946,7 @@
    "w_mm": 860,
    "h_mm": 200
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -2982,6 +2989,7 @@
    "w_mm": 1280,
    "h_mm": 235
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -3024,6 +3032,7 @@
    "w_mm": 1280,
    "h_mm": 235
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -3066,6 +3075,7 @@
    "w_mm": 1280,
    "h_mm": 235
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -3108,6 +3118,7 @@
    "w_mm": 660,
    "h_mm": 160
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
@@ -3150,6 +3161,7 @@
    "w_mm": 660,
    "h_mm": 160
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
@@ -3192,6 +3204,7 @@
    "w_mm": 660,
    "h_mm": 160
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
@@ -3234,6 +3247,7 @@
    "w_mm": 660,
    "h_mm": 160
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -3276,6 +3290,7 @@
    "w_mm": 860,
    "h_mm": 160
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -3318,6 +3333,7 @@
    "w_mm": 860,
    "h_mm": 160
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -3360,6 +3376,7 @@
    "w_mm": 1060,
    "h_mm": 160
   },
+  "filter": "field-supplied",
   "drain_pump": "built-in",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,

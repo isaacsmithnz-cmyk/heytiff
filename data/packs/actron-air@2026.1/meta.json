@@ -1,0 +1,94 @@
+{
+ "brand": "actron-air",
+ "version": "2026.1",
+ "packSchemaVersion": 1,
+ "name": "Actron Air — split ducted (Advance B, AIRES, Aspire DS, Variable Capacity Commercial 29–33 kW), Cascade DS cassette, Serene DS wall split, MultiElite DS multi",
+ "updated": "2026-10-10",
+ "sources": [
+  {
+   "title": "Advance B Series Split Ducted Unit, Technical Selection Data",
+   "edition": "9590-0030-01 Ver. 13 260717",
+   "access": "public"
+  },
+  {
+   "title": "Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "0525-137 Ver. 8 260606",
+   "access": "public"
+  },
+  {
+   "title": "Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
+   "edition": "0525-138 Ver. 7 260424",
+   "access": "public"
+  },
+  {
+   "title": "AIRES Split Ducted Unit, Technical Selection Data",
+   "edition": "9590-0027-01 Ver. 17 260305",
+   "access": "public"
+  },
+  {
+   "title": "Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "0525-133 Ver. 11 260324",
+   "access": "public"
+  },
+  {
+   "title": "Aspire Split System, Technical Selection Data",
+   "edition": "9590-0031-01 Ver. 7 260922",
+   "access": "public"
+  },
+  {
+   "title": "Installation and Commissioning Guide, Aspire Split System",
+   "edition": "9590-5031 Ver. 5 260623",
+   "access": "public"
+  },
+  {
+   "title": "Cascade Cassette DS Series, Technical Selection Data",
+   "edition": "9590-0032-01 Ver. 2 260331",
+   "access": "public"
+  },
+  {
+   "title": "Installation and Commissioning Guide, Cascade DS Series Split System",
+   "edition": "9590-5032 Ver. 3 260930",
+   "access": "public"
+  },
+  {
+   "title": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data",
+   "edition": "9590-0037-01 Ver. 4 251120",
+   "access": "public"
+  },
+  {
+   "title": "Installation and Commissioning Guide, Serene DS Series Split System",
+   "edition": "9590-5037 Ver. 2 260319",
+   "access": "public"
+  },
+  {
+   "title": "MultiElite DS Series Split System, Technical Selection Data",
+   "edition": "9590-0036-01 Ver. 7 260702",
+   "access": "public"
+  },
+  {
+   "title": "Installation and Commissioning Guide, MultiElite DS Series Split System",
+   "edition": "9590-5036 Ver. 4 260227",
+   "access": "public"
+  },
+  {
+   "title": "Multi-Elite flyer, Specification Tables",
+   "edition": "AC0140 (Oct 2025)",
+   "access": "public"
+  },
+  {
+   "title": "Technical Selection Data, Split Ducted Unit CRV290T / EVA290T",
+   "edition": "9590-0009-01A Ver. 11 241203",
+   "access": "public"
+  },
+  {
+   "title": "Technical Selection Data, Split Ducted Unit CRV330T / EVA330T",
+   "edition": "9590-0009-02A Ver. 8 241203",
+   "access": "public"
+  },
+  {
+   "title": "Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
+   "edition": "0525-066 Ver. 10 251008",
+   "access": "public"
+  }
+ ]
+}

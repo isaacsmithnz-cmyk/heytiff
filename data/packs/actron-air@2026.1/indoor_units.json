@@ -37,7 +37,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
-   "page": "4-5 (nett rated, airflow nominal, indoor SPL @1.5 m), 6-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+   "page": "4-5 (nett rated, airflow nominal, indoor SPL @1.5 m), 6-9 (filters by others); 26 (indoor weights table); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
   }
  },
  {
@@ -78,7 +78,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
-   "page": "4-5 (nett rated, airflow nominal, indoor SPL @1.5 m), 6-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+   "page": "4-5 (nett rated, airflow nominal, indoor SPL @1.5 m), 6-9 (filters by others); 26 (indoor weights table); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
   }
  },
  {
@@ -119,7 +119,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
-   "page": "4-5 (nett rated, airflow nominal, indoor SPL @1.5 m), 6-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+   "page": "4-5 (nett rated, airflow nominal, indoor SPL @1.5 m), 6-9 (filters by others); 26 (indoor weights table); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
   }
  },
  {
@@ -155,12 +155,12 @@
   "depth_mm": 695,
   "height_mm": 485,
   "sound_high_dba": 42.1,
-  "weight_kg": 75,
+  "weight_kg": 72,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
-   "page": "5 (nett rated, airflow nominal, indoor SPL @1.5 m), 8-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+   "page": "5 (nett rated, airflow nominal, indoor SPL @1.5 m), 8-9 (filters by others); 26 (indoor weights table; p.8 prints 75 kg for EVV19BS); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
   }
  },
  {
@@ -201,7 +201,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
-   "page": "5 (nett rated, airflow nominal, indoor SPL @1.5 m), 8-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+   "page": "5 (nett rated, airflow nominal, indoor SPL @1.5 m), 8-9 (filters by others); 26 (indoor weights table); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
   }
  },
  {
@@ -242,7 +242,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Indoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-138 Ver. 7 260424",
-   "page": "5 (nett rated, airflow nominal, indoor SPL @1.5 m), 8-9 (weight, filters by others); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
+   "page": "5 (nett rated, airflow nominal, indoor SPL @1.5 m), 8-9 (filters by others); 26 (indoor weights table); 24 (H x W x D, supply H-SD x W-SD, return H-RD x W-RD, swaged connections); ICG 0525-138 p.8 (same table)"
   }
  },
  {
@@ -658,14 +658,7 @@
    "w_mm": 1152,
    "h_mm": 295
   },
-  "return_opening": {
-   "spigots": [
-    {
-     "count": 2,
-     "dia_mm": 400
-    }
-   ]
-  },
+  "return_opening": "spigots",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "default_plane": "ceiling-cavity",
@@ -686,7 +679,7 @@
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data",
    "edition": "9590-0031-01 Ver. 7 260922",
-   "page": "2 (operating capacity, indoor H/W/D, net weight, spigot dimensions, rated indoor air volume, external static range), 3 (connections); 29 (LRE-170DS outline: supply 295 x 1152, return 2 x 400 oval)"
+   "page": "2 (operating capacity, indoor H/W/D, net weight, spigot dimensions, rated indoor air volume, external static range), 3 (connections); 29 (LRE-170DS outline: supply 295 x 1152; return printed '2 x 400 Oval' (also p.2 '2 x 400 (oval)'), two oval spigots with no diameter, so stored as unsized spigots)"
   }
  },
  {
@@ -717,7 +710,7 @@
    "kind": "extracted",
    "source": "Cascade Cassette DS Series, Technical Selection Data",
    "edition": "9590-0032-01 Ver. 2 260331",
-   "page": "3 (operating capacity, indoor unit H/W/D without the 950 x 950 x 55 panel, net weight, airflow High), 4 (connections)"
+   "page": "1 ('Reverse Cycle 4-Way Cassette Split System'), 3 (operating capacity, indoor unit H/W/D without the 950 x 950 x 55 panel, net weight, airflow High), 4 (connections)"
   }
  },
  {
@@ -748,7 +741,7 @@
    "kind": "extracted",
    "source": "Cascade Cassette DS Series, Technical Selection Data",
    "edition": "9590-0032-01 Ver. 2 260331",
-   "page": "3 (operating capacity, indoor unit H/W/D without the 950 x 950 x 55 panel, net weight, airflow High), 4 (connections)"
+   "page": "1 ('Reverse Cycle 4-Way Cassette Split System'), 3 (operating capacity, indoor unit H/W/D without the 950 x 950 x 55 panel, net weight, airflow High), 4 (connections)"
   }
  },
  {
@@ -779,7 +772,7 @@
    "kind": "extracted",
    "source": "Cascade Cassette DS Series, Technical Selection Data",
    "edition": "9590-0032-01 Ver. 2 260331",
-   "page": "3 (operating capacity, indoor unit H/W/D without the 950 x 950 x 55 panel, net weight, airflow High), 4 (connections)"
+   "page": "1 ('Reverse Cycle 4-Way Cassette Split System'), 3 (operating capacity, indoor unit H/W/D without the 950 x 950 x 55 panel, net weight, airflow High), 4 (connections)"
   }
  },
  {
@@ -1130,6 +1123,38 @@
    "source": "MultiElite DS Series Split System, Technical Selection Data",
    "edition": "9590-0036-01 Ver. 7 260702",
    "page": "7 (Bulkhead Units: operating capacity, airflow High, SPL cooling H/L, unit H/W/depth, net weight, connections); 17 (outline: supply E x F, return G x H; total depth D)"
+  }
+ },
+ {
+  "model": "BRE-070CS",
+  "brand": "actron-air",
+  "series": "MultiElite DS Bulkhead",
+  "form_factor": "bulkhead",
+  "capacity_cool_kw": 7.0,
+  "capacity_heat_kw": 7.6,
+  "capacity_code": 70,
+  "airflow_ls": 253,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1100,
+  "depth_mm": 774,
+  "height_mm": 249,
+  "sound_low_dba": 35,
+  "sound_high_dba": 42,
+  "weight_kg": 32.3,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Multi-Elite flyer, Specification Tables; Installation and Commissioning Guide, MultiElite DS Series Split System",
+   "edition": "AC0140 (Oct 2025); 9590-5036 Ver. 4 260227",
+   "page": "4 (Technical Specifications - Bulkheads: operating capacity, airflow High, SPL cooling H/L, unit H/W/D, net weight, connections; R32 system, outdoor table); IM 9590-5036 p.15 (7 kW indoor unit, port A only; 7.0 kW 9.52 / 15.88)"
   }
  },
  {

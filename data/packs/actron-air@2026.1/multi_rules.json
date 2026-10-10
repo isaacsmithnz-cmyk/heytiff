@@ -24,6 +24,7 @@
      "BRE-026DS",
      "BRE-035DS",
      "BRE-050DS",
+     "BRE-070CS",
      "MRE-035DS",
      "MRE-053DS"
     ],
@@ -109,7 +110,7 @@
      "kind": "extracted",
      "source": "MultiElite DS Series Split System, Technical Selection Data",
      "edition": "9590-0036-01 Ver. 7 260702",
-     "page": "35 (Capacity Selection Data, indoor unit combinations by kW class; note 3: 5.3 kW mini cassette in place of 5.0)"
+     "page": "35 (Capacity Selection Data, indoor unit combinations by kW class; note 3: 5.3 kW mini cassette in place of 5.0; the 7.0 kW class is BRE-070CS per flyer AC0140 p.4 and IM 9590-5036 p.15)"
     }
    },
    {
@@ -137,7 +138,7 @@
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (pre-charge length 2 x 10 m, additional 12 g/m), 5 (maximum piping per indoor / total, lift per indoor 15 m), 6-8 (the indoor units of the range); IM 9590-5036 p.10 (Table 08.2: max height between indoor units 10 m), p.15 (port sizes), p.16 (piping limits), p.34 (charge details)"
+   "page": "4 (pre-charge length 2 x 10 m, additional 12 g/m), 5 (maximum piping per indoor / total, lift per indoor 15 m), 6-8 (the indoor units of the range); 47-50 (Capacity Correction Factor notes: 'the pre-charged length of the one-drive-two is 20m', -three 30 m, -four 40 m, -five 50 m: pooled); IM 9590-5036 p.10 (Table 08.2: max height between indoor units 10 m), p.15 (port sizes), p.16 (piping limits), p.34 (charge details)"
   }
  },
  {
@@ -169,6 +170,7 @@
      "BRE-026DS",
      "BRE-035DS",
      "BRE-050DS",
+     "BRE-070CS",
      "MRE-035DS",
      "MRE-053DS"
     ],
@@ -391,7 +393,7 @@
      "kind": "extracted",
      "source": "MultiElite DS Series Split System, Technical Selection Data",
      "edition": "9590-0036-01 Ver. 7 260702",
-     "page": "36 (Capacity Selection Data, indoor unit combinations by kW class; note 3: 5.3 kW mini cassette in place of 5.0)"
+     "page": "36 (Capacity Selection Data, indoor unit combinations by kW class; note 3: 5.3 kW mini cassette in place of 5.0; the 7.0 kW class is BRE-070CS per flyer AC0140 p.4 and IM 9590-5036 p.15)"
     }
    },
    {
@@ -419,7 +421,7 @@
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (pre-charge length 3 x 10 m, additional 12 g/m), 5 (maximum piping per indoor / total, lift per indoor 15 m), 6-8 (the indoor units of the range); IM 9590-5036 p.10 (Table 08.2: max height between indoor units 10 m), p.15 (port sizes), p.16 (piping limits), p.34 (charge details)"
+   "page": "4 (pre-charge length 3 x 10 m, additional 12 g/m), 5 (maximum piping per indoor / total, lift per indoor 15 m), 6-8 (the indoor units of the range); 47-50 (Capacity Correction Factor notes: 'the pre-charged length of the one-drive-two is 20m', -three 30 m, -four 40 m, -five 50 m: pooled); IM 9590-5036 p.10 (Table 08.2: max height between indoor units 10 m), p.15 (port sizes), p.16 (piping limits), p.34 (charge details)"
   }
  },
  {
@@ -455,6 +457,7 @@
      "BRE-026DS",
      "BRE-035DS",
      "BRE-050DS",
+     "BRE-070CS",
      "MRE-035DS",
      "MRE-053DS"
     ],
@@ -988,7 +991,7 @@
      "kind": "extracted",
      "source": "MultiElite DS Series Split System, Technical Selection Data",
      "edition": "9590-0036-01 Ver. 7 260702",
-     "page": "37-39 (Capacity Selection Data, indoor unit combinations by kW class; note 3: 5.3 kW mini cassette in place of 5.0)"
+     "page": "37-39 (Capacity Selection Data, indoor unit combinations by kW class; note 3: 5.3 kW mini cassette in place of 5.0; the 7.0 kW class is BRE-070CS per flyer AC0140 p.4 and IM 9590-5036 p.15)"
     }
    },
    {
@@ -1016,7 +1019,7 @@
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (pre-charge length 4 x 10 m, additional 12 g/m), 5 (maximum piping per indoor / total, lift per indoor 15 m), 6-8 (the indoor units of the range); IM 9590-5036 p.10 (Table 08.2: max height between indoor units 10 m), p.15 (port sizes), p.16 (piping limits), p.34 (charge details)"
+   "page": "4 (pre-charge length 4 x 10 m, additional 12 g/m), 5 (maximum piping per indoor / total, lift per indoor 15 m), 6-8 (the indoor units of the range); 47-50 (Capacity Correction Factor notes: 'the pre-charged length of the one-drive-two is 20m', -three 30 m, -four 40 m, -five 50 m: pooled); IM 9590-5036 p.10 (Table 08.2: max height between indoor units 10 m), p.15 (port sizes), p.16 (piping limits), p.34 (charge details)"
   }
  },
  {
@@ -1056,6 +1059,7 @@
      "BRE-026DS",
      "BRE-035DS",
      "BRE-050DS",
+     "BRE-070CS",
      "MRE-035DS",
      "MRE-053DS"
     ],
@@ -2845,7 +2849,7 @@
      "kind": "extracted",
      "source": "MultiElite DS Series Split System, Technical Selection Data",
      "edition": "9590-0036-01 Ver. 7 260702",
-     "page": "40-46 (Capacity Selection Data, indoor unit combinations by kW class; note 3: 5.3 kW mini cassette in place of 5.0)"
+     "page": "40-46 (Capacity Selection Data, indoor unit combinations by kW class; note 3: 5.3 kW mini cassette in place of 5.0; the 7.0 kW class is BRE-070CS per flyer AC0140 p.4 and IM 9590-5036 p.15)"
     }
    },
    {
@@ -2873,7 +2877,7 @@
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (pre-charge length 5 x 10 m, additional 12 g/m), 5 (maximum piping per indoor / total, lift per indoor 15 m), 6-8 (the indoor units of the range); IM 9590-5036 p.10 (Table 08.2: max height between indoor units 10 m), p.15 (port sizes), p.16 (piping limits), p.34 (charge details)"
+   "page": "4 (pre-charge length 5 x 10 m, additional 12 g/m), 5 (maximum piping per indoor / total, lift per indoor 15 m), 6-8 (the indoor units of the range); 47-50 (Capacity Correction Factor notes: 'the pre-charged length of the one-drive-two is 20m', -three 30 m, -four 40 m, -five 50 m: pooled); IM 9590-5036 p.10 (Table 08.2: max height between indoor units 10 m), p.15 (port sizes), p.16 (piping limits), p.34 (charge details)"
   }
  }
 ]

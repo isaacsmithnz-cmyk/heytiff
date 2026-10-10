@@ -2,7 +2,7 @@
  "brand": "actron-air",
  "version": "2026.1",
  "packSchemaVersion": 1,
- "name": "Actron Air — split ducted (Advance B, AIRES, Aspire DS), Cascade DS cassette, Serene DS wall split, MultiElite DS multi",
+ "name": "Actron Air — split ducted (Advance B, AIRES, Aspire DS, Variable Capacity Commercial 29–33 kW), Cascade DS cassette, Serene DS wall split, MultiElite DS multi",
  "updated": "2026-10-10",
  "sources": [
   {
@@ -68,6 +68,21 @@
   {
    "title": "Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-5036 Ver. 4 260227",
+   "access": "public"
+  },
+  {
+   "title": "Technical Selection Data, Split Ducted Unit CRV290T / EVA290T",
+   "edition": "9590-0009-01A Ver. 11 241203",
+   "access": "public"
+  },
+  {
+   "title": "Technical Selection Data, Split Ducted Unit CRV330T / EVA330T",
+   "edition": "9590-0009-02A Ver. 8 241203",
+   "access": "public"
+  },
+  {
+   "title": "Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
+   "edition": "0525-066 Ver. 10 251008",
    "access": "public"
   }
  ]

@@ -870,5 +870,55 @@
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
    "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge); IM 9590-5036 p.15 (port A connection sizes)"
   }
+ },
+ {
+  "model": "CRV290T",
+  "brand": "actron-air",
+  "series": "Variable Capacity Commercial (R-410A)",
+  "system_type": "split",
+  "capacity_cool_kw": 29.6,
+  "capacity_heat_kw": 29.8,
+  "phase": "3",
+  "power_supply": "400V / 3Ph+N / 50Hz",
+  "max_amps_a": 22.6,
+  "conn_liquid_mm": 15.88,
+  "conn_gas_mm": 28.58,
+  "refrigerant": "R410A",
+  "precharged_kg": 9.6,
+  "width_mm": 1840,
+  "depth_mm": 820,
+  "height_mm": 1415,
+  "weight_kg": 263,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Technical Selection Data, Split Ducted Unit CRV290T / EVA290T; Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
+   "edition": "9590-0009-01A Ver. 11 241203; 0525-066 Ver. 10 251008",
+   "page": "1 (nett rated, outdoor full load amps, weight), 5 (outline 1415 x 1840 x 820, swaged connections), 8 (factory charge); ICG 0525-066 p.50 (charge details)"
+  }
+ },
+ {
+  "model": "CRV330T",
+  "brand": "actron-air",
+  "series": "Variable Capacity Commercial (R-410A)",
+  "system_type": "split",
+  "capacity_cool_kw": 33.0,
+  "capacity_heat_kw": 32.5,
+  "phase": "3",
+  "power_supply": "400V / 3Ph+N / 50Hz",
+  "max_amps_a": 25.5,
+  "conn_liquid_mm": 15.88,
+  "conn_gas_mm": 28.58,
+  "refrigerant": "R410A",
+  "precharged_kg": 11.3,
+  "width_mm": 1840,
+  "depth_mm": 820,
+  "height_mm": 1415,
+  "weight_kg": 292,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Technical Selection Data, Split Ducted Unit CRV330T / EVA330T; Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
+   "edition": "9590-0009-02A Ver. 8 241203; 0525-066 Ver. 10 251008",
+   "page": "1 (nett rated, outdoor full load amps, weight), 5 (outline 1415 x 1840 x 820, swaged connections), 8 (factory charge); ICG 0525-066 p.50 (charge details)"
+  }
  }
 ]

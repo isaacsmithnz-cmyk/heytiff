@@ -691,5 +691,47 @@
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
    "page": "2 (pre-charge length 15 m, additional g/m), 3 (maximum piping length and height); IM 9590-5037 p.27 (max field pipe length, max vertical, field pipe sizes), p.53 (charge details)"
   }
+ },
+ {
+  "idu_model": "EVA290T",
+  "odu_model": "CRV290T",
+  "pipe_liquid_mm": 15.88,
+  "pipe_gas_mm": 28.58,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 5,
+   "g_per_m_beyond": 165
+  },
+  "rated_cool_kw": 29.6,
+  "rated_heat_kw": 29.8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Technical Selection Data, Split Ducted Unit CRV290T / EVA290T; Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
+   "edition": "9590-0009-01A Ver. 11 241203; 0525-066 Ver. 10 251008",
+   "page": "8 (pre-charge length 5 m, additional 165 g/m, max pipe length 60 m, vertical 20 m included, field pipe sizes); ICG 0525-066 p.16-18 (max total EQUIVALENT field pipe length 60 m incl. fittings and vertical rise; Table 2), p.50 (charge details)"
+  }
+ },
+ {
+  "idu_model": "EVA330T",
+  "odu_model": "CRV330T",
+  "pipe_liquid_mm": 15.88,
+  "pipe_gas_mm": 28.58,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 5,
+   "g_per_m_beyond": 165
+  },
+  "rated_cool_kw": 33.0,
+  "rated_heat_kw": 32.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Technical Selection Data, Split Ducted Unit CRV330T / EVA330T; Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
+   "edition": "9590-0009-02A Ver. 8 241203; 0525-066 Ver. 10 251008",
+   "page": "8 (pre-charge length 5 m, additional 165 g/m, max pipe length 60 m, vertical 20 m included, field pipe sizes); ICG 0525-066 p.16-18 (max total EQUIVALENT field pipe length 60 m incl. fittings and vertical rise; Table 2), p.50 (charge details)"
+  }
  }
 ]

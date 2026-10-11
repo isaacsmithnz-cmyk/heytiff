@@ -6,7 +6,8 @@ import { addKit } from "@/lib/quotes/kits-server";
 import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
-import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setSupplier, startVariation } from "@/lib/quotes/lines-job-server";
+import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
+import { readVersions } from "@/lib/quotes/quote-versions-server";
 import { stageNamed } from "@/lib/quotes/lines-job";
 import { approvalStands } from "@/lib/quotes/lines-proposal";
 import { orgTemplates } from "@/lib/templates/query";
@@ -45,7 +46,7 @@ async function bookSuppliers(orgId: string) {
 }
 
 async function view(orgId: string, jobUuid: string, userId: string) {
-  const [engine, lines, changes, byHand, settings, day, suppliers, templates] = await Promise.all([
+  const [engine, lines, changes, byHand, settings, day, suppliers, templates, versions] = await Promise.all([
     readEngine(orgId, jobUuid),
     readLines(orgId, jobUuid),
     readChanges(orgId, jobUuid, 50),
@@ -54,6 +55,7 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     readOrgDay(orgId),
     bookSuppliers(orgId),
     orgTemplates(orgId).catch(() => null),
+    readVersions(orgId, jobUuid).catch(() => []),
   ]);
   /* the business's own task hours, beside each option's (slice 8.1) */
   const options = Math.max(0, ...lines.map((l) => l.optionIndex + 1));
@@ -76,6 +78,8 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     supplier: byHand.supplier,
     researched: byHand.researched,
     variations: byHand.variations,
+    /* the quote as it stood at each approval before this one, newest first */
+    versions,
     suppliers,
     tasks,
     /* the proposal's words, whether an approval of them still stands, and
@@ -214,6 +218,15 @@ export async function POST(req: Request) {
         opened = started.option;
         await mark(`Variation ${started.n} started${what.trim() ? `: ${what.trim().slice(0, 200)}` : ""}`);
       }
+      break;
+    }
+    /* VERSION 2 (quote-versions.ts): an approved quote, not yet accepted,
+       kept as it stood; the approval comes off */
+    case "version": {
+      const what = typeof body.what === "string" ? body.what : "";
+      const kept = await startVersion(g.orgId, jobUuid, what, g.userId);
+      result = kept;
+      if (kept.ok) await mark(`Version ${kept.n + 1} started${what.trim() ? `: ${what.trim().slice(0, 200)}` : ""}`);
       break;
     }
     case "variation-approve":

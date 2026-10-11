@@ -167,6 +167,10 @@ export const withApproval = (b: ByHand, by: string, now: string): ByHand => ({
   proposal: { ...(b.proposal ?? { ...proposalOf({}), updatedAt: now }), approvedAt: now, approvedBy: by },
 });
 
+/** The approval taken off: the quote is the next version, to approve again
+    (quote-versions.ts). Its words stay as written. */
+export const withoutApproval = (b: ByHand): ByHand => (b.proposal ? { ...b, proposal: { ...b.proposal, approvedAt: null, approvedBy: null } } : b);
+
 /** A line priced from the web, with the page it rests on; null takes the mark off. */
 export function withResearched(b: ByHand, lineId: string, source: { url: string; title: string } | null): ByHand {
   const researched = { ...b.researched };

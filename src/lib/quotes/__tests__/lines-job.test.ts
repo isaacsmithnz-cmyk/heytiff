@@ -3,7 +3,7 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, variationOf, withVariation, withVariationMark, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withLoading, withName, withProposal } from "../lines-job";
+import { byHandOf, variationOf, withVariation, withVariationMark, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withLoading, withName, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
@@ -203,5 +203,16 @@ describe("a variation to the accepted quote", () => {
     const b = withVariation(accepted, 1, "x", "u", "t0");
     expect(byHandOf({ byHand: b }).variations).toEqual(b.variations);
     expect(byHandOf({ byHand: { ...b, variations: [{ n: 1, option: 0, of: 0 }, { n: "x", option: 2, of: 0 }] } }).variations).toEqual([]);
+  });
+});
+
+/* version 2 before it's accepted (quote-versions.ts) */
+describe("the approval taken off for the next version", () => {
+  it("clears who approved it and when, keeping its words", () => {
+    const approved = withApproval(withProposal(bh([]), { intro: "Hi Andrew" }, "t0", 1), "u-isaac", "t1");
+    const off = withoutApproval(approved);
+    expect(off.proposal).toMatchObject({ approvedAt: null, approvedBy: null, updatedAt: "t0" });
+    expect(off.proposal!.intro).toBe(approved.proposal!.intro);
+    expect(withoutApproval(bh([]))).toEqual(bh([]));
   });
 });

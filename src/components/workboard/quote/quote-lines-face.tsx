@@ -24,6 +24,8 @@ import { buildProgress, type PlannedPart } from "@/lib/quotes/build-progress";
 import { visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
 import type { Variation } from "@/lib/quotes/lines-job";
 import { VariationPaper } from "./variation-paper";
+import { VersionPaper } from "./version-paper";
+import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
    the mock-ups Isaac shaped on 7 October): the total in its own card, pinned
@@ -59,6 +61,8 @@ type View = {
   variations?: Variation[];
   /** a variation just started: the option to open */
   opened?: number | null;
+  /** the quote as it stood at each approval before this one, newest first (quote-versions.ts) */
+  versions?: QuoteVersion[];
   /** each option's name, and its loading on labour (lines-job.ts) */
   optionNames?: string[];
   loading?: Record<number, { pct: number; reason: string }>;
@@ -325,8 +329,10 @@ export function QuoteLinesFace({
   const [comparing, setComparing] = useState<string | null>(null);
   /* Tiff's questions still open (tiff-panel.tsx) */
   const [asked, setAsked] = useState(0);
-  /* Update quote on an accepted quote: what's changing, while it's asked */
+  /* Update quote on an approved or accepted quote: what's changing, while it's asked */
   const [updating, setUpdating] = useState<string | null>(null);
+  /* a past version, open on the paper (quote-versions.ts) */
+  const [viewing, setViewing] = useState<number | null>(null);
   /* the parts she said she'd build, while she builds them (5.2) */
   const [plan, setPlan] = useState<{ option: number; parts: PlannedPart[] } | null>(null);
 
@@ -338,9 +344,14 @@ export function QuoteLinesFace({
   const fitOf = new Map((view?.fits ?? []).map((f) => [f.key, f]));
   const all = view?.lines ?? [];
   const accepted = view?.accepted ?? [];
+  const versions = view?.versions ?? [];
+  /* the version the quote is at: one more than the last kept */
+  const version = (versions[0]?.n ?? 0) + 1;
+  const shown = viewing == null ? null : (versions.find((v) => v.n === viewing) ?? null);
   const steps = linesSteps({
     accepted,
     approved: view?.approved ?? false,
+    version,
     lines: all.length,
     /* the lines nobody knows yet, and Tiff's questions still open */
     unknown: all.filter((l) => (l.source === "unknown" && l.costCents <= 0 && l.sellCents == null) || l.estimate).length + asked,
@@ -384,6 +395,19 @@ export function QuoteLinesFace({
     setUpdating(null);
     if (typeof v.opened === "number") setAt(v.opened);
     onPriced();
+  };
+  /* VERSION 2 (quote-versions.ts): Update quote on an approved quote nobody
+     has accepted keeps it as it stood; the approval comes off */
+  const startVersion = async (what: string) => {
+    setBusy(true);
+    setNote(null);
+    const v = await post({ op: "version", what });
+    setBusy(false);
+    if (!v?.ok) return setNote(v?.reason ?? "That didn't save. Try again.");
+    setUpdating(null);
+    setPaper(false);
+    onPriced();
+    onToast?.(`Version ${version} kept. This is version ${version + 1}, to approve again`);
   };
   const markVariation = async (op: "variation-approve" | "variation-accept", option: number, accepting: boolean) => {
     setBusy(true);
@@ -1045,6 +1069,31 @@ export function QuoteLinesFace({
   const rail = (
     <div className="ql-rail">
       {accepted.length > 0 && send}
+      {versions.length > 0 && (
+        <>
+          <h2 className="hd-ls-grp">Versions</h2>
+          <ul className="ql-chg" aria-label="Versions">
+            {versions.map((v) => (
+              <li key={v.n}>
+                <span>
+                  <b>{`Version ${v.n}`}</b>
+                  <small>{v.options.map((x) => `${x.name}: ${fmtAud(x.incGstCents)} inc GST`).join(", ")}</small>
+                </span>
+                <button
+                  type="button"
+                  className="ql-undo"
+                  onClick={() => {
+                    setViewing(v.n);
+                    setPaper(true);
+                  }}
+                >
+                  Open
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <h2 className="hd-ls-grp">Changes</h2>
       {(view?.changes ?? []).length === 0 && <p className="qp-none">Nothing changed yet.</p>}
       <ul className="ql-chg">
@@ -1083,10 +1132,17 @@ export function QuoteLinesFace({
           <>
             {paper ? (
               <>
-                <button type="button" className="pbtn ghost" onClick={() => setPaper(false)}>
+                <button
+                  type="button"
+                  className="pbtn ghost"
+                  onClick={() => {
+                    setPaper(false);
+                    setViewing(null);
+                  }}
+                >
                   Back to the lines
                 </button>
-                {variation ? (
+                {shown ? null : variation ? (
                   variation.approvedAt ? (
                     <span className="qp-approved">{`Variation ${variation.n} approved`}</span>
                   ) : (
@@ -1112,7 +1168,7 @@ export function QuoteLinesFace({
                     {variation ? "Preview variation" : "Preview proposal"}
                   </button>
                 )}
-                {accepted.length > 0 && !variation && (
+                {(accepted.length > 0 || view?.approved) && !variation && (
                   <button type="button" className="pbtn ghost" disabled={busy} onClick={() => setUpdating("")}>
                     Update quote
                   </button>
@@ -1120,6 +1176,7 @@ export function QuoteLinesFace({
               </>
             )}
             {all.length > 0 &&
+              !shown &&
               (variation ? (
                 <button
                   type="button"
@@ -1152,7 +1209,11 @@ export function QuoteLinesFace({
           <div className="hd-main">
             <div className="hd-col">
               <div className="hd-face qp-face ql-face">
-                {paper && variation && priced && baseOpt ? (
+                {paper && shown ? (
+                  <div className="lp-desk">
+                    <VersionPaper version={shown} jobNumber={meta?.jobNumber ?? null} client={meta?.client ?? null} />
+                  </div>
+                ) : paper && variation && priced && baseOpt ? (
                   <div className="lp-desk">
                     <VariationPaper
                       n={variation.n}
@@ -1199,7 +1260,11 @@ export function QuoteLinesFace({
                 <div className="ql-vscrim" onClick={() => setUpdating(null)} />
                 <div className="ql-vdlg" role="dialog" aria-modal="true" aria-label="Update quote">
                   <h3>Update quote</h3>
-                  <p>{`${options > 1 ? `Option ${(accepted[0] ?? 0) + 1}` : "The quote"} is accepted, so this is a variation. The accepted quote stays as it is. The variation is priced as the difference, and the client approves it on its own.`}</p>
+                  <p>
+                    {accepted.length > 0
+                      ? `${options > 1 ? `Option ${(accepted[0] ?? 0) + 1}` : "The quote"} is accepted, so this is a variation. The accepted quote stays as it is. The variation is priced as the difference, and the client approves it on its own.`
+                      : `The quote is approved, so this is version ${version + 1}. Version ${version} is kept as it stands, the approval comes off, and it goes back through Approve and Send.`}
+                  </p>
                   <label className="ql-vwhat">
                     <span>What&apos;s changing</span>
                     <textarea className="wb2-fi" rows={3} value={updating} autoFocus disabled={busy} onChange={(e) => setUpdating(e.target.value)} />
@@ -1208,9 +1273,15 @@ export function QuoteLinesFace({
                     <button type="button" className="pbtn ghost" disabled={busy} onClick={() => setUpdating(null)}>
                       Cancel
                     </button>
-                    <button type="button" className="pbtn primary" disabled={busy || !updating.trim()} onClick={() => void startVariation(updating.trim())}>
-                      {`Start variation ${(view?.variations ?? []).reduce((m, v) => Math.max(m, v.n), 0) + 1}`}
-                    </button>
+                    {accepted.length > 0 ? (
+                      <button type="button" className="pbtn primary" disabled={busy || !updating.trim()} onClick={() => void startVariation(updating.trim())}>
+                        {`Start variation ${(view?.variations ?? []).reduce((m, v) => Math.max(m, v.n), 0) + 1}`}
+                      </button>
+                    ) : (
+                      <button type="button" className="pbtn primary" disabled={busy || !updating.trim()} onClick={() => void startVersion(updating.trim())}>
+                        {`Start version ${version + 1}`}
+                      </button>
+                    )}
                   </div>
                 </div>
               </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Waiting } from "@/components/ui/orb";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -23,11 +23,19 @@ import {
 } from "@/lib/workboard/visit-tasks";
 
 /* INSTALLATION, BY VISIT (Isaac, 2026-10-06, on the mock-up of 2905: "yes
-   thats right, build it"). A card a visit, each with its tasks; the same
-   tasks as one list with All tasks. The crew ticks and says how far; a
-   manager makes the list from the quote (Tiff), adds to it, moves a task to
-   another visit, or takes one off. visit-tasks.ts works out where each task
-   shows. */
+   thats right, build it"). The visits in a row; the one open with its
+   tasks; the same tasks as one list with All tasks. The crew ticks and says
+   how far; a manager makes the list from the quote, adds to it, moves a
+   task to another visit, or takes one off. visit-tasks.ts works out where
+   each task shows.
+
+   A MANAGER PLANS THE VISITS (Isaac, 2026-10-10: "tasks can probably just
+   be dragged and dropped or clicked to add to visit one. And just show the
+   full list next to it… rather than just placing them on random days,
+   because obviously the order can change depending on the job"): beside the
+   visit open, Still to do, every task on no visit yet, each added to it with
+   a press or dragged onto it or onto another visit; the visit says its hours
+   planned against its crew's day. */
 
 const ROUTE = "/api/workboard/job-tasks";
 
@@ -40,6 +48,8 @@ type Answer =
       today: string;
       booked: { day: string; crew: string[] }[];
       quoted: { hours: number; people: number; visits: number } | null;
+      /** the business's working day, in hours; null when it hasn't set one */
+      dayHours?: number | null;
       canMake: boolean;
       manage: boolean;
       /** done, with something to say: the plate couldn't be read */
@@ -65,6 +75,10 @@ const reasonOf = (a: Answer): string | null => (a.ok ? a.note : a.reason);
     never read while rendering. */
 const clockMs = () => Date.now();
 const hoursOf = (minutes: number) => fmtMinutesAsHours(Math.round(minutes));
+/** a task's hours as the quote gave them: "5 h", "2.5 h" */
+const hWords = (h: number) => `${Math.round(h * 100) / 100} h`;
+/** the task a drag carries */
+const DRAG = "application/x-heytiff-task";
 
 /** What a unit task's line says of its photos. */
 function photoWords(task: JobTask, photos: readonly TaskPhoto[]): string | null {
@@ -112,9 +126,13 @@ export function JobVisitTasks({
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"visit" | "all">("visit");
   const [openId, setOpenId] = useState<string | null>(null);
+  /* the visit open: a visit's number, or a site visit's day; null is the
+     one the card opens on */
+  const [pick, setPick] = useState<number | string | null>(null);
+  /* a task being dragged onto a visit, or back to the list */
+  const [dragging, setDragging] = useState(false);
   const [making, setMaking] = useState(false);
   const [saving, setSaving] = useState(false);
-  const strip = useRef<HTMLOListElement>(null);
   /* when the tasks were read: a photo's link lasts an hour */
   const readAt = useRef(0);
   const land = (a: Answer) => {
@@ -194,21 +212,20 @@ export function JobVisitTasks({
     days: [...went, ...ahead].map((v) => v.day),
     today: today ?? firstAhead,
     from,
-    planned: tasks.reduce((m, t) => Math.max(m, t.visit ?? 0), 0),
+    /* the visits the quote planned are there to plan onto, booked or not */
+    planned: Math.max(
+      tasks.reduce((m, t) => Math.max(m, t.visit ?? 0), 0),
+      data?.quoted?.visits ?? 0
+    ),
   });
   const site = onSite.filter((v) => from && v.day.slice(0, 10) < from).sort((a, b) => a.day.localeCompare(b.day));
   const dayOf = new Map([...ahead, ...went].map((v) => [v.day.slice(0, 10), v]));
   const placed = placeTasks(tasks, updates, slots);
   const open = openId ? (tasks.find((t) => t.id === openId) ?? null) : null;
 
-  /* the strip opens on today's visit, or the next one, or the newest */
+  /* the card opens on today's visit, or the next one, or the newest */
   const focusN = (slots.find((s) => s.state === "today") ?? slots.find((s) => s.state === "booked") ?? slots[slots.length - 1])?.n ?? null;
-  useLayoutEffect(() => {
-    const ol = strip.current;
-    if (!ol || view !== "visit" || open) return;
-    const card = focusN != null ? ol.querySelector<HTMLElement>(`[data-visit="${focusN}"]`) : null;
-    ol.scrollLeft = card ? Math.max(0, card.offsetLeft - ol.offsetLeft - 16) : ol.scrollWidth;
-  }, [focusN, view, open]);
+  const shown: number | string | null = pick != null && (typeof pick === "string" ? site.some((v) => v.day === pick) : slots.some((s) => s.n === pick)) ? pick : (focusN ?? site[0]?.day ?? null);
 
   const empty = slots.length === 0 && site.length === 0 && tasks.length === 0;
   /* nothing to show, and nothing a manager could add */
@@ -249,8 +266,19 @@ export function JobVisitTasks({
     .join(", ");
   /* the hours against the quote count the work, not a site measure before it */
   const workMinutes = onSite.filter((v) => !from || v.day.slice(0, 10) >= from).reduce((a, v) => a + v.minutes, 0);
-  const item = (l: TaskLine, live: boolean, key: string) => (
-    <TaskItem key={key} line={l} camera={photoWords(l.task, photos)} live={live} saving={saving} onOpen={() => openTask(l.task.id)} onTick={(to) => tick(l.task.id, to)} undoTo={undoTo(l.task, updates)} />
+  const item = (l: TaskLine, live: boolean, key: string, drag?: (e: DragEvent<HTMLElement>) => void) => (
+    <TaskItem
+      key={key}
+      line={l}
+      camera={photoWords(l.task, photos)}
+      live={live}
+      saving={saving}
+      onOpen={() => openTask(l.task.id)}
+      onTick={(to) => tick(l.task.id, to)}
+      undoTo={undoTo(l.task, updates)}
+      onDragStart={drag}
+      onDragEnd={drag ? () => setDragging(false) : undefined}
+    />
   );
 
   return (
@@ -286,58 +314,26 @@ export function JobVisitTasks({
       {empty && emptyWords && <p className="int-hint">{emptyWords}</p>}
 
       {view === "visit" ? (
-        <>
-          {(site.length > 0 || slots.length > 0) && (
-            <ol className={"jcl-visits" + (tasks.length ? " tasks" : "")} ref={strip} aria-label="Visits, oldest first">
-              {site.map((v) => (
-                <li className="jcl-visit" key={`site-${v.day}`}>
-                  <span className="jcl-vh">
-                    <b>Site visit</b>
-                  </span>
-                  <span className="jcl-vday">{fmtAuWeekdayDayMonth(v.day.slice(0, 10))}</span>
-                  <em>{v.crewNode}</em>
-                  {v.length && <span className="jcl-vlen">{v.length}</span>}
-                  <span className="jcl-vhrs">{v.minutes > 0 ? hoursOf(v.minutes) : "—"}</span>
-                </li>
-              ))}
-              {placed.visits.map(({ slot, lines }) => {
-                const day = slot.day ? dayOf.get(slot.day) : undefined;
-                const word = !today ? null : slot.state === "today" && day?.onSite ? { text: "On site now", tone: "info" } : STATE_WORD[slot.state];
-                const worked = !!slot.day && checkedIn.has(slot.day);
-                return (
-                  <li className={"jcl-visit" + (slot.state === "today" ? " now" : "") + (slot.state === "planned" ? " plan" : "")} key={slot.n} data-visit={slot.n}>
-                    <span className="jcl-vh">
-                      <b>{`Visit ${slot.n}`}</b>
-                      {word && <span className={`jcl-vword ${word.tone}`}>{word.text}</span>}
-                    </span>
-                    <span className="jcl-vday">{slot.day ? fmtAuWeekdayDayMonth(slot.day) : "Not booked yet"}</span>
-                    {day?.crewNode && <em>{day.crewNode}</em>}
-                    {lines.length > 0 && (
-                      <ul className="jcl-tasks">{lines.map((l) => item(l, slot.state !== "done" || l.lastDay === today, `${slot.n}-${l.task.id}`))}</ul>
-                    )}
-                    {slot.state === "planned" && onBook && (
-                      <div className="wb2-jqacts">
-                        <button type="button" className="pbtn ghost sm" onClick={onBook}>{`Book visit ${slot.n}`}</button>
-                      </div>
-                    )}
-                    {/* the hours last: a day with nothing believable says no figure */}
-                    {day && worked && day.length && <span className="jcl-vlen">{day.length}</span>}
-                    {day && worked && <span className="jcl-vhrs">{day.minutes > 0 ? hoursOf(day.minutes) : "—"}</span>}
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-          {placed.unplaced.length > 0 && (
-            <div className="jcl-tloose">
-              <div className="jcl-tghead">
-                <b>Not on a visit yet</b>
-                <em>{`${placed.unplaced.length} task${placed.unplaced.length === 1 ? "" : "s"}`}</em>
-              </div>
-              <ul className="jcl-tasks cols">{placed.unplaced.map((l) => item(l, true, l.task.id))}</ul>
-            </div>
-          )}
-        </>
+        <ByVisit
+          site={site}
+          visits={placed.visits}
+          unplaced={placed.unplaced}
+          anyTasks={tasks.length > 0}
+          shown={shown}
+          onShow={setPick}
+          dayOf={dayOf}
+          checkedIn={checkedIn}
+          today={today}
+          manage={manage}
+          saving={saving}
+          crew={data?.quoted?.people ?? null}
+          dayHours={data?.dayHours ?? null}
+          dragging={dragging}
+          onDrag={setDragging}
+          onPlace={(id, visit) => void edit({ kind: "visit", id, visit })}
+          onBook={onBook}
+          item={item}
+        />
       ) : (
         <div className="jcl-tall">
           {taskRows(tasks, updates, slots, fmtAuWeekdayDayMonth).map((g) => (
@@ -365,6 +361,268 @@ export function JobVisitTasks({
         </div>
       )}
       {manage && data && (tasks.length ? view === "all" : !data.canMake) && <AddTask slots={slots} saving={saving} onAdd={edit} />}
+    </div>
+  );
+}
+
+/* BY VISIT: a card a visit, oldest first, scrolling sideways, each with
+   its tasks and who went; a manager drags a task from one card to another.
+   While a manager has tasks on no visit, it plans: the visits as a row of
+   tabs, the one open, and Still to do beside it (Isaac, 2026-10-10). */
+function ByVisit({
+  site,
+  visits,
+  unplaced,
+  anyTasks,
+  shown,
+  onShow,
+  dayOf,
+  checkedIn,
+  today,
+  manage,
+  saving,
+  crew,
+  dayHours,
+  dragging,
+  onDrag,
+  onPlace,
+  onBook,
+  item,
+}: {
+  site: readonly VisitDay[];
+  visits: readonly { slot: VisitSlot; lines: TaskLine[] }[];
+  unplaced: readonly TaskLine[];
+  anyTasks: boolean;
+  shown: number | string | null;
+  onShow: (v: number | string) => void;
+  dayOf: ReadonlyMap<string, VisitDay>;
+  checkedIn: ReadonlySet<string>;
+  today: string | null;
+  manage: boolean;
+  saving: boolean;
+  /** the crew the quote planned, for a visit's day */
+  crew: number | null;
+  dayHours: number | null;
+  dragging: boolean;
+  onDrag: (on: boolean) => void;
+  onPlace: (id: string, visit: number | null) => void;
+  onBook?: () => void;
+  item: (l: TaskLine, live: boolean, key: string, drag?: (e: DragEvent<HTMLElement>) => void) => ReactNode;
+}) {
+  const strip = useRef<HTMLOListElement>(null);
+  const planning = manage && unplaced.length > 0 && visits.length > 0;
+  const focus = typeof shown === "number" ? shown : null;
+  /* the strip opens on the visit the card opens on */
+  useLayoutEffect(() => {
+    const ol = strip.current;
+    if (!ol || planning) return;
+    const card = focus != null ? ol.querySelector<HTMLElement>(`[data-visit="${focus}"]`) : null;
+    ol.scrollLeft = card ? Math.max(0, card.offsetLeft - ol.offsetLeft - 16) : ol.scrollWidth;
+  }, [focus, planning]);
+
+  /* a drag: what it carries, and where it lands */
+  const carry = (id: string) => (e: DragEvent<HTMLElement>) => {
+    e.dataTransfer.setData(DRAG, id);
+    e.dataTransfer.effectAllowed = "move";
+    onDrag(true);
+  };
+  const landOn = (visit: number | null) => ({
+    onDragOver: (e: DragEvent<HTMLElement>) => {
+      if (e.dataTransfer.types.includes(DRAG)) e.preventDefault();
+    },
+    onDrop: (e: DragEvent<HTMLElement>) => {
+      const id = e.dataTransfer.getData(DRAG);
+      onDrag(false);
+      if (!id) return;
+      e.preventDefault();
+      onPlace(id, visit);
+    },
+  });
+  /* a visit's tasks still to finish a manager can move, by dragging */
+  const tasksOf = (slot: VisitSlot, lines: readonly TaskLine[]) =>
+    lines.map((l) => item(l, slot.state !== "done" || l.lastDay === today, `${slot.n}-${l.task.id}`, manage && l.task.progress < 100 ? carry(l.task.id) : undefined));
+  const wordOf = (slot: VisitSlot, day: VisitDay | undefined) =>
+    !today ? null : slot.state === "today" && day?.onSite ? { text: "On site now", tone: "info" } : STATE_WORD[slot.state];
+
+  if (!planning) {
+    return (
+      <>
+        {(site.length > 0 || visits.length > 0) && (
+          <ol className={"jcl-visits" + (anyTasks ? " tasks" : "")} ref={strip} aria-label="Visits, oldest first">
+            {site.map((v) => (
+              <li className="jcl-visit" key={`site-${v.day}`}>
+                <span className="jcl-vh">
+                  <b>Site visit</b>
+                </span>
+                <span className="jcl-vday">{fmtAuWeekdayDayMonth(v.day.slice(0, 10))}</span>
+                <em>{v.crewNode}</em>
+                {v.length && <span className="jcl-vlen">{v.length}</span>}
+                <span className="jcl-vhrs">{v.minutes > 0 ? hoursOf(v.minutes) : "—"}</span>
+              </li>
+            ))}
+            {visits.map(({ slot, lines }) => {
+              const day = slot.day ? dayOf.get(slot.day) : undefined;
+              const word = wordOf(slot, day);
+              const worked = !!slot.day && checkedIn.has(slot.day);
+              return (
+                <li
+                  className={"jcl-visit" + (slot.state === "today" ? " now" : "") + (slot.state === "planned" ? " plan" : "") + (dragging && manage ? " drop" : "")}
+                  key={slot.n}
+                  data-visit={slot.n}
+                  {...(manage ? landOn(slot.n) : {})}
+                >
+                  <span className="jcl-vh">
+                    <b>{`Visit ${slot.n}`}</b>
+                    {word && <span className={`jcl-vword ${word.tone}`}>{word.text}</span>}
+                  </span>
+                  <span className="jcl-vday">{slot.day ? fmtAuWeekdayDayMonth(slot.day) : "Not booked yet"}</span>
+                  {day?.crewNode && <em>{day.crewNode}</em>}
+                  {lines.length > 0 && <ul className="jcl-tasks">{tasksOf(slot, lines)}</ul>}
+                  {slot.state === "planned" && onBook && (
+                    <div className="wb2-jqacts">
+                      <button type="button" className="pbtn ghost sm" onClick={onBook}>{`Book visit ${slot.n}`}</button>
+                    </div>
+                  )}
+                  {/* the hours last: a day with nothing believable says no figure */}
+                  {day && worked && day.length && <span className="jcl-vlen">{day.length}</span>}
+                  {day && worked && <span className="jcl-vhrs">{day.minutes > 0 ? hoursOf(day.minutes) : "—"}</span>}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+        {unplaced.length > 0 && <Loose lines={unplaced} item={item} />}
+      </>
+    );
+  }
+
+  const open = typeof shown === "number" ? visits.find((v) => v.slot.n === shown) : undefined;
+  const openSite = typeof shown === "string" ? site.find((v) => v.day === shown) : undefined;
+  const card = (() => {
+    if (openSite) {
+      return (
+        <section className="jcl-vcard" aria-label="Site visit">
+          <header className="jcl-vch">
+            <b>Site visit</b>
+            <span className="jcl-vday">{fmtAuWeekdayDayMonth(openSite.day.slice(0, 10))}</span>
+          </header>
+          {openSite.crewNode && <em className="jcl-vcrew">{openSite.crewNode}</em>}
+          <p className="jcl-vfoot">
+            {openSite.length && <span className="jcl-vlen">{openSite.length}</span>}
+            <span className="jcl-vhrs">{openSite.minutes > 0 ? hoursOf(openSite.minutes) : "—"}</span>
+          </p>
+        </section>
+      );
+    }
+    if (!open) return null;
+    const { slot, lines } = open;
+    const day = slot.day ? dayOf.get(slot.day) : undefined;
+    const word = wordOf(slot, day);
+    const worked = !!slot.day && checkedIn.has(slot.day);
+    /* its hours planned: every task planned for it, against its crew's day */
+    const planned = lines.filter((l) => l.task.visit === slot.n).reduce((n, l) => n + (l.task.hours ?? 0), 0);
+    const room = crew && dayHours ? crew * dayHours : null;
+    return (
+      <section className={"jcl-vcard" + (slot.state === "today" ? " now" : "") + (dragging ? " drop" : "")} aria-label={`Visit ${slot.n}`} {...landOn(slot.n)}>
+        <header className="jcl-vch">
+          <b>{`Visit ${slot.n}`}</b>
+          {word && <span className={`jcl-vword ${word.tone}`}>{word.text}</span>}
+          <span className="jcl-vday">{slot.day ? fmtAuWeekdayDayMonth(slot.day) : "Not booked yet"}</span>
+          {planned > 0 && <em className="jcl-vplan">{room ? `${hWords(planned)} of ${hWords(room)} planned` : `${hWords(planned)} planned`}</em>}
+        </header>
+        {planned > 0 && room && (
+          <div className="jcl-tbar" role="img" aria-label={`${Math.round((planned / room) * 100)}% of the crew's day planned`}>
+            <i className={planned <= room ? "ok" : "warn"} style={{ width: `${Math.min(100, (planned / room) * 100)}%` }} />
+          </div>
+        )}
+        {day?.crewNode && <em className="jcl-vcrew">{day.crewNode}</em>}
+        {lines.length > 0 && <ul className="jcl-tasks">{tasksOf(slot, lines)}</ul>}
+        {slot.state === "planned" && onBook && (
+          <div className="wb2-jqacts">
+            <button type="button" className="pbtn ghost sm" onClick={onBook}>{`Book visit ${slot.n}`}</button>
+          </div>
+        )}
+        {day && worked && (
+          <p className="jcl-vfoot">
+            {day.length && <span className="jcl-vlen">{day.length}</span>}
+            <span className="jcl-vhrs">{day.minutes > 0 ? hoursOf(day.minutes) : "—"}</span>
+          </p>
+        )}
+      </section>
+    );
+  })();
+
+  /* Still to do: the tasks on no visit, by the quote's stages */
+  const stages = VISIT_STAGES.filter((st) => unplaced.some((l) => l.task.stage === st));
+  const left = unplaced.reduce((n, l) => n + (l.task.hours ?? 0), 0);
+  const into = open ? open.slot.n : null;
+
+  return (
+    <>
+      <div className="jcl-vtabs" role="tablist" aria-label="Visits, oldest first">
+        {site.map((v) => (
+          <button key={`site-${v.day}`} type="button" role="tab" aria-selected={shown === v.day} className={"jcl-vtab" + (shown === v.day ? " on" : "")} onClick={() => onShow(v.day)}>
+            <b>Site visit</b>
+            <span>{fmtAuWeekdayDayMonth(v.day.slice(0, 10))}</span>
+          </button>
+        ))}
+        {visits.map(({ slot }) => (
+          <button
+            key={slot.n}
+            type="button"
+            role="tab"
+            aria-selected={shown === slot.n}
+            className={"jcl-vtab" + (shown === slot.n ? " on" : "") + (slot.state === "today" ? " now" : "")}
+            onClick={() => onShow(slot.n)}
+            {...landOn(slot.n)}
+          >
+            <b>{`Visit ${slot.n}`}</b>
+            <span>{slot.day ? fmtAuWeekdayDayMonth(slot.day) : "Not booked"}</span>
+          </button>
+        ))}
+      </div>
+      <div className="jcl-plan">
+        {card}
+        <section className={"jcl-todo" + (dragging ? " drop" : "")} aria-label="Still to do" {...landOn(null)}>
+          <header className="jcl-vch">
+            <b>Still to do</b>
+            <em className="jcl-vplan">{`${unplaced.length} task${unplaced.length === 1 ? "" : "s"}${left > 0 ? `, ${hWords(left)}` : ""}`}</em>
+          </header>
+          {stages.map((st) => (
+            <div key={st} className="jcl-todog">
+              <h4 className="jcl-todoh">{st}</h4>
+              <ul className="jcl-todol">
+                {unplaced
+                  .filter((l) => l.task.stage === st)
+                  .map((l) => (
+                    <li key={l.task.id} className="jcl-todor" draggable={!saving} onDragStart={carry(l.task.id)} onDragEnd={() => onDrag(false)}>
+                      <span className="jcl-todon">{l.task.name}</span>
+                      {l.task.hours != null && <em className="jcl-thr">{hWords(l.task.hours)}</em>}
+                      {into != null && (
+                        <button type="button" className="pbtn ghost sm" disabled={saving} onClick={() => onPlace(l.task.id, into)}>
+                          {`Add to visit ${into}`}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      </div>
+    </>
+  );
+}
+
+/** The tasks on no visit yet, for the crew: under the visit open. */
+function Loose({ lines, item }: { lines: readonly TaskLine[]; item: (l: TaskLine, live: boolean, key: string) => ReactNode }) {
+  return (
+    <div className="jcl-tloose">
+      <div className="jcl-tghead">
+        <b>Not on a visit yet</b>
+        <em>{`${lines.length} task${lines.length === 1 ? "" : "s"}`}</em>
+      </div>
+      <ul className="jcl-tasks cols">{lines.map((l) => item(l, true, l.task.id))}</ul>
     </div>
   );
 }
@@ -400,6 +658,8 @@ function TaskItem({
   onOpen,
   onTick,
   undoTo,
+  onDragStart,
+  onDragEnd,
   children,
 }: {
   line: ItemLine;
@@ -410,6 +670,9 @@ function TaskItem({
   onOpen: () => void;
   onTick: (to: number) => void;
   undoTo: number;
+  /** a manager's: the task dragged to another visit, or back to Still to do */
+  onDragStart?: (e: DragEvent<HTMLElement>) => void;
+  onDragEnd?: () => void;
   children?: ReactNode;
 }) {
   const { task, mark, pct } = line;
@@ -421,7 +684,7 @@ function TaskItem({
     </button>
   );
   return (
-    <li className={`jcl-task ${mark}`}>
+    <li className={`jcl-task ${mark}`} draggable={!!onDragStart} onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <button
         type="button"
         role="checkbox"

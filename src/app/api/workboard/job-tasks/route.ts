@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import { displayNameOf } from "@/lib/staff/name";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
+import { readOrgDay } from "@/lib/quotes/org-day-server";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import {
   LIST_EDITS,
@@ -44,7 +45,12 @@ async function gate(): Promise<Who | Response> {
 const jobOf = (v: unknown) => (typeof v === "string" ? v.trim().slice(0, 80) : "");
 
 async function answer(orgId: string, cardId: string, manage: boolean, note: string | null = null) {
-  const [list, today, plan] = await Promise.all([readJobTasks(orgId, cardId), accountToday(orgId), quotePlan(orgId, cardId).catch(() => null)]);
+  const [list, today, plan, day] = await Promise.all([
+    readJobTasks(orgId, cardId),
+    accountToday(orgId),
+    quotePlan(orgId, cardId).catch(() => null),
+    readOrgDay(orgId).catch(() => null),
+  ]);
   const booked = await pastBookedDays(orgId, cardId, today).catch(() => []);
   return {
     ok: true as const,
@@ -52,6 +58,8 @@ async function answer(orgId: string, cardId: string, manage: boolean, note: stri
     today,
     booked,
     quoted: quotedHours(plan),
+    /* the business's working day: a visit's hours planned against its crew's day */
+    dayHours: day?.hours?.hours ?? null,
     /* Make the tasks: a manager, a job with an accepted quote and no tasks yet */
     canMake: manage && list.tasks.length === 0 && !!plan,
     manage,

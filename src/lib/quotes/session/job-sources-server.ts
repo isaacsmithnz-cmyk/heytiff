@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { familyMediaSources, readJobNotes } from "@/lib/workboard/all-jobs-query";
 import { readOurJobNotes } from "@/lib/workboard/job-notes-query";
 import { readSm8QuoteBrief } from "../sm8-quote-brief-server";
+import { readStoredProposal } from "../proposal-writer";
 import { jobSources, type JobSource } from "./job-sources";
 
 /* Read the job (job-sources.ts says what's read and why nothing is judged
@@ -11,13 +12,14 @@ import { jobSources, type JobSource } from "./job-sources";
    HeyTiff's own. Reads only. Service role, by org; the route gates. */
 
 export async function readJobSources(orgId: string, cardId: string): Promise<{ sources: JobSource[]; left: number }> {
-  const [job, theirs, ours, sm8Quote] = await Promise.all([
+  const [job, theirs, ours, sm8Quote, old] = await Promise.all([
     supabaseAdmin.from("sm8_jobs").select("job_description").eq("org_id", orgId).eq("uuid", cardId).maybeSingle(),
     familyMediaSources(orgId, cardId)
       .then((claims) => readJobNotes(orgId, cardId, claims))
       .catch(() => []),
     readOurJobNotes(orgId, cardId, 60).catch(() => []),
     readSm8QuoteBrief(orgId, cardId).catch(() => null),
+    readStoredProposal(orgId, cardId).catch(() => null),
   ]);
   return jobSources({
     description: (job.data as { job_description: string | null } | null)?.job_description ?? null,
@@ -26,5 +28,7 @@ export async function readJobSources(orgId: string, cardId: string): Promise<{ s
       ...theirs.map((n) => ({ id: `sm8-${n.remoteId}`, text: n.text, at: n.writtenAt, by: n.writtenBy })),
       ...ours.map((n) => ({ id: n.id, text: n.text, at: n.at, by: n.author })),
     ],
+    /* asked on the old builder, and answered by the person */
+    earlier: (old?.draft.checklist ?? []).filter((c) => c.state === "known" && !!c.question).map((c) => ({ question: c.question!, answer: c.answer })),
   });
 }

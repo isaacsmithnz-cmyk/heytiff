@@ -115,6 +115,8 @@ export function QuoteScreen({
      on its own kept lines (quote-lines-face.tsx). Every quote opens as it
      always has; one switched shows its lines once the switch is read. */
   const [engine, setEngine] = useState<"old" | "lines">("old");
+  /* Tiff on for the business: a quote drafted the old way can be quoted again with her */
+  const [tiffOn, setTiffOn] = useState(false);
   const [linesRev, setLinesRev] = useState(0);
   /* a quote Tiff's builder priced, brought across to its kept lines as it's
      priced today, to change by hand (lines-adopt.ts) */
@@ -156,6 +158,7 @@ export function QuoteScreen({
       .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines"; tiff?: boolean; drafted?: boolean; chosen?: boolean; lines?: unknown[] }>)
       .then((a) => {
         if (!live || !a.ok) return;
+        setTiffOn(!!a.tiff);
         if (a.engine === "lines") setEngine("lines");
         else if ((starting || a.chosen === false) && a.tiff && !a.drafted && (a.lines ?? []).length === 0) startTiff();
       })
@@ -180,11 +183,18 @@ export function QuoteScreen({
           </div>
           <div className="wb2-vtabs">
             <h1 className="wb2-h1">{proposalTitle(address)}</h1>
-            {engine === "old" && price?.ok && price.options.some((o) => o.rows > 0) && (
+            {engine === "old" && (tiffOn || (price?.ok && price.options.some((o) => o.rows > 0))) && (
               <div className="qp-acts">
-                <button type="button" className="pbtn ghost" onClick={() => void adopt()}>
-                  Edit the lines by hand
-                </button>
+                {tiffOn && (
+                  <button type="button" className="pbtn ghost" onClick={() => void switchTo("lines")}>
+                    Quote it with Tiff
+                  </button>
+                )}
+                {price?.ok && price.options.some((o) => o.rows > 0) && (
+                  <button type="button" className="pbtn ghost" onClick={() => void adopt()}>
+                    Edit the lines by hand
+                  </button>
+                )}
               </div>
             )}
             <div className="qp-acts" ref={setActionsEl} />

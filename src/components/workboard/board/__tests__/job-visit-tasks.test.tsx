@@ -57,26 +57,34 @@ const mount = (over: Partial<Parameters<typeof JobVisitTasks>[0]> = {}) =>
     />
   );
 
-const card = (name: string) => screen.getAllByRole("listitem").find((li) => within(li).queryByText(name, { selector: "b" }))!;
+/* planning: the visit open, and opening another */
+const card = (name: string) => screen.getByRole("region", { name });
+/* every task on a visit: a card in the strip */
+const stripCard = (name: string) => screen.getAllByRole("listitem").find((li) => within(li).queryByText(name, { selector: "b" }))!;
+const openVisit = (name: string) => fireEvent.click(screen.getByRole("tab", { name: new RegExp(`^${name}\\b`) }));
 
-it("lays the visits out from the work order, each with what was done on it and what's still to do", async () => {
+it("lays the visits out from the work order, today's open, each with what was done on it and what's still to do", async () => {
   mount();
-  expect(await screen.findByText("Carried to visit 2")).toBeInTheDocument();
-  /* the site measure before the work order is a site visit, not counted */
-  expect(within(card("Site visit")).getByText("Pop-in")).toBeInTheDocument();
+  /* today's visit is the one open */
+  const v2 = within(await screen.findByRole("region", { name: "Visit 2" }));
+  expect(screen.getByRole("tab", { name: /^Visit 2\b/ })).toHaveAttribute("aria-selected", "true");
+  expect(v2.getByText("On site now")).toBeInTheDocument();
+  expect(v2.getByText("From visit 1")).toBeInTheDocument();
+  expect(v2.getByRole("checkbox", { name: "Drains for Level 3: not done" })).toBeEnabled();
+  openVisit("Visit 1");
   const v1 = within(card("Visit 1"));
   expect(v1.getByText("Done")).toBeInTheDocument();
   expect(v1.getByRole("checkbox", { name: "Garage penetrations: done" })).toBeDisabled();
   expect(v1.getByRole("checkbox", { name: "Rough-in pipe and cable: 50%" })).toBeInTheDocument();
   expect(v1.getByText("Carried to visit 2")).toBeInTheDocument();
   expect(v1.getByText("Roughed in to the third indoor unit.")).toBeInTheDocument();
-  const v2 = within(card("Visit 2"));
-  expect(v2.getByText("On site now")).toBeInTheDocument();
-  expect(v2.getByText("From visit 1")).toBeInTheDocument();
-  expect(v2.getByRole("checkbox", { name: "Drains for Level 3: not done" })).toBeEnabled();
+  /* the site measure before the work order is a site visit, not counted */
+  openVisit("Site visit");
+  expect(within(card("Site visit")).getByText("Pop-in")).toBeInTheDocument();
+  openVisit("Visit 3");
   expect(within(card("Visit 3")).getByText("Booked")).toBeInTheDocument();
-  /* a task on no visit waits underneath */
-  expect(screen.getByText("Not on a visit yet")).toBeInTheDocument();
+  /* a task on no visit waits beside the visit, for a manager to plan */
+  expect(within(card("Still to do")).getByText("Commission the system")).toBeInTheDocument();
   expect(screen.getByText("3 visits, 22h on site, 1 of 4 tasks done")).toBeInTheDocument();
 });
 
@@ -91,7 +99,7 @@ it("ticks a task done on today's visit", async () => {
 
 it("opens a task measured in % to say how far it got today, with a note, and what each visit did", async () => {
   mount();
-  fireEvent.click(await within(card("Visit 2")).findByRole("checkbox", { name: "Rough-in pipe and cable: 50%" }));
+  fireEvent.click(await within(await screen.findByRole("region", { name: "Visit 2" })).findByRole("checkbox", { name: "Rough-in pipe and cable: 50%" }));
   expect(screen.getByText("Today, visit 2")).toBeInTheDocument();
   expect(screen.getByText("0% to 50%")).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("How far, percent"), { target: { value: "70" } });
@@ -125,7 +133,7 @@ it("offers a manager the tasks from the accepted quote when there are none, and 
     fireEvent.click(make);
   });
   expect(sent("POST")).toEqual([{ job: "job-1", make: true }]);
-  expect(await screen.findByText("Garage penetrations")).toBeInTheDocument();
+  expect(await screen.findByText("Drains for Level 3")).toBeInTheDocument();
 });
 
 it("reads nothing until the face is open, and says so when there's nothing at all", async () => {
@@ -142,8 +150,9 @@ it("counts a booked day nobody checked in on as a visit, so the later visits kee
   fetchMock.mockImplementation(async () => ({ json: async () => answer({ booked: [{ day: "2026-10-06", crew: ["Callum Vrieze"] }] }) }));
   mount({ onSite: [day("2026-10-07", { onSite: true })] });
   expect(await screen.findByText("From visit 1")).toBeInTheDocument();
-  expect(within(card("Visit 1")).getByText("Callum Vrieze")).toBeInTheDocument();
   expect(within(card("Visit 2")).getByText("On site now")).toBeInTheDocument();
+  openVisit("Visit 1");
+  expect(within(card("Visit 1")).getByText("Callum Vrieze")).toBeInTheDocument();
 });
 
 it("lets a tick made today on a day with no visit be taken back from the card it shows on", async () => {
@@ -151,7 +160,8 @@ it("lets a tick made today on a day with no visit be taken back from the card it
     json: async () => answer({ today: "2026-10-09", tasks: [task("drains", "Drains for Level 3", { visit: 2, progress: 100 })], updates: [up("drains", "2026-10-09", 0, 100)] }),
   }));
   mount();
-  const box = await screen.findByRole("checkbox", { name: "Drains for Level 3: done" });
+  /* every task on a visit: the strip of every visit, not the planning */
+  const box = await within(stripCard("Visit 2")).findByRole("checkbox", { name: "Drains for Level 3: done" });
   expect(box).toBeEnabled();
   await act(async () => {
     fireEvent.click(box);
@@ -168,7 +178,7 @@ it("still reads the tasks when the face was left before the first read landed", 
     land({ json: async () => answer() });
   });
   rerender(<JobVisitTasks job="job-1" visible onSite={[day("2026-10-06")]} ahead={[]} workOrderDate={null} onSiteMinutes={null} emptyWords="" />);
-  expect(await screen.findByText("Garage penetrations")).toBeInTheDocument();
+  expect(await screen.findByText("Drains for Level 3")).toBeInTheDocument();
 });
 
 /* Isaac, 2026-10-06: "snap the photo of that particular unit, and serial
@@ -281,4 +291,73 @@ it("a task from the quote's labour shows the hours it was quoted at (8.2)", asyn
   const v2 = within(card("Visit 2"));
   expect(v2.getByRole("button", { name: "Sandstone core hole, rear living" })).toBeInTheDocument();
   expect(v2.getByText("6 h")).toBeInTheDocument();
+});
+
+describe("a manager plans the visits (Isaac, 2026-10-10: \"dragged and dropped or clicked to add to visit one… show the full list next to it\")", () => {
+  const fakeDrag = () => {
+    const data: Record<string, string> = {};
+    return { setData: (k: string, v: string) => void (data[k] = v), getData: (k: string) => data[k] ?? "", types: ["application/x-heytiff-task"], effectAllowed: "" };
+  };
+  const loose = [task("comm", "Commission the system", { stage: "Commissioning", visit: null, hours: 3 }), task("clean", "Clean up", { stage: "Commissioning", visit: null, hours: 1 })];
+
+  it("adds a task from Still to do to the visit open", async () => {
+    fetchMock.mockImplementation(async () => ({ json: async () => answer({ tasks: [...TASKS.slice(0, 3), ...loose] }) }));
+    mount();
+    const todo = within(await screen.findByRole("region", { name: "Still to do" }));
+    expect(todo.getByText("2 tasks, 4 h")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(todo.getAllByRole("button", { name: "Add to visit 2" })[0]!);
+    });
+    expect(sent("PUT")).toEqual([{ job: "job-1", edit: { kind: "visit", id: "comm", visit: 2 } }]);
+  });
+
+  it("drags a task onto another visit, and one back to the list", async () => {
+    fetchMock.mockImplementation(async () => ({ json: async () => answer({ tasks: [...TASKS.slice(0, 3), ...loose] }) }));
+    mount();
+    const row = (await within(await screen.findByRole("region", { name: "Still to do" })).findByText("Clean up")).closest("li")!;
+    const drag = fakeDrag();
+    fireEvent.dragStart(row, { dataTransfer: drag });
+    await act(async () => {
+      fireEvent.drop(screen.getByRole("tab", { name: /^Visit 3\b/ }), { dataTransfer: drag });
+    });
+    expect(sent("PUT")).toEqual([{ job: "job-1", edit: { kind: "visit", id: "clean", visit: 3 } }]);
+    const back = fakeDrag();
+    fireEvent.dragStart(within(card("Visit 2")).getByText("Drains for Level 3").closest("li")!, { dataTransfer: back });
+    await act(async () => {
+      fireEvent.drop(card("Still to do"), { dataTransfer: back });
+    });
+    expect(sent("PUT")[1]).toEqual({ job: "job-1", edit: { kind: "visit", id: "drains", visit: null } });
+  });
+
+  it("says a visit's hours planned against its crew's day", async () => {
+    fetchMock.mockImplementation(async () => ({
+      json: async () => answer({ tasks: [task("a", "Set two outdoors", { visit: 2, hours: 3 }), task("b", "Two circuits", { visit: 2, hours: 8 }), ...loose], quoted: { hours: 81, people: 2, visits: 6 }, dayHours: 8 }),
+    }));
+    mount();
+    expect(await within(await screen.findByRole("region", { name: "Visit 2" })).findByText("11 h of 16 h planned")).toBeInTheDocument();
+    /* the visits the quote planned are there to plan onto, booked or not */
+    expect(screen.getByRole("tab", { name: /^Visit 6\b/ })).toHaveTextContent("Not booked");
+  });
+
+  it("leaves the crew the visit and the loose tasks under it, not the planning", async () => {
+    fetchMock.mockImplementation(async () => ({ json: async () => answer({ tasks: [...TASKS.slice(0, 3), ...loose], manage: false }) }));
+    mount();
+    expect(await screen.findByText("Not on a visit yet")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Still to do" })).toBeNull();
+  });
+});
+
+it("with every task on a visit, lays the visits out as a strip, and a manager drags a task from one card to another", async () => {
+  const placed = [task("a", "Set two outdoors", { visit: 1 }), task("b", "Two circuits", { visit: 2 })];
+  fetchMock.mockImplementation(async () => ({ json: async () => answer({ tasks: placed, updates: [] }) }));
+  mount();
+  await screen.findByText("Two circuits");
+  expect(within(screen.getByRole("list", { name: "Visits, oldest first" })).getByText("Two circuits")).toBeInTheDocument();
+  const data: Record<string, string> = {};
+  const drag = { setData: (k: string, v: string) => void (data[k] = v), getData: (k: string) => data[k] ?? "", types: ["application/x-heytiff-task"], effectAllowed: "" };
+  fireEvent.dragStart(within(stripCard("Visit 2")).getByText("Two circuits").closest("li")!, { dataTransfer: drag });
+  await act(async () => {
+    fireEvent.drop(stripCard("Visit 3"), { dataTransfer: drag });
+  });
+  expect(sent("PUT")).toEqual([{ job: "job-1", edit: { kind: "visit", id: "b", visit: 3 } }]);
 });

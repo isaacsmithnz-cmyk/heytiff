@@ -143,19 +143,21 @@ export function QuoteScreen({
     } else toast("The quote couldn't be switched. Try again.");
   };
 
-  /* Create a quote, from the job card: starts Tiff on the quote's lines
-     when she's on for the business and nothing is drafted (slice 4.4) */
+  /* a new quote starts Tiff on its lines when she's on for the business and
+     nothing is drafted (slice 4.4): from Create a quote, or opened any other
+     way while nobody has chosen its engine (Isaac, 2026-10-11: the old
+     Draft proposal took 25 seconds) */
   const starting = useSearchParams()?.get("start") === "1";
   const startTiff = useEffectEvent(() => void switchTo("lines"));
   useEffect(() => {
     if (!financials) return;
     let live = true;
     fetch(`/api/workboard/quote-lines?job=${encodeURIComponent(job)}`)
-      .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines"; tiff?: boolean; drafted?: boolean; lines?: unknown[] }>)
+      .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines"; tiff?: boolean; drafted?: boolean; chosen?: boolean; lines?: unknown[] }>)
       .then((a) => {
         if (!live || !a.ok) return;
         if (a.engine === "lines") setEngine("lines");
-        else if (starting && a.tiff && !a.drafted && (a.lines ?? []).length === 0) startTiff();
+        else if ((starting || a.chosen === false) && a.tiff && !a.drafted && (a.lines ?? []).length === 0) startTiff();
       })
       .catch(() => undefined);
     return () => {

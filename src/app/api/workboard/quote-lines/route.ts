@@ -1,7 +1,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
-import { addLine, changeLine, copyOption, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
+import { addLine, changeLine, copyOption, engineChosen, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
 import { addKit } from "@/lib/quotes/kits-server";
 import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
@@ -97,10 +97,15 @@ export async function GET(req: Request) {
   const job = (new URL(req.url).searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(g.orgId, job);
-  /* whether Create a quote starts Tiff here (slice 4.4): she's on for the
-     business, and nothing is drafted the old way */
-  const [now, drafted] = await Promise.all([view(g.orgId, target.parentRemoteId, g.userId), readStoredProposal(g.orgId, target.parentRemoteId).catch(() => null)]);
-  return Response.json({ ...now, tiff: sessionModelFor(g.orgId) != null, drafted: drafted != null });
+  /* whether the quote starts with Tiff here (slice 4.4): she's on for the
+     business, nothing is drafted the old way, and nobody has chosen an
+     engine for it (a person who switched back keeps the old builder) */
+  const [now, drafted, chosen] = await Promise.all([
+    view(g.orgId, target.parentRemoteId, g.userId),
+    readStoredProposal(g.orgId, target.parentRemoteId).catch(() => null),
+    engineChosen(g.orgId, target.parentRemoteId).catch(() => true),
+  ]);
+  return Response.json({ ...now, tiff: sessionModelFor(g.orgId) != null, drafted: drafted != null, chosen });
 }
 
 export async function POST(req: Request) {

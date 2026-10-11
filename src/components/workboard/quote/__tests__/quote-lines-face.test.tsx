@@ -544,3 +544,69 @@ it("shows an estimate on its line and in To confirm, and confirms it from there"
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "change", id: "l7", version: 1, patch: { estimate: false }, why: "Confirmed the estimate" });
 });
+
+/* Isaac, 2026-10-10: "show me how that workflow goes from a completed quote
+   to update quote, even after it's been approved… it'll be variation then" */
+describe("a variation to the accepted quote", () => {
+  const settings2 = { unitMarkupPct: 25, materialMarkupPct: 40, chargeOutCents: 14000, dayHours: 8, contingency: null };
+  const diffuser = line({ id: "d1", group: "Ductwork and grilles", name: "CONE DIFFUSER PLASTIC 200", code: "CD200", kind: "material", qty: 3, costCents: 1289, source: "assumed", why: "" });
+  const varied = [line({ ...indoor, id: "v1", optionIndex: 1 }), line({ ...diffuser, id: "v2", optionIndex: 1, qty: 4 })];
+  const priceFor = (ls: QuoteLine[]) => ({
+    ok: true as const,
+    options: [0, 1]
+      .filter((i) => ls.some((l) => l.optionIndex === i))
+      .map((i) => ({ name: `Option ${i + 1}`, build: priceBuildUp(ls.filter((l) => l.optionIndex === i).map(buildLineOf), [], settings2), unpriced: [], rows: 1, labourFrom: "none" as const, profit: null })),
+  });
+  const variation = { n: 1, option: 1, of: 0, what: "Client wants the upstairs hallway done too.", startedAt: "2026-10-15T00:00:00Z", startedBy: "u-isaac", approvedAt: null, acceptedAt: null };
+
+  it("starts from Update quote on an accepted quote, asking what's changing", async () => {
+    const corner = document.createElement("div");
+    document.body.appendChild(corner);
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+      if (init?.body) posted.push(JSON.parse(init.body));
+      return { json: async () => (init?.body ? { ...view([indoor, diffuser, ...varied]), accepted: [0], variations: [variation], opened: 1 } : { ...view([indoor, diffuser]), accepted: [0] }) };
+    });
+    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser])} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} />);
+    fireEvent.click(await within(corner).findByRole("button", { name: "Update quote" }));
+    const dialog = screen.getByRole("dialog", { name: "Update quote" });
+    expect(within(dialog).getByText(/is accepted, so this is a variation/)).toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText("What's changing"), { target: { value: "Client wants the upstairs hallway done too." } });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Start variation 1" }));
+    });
+    expect(posted).toContainEqual({ job: "job-3377", op: "variation", what: "Client wants the upstairs hallway done too." });
+    corner.remove();
+  });
+
+  it("says its own price as the difference, what it adds or changes, and goes to the client on its own paper", async () => {
+    const corner = document.createElement("div");
+    document.body.appendChild(corner);
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+      if (init?.body) posted.push(JSON.parse(init.body));
+      return { json: async () => ({ ...view([indoor, diffuser, ...varied]), accepted: [0], variations: [variation] }) };
+    });
+    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
+    fireEvent.click(await screen.findByRole("tab", { name: /Variation 1/ }));
+    /* one more diffuser at $12.89 + 40%, the line rounded to the cent */
+    expect(screen.getByRole("tab", { name: /Variation 1/ })).toHaveTextContent("+$18.04");
+    expect(screen.getByText("Variation 1, ex GST")).toBeInTheDocument();
+    expect(screen.getByText(/^New total /)).toBeInTheDocument();
+    expect(document.querySelectorAll(".ql-vs")).toHaveLength(1);
+    expect(document.querySelector(".ql-vs")).toHaveTextContent("Changed");
+    expect(within(corner).queryByRole("button", { name: "Update quote" })).toBeNull();
+    fireEvent.click(within(corner).getByRole("button", { name: "Preview variation" }));
+    const paper = within(screen.getByRole("article", { name: "Variation 1" }));
+    expect(paper.getByText("Client wants the upstairs hallway done too.")).toBeInTheDocument();
+    expect(paper.getByText("CONE DIFFUSER PLASTIC 200")).toBeInTheDocument();
+    expect(paper.getByText("+$18.04")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(within(corner).getByRole("button", { name: "Approve" }));
+    });
+    expect(posted).toContainEqual({ job: "job-3377", op: "variation-approve", option: 1 });
+    await act(async () => {
+      fireEvent.click(within(corner).getByRole("button", { name: "Mark variation 1 accepted" }));
+    });
+    expect(posted).toContainEqual({ job: "job-3377", op: "variation-accept", option: 1 });
+    corner.remove();
+  });
+});

@@ -22,6 +22,8 @@ import type { QuoteNote } from "@/lib/templates/settings";
 import { unitPartOf } from "@/lib/quotes/brands";
 import { buildProgress, type PlannedPart } from "@/lib/quotes/build-progress";
 import { visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
+import type { Variation } from "@/lib/quotes/lines-job";
+import { VariationPaper } from "./variation-paper";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
    the mock-ups Isaac shaped on 7 October): the total in its own card, pinned
@@ -53,6 +55,10 @@ type View = {
   fits?: Fit[];
   /** the option the client took, marked by a person (lines-job.ts) */
   accepted?: number[];
+  /** changes after it was accepted, each an option of its own (lines-job.ts) */
+  variations?: Variation[];
+  /** a variation just started: the option to open */
+  opened?: number | null;
   /** each option's name, and its loading on labour (lines-job.ts) */
   optionNames?: string[];
   loading?: Record<number, { pct: number; reason: string }>;
@@ -319,6 +325,8 @@ export function QuoteLinesFace({
   const [comparing, setComparing] = useState<string | null>(null);
   /* Tiff's questions still open (tiff-panel.tsx) */
   const [asked, setAsked] = useState(0);
+  /* Update quote on an accepted quote: what's changing, while it's asked */
+  const [updating, setUpdating] = useState<string | null>(null);
   /* the parts she said she'd build, while she builds them (5.2) */
   const [plan, setPlan] = useState<{ option: number; parts: PlannedPart[] } | null>(null);
 
@@ -364,6 +372,28 @@ export function QuoteLinesFace({
   };
 
   const change = (l: QuoteLine, patch: Partial<LineFields>) => void act({ op: "change", id: l.id, version: l.version, patch });
+
+  /* A VARIATION (Isaac, 2026-10-10): started from Update quote on an
+     accepted quote, opened at once; approved, then accepted, on its own */
+  const startVariation = async (what: string) => {
+    setBusy(true);
+    setNote(null);
+    const v = await post({ op: "variation", what });
+    setBusy(false);
+    if (!v?.ok) return setNote(v?.reason ?? "That didn't save. Try again.");
+    setUpdating(null);
+    if (typeof v.opened === "number") setAt(v.opened);
+    onPriced();
+  };
+  const markVariation = async (op: "variation-approve" | "variation-accept", option: number, accepting: boolean) => {
+    setBusy(true);
+    setNote(null);
+    const v = await post({ op, option });
+    setBusy(false);
+    if (!v?.ok) return setNote(v?.reason ?? "That didn't save. Try again.");
+    onPriced();
+    if (op === "variation-accept" && accepting) onToast?.("The variation's new work is on the job's task list");
+  };
 
   const find = async (q: string) => {
     setSearch(q);
@@ -430,6 +460,23 @@ export function QuoteLinesFace({
     { key: "labour", label: "Labour", colour: "var(--chart-2)", cents: labourCents, note: `${hours} h, ${share(labourCents)}%` },
   ];
   const profit = priced?.profit ?? null;
+  /* a variation: every figure the difference it makes to the accepted quote */
+  const variation = (view?.variations ?? []).find((v) => v.option === at) ?? null;
+  const base = variation?.of ?? 0;
+  const baseOpt = variation && price && price.ok ? price.options[variation.of] : undefined;
+  const signed = (c: number) => `${c > 0 ? "+" : c < 0 ? "−" : ""}${fmtAud(Math.abs(c))}`;
+  const unitsIn = (x: OptionPrice) => x.build.groups.filter((g) => g.lines.some((l) => l.kind === "unit")).reduce((n, g) => n + g.sellCents, 0);
+  const delta =
+    priced && baseOpt
+      ? {
+          units: units - unitsIn(baseOpt),
+          materials: materials - (baseOpt.build.exGstCents - unitsIn(baseOpt) - baseOpt.build.labour.sellCents),
+          labour: labourCents - baseOpt.build.labour.sellCents,
+          hours: hours - all.filter((l) => l.optionIndex === base && l.kind === "labour").reduce((n, l) => n + l.qty, 0),
+          ex: priced.build.exGstCents - baseOpt.build.exGstCents,
+          profit: profit && baseOpt.profit ? profit.profitCents - baseOpt.profit.profitCents : null,
+        }
+      : null;
   const profitNote = !profit
     ? null
     : toConfirm > 0
@@ -439,7 +486,38 @@ export function QuoteLinesFace({
         : profit.targetPct != null
           ? { words: `${profit.pct}%, ${profit.pct > profit.targetPct ? "over" : "at"} your ${profit.targetPct}%`, tone: "ok" }
           : { words: `${profit.pct}%`, tone: "" };
-  const ledger = (
+  const ledger = delta ? (
+    <div className="ql-led" aria-label={`Variation ${variation!.n}`}>
+      {(
+        [
+          ["Units", "var(--chart-1)", delta.units, ""],
+          ["Materials", "var(--chart-3)", delta.materials, ""],
+          ["Labour", "var(--chart-2)", delta.labour, `${delta.hours > 0 ? "+" : ""}${Math.round(delta.hours * 100) / 100} h`],
+        ] as const
+      ).map(([label, colour, cents, note]) => (
+        <div key={label} className="ql-lc">
+          <span className="ql-ll">
+            <i className="ql-key" style={{ background: colour }} aria-hidden="true" />
+            {label}
+          </span>
+          <b>{signed(cents)}</b>
+          <em>{note}</em>
+        </div>
+      ))}
+      <div className="ql-lc tot">
+        <span className="ql-ll">{`Variation ${variation!.n}, ex GST`}</span>
+        <b>{signed(delta.ex)}</b>
+        <em>{`New total ${fmtAud(priced!.build.exGstCents)}`}</em>
+      </div>
+      <div className="ql-lc">
+        <span className="ql-ll">Profit</span>
+        <b>{delta.profit != null ? signed(delta.profit) : "–"}</b>
+        <em className={toConfirm > 0 ? "warn" : undefined}>
+          {toConfirm > 0 ? `${toConfirm} to confirm` : delta.profit != null && delta.ex !== 0 ? `${Math.round((delta.profit / delta.ex) * 1000) / 10}% of it` : ""}
+        </em>
+      </div>
+    </div>
+  ) : (
     <div className="ql-led" aria-label="The price">
       {parts.map((p) => (
         <div key={p.key} className="ql-lc">
@@ -558,14 +636,23 @@ export function QuoteLinesFace({
           <div className="ql-opts" role="tablist" aria-label="Options">
             {Array.from({ length: options }, (_, i) => (
               <button key={i} type="button" role="tab" aria-selected={i === at} className={i === at ? "ql-opt on" : "ql-opt"} onClick={() => setAt(i)}>
-                <span>{view?.optionNames?.[i] ? `${i + 1}. ${view.optionNames[i]}` : `Option ${i + 1}`}</span>
-                <b>{price && price.ok && price.options[i] ? fmtAud(price.options[i]!.build.exGstCents) : "–"}</b>
+                {(() => {
+                  const v = (view?.variations ?? []).find((x) => x.option === i);
+                  const mine = price && price.ok ? price.options[i] : undefined;
+                  const of = v && price && price.ok ? price.options[v.of] : undefined;
+                  return (
+                    <>
+                      <span>{v ? `Variation ${v.n}` : view?.optionNames?.[i] ? `${i + 1}. ${view.optionNames[i]}` : `Option ${i + 1}`}</span>
+                      <b>{mine ? (v && of ? signed(mine.build.exGstCents - of.build.exGstCents) : fmtAud(mine.build.exGstCents)) : "–"}</b>
+                    </>
+                  );
+                })()}
               </button>
             ))}
           </div>
         )}
         <div className="ql-sumrow">
-          {all.length > 0 && (
+          {all.length > 0 && !variation && (
             <TextBox
               key={`${at}|${view?.optionNames?.[at] ?? ""}`}
               label={`Option ${at + 1}, as the proposal names it`}
@@ -686,8 +773,8 @@ export function QuoteLinesFace({
                                   </a>
                                 )}
                                 {l.estimate && <em className="ql-vs ql-est"> Estimate</em>}
-                                {at > 0 && againstFirst(l, all) !== "same" && (
-                                  <em className="ql-vs">{againstFirst(l, all) === "added" ? " Added" : " Changed"}</em>
+                                {at !== base && againstFirst(l, all, base) !== "same" && (
+                                  <em className="ql-vs">{againstFirst(l, all, base) === "added" ? " Added" : " Changed"}</em>
                                 )}
                               </span>
                               {l.code && (
@@ -811,8 +898,8 @@ export function QuoteLinesFace({
         );
       })}
 
-      {at > 0 && missingFromFirst(at, all).length > 0 && (
-        <p className="qp-none">{`Not in this option: ${missingFromFirst(at, all)
+      {at !== base && missingFromFirst(at, all, base).length > 0 && (
+        <p className="qp-none">{`Not in this option: ${missingFromFirst(at, all, base)
           .map((l) => l.name)
           .join(", ")}`}</p>
       )}
@@ -923,9 +1010,11 @@ export function QuoteLinesFace({
   };
   /* on the proposal, every option is reviewed before it's approved; on the
      lines, the option open */
-  const checks: Check[] = paper
-    ? Array.from({ length: options }, (_, i) => checksFor(i).map((c) => (options > 1 ? { ...c, text: `Option ${i + 1}: ${c.text}` } : c))).flat()
-    : checksFor(at);
+  const quoteOptions = Array.from({ length: options }, (_, i) => i).filter((i) => !(view?.variations ?? []).some((v) => v.option === i));
+  const checks: Check[] =
+    paper && !variation
+      ? quoteOptions.map((i) => checksFor(i).map((c) => (quoteOptions.length > 1 ? { ...c, text: `Option ${i + 1}: ${c.text}` } : c))).flat()
+      : checksFor(at);
 
   /* what the page has to confirm: under Tiff's questions, one list (Isaac,
      2026-10-11: the conversation runs down to the message box) */
@@ -997,7 +1086,15 @@ export function QuoteLinesFace({
                 <button type="button" className="pbtn ghost" onClick={() => setPaper(false)}>
                   Back to the lines
                 </button>
-                {view?.approved ? (
+                {variation ? (
+                  variation.approvedAt ? (
+                    <span className="qp-approved">{`Variation ${variation.n} approved`}</span>
+                  ) : (
+                    <button type="button" className="pbtn primary" disabled={busy} onClick={() => void markVariation("variation-approve", variation.option, true)}>
+                      Approve
+                    </button>
+                  )
+                ) : view?.approved ? (
                   <span className="qp-approved">{`Approved by ${approver}`}</span>
                 ) : (
                   <button type="button" className="pbtn primary" disabled={busy || all.length === 0} onClick={() => void act({ op: "approve" })}>
@@ -1012,22 +1109,38 @@ export function QuoteLinesFace({
                 </button>
                 {all.length > 0 && (
                   <button type="button" className="pbtn ghost" onClick={() => setPaper(true)}>
-                    Preview proposal
+                    {variation ? "Preview variation" : "Preview proposal"}
+                  </button>
+                )}
+                {accepted.length > 0 && !variation && (
+                  <button type="button" className="pbtn ghost" disabled={busy} onClick={() => setUpdating("")}>
+                    Update quote
                   </button>
                 )}
               </>
             )}
-            {all.length > 0 && (
-              <button
-                type="button"
-                className={accepted.includes(at) ? "pbtn ghost wb2-jqacc on" : "pbtn ghost"}
-                aria-pressed={accepted.includes(at)}
-                disabled={busy}
-                onClick={() => void accept()}
-              >
-                {accepted.includes(at) ? (options > 1 ? `Option ${at + 1} accepted` : "Accepted") : options > 1 ? `Mark option ${at + 1} accepted` : "Mark accepted"}
-              </button>
-            )}
+            {all.length > 0 &&
+              (variation ? (
+                <button
+                  type="button"
+                  className={variation.acceptedAt ? "pbtn ghost wb2-jqacc on" : "pbtn ghost"}
+                  aria-pressed={!!variation.acceptedAt}
+                  disabled={busy}
+                  onClick={() => void markVariation("variation-accept", variation.option, !variation.acceptedAt)}
+                >
+                  {variation.acceptedAt ? `Variation ${variation.n} accepted` : `Mark variation ${variation.n} accepted`}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={accepted.includes(at) ? "pbtn ghost wb2-jqacc on" : "pbtn ghost"}
+                  aria-pressed={accepted.includes(at)}
+                  disabled={busy}
+                  onClick={() => void accept()}
+                >
+                  {accepted.includes(at) ? (options > 1 ? `Option ${at + 1} accepted` : "Accepted") : options > 1 ? `Mark option ${at + 1} accepted` : "Mark accepted"}
+                </button>
+              ))}
           </>,
           actionsEl
         )}
@@ -1039,11 +1152,30 @@ export function QuoteLinesFace({
           <div className="hd-main">
             <div className="hd-col">
               <div className="hd-face qp-face ql-face">
-                {paper ? (
+                {paper && variation && priced && baseOpt ? (
+                  <div className="lp-desk">
+                    <VariationPaper
+                      n={variation.n}
+                      what={variation.what}
+                      startedAt={variation.startedAt}
+                      jobNumber={meta?.jobNumber ?? null}
+                      client={meta?.client ?? null}
+                      acceptedExCents={baseOpt.build.exGstCents}
+                      newExCents={priced.build.exGstCents}
+                      newIncCents={priced.build.incGstCents}
+                      changes={{
+                        added: lines.filter((l) => againstFirst(l, all, base) === "added").map((l) => l.name),
+                        changed: lines.filter((l) => againstFirst(l, all, base) === "changed").map((l) => l.name),
+                        removed: missingFromFirst(at, all, base).map((l) => l.name),
+                      }}
+                    />
+                  </div>
+                ) : paper ? (
                   <div className="lp-desk">
                     <LinesProposalPaper
                       proposal={view?.proposal ?? null}
-                      lines={all}
+                      /* the quote's own options: a variation is its own paper */
+                      lines={all.filter((l) => !(view?.variations ?? []).some((v) => v.option === l.optionIndex))}
                       price={price}
                       optionNames={view?.optionNames ?? []}
                       noteLibrary={view?.noteLibrary ?? []}
@@ -1062,6 +1194,27 @@ export function QuoteLinesFace({
                 )}
               </div>
             </div>
+            {updating != null && (
+              <>
+                <div className="ql-vscrim" onClick={() => setUpdating(null)} />
+                <div className="ql-vdlg" role="dialog" aria-modal="true" aria-label="Update quote">
+                  <h3>Update quote</h3>
+                  <p>{`${options > 1 ? `Option ${(accepted[0] ?? 0) + 1}` : "The quote"} is accepted, so this is a variation. The accepted quote stays as it is. The variation is priced as the difference, and the client approves it on its own.`}</p>
+                  <label className="ql-vwhat">
+                    <span>What&apos;s changing</span>
+                    <textarea className="wb2-fi" rows={3} value={updating} autoFocus disabled={busy} onChange={(e) => setUpdating(e.target.value)} />
+                  </label>
+                  <div className="wb2-jqacts">
+                    <button type="button" className="pbtn ghost" disabled={busy} onClick={() => setUpdating(null)}>
+                      Cancel
+                    </button>
+                    <button type="button" className="pbtn primary" disabled={busy || !updating.trim()} onClick={() => void startVariation(updating.trim())}>
+                      {`Start variation ${(view?.variations ?? []).reduce((m, v) => Math.max(m, v.n), 0) + 1}`}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
             <aside className="hd-list qp-rail" aria-label="Changes">
               <TiffPanel
                 job={job}

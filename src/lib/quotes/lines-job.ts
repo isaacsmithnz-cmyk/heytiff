@@ -37,7 +37,30 @@ export type ByHand = {
   proposal: LinesProposal | null;
   /** lines priced from the web, by id: the page the price rests on (12.2) */
   researched: Record<string, { url: string; title: string }>;
+  /** changes after it was accepted, each an option of its own (Isaac,
+      2026-10-10: "even after it's been approved… it'll be variation then") */
+  variations: Variation[];
 };
+
+/** A VARIATION TO THE ACCEPTED QUOTE: an option of its own, started as a
+    copy of the accepted one and changed from there, priced as the
+    difference; approved and accepted on its own, the accepted quote never
+    changed. */
+export type Variation = {
+  /** Variation 1, 2… */
+  n: number;
+  /** the option it is */
+  option: number;
+  /** the accepted option it varies */
+  of: number;
+  /** what's changing, in the words it was started with */
+  what: string;
+  startedAt: string;
+  startedBy: string;
+  approvedAt: string | null;
+  acceptedAt: string | null;
+};
+export const MAX_VARIATION_WHAT = 500;
 
 /** Units a compare holds beside its suggestions, at most. */
 export const MAX_COMPARED = 4;
@@ -88,7 +111,41 @@ export function byHandOf(draft: unknown): ByHand {
     const url = said(s.url, 500);
     if (/^[\w-]{1,60}$/.test(id) && /^https?:\/\//.test(url)) researched[id] = { url, title: said(s.title, 200) || url };
   }
-  return { accepted, names, loading, compare, supplier, proposal, researched };
+  const variations: Variation[] = [];
+  for (const v of (Array.isArray(o.variations) ? o.variations : []).slice(0, 19)) {
+    const x = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+    const n = whole(x.n);
+    const option = whole(x.option);
+    const of = whole(x.of);
+    const at = (k: string) => (typeof x[k] === "string" && x[k] ? (x[k] as string) : null);
+    if (!Number.isInteger(n) || n < 1 || !Number.isInteger(option) || option < 1 || option > 19 || !Number.isInteger(of) || of < 0 || of === option) continue;
+    if (variations.some((w) => w.option === option)) continue;
+    variations.push({ n, option, of, what: said(x.what, MAX_VARIATION_WHAT), startedAt: at("startedAt") ?? "", startedBy: said(x.startedBy, 120), approvedAt: at("approvedAt"), acceptedAt: at("acceptedAt") });
+  }
+  return { accepted, names, loading, compare, supplier, proposal, researched, variations };
+}
+
+/** The variation an option is, if it is one. */
+export const variationOf = (b: Pick<ByHand, "variations">, option: number): Variation | null => b.variations.find((v) => v.option === option) ?? null;
+
+/** A variation started on option `option`, a copy of the accepted one: the
+    next number, its words, and its name for the proposal and ServiceM8. */
+export function withVariation(b: ByHand, option: number, what: string, by: string, now: string): ByHand {
+  const of = b.accepted[0] ?? 0;
+  const n = b.variations.reduce((m, v) => Math.max(m, v.n), 0) + 1;
+  const names = [...b.names];
+  while (names.length <= option) names.push("");
+  names[option] = `Variation ${n}`;
+  return {
+    ...b,
+    names,
+    variations: [...b.variations, { n, option, of, what: said(what, MAX_VARIATION_WHAT), startedAt: now, startedBy: by, approvedAt: null, acceptedAt: null }],
+  };
+}
+
+/** A variation approved, or accepted by the client, now; marked again, it's taken off. */
+export function withVariationMark(b: ByHand, option: number, mark: "approvedAt" | "acceptedAt", now: string): ByHand {
+  return { ...b, variations: b.variations.map((v) => (v.option === option ? { ...v, [mark]: v[mark] ? null : now } : v)) };
 }
 
 /** The proposal's words changed: a patch over what's there (blocks left

@@ -13,9 +13,11 @@ import {
   withProposal,
   withResearched,
   withSupplier,
+  withVariation,
+  withVariationMark,
   type ByHand,
 } from "./lines-job";
-import { changeLine, readEngine, readLines } from "./lines-server";
+import { changeLine, copyOption, readEngine, readLines } from "./lines-server";
 import { bookProducts } from "./book-view-server";
 import { bookPrice } from "./session/tools";
 import type { QuoteLine } from "./lines";
@@ -97,6 +99,27 @@ export async function saveProposal(orgId: string, cardId: string, patch: unknown
 }
 /** A person saying this version of the proposal is right to go. */
 export const approveProposal = (orgId: string, cardId: string, by: string) => changeByHand(orgId, cardId, by, (b) => withApproval(b, by, new Date().toISOString()));
+
+/** A VARIATION STARTED on an accepted quote (Isaac, 2026-10-10): the
+    accepted option copied to a new one, every line kept in its history as
+    a copy, named Variation N, with what's changing. Refused on a quote
+    nobody has accepted: that's a new version, not a variation. */
+export async function startVariation(orgId: string, cardId: string, what: string, by: string): Promise<{ ok: true; option: number; n: number } | { ok: false; reason: string }> {
+  const [b, lines] = await Promise.all([readByHand(orgId, cardId), readLines(orgId, cardId)]);
+  const of = b.accepted[0];
+  if (of == null) return { ok: false, reason: "Nothing's accepted yet: change the quote itself." };
+  const option = Math.max(lines.reduce((m, l) => Math.max(m, l.optionIndex), 0), b.names.length - 1, ...b.variations.map((v) => v.option)) + 1;
+  if (option > 19) return { ok: false, reason: "A quote holds 20 options and variations at most." };
+  const copied = await copyOption(orgId, cardId, of, option, by);
+  if (!copied.ok) return { ok: false, reason: copied.reason };
+  const saved = await changeByHand(orgId, cardId, by, (x) => withVariation(x, option, what, by, new Date().toISOString()));
+  if (!saved.ok) return saved;
+  return { ok: true, option, n: saved.byHand.variations.find((v) => v.option === option)?.n ?? 1 };
+}
+
+/** A variation approved to go, or accepted by the client; again takes it off. */
+export const markVariation = (orgId: string, cardId: string, option: number, mark: "approvedAt" | "acceptedAt", by: string) =>
+  changeByHand(orgId, cardId, by, (b) => withVariationMark(b, option, mark, new Date().toISOString()));
 
 /** Sets option `i`'s loading, or takes it off. */
 export const setLoading = (orgId: string, cardId: string, i: number, loading: unknown, by: string) => changeByHand(orgId, cardId, by, (b) => withLoading(b, i, loading));

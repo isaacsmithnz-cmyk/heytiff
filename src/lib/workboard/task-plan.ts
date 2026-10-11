@@ -104,6 +104,30 @@ export function withStarters(tasks: readonly NewTask[], starters: readonly Start
   return [...at("first"), ...at("every"), ...tasks, ...at("last")].slice(0, MAX_TASKS).map((t, i) => ({ ...t, sort: i }));
 }
 
+/** A VARIATION'S WORK ONTO THE JOB, once the client accepts it: every task
+    its labour has that the accepted option's hasn't (by visit and name),
+    with its hours, and a labour line of hours with no tasks it hasn't got,
+    as one task. On no visit: the person puts them on the days. */
+export function variationTasks(
+  accepted: readonly { name: string; kind: string; qty: number; visit?: { stage: string; tasks: readonly { task: string; hours: number }[] } | null }[],
+  varied: readonly { name: string; kind: string; qty: number; visit?: { stage: string; tasks: readonly { task: string; hours: number }[] } | null }[],
+  stageOf: (words: string) => VisitStage
+): NewTask[] {
+  const had = new Set(accepted.filter((l) => l.kind === "labour").flatMap((l) => (l.visit ? l.visit.tasks.map((t) => `${l.visit!.stage.toLowerCase()}|${t.task.toLowerCase()}`) : [`line|${l.name.toLowerCase()}`])));
+  const out: NewTask[] = [];
+  for (const l of varied.filter((x) => x.kind === "labour" && x.qty > 0)) {
+    if (l.visit) {
+      for (const t of l.visit.tasks) {
+        if (had.has(`${l.visit.stage.toLowerCase()}|${t.task.toLowerCase()}`)) continue;
+        out.push({ name: clean(t.task), stage: stageOf(l.visit.stage), kind: "tick", unit: null, visit: null, sort: out.length, hours: t.hours > 0 ? t.hours : null });
+      }
+    } else if (!had.has(`line|${l.name.toLowerCase()}`)) {
+      out.push({ name: clean(l.name), stage: stageOf(l.name), kind: "tick", unit: null, visit: null, sort: out.length, hours: l.qty });
+    }
+  }
+  return out.filter((t) => t.name);
+}
+
 /** A unit of an accepted option, with the option it's in. */
 type OptionUnit = UnitLine & { option: number };
 

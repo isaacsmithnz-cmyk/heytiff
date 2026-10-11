@@ -3,11 +3,11 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withLoading, withName, withProposal } from "../lines-job";
+import { byHandOf, variationOf, withVariation, withVariationMark, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withLoading, withName, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
-const bh = (accepted: number[]) => ({ accepted, names: [] as string[], loading: {}, compare: {}, supplier: null, proposal: null, researched: {} });
+const bh = (accepted: number[]) => ({ accepted, names: [] as string[], loading: {}, compare: {}, supplier: null, proposal: null, researched: {}, variations: [] });
 const line = (o: Partial<QuoteLine>): QuoteLine => ({
   id: "x", version: 1, updatedAt: "", updatedBy: "", optionIndex: 0, system: "", group: "Materials", position: 0, name: "x",
   code: null, supplierKey: null, kind: "material", qty: 1, unit: "", costCents: 0, sellCents: null, source: "by_hand", why: "", duct: false, ...o,
@@ -40,7 +40,7 @@ describe("each option's name and loading", () => {
     expect(withLoading(bh([]), 0, { pct: 12, reason: "Parapet access" }).loading).toEqual({ 0: { pct: 12, reason: "Parapet access" } });
     expect(withLoading(bh([]), 0, { pct: 90, reason: "" }).loading[0]!.pct).toBe(50);
     expect(withLoading({ ...bh([]), loading: { 0: { pct: 12, reason: "x" } } }, 0, { pct: 0 }).loading).toEqual({});
-    expect(byHandOf({ byHand: { names: ["Good"], loading: { "1": { pct: "10", reason: "Two storeys" }, x: { pct: 5 } } } })).toEqual({ accepted: [], names: ["Good"], loading: { 1: { pct: 10, reason: "Two storeys" } }, compare: {}, supplier: null, proposal: null, researched: {} });
+    expect(byHandOf({ byHand: { names: ["Good"], loading: { "1": { pct: "10", reason: "Two storeys" }, x: { pct: 5 } } } })).toEqual({ accepted: [], names: ["Good"], loading: { 1: { pct: 10, reason: "Two storeys" } }, compare: {}, supplier: null, proposal: null, researched: {}, variations: [] });
   });
 });
 
@@ -176,5 +176,32 @@ describe("the quote as the job reads it", () => {
       { name: "Outdoor unit", sub: "MUZ-AP50VG", qty: "1" },
       { name: "Pair coil 1/4 1/2", sub: "PC1412", qty: "6.5 m" },
     ]);
+  });
+});
+
+/* Isaac, 2026-10-10: "even after it's been approved… it'll be variation then" */
+describe("a variation to the accepted quote", () => {
+  const accepted = { ...bh([0]), names: ["Daikin, zoned"] };
+
+  it("is an option of its own, numbered, named, varying the accepted one", () => {
+    const b = withVariation(accepted, 2, "  Client wants the upstairs hallway done too. ", "u-isaac", "2026-10-15T00:00:00Z");
+    expect(b.names).toEqual(["Daikin, zoned", "", "Variation 1"]);
+    expect(variationOf(b, 2)).toEqual({ n: 1, option: 2, of: 0, what: "Client wants the upstairs hallway done too.", startedAt: "2026-10-15T00:00:00Z", startedBy: "u-isaac", approvedAt: null, acceptedAt: null });
+    expect(variationOf(withVariation(b, 3, "A second controller", "u-isaac", "x"), 3)!.n).toBe(2);
+    expect(variationOf(b, 0)).toBeNull();
+  });
+
+  it("is approved, then accepted, on its own; marked again, taken off", () => {
+    const b = withVariation(accepted, 1, "x", "u", "t0");
+    const approved = withVariationMark(b, 1, "approvedAt", "t1");
+    expect(variationOf(approved, 1)).toMatchObject({ approvedAt: "t1", acceptedAt: null });
+    expect(variationOf(withVariationMark(approved, 1, "approvedAt", "t2"), 1)!.approvedAt).toBeNull();
+    expect(variationOf(withVariationMark(approved, 1, "acceptedAt", "t3"), 1)).toMatchObject({ approvedAt: "t1", acceptedAt: "t3" });
+  });
+
+  it("is read back from the draft, and a broken one left out", () => {
+    const b = withVariation(accepted, 1, "x", "u", "t0");
+    expect(byHandOf({ byHand: b }).variations).toEqual(b.variations);
+    expect(byHandOf({ byHand: { ...b, variations: [{ n: 1, option: 0, of: 0 }, { n: "x", option: 2, of: 0 }] } }).variations).toEqual([]);
   });
 });

@@ -6988,6 +6988,23 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* an estimate, confirmed from the list (Isaac, 2026-10-10) */
 .fg .ql-chkacts { grid-column:2; display:flex; gap:8px; padding-top:4px; }
 .fg .ql-vs.ql-est { color:var(--warn-t); }
+/* Update quote on an accepted quote: a variation, asked what's changing (Isaac, 2026-10-10) */
+.fg .ql-vscrim { position:fixed; inset:0; z-index:var(--z-modal); background:rgba(21,26,36,.32); }
+.fg .ql-vdlg { position:fixed; z-index:var(--z-modal); top:20vh; left:50%; transform:translateX(-50%); width:min(480px, calc(100vw - 32px));
+  display:flex; flex-direction:column; gap:16px; padding:24px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
+.fg .ql-vdlg h3 { margin:0; font-size:20px; font-weight:700; color:var(--ink); }
+.fg .ql-vdlg p { margin:0; font-size:14px; line-height:1.5; color:var(--hd-body); }
+.fg .ql-vwhat { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:500; color:var(--q); }
+.fg .ql-vwhat textarea { min-height:72px; padding:8px 12px; font:inherit; font-size:14px; color:var(--ink); resize:vertical; }
+/* a variation, as the client gets it */
+.fg .lp-vto { font-size:16px; font-weight:700; }
+.fg .lp-vchg { display:flex; flex-direction:column; gap:4px; font-size:14px; }
+.fg .lp-vchg b { font-size:13px; font-weight:700; }
+.fg .lp-vchg ul { margin:0; padding-left:16px; }
+.fg .lp-vt { width:100%; border-collapse:collapse; font-size:14px; }
+.fg .lp-vt td { padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .lp-vt .n { text-align:right; font-variant-numeric:tabular-nums; }
+.fg .lp-vt tr.chg td, .fg .lp-vt tr.tot td { font-weight:700; }
 .fg .ql-chg { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
 .fg .ql-chg li { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:13px; line-height:1.45; color:var(--hd-ink); }
 .fg .ql-chg li:first-child { border-top:0; }

@@ -113,6 +113,8 @@ export function VisitSheet({
   onOpenVisit,
   onToast,
   onClose,
+  onChanged,
+  windowControls,
 }: {
   visit: BoardVisit;
   tone: VisitTone;
@@ -144,8 +146,20 @@ export function VisitSheet({
   onOpenVisit: (visitId: string) => void;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
   onClose: () => void;
+  /** After a press changed the visit: a sheet opened where you are
+      (components/records) is drawn from what was read, and reads it again.
+      The board's own sheet has the page's refresh. */
+  onChanged?: () => void;
+  /** What the window it opened in adds to its band (Set aside). */
+  windowControls?: React.ReactNode;
 }) {
   const router = useRouter();
+  /* The page's data again, and the card's own when it was opened where you
+     are. */
+  const refresh = () => {
+    router.refresh();
+    onChanged?.();
+  };
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("visit");
@@ -227,13 +241,13 @@ export function VisitSheet({
       const res = await fn();
       if (!res.ok) setErr(res.error);
       else if (toastMsg) onToast(toastMsg, undo);
-      router.refresh();
+      refresh();
     });
   };
 
   const undoable = (fn: () => Promise<MaintenanceResult>) => async () => {
     await fn();
-    router.refresh();
+    refresh();
   };
 
   const gates = gatesOf(visit);
@@ -336,7 +350,7 @@ export function VisitSheet({
         return;
       }
       after?.();
-      router.refresh();
+      refresh();
     });
   };
 
@@ -476,6 +490,7 @@ export function VisitSheet({
                 {visit.siteLabel ? `, ${visit.siteLabel}` : ""}
               </p>
             </span>
+            {windowControls}
             <span className="wb2-shchips">
               {toneChip}
               <span className="wb2-chip" title="How often this service comes round">

@@ -609,13 +609,16 @@ describe("a palette that acts", () => {
     key: `job.${U}`,
     path: "/dashboard",
     ref: { kind: "job", id: U },
-    row: { id: U, number: "4821", clientName: "Sarah Nguyen" } as AllJobRow,
-    state: null,
-    tab: undefined,
     from: null,
-    door: null,
     list: [U, "j-4822"],
     aside: false,
+    body: {
+      kind: "job",
+      row: { id: U, number: "4821", clientName: "Sarah Nguyen" } as AllJobRow,
+      state: null,
+      tab: undefined,
+      door: null,
+    },
   };
   const host = (over: Partial<WindowsApi> = {}): WindowsApi => ({
     windows: [card],
@@ -626,6 +629,7 @@ describe("a palette that acts", () => {
     restore: jest.fn(),
     stepOf: (key, by) => (key === card.key && by === 1 ? "j-4822" : null),
     step: jest.fn(),
+    reload: jest.fn(),
     recent: [],
     toast: jest.fn(),
     ...over,
@@ -666,6 +670,22 @@ describe("a palette that acts", () => {
     expect(windows.step).toHaveBeenCalledWith(`job.${U}`, 1);
   });
 
+  it("over a visit, names the visit and offers what a visit has", () => {
+    const visit: Win = {
+      ...card,
+      key: "visit.v-7",
+      ref: { kind: "visit", id: "v-7" },
+      list: null,
+      body: { kind: "visit", card: { visit: { label: "Quarterly service", clientName: "Bayview" } } } as unknown as Win["body"],
+    };
+    drawWith(host({ windows: [visit], stepOf: () => null }));
+    const group = screen.getByRole("group", { name: "Quarterly service" });
+    expect(within(group).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Set aside",
+      "Copy the link to this visit",
+    ]);
+  });
+
   it("offers no Set aside where there is no dock", () => {
     drawWith(host({ docked: false }));
     expect(screen.queryByRole("option", { name: "Set aside" })).toBeNull();
@@ -677,17 +697,17 @@ describe("a palette that acts", () => {
       host({
         windows: [],
         recent: [
-          { id: "j-7", number: "7", clientName: "Coogee Strata" },
-          { id: "j-8", number: null, clientName: null },
+          { key: "job.j-7", ref: { kind: "job", id: "j-7" }, title: "Job 7", sub: "Coogee Strata" },
+          { key: "visit.v-8", ref: { kind: "visit", id: "v-8" }, title: "Quarterly service", sub: null },
         ],
       }),
       undefined,
       { hosted: true, open },
     );
     const group = screen.getByRole("group", { name: "Recent" });
-    expect(within(group).getAllByRole("option").map((o) => o.textContent)).toEqual(["#7 Coogee Strata", "Unnamed client"]);
-    fireEvent.click(within(group).getByRole("option", { name: /Coogee Strata/ }));
-    expect(open).toHaveBeenCalledWith({ kind: "job", id: "j-7" }, expect.objectContaining({ from: null }));
+    expect(within(group).getAllByRole("option").map((o) => o.textContent)).toEqual(["Job 7Coogee Strata", "Quarterly service"]);
+    fireEvent.click(within(group).getByRole("option", { name: /Quarterly service/ }));
+    expect(open).toHaveBeenCalledWith({ kind: "visit", id: "v-8" }, expect.objectContaining({ from: null }));
 
     type("coogee");
     expect(screen.queryByRole("group", { name: "Recent" })).toBeNull();

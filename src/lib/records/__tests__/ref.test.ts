@@ -1,4 +1,4 @@
-import { decodeRecord, encodeRecord, openParamOf, recordOfHref, withOpenParam } from "../ref";
+import { decodeRecord, encodeRecord, openParamOf, recordHref, recordOfHref, withOpenParam } from "../ref";
 
 /* WHAT A DOOR ASKS THE RECORD HOST FOR, AND HOW IT RIDES IN THE ADDRESS.
    The tokens are read back off an address anyone can type, so a bad one
@@ -17,7 +17,7 @@ describe("the token", () => {
     ["no dot", "job8d1c"],
     ["no kind", ".8d1c"],
     ["no id", "job."],
-    ["a kind the host cannot open", "visit.v-1"],
+    ["a kind the host cannot open", "project.p-1"],
     ["a slash", "job.a/b"],
     ["a space", "job.a b"],
     ["a query", "job.a?b"],
@@ -26,6 +26,29 @@ describe("the token", () => {
     ["too long", `job.${"x".repeat(81)}`],
   ])("reads %s as no record", (_, token) => {
     expect(decodeRecord(token)).toBeNull();
+  });
+});
+
+describe("the kinds", () => {
+  it("reads a visit and an agreement as well as a job", () => {
+    expect(decodeRecord("visit.v-1")).toEqual({ kind: "visit", id: "v-1" });
+    expect(decodeRecord("agreement.a-1")).toEqual({ kind: "agreement", id: "a-1" });
+  });
+
+  it("gives each its own address to send", () => {
+    expect(recordHref({ kind: "job", id: "j-1" })).toBe("/dashboard/workboard?job=j-1");
+    expect(recordHref({ kind: "visit", id: "v-1" })).toBe("/dashboard/workboard?visit=v-1");
+    expect(recordHref({ kind: "agreement", id: "a-1" })).toBe("/dashboard/workboard?open=agreement.a-1");
+  });
+});
+
+describe("a link that names a visit", () => {
+  it("is a record", () => {
+    expect(recordOfHref("/dashboard/workboard?visit=v-7")).toEqual({ ref: { kind: "visit", id: "v-7" } });
+  });
+
+  it("is not a record beside anything else", () => {
+    expect(recordOfHref("/dashboard/workboard?visit=v-7&side=maintenance")).toBeNull();
   });
 });
 
@@ -49,7 +72,6 @@ describe("a link that names a job", () => {
   it.each([
     ["another screen", "/dashboard/assets?v=v1"],
     ["the Workboard on its own", "/dashboard/workboard"],
-    ["a visit", "/dashboard/workboard?visit=v-7"],
     ["a job and a search", "/dashboard/workboard?job=j-1&q=pump"],
     ["a job on a side", "/dashboard/workboard?job=j-1&side=jobs"],
     ["a job's quote screen", "/dashboard/workboard/quotes/j-1"],
@@ -78,7 +100,8 @@ describe("the address", () => {
 
   it("says which record it names, or none", () => {
     expect(openParamOf("https://app.test/dashboard?open=job.j-1")).toEqual({ kind: "job", id: "j-1" });
-    expect(openParamOf("https://app.test/dashboard?open=visit.v-1")).toBeNull();
+    expect(openParamOf("https://app.test/dashboard?open=visit.v-1")).toEqual({ kind: "visit", id: "v-1" });
+    expect(openParamOf("https://app.test/dashboard?open=project.p-1")).toBeNull();
     expect(openParamOf("https://app.test/dashboard")).toBeNull();
     expect(openParamOf("not an address")).toBeNull();
   });

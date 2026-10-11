@@ -4,6 +4,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState, type Rea
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { openMirrorJob } from "@/app/actions/workboard";
+import { openMaintenanceCard } from "@/app/actions/workboard-records";
 import { ToastHost, useBoardToasts } from "@/components/workboard/board/toasts";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { encodeRecord, openParamOf, recordKey, withOpenParam, type RecordRef } from "@/lib/records/ref";
@@ -16,7 +17,9 @@ import {
   type RecordsApi,
   type RecentRecord,
   type Win,
+  type WinBody,
   type WindowsApi,
+  titleOf,
 } from "./records-context";
 
 export { DOCK_MAX, WindowsContext, useRecords } from "./records-context";
@@ -87,6 +90,24 @@ function stepIn(win: Win | undefined, by: 1 | -1): string | null {
   if (!win?.list) return null;
   const at = win.list.indexOf(win.ref.id);
   return at < 0 ? null : (win.list[at + by] ?? null);
+}
+
+/** What each kind is called in what the host says about it. */
+const NOUN: Record<RecordRef["kind"], string> = { job: "job", visit: "visit", agreement: "agreement" };
+const GONE: Record<RecordRef["kind"], string> = {
+  job: "That job isn't in ServiceM8's copy any more.",
+  visit: "That visit isn't on the board any more.",
+  agreement: "That agreement isn't on the board any more.",
+};
+
+/** A record's card, read by its id: a job's row off the mirror, a visit's
+    or an agreement's off the maintenance board. Null when it is not there. */
+function loadBody(ref: RecordRef, jobBody: (row: AllJobRow) => WinBody): Promise<WinBody | null> {
+  if (ref.kind === "job") return openMirrorJob(ref.id).then((row) => (row ? jobBody(row) : null));
+  return openMaintenanceCard(ref.kind, ref.id).then((read) => {
+    if (!read) return null;
+    return read.kind === "visit" ? { kind: "visit", card: read.card } : { kind: "agreement", card: read.card };
+  });
 }
 
 /** The app's record host, in the dashboard layout: it follows the address,
@@ -182,42 +203,47 @@ function RecordsCore({
          it: on Back the address has moved before the router has. */
       const path = syncUrl ? window.location.pathname : pathname;
       const from = opts.from !== undefined ? opts.from : focused();
-      const door = opts.bookIn || opts.clear ? { bookIn: !!opts.bookIn, clear: opts.clear ?? null, n } : null;
       const key = recordKey(ref);
-      /** In front, on `row` — or, with none, as it was left in the dock. */
-      const land = (row: AllJobRow | null) => {
+      /* What a job's door came for. A booking door is a fresh card even on
+         the job already open, so what it came for is what the card opens
+         on. */
+      const door =
+        ref.kind === "job" && (opts.bookIn || opts.clear) ? { bookIn: !!opts.bookIn, clear: opts.clear ?? null, n } : null;
+      const jobBody = (row: AllJobRow): WinBody => ({
+        kind: "job",
+        row,
+        state: opts.state ?? null,
+        tab: door ? "visits" : opts.tab,
+        door,
+      });
+      /** In front, drawing `fresh` — or, with none, as it was left in the
+          dock. */
+      const land = (fresh: WinBody | null) => {
         /* You went somewhere else while it was asked for. */
         if (syncUrl && window.location.pathname !== path) return;
+        const held = live.current.find((w) => w.key === key);
+        const body = fresh ?? held?.body;
+        if (!body) return;
         setWindows((ws) => {
-          const held = ws.find((w) => w.key === key);
-          if (!row && !held) return ws;
+          const was = ws.find((w) => w.key === key);
           const win: Win = {
             key,
             path,
             ref,
-            row: row ?? held!.row,
-            state: opts.state ?? (row ? null : held!.state),
-            tab: door ? "visits" : (opts.tab ?? (row ? undefined : held!.tab)),
             from,
-            door: door ?? (row ? null : held!.door),
-            list: opts.list ?? (row ? null : held!.list),
+            list: opts.list ?? (fresh ? null : (was?.list ?? null)),
             aside: false,
+            body: fresh ?? was?.body ?? body,
           };
           /* ONE CARD IN FRONT: the one there now goes. A card coming back
              from the dock keeps its place, so it keeps its state. */
-          return held
+          return was
             ? ws.filter((w) => w.aside || w.key === key).map((w) => (w.key === key ? win : w))
             : [...ws.filter((w) => w.aside), win];
         });
         if (address) pushAddress(ref);
-        const shows = row ?? live.current.find((w) => w.key === key)?.row;
-        if (shows)
-          setRecent((rs) =>
-            [{ id: ref.id, number: shows.number, clientName: shows.clientName }, ...rs.filter((r) => r.id !== ref.id)].slice(
-              0,
-              RECENT_MAX,
-            ),
-          );
+        const { title, sub } = titleOf(body);
+        setRecent((rs) => [{ key, ref, title, sub }, ...rs.filter((r) => r.key !== key)].slice(0, RECENT_MAX));
       };
       /* A card in the dock comes back as it was left, unless the door
          brought word of its own (the row, or what it came to book). */
@@ -225,22 +251,40 @@ function RecordsCore({
         land(null);
         return;
       }
-      if (opts.row) {
-        land(opts.row);
+      if (ref.kind === "job" && opts.row) {
+        land(jobBody(opts.row));
         return;
       }
-      void openMirrorJob(ref.id).then(
-        (row) => {
+      const noun = NOUN[ref.kind];
+      void loadBody(ref, jobBody).then(
+        (body) => {
           if (n !== asked.current) return;
-          if (row) land(row);
-          else toast("That job isn't in ServiceM8's copy any more.");
+          if (body) land(body);
+          else toast(GONE[ref.kind]);
         },
         () => {
-          if (n === asked.current) toast("Could not open that job");
+          if (n === asked.current) toast(`Could not open that ${noun}`);
         },
       );
     },
     [pathname, syncUrl, pushAddress, toast],
+  );
+
+  /* A CARD READ AGAIN in its place, after a press on it changed what it
+     was drawn from. A job's card reads its own; a visit's and an
+     agreement's are drawn from what was read, so they are read again. */
+  const reload = useCallback(
+    (key: string) => {
+      const win = live.current.find((w) => w.key === key);
+      if (!win || win.body.kind === "job") return;
+      void loadBody(win.ref, () => win.body)
+        .then((body) => {
+          if (!body) return;
+          setWindows((ws) => ws.map((w) => (w.key === key ? { ...w, body } : w)));
+        })
+        .catch(() => {});
+    },
+    [],
   );
 
   const close = useCallback(
@@ -358,10 +402,11 @@ function RecordsCore({
       restore,
       stepOf,
       step,
+      reload,
       recent,
-      toast: (m: string) => toast(m),
+      toast,
     }),
-    [shown, syncUrl, close, dismiss, setAside, restore, stepOf, step, recent, toast],
+    [shown, syncUrl, close, dismiss, setAside, restore, stepOf, step, reload, recent, toast],
   );
 
   return (

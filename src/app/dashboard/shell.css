@@ -7162,7 +7162,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    aside (components/records), at the end of the identity's line and level
    with the pinned ✕, clear of it, and of the ⋯ when there is one: that sits
    52px in and is a button wide, past the line's own 16px and 32px insets. */
-.wb2-jcband .wb2-jcwin { flex:none; align-self:flex-start; display:flex; align-items:center; gap:8px; margin:-2px 4px 0 auto; }
+.wb2-jcwin { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
+.wb2-jcwin ~ .wb2-ico { margin-left:0; }
+.wb2-jcband .wb2-jcwin { align-self:flex-start; margin:-2px 4px 0 auto; }
 .wb2-jcband .wb2-shtop:has(.wb2-shmenu) .wb2-jcwin { margin-right:calc(52px + 30px + 8px - 16px - 32px); }
 /* the chips always take their own line under the identity — a half-wrapped
    chip row (two beside the name, three below) reads as an accident */

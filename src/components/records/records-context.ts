@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
 import type { ScheduleJobState } from "@/components/workboard/board/schedule-tab";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
+import type { AgreementCard, VisitCard } from "@/lib/workboard/maintenance-cards";
 import { jobHref } from "@/lib/shell/links";
-import type { RecordRef } from "@/lib/records/ref";
+import { recordHref, type RecordRef } from "@/lib/records/ref";
 
 /* WHAT A DOOR NEEDS TO OPEN A RECORD, and nothing heavier.
 
@@ -55,11 +56,30 @@ export const RecordsContext = createContext<RecordsApi | null>(null);
 /** How many cards wait in the dock at once. */
 export const DOCK_MAX = 3;
 
-/** How many jobs the palette lists as recent. */
+/** How many records the palette lists as recent. */
 export const RECENT_MAX = 5;
 
-/** A job opened lately, as the palette lists it. */
-export type RecentRecord = { id: string; number: string | null; clientName: string | null };
+/** A record opened lately, as the palette lists it. */
+export type RecentRecord = { key: string; ref: RecordRef; title: string; sub: string | null };
+
+/** A job's card: the board's own row, and what the door that opened it
+    came for. */
+export type JobBody = {
+  kind: "job";
+  row: AllJobRow;
+  state: ScheduleJobState | null;
+  tab: JobSheetTab | undefined;
+  /** What a booking door came for — Book in, or a leftover's Clear — and
+      the ask that brought it, so the card opens afresh on it. */
+  door: { bookIn: boolean; clear: string | null; n: number } | null;
+};
+
+/** A maintenance visit's card, or its service agreement's, as the board
+    would hand its sheet (lib/workboard/maintenance-cards). */
+export type VisitBody = { kind: "visit"; card: VisitCard };
+export type AgreementBody = { kind: "agreement"; card: AgreementCard };
+
+export type WinBody = JobBody | VisitBody | AgreementBody;
 
 export type Win = {
   key: string;
@@ -67,18 +87,23 @@ export type Win = {
       going somewhere else closes it (see above). */
   path: string;
   ref: RecordRef;
-  row: AllJobRow;
-  state: ScheduleJobState | null;
-  tab: JobSheetTab | undefined;
   from: HTMLElement | null;
-  /** What a booking door came for — Book in, or a leftover's Clear — and
-      the ask that brought it, so the card opens afresh on it. */
-  door: { bookIn: boolean; clear: string | null; n: number } | null;
   /** The jobs it was opened among, in order, for Next job. */
   list: readonly string[] | null;
   /** Waiting in the dock rather than in front. */
   aside: boolean;
+  /** What the card draws. */
+  body: WinBody;
 };
+
+/** What a card is called where it is not open — the dock, the palette's
+    heading over its verbs, the recent list: a job by its number, a visit
+    and an agreement by their own name, each with its client. */
+export function titleOf(body: WinBody): { title: string; sub: string | null } {
+  if (body.kind === "job") return { title: body.row.number ? `Job ${body.row.number}` : "Job", sub: body.row.clientName };
+  if (body.kind === "visit") return { title: body.card.visit.label, sub: body.card.visit.clientName };
+  return { title: body.card.agreement.label, sub: body.card.agreement.clientName };
+}
 
 export type WindowsApi = {
   /** Every card the host holds — the one in front and the ones set aside —
@@ -103,7 +128,10 @@ export type WindowsApi = {
   recent: readonly RecentRecord[];
   /** Open that job in this card's place. */
   step: (key: string, by: 1 | -1) => void;
-  toast: (words: string) => void;
+  /** Read a card again after a press on it changed it (a visit's, an
+      agreement's: their sheets are drawn from what was read). */
+  reload: (key: string) => void;
+  toast: (words: string, undo?: () => void | Promise<void>) => void;
 };
 
 export const WindowsContext = createContext<WindowsApi | null>(null);
@@ -118,7 +146,7 @@ export function useRecords(): RecordsApi {
     () =>
       host ?? {
         hosted: false,
-        open: (ref, opts) => router.push(jobHref(ref.id, opts?.tab)),
+        open: (ref, opts) => router.push(ref.kind === "job" ? jobHref(ref.id, opts?.tab) : recordHref(ref)),
       },
     [host, router],
   );

@@ -2,7 +2,7 @@
 
 import { useContext } from "react";
 import { Icon } from "@/components/shell/icon";
-import { WindowsContext } from "./records-context";
+import { WindowsContext, titleOf } from "./records-context";
 
 /* THE DOCK — the cards set aside (record-host).
 
@@ -12,8 +12,9 @@ import { WindowsContext } from "./records-context";
    set a job aside on Home, go to the Workboard, and it is there to bring
    back over the Schedule.
 
-   Each card is the job's number and its client, the door back to it, and a
-   close cross that lets it go. Light: it reads the host's list and nothing
+   Each card is what it is called — a job by its number, a visit or an
+   agreement by its name — and its client, the door back to it, and a close
+   cross that lets it go. Light: it reads the host's list and nothing
    else, so the frame carries it without the card's code. */
 
 export function RecordDock() {
@@ -24,22 +25,22 @@ export function RecordDock() {
     <nav className="rw-dock" aria-label="Set aside">
       <span className="rw-dkl">Set aside</span>
       {waiting.map((w) => {
-        const name = w.row.number ? `Job ${w.row.number}` : "Job";
+        const { title: name, sub } = titleOf(w.body);
         return (
           <span key={w.key} className="rw-dk">
             <button type="button" className="rw-dko" onClick={() => host.restore(w.key)}>
               <b>{name}</b>
-              {w.row.clientName && (
+              {sub && (
                 <>
                   {" "}
-                  <span>{w.row.clientName}</span>
+                  <span>{sub}</span>
                 </>
               )}
             </button>
             <button
               type="button"
               className="rw-dkx"
-              aria-label={`Close ${name.toLowerCase()}`}
+              aria-label={`Close ${name}`}
               onClick={() => host.close(w.key)}
             >
               <Icon name="x" size={14} />

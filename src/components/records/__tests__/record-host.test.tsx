@@ -66,6 +66,37 @@ const openMirrorJob = jest.fn(
 jest.mock("@/app/actions/workboard", () => ({
   openMirrorJob: (uuid: string) => openMirrorJob(uuid),
 }));
+/* A visit and an agreement are read off the maintenance board, and drawn
+   by the board's own sheets: stand-ins that say what they were handed. */
+const openMaintenanceCard = jest.fn();
+jest.mock("@/app/actions/workboard-records", () => ({
+  openMaintenanceCard: (...a: unknown[]) => openMaintenanceCard(...a),
+}));
+jest.mock("@/components/workboard/board/visit-sheet", () => ({
+  VisitSheet: (p: {
+    visit: { label: string; clientName: string; notes?: string };
+    agreementId?: string;
+    windowControls?: React.ReactNode;
+    onOpenAgreement: (id: string) => void;
+    onChanged?: () => void;
+    onClose: () => void;
+  }) => (
+    <div role="dialog" aria-label={`Visit ${p.visit.label}`}>
+      {p.visit.clientName}, notes:{p.visit.notes ?? "none"}
+      {p.windowControls}
+      <button onClick={() => p.onOpenAgreement("a-1")}>The agreement</button>
+      <button onClick={() => p.onChanged?.()}>Book the visit</button>
+      <button onClick={p.onClose}>Close the visit</button>
+    </div>
+  ),
+}));
+jest.mock("@/components/workboard/board/agreement-sheet", () => ({
+  AgreementSheet: (p: { agreement: { label: string }; onClose: () => void }) => (
+    <div role="dialog" aria-label={`Agreement ${p.agreement.label}`}>
+      <button onClick={p.onClose}>Close the agreement</button>
+    </div>
+  ),
+}));
 
 const row = (over: Partial<AllJobRow> = {}): AllJobRow =>
   ({ id: "j1", number: "1042", clientName: "Bayview Apartments", ...over }) as AllJobRow;
@@ -94,6 +125,7 @@ const dock = () => screen.queryByRole("navigation", { name: "Set aside" });
 const card = () => screen.queryByRole("dialog");
 
 beforeEach(() => {
+  openMaintenanceCard.mockReset();
   asks.clear();
   openMirrorJob.mockClear();
   mockPush.mockClear();
@@ -256,7 +288,7 @@ describe("a refresh, or a copied link", () => {
   });
 
   it("ignores an address naming something the host cannot open", () => {
-    window.history.replaceState(null, "", "/dashboard/assets?open=visit.v-1");
+    window.history.replaceState(null, "", "/dashboard/assets?open=project.p-1");
     render(<Frame>{null}</Frame>);
     expect(openMirrorJob).not.toHaveBeenCalled();
   });
@@ -485,7 +517,7 @@ describe("set aside", () => {
     );
     await user.click(screen.getByRole("button", { name: "Open" }));
     await user.click(screen.getByRole("button", { name: "Set aside" }));
-    await user.click(screen.getByRole("button", { name: "Close job 1042" }));
+    await user.click(screen.getByRole("button", { name: "Close Job 1042" }));
     expect(dock()).toBeNull();
     expect(card()).toBeNull();
   });
@@ -612,7 +644,7 @@ function leave(e: MouseEvent) {
 describe("what the palette reads", () => {
   function Recent() {
     const host = useContext(WindowsContext);
-    return <output aria-label="recent">{host?.recent.map((r) => r.number ?? r.id).join(" ") || "none"}</output>;
+    return <output aria-label="recent">{host?.recent.map((r) => r.title).join(", ") || "none"}</output>;
   }
   function Forget() {
     const records = useRecords();
@@ -632,7 +664,7 @@ describe("what the palette reads", () => {
     await user.click(screen.getByRole("button", { name: "First" }));
     await user.click(screen.getByRole("button", { name: "Second" }));
     await user.click(screen.getByRole("button", { name: "First" }));
-    expect(screen.getByRole("status", { name: "recent" })).toHaveTextContent("1042 2002");
+    expect(screen.getByRole("status", { name: "recent" })).toHaveTextContent("Job 1042, Job 2002");
   });
 
   it("lets every card go, the dock's and the recent list with them, on a switch of workspace", async () => {
@@ -654,3 +686,106 @@ describe("what the palette reads", () => {
     expect(screen.getByRole("status", { name: "recent" })).toHaveTextContent("none");
   });
 });
+
+describe("a maintenance visit", () => {
+  const visitCard = (over: Record<string, unknown> = {}) => ({
+    kind: "visit",
+    card: {
+      visit: {
+        id: "v-7",
+        agreementId: "a-1",
+        label: "Quarterly service",
+        clientName: "Bayview Apartments",
+        status: "upcoming",
+        dueDate: "2026-10-20",
+        readiness: { equipment_ready: false, access_confirmed: false },
+        techs: [],
+        mirrorStatus: null,
+        bookedDate: null,
+        ...over,
+      },
+      today: "2026-10-11",
+      staff: [],
+      tagPool: [],
+      connected: true,
+      history: [],
+      lastDone: null,
+      siteAddress: null,
+      siteRequirements: null,
+      equipment: [],
+    },
+  });
+  const leave = (e: MouseEvent) => e.preventDefault();
+
+  it("opens over the screen from its link, read off the board, and the address names it", async () => {
+    const user = userEvent.setup();
+    openMaintenanceCard.mockResolvedValue(visitCard());
+    document.addEventListener("click", leave);
+    render(
+      <Frame>
+        <RecordLink href="/dashboard/workboard?visit=v-7">Quarterly service</RecordLink>
+      </Frame>,
+    );
+    await user.click(screen.getByRole("link", { name: "Quarterly service" }));
+    document.removeEventListener("click", leave);
+    expect(openMaintenanceCard).toHaveBeenCalledWith("visit", "v-7");
+    expect(await screen.findByRole("dialog", { name: "Visit Quarterly service" })).toHaveTextContent("Bayview Apartments");
+    expect(window.location.search).toBe("?v=v1&open=visit.v-7");
+    expect(openMirrorJob).not.toHaveBeenCalled();
+  });
+
+  it("says so when the board no longer holds it", async () => {
+    const user = userEvent.setup();
+    openMaintenanceCard.mockResolvedValue(null);
+    render(
+      <Frame>
+        <VisitDoor />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open the visit" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("That visit isn't on the board any more.");
+    expect(card()).toBeNull();
+  });
+
+  it("is read again after a press changes it", async () => {
+    const user = userEvent.setup();
+    openMaintenanceCard.mockResolvedValueOnce(visitCard()).mockResolvedValueOnce(visitCard({ notes: "booked" }));
+    render(
+      <Frame>
+        <VisitDoor />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open the visit" }));
+    await user.click(await screen.findByRole("button", { name: "Book the visit" }));
+    await waitFor(() => expect(screen.getByRole("dialog", { name: "Visit Quarterly service" })).toHaveTextContent("notes:booked"));
+    expect(openMaintenanceCard).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens its agreement in its place, and can be set aside under its own name", async () => {
+    const user = userEvent.setup();
+    openMaintenanceCard
+      .mockResolvedValueOnce(visitCard())
+      .mockResolvedValueOnce({
+        kind: "agreement",
+        card: { agreement: { id: "a-1", label: "Bayview HVAC", clientName: "Bayview Apartments" }, today: "2026-10-11", categories: [], tagPool: [] },
+      });
+    render(
+      <Frame>
+        <VisitDoor />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open the visit" }));
+    await user.click(await screen.findByRole("button", { name: "Set aside" }));
+    expect(within(dock()!).getByRole("button", { name: "Quarterly service Bayview Apartments" })).toBeInTheDocument();
+    await user.click(within(dock()!).getByRole("button", { name: "Quarterly service Bayview Apartments" }));
+    await user.click(await screen.findByRole("button", { name: "The agreement" }));
+    expect(await screen.findByRole("dialog", { name: "Agreement Bayview HVAC" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Visit Quarterly service" })).toBeNull();
+    expect(openMaintenanceCard).toHaveBeenLastCalledWith("agreement", "a-1");
+  });
+});
+
+function VisitDoor() {
+  const records = useRecords();
+  return <button onClick={() => records.open({ kind: "visit", id: "v-7" })}>Open the visit</button>;
+}

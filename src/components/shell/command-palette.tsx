@@ -6,7 +6,8 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useCommandPalette } from "./command-palette-context";
-import { WindowsContext, useRecords, type RecentRecord } from "@/components/records/records-context";
+import { WindowsContext, titleOf, useRecords, type RecentRecord } from "@/components/records/records-context";
+import { recordHref } from "@/lib/records/ref";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { OverlayWhileOpen } from "@/components/overlay/use-overlay";
@@ -39,8 +40,8 @@ const WORK_SEARCH_DELAY_MS = 250;
 /** One list, top to bottom: the arrow keys walk every group alike. A photo
     is the one row that goes nowhere — it opens over the screen you are on —
     so it carries its place among the photos instead of an address. A verb
-    is something to do to the job open under the palette; a recent job is
-    one opened lately; the last row hands the words to Tiff. */
+    is something to do to the card open under the palette; a recent record
+    is one opened lately; the last row hands the words to Tiff. */
 type Row =
   | { kind: "verb"; key: string; href: null; label: string; icon: string; keys?: string; act: () => void }
   | { kind: "recent"; key: string; href: string; recent: RecentRecord }
@@ -170,12 +171,13 @@ export function CommandPalette({
       act,
       ...(keys ? { keys } : {}),
     });
-    const sm8 = sm8JobUrl(front.ref.id);
+    const sm8 = front.ref.kind === "job" ? sm8JobUrl(front.ref.id) : null;
+    const noun = front.ref.kind;
     const all = [
       ...(windows.docked ? [verb("aside", "Set aside", "minus", () => windows.setAside(front.key))] : []),
       ...(windows.stepOf(front.key, 1) ? [verb("next", "Next job", "chevR", () => windows.step(front.key, 1), "J")] : []),
-      verb("link", "Copy the link to this job", "send", () => {
-        const link = `${window.location.origin}${links.jobHref(front.ref.id)}`;
+      verb("link", `Copy the link to this ${noun}`, "send", () => {
+        const link = `${window.location.origin}${recordHref(front.ref)}`;
         void (navigator.clipboard?.writeText(link) ?? Promise.reject()).then(
           () => windows.toast("Link copied."),
           () => windows.toast("Could not copy the link"),
@@ -194,8 +196,8 @@ export function CommandPalette({
       query.trim() || !windows
         ? []
         : windows.recent
-            .filter((r) => r.id !== front?.ref.id)
-            .map((r): Row => ({ kind: "recent", key: `recent:${r.id}`, href: links.jobHref(r.id), recent: r })),
+            .filter((r) => r.key !== front?.key)
+            .map((r): Row => ({ kind: "recent", key: `recent:${r.key}`, href: recordHref(r.ref), recent: r })),
     [query, windows, front],
   );
 
@@ -335,7 +337,7 @@ export function CommandPalette({
       if (row.kind === "verb") {
         row.act();
       } else if (row.kind === "recent") {
-        records.open({ kind: "job", id: row.recent.id }, { from: searchbtn });
+        records.open(row.recent.ref, { from: searchbtn });
       } else if (row.kind === "tiff") {
         /* The words go to Tiff as the first thing said, the way "Sort it
            out" hands over what was typed in a box. */
@@ -453,7 +455,7 @@ export function CommandPalette({
           {groups.map((g) => (
               <div key={g.kind} className="cgroup" role="group" aria-labelledby={`fg-cmd-g-${g.kind}`}>
                 <div className="cgl" id={`fg-cmd-g-${g.kind}`}>
-                  {g.kind === "verb" && front?.row.number ? `Job ${front.row.number}` : GROUP[g.kind]}
+                  {g.kind === "verb" && front ? titleOf(front.body).title : GROUP[g.kind]}
                 </div>
                 {g.rows.map((r, j) => {
                   const i = g.at + j;
@@ -485,11 +487,8 @@ export function CommandPalette({
                         <Icon name="clock" size={17} />
                       </span>
                       <span className="ck">
-                        <b>
-                          {r.recent.number && <span className="cno">#{r.recent.number}</span>}
-                          {r.recent.number && " "}
-                          {r.recent.clientName ?? "Unnamed client"}
-                        </b>
+                        <b>{r.recent.title}</b>
+                        {r.recent.sub && <em>{r.recent.sub}</em>}
                       </span>
                     </>
                   ) : r.kind === "tiff" ? (

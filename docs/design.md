@@ -529,7 +529,12 @@ Every decision below is made once, here, and a guard test holds each number.
   address, so a ⌘-click still opens the Workboard in a new tab. Back links
   out of a page about one job (its quote, its SWMS) still go to the
   Workboard, and so does Book in where it is the Schedule's link. The card
-  itself is unchanged.
+  itself is unchanged. A maintenance visit and its service agreement open
+  the same way: neither has a page of its own, so a link to a visit (on
+  Home, from a job card's chip, from Tiff) opens the board's own visit
+  sheet over the screen you are on, built from the same data the board
+  hands it, and the visit's agreement chip opens the agreement in its
+  place. A project keeps its own page; that page is its window.
 - **A card can be set aside** (2026-10-11). A job opened where you are has
   two worded buttons in its band beside the ⋯: Set aside, and Next job when
   the door that opened it showed a list (⌘K's jobs, the bell, Action

@@ -7,6 +7,7 @@ import type { TaskKey } from "../settings";
 import type { Correction } from "../corrections";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
 import { planOf } from "../build-progress";
+import { writeUpOf } from "../write-up";
 import type { Research } from "../research";
 import { labourVisitsOf, visitLine } from "../labour-build";
 import { keepPeoplesTasks, visitHours, visitName, type LineVisit } from "../line-visit";
@@ -287,6 +288,12 @@ export function makeTools(store: QuoteStore) {
           detail: { research: { lineId, ...r } },
           cost,
         };
+      }
+      case "write_up": {
+        const writeUp = writeUpOf(input);
+        if (!writeUp) return fail("Write the job out: what you read, the sizing, the work, the visits, what you can't price and what you're assuming.");
+        /* the write-up rides on the event, as the building list does: the page draws it */
+        return { ok: true, label, said: "the job, written out", value: { written: true }, detail: { writeUp } };
       }
       case "plan_parts": {
         const parts = planOf(input.parts);

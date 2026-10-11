@@ -33,6 +33,11 @@ export function chosenEffort(): Effort {
   return (["low", "medium", "high", "xhigh", "max"] as const).find((x) => x === e) ?? "medium";
 }
 
+/** Whether she writes the job out before a line (QUOTE_SESSION_WRITE_UP=1):
+    off until the bench says she quotes as well or better with it (Isaac,
+    2026-10-11: "get as much built as possible before spending API credit"). */
+export const writeUpFirst = () => (process.env.QUOTE_SESSION_WRITE_UP ?? "").trim() === "1";
+
 export function anthropicModel(): ModelCall {
   const client = new Anthropic();
   return async (req, signal) => {

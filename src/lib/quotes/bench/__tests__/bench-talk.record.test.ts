@@ -82,7 +82,7 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
     const end = await runTurn(talk?.state ?? { messages: [], summary: "" }, message, {
       model: anthropicModel(),
       modelName: process.env.QUOTE_SESSION_MODEL!,
-      system: sessionSystemPrompt(),
+      system: sessionSystemPrompt({ writeUpFirst: process.env.BENCH_WRITE_UP === "1" }),
       tools: SESSION_TOOLS,
       effort: EFFORT,
       runTool: makeTools(store),

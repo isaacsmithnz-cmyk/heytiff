@@ -6987,6 +6987,17 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-checks li.info > i { background:var(--info-t); }
 /* an estimate, confirmed from the list (Isaac, 2026-10-10) */
 .fg .ql-chkacts { grid-column:2; display:flex; gap:8px; padding-top:4px; }
+/* the job, written out first (Isaac, 2026-10-10): a white card at the top of her panel */
+.fg .qt-job { display:flex; flex-direction:column; gap:12px; margin:0 0 16px; padding:12px 16px 16px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
+.fg .qt-job > header { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.fg .qt-job > header b { font-size:14px; font-weight:700; color:var(--hd-ink); }
+.fg .qt-job > header em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+.fg .qt-job section { display:flex; flex-direction:column; gap:4px; }
+.fg .qt-job h4 { margin:0; font-size:12px; font-weight:600; color:var(--q); }
+.fg .qt-job ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; }
+.fg .qt-job li { font-size:13px; line-height:1.45; color:var(--hd-ink); }
+.fg .qt-job li em { font-style:normal; font-size:12px; font-weight:600; color:var(--info-t); }
+.fg .qt-job li.gone { color:var(--q); text-decoration:line-through; }
 .fg .ql-vs.ql-est { color:var(--warn-t); }
 /* Update quote on an accepted quote: a variation, asked what's changing (Isaac, 2026-10-10) */
 .fg .ql-vscrim { position:fixed; inset:0; z-index:var(--z-modal); background:rgba(21,26,36,.32); }

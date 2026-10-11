@@ -384,6 +384,13 @@ export function QuoteLinesFace({
 
   const change = (l: QuoteLine, patch: Partial<LineFields>) => void act({ op: "change", id: l.id, version: l.version, patch });
 
+  /* a line nobody knows the price of, from To confirm: its cost box, in view and ready to type */
+  const priceOnLine = (l: QuoteLine) => {
+    const box = Array.from(document.querySelectorAll<HTMLInputElement>("input")).find((i) => i.getAttribute("aria-label") === `What one ${l.name} costs you`);
+    box?.focus();
+    box?.scrollIntoView?.({ block: "center" });
+  };
+
   /* A VARIATION (Isaac, 2026-10-10): started from Update quote on an
      accepted quote, opened at once; approved, then accepted, on its own */
   const startVariation = async (what: string) => {
@@ -1015,15 +1022,16 @@ export function QuoteLinesFace({
 
   /* what to look at before it goes: the non-Tiff half of the review (slice
      11.1) — what isn't known, what doesn't fit, and the profit */
-  /** a thing to confirm; an estimate is confirmed from the list itself */
-  type Check = { tone: "due" | "info" | "ok"; text: string; confirm?: QuoteLine };
+  /** a thing to confirm; an estimate is confirmed from the list itself, and
+      a line nobody knows the price of is priced on the line */
+  type Check = { tone: "due" | "info" | "ok"; text: string; confirm?: QuoteLine; price?: QuoteLine };
   const checksFor = (i: number): Check[] => {
     const mine = all.filter((l) => l.optionIndex === i);
     const oi = price && price.ok ? price.options[i] : undefined;
     const assumed = mine.filter((l) => l.source === "assumed");
     const task = view?.tasks?.[i];
     return [
-      ...mine.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
+      ...mine.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet`, price: l })),
       ...mine.filter((l) => l.estimate).map((l) => ({ tone: "due" as const, text: `${l.name}: ${l.why || "an estimate"}`, confirm: l })),
       ...mine.filter((l) => fitOf.get(l.id)?.state === "misfit").map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
       ...(oi?.build.loadingNeedsReason ? [{ tone: "due" as const, text: "The loading isn't on the price until it says why" }] : []),
@@ -1050,6 +1058,13 @@ export function QuoteLinesFace({
           <li key={i} className={c.tone}>
             <i aria-hidden="true" />
             <span>{c.text}</span>
+            {c.price && !paper && (
+              <span className="ql-chkacts">
+                <button type="button" className="pbtn ghost sm" onClick={() => priceOnLine(c.price!)}>
+                  Price it
+                </button>
+              </span>
+            )}
             {c.confirm && (
               <span className="ql-chkacts">
                 <button

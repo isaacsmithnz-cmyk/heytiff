@@ -38,7 +38,7 @@ jest.mock("../tools-server", () => ({
 }));
 
 import type { QuoteLine } from "../../lines";
-import { answerDeltas, answeredOf, withChanges } from "../answers";
+import { answerDeltas, answeredOf, latestAsked, openQuestionsOf, withChanges } from "../answers";
 import { answerQuestion } from "../answers-server";
 import { bookPrice, type Question } from "../tools";
 
@@ -99,5 +99,36 @@ describe("a tapped answer", () => {
     const answered = [...events, { id: 6, turnId: null, kind: "message" as const, author: "u", at: "", body: { text: "Single phase", answered: 5, index: 0 } }];
     expect(await answerQuestion("org", "job", "u", 5, 1, answered)).toEqual({ ok: false, reason: "That question has been answered." });
     expect(answeredOf(answered).get(5)).toMatchObject({ index: 0, label: "Single phase", by: "u" });
+  });
+});
+
+/* Isaac, 2026-10-11: "however I gave you the answers I should be able to do the same" */
+describe("answered in the person's own words", () => {
+  const ev = (id: number, kind: string, author: string, body: Record<string, unknown>) => ({ id, kind, author, at: `t${id}`, body });
+  const thread = [
+    ev(1, "message", "u1", { text: "Quote 3343" }),
+    ev(2, "question", "tiff", { question: "How long is the pipe run?", put: "10 m", topic: "Pipe run" }),
+    ev(3, "question", "tiff", { question: "Does it need cover?", answers: [{ label: "No cover" }] }),
+    ev(4, "question", "tiff", { question: "How far is the board?", put: "15 m" }),
+    ev(5, "message", "u1", { text: "No cover", answered: 3, index: 0, question: "Does it need cover?" }),
+    ev(6, "message", "u1", { text: "Pipe run is 14 m" }),
+    ev(7, "tool", "tiff", { name: "settle", ok: true, detail: { settled: [{ question: 2, answer: "14 m" }] } }),
+  ];
+
+  it("counts a question she settled from their words as answered, beside one tapped", () => {
+    const a = answeredOf(thread);
+    expect(a.get(2)).toMatchObject({ label: "14 m", typed: true });
+    expect(a.get(3)).toMatchObject({ label: "No cover", index: 0 });
+    expect(a.has(4)).toBe(false);
+  });
+
+  it("leaves open only what neither answered, with what the quote has", () => {
+    expect(openQuestionsOf(thread)).toEqual([{ id: 4, question: "How far is the board?", put: "15 m" }]);
+  });
+
+  it("knows her latest asking, so the list numbers it as her message did", () => {
+    expect(latestAsked(thread)).toEqual([2, 3, 4]);
+    expect(latestAsked([...thread, ev(8, "message", "u1", { text: "Add a controller" }), ev(9, "question", "tiff", { question: "Wired or Wi-Fi?" })])).toEqual([9]);
+    expect(latestAsked([ev(1, "message", "u1", { text: "hi" })])).toEqual([]);
   });
 });

@@ -2,6 +2,7 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { Msg } from "./model";
 import type { EventDraft, SessionState } from "./turn";
+import { openQuestionsOf } from "./answers";
 
 /* TIFF'S SESSION, KEPT (docs/migrations/quote_sessions.sql). One per
    quote. A turn holds it from start to end, so two never run at once; a
@@ -110,6 +111,19 @@ export async function readThread(orgId: string, jobUuid: string, since = 0): Pro
     at: e.at,
   }));
   return { session, events };
+}
+
+/** Her questions still open in a session, oldest first (answers.ts). */
+export async function readOpenQuestions(orgId: string, sessionId: string): Promise<{ id: number; question: string; put: string }[]> {
+  const { data } = await supabaseAdmin
+    .from("quote_session_events")
+    .select("id, kind, author, body, at")
+    .eq("org_id", orgId)
+    .eq("session_id", sessionId)
+    .in("kind", ["question", "message", "tool"])
+    .order("id", { ascending: true })
+    .limit(2000);
+  return openQuestionsOf((data ?? []) as { id: number; kind: string; author: string; body: Record<string, unknown>; at: string }[]);
 }
 
 /** The answers given since her last turn, taken into this one: each marked

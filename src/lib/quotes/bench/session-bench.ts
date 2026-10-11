@@ -36,6 +36,8 @@ export function memoryStore(opts: {
   kitPrefs?: KitPreferences | null;
   /** the quote as a conversation left it, to carry on from */
   seed?: QuoteLine[];
+  /** her questions a conversation left open, by number */
+  openQuestions?: { id: number; question: string }[];
 }): QuoteStore & { lines: () => QuoteLine[] } {
   let lines: QuoteLine[] = [...(opts.seed ?? [])];
   const names: string[] = [];
@@ -109,6 +111,7 @@ export function memoryStore(opts: {
     lookupUnit: async (brand, model) => (opts.lookup ? opts.lookup(brand, model) : (opts.units?.[model.toUpperCase()] ?? { found: false, reason: "no data pack" })),
     totals: async () => ({ ok: true, options: priceLines(lines, [], opts.settings, { pct: null, labourCostCents: null }).map((o) => o.build.exGstCents) }),
     taskHours: async () => ({ hours: opts.taskHours ?? { zone: null, grille: null, metre: null, visit: null }, dayHours: opts.settings.dayHours }),
+    openQuestions: async () => opts.openQuestions ?? [],
   };
 }
 

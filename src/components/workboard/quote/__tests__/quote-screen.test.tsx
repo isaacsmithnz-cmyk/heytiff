@@ -225,6 +225,14 @@ describe("Create a quote, from the job card", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/workboard/quote-lines", expect.objectContaining({ body: JSON.stringify({ job: JOB, op: "switch", engine: "lines" }) }));
   });
 
+  /* Isaac, 2026-10-11 (3343): a quote drafted on the old builder, quoted again with her */
+  it("offers a quote drafted the old way to Tiff, where she's on", async () => {
+    const fetchMock = screenWith({ tiff: true, drafted: true, chosen: true });
+    fireEvent.click(await screen.findByRole("button", { name: "Quote it with Tiff" }));
+    expect(await screen.findByText(/Lines builder/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/workboard/quote-lines", expect.objectContaining({ body: JSON.stringify({ job: JOB, op: "switch", engine: "lines" }) }));
+  });
+
   it("keeps the old builder for a quote someone switched back to it", async () => {
     const fetchMock = screenWith({ tiff: true, drafted: false, chosen: true });
     await screen.findByText("Builder, page, $64,790 inc GST");

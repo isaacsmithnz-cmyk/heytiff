@@ -12,7 +12,9 @@ const addEvents = jest.fn(async () => undefined);
 const saveRound = jest.fn(async () => true);
 const endTurn = jest.fn(async () => undefined);
 const takeAnswers = jest.fn(async () => [] as { question: string; answer: string }[]);
+const readOpenQuestions = jest.fn(async () => [] as { id: number; question: string; put: string }[]);
 jest.mock("../store-server", () => ({
+  readOpenQuestions: (...a: unknown[]) => (readOpenQuestions as jest.Mock)(...a),
   beginTurn: (...a: unknown[]) => beginTurn(...a),
   addEvents: (...a: unknown[]) => (addEvents as jest.Mock)(...a),
   saveRound: (...a: unknown[]) => (saveRound as jest.Mock)(...a),
@@ -86,4 +88,22 @@ it("tells her what was answered since her last turn, already on the quote", asyn
   const started = await startTurn("org", "job", "u1", "Carry on", { modelName: "m", model });
   await (started as Extract<typeof started, { ok: true }>).run();
   expect(model.calls[0]!.messages.at(-1)!.content).toEqual([{ type: "text", text: "They answered, and the quote was changed to match:\n- Single or three phase? Three phase\n\nCarry on" }]);
+});
+
+/* Isaac, 2026-10-11: "however I gave you the answers I should be able to do the same" */
+it("puts her open questions before the person's own words, by number, to settle what they answer", async () => {
+  beginTurn.mockResolvedValue({ ok: true, session: { ...session, messages: [{ role: "user", content: [{ type: "text", text: "Quote a split" }] }, { role: "assistant", content: [{ type: "text", text: "Done." }] }] }, turnId: "t3" });
+  readOpenQuestions.mockResolvedValueOnce([
+    { id: 41, question: "How long is the pipe run, indoor to outdoor?", put: "10 m" },
+    { id: 42, question: "Does the pipe need cover up the rear wall?", put: "" },
+  ]);
+  const model = scripted([{ content: [{ type: "text", text: "Done." }], stopReason: "end_turn" }]);
+  const started = await startTurn("org", "job", "u1", "Pipe run is 14 m and 2 lengths of cover", { modelName: "m", model });
+  await (started as Extract<typeof started, { ok: true }>).run();
+  expect(model.calls[0]!.messages.at(-1)!.content).toEqual([
+    {
+      type: "text",
+      text: "Your questions still open, by number:\n- 41: How long is the pipe run, indoor to outdoor? (the quote has 10 m)\n- 42: Does the pipe need cover up the rear wall?\nWhere their words answer one, change the lines to match, then settle it.\n\nPipe run is 14 m and 2 lengths of cover",
+    },
+  ]);
 });

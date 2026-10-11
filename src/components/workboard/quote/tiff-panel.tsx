@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "rea
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
 import { researchDetailOf } from "@/lib/quotes/research";
+import { latestAsked } from "@/lib/quotes/session/answers";
 import { WRITE_UP_KEYS, WRITE_UP_SECTIONS, writeUpAgainst, writeUpOf } from "@/lib/quotes/write-up";
 import { fmtAud } from "@/lib/workboard/project-money";
 
@@ -26,7 +27,7 @@ const ROUTE = "/api/workboard/quote-session";
 const POLL_MS = 1500;
 
 type Ev = { id: number; turnId: string | null; kind: string; author: string; body: Record<string, unknown>; at: string };
-type QState = { deltas: (number | null)[]; answered: { index: number; label: string; by: string } | null };
+type QState = { deltas: (number | null)[]; answered: { index: number; label: string; by: string; typed?: true } | null };
 type View = { ok: boolean; on?: boolean; working?: boolean; spentUsd?: number; events?: Ev[]; names?: Record<string, string>; me?: string; questions?: Record<number, QState> };
 type Answer = { label: string };
 type Source = { id: string; label: string; text: string };
@@ -215,6 +216,17 @@ export function TiffPanel({
   const prior = writeUps.length > 1 ? writeUpOf((writeUps[writeUps.length - 2]!.body.detail as { writeUp?: unknown } | undefined)?.writeUp) : null;
   const written = latest ? writeUpAgainst(latest, prior) : null;
   const open = events.filter((e) => e.kind === "question" && !questions[e.id]?.answered);
+  /* her questions numbered as her message numbers them: from 1 in each
+     asking; the latest asking's answered ones stay, ticked (Isaac,
+     2026-10-11: answered in his own words, as in the chat) */
+  const numberOf = new Map<number, number>();
+  let n = 0;
+  for (const e of events) {
+    if (e.kind === "message" && e.author !== "tiff" && typeof e.body.answered !== "number") n = 0;
+    if (e.kind === "question") numberOf.set(e.id, ++n);
+  }
+  const asking = new Set(latestAsked(events));
+  const settled = events.filter((e) => e.kind === "question" && asking.has(e.id) && questions[e.id]?.answered);
 
   return (
     <div className="qt">
@@ -299,28 +311,52 @@ export function TiffPanel({
             ))}
           </section>
         )}
-        {(open.length > 0 || confirm) && (
+        {(open.length > 0 || settled.length > 0 || confirm) && (
           <section aria-label={confirmTitle}>
             <h2 className="hd-ls-grp">{confirmTitle}</h2>
             {open.map((q) => {
               const answers = (Array.isArray(q.body.answers) ? q.body.answers : []) as Answer[];
               const deltas = questions[q.id]?.deltas ?? [];
+              const put = typeof q.body.put === "string" ? q.body.put : "";
               return (
                 <div key={q.id} className="qt-qa">
-                  <p className="qt-q">{String(q.body.question ?? "")}</p>
-                  <ul className="qt-ans">
-                    {answers.map((a, i) => (
-                      <li key={i}>
-                        <button type="button" disabled={busy || working || deltas[i] === null} onClick={() => void answer(q.id, i)}>
-                          <b>{a.label}</b>
-                          {deltaWords(deltas[i]) && <em>{deltaWords(deltas[i])}</em>}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <p className="qt-q">
+                    <span className="qt-qn">{numberOf.get(q.id)}</span>
+                    {String(q.body.question ?? "")}
+                  </p>
+                  {put && <p className="qt-put">{`I've put ${put}`}</p>}
+                  {answers.length > 0 && (
+                    <ul className="qt-ans">
+                      {answers.map((a, i) => (
+                        <li key={i}>
+                          <button type="button" disabled={busy || working || deltas[i] === null} onClick={() => void answer(q.id, i)}>
+                            <b>{a.label}</b>
+                            {deltaWords(deltas[i]) && <em>{deltaWords(deltas[i])}</em>}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               );
             })}
+            {settled.length > 0 && (
+              <ul className="ql-checks qt-done" aria-label="Answered">
+                {settled.map((q) => {
+                  const a = questions[q.id]!.answered!;
+                  const topic = typeof q.body.topic === "string" && q.body.topic ? q.body.topic : String(q.body.question ?? "");
+                  return (
+                    <li key={q.id} className="ok">
+                      <i aria-hidden="true" />
+                      <span>
+                        <b>{`${topic}: ${a.label}`}</b>
+                        <small>{a.typed ? "From your message" : "Tapped"}</small>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             {confirm}
           </section>
         )}

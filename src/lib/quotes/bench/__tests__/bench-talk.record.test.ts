@@ -15,7 +15,8 @@ jest.mock("server-only", () => ({}));
 import fs from "node:fs";
 import path from "node:path";
 import { memoryStore } from "../session-bench";
-import { openingMessage, sessionSystemPrompt } from "../../session/prompt";
+import { openingMessage, openWords, sessionSystemPrompt } from "../../session/prompt";
+import { settledIn } from "../../session/answers";
 import { SESSION_TOOLS } from "../../session/tools";
 import { makeTools } from "../../session/tools-run";
 import { runTurn, type EventDraft, type SessionState } from "../../session/turn";
@@ -34,7 +35,9 @@ const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 const EFFORT = EFFORTS.find((e) => e === process.env.BENCH_EFFORT) ?? "medium";
 
 type Case = { job: string; brief: string };
-type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; usd: number; ended: string; totals: number[] }[] };
+/* her questions, numbered as the app numbers them, and what settled each */
+type Asked = { id: number; question: string; put: string; settled?: string };
+type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; usd: number; ended: string; totals: number[] }[]; asked?: Asked[] };
 
 (ON ? describe : describe.skip)("talking Tiff through a job (spends money)", () => {
   jest.setTimeout(30 * 60_000);
@@ -70,13 +73,18 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
       lookup: lookupUnit,
       kitPrefs: FRESH ? null : { ranges, components: settings.preferred },
       seed: talk?.lines ?? [],
+      openQuestions: (talk?.asked ?? []).filter((q) => !q.settled),
     });
     const n = talk ? talk.turns.length : 0;
     let message: string;
     if (!talk) {
       const read = c.brief.startsWith("From the job in ServiceM8");
       message = read ? openingMessage(c.brief.replace(/^From the job in ServiceM8 \(read the job\):\n/, ""), PRICE_ONLY) : `${c.brief}\n\n${PRICE_ONLY}`;
-    } else message = fs.readFileSync(path.join(dir, `${JOB}-${n}.txt`), "utf8").trim();
+    } else {
+      /* the person's words, after what's still open, as the app sends them */
+      const words = fs.readFileSync(path.join(dir, `${JOB}-${n}.txt`), "utf8").trim();
+      message = [openWords((talk.asked ?? []).filter((q) => !q.settled)), words].filter(Boolean).join("\n\n");
+    }
 
     const events: EventDraft[] = [];
     const end = await runTurn(talk?.state ?? { messages: [], summary: "" }, message, {
@@ -95,7 +103,12 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
     if (end.ended === "error") throw new Error(`turn ${n} failed; nothing kept`);
     const lines = store.lines();
     const totals = priceLines(lines, [], built.settings, { pct: settings.profitTargetPct, labourCostCents: settings.labourCostCents }).map((o) => o.build.exGstCents);
-    fs.writeFileSync(file, JSON.stringify({ state: end.state, lines, turns: [...(talk?.turns ?? []), { said: message, usd: end.spentUsd, ended: end.ended, totals }] }));
+    const kept: Asked[] = [...(talk?.asked ?? [])];
+    for (const e of events) {
+      if (e.kind === "question") kept.push({ id: kept.length + 1, question: String(e.body.question ?? ""), put: typeof e.body.put === "string" ? e.body.put : "" });
+      if (e.kind === "tool") for (const s of settledIn(e.body)) for (const q of kept) if (q.id === s.question && !q.settled) q.settled = s.answer;
+    }
+    fs.writeFileSync(file, JSON.stringify({ state: end.state, lines, turns: [...(talk?.turns ?? []), { said: message, usd: end.spentUsd, ended: end.ended, totals }], asked: kept }));
     /* what a person reads back: her words, her questions, her labour, the totals */
     const said = events.filter((e) => e.kind === "reply").map((e) => String((e.body as { text?: string }).text ?? "")).join("\n\n");
     const asked = events.filter((e) => e.kind === "question").map((e) => (e.body as { question?: string; answers?: { label: string }[] }));

@@ -58,17 +58,67 @@ export function answerDeltas(q: Question, lines: readonly QuoteLine[], price: Pr
   });
 }
 
-/** An answer given, as the thread keeps it. */
-export type Answered = { index: number; label: string; by: string; at: string };
+/** An answer given, as the thread keeps it: tapped, or `typed` in the
+    person's own words and settled by her (settle). */
+export type Answered = { index: number; label: string; by: string; at: string; typed?: true };
+
+type AnyEvent = { id?: number; kind: string; author: string; at: string; body: Record<string, unknown> };
+
+/** The questions she settled from a person's own words, as her settle
+    tool's event carries them. */
+export function settledIn(body: Record<string, unknown>): { question: number; answer: string }[] {
+  if (body.name !== "settle" || body.ok === false) return [];
+  const list = (body.detail as { settled?: unknown } | undefined)?.settled;
+  return (Array.isArray(list) ? list : []).flatMap((x) => {
+    const o = x && typeof x === "object" ? (x as Record<string, unknown>) : {};
+    return typeof o.question === "number" && typeof o.answer === "string" ? [{ question: o.question, answer: o.answer }] : [];
+  });
+}
 
 /** Which of the thread's questions are answered: the first answer given to
-    each, by its question's event id. */
-export function answeredOf(events: readonly { kind: string; author: string; at: string; body: Record<string, unknown> }[]): Map<number, Answered> {
+    each, tapped or settled from the person's words, by its question's event
+    id. (Isaac, 2026-10-11: "however I gave you the answers I should be able
+    to do the same".) */
+export function answeredOf(events: readonly AnyEvent[]): Map<number, Answered> {
   const out = new Map<number, Answered>();
   for (const e of events) {
+    if (e.kind === "tool") {
+      for (const s of settledIn(e.body)) if (!out.has(s.question)) out.set(s.question, { index: -1, label: s.answer, by: e.author, at: e.at, typed: true });
+      continue;
+    }
     const to = e.body.answered;
     if (e.kind !== "message" || typeof to !== "number" || out.has(to)) continue;
     out.set(to, { index: Number(e.body.index) || 0, label: String(e.body.text ?? ""), by: e.author, at: e.at });
   }
   return out;
+}
+
+/** Her questions still open, oldest first, with what the quote has for
+    each now: what a person's own words can answer. */
+export function openQuestionsOf(events: readonly (AnyEvent & { id: number })[]): { id: number; question: string; put: string }[] {
+  const answered = answeredOf(events);
+  return events
+    .filter((e) => e.kind === "question" && !answered.has(e.id))
+    .map((e) => ({ id: e.id, question: String(e.body.question ?? ""), put: typeof e.body.put === "string" ? e.body.put : "" }));
+}
+
+/** The questions she asked in her latest asking: those after the person's
+    last message before her newest question. The list numbers them as her
+    message did, and keeps the answered ones of it ticked. */
+export function latestAsked(events: readonly (AnyEvent & { id: number })[]): number[] {
+  let last = -1;
+  for (let i = events.length - 1; i >= 0; i--) if (events[i]!.kind === "question") {
+    last = i;
+    break;
+  }
+  if (last < 0) return [];
+  let from = 0;
+  for (let i = last; i >= 0; i--) {
+    const e = events[i]!;
+    if (e.kind === "message" && e.author !== "tiff" && typeof e.body.answered !== "number") {
+      from = i + 1;
+      break;
+    }
+  }
+  return events.slice(from, last + 1).filter((e) => e.kind === "question").map((e) => e.id);
 }

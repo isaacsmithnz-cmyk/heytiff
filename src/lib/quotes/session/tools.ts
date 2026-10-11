@@ -57,7 +57,7 @@ export type AnswerChange =
   | { op: "remove"; lineId: string }
   | { op: "add"; line: NewLine };
 
-export type Question = { question: string; why: string; answers: { label: string; changes: AnswerChange[] }[] };
+export type Question = { question: string; why: string; topic?: string; put?: string; answers: { label: string; changes: AnswerChange[] }[] };
 
 const SOURCES = ["said", "assumed", "unknown", "fitted"] as const;
 const KINDS = ["unit", "material", "labour"] as const;
@@ -151,7 +151,7 @@ export function questionOf(raw: unknown): Question | Err {
       return label ? { label, changes: (Array.isArray(o.changes) ? o.changes : []).slice(0, 10).map(changeOf).filter((c): c is AnswerChange => c != null) } : null;
     })
     .filter((a): a is Question["answers"][number] => a != null);
-  return { question, why: str(r.why, 300), answers };
+  return { question, why: str(r.why, 300), topic: str(r.topic, 80), put: str(r.put, 80), answers };
 }
 
 /* ── the definitions she's handed ── */
@@ -425,12 +425,14 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "ask",
     description:
-      "Ask the business one thing you can't know and the quote needs: one question, with up to five short answers to tap, each carrying the line changes it makes. Ask only what changes the price or the work.",
+      "Ask the business one thing you can't know and the quote needs: one question, in plain words. Up to five short answers to tap where the answer is one of a few, each carrying the line changes it makes; none for a number they'll type (a length, a distance). Ask only what changes the price or the work.",
     input_schema: {
       type: "object",
       properties: {
-        question: { type: "string" },
+        question: { type: "string", description: "One thing, asked as a person would: \"How long is the pipe run, indoor to outdoor?\"" },
         why: { type: "string", description: "What it changes on the quote." },
+        topic: { type: "string", description: "A few words for what's asked, as the list shows it once answered: \"Pipe run, indoor to outdoor\"." },
+        put: { type: "string", description: "What the quote has for it now, in a few words: \"10 m\". Leave out when nothing's on it yet." },
         answers: {
           type: "array",
           maxItems: MAX_ANSWERS,
@@ -463,6 +465,28 @@ export const SESSION_TOOLS: ToolDef[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "settle",
+    description:
+      "Tick off your open questions that the person's own words answered, once you've changed the lines to match: each by its number from the open list you were given, with the answer in a few words (\"14 m\").",
+    input_schema: {
+      type: "object",
+      properties: {
+        settled: {
+          type: "array",
+          maxItems: 10,
+          items: {
+            type: "object",
+            properties: { question: { type: "integer" }, answer: { type: "string" } },
+            required: ["question", "answer"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["settled"],
+      additionalProperties: false,
+    },
+  },
 ];
 
 /** The words the thread shows for a tool as she uses it. */
@@ -487,6 +511,7 @@ export const TOOL_LABELS: Record<string, string> = {
   look_at: "Looked at",
   compare_with: "Added to the compare",
   ask: "Asked",
+  settle: "Ticked off",
 };
 
 /** A kit call's facts, in the form the kit form sends them. */

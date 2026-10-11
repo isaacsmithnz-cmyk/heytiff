@@ -15,6 +15,7 @@ import { readQuotePrice } from "../quote-price-server";
 import { readQuoteSettings } from "../settings-query";
 import type { NewLine } from "./tools";
 import { lineFor, makeTools, type QuoteStore } from "./tools-run";
+import { readOpenQuestions, readSession } from "./store-server";
 
 /* Tiff's tools in the app (tools-run.ts runs them): the quote store is the
    quote's own lines, every write through lines-server.ts as "tiff", so it's
@@ -62,6 +63,10 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     lookupUnit: (brand, model) => lookupUnit(brand, model),
     taskHours: () =>
       Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) => ({ hours: s.taskHours, dayHours: d.hours?.hours ?? null })),
+    openQuestions: async () => {
+      const session = jobUuid ? await readSession(orgId, jobUuid) : null;
+      return session ? readOpenQuestions(orgId, session.id) : [];
+    },
     totals: async () => {
       const p = await readQuotePrice(orgId, jobUuid);
       return p.ok ? { ok: true, options: p.options.map((o) => o.build.exGstCents) } : { ok: false };

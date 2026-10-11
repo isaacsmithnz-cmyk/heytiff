@@ -674,3 +674,11 @@ describe("version 2 before it's accepted", () => {
     corner.remove();
   });
 });
+
+/* Isaac, 2026-10-11 (3343): "it says its length isn't known yet… doesn't actually give me anywhere to put that" */
+it("takes a line nobody knows the price of from To confirm to its own cost box", async () => {
+  face();
+  const price = await screen.findByRole("button", { name: "Price it" });
+  fireEvent.click(price);
+  expect(screen.getByLabelText("What one Core hole 200 mm costs you")).toHaveFocus();
+});

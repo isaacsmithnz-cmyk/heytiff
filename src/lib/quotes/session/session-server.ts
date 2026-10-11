@@ -2,8 +2,8 @@ import "server-only";
 import { readEngine } from "../lines-server";
 import type { ModelCall } from "./model";
 import { anthropicModel, chosenEffort, sessionModelFor, writeUpFirst } from "./model-server";
-import { openingMessage, sessionSystemPrompt } from "./prompt";
-import { addEvents, beginTurn, endTurn, saveRound, takeAnswers } from "./store-server";
+import { openingMessage, openWords, sessionSystemPrompt } from "./prompt";
+import { addEvents, beginTurn, endTurn, readOpenQuestions, saveRound, takeAnswers } from "./store-server";
 import { SESSION_TOOLS } from "./tools";
 import { sessionTools } from "./tools-server";
 import { runTurn, type TurnEnd } from "./turn";
@@ -40,7 +40,9 @@ export async function startTurn(
   const answered = answers.length
     ? `They answered, and the quote was changed to match:\n${answers.map((a) => `- ${a.question} ${a.answer}`).join("\n")}`
     : "";
-  const said = [answered, text].filter(Boolean).join("\n\n");
+  /* what's still open, by number, so their own words can settle it */
+  const open = text ? await readOpenQuestions(orgId, session.id) : [];
+  const said = [answered, openWords(open), text].filter(Boolean).join("\n\n");
   const message = session.messages.length === 0 ? openingMessage(opts.brief ?? "", said) : said;
   await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job", ...(opts.brief ? { read: true } : {}) } }]);
 

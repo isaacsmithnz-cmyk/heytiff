@@ -227,3 +227,36 @@ it("shows the job, written out, at the top: what changed since her last one, and
   expect(job.getByText("Rough-in: 2 people, 3.5 days, 55 h").closest("li")).toHaveClass("gone");
   expect(job.getByText("The sandstone core: not in your book").closest("li")).toHaveClass("gone");
 });
+
+/* Isaac, 2026-10-11: "however I gave you the answers I should be able to do the same" */
+it("numbers her questions as her message does, says what the quote has, and ticks off what his own words answered", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () =>
+    respond({
+      ...thread,
+      events: [
+        { id: 1, turnId: "t1", kind: "message", author: "u-isaac", at: "", body: { text: "Quote 3343" } },
+        { id: 2, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "How long is the pipe run, indoor to outdoor?", topic: "Pipe run, indoor to outdoor", put: "10 m", answers: [] } },
+        { id: 3, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "How far is the switchboard from the outdoor unit?", put: "15 m", answers: [] } },
+        { id: 4, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "Does the pipe need cover up the rear wall?", answers: [{ label: "No cover" }, { label: "2 lengths" }] } },
+        { id: 5, turnId: "t2", kind: "message", author: "u-isaac", at: "", body: { text: "Pipe run is 14 m" } },
+        { id: 6, turnId: "t2", kind: "tool", author: "tiff", at: "", body: { name: "settle", label: "Ticked off", ok: true, said: "14 m", detail: { settled: [{ question: 2, answer: "14 m" }] } } },
+      ],
+      questions: { 2: { deltas: [], answered: { index: -1, label: "14 m", by: "tiff", typed: true } }, 3: { deltas: [], answered: null }, 4: { deltas: [0, 4120], answered: null } },
+    })
+  );
+  render(
+    <TiffPanel job="j" onChanged={jest.fn()}>
+      {null}
+    </TiffPanel>
+  );
+  const board = await screen.findByText("How far is the switchboard from the outdoor unit?");
+  /* numbered from her asking: the answered one keeps its 1 */
+  expect(board.querySelector(".qt-qn")).toHaveTextContent("2");
+  expect(screen.getByText("I've put 15 m")).toBeInTheDocument();
+  /* a figure to type has nothing to tap; a few-answer one has its answers */
+  expect(screen.getByRole("button", { name: /2 lengths/ })).toBeInTheDocument();
+  const done = within(screen.getByRole("list", { name: "Answered" }));
+  expect(done.getByText("Pipe run, indoor to outdoor: 14 m")).toBeInTheDocument();
+  expect(done.getByText("From your message")).toBeInTheDocument();
+  expect(screen.queryByText("How long is the pipe run, indoor to outdoor?")).toBeNull();
+});

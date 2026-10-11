@@ -82,6 +82,19 @@ describe("the book, as the business buys", () => {
     expect(findInBook(book, { text: "nothing like it", loose: true })).toEqual([]);
   });
 
+  /* Isaac, 2026-10-11: "Just do fuzzy book now" */
+  it("finds a word typed a letter out, the nearest first, for a person's search or Tiff's; never for a kit's pick or a code", () => {
+    expect(findInBook(book, { text: "acoustc flex", loose: true })[0]!.product.offers[0]!.code).toBe("VH250");
+    const cone = product("CD200", "CONE DIFFUSER PLASTIC 200", 1289);
+    const reducer = product("CR200", "CONE REDUCER 200", 1500);
+    expect(findInBook([reducer, cone], { text: "cone difuser 200", loose: true }).map((h) => h.product.offers[0]!.code)).toEqual(["CD200", "CR200"]);
+    expect(findInBook([reducer, cone], { text: "difuser", loose: true }).map((h) => h.product.offers[0]!.code)).toEqual(["CD200"]);
+    /* a kit's pick stays strict */
+    expect(findInBook([reducer, cone], { text: "difuser" })).toEqual([]);
+    /* a code a digit out is another part */
+    expect(findInBook(book, { text: "vh251", loose: true })).toEqual([]);
+  });
+
   it("stops at the limit", () => {
     expect(findInBook(book, { text: "vortex", limit: 2 })).toHaveLength(2);
   });

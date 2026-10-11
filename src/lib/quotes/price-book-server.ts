@@ -437,6 +437,9 @@ export async function matchingItems(orgId: string, words: string[], confirmed: [
     if (data.length < 1000) break;
   }
   const found = rows.filter((r) => words.every((w) => `${r.code} ${r.name}`.toLowerCase().includes(w)));
+  /* none with every word: the items with most of them, a word typed a
+     letter out by its nearest (quote_items_like, fuzzy.ts), nearest first */
+  if (found.length === 0) found.push(...(await nearItems(orgId, words)));
 
   /* the confirmed partners of what was found */
   const foundRefs = new Set(found.map((r) => `${r.supplier_key}|${r.code}`));
@@ -458,6 +461,21 @@ export async function matchingItems(orgId: string, words: string[], confirmed: [
     }
   }
   return found.map(asBookItem);
+}
+
+/** The items nearest a search none holds every word of, nearest first. */
+async function nearItems(orgId: string, words: string[]): Promise<FoundRow[]> {
+  const { data: near, error } = await supabaseAdmin.rpc("quote_items_like", { p_org: orgId, p_words: words, p_limit: 12 });
+  const ranked = error ? [] : ((near ?? []) as { supplier_key: string; code: string }[]);
+  if (ranked.length === 0) return [];
+  const { data } = await supabaseAdmin
+    .from("quote_price_items")
+    .select(`supplier_key, code, name, times_bought, uom, ${PRICE_COLUMNS}`)
+    .eq("org_id", orgId)
+    .eq("current", true)
+    .in("code", [...new Set(ranked.map((r) => r.code))]);
+  const byRef = new Map(((data ?? []) as unknown as FoundRow[]).map((r) => [`${r.supplier_key}|${r.code}`, r]));
+  return ranked.flatMap((r) => byRef.get(`${r.supplier_key}|${r.code}`) ?? []);
 }
 
 /** A model (or a few words of its name) at every supplier that has it,

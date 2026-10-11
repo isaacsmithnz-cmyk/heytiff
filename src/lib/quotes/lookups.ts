@@ -3,6 +3,7 @@ import type { CategoryKey } from "./categories";
 import { matchesWords, sizesOf, usesOf, type Product } from "./families";
 import { sameUnit } from "./option-materials";
 import { searchWords, type Offer } from "./price-book";
+import { fuzzyWord, nearestIn, wordsOf } from "./fuzzy";
 
 /* WHAT A QUOTE LOOKS THINGS UP IN (the engine rebuild, slice 1.1) — the
    business's own book, and the shared data packs for what a unit is.
@@ -90,7 +91,7 @@ function carries(hay: { plain: string; squashed: string }, w: string): boolean {
 /* its maker too: Mitsubishi's own names never say "Mitsubishi" */
 const hayOf = (p: Product) => {
   const plain = `${p.brand ?? ""} ${p.offers.map((o) => `${o.code} ${o.name}`).join(" ")}`.toLowerCase();
-  return { plain, squashed: squash(plain) };
+  return { plain, squashed: squash(plain), words: wordsOf(plain) };
 };
 
 export function findInBook(products: Product[], q: BookQuery): BookHit[] {
@@ -102,7 +103,9 @@ export function findInBook(products: Product[], q: BookQuery): BookHit[] {
   let hits = products.filter((p) => (words.length === 0 || matchesWords(p, words)) && fits(p));
   /* nothing as typed: every word, as a supplier might write it */
   if (hits.length === 0 && words.length > 0) hits = products.filter((p) => fits(p) && words.every((w) => carries(hayOf(p), w)));
-  /* still nothing, for a person's search: the items with most of the words */
+  /* still nothing, for a person's search or Tiff's: the items with most of
+     the words, a word typed a letter out found by its nearest (fuzzy.ts),
+     the nearest first */
   let matched = new Map<Product, number>();
   if (hits.length === 0 && q.loose) {
     const content = words.filter((w) => w.length >= 3 && !STOP.has(w));
@@ -110,8 +113,16 @@ export function findInBook(products: Product[], q: BookQuery): BookHit[] {
     for (const p of products) {
       if (!fits(p)) continue;
       const hay = hayOf(p);
-      const n = content.filter((w) => carries(hay, w)).length;
-      if (n >= need) matched.set(p, n);
+      let n = 0;
+      let score = 0;
+      for (const w of content) {
+        const s = carries(hay, w) ? 1 : fuzzyWord(w) ? nearestIn(w, hay.words) : 0;
+        if (s > 0) {
+          n++;
+          score += s;
+        }
+      }
+      if (n >= need) matched.set(p, score);
     }
     hits = [...matched.keys()];
   } else matched = new Map();

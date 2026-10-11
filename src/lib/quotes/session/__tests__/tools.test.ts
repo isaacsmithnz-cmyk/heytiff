@@ -118,6 +118,12 @@ describe("her tools, run", () => {
     expect(await run("build_labour", { option: 0, visits: [] })).toMatchObject({ ok: false });
   });
 
+  it("writes the job out, and the page draws it from her tool's own event", async () => {
+    const out = await run("write_up", { read: ["Luke: two ducted systems"], visits: ["Rough-in: 2 people, 3.5 days, 55 h"] });
+    expect(out).toMatchObject({ ok: true, said: "the job, written out", detail: { writeUp: { read: ["Luke: two ducted systems"], visits: ["Rough-in: 2 people, 3.5 days, 55 h"], sizing: [] } } });
+    expect(await run("write_up", {})).toMatchObject({ ok: false });
+  });
+
   it("researches a price for a line by its own call, and leaves the line for the person to use it on", async () => {
     runResearch.mockResolvedValueOnce({ ok: true, research: { priceCents: 130000, per: "a hole", summary: "s", source: { url: "https://q.au", title: "Q" } }, usd: 0.06, model: "claude-opus-5-5", searches: 2 });
     const out = await run("research_price", { line_id: "l1", what: "core hole" });

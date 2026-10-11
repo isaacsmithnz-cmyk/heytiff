@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "rea
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
 import { researchDetailOf } from "@/lib/quotes/research";
+import { WRITE_UP_KEYS, WRITE_UP_SECTIONS, writeUpAgainst, writeUpOf } from "@/lib/quotes/write-up";
 import { fmtAud } from "@/lib/workboard/project-money";
 
 /* TIFF'S PANEL ON THE QUOTE (slice 5.1, mock-up screens 1 and 3): a rounded
@@ -208,6 +209,11 @@ export function TiffPanel({
   };
 
   const who = (author: string) => (author === me ? "You" : (names[author] ?? "Someone"));
+  /* the job, written out: her newest write-up, against the one before it */
+  const writeUps = events.filter((e) => e.kind === "tool" && e.body.name === "write_up" && e.body.ok !== false);
+  const latest = writeUps.length ? writeUpOf((writeUps[writeUps.length - 1]!.body.detail as { writeUp?: unknown } | undefined)?.writeUp) : null;
+  const prior = writeUps.length > 1 ? writeUpOf((writeUps[writeUps.length - 2]!.body.detail as { writeUp?: unknown } | undefined)?.writeUp) : null;
+  const written = latest ? writeUpAgainst(latest, prior) : null;
   const open = events.filter((e) => e.kind === "question" && !questions[e.id]?.answered);
 
   return (
@@ -270,6 +276,27 @@ export function TiffPanel({
                 Read it
               </button>
             </div>
+          </section>
+        )}
+        {written && (
+          <section className="qt-job" aria-label="The job">
+            <header>
+              <b>The job</b>
+              <em>{prior ? "Changed" : "Written"}</em>
+            </header>
+            {WRITE_UP_KEYS.filter((k) => written[k].length > 0).map((k) => (
+              <section key={k}>
+                <h4>{WRITE_UP_SECTIONS[k]}</h4>
+                <ul>
+                  {written[k].map((item, i) => (
+                    <li key={i} className={item.state === "same" ? undefined : item.state}>
+                      {item.text}
+                      {item.state === "changed" && <em> Changed</em>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
           </section>
         )}
         {(open.length > 0 || confirm) && (

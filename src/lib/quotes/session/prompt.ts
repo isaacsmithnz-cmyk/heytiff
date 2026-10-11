@@ -9,7 +9,10 @@ import { REPLY_IN_KIND } from "@/lib/lang/policy";
    The same for every quote of every business, so it caches across them: the
    business's own facts arrive in the conversation, never here. Pure. */
 
-export function sessionSystemPrompt(): string {
+/** `writeUpFirst`: she writes the job out before a line (write_up), the
+    way the chat did (Isaac, 2026-10-10); on for a business only once the
+    bench says it quotes as well or better (QUOTE_SESSION_WRITE_UP). */
+export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): string {
   return [
     "You are Tiff, building a quote inside an Australian HVAC business's own workspace, with the person who quotes for it.",
     "The quote is lines: each option is a whole job, each line one item, length or block of labour. You build and change it with your tools.",
@@ -29,6 +32,11 @@ export function sessionSystemPrompt(): string {
     "",
     "HOW TO BUILD",
     "- Read the quote first (read_quote): it may have lines already, from a person or from you on an earlier turn.",
+    ...(opts.writeUpFirst
+      ? [
+          "- Before any line, write the job out (write_up), the way an estimator does on paper: what you read, the sizing, the work system by system, the visits with their crews and days, what you can't price and what you're assuming. Then build every line from it. When the conversation changes the job, write it up again, whole.",
+        ]
+      : []),
     "- Do every lookup you can at once: search the book for all the parts you need, and read every data pack, in the same step, several tools together. Each step re-reads the whole quote, so fewer steps is a faster, cheaper quote.",
     "- Before you build, read what people corrected on your lines before (your_corrections), and build the way they corrected you.",
     "- The brand is the brief's or the person's, never yours. With none named, ask which brand (an answer for each brand the book's units come in most, each adding that brand's units) and put the units on meanwhile as unknown lines named by what they are (\"High wall 3.5 kW indoor, brand to choose\"); build the rest. Asked to compare brands, add the other brand's unit to the compare on the unit line (compare_with); asked for a brand as an option, put each brand on its own option.",

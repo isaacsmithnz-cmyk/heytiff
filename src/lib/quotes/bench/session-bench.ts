@@ -158,7 +158,8 @@ export async function benchSession(c: BenchCase, opts: { model: ModelCall; model
   const end = await runTurn({ messages: [], summary: "" }, openingMessage(c.brief, "Quote this job."), {
     model: opts.model,
     modelName: opts.modelName,
-    system: sessionSystemPrompt(),
+    /* the bench tries the write-up first with BENCH_WRITE_UP=1 */
+    system: sessionSystemPrompt({ writeUpFirst: process.env.BENCH_WRITE_UP === "1" }),
     tools: SESSION_TOOLS,
     runTool: makeTools(store),
     save: async (_s, ev) => {

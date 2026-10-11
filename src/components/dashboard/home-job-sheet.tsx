@@ -7,6 +7,7 @@ import { JobSheet, type JobSheetTab } from "@/components/workboard/board/job-she
 import type { ScheduleJobState } from "@/components/workboard/board/schedule-tab";
 import { ToastHost, useBoardToasts } from "@/components/workboard/board/toasts";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
+import { jobHref, projectHref, visitHref } from "@/lib/shell/links";
 
 /* ONE JOB CARD FOR THE WHOLE OF THE NEW HOME.
 
@@ -150,13 +151,14 @@ export function DeskJobHost({
           onClose={close}
           onCreateAgreement={(row) => {
             setOpen(null);
-            router.push(`/dashboard/workboard?job=${encodeURIComponent(row.id)}`);
+            router.push(jobHref(row.id));
           }}
+          /* The chip lands on the record it names: the project's page, or
+             the board with that visit's sheet up. A bare /dashboard/workboard
+             here used to drop the visit on the floor. */
           onOpenTracked={(t) => {
             setOpen(null);
-            router.push(
-              t.kind === "project" ? `/dashboard/workboard/projects/${t.id}` : "/dashboard/workboard",
-            );
+            router.push(t.kind === "project" ? projectHref(t.id) : visitHref(t.id));
           }}
           onToast={(m) => toast(m)}
         />

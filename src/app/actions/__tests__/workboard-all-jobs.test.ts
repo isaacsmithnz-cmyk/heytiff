@@ -86,7 +86,12 @@ const readMirrorJobRow = jest.fn(
     paidCents: 0,
   })
 );
+/* What a job is tracked as: nothing, unless a test says otherwise. */
+const readJobTracked = jest.fn(
+  async (_org: string, _id: string): Promise<{ kind: "visit" | "project"; label: string; id: string } | null> => null
+);
 jest.mock("@/lib/workboard/all-jobs-query", () => ({
+  readJobTracked: (...a: unknown[]) => readJobTracked(...(a as [string, string])),
   readMirrorJobDetail: (...a: unknown[]) => readMirrorJobDetail(...(a as [])),
   readMirrorJobRow: (...a: unknown[]) =>
     readMirrorJobRow(...(a as [string, string, string, { includeMoney?: boolean }])),
@@ -300,6 +305,14 @@ describe("openMirrorJob", () => {
       includeMoney: false,
     });
     expect(row).toMatchObject({ id: "j-2051", number: "2051", clientName: "Mosman Marina" });
+  });
+
+  it("carries what the job is tracked as, so the card wears the board's chip", async () => {
+    caps = new Set(["workboard"]);
+    readJobTracked.mockResolvedValueOnce({ kind: "visit", label: "Mosman Marina", id: "v-9" });
+    const row = await openMirrorJob("j-2051");
+    expect(readJobTracked).toHaveBeenCalledWith("org-1", "j-2051");
+    expect(row?.tracked).toEqual({ kind: "visit", label: "Mosman Marina", id: "v-9" });
   });
 
   it("lets money ride only for a reader who holds it", async () => {

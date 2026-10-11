@@ -117,6 +117,7 @@ async function notesViewer(orgId: string, userId: string): Promise<NotesViewer> 
   return { staffId, state, sender };
 }
 import {
+  readJobTracked,
   readMirrorJobDetail,
   readMirrorJobRow,
   searchAllMirrorJobs,
@@ -536,8 +537,13 @@ export async function openMirrorJob(remoteId: string): Promise<AllJobRow | null>
     can("workboard_money"),
   ]);
   const today = todayInZone(timezone);
-  const job = await readMirrorJobRow(ctx.orgId, id, today, { includeMoney });
-  return job ? sheetRowOf(job, today) : null;
+  /* What the job is tracked as rides along, so a card opened by uuid wears
+     the same chip the board's own card wears. */
+  const [job, tracked] = await Promise.all([
+    readMirrorJobRow(ctx.orgId, id, today, { includeMoney }),
+    readJobTracked(ctx.orgId, id),
+  ]);
+  return job ? sheetRowOf(job, today, tracked) : null;
 }
 
 /** The job sheet's files, fetched separately from its detail on purpose: the

@@ -516,6 +516,10 @@ export function JobSheet({
          is the classic nested-dismiss bug. The SWMS wizard answers its own
          Escape — it asks before throwing choices away. */
       if (swmsWizard || certWizard) return;
+      /* Edit customer answers its own Escape and closes itself; the card
+         under it stays open. Without this both listeners fired on the one
+         key and the card closed with the dialog. */
+      if (editingCustomer) return;
       if (viewer) {
         setViewer(null);
         return;
@@ -536,7 +540,7 @@ export function JobSheet({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, numbersOpen, openClaim, menuOpen, viewer, swmsWizard, certWizard]);
+  }, [onClose, numbersOpen, openClaim, menuOpen, viewer, swmsWizard, certWizard, editingCustomer]);
 
   useEffect(() => {
     if (!numbersOpen) return;

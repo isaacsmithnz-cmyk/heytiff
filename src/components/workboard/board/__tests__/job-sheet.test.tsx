@@ -731,6 +731,24 @@ describe("the Summary face", () => {
     await waitFor(() => expect(onToast).toHaveBeenCalledWith("Saved to ServiceM8. The card catches up within a minute."));
   });
 
+  it("Escape in Edit customer closes the dialog, not the card under it", async () => {
+    customerEditOffered.mockResolvedValueOnce(true);
+    readCustomerForEdit.mockResolvedValueOnce({
+      ok: true,
+      form: { jobUuid: "j-1", company: null, billingAddress: "", contacts: [] },
+      siteAddress: null,
+      billingRead: true,
+    });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    const onClose = jest.fn();
+    render(<JobSheet row={row()} {...props} manage onClose={onClose} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    await screen.findByRole("dialog", { name: "Edit customer" });
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit customer" })).toBeNull());
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("puts the customer in the rail: a contact's email as a mailto link, and their role", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);

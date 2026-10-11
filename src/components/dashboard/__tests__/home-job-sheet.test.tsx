@@ -24,6 +24,7 @@ jest.mock("@/components/workboard/board/job-sheet", () => ({
     scheduleState: { word: string } | null;
     onClose: () => void;
     onCreateAgreement: (row: { id: string }) => void;
+    onOpenTracked: (t: { kind: "visit" | "project"; label: string; id: string }) => void;
     onToast: (m: string) => void;
   }) => (
     <div role="dialog" aria-label={`Job ${p.row.number ?? ""}`}>
@@ -31,6 +32,8 @@ jest.mock("@/components/workboard/board/job-sheet", () => ({
       {String(p.manage)}, money:{String(p.moneyVisible)}
       <button onClick={p.onClose}>Close the card</button>
       <button onClick={() => p.onCreateAgreement(p.row)}>Create an agreement from this job</button>
+      <button onClick={() => p.onOpenTracked({ kind: "visit", label: "Bayview", id: "v-7" })}>On the maintenance board</button>
+      <button onClick={() => p.onOpenTracked({ kind: "project", label: "Fit-out", id: "p-3" })}>On the projects board</button>
     </div>
   ),
 }));
@@ -128,6 +131,19 @@ describe("a door with the row", () => {
     await user.click(screen.getByRole("button", { name: "Open" }));
     await user.click(screen.getByRole("button", { name: "Close the card" }));
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "The booking" }));
+  });
+
+  it("follows the tracked chip to the visit or project it names", async () => {
+    const user = userEvent.setup();
+    host(<Door job={row()} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(screen.getByRole("button", { name: "On the maintenance board" }));
+    expect(push).toHaveBeenLastCalledWith("/dashboard/workboard?visit=v-7");
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(screen.getByRole("button", { name: "On the projects board" }));
+    expect(push).toHaveBeenLastCalledWith("/dashboard/workboard/projects/p-3");
   });
 
   it("sends the agreement door to the board with the job in the URL", async () => {

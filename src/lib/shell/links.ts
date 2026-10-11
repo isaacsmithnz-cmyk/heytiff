@@ -17,3 +17,7 @@ export const jobHref = (uuid: string) => `/dashboard/workboard?job=${encodeURICo
 export const clientHref = (name: string) => `/dashboard/workboard?q=${encodeURIComponent(name)}`;
 
 export const projectHref = (id: string) => `/dashboard/workboard/projects/${encodeURIComponent(id)}`;
+
+/** A maintenance visit opens on the board's Maintenance side with its sheet
+    up (the page reads `?visit=`). */
+export const visitHref = (id: string) => `/dashboard/workboard?visit=${encodeURIComponent(id)}`;

@@ -29,11 +29,14 @@ export async function addKit(
   facts: KitFacts,
   at: { optionIndex: number; system: string },
   unit: { brand: string; model: string } | null,
-  by: string
+  by: string,
+  /** ducted: the indoor, whose faces its plenums are made for */
+  indoor: { brand: string; model: string } | null = null
 ): Promise<{ ok: true; added: number } | { ok: false; reason: string }> {
   const f = { ...facts };
-  if (unit) {
-    const u = await lookupUnit(unit.brand, unit.model);
+  for (const which of [unit, indoor]) {
+    if (!which) continue;
+    const u = await lookupUnit(which.brand, which.model);
     if (u.found && u.specs.role === "outdoor") {
       if (!f.pipe && u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
       if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;

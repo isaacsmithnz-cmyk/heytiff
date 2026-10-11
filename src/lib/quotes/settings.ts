@@ -44,8 +44,29 @@ export type QuoteSettings = {
       grille, a metre of pipe, a visit; null: not set. Empty for a new
       business: nothing is ever priced from them, they're a check */
   taskHours: Record<TaskKey, number | null>;
+  /** what every job's task list starts with, before the quote's own tasks
+      (Isaac, 2026-10-10); the starter set until the business sets its own */
+  starterTasks: StarterTask[];
   preferred: Partial<Record<ComponentKey, Preferred>>;
 };
+
+export type StarterWhen = "first" | "every" | "last";
+/** A task every job starts with: its words, the visit it's on, and whether
+    it's done by taking photos. */
+export type StarterTask = { name: string; when: StarterWhen; photos: boolean };
+export const STARTER_WHEN: Record<StarterWhen, string> = { first: "The first visit", every: "Every visit", last: "The last visit" };
+export const STARTER_WHENS = Object.keys(STARTER_WHEN) as StarterWhen[];
+/** The basics every job starts with until the business says otherwise
+    (Isaac, 2026-10-10: "the tasks can be auto-populated for basic things,
+    so protection, check site for damages that we could be blamed for").
+    Words, not figures: no business's numbers in them. */
+export const STARTER_TASKS: StarterTask[] = [
+  { name: "Photos of any existing damage before we start", when: "first", photos: true },
+  { name: "Protect floors and walls", when: "every", photos: false },
+  { name: "Photos of the finished work", when: "last", photos: true },
+];
+export const MAX_STARTERS = 12;
+export const MAX_STARTER_NAME = 120;
 
 export type TaskKey = "zone" | "grille" | "metre" | "visit";
 /** Each task: what one is, as Quoting asks for its hours. */
@@ -93,6 +114,7 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   profitTargetPct: null,
   labourCostCents: null,
   taskHours: { zone: null, grille: null, metre: null, visit: null },
+  starterTasks: STARTER_TASKS,
   preferred: {},
 };
 
@@ -141,6 +163,20 @@ function taskHoursOf(raw: unknown): QuoteSettings["taskHours"] {
   return out;
 }
 
+/** The business's starter tasks: its own list once it has saved one (empty
+    is none), else the starter set. */
+export function starterTasksOf(raw: unknown): StarterTask[] {
+  if (!Array.isArray(raw)) return STARTER_TASKS;
+  const out: StarterTask[] = [];
+  for (const x of raw.slice(0, MAX_STARTERS)) {
+    const o = x && typeof x === "object" ? (x as Record<string, unknown>) : {};
+    const name = typeof o.name === "string" ? o.name.replace(/\s+/g, " ").trim().slice(0, MAX_STARTER_NAME) : "";
+    if (!name) continue;
+    out.push({ name, when: STARTER_WHENS.includes(o.when as StarterWhen) ? (o.when as StarterWhen) : "every", photos: o.photos === true });
+  }
+  return out;
+}
+
 function preferredOf(raw: unknown): QuoteSettings["preferred"] {
   const out: QuoteSettings["preferred"] = {};
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
@@ -174,6 +210,7 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
     profitTargetPct: clampTo(r.profit_target_pct ?? r.profitTargetPct, 0, MAX_PROFIT_TARGET_PCT) ?? d.profitTargetPct,
     labourCostCents: chargeOutOf(r.labour_cost_cents ?? r.labourCostCents) ?? d.labourCostCents,
     taskHours: taskHoursOf(r.task_hours ?? r.taskHours),
+    starterTasks: starterTasksOf(r.starter_tasks ?? r.starterTasks),
     preferred: preferredOf(r.preferred),
   };
 }
@@ -197,6 +234,7 @@ export function quoteSettingsRow(s: QuoteSettings) {
     profit_target_pct: s.profitTargetPct,
     labour_cost_cents: s.labourCostCents,
     task_hours: s.taskHours,
+    starter_tasks: s.starterTasks,
     preferred,
   };
 }

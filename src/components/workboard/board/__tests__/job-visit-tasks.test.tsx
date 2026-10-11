@@ -361,3 +361,23 @@ it("with every task on a visit, lays the visits out as a strip, and a manager dr
   });
   expect(sent("PUT")).toEqual([{ job: "job-1", edit: { kind: "visit", id: "b", visit: 3 } }]);
 });
+
+it("a starter task done with photos takes them, and says how many", async () => {
+  const before = task("dmg", "Photos of any existing damage before we start", { kind: "photos", visit: 2 });
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({
+    json: async () =>
+      init?.method === "PUT"
+        ? answer({ tasks: [before], updates: [], photos: [{ id: "p1", taskId: "dmg", role: "other", url: "https://files.example/d.jpg", at: "x" }] })
+        : answer({ tasks: [before], updates: [] }),
+  }));
+  uploadFile.mockResolvedValue({ ok: true, file: { documentId: "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c", fileName: "d.jpg", mimeType: "image/jpeg", sizeBytes: 1, previewUrl: null } });
+  attachJobDocument.mockResolvedValue({ ok: true });
+  mount();
+  expect(await screen.findByText("Photos")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Photos of any existing damage before we start" }));
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Take a photo"), { target: { files: [new File(["x"], "d.jpg", { type: "image/jpeg" })] } });
+  });
+  expect(sent("PUT")).toEqual([{ job: "job-1", edit: { kind: "photo", id: "dmg", documentId: "7a1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4c", role: "other" } }]);
+  expect(await screen.findByLabelText("Another photo")).toBeInTheDocument();
+});

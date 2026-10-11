@@ -12,7 +12,8 @@ import { readJobQuote } from "@/lib/quotes/lines-job-server";
 import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";
 import { getSm8Timezone } from "./query";
 import { todayInZone } from "./dates";
-import { TASKS_SCHEMA, TASKS_SYSTEM, parseTasks, plannedVisits, tasksFromQuote, tasksPrompt, unitsOf, type QuoteVisit } from "./task-plan";
+import { TASKS_SCHEMA, TASKS_SYSTEM, parseTasks, plannedVisits, tasksFromQuote, tasksPrompt, unitsOf, withStarters, type QuoteVisit } from "./task-plan";
+import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { PLATE_PROMPT, PLATE_SCHEMA, parsePlate, plateCode } from "./plate-read";
 import {
   MAX_NOTE,
@@ -276,6 +277,10 @@ export async function makeTasksFromQuote(
     tasks = parseTasks(raw, units, visits);
     if (tasks.length === 0) return { ok: false, reason: "Tiff couldn't write the tasks for this one. Add them yourself." };
   }
+  /* the business's own starters around them: the first visit's, every
+     visit's, the last visit's (Isaac, 2026-10-10) */
+  const settings = await readQuoteSettings(orgId).catch(() => null);
+  if (settings) tasks = withStarters(tasks, settings.starterTasks, plannedVisits(plan.labour));
   /* asked again after the call: a second press, or a second manager, may
      have made them meanwhile */
   if ((await taskCount(orgId, cardId)) > 0) return { ok: false, reason: "This job already has its tasks." };

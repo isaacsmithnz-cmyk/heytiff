@@ -1,6 +1,10 @@
 import { VISIT_STAGES, type Visit, type VisitStage } from "@/lib/quotes/buildup";
 import type { ProposalOption, UnitLine } from "@/lib/quotes/proposal";
-import { MAX_TASKS, MAX_TASK_NAME, TASK_KINDS, type TaskKind, type TaskUnit } from "./visit-tasks";
+import type { StarterTask } from "@/lib/quotes/settings";
+import { MAX_TASKS, MAX_TASK_NAME, type TaskKind, type TaskUnit } from "./visit-tasks";
+
+/** The kinds Tiff writes; a photos task is the business's own (a starter). */
+const TIFF_KINDS = ["tick", "progress", "unit"] as const satisfies readonly TaskKind[];
 
 /* THE TASK LIST TIFF WRITES FROM THE ACCEPTED QUOTE, as data (Isaac,
    2026-10-06: "create a task list from the TIFF quote… things such as
@@ -70,6 +74,36 @@ export function tasksFromQuote(labour: readonly QuoteVisit[], units: readonly Op
   return out;
 }
 
+/** THE BUSINESS'S STARTER TASKS ON A NEW JOB (Isaac, 2026-10-10: "the
+    tasks can be auto-populated for basic things, so protection, check site
+    for damages that we could be blamed for"): the first visit's on visit 1,
+    an every-visit one on each visit the quote plans, the last visit's on the
+    last. With no visits planned, each goes on no visit, once. */
+export function starterTasksFor(starters: readonly StarterTask[], visits: readonly PlannedVisit[]): (Omit<NewTask, "sort"> & { when: StarterTask["when"] })[] {
+  const first = visits[0];
+  const last = visits[visits.length - 1];
+  const one = (s: StarterTask, v: PlannedVisit | undefined) => ({
+    name: s.name.slice(0, MAX_TASK_NAME),
+    stage: v?.stage ?? ("Install" as VisitStage),
+    kind: (s.photos ? "photos" : "tick") as TaskKind,
+    unit: null,
+    visit: v?.n ?? null,
+    hours: null,
+    when: s.when,
+  });
+  return starters.flatMap((s) =>
+    s.when === "first" ? [one(s, first)] : s.when === "last" ? [one(s, last)] : visits.length === 0 ? [one(s, undefined)] : visits.map((v) => one(s, v))
+  );
+}
+
+/** Every task a new job starts with, in its order: the first visit's
+    starters, the every-visit ones, the quote's tasks, the last visit's. */
+export function withStarters(tasks: readonly NewTask[], starters: readonly StarterTask[], visits: readonly PlannedVisit[]): NewTask[] {
+  const made = starterTasksFor(starters, visits);
+  const at = (when: StarterTask["when"]) => made.filter((t) => t.when === when).map(({ when: _w, ...t }) => ({ ...t, sort: 0 }));
+  return [...at("first"), ...at("every"), ...tasks, ...at("last")].slice(0, MAX_TASKS).map((t, i) => ({ ...t, sort: i }));
+}
+
 /** A unit of an accepted option, with the option it's in. */
 type OptionUnit = UnitLine & { option: number };
 
@@ -110,7 +144,7 @@ export const TASKS_SCHEMA = {
         properties: {
           name: { type: "string" },
           stage: { type: "string", enum: VISIT_STAGES },
-          kind: { type: "string", enum: TASK_KINDS },
+          kind: { type: "string", enum: TIFF_KINDS },
           unit: { type: "integer" },
           visit: { type: "integer" },
         },
@@ -180,7 +214,7 @@ export function parseTasks(raw: unknown, units: readonly OptionUnit[], visits: r
     const stage = VISIT_STAGES.includes(o.stage as VisitStage) ? (o.stage as VisitStage) : "Install";
     const unitN = typeof o.unit === "number" && Number.isInteger(o.unit) ? o.unit : 0;
     const unit = unitN >= 1 && unitN <= units.length && !covered.has(unitN) ? units[unitN - 1]! : null;
-    let kind: TaskKind = TASK_KINDS.includes(o.kind as TaskKind) ? (o.kind as TaskKind) : "tick";
+    let kind: TaskKind = (TIFF_KINDS as readonly string[]).includes(o.kind as string) ? (o.kind as TaskKind) : "tick";
     if (kind === "unit" && !unit) kind = "tick";
     if (unit && kind === "unit") covered.add(unitN);
     const v = typeof o.visit === "number" && Number.isInteger(o.visit) ? o.visit : 0;

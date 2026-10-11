@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useCommandPalette } from "./command-palette-context";
+import { useRecords } from "@/components/records/records-context";
 import { Icon } from "./icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { navFor, type NavItem } from "./nav";
@@ -96,6 +97,7 @@ export function CommandPalette({
      receive client state or a callback from the frame around it. */
   const { isOpen: open, close: onClose } = useCommandPalette();
   const router = useRouter();
+  const records = useRecords();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -267,11 +269,19 @@ export function CommandPalette({
       if (row.kind === "photo") {
         setStars(new Set(finds.photos.filter((h) => h.starred).map((h) => h.remoteId)));
         setViewing({ items: finds.photos, index: row.at });
+      } else if (row.kind === "job") {
+        /* A job opens OVER the screen you are on, in the record host — not
+           by sending you to the Workboard. Focus goes back to the search
+           button that opened the palette. */
+        records.open(
+          { kind: "job", id: row.job.remoteId },
+          { from: document.querySelector<HTMLElement>(".topbar .searchbtn") }
+        );
       } else {
         router.push(row.href);
       }
     },
-    [onClose, router, finds]
+    [onClose, router, records, finds]
   );
 
   useEffect(() => {

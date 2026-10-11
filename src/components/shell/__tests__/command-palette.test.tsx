@@ -57,6 +57,7 @@ jest.mock("../palette-photo-viewer", () => ({
 }));
 
 import { CommandPalette } from "../command-palette";
+import { RecordsContext, type RecordsApi } from "@/components/records/records-context";
 import type { PhotoHit } from "@/app/actions/photo-search";
 import type { PaletteFinds } from "@/app/actions/palette";
 import type { PaletteClient, PaletteProject, PaletteStaff } from "@/lib/workboard/palette-query";
@@ -199,6 +200,23 @@ describe("the palette finds jobs", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /#288 Kingsford Bakery/ }));
     expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j%2Fodd%20id");
+  });
+
+  it("inside the frame, opens the job over the screen you are on instead of going to the Workboard", async () => {
+    searchPalette.mockResolvedValue(finds({ jobs: [job()] }));
+    const open = jest.fn();
+    const records: RecordsApi = { hosted: true, open };
+    render(
+      <RecordsContext.Provider value={records}>
+        <CommandPalette role="owner" caps={WORKBOARD} />
+      </RecordsContext.Provider>
+    );
+    type("job 288");
+    await settle();
+    press("Enter");
+    expect(close).toHaveBeenCalled();
+    expect(open).toHaveBeenCalledWith({ kind: "job", id: "j-288" }, expect.objectContaining({ from: null }));
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("says it is searching, and never 'no match', until the jobs have answered", async () => {

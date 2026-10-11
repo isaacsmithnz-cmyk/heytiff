@@ -5,6 +5,7 @@ import { NoteScopeProvider } from "@/components/notes/note-context";
 import { TiffButton } from "@/components/notes/tiff-button";
 import { TiffModalProvider, useTiff } from "../tiff-host";
 import { HOLD_MS } from "../tiff-modal";
+import { RecordsContext, type RecordsApi } from "@/components/records/records-context";
 
 /* THE MODAL WHILE THE SCREEN MOVES UNDER IT — probe P2 of the universal-Tiff
    plan, kept as a test because Phase 1 builds on it.
@@ -232,6 +233,29 @@ describe("a move", () => {
     expect(within(convo()).getByText("Opening Dane Porter's card.")).toBeInTheDocument();
     await wait(HOLD_MS + 100);
     expect(push).toHaveBeenCalledWith("/dashboard/team/s-1");
+  });
+
+  it("opens a job she names over the screen you are on, inside the frame: nothing navigates", async () => {
+    openRecordByName.mockResolvedValueOnce({
+      href: "/dashboard/workboard?job=j-1044",
+      label: "#1044, Bayview",
+      line: "Opening #1044, Bayview.",
+    });
+    const open = jest.fn();
+    const records: RecordsApi = { hosted: true, open };
+    const user = userEvent.setup();
+    render(
+      <RecordsContext.Provider value={records}>
+        <Shell at={path} />
+      </RecordsContext.Provider>
+    );
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Open job 1044{Enter}");
+    await flush();
+    await flush();
+    await wait(HOLD_MS + 100);
+    expect(open).toHaveBeenCalledWith({ kind: "job", id: "j-1044" }, expect.objectContaining({ from: expect.any(HTMLElement) }));
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("a name that opens nothing goes on as it would have: a note is still filed", async () => {

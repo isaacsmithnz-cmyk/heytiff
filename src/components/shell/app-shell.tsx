@@ -19,12 +19,15 @@ export function AppShell({
   sidebar,
   topbar,
   palette,
+  records,
   children,
 }: {
   /** Server slots, each pre-wrapped in <Suspense> by the layout. */
   sidebar: React.ReactNode;
   topbar: React.ReactNode;
   palette: React.ReactNode;
+  /** The record host's windows (components/records/record-host). */
+  records?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -58,6 +61,7 @@ export function AppShell({
         </main>
       </div>
       {palette}
+      {records}
     </div>
     </CommandPaletteProvider>
   );

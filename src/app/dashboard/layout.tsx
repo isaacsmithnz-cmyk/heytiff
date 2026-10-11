@@ -4,7 +4,8 @@ import { RAIL_BOOT } from "@/components/shell/rail-state";
 import { NoteScopeProvider } from "@/components/notes/note-context";
 import { TiffModalProvider } from "@/components/tiff/modal/tiff-host";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
-import { ShellPalette, ShellSidebar, ShellTopbar } from "@/components/shell/shell-chrome";
+import { ShellPalette, ShellRecords, ShellSidebar, ShellTopbar } from "@/components/shell/shell-chrome";
+import { RecordsProvider } from "@/components/records/record-host";
 import { SidebarSkeleton, TopbarSkeleton } from "@/components/shell/shell-skeletons";
 import "./shell.css";
 
@@ -33,6 +34,11 @@ import "./shell.css";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <NoteScopeProvider voiceEnabled={isTranscriptionConfigured()}>
+      {/* THE RECORD HOST: every door opens a record here, over the screen
+          you are on (components/records/record-host). Above Tiff's host so
+          a record Tiff names opens here too, and above the outlet so a
+          route change never takes it down. Inert until a door opens one. */}
+      <RecordsProvider>
       {/* THE TIFF MODAL'S HOST, inside the note scope because the modal
           reads it, and inert until a Tiff button opens it: every screen
           gets the modal, so there is nothing here to await. */}
@@ -59,10 +65,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <ShellPalette />
           </Suspense>
         }
+        /* No fallback either: a record asked for before the grants land
+           waits in the host and is drawn when they do. */
+          records={
+          <Suspense fallback={null}>
+            <ShellRecords />
+          </Suspense>
+        }
       >
           {children}
         </AppShell>
       </TiffModalProvider>
+      </RecordsProvider>
     </NoteScopeProvider>
   );
 }

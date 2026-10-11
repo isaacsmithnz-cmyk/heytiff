@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { completeTask, reopenIssue, reopenTask, resolveIssue } from "@/app/actions/dashboard";
 import { clearVisitPlacement, placeVisit } from "@/app/actions/workboard-maintenance";
+import { RecordLink } from "@/components/records/record-link";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -50,7 +51,9 @@ import { useDeskJobs } from "./home-job-sheet";
    are their own. Doors are data (`Door`); the desk decides what each
    means: a URL is followed, a job opens the desk's one card
    (`useDeskJobs`), a diary entry, a mention or a task is a `DeskFocus`
-   handed up (`onShow`). A roll-up and an issue open in place instead.
+   handed up (`onShow`). A title whose URL is a job's opens that card too
+   (RecordLink); a Book in that is the Schedule's link stays a link, since
+   the Schedule is where it is going. A roll-up and an issue open in place instead.
    Where bookings are offered (two-way phase 3), a won job's Book in opens
    that one card on its Visits face with Book in's panel open, and a
    leftover booking's Clear opens it with that booking's confirm.
@@ -199,9 +202,9 @@ export function ListLine({
         >
           <span className="hd-ls-lead">{lead}</span>
           {open && "href" in open ? (
-            <Link ref={linkRef} id={titleId} className="hd-ls-t" href={open.href}>
+            <RecordLink ref={linkRef} id={titleId} className="hd-ls-t" href={open.href}>
               {title}
-            </Link>
+            </RecordLink>
           ) : open ? (
             <button
               ref={titleRef}

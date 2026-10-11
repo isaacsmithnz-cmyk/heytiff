@@ -309,7 +309,8 @@ Every decision below is made once, here, and a guard test holds each number.
   slide across"): the Calendar across the whole body, Tasks across the
   diary column, in 280 ms, and at once under reduced motion. The list
   stands in the right-hand column beside Diary and Tasks. One job card
-  serves every door on the page. The Debrief is gone (2026-09-24).
+  serves every door on the page, and it is the app's (a job opens where
+  you are). The Debrief is gone (2026-09-24).
   "Your day" is his slanted bar: the viewer's own bookings and timed
   tasks as 45° cards in their Workboard colours, the one on now filling
   as it runs, finished work pale with a tick and folded into one block
@@ -513,6 +514,22 @@ Every decision below is made once, here, and a guard test holds each number.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.
+- **A job opens where you are** (Isaac, 2026-10-11: "the way that jobs are
+  opened up and how they can float across different screens… so that you
+  don't have to exit out of everything"). A job opened from ⌘K, Tiff, the
+  bell, an Action required tile, a list on Home or Analytics opens over the
+  screen you are on, in the board's own job card; nothing navigates and the
+  screen underneath keeps its place. The record host sits in the dashboard
+  frame beside Tiff's modal (`components/records`). One card at a time: a
+  second door replaces the first. The address carries the open job
+  (`?open=job.<uuid>`), so Back closes it, Forward opens it again, a refresh
+  brings it back over the same screen and the address can be sent to
+  someone. Going to another screen puts it away, and Back to the screen it
+  was open over brings it back. A link to a job is still the job's real
+  address, so a ⌘-click still opens the Workboard in a new tab. Back links
+  out of a page about one job (its quote, its SWMS) still go to the
+  Workboard, and so does Book in where it is the Schedule's link. The card
+  itself is unchanged.
 
 ## Scales
 
@@ -1160,7 +1177,8 @@ It breaks these laws, on his word. This is the note:
 **While she moves you** (interim, universal Tiff Phase 1). When Tiff moves the
 screen, her line stays up for 900 ms, then the modal closes the way it always
 does, and the page moves once it has gone, so a sheet the page opens never
-lands under it. A key or a press in the modal during the hold keeps it open
+lands under it. A job she names opens over the screen you are on rather than
+moving you to the Workboard (a job opens where you are). A key or a press in the modal during the hold keeps it open
 and moves nothing. The hold is not motion, so it holds under reduced motion
 and from the keyboard too. The next bare press of a Tiff button within ten
 minutes opens on the conversation she moved you from, listening; a diary

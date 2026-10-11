@@ -1,6 +1,7 @@
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { CommandPalette } from "./command-palette";
+import { RecordWindowsSlot } from "@/components/records/record-host";
 import { loadShell } from "@/lib/shell/data";
 import { todayInAu } from "@/lib/au-dates";
 
@@ -38,4 +39,17 @@ export async function ShellTopbar() {
 export async function ShellPalette() {
   const { user } = await loadShell();
   return <CommandPalette role={user.role} caps={user.caps} />;
+}
+
+/* The record host's windows, with the card's grants from the same
+   capability read the board uses. The host itself (state, address, doors)
+   is in the layout and needs none of this; only drawing a card does. */
+export async function ShellRecords() {
+  const { user } = await loadShell();
+  return (
+    <RecordWindowsSlot
+      manage={user.caps.includes("workboard_manage")}
+      moneyVisible={user.caps.includes("workboard_money")}
+    />
+  );
 }

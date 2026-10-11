@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { RecordLink } from "@/components/records/record-link";
 import { Icon } from "@/components/shell/icon";
 import { GROUP_ICON, chipGroup, type ActionChip } from "@/lib/dashboard/chips";
 
@@ -10,11 +10,13 @@ import { GROUP_ICON, chipGroup, type ActionChip } from "@/lib/dashboard/chips";
 
    Two channels carry different information — the GLYPH is the domain (truck /
    shield / hexagon, matching the nav) and the COLOUR is the urgency. Colour
-   alone made an expiring rego and an expiring licence look identical. */
+   alone made an expiring rego and an expiring licence look identical.
+
+   A tile that names a job opens the job over the screen (RecordLink). */
 export function ChipTile({ chip }: { chip: ActionChip }) {
   const group = chipGroup(chip.kind);
   return (
-    <Link className={`dash-tile ${chip.state}`} href={chip.href}>
+    <RecordLink className={`dash-tile ${chip.state}`} href={chip.href}>
       <span className="dt-ic">
         <Icon name={GROUP_ICON[group]} size={16} />
       </span>
@@ -27,6 +29,6 @@ export function ChipTile({ chip }: { chip: ActionChip }) {
       <span className="dt-chev">
         <Icon name="arrowR" size={16} />
       </span>
-    </Link>
+    </RecordLink>
   );
 }

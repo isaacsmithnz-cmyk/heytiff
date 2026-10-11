@@ -1,4 +1,4 @@
-import type { DataPack } from "@/lib/studio/packs/schema";
+import { hasFactorySpigots, type DataPack } from "@/lib/studio/packs/schema";
 import type { CategoryKey } from "./categories";
 import { matchesWords, sizesOf, usesOf, type Product } from "./families";
 import { sameUnit } from "./option-materials";
@@ -190,6 +190,16 @@ export type UnitSpecs = {
   mcaAmps: number | null;
   /** the pipe it connects with, mm */
   pipeMm: { liquid: number; gas: number } | null;
+  /** a ducted indoor's air faces, from its data book: what its supply and
+      return plenums are made for; `returnSpigots` when its return takes
+      duct straight on (no return plenum) */
+  air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean };
+};
+
+/** A data book's opening as a face, mm, when it gives one. */
+const faceOfOpening = (o: unknown): { w: number; h: number } | null => {
+  const r = o && typeof o === "object" ? (o as { w_mm?: unknown; h_mm?: unknown }) : null;
+  return r && typeof r.w_mm === "number" && typeof r.h_mm === "number" ? { w: r.w_mm, h: r.h_mm } : null;
 };
 
 export type UnitLookup = { found: true; specs: UnitSpecs; pack: string } | { found: false; reason: "no data pack" | "not in the pack" };
@@ -240,6 +250,15 @@ export function unitSpecs(packs: Record<string, DataPack | null | undefined>, br
       maxAmps: n(ind.max_amps_a),
       mcaAmps: null,
       pipeMm: { liquid: ind.conn_liquid_mm, gas: ind.conn_gas_mm },
+      ...(ind.supply_opening || ind.return_opening
+        ? {
+            air: {
+              supply: faceOfOpening(ind.supply_opening),
+              ret: faceOfOpening(ind.return_opening),
+              returnSpigots: ind.return_opening === "built-in" || hasFactorySpigots(ind.return_opening),
+            },
+          }
+        : {}),
     },
   };
 }

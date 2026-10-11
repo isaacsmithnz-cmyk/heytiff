@@ -32,7 +32,9 @@ export type RangeKind =
   | "slot_diffuser"
   | "return_grille"
   | "fitting"
-  | "plenum";
+  | "plenum"
+  | "return_plenum"
+  | "reducer";
 
 /** An item's size, or what a line needs, as far as its kind has one. */
 export type RangeSize = {
@@ -50,7 +52,8 @@ export type RangeSize = {
   /** a fitting's sizes, mm: the one in (a combo fits either), the ones out */
   ins?: number[];
   outs?: number[];
-  /** a plenum's or a return box's spigots, mm */
+  /** a plenum's or a return box's spigots, mm; a plenum made for a unit
+      also has the unit's face, in w and h */
   spigots?: number[];
   /** the length one is sold in, m: flexible duct by the bag */
   lengthM?: number | null;
@@ -183,6 +186,36 @@ export function spigotsOf(name: string): number[] | null {
   const mm = each[3] === '"' || INCH_SIZES.has(raw) ? inchMm(raw) : raw;
   if (n < 1 || n > 8 || !roundMm(mm)) return null;
   return Array.from({ length: n }, () => mm);
+}
+
+/** A plenum's size: the unit face it's made for, where the name gives one
+    (AAD's "MEA N/C 12-16kW 1330x271 - 2x400", Reece's "S/AIR PLENUM 921 X
+    304 + 2 X 350 SPIGOT"), and its spigots (Actron's "1/40+2/35 SPIG").
+    (Isaac, 2026-10-11: "it depends on the unit".) */
+export function plenumOf(name: string): RangeSize | null {
+  const face = faceOf(name);
+  const rest = face ? name.replace(/(\d{2,4})\s*(?:mm)?\s*[xX×]\s*(\d{2,4})/, " ") : name;
+  /* every "2 x 400" after the face ("1x300+1x250" is both), else the
+     spigot forms any plenum's name takes */
+  const each = [...rest.matchAll(/(?:^|[\s(+\-])(\d)\s*[xX×]\s*(\d{3})(?!\d)/g)].flatMap((m) => {
+    const n = Number(m[1]);
+    const mm = Number(m[2]);
+    return n >= 1 && n <= 8 && roundMm(mm) ? Array.from({ length: n }, () => mm) : [];
+  });
+  const spigots = each.length ? each : spigotsOf(rest);
+  if (!spigots) return null;
+  return face ? { w: face.w, h: face.h, spigots } : { spigots };
+}
+
+/** A reducer's sizes, mm: AAD's "AIRLOC SMARTFIT REDUCER 250 - 200",
+    "METAL REDUCER 250X200". The bigger end in, the smaller out. */
+export function reducerOf(name: string): { ins: number[]; outs: number[] } | null {
+  const m = /(\d{3})\s*(?:-|[xX×]|\.)\s*(\d{3})\b/.exec(name);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  if (!roundMm(a) || !roundMm(b) || a === b) return null;
+  return { ins: [Math.max(a, b)], outs: [Math.min(a, b)] };
 }
 
 /** An isolator's rating and poles: "20A", "35 AMPS", "2P", "3 POLE", "DOUBLE POLE". */
@@ -333,13 +366,27 @@ export const RANGE_KINDS: Record<RangeKind, Kind> = {
   plenum: {
     label: "Supply plenums",
     noun: "supply plenums",
-    by: "by their spigots",
-    match: [/plenum/i],
-    not: [/r\/a|r\/air|return|swirl|diffuser|nose|adaptor/i],
-    sizeOf: (n) => {
-      const spigots = spigotsOf(n);
-      return spigots ? { spigots } : null;
-    },
+    by: "by the unit's face and their spigots",
+    /* a nose cone is a supply plenum made for one unit's face */
+    match: [/plenum|\bn\/c\b|nose\s*cone/i],
+    not: [/r\/a|r\/air|return|swirl|diffuser|adaptor|custom|allowance/i],
+    sizeOf: (n) => plenumOf(n),
+  },
+  return_plenum: {
+    label: "Return plenums",
+    noun: "return plenums",
+    by: "by the unit's return face and their spigots",
+    match: [/(?:r\/a(?:ir)?|return(?:\s*air)?)\s*plenum/i],
+    not: [/grille|filter|custom|allowance/i],
+    sizeOf: (n) => plenumOf(n),
+  },
+  reducer: {
+    label: "Reducers",
+    noun: "reducers",
+    by: "by the sizes either side",
+    match: [/reducer/i],
+    not: [/pipe|flue|rls|\bidu\b|copper|brass|bag\d|"|swage|bush|socket|conduit|pvc|tps/i],
+    sizeOf: (n) => reducerOf(n),
   },
 };
 
@@ -391,9 +438,18 @@ export function cleanSize(kind: RangeKind, raw: unknown): RangeSize | null {
       const outs = mmList(r.outs, 1, 4);
       return ins && outs ? { ins, outs } : null;
     }
-    case "plenum": {
+    case "plenum":
+    case "return_plenum": {
       const spigots = mmList(r.spigots, 1, 8);
-      return spigots ? { spigots } : null;
+      const w = num(r.w, 100, 3000);
+      const h = num(r.h, 50, 1500);
+      if (!spigots) return null;
+      return w != null && h != null ? { w, h, spigots } : { spigots };
+    }
+    case "reducer": {
+      const ins = mmList(r.ins, 1, 1);
+      const outs = mmList(r.outs, 1, 1);
+      return ins && outs && ins[0]! > outs[0]! ? { ins, outs } : null;
     }
     default: {
       const mm = mmOk(r.mm);
@@ -431,7 +487,10 @@ export function sizeWords(kind: RangeKind, s: RangeSize): string {
     case "fitting":
       return `${(s.ins ?? []).map((n) => `Ø${n}`).join(" or ")} → ${(s.outs ?? []).map((n) => `Ø${n}`).join(" / ")}`;
     case "plenum":
-      return mmWords(s.spigots ?? []);
+    case "return_plenum":
+      return `${s.w && s.h ? `${s.w} × ${s.h}, ` : ""}${mmWords(s.spigots ?? [])}`;
+    case "reducer":
+      return `Ø${(s.ins ?? [])[0]} → Ø${(s.outs ?? [])[0]}`;
     default:
       return s.mm ? `Ø${s.mm}` : "";
   }
@@ -474,7 +533,18 @@ export function fitOf(kind: RangeKind, s: RangeSize, need: RangeNeed): number | 
     case "fitting":
       return need.ins?.length && (s.ins ?? []).includes(need.ins[0]!) && sameSizes(s.outs, need.outs) ? 0 : null;
     case "plenum":
-      return sameSizes(s.spigots, need.spigots) ? 0 : null;
+    case "return_plenum": {
+      /* made for the unit's face (within 10 mm, either way round), with the
+         spigots the ductwork takes where they're known */
+      if (need.spigots?.length && !sameSizes(s.spigots, need.spigots)) return null;
+      if (need.w == null || need.h == null) return need.spigots?.length ? 0 : null;
+      if (s.w == null || s.h == null) return null;
+      if (near(s.w, need.w) && near(s.h, need.h)) return Math.abs(s.w - need.w) + Math.abs(s.h - need.h);
+      if (near(s.w, need.h) && near(s.h, need.w)) return Math.abs(s.w - need.h) + Math.abs(s.h - need.w) + 1;
+      return null;
+    }
+    case "reducer":
+      return (s.ins ?? [])[0] === (need.ins ?? [])[0] && (s.outs ?? [])[0] === (need.outs ?? [])[0] ? 0 : null;
     default:
       return s.mm != null && s.mm === need.mm ? 0 : null;
   }
@@ -617,7 +687,10 @@ function sizeKey(kind: RangeKind, s: RangeSize): string {
     case "fitting":
       return `${sorted(s.ins)}>${sorted(s.outs)}`;
     case "plenum":
-      return sorted(s.spigots);
+    case "return_plenum":
+      return `${s.w ?? ""}x${s.h ?? ""}|${sorted(s.spigots)}`;
+    case "reducer":
+      return `${sorted(s.ins)}>${sorted(s.outs)}`;
     default:
       return `${s.mm}`;
   }

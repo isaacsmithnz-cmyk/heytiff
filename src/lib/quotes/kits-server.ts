@@ -1,6 +1,6 @@
 import "server-only";
 import { bookProducts } from "./book-view-server";
-import { expandKit, pipeFromMm, type KitFacts, type KitKey } from "./kits";
+import { expandKit, indoorFacts, pipeFromMm, type KitFacts, type KitKey } from "./kits";
 import { addLine } from "./lines-server";
 import { lookupUnit } from "./lookups-server";
 import { readQuoteSettings } from "./settings-query";
@@ -38,6 +38,8 @@ export async function addKit(
       if (!f.pipe && u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
       if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
     }
+    /* a ducted indoor: its plenums are made for its faces (kits, round 2) */
+    if (u.found && u.specs.role === "indoor") Object.assign(f, indoorFacts(u.specs), f.supplyFace ? { supplyFace: f.supplyFace } : {});
   }
   const [products, settings, byHand, ranges] = await Promise.all([bookProducts(orgId), readQuoteSettings(orgId), readByHand(orgId, jobUuid), readRangeOffers(orgId)]);
   const a = settings.allowances;

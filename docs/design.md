@@ -546,6 +546,12 @@ Every decision below is made once, here, and a guard test holds each number.
   written. Three wait at most; the oldest goes for a fourth. Next job opens
   the next one in the card's place, without stacking Back, and J and K walk
   the list while the card is in front and nothing is being typed.
+- **Who else has it open** (2026-10-11, live records, off until deployed).
+  A job card says, under its chips, who else has the same job open, in
+  words and the quiet colour ("Dane has this open too"; "Dane and Mia…";
+  "Dane, Mia and 2 more…"). It is a fact, not a state: no dot, no chip, no
+  avatar. A note written in the diary by one of them appears on the other
+  cards without a reload.
 - **⌘K acts** (2026-10-11). The search box says what it finds for the
   viewer ("Find a job, client or screen…" with the Workboard). Opened over a
   job card, the palette comes up on top of it and leads with that job's

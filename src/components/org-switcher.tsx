@@ -3,6 +3,7 @@
 import { switchOrg } from "@/app/actions/switch-org";
 import { useTiff } from "@/components/tiff/modal/tiff-host";
 import { useRecords } from "@/components/records/records-context";
+import { forgetLiveTicket } from "@/components/records/use-record-presence";
 
 interface Org {
   id: string;
@@ -28,6 +29,7 @@ export function OrgSwitcher({
         <form key={org.id} action={switchOrg} onSubmit={() => {
             tiff.forget?.();
             records.forget?.();
+            forgetLiveTicket();
           }}>
           <input type="hidden" name="orgId" value={org.id} />
           <button

@@ -118,6 +118,13 @@ jest.mock('@/app/actions/workboard-records', () => ({
   openMaintenanceCard: jest.fn(async () => null),
 }))
 
+/* The live records ticket, for the same reason: the job card asks for it at
+   module scope. The default is no ticket, which is what a deployment with
+   live records off answers. */
+jest.mock('@/app/actions/realtime', () => ({
+  realtimeTicket: jest.fn(async () => null),
+}))
+
 /* Filing a document on a job, for the same reason: the job card imports it
    at module scope for its Documents face's upload. The default refuses, so no
    suite proceeds as though a file had been filed; job-documents.test.ts tests

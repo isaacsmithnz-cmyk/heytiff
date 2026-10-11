@@ -960,6 +960,36 @@ docs/job-analytics-plan.md is the design.
 
 ---
 
+## 3g. Live records (optional — who else has a job open)
+
+A job card says who else has the same job open ("Dane has this open too"),
+and a note written in its diary appears on the other open cards without a
+reload. It rides Supabase Realtime **private** channels, one per record,
+that only the record's own workspace can join. **Off by default**: with
+the flag unset the cards ask for nothing and say nothing.
+
+How Supabase knows who is looking: the server signs a one-hour ticket with
+`SUPABASE_JWT_SECRET` (already set, see above), carrying the `authenticated`
+role and the workspace in a claim of its own, `heytiff_org`. No Auth0
+change is needed. The claim is deliberately **not** `org_id`, which the five
+existing `tenant_select` policies read.
+
+1. Apply `docs/migrations/realtime_records.sql`. Run its read-only check
+   before and after.
+2. Check the project still accepts HS256 tokens signed with the legacy JWT
+   secret (Supabase dashboard, Settings, JWT keys: the legacy secret is
+   **current** or **previously used**, not revoked). If the project has
+   moved to asymmetric keys only, live records stay off until the ticket is
+   signed another way.
+3. Set `NEXT_PUBLIC_LIVE_RECORDS=1` in Vercel (Production and Preview) and
+   redeploy. It is read at build time.
+4. Verify: open the same job in two browsers signed in as two people of one
+   workspace. Each card says the other has it open; a note written in one
+   appears in the other within a second or two.
+
+**Rollback:** unset `NEXT_PUBLIC_LIVE_RECORDS` and redeploy. The policies
+can stay; they allow nothing without a ticket.
+
 ## 4. Deploy & verify
 
 1. **Deploy**. Wait for the build to finish.

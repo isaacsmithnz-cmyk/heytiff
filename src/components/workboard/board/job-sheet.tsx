@@ -1,7 +1,7 @@
 "use client";
 
 import { projectHref } from "@/lib/shell/links";
-import { Fragment, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { Fragment, useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useOverlay } from "@/components/overlay/use-overlay";
@@ -74,6 +74,7 @@ import { mintPressId } from "@/lib/workboard/press-id";
 import { thrownWords } from "@/lib/stale-deploy";
 import { useNoteStatePoll } from "./use-note-poll";
 import { useJobDiary } from "./use-job-diary";
+import { hereSaid, useRecordPresence } from "@/components/records/use-record-presence";
 import { useJobPapers } from "./use-job-papers";
 import {
   clearLeftoverBooking,
@@ -533,6 +534,12 @@ export function JobSheet({
      picklist would fetch a different job's answers into this card. */
   const cardId = detail?.remoteId ?? null;
 
+  /* WHO ELSE HAS THIS JOB OPEN (use-record-presence), and word when one of
+     them writes in its diary, which this card then reads again. Says
+     nothing where the deployment has live records off. */
+  const live = useRecordPresence(cardId ? { kind: "job", id: cardId } : null);
+  const here = hereSaid(live.others);
+
   /* THE DIARY'S OWN STATE AND DOORS (use-job-diary): our notes, who the
      viewer sends to ServiceM8 as, the flags' lines, and every press on
      them. Seeded from the record read below, then local. */
@@ -560,6 +567,7 @@ export function JobSheet({
     setAttention,
     dropAttention: (key) => dropAttention(key),
     reloadRecord: () => void reloadRecord(),
+    onWrote: () => live.announce("diary"),
   });
 
   /* THE JOB'S PAPERS AND WHAT GOES OUT (use-job-papers): its SWMS, its
@@ -1072,6 +1080,13 @@ export function JobSheet({
     setBkVerbs(r.bookings?.verbs ?? []);
     setBkLines(r.bookings?.lines ?? {});
   };
+
+  /* A diary written in by someone else with the card open: read it again. */
+  const diaryHeard = live.heard?.what === "diary" ? live.heard.n : 0;
+  const readAgain = useEffectEvent(() => void reloadRecord());
+  useEffect(() => {
+    if (diaryHeard) readAgain();
+  }, [diaryHeard]);
 
   /* ── BOOKINGS TO SERVICEM8 (two-way phase 3): every door asks the server
      and the card draws what the next read says ── */
@@ -1667,6 +1682,7 @@ export function JobSheet({
                 </button>
               )}
             </span>
+            {here && <p className="wb2-here">{here}</p>}
             {/* THE WAYS OUT OF THIS JOB, back behind the ⋯. They spent one
                 release as an Actions face — two ghost buttons alone on a
                 page — and a face that sparse reads as broken. A disclosure,

@@ -7162,6 +7162,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    aside (components/records), at the end of the identity's line and level
    with the pinned ✕, clear of it, and of the ⋯ when there is one: that sits
    52px in and is a button wide, past the line's own 16px and 32px insets. */
+/* WHO ELSE HAS THE JOB OPEN (live records): a line of its own under the
+   chips, in words, quiet — a fact, not a state. */
+.wb2-jcband .wb2-here { flex-basis:100%; margin:4px 0 0; font-size:13px; font-weight:500; color:var(--q); }
 .wb2-jcwin { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
 .wb2-jcwin ~ .wb2-ico { margin-left:0; }
 .wb2-jcband .wb2-jcwin { align-self:flex-start; margin:-2px 4px 0 auto; }

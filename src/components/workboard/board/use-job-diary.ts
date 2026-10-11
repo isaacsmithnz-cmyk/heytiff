@@ -46,9 +46,19 @@ export type JobDiaryInput = {
   dropAttention: (key: string) => void;
   /** Read the whole record again. */
   reloadRecord: () => void;
+  /** A note of ours landed: anyone else with the card open hears of it. */
+  onWrote?: () => void;
 };
 
-export function useJobDiary({ cardId, record, onToast, setAttention, dropAttention, reloadRecord }: JobDiaryInput) {
+export function useJobDiary({
+  cardId,
+  record,
+  onToast,
+  setAttention,
+  dropAttention,
+  reloadRecord,
+  onWrote,
+}: JobDiaryInput) {
   /* OUR OWN WRITING arrives on the record read and is then LOCAL: a note
      typed at the diary's head has to be on screen at once. */
   const [ourNotes, setOurNotes] = useState<OurJobNote[] | null>(null);
@@ -96,6 +106,7 @@ export function useJobDiary({ cardId, record, onToast, setAttention, dropAttenti
     return addJobNote(cardId, text, composeId ? { id: composeId } : undefined)
       .then((saved) => {
         setOurNotes((cur) => (cur ?? []).map((n) => (n.id === temp.id ? saved : n)));
+        onWrote?.();
         if (alsoSm8) sendCopy(saved.id);
       })
       .catch((e: unknown) => {
@@ -177,6 +188,9 @@ export function useJobDiary({ cardId, record, onToast, setAttention, dropAttenti
         return res.error;
       }
       setOurNotes((cur) => [res.note, ...(cur ?? []).filter((n) => n.id !== res.note.id)]);
+      /* a statement, not `?.`: React Compiler cannot lower a value block
+         inside a try */
+      if (onWrote) onWrote();
       /* answered: its mention leaves the strip */
       setAttention((cur) =>
         cur

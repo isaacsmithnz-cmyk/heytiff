@@ -50,7 +50,7 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
       return res.ok ? { ok: true } : res;
     },
     compareWith: (lineId, code) => addCompared(orgId, jobUuid, lineId, code, TIFF),
-    addKit: (kit, facts, at, unit) => addKit(orgId, jobUuid, kit, facts, at, unit, TIFF),
+    addKit: (kit, facts, at, unit, indoor) => addKit(orgId, jobUuid, kit, facts, at, unit, TIFF, indoor ?? null),
     book: () => (products ??= bookProducts(orgId)),
     supplier: () => (supplier ??= jobUuid ? readByHand(orgId, jobUuid).then((b) => b.supplier) : Promise.resolve(null)),
     jobFiles: () => (jobUuid ? jobFiles(orgId, jobUuid) : Promise.resolve([])),

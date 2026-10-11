@@ -262,3 +262,16 @@ describe("a ducted kit sized by its unit and its layout", () => {
     expect(ranged.find((l) => l.name === "METAL Y 400.300.300 NSW")?.why).toMatch(/your range$/);
   });
 });
+
+it("takes only a sane layout: duct sizes a book sells, a split into two or more, a step down", async () => {
+  const { normaliseKitFacts } = await import("../kits");
+  const f = normaliseKitFacts({
+    takeoffs: [400, "400", 333, 9000],
+    fittings: [{ inMm: 400, outsMm: [300, 300], count: 2 }, { inMm: 400, outsMm: [300] }, { inMm: "junk", outsMm: [200, 200] }],
+    reducers: [{ fromMm: 400, toMm: 300 }, { fromMm: 300, toMm: 400 }],
+    returnGrille: { w: 900, h: 550 },
+  });
+  expect(f).toMatchObject({ takeoffs: [400, 400], fittings: [{ inMm: 400, outsMm: [300, 300], count: 2 }], reducers: [{ fromMm: 400, toMm: 300, count: 1 }], returnGrille: { w: 900, h: 550 } });
+  /* none given: a kit says it needs the layout */
+  expect(normaliseKitFacts({})).not.toHaveProperty("fittings");
+});

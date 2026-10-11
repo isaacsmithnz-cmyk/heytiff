@@ -18,7 +18,8 @@ jest.mock("../../lines-server", () => ({
   removeLine: jest.fn(),
 }));
 const saveProposal = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
-jest.mock("../../kits-server", () => ({ addKit: jest.fn() }));
+const addKit = jest.fn();
+jest.mock("../../kits-server", () => ({ addKit: (...a: unknown[]) => (addKit as jest.Mock)(...a) }));
 const openQuestions = jest.fn(async () => [{ id: 41, question: "How long is the pipe run?", put: "10 m" }]);
 jest.mock("../store-server", () => ({
   readSession: jest.fn(async () => ({ id: "s1" })),
@@ -207,6 +208,32 @@ describe("her tools, run", () => {
     expect(out).toMatchObject({ ok: true, said: "14 m", detail: { settled: [{ question: 41, answer: "14 m" }] }, value: { settled: 1, notOpen: [99] } });
     expect(await run("settle", { settled: [{ question: 99, answer: "yes" }] })).toMatchObject({ ok: false, error: "None of those is open. Open: 41." });
     expect(await run("settle", { settled: [] })).toMatchObject({ ok: false });
+  });
+
+  /* Isaac, 2026-10-11, kits round 2: the plenums by the unit, the Ys and reducers by the layout */
+  it("adds a ducted kit naming its indoor and the layout, so its parts come at their sizes", async () => {
+    addKit.mockResolvedValueOnce({ ok: true, added: 18 });
+    const out = await run("add_kit", {
+      kit: "ducted",
+      option: 0,
+      system: "Downstairs",
+      brand: "mitsubishi-electric",
+      model: "PUZ-ZM125VKA2",
+      indoor_model: "PEA-M125HAA",
+      takeoffs: [400, 400],
+      fittings: [{ in_mm: 400, outs_mm: [300, 300], count: 1 }, { in_mm: 300, outs_mm: [200, 200], count: 3 }],
+      reducers: [{ from_mm: 400, to_mm: 300 }],
+      return_grille: { w_mm: 900, h_mm: 550 },
+    });
+    expect(out).toMatchObject({ ok: true, said: "Ducted, 18 parts" });
+    const [, , kit, facts, at, unit, , indoor] = addKit.mock.calls.at(-1)!;
+    expect([kit, at, unit, indoor]).toEqual(["ducted", { optionIndex: 0, system: "Downstairs" }, { brand: "mitsubishi-electric", model: "PUZ-ZM125VKA2" }, { brand: "mitsubishi-electric", model: "PEA-M125HAA" }]);
+    expect(facts).toMatchObject({
+      takeoffs: [400, 400],
+      fittings: [{ inMm: 400, outsMm: [300, 300], count: 1 }, { inMm: 300, outsMm: [200, 200], count: 3 }],
+      reducers: [{ fromMm: 400, toMm: 300, count: 1 }],
+      returnGrille: { w: 900, h: 550 },
+    });
   });
 
   it("says so for a tool that doesn't exist", async () => {

@@ -587,7 +587,51 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     replacing: r.replacing === true || r.replacing === "yes" || r.replacing === "keep",
     underfloor: r.underfloor === true || r.underfloor === "yes",
     keptPipe: r.replacing === "keep" && (OLD_PIPES as readonly unknown[]).includes(r.keptPipe) ? (r.keptPipe as OldPipe) : null,
+    ...layoutFacts(r),
   };
+}
+
+/* a duct size: a round one a book sells */
+const ductMm = (v: unknown) => {
+  const x = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(x) && x >= 80 && x <= 700 && x % 25 === 0 ? x : null;
+};
+const count = (v: unknown) => {
+  const x = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(x) && x >= 1 ? Math.min(40, Math.round(x)) : 1;
+};
+const faceIn = (v: unknown) => {
+  const o = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+  const w = Number(o.w);
+  const h = Number(o.h);
+  return Number.isFinite(w) && Number.isFinite(h) && w >= 100 && w <= 3000 && h >= 100 && h <= 3000 ? { w: Math.round(w), h: Math.round(h) } : null;
+};
+
+/** The layout a person or Tiff gave, made safe: only what was given, so a
+    kit without one says it needs it (kits, round 2). */
+function layoutFacts(r: Record<string, unknown>): Partial<KitFacts> {
+  const out: Partial<KitFacts> = {};
+  if (Array.isArray(r.takeoffs)) {
+    const t = r.takeoffs.map(ductMm).filter((n): n is number => n != null).slice(0, 8);
+    if (t.length) out.takeoffs = t;
+  }
+  if (Array.isArray(r.fittings))
+    out.fittings = r.fittings.slice(0, 12).flatMap((x) => {
+      const o = x && typeof x === "object" ? (x as Record<string, unknown>) : {};
+      const inMm = ductMm(o.inMm);
+      const outsMm = (Array.isArray(o.outsMm) ? o.outsMm : []).map(ductMm).filter((n): n is number => n != null).slice(0, 4);
+      return inMm != null && outsMm.length >= 2 ? [{ inMm, outsMm, count: count(o.count) }] : [];
+    });
+  if (Array.isArray(r.reducers))
+    out.reducers = r.reducers.slice(0, 12).flatMap((x) => {
+      const o = x && typeof x === "object" ? (x as Record<string, unknown>) : {};
+      const fromMm = ductMm(o.fromMm);
+      const toMm = ductMm(o.toMm);
+      return fromMm != null && toMm != null && fromMm > toMm ? [{ fromMm, toMm, count: count(o.count) }] : [];
+    });
+  const grille = faceIn(r.returnGrille);
+  if (grille) out.returnGrille = grille;
+  return out;
 }
 
 /* ── the kits as the business's price list (slice 14.1) ──

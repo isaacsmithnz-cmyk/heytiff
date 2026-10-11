@@ -41,7 +41,13 @@ export type QuoteStore = {
   /** the proposal's words, changed by the blocks given (7.1) */
   writeProposal: (patch: Partial<LinesProposal>) => Promise<{ ok: true } | { ok: false; reason: string }>;
   compareWith: (lineId: string, code: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
-  addKit: (kit: KitKey, facts: KitFacts, at: { optionIndex: number; system: string }, unit: { brand: string; model: string } | null) => Promise<{ ok: true; added: number } | { ok: false; reason: string }>;
+  addKit: (
+    kit: KitKey,
+    facts: KitFacts,
+    at: { optionIndex: number; system: string },
+    unit: { brand: string; model: string } | null,
+    indoor?: { brand: string; model: string } | null
+  ) => Promise<{ ok: true; added: number } | { ok: false; reason: string }>;
   book: () => Promise<Product[]>;
   /** an hour of labour's cost to the business; null when it isn't set */
   hourCost: () => Promise<number | null>;
@@ -205,7 +211,7 @@ export function makeTools(store: QuoteStore) {
       }
       case "add_kit": {
         const k = kitAskOf(input);
-        const res = await store.addKit(k.kit, normaliseKitFacts(k.facts), k.at, k.unit);
+        const res = await store.addKit(k.kit, normaliseKitFacts(k.facts), k.at, k.unit, k.indoor);
         return res.ok ? { ok: true, label, said: `${k.kit === "split" ? "Split" : "Ducted"}, ${res.added} parts`, value: { added: res.added } } : fail(res.reason);
       }
       case "copy_option": {

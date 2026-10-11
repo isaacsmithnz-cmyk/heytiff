@@ -266,7 +266,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "add_kit",
     description:
-      "Add the parts a split or ducted system takes to install, each picked from the book: pipe, interconnect, power, breaker, isolator, mount, drain, trunking, and for ducted the flex, outlets and return. Name the outdoor and its pack and its pipe and current are read off it. A fact left out leaves its part on the quote as not known yet. Change any part after, saying why.",
+      "Add the parts a split or ducted system takes to install, each picked from the book: pipe, interconnect, power, breaker, isolator, mount, drain, trunking; for ducted the supply plenum made for the indoor's face and a return plenum where its return has one, the Ys and reducers of the layout, the flex, outlets, and the return grille and box at their size. Name the outdoor and its pipe and current are read off its pack; name the indoor and its faces are. A fact left out leaves its part on the quote as not known yet. Change any part after, saying why.",
     input_schema: {
       type: "object",
       properties: {
@@ -275,6 +275,19 @@ export const SESSION_TOOLS: ToolDef[] = [
         system: lineFields.system,
         brand: { type: "string", description: "The outdoor's data pack, e.g. mitsubishi-electric" },
         model: { type: "string", description: "The outdoor's model" },
+        indoor_model: { type: "string", description: "Ducted: the indoor's model, from the same pack: its plenums are made for its faces" },
+        takeoffs: { type: "array", items: { type: "number" }, description: "Ducted: the spigots the ductwork takes off the supply plenum, mm: [400, 400]" },
+        fittings: {
+          type: "array",
+          description: "Ducted: where the main duct splits, each Y's size in and outs, mm, and how many",
+          items: { type: "object", properties: { in_mm: { type: "number" }, outs_mm: { type: "array", items: { type: "number" } }, count: { type: "integer" } }, required: ["in_mm", "outs_mm"], additionalProperties: false },
+        },
+        reducers: {
+          type: "array",
+          description: "Ducted: where the main duct steps down, mm, and how many",
+          items: { type: "object", properties: { from_mm: { type: "number" }, to_mm: { type: "number" }, count: { type: "integer" } }, required: ["from_mm", "to_mm"], additionalProperties: false },
+        },
+        return_grille: { type: "object", description: "Ducted: the return grille's face, mm; its box is the same face", properties: { w_mm: { type: "number" }, h_mm: { type: "number" } }, required: ["w_mm", "h_mm"], additionalProperties: false },
         pipe: { type: "string", enum: [...PIPE_SIZES] },
         pipe_m: { type: "number" },
         power_m: { type: "number" },
@@ -515,14 +528,24 @@ export const TOOL_LABELS: Record<string, string> = {
 };
 
 /** A kit call's facts, in the form the kit form sends them. */
-export function kitAskOf(raw: unknown): { kit: "split" | "ducted"; at: { optionIndex: number; system: string }; unit: { brand: string; model: string } | null; facts: Record<string, unknown> } {
+export function kitAskOf(raw: unknown): {
+  kit: "split" | "ducted";
+  at: { optionIndex: number; system: string };
+  unit: { brand: string; model: string } | null;
+  indoor: { brand: string; model: string } | null;
+  facts: Record<string, unknown>;
+} {
   const r = obj(raw);
   const brand = str(r.brand, 60);
   const model = str(r.model, 60);
+  const indoorModel = str(r.indoor_model, 60);
+  const list = (v: unknown) => (Array.isArray(v) ? v.map(obj) : undefined);
+  const grille = obj(r.return_grille);
   return {
     kit: r.kit === "ducted" ? "ducted" : "split",
     at: { optionIndex: option(r.option), system: str(r.system, 60) },
     unit: brand && model ? { brand, model } : null,
+    indoor: brand && indoorModel ? { brand, model: indoorModel } : null,
     facts: {
       pipe: r.pipe,
       pipeM: r.pipe_m,
@@ -536,6 +559,10 @@ export function kitAskOf(raw: unknown): { kit: "split" | "ducted"; at: { optionI
       replacing: r.replacing === "yes" || r.replacing === "keep" ? r.replacing : "",
       keptPipe: r.kept_pipe,
       underfloor: r.underfloor === true,
+      takeoffs: r.takeoffs,
+      fittings: list(r.fittings)?.map((x) => ({ inMm: x.in_mm, outsMm: x.outs_mm, count: x.count })),
+      reducers: list(r.reducers)?.map((x) => ({ fromMm: x.from_mm, toMm: x.to_mm, count: x.count })),
+      returnGrille: grille.w_mm != null ? { w: grille.w_mm, h: grille.h_mm } : undefined,
     },
   };
 }

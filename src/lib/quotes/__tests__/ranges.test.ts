@@ -16,7 +16,9 @@ import {
   needWords,
   neckOf,
   pickFromRange,
+  plenumOf,
   rangeNeedOf,
+  reducerOf,
   sameLine,
   sizeWords,
   spigotsOf,
@@ -261,5 +263,56 @@ describe("the rest of the book's names", () => {
   it("takes a motorised zone damper by its size", () => {
     expect(inKind("zone_damper", "ZONEBOSS PLA MOTOR DAMPER 3NM 24V 250MM (EA)")).toBe(true);
     expect(size("zone_damper", "ZONEBOSS PLA MOTOR DAMPER 3NM 24V 250MM (EA)")).toEqual({ mm: 250 });
+  });
+});
+
+/* Isaac, 2026-10-11 (kits, round 2): "Those [nose cones] need to turn into
+   plenum. Supply plenum and return plenum… we don't know what size that's
+   going to be. It depends on the unit. Reducer, same thing." Every name is
+   a real one from AAD's or Reece's book. */
+describe("plenums made for a unit's face, and reducers", () => {
+  it.each([
+    ["MEA N/C 12-16kW 1330x271 - 2x400", { w: 1330, h: 271, spigots: [400, 400] }],
+    ["DAI N/C 12.5kW 1150x245 - 2x350", { w: 1150, h: 245, spigots: [350, 350] }],
+    ["HAI N/C 10-16kW 1050x312-1x300+1x250", { w: 1050, h: 312, spigots: [300, 250] }],
+    ["DAI SA 18kW 922 x 354 (2x450) SA ONLY", { w: 922, h: 354, spigots: [450, 450] }],
+    ["S/AIR PLENUM 921 X 304 + 2 X 350 SPIGOT (EA)", { w: 921, h: 304, spigots: [350, 350] }],
+    ["325 X 865 R/AIR PLENUM BOX 2 X 350MM (EA)", { w: 325, h: 865, spigots: [350, 350] }],
+    ["ACTRON SUPPLY PLENUM 1/40+2/35 SPIG", { spigots: [400, 350, 350] }],
+  ])("reads %s", (name, want) => {
+    expect(plenumOf(name)).toEqual(want);
+  });
+
+  it("knows a supply plenum from a return one, and neither from an allowance", () => {
+    expect(inKind("plenum", "MEA N/C 12-16kW 1330x271 - 2x400")).toBe(true);
+    expect(inKind("plenum", "R/AIR PLENUM 1062 X 351 + 2 X 350 SPIGOT (EA)")).toBe(false);
+    expect(inKind("return_plenum", "R/AIR PLENUM 1062 X 351 + 2 X 350 SPIGOT (EA)")).toBe(true);
+    expect(inKind("return_plenum", "ACTRON RETURN PLENUM 2/350 SPIG")).toBe(true);
+    expect(inKind("plenum", "NOSE CONE / PLENUM ADAPTOR, CUSTOM (ALLOWANCE)")).toBe(false);
+    expect(inKind("plenum", "BRIVIS NC-6S NETWORKER CONTROLLER")).toBe(false);
+  });
+
+  it("picks the plenum made for the unit's face, with the spigots the ductwork takes", () => {
+    const items = [
+      { size: plenumOf("MEA N/C 10kW 1330x271 - 2x350")!, perUnitCents: 16254, code: "NCMIT100HAA" },
+      { size: plenumOf("MEA N/C 12-16kW 1330x271 - 2x400")!, perUnitCents: 16254, code: "NCMIT125-160HAA" },
+      { size: plenumOf("MEA N/C 10-12kW 1360x180 - 2x350")!, perUnitCents: 10680, code: "NCMIT100-125" },
+    ];
+    expect(pickFromRange("plenum", items, { w: 1330, h: 271, spigots: [400, 400] })?.code).toBe("NCMIT125-160HAA");
+    expect(pickFromRange("plenum", items, { w: 1330, h: 271, spigots: [350, 350] })?.code).toBe("NCMIT100HAA");
+    /* the Daikin's 1152 × 245 takes the 1150 × 245: within 10 mm */
+    expect(fitOf("plenum", plenumOf("DAI N/C 12.5kW 1150x245 - 2x350")!, { w: 1152, h: 245 })).toBe(2);
+    expect(pickFromRange("plenum", items, { w: 1152, h: 245 })).toBeNull();
+    expect(sizeWords("plenum", plenumOf("MEA N/C 12-16kW 1330x271 - 2x400")!)).toBe("1330 × 271, 2 × Ø400");
+  });
+
+  it("reads a reducer's two ends, and never a pipe's or a flue's", () => {
+    expect(reducerOf("AIRLOC SMARTFIT REDUCER 400 - 300")).toEqual({ ins: [400], outs: [300] });
+    expect(reducerOf("METAL REDUCER 250X200 NSW")).toEqual({ ins: [250], outs: [200] });
+    expect(inKind("reducer", "FLUE REDUCER ADAPTOR 125mm-100mm")).toBe(false);
+    expect(inKind("reducer", 'RLS REDUCER 1 1/8" to 1/2" BAG1')).toBe(false);
+    expect(inKind("reducer", "PANA IDU PIPE REDUCER SUIT 7.0")).toBe(false);
+    expect(fitOf("reducer", reducerOf("AIRLOC SMARTFIT REDUCER 400 - 300")!, { ins: [400], outs: [300] })).toBe(0);
+    expect(sizeWords("reducer", { ins: [400], outs: [300] })).toBe("Ø400 → Ø300");
   });
 });

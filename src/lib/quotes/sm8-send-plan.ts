@@ -28,6 +28,8 @@ export type SendPlan =
       ok: true;
       status: { from: string; to: "Work Order" } | null;
       workDone: string;
+      /** sent as a quote (slice 7.3): the job's description, the job left a Quote */
+      jobDescription?: string;
       lines: SendLine[];
       /** the job's live lines in ServiceM8 that come off, with their names */
       remove: { uuid: string; name: string }[];
@@ -110,6 +112,50 @@ export function sendPlan(input: {
     remove: input.existing.map((e) => ({ uuid: e.uuid, name: e.name })),
     taxRateUuid: input.taxRateUuid,
     exGstCents: accepted.reduce((s, a) => s + a.build.exGstCents, 0),
+  };
+}
+
+/** Said when a quote isn't approved: a quote goes as it was approved. */
+export const NOT_APPROVED = "Approve the quote first: what goes to ServiceM8 is what you approved.";
+
+/** SEND TO SERVICEM8 AS A QUOTE (slice 7.3, Isaac's go 2026-10-11, trial
+    first): before it's accepted, the approved quote's scope into the job's
+    description and one "As Per Quote" line at its price (one an option
+    where it has several), the job left a Quote; the lines that were on the
+    job come off. Pure. */
+export function sendAsQuotePlan(input: {
+  draft: ProposalDraft;
+  /** every option of the quote, a variation aside, priced */
+  options: readonly SendOption[];
+  approved: boolean;
+  job: { status: string | null; invoiced: boolean };
+  existing: readonly { uuid: string; name: string }[];
+  taxRateUuid: string | null;
+}): SendPlan {
+  const { draft, options, job } = input;
+  if (!input.approved) return { ok: false, why: NOT_APPROVED };
+  if (options.length === 0) return { ok: false, why: "There's no quote to send." };
+  const status = (job.status ?? "").trim();
+  if (status !== "Quote") return { ok: false, why: `The job is ${status ? `a ${status}` : "in no status"} in ServiceM8: only a Quote is sent as a quote.` };
+  if (job.invoiced) return { ok: false, why: "The job is invoiced in ServiceM8, so it can't be sent." };
+  const left = options.reduce((n, o) => n + o.left, 0);
+  if (left > 0) return { ok: false, why: `${left} still to price: ServiceM8 must get the whole quote.` };
+  if (!input.taxRateUuid) return { ok: false, why: "No tax rate to put the lines on: ServiceM8 has none on this business's lines yet." };
+  const one = options.length === 1;
+  return {
+    ok: true,
+    status: null,
+    workDone: "",
+    jobDescription: options.map((o) => scopeOf(draft, o.index)).join("\n\n"),
+    lines: options.map((o) => ({
+      name: one ? "As Per Quote" : `${optionHeading(draft, o.index)}, as per quote`,
+      quantity: 1,
+      unitPriceCents: o.build.exGstCents,
+      unitCostCents: o.build.buyCents,
+    })),
+    remove: input.existing.map((e) => ({ uuid: e.uuid, name: e.name })),
+    taxRateUuid: input.taxRateUuid,
+    exGstCents: options.reduce((s, o) => s + o.build.exGstCents, 0),
   };
 }
 

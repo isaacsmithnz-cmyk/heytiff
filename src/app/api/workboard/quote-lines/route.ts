@@ -78,6 +78,8 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     supplier: byHand.supplier,
     researched: byHand.researched,
     variations: byHand.variations,
+    /* sent to ServiceM8 as a quote (7.3) */
+    sent: byHand.sent ?? null,
     /* the quote as it stood at each approval before this one, newest first */
     versions,
     suppliers,

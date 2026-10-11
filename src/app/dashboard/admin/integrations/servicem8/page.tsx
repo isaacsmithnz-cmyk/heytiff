@@ -25,6 +25,7 @@ import { SM8_WRITE_KIND_SCOPES, SM8_WRITE_SCOPE_LIST, SM8_WRITE_SCOPES } from "@
 import { sm8WebhooksState } from "@/lib/integrations/sm8-hooks-switch";
 import { sm8LiveUpdatesLine } from "@/lib/integrations/sm8-hook-words";
 import type { Sm8WritesView } from "@/components/integrations/sm8-writes-card";
+import { quotesOnTrial } from "@/lib/integrations/sm8-quote-trial";
 
 /* The ServiceM8 connection screen. Owner-only, matching the routes it links
    to — the Xero page's sibling, and the same posture throughout: two booleans
@@ -107,6 +108,7 @@ export default async function Servicem8IntegrationPage({
         ownerKinds: [...state.ownerKinds],
         /* per kind: a note waiting behind Notes Off says so, a file doesn't */
         holds: Object.fromEntries(kinds.map((k) => [k, sendHold(state, k)])),
+        quotesTrial: kinds.includes("quote") ? await quotesOnTrial(orgId) : true,
       };
     }
   }

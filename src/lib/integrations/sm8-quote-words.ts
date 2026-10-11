@@ -12,6 +12,10 @@ export const QUOTE_WORDS = {
     job: "Accepted quote: the job's scope and status",
     add: "Accepted quote: line {name} added",
     off: "Accepted quote: line {name} taken off",
+    /* a quote sent as a quote, before it's accepted (slice 7.3) */
+    asQuoteJob: "Quote: the job's description",
+    asQuoteAdd: "Quote: line {name} added",
+    asQuoteOff: "Quote: line {name} taken off",
   },
   /* A row's reason, stored filled. */
   row: {

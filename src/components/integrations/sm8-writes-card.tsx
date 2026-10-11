@@ -20,6 +20,7 @@ import { QUOTE_WORDS } from "@/lib/integrations/sm8-quote-words";
 import type { RecentSm8Write } from "@/lib/integrations/sm8-writes";
 import {
   retryFailedServiceM8WritesAction,
+  setServiceM8QuotesAction,
   setServiceM8WriteKindAction,
   setServiceM8WriteModeAction,
 } from "@/app/actions/integrations";
@@ -73,6 +74,8 @@ export type Sm8WritesView = {
   ownerKinds?: Sm8WriteKind[];
   /** What holds each kind's waiting writes (the list says it per row). */
   holds?: Partial<Record<Sm8WriteKind, SendHold>>;
+  /** Quotes on their own trial run, however the connection is set. */
+  quotesTrial?: boolean;
 };
 
 const MODES: { id: Sm8WriteMode; label: string }[] = [
@@ -183,6 +186,19 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
     });
   };
 
+  const switchQuotes = (setting: "off" | "trial" | "live") => {
+    if (busy) return;
+    setError(null);
+    setNote(null);
+    start(async () => {
+      const res = await setServiceM8QuotesAction(setting);
+      if (res.ok) {
+        if (res.note) setNote(res.note);
+        router.refresh();
+      } else setError(res.error);
+    });
+  };
+
   /* Asked for while On or Paused (a pause keeps the permission), and said
      until ServiceM8 gives it — or while ServiceM8 has refused it since. With
      more than one kind, said for each kind switched on whose permission is
@@ -225,6 +241,36 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
         <div className="int-kinds">
           {KIND_ROWS.filter((r) => kinds.includes(r.kind)).map(({ kind: k, label, group }) => {
             const on = ownerKinds.includes(k);
+            /* quotes three ways: Off, Trial (checked, never sent) or On */
+            if (k === "quote") {
+              const at = !on ? "off" : view.quotesTrial !== false ? "trial" : "live";
+              return (
+                <div className="int-kind" key={k}>
+                  <b>{label}</b>
+                  <div className="wb2-ckseg" role="radiogroup" aria-label={group}>
+                    {(
+                      [
+                        ["off", NOTE_WORDS.card.off],
+                        ["trial", "Trial"],
+                        ["live", NOTE_WORDS.card.on],
+                      ] as const
+                    ).map(([id, words]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="radio"
+                        aria-checked={at === id}
+                        className={at === id ? "on" : undefined}
+                        disabled={busy}
+                        onClick={() => switchQuotes(id)}
+                      >
+                        {words}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
             return (
               <div className="int-kind" key={k}>
                 <b>{label}</b>

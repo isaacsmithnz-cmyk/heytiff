@@ -62,7 +62,7 @@ it("offers the send where the owner has it on, with the edit date it was reviewe
     fireEvent.click(button);
   });
   /* with the plan it was shown, for the server to check against */
-  expect(sendQuoteToSm8).toHaveBeenCalledWith("j-1", expect.any(String), "2026-10-05 09:00:00", "k-1");
+  expect(sendQuoteToSm8).toHaveBeenCalledWith("j-1", expect.any(String), "2026-10-05 09:00:00", "k-1", "accepted");
   const said = "Trial run: every change was checked and logged, and nothing went to ServiceM8.";
   expect(await screen.findByText(said)).toBeInTheDocument();
   /* the quote changed: what the send said was about the version before */
@@ -106,4 +106,36 @@ it("offers no send where the owner hasn't switched it on", async () => {
   render(<JobQuoteSend job="j-1" visible />);
   expect(await screen.findByText("Becomes a Work Order")).toBeInTheDocument();
   expect(screen.queryByRole("button")).toBeNull();
+});
+
+/* Slice 7.3 (Isaac's go 2026-10-11, trial first): the approved quote sent as a quote */
+it("sends the approved quote as a quote: the job's description, left a Quote; nothing until it's approved", async () => {
+  quoteSendOffered.mockResolvedValue({ offered: true, trial: true });
+  sendQuoteToSm8.mockResolvedValue({ ok: true, trial: true, sent: 0, waiting: 0, failed: [] });
+  answer({
+    ok: true,
+    status: null,
+    workDone: "",
+    jobDescription: "Option 1: Ducted\n- PEA-M125HAA under the floor",
+    lines: [{ name: "As Per Quote", quantity: 1, unitPriceCents: 1_500_000, unitCostCents: 900_000 }],
+    remove: [],
+    taxRateUuid: "gst",
+    exGstCents: 1_500_000,
+  });
+  const onSent = jest.fn();
+  const { unmount } = render(<JobQuoteSend job="j-1" visible as="quote" onSent={onSent} />);
+  expect(await screen.findByText("Stays a Quote")).toBeInTheDocument();
+  expect(screen.getByText("Job description")).toBeInTheDocument();
+  expect(screen.getByText("As Per Quote")).toBeInTheDocument();
+  expect((global as unknown as { fetch: jest.Mock }).fetch.mock.calls[0]![0]).toBe("/api/workboard/quote-send?job=j-1&as=quote");
+  await act(async () => {
+    fireEvent.click(await screen.findByRole("button", { name: "Trial send to ServiceM8" }));
+  });
+  expect(sendQuoteToSm8).toHaveBeenLastCalledWith("j-1", expect.any(String), "2026-10-05 09:00:00", "k-1", "quote");
+  expect(onSent).toHaveBeenCalled();
+  unmount();
+  answer({ ok: false, why: "Approve the quote first: what goes to ServiceM8 is what you approved." });
+  const { container } = render(<JobQuoteSend job="j-1" visible as="quote" />);
+  await new Promise((r) => setTimeout(r, 0));
+  expect(container).toBeEmptyDOMElement();
 });

@@ -117,6 +117,12 @@ describe("a quote built on its kept lines", () => {
   it("shows the option a person marked accepted", () => {
     expect(linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, accepted: [1] })[5]).toMatchObject({ key: "accepted", state: "done", words: "Option 2" });
   });
+  it("shows the quote sent to ServiceM8 as a quote, or only a trial run of it (7.3)", () => {
+    const at = (sent: { trial: boolean } | null) => linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, approved: true, sent })[4];
+    expect(at(null)).toMatchObject({ key: "sent", state: "todo" });
+    expect(at({ trial: false })).toMatchObject({ state: "done", words: "To ServiceM8" });
+    expect(at({ trial: true })).toMatchObject({ state: "done", words: "Trial run" });
+  });
   it("says the version it's at from version 2 on (quote-versions.ts)", () => {
     const at = (version: number, approved: boolean) => linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, approved, version })[3];
     expect(at(1, true)).toMatchObject({ key: "approved", state: "done", words: "Approved" });

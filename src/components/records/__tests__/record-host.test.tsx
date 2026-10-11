@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { RecordsProvider, useRecords, type OpenRecordOptions } from "../record-host";
+import { DOCK_MAX, PageRecordsProvider, RecordsProvider, useRecords, type OpenRecordOptions } from "../record-host";
+import { RecordDock } from "../record-dock";
 import { RecordLink } from "../record-link";
 import { RecordWindows } from "../record-windows";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
@@ -20,22 +21,39 @@ jest.mock("next/navigation", () => ({
   usePathname: () => mockPath,
   useRouter: () => ({ refresh: jest.fn(), push: (...a: unknown[]) => mockPush(...a) }),
 }));
-jest.mock("@/components/workboard/board/job-sheet", () => ({
-  JobSheet: (p: {
-    row: { id: string; number: string | null; clientName: string | null };
-    initialTab?: string;
-    onClose: () => void;
-    onOpenTracked: (t: { kind: "visit" | "project"; label: string; id: string }) => void;
-  }) => (
-    <div role="dialog" aria-label={`Job ${p.row.number ?? ""}`}>
-      {p.row.clientName}, tab:{p.initialTab ?? "summary"}
-      <button onClick={p.onClose}>Close the card</button>
-      <button onClick={() => p.onOpenTracked({ kind: "project", label: "Fit-out", id: "p-3" })}>
-        On the projects board
-      </button>
-    </div>
-  ),
-}));
+/* The card is on the overlay stack as the real one is, carries the window's
+   controls where the real one does, and keeps a little state of its own, so
+   a card set aside can be seen to come back as it was left. */
+jest.mock("@/components/workboard/board/job-sheet", () => {
+  const { useRef, useState } = jest.requireActual<typeof import("react")>("react");
+  const { useOverlay } = jest.requireActual<typeof import("@/components/overlay/use-overlay")>(
+    "@/components/overlay/use-overlay",
+  );
+  return {
+    JobSheet: function JobSheet(p: {
+      row: { id: string; number: string | null; clientName: string | null };
+      initialTab?: string;
+      windowControls?: React.ReactNode;
+      onClose: () => void;
+      onOpenTracked: (t: { kind: "visit" | "project"; label: string; id: string }) => void;
+    }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useOverlay(ref, { onEscape: p.onClose });
+      const [notes, setNotes] = useState(0);
+      return (
+        <div ref={ref} role="dialog" aria-modal="true" aria-label={`Job ${p.row.number ?? ""}`}>
+          {p.row.clientName}, tab:{p.initialTab ?? "summary"}, notes:{notes}
+          {p.windowControls}
+          <button onClick={() => setNotes((n) => n + 1)}>Write a note</button>
+          <button onClick={p.onClose}>Close the card</button>
+          <button onClick={() => p.onOpenTracked({ kind: "project", label: "Fit-out", id: "p-3" })}>
+            On the projects board
+          </button>
+        </div>
+      );
+    },
+  };
+});
 type Answer = { resolve: (row: AllJobRow | null) => void; reject: (e: unknown) => void };
 const asks = new Map<string, Answer>();
 const openMirrorJob = jest.fn(
@@ -64,10 +82,13 @@ function Frame({ children }: { children: ReactNode }) {
   return (
     <RecordsProvider>
       <main>{children}</main>
+      <RecordDock />
       <RecordWindows manage moneyVisible={false} />
     </RecordsProvider>
   );
 }
+
+const dock = () => screen.queryByRole("navigation", { name: "Set aside" });
 
 const card = () => screen.queryByRole("dialog");
 
@@ -380,3 +401,209 @@ describe("a RecordLink", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Bell" }));
   });
 });
+
+describe("set aside", () => {
+  it("puts the card in the dock, lets the address go, and brings it back as it was left", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Door id="j1" row={row()} />
+      </Frame>,
+    );
+    const door = screen.getByRole("button", { name: "Open" });
+    await user.click(door);
+    await user.click(screen.getByRole("button", { name: "Write a note" }));
+    await user.click(screen.getByRole("button", { name: "Set aside" }));
+
+    expect(card()).toBeNull();
+    expect(document.activeElement).toBe(door);
+    await waitFor(() => expect(window.location.search).toBe("?v=v1"));
+    const waiting = within(dock()!).getByRole("button", { name: "Job 1042 Bayview Apartments" });
+
+    await user.click(waiting);
+    expect(screen.getByRole("dialog", { name: "Job 1042" })).toHaveTextContent("notes:1");
+    expect(openMirrorJob).not.toHaveBeenCalled();
+    expect(window.location.search).toBe("?v=v1&open=job.j1");
+    expect(dock()).toBeNull();
+  });
+
+  it("goes with you to another screen, where the card in front does not", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <Frame>
+        <Door id="j1" row={row()} label="First" />
+        <Door id="j2" row={row({ id: "j2", number: "2002", clientName: "Coogee Strata" })} label="Second" />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "First" }));
+    await user.click(screen.getByRole("button", { name: "Set aside" }));
+    await user.click(screen.getByRole("button", { name: "Second" }));
+
+    mockPath = "/dashboard/workboard";
+    window.history.pushState(null, "", "/dashboard/workboard");
+    rerender(
+      <Frame>
+        <h1>Workboard</h1>
+      </Frame>,
+    );
+    expect(card()).toBeNull();
+    expect(within(dock()!).getAllByRole("button", { name: /^Job/ })).toHaveLength(1);
+
+    await user.click(within(dock()!).getByRole("button", { name: "Job 1042 Bayview Apartments" }));
+    expect(screen.getByRole("dialog", { name: "Job 1042" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Workboard" })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/dashboard/workboard");
+  });
+
+  it(`keeps ${DOCK_MAX}, and lets the oldest go for a fourth`, async () => {
+    const user = userEvent.setup();
+    const ids = ["j1", "j2", "j3", "j4"];
+    render(
+      <Frame>
+        {ids.map((id, i) => (
+          <Door key={id} id={id} row={row({ id, number: `10${i}`, clientName: null })} label={`Open ${id}`} />
+        ))}
+      </Frame>,
+    );
+    for (const id of ids) {
+      await user.click(screen.getByRole("button", { name: `Open ${id}` }));
+      await user.click(screen.getByRole("button", { name: "Set aside" }));
+    }
+    const names = within(dock()!)
+      .getAllByRole("button", { name: /^Job \d+$/ })
+      .map((b) => b.textContent);
+    expect(names).toEqual(["Job 101", "Job 102", "Job 103"]);
+  });
+
+  it("a card in the dock can be let go", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Door id="j1" row={row()} />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(screen.getByRole("button", { name: "Set aside" }));
+    await user.click(screen.getByRole("button", { name: "Close job 1042" }));
+    expect(dock()).toBeNull();
+    expect(card()).toBeNull();
+  });
+
+  it("opening a card that waits in the dock brings that one back, not a second", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Door id="j1" row={row()} label="Open with the row" />
+        <Door id="j1" label="Open by id" />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open with the row" }));
+    await user.click(screen.getByRole("button", { name: "Write a note" }));
+    await user.click(screen.getByRole("button", { name: "Set aside" }));
+    await user.click(screen.getByRole("button", { name: "Open by id" }));
+    expect(openMirrorJob).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByRole("dialog", { name: "Job 1042" })).toHaveTextContent("notes:1");
+  });
+
+  it("is not offered by a host drawn inside a page, which has no dock", async () => {
+    const user = userEvent.setup();
+    render(
+      <PageRecordsProvider>
+        <Door id="j1" row={row()} />
+        <RecordWindows manage moneyVisible={false} />
+      </PageRecordsProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByRole("dialog", { name: "Job 1042" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Set aside" })).toBeNull();
+  });
+});
+
+describe("Next job", () => {
+  const LIST = ["j1", "j2", "j3"];
+
+  it("steps through the list the door opened it from, in place, and Back still closes it", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Door id="j1" row={row()} opts={{ list: LIST }} />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    const depth = window.history.length;
+    await user.click(screen.getByRole("button", { name: "Next job" }));
+    expect(openMirrorJob).toHaveBeenCalledWith("j2");
+    expect(window.location.search).toBe("?v=v1&open=job.j2");
+    await answer("j2", row({ id: "j2", number: "2002" }));
+    expect(screen.getByRole("dialog", { name: "Job 2002" })).toBeInTheDocument();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(window.history.length).toBe(depth);
+
+    act(() => window.history.back());
+    await waitFor(() => expect(card()).toBeNull());
+    expect(window.location.search).toBe("?v=v1");
+  });
+
+  it("walks with J and K while the card is in front, and not while typing", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <input aria-label="Somewhere to type" />
+        <Door id="j2" row={row({ id: "j2", number: "2002" })} opts={{ list: LIST }} />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Somewhere to type" }), { key: "j" });
+    expect(openMirrorJob).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Job 2002" }), { key: "k" });
+    expect(openMirrorJob).toHaveBeenCalledWith("j1");
+    await answer("j1", row());
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Job 1042" }), { key: "j" });
+    expect(openMirrorJob).toHaveBeenLastCalledWith("j2");
+  });
+
+  it("is not offered at the end of the list, or without one", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Door id="j3" row={row({ id: "j3", number: "3003" })} opts={{ list: LIST }} label="Last" />
+        <Door id="j1" row={row()} label="Alone" />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "Last" }));
+    expect(screen.queryByRole("button", { name: "Next job" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Alone" }));
+    expect(screen.queryByRole("button", { name: "Next job" })).toBeNull();
+  });
+
+  it("comes with a RecordLink from a list of them, in the order they are shown", async () => {
+    const user = userEvent.setup();
+    document.addEventListener("click", leave);
+    render(
+      <Frame>
+        <ul data-record-list>
+          <li>
+            <RecordLink href="/dashboard/workboard?job=j1">Job 1042</RecordLink>
+          </li>
+          <li>
+            <RecordLink href="/dashboard/assets?v=v2">Van</RecordLink>
+          </li>
+          <li>
+            <RecordLink href="/dashboard/workboard?job=j2">Job 2002</RecordLink>
+          </li>
+        </ul>
+      </Frame>,
+    );
+    await user.click(screen.getByRole("link", { name: "Job 1042" }));
+    await answer("j1", row());
+    await user.click(screen.getByRole("button", { name: "Next job" }));
+    expect(openMirrorJob).toHaveBeenLastCalledWith("j2");
+    document.removeEventListener("click", leave);
+  });
+});
+
+function leave(e: MouseEvent) {
+  e.preventDefault();
+}

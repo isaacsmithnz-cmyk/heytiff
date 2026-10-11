@@ -530,6 +530,17 @@ Every decision below is made once, here, and a guard test holds each number.
   out of a page about one job (its quote, its SWMS) still go to the
   Workboard, and so does Book in where it is the Schedule's link. The card
   itself is unchanged.
+- **A card can be set aside** (2026-10-11). A job opened where you are has
+  two worded buttons in its band beside the ⋯: Set aside, and Next job when
+  the door that opened it showed a list (⌘K's jobs, the bell, Action
+  required, a list in Analytics). Set aside puts the card in the dock, a row
+  of the dark frame under the page, there only while something waits in it,
+  on every screen: a job set aside on Home comes back over the Schedule. A
+  card in the dock is its job's number and client and a close cross, and it
+  comes back exactly as it was left, on the face it was on with a note half
+  written. Three wait at most; the oldest goes for a fourth. Next job opens
+  the next one in the card's place, without stacking Back, and J and K walk
+  the list while the card is in front and nothing is being typed.
 - **One dialog is in front** (2026-10-11). Every sheet and modal says it is
   open on one stack (`components/overlay/use-overlay`), and the one opened
   last is in front. Escape closes that one and nothing under it: a claim, a

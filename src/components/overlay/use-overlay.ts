@@ -62,6 +62,12 @@ function remove(layer: Layer) {
 
 const front = (): Layer | undefined => layers[layers.length - 1];
 
+/** The dialog in front, or null. For a key that belongs to one dialog only
+    while nothing is over it (the job card's J and K). */
+export function frontOverlay(): HTMLElement | null {
+  return front()?.el ?? null;
+}
+
 /** True while any dialog is open. For a handler on the page underneath that
     must leave a key to whatever is over it. */
 export function overlayOpen(): boolean {

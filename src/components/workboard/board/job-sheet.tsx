@@ -320,6 +320,7 @@ export function JobSheet({
   onCreateAgreement,
   onOpenTracked,
   onToast,
+  windowControls,
 }: {
   row: AllJobRow;
   manage: boolean;
@@ -342,6 +343,10 @@ export function JobSheet({
   /** Open on the Visits face with this leftover booking's Clear asked (an
       activity uuid). */
   openClear?: string;
+  /** What the window it opened in adds to its band — Next job, Set aside —
+      when it opened where you are (components/records). Nothing on the
+      board's own card. */
+  windowControls?: ReactNode;
   onClose: () => void;
   /** Hands this job to the existing new-agreement modal, prefilled. */
   onCreateAgreement: (row: AllJobRow, detail: MirrorJobDetail | null) => void;
@@ -2102,6 +2107,7 @@ export function JobSheet({
                 {detail?.address ?? detail?.geoLine ?? row.suburb ?? "No address on the job"}
               </p>
             </span>
+            {windowControls}
             <span className="wb2-shchips">
               {focusClaim && <span className="wb2-chip cat">{claimTitle(focusClaim)}</span>}
               {/* THE CHIP IS THE DOOR — the shape the tracked chip proved.

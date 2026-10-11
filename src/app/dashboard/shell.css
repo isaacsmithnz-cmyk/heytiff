@@ -968,6 +968,22 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 
 /* the light content well, inset so the dark frame shows across top / right / bottom */
 .fg .main { padding:0 16px 16px 0; }
+/* THE DOCK — the cards set aside (components/records/record-dock). A row of
+   the dark frame under the page, there only while something waits in it, so
+   it never covers the page. The frame's own words and hairline; a card in it
+   is a thing you tap, so it keeps a hairline and the button radius (law 26),
+   and letting it go is a close cross (law 25). */
+.fg .rw-dock { flex:none; display:flex; align-items:center; gap:8px; min-width:0; padding:8px 0 0; }
+.fg .rw-dkl { flex:none; font-size:13px; font-weight:500; color:var(--on-ink-q); }
+.fg .rw-dk { display:flex; align-items:center; min-width:0; max-width:320px; border:1px solid var(--on-ink-line); border-radius:var(--r-button); }
+.fg .rw-dko { display:flex; align-items:center; gap:8px; min-width:0; height:32px; padding:0 8px 0 12px; border:0; border-radius:var(--r-button);
+  background:none; color:var(--paper); font:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .rw-dko b { flex:none; white-space:nowrap; }
+.fg .rw-dko span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:var(--on-ink-q); }
+.fg .rw-dko:hover { background:var(--on-ink-tint-2); }
+.fg .rw-dkx { flex:none; display:grid; place-items:center; width:32px; height:32px; border:0; border-radius:var(--r-button);
+  background:none; color:var(--on-ink-q); cursor:pointer; transition:color var(--t-fast) var(--ease); }
+.fg .rw-dkx:hover { color:var(--paper); }
 .fg .outlet {
   background:#EDEFF4;
   border-radius:16px;   /* top-left 40px = same as the home hero card */
@@ -7140,6 +7156,12 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    button-width left and un-pins the icon inside it */
 .wb2-jcband .wb2-shmenu { position:absolute; top:12px; right:52px; margin-left:0; }
 .wb2-jcband .wb2-shmenu .wb2-ico { position:static; }
+/* A CARD OPENED WHERE YOU ARE adds its window's controls, Next job and Set
+   aside (components/records), at the end of the identity's line and level
+   with the pinned ✕, clear of it, and of the ⋯ when there is one: that sits
+   52px in and is a button wide, past the line's own 16px and 32px insets. */
+.wb2-jcband .wb2-jcwin { flex:none; align-self:flex-start; display:flex; align-items:center; gap:8px; margin:-2px 4px 0 auto; }
+.wb2-jcband .wb2-shtop:has(.wb2-shmenu) .wb2-jcwin { margin-right:calc(52px + 30px + 8px - 16px - 32px); }
 /* the chips always take their own line under the identity — a half-wrapped
    chip row (two beside the name, three below) reads as an accident */
 .wb2-jcband .wb2-shchips { flex-basis:100%; margin-top:4px; }

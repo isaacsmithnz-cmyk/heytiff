@@ -274,10 +274,15 @@ export function CommandPalette({
       } else if (row.kind === "job") {
         /* A job opens OVER the screen you are on, in the record host — not
            by sending you to the Workboard. Focus goes back to the search
-           button that opened the palette. */
+           button that opened the palette, and the jobs it found come with
+           it, so the card steps through them (Next job). */
+        const jobs = finds.jobs.map((j) => j.remoteId);
         records.open(
           { kind: "job", id: row.job.remoteId },
-          { from: document.querySelector<HTMLElement>(".topbar .searchbtn") }
+          {
+            from: document.querySelector<HTMLElement>(".topbar .searchbtn"),
+            ...(jobs.length > 1 ? { list: jobs } : {}),
+          }
         );
       } else {
         router.push(row.href);

@@ -506,7 +506,7 @@ export function BellPanel({
           <em>Everything is in date and nobody is waiting on an answer.</em>
         </div>
       ) : items.length === 0 ? null : (
-        <div className="bp-list">
+        <div className="bp-list" data-record-list>
           {shown.map((c) => (
             <RecordLink
               key={c.key}

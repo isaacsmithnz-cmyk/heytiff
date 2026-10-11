@@ -232,7 +232,7 @@ export function VoidList({
   const rows = all ? shown : shown.slice(0, 20);
   return (
     <>
-      <div className="an-qlist">
+      <div className="an-qlist" data-record-list>
         {rows.map((job) => {
           const isVoid = voids.isVoid(job, serverVoid);
           const kept = keep ? keep.marks.isOn(job, keep.server(job)) : false;

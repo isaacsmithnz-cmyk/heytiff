@@ -31,6 +31,9 @@ export type OpenRecordOptions = {
   /** Open on the Visits face with this leftover booking's Clear asked (an
       activity uuid). */
   clear?: string;
+  /** The jobs it was opened among, in the order the door showed them, so
+      the card can step to the next (Next job, J and K). */
+  list?: readonly string[];
 };
 
 export type RecordsApi = {
@@ -41,6 +44,57 @@ export type RecordsApi = {
 };
 
 export const RecordsContext = createContext<RecordsApi | null>(null);
+
+/* WHAT THE HOST HOLDS, for what draws it: the cards (record-windows) and the
+   dock the frame carries (record-dock). Here rather than in the host, so the
+   frame's dock reads it without the host's server action. */
+
+/** How many cards wait in the dock at once. */
+export const DOCK_MAX = 3;
+
+export type Win = {
+  key: string;
+  /** The screen it was opened over. The card in front is drawn only there:
+      going somewhere else closes it (see above). */
+  path: string;
+  ref: RecordRef;
+  row: AllJobRow;
+  state: ScheduleJobState | null;
+  tab: JobSheetTab | undefined;
+  from: HTMLElement | null;
+  /** What a booking door came for — Book in, or a leftover's Clear — and
+      the ask that brought it, so the card opens afresh on it. */
+  door: { bookIn: boolean; clear: string | null; n: number } | null;
+  /** The jobs it was opened among, in order, for Next job. */
+  list: readonly string[] | null;
+  /** Waiting in the dock rather than in front. */
+  aside: boolean;
+};
+
+export type WindowsApi = {
+  /** Every card the host holds — the one in front and the ones set aside —
+      in the order they were first opened. A card keeps its place while it
+      is held, so it keeps its state between the two. */
+  windows: readonly Win[];
+  /** This host has a dock to set a card aside into. */
+  docked: boolean;
+  close: (key: string) => void;
+  /** Close the card in front without touching the address: the next move
+      writes its own. The dock stays. */
+  dismiss: () => void;
+  /** Into the dock. */
+  setAside: (key: string) => void;
+  /** Out of the dock, in front, over the screen you are on. */
+  restore: (key: string) => void;
+  /** The job after (1) or before (-1) this card's in the list it was opened
+      from; null at either end, or with no list. */
+  stepOf: (key: string, by: 1 | -1) => string | null;
+  /** Open that job in this card's place. */
+  step: (key: string, by: 1 | -1) => void;
+  toast: (words: string) => void;
+};
+
+export const WindowsContext = createContext<WindowsApi | null>(null);
 
 /** The record host's door. Outside a host — a page drawn on its own in a
     test, or a route outside the dashboard frame — it falls back to the

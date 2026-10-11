@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { CommandPaletteProvider } from "./command-palette-context";
+import { RecordDock } from "@/components/records/record-dock";
 
 /* The app frame — and NOTHING in it knows who you are.
 
@@ -59,6 +60,8 @@ export function AppShell({
         <main className="outlet" key={pathname}>
           {children}
         </main>
+        {/* the cards set aside, under the page and never over it */}
+        <RecordDock />
       </div>
       {palette}
       {records}

@@ -27,6 +27,7 @@ import { LEAVE_WORDS } from "@/lib/integrations/sm8-leave-words";
 import { JOB_WORDS } from "@/lib/integrations/sm8-job-words";
 import { CUSTOMER_WORDS } from "@/lib/integrations/sm8-customer-words";
 import { QUOTE_WORDS } from "@/lib/integrations/sm8-quote-words";
+import { setQuotesOnTrial } from "@/lib/integrations/sm8-quote-trial";
 import { sm8DisconnectNote, sm8KindOffNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
 
 /* The two things you can do to an existing connection from the screen.
@@ -236,6 +237,20 @@ export async function setServiceM8WriteKindAction(kind: string, on: boolean): Pr
   revalidate();
   const note = on ? null : sm8KindOffNote(kind, changed.cancelled.length);
   return note ? { ok: true, note } : { ok: true };
+}
+
+/** The owner's quotes switch, three ways (Isaac, 2026-10-11: "Trial first"):
+    Off; Trial, checked and logged and never sent, however the connection is
+    set; or On. */
+export async function setServiceM8QuotesAction(setting: "off" | "trial" | "live"): Promise<IntegrationResult> {
+  if (setting !== "off" && setting !== "trial" && setting !== "live") return { ok: false, error: "That isn't a setting." };
+  if (setting === "off") return setServiceM8WriteKindAction("quote", false);
+  const ctx = await ownerOrgId();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+  if (!sm8WriteKindsEnabled().includes("quote")) return { ok: false, error: QUOTE_WORDS.card.quotesUnavailable };
+  /* the trial first, so a press between the two never goes live by mistake */
+  if (!(await setQuotesOnTrial(ctx.orgId, setting === "trial"))) return { ok: false, error: "Couldn't change it. Reload the page and try again." };
+  return setServiceM8WriteKindAction("quote", true);
 }
 
 /** The owner's Retry failed files: every write that failed for the account

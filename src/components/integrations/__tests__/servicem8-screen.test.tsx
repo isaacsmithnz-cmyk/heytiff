@@ -22,6 +22,7 @@ const disconnect = jest.fn();
 const syncNow = jest.fn();
 const setWriteMode = jest.fn();
 const setWriteKind = jest.fn();
+const setQuotes = jest.fn();
 const retryFailed = jest.fn();
 const refresh = jest.fn();
 
@@ -30,6 +31,7 @@ jest.mock("@/app/actions/integrations", () => ({
   syncServiceM8NowAction: (...args: unknown[]) => syncNow(...args),
   setServiceM8WriteModeAction: (...args: unknown[]) => setWriteMode(...args),
   setServiceM8WriteKindAction: (...args: unknown[]) => setWriteKind(...args),
+  setServiceM8QuotesAction: (...args: unknown[]) => setQuotes(...args),
   retryFailedServiceM8WritesAction: (...args: unknown[]) => retryFailed(...args),
 }));
 
@@ -906,6 +908,22 @@ describe("sending files and notes", () => {
     expect(screen.queryByText("publish_job_notes")).not.toBeInTheDocument();
     expect(screen.getByText("Sending files to ServiceM8")).toBeInTheDocument();
     expect(screen.queryByRole("radiogroup", { name: "Sending notes to ServiceM8" })).not.toBeInTheDocument();
+  });
+
+  /* Isaac, 2026-10-11: send to ServiceM8 as a quote, "Trial first" */
+  it("switches quotes three ways, Off, Trial or On, a trial run whatever the connection says", async () => {
+    const user = userEvent.setup();
+    setQuotes.mockResolvedValue({ ok: true });
+    const { unmount } = render(
+      <Servicem8Screen connection={toView(row({ write_mode: "live" }))} {...ready} writes={view({ kinds: ["attachment", "quote"], ownerKinds: ["attachment", "quote"], quotesTrial: true })} />
+    );
+    const quotes = screen.getByRole("radiogroup", { name: "Sending accepted quotes to ServiceM8" });
+    expect(within(quotes).getByRole("radio", { name: "Trial" })).toHaveAttribute("aria-checked", "true");
+    await user.click(within(quotes).getByRole("radio", { name: "On" }));
+    expect(setQuotes).toHaveBeenCalledWith("live");
+    unmount();
+    render(<Servicem8Screen connection={toView(row({ write_mode: "live" }))} {...ready} writes={view({ kinds: ["attachment", "quote"], ownerKinds: ["attachment"] })} />);
+    expect(within(screen.getByRole("radiogroup", { name: "Sending accepted quotes to ServiceM8" })).getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
   });
 
   it("with notes allowed: headed Sending to ServiceM8, a Files and a Notes switch, and the notes permission when the page lists it", async () => {

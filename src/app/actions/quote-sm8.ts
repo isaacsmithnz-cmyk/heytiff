@@ -32,6 +32,7 @@ import { readSm8SendView, type SendAs } from "@/lib/quotes/sm8-send-server";
 import { markSent } from "@/lib/quotes/lines-job-server";
 import { planKey } from "@/lib/quotes/sm8-send-plan";
 import { queueAcceptedQuote } from "./sm8-quote-queue";
+import { quotesOnTrial } from "@/lib/integrations/sm8-quote-trial";
 
 const SEND_BUDGET_MS = 12_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,7 +54,8 @@ export async function quoteSendOffered(): Promise<{ offered: boolean; trial: boo
   const g = await gate();
   if ("error" in g) return { offered: false, trial: false };
   const state = await readSm8WriteState(g.orgId);
-  return { offered: offersSend(state, "quote"), trial: state.mode === "trial" };
+  /* quotes on their own trial run say so, however the connection is set */
+  return { offered: offersSend(state, "quote"), trial: state.mode === "trial" || (await quotesOnTrial(g.orgId)) };
 }
 
 export type QuoteSendAnswer =

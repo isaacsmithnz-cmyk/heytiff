@@ -9,6 +9,8 @@ let role = "owner";
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: jest.fn(async () => ({ orgId: "org-1" })) } }));
 jest.mock("@/lib/permissions-server", () => ({ getDbRole: jest.fn(async () => role) }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+const setQuotesOnTrial = jest.fn(async () => true);
+jest.mock("@/lib/integrations/sm8-quote-trial", () => ({ quotesOnTrial: jest.fn(async () => true), setQuotesOnTrial: (...a: unknown[]) => (setQuotesOnTrial as jest.Mock)(...a) }));
 jest.mock("@/lib/integrations/store", () => ({ disconnectXero: jest.fn(), setXeroTenant: jest.fn() }));
 jest.mock("@/lib/integrations/sm8-sync", () => ({ runSm8Sync: jest.fn() }));
 
@@ -50,6 +52,7 @@ jest.mock("@/lib/integrations/sm8-hooks", () => {
 import {
   disconnectServiceM8Action,
   retryFailedServiceM8WritesAction,
+  setServiceM8QuotesAction,
   setServiceM8WriteKindAction,
   setServiceM8WriteModeAction,
   syncServiceM8NowAction,
@@ -521,5 +524,42 @@ describe("disconnect, with live updates (two-way phase 4)", () => {
     removeSm8Webhooks.mockRejectedValue(new Error("boom"));
     expect((await disconnectServiceM8Action()).ok).toBe(true);
     expect(steps).toEqual(["disconnect"]);
+  });
+});
+
+/* Isaac, 2026-10-11: send to ServiceM8 as a quote, "Trial first", nothing to a live job until he says */
+describe("setServiceM8QuotesAction", () => {
+  beforeEach(() => {
+    role = "owner";
+    allowed = ["attachment", "note", "quote"];
+    setSm8WriteKind.mockReset().mockResolvedValue({ ok: true, cancelled: [] });
+    setQuotesOnTrial.mockReset().mockResolvedValue(true);
+    readSm8WriteState.mockResolvedValue({ mode: "live" });
+  });
+  afterEach(() => {
+    allowed = ["attachment"];
+  });
+
+  it("puts quotes on their own trial run, then on, before it switches them on", async () => {
+    expect(await setServiceM8QuotesAction("trial")).toMatchObject({ ok: true });
+    expect(setQuotesOnTrial).toHaveBeenLastCalledWith("org-1", true);
+    expect(setSm8WriteKind).toHaveBeenLastCalledWith("org-1", "quote", true);
+    expect(await setServiceM8QuotesAction("live")).toMatchObject({ ok: true });
+    expect(setQuotesOnTrial).toHaveBeenLastCalledWith("org-1", false);
+  });
+
+  it("switches them off without touching the trial, and is an owner's", async () => {
+    expect(await setServiceM8QuotesAction("off")).toMatchObject({ ok: true });
+    expect(setSm8WriteKind).toHaveBeenLastCalledWith("org-1", "quote", false);
+    expect(setQuotesOnTrial).not.toHaveBeenCalled();
+    role = "admin";
+    expect(await setServiceM8QuotesAction("trial")).toEqual({ ok: false, error: "Only an owner can change connected apps." });
+    expect(setQuotesOnTrial).not.toHaveBeenCalled();
+  });
+
+  it("refuses where the deployment doesn't send quotes", async () => {
+    allowed = ["attachment", "note"];
+    expect(await setServiceM8QuotesAction("live")).toMatchObject({ ok: false });
+    expect(setQuotesOnTrial).not.toHaveBeenCalled();
   });
 });

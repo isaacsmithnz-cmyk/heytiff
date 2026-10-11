@@ -1,5 +1,6 @@
 "use client";
 
+import { projectHref } from "@/lib/shell/links";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
@@ -316,7 +317,7 @@ export function ProjectTripSheet({
             <h2 onDoubleClick={manage ? () => setRenaming(true) : undefined}>{visit.label}</h2>
           )}
           <p>
-            <Link href={`/dashboard/workboard/projects/${visit.projectId}`} className="ro-link">
+            <Link href={projectHref(visit.projectId)} className="ro-link">
               {visit.projectName}
             </Link>
             {visit.clientName ? `, ${visit.clientName}` : ""}

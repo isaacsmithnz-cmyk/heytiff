@@ -1,5 +1,6 @@
 "use client";
 
+import { jobHref } from "@/lib/shell/links";
 import { useState } from "react";
 import Link from "next/link";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
@@ -247,7 +248,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
           <ScreenBand
             crumb={
               doc.job ? (
-                <Link className="sws-back" href={`/dashboard/workboard?job=${encodeURIComponent(doc.job.uuid)}`}>
+                <Link className="sws-back" href={jobHref(doc.job.uuid)}>
                   {doc.job.number ? `← Job #${doc.job.number}` : "← The job"}
                 </Link>
               ) : (
@@ -306,7 +307,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                   ))}
                 </div>
                 {doc.job && (
-                  <Link className="sw-more" href={`/dashboard/workboard?job=${encodeURIComponent(doc.job.uuid)}`}>
+                  <Link className="sw-more" href={jobHref(doc.job.uuid)}>
                     Open the job to revise the SWMS
                   </Link>
                 )}

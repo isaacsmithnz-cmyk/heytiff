@@ -118,10 +118,7 @@ export function useRecords(): RecordsApi {
     () =>
       host ?? {
         hosted: false,
-        open: (ref, opts) => {
-          const face = opts?.tab ? `&face=${encodeURIComponent(opts.tab)}` : "";
-          router.push(`${jobHref(ref.id)}${face}`);
-        },
+        open: (ref, opts) => router.push(jobHref(ref.id, opts?.tab)),
       },
     [host, router],
   );

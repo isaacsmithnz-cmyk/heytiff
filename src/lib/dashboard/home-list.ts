@@ -36,6 +36,7 @@
    phase 3, PR E). Where the deployment books nothing, not one of these is
    handed in, and the list is exactly what it was. */
 
+import { jobHref, staffHref, visitHref } from "@/lib/shell/links";
 import { daysUntil, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { expiryDue } from "@/lib/expiry-due";
 import { fmtKm } from "@/components/fleet/logic";
@@ -420,7 +421,7 @@ function chipDoor(chip: ActionChip, caps: ListCaps): Door {
     case "self":
       return { to: "href", href: `/dashboard/profile?sec=${sec}` };
     case "staff":
-      return { to: "href", href: `/dashboard/team/${enc(ref.id)}?sec=${sec}` };
+      return { to: "href", href: `${staffHref(ref.id)}?sec=${sec}` };
     case "org-credential":
       return { to: "href", href: "/dashboard/admin/organization?sec=credentials" };
   }
@@ -590,7 +591,7 @@ export function placeList(input: ListInput): HomeList {
       tone: d < 0 ? "late" : "",
       dot: d < 0 ? "late" : d === 0 ? "today" : "quiet",
       figure: null,
-      door: { to: "href", href: `/dashboard/workboard?visit=${enc(v.id)}` },
+      door: { to: "href", href: visitHref(v.id) },
       // a booking stays a visit, and placing one is the board's manage grant
       verb: caps.placeVisits ? { label: "Book in", placeVisit: v.id } : null,
     };
@@ -624,7 +625,7 @@ export function placeList(input: ListInput): HomeList {
       door: { to: "job", remoteId: w.job.remoteId },
       verb: caps.bookIn
         ? { label: "Book in", bookIn: w.job.remoteId }
-        : { label: "Book in", door: { to: "href", href: `/dashboard/workboard?job=${enc(w.job.remoteId)}` } },
+        : { label: "Book in", door: { to: "href", href: jobHref(w.job.remoteId) } },
     };
   };
   const freshWins = wins.filter((w) => w.age <= FRESH_WIN_DAYS);

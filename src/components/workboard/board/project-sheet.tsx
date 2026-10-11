@@ -1,5 +1,6 @@
 "use client";
 
+import { projectHref } from "@/lib/shell/links";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
@@ -255,7 +256,7 @@ export function ProjectSheet({
                   claims — lives on the project screen behind this door. */}
               <Link
                 className="wb2-chip blue"
-                href={`/dashboard/workboard/projects/${project.id}`}
+                href={projectHref(project.id)}
                 title="Open the full project"
               >
                 Full project

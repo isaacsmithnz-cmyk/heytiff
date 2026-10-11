@@ -1,5 +1,6 @@
 "use client";
 
+import { projectHref } from "@/lib/shell/links";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -98,7 +99,7 @@ export function ProjectCompletedTab({
               Reopen
             </button>
           ))}
-        <Link href={`/dashboard/workboard/projects/${p.id}`} className="pbtn ghost">
+        <Link href={projectHref(p.id)} className="pbtn ghost">
           Open
         </Link>
       </span>

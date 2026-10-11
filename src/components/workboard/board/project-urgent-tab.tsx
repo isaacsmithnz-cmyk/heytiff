@@ -1,5 +1,6 @@
 "use client";
 
+import { projectHref } from "@/lib/shell/links";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -121,7 +122,7 @@ export function ProjectUrgentTab({
       return (
         <Link
           className="pbtn ghost"
-          href={`/dashboard/workboard/projects/${r.projectId}`}
+          href={projectHref(r.projectId ?? "")}
           onClick={stop}
         >
           Open the project

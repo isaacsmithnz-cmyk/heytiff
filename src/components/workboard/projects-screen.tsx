@@ -1,5 +1,6 @@
 "use client";
 
+import { projectHref } from "@/lib/shell/links";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -72,7 +73,7 @@ export function ProjectsScreen({
             <div className="wb-projgrid">
               {projects.map((p) => (
                 <Link
-                  href={`/dashboard/workboard/projects/${p.id}`}
+                  href={projectHref(p.id)}
                   className="card2 wb-proj"
                   key={p.id}
                 >
@@ -115,7 +116,7 @@ export function ProjectsScreen({
           onClose={() => setCreating(false)}
           onCreated={(id) => {
             setCreating(false);
-            router.push(`/dashboard/workboard/projects/${id}`);
+            router.push(projectHref(id));
           }}
         />
       )}

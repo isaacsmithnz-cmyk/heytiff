@@ -1,5 +1,6 @@
 "use client";
 
+import { projectHref } from "@/lib/shell/links";
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -1260,7 +1261,7 @@ export function JobSheet({
         return;
       }
       onToast("Project created from this job");
-      router.push(`/dashboard/workboard/projects/${res.id}`);
+      if (res.id) router.push(projectHref(res.id));
     });
   };
 

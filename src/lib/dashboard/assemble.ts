@@ -1,3 +1,4 @@
+import { staffHref } from "@/lib/shell/links";
 import type { Capability } from "@/lib/permissions";
 import type { Vehicle, VehicleWithFacts } from "@/components/fleet/logic";
 import {
@@ -194,7 +195,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
       if (s.staffId === src.viewerStaffId) continue; // your own already in `self`
       const ctx = {
         subject: s.name,
-        href: `/dashboard/team/${s.staffId}`,
+        href: staffHref(s.staffId),
         today: src.today,
         warnDays: src.warnDays,
         owner: { kind: "staff" as const, id: s.staffId },

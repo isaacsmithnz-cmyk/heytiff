@@ -3,7 +3,7 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, labourVisits, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withLoading, withName, withProposal } from "../lines-job";
+import { byHandOf, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withLoading, withName, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
@@ -117,6 +117,29 @@ describe("the labour", () => {
       { stage: "Install", people: 1, days: 1 },
     ]);
     expect(linesHours(lines)).toBe(20);
+  });
+
+  it("a line Tiff named for its crew and days, or worked out task by task, keeps its stage and crew (8.2)", () => {
+    expect(labourVisits([line({ kind: "labour", name: "Rough-in: 2 people, 3.5 days", qty: 56, unit: "h" })], 8)).toEqual([{ stage: "Rough-in", people: 2, days: 3.5 }]);
+    const visit = { stage: "Install and commissioning", people: 2, dayHours: 8, tasks: [{ task: "Set two outdoors", hours: 3, was: null, byHand: false }, { task: "Commission", hours: 5, was: 3, byHand: true }] };
+    const lines = [line({ kind: "labour", name: "Two days on the tools", qty: 8, unit: "h", visit }), line({ kind: "labour", name: "Return: 1 person", qty: 2, unit: "h" })];
+    expect(labourVisits(lines, 8)).toEqual([
+      { stage: "Install", people: 2, days: 0.5 },
+      { stage: "Return", people: 1, days: 0.25 },
+    ]);
+    expect(labourTasks(lines)).toEqual([[{ task: "Set two outdoors", hours: 3 }, { task: "Commission", hours: 5 }], []]);
+  });
+
+  it("names a stage from a visit's own words", () => {
+    expect(["Rough-in", "Rough in and pre-wire", "Install and commissioning", "Fit-off and commissioning", "Return: grilles", "Commissioning", "Crane day"].map(stageNamed)).toEqual([
+      "Rough-in",
+      "Rough-in",
+      "Install",
+      "Fit-off",
+      "Return",
+      "Commissioning",
+      "Install",
+    ]);
   });
 });
 

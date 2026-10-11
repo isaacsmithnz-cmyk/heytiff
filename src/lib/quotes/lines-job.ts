@@ -211,24 +211,40 @@ export function linesUnits(lines: readonly QuoteLine[], specs: ReadonlyMap<strin
 }
 
 /** A labour line's stage and crew, as its name gives them ("Rough-in: 2
-    people", as a quote brought across names them); else one person installing. */
+    people", as a quote brought across names them, or "Rough-in: 2 people,
+    3.5 days" as Tiff does); else one person installing. */
 function stageOf(name: string): { stage: VisitStage; people: number } {
-  const m = /^\s*([A-Za-z -]+?)\s*(?::\s*(\d+)\s*people)?\s*$/.exec(name);
+  const m = /^\s*([A-Za-z -]+?)\s*(?::\s*(\d+)\s*(?:people|person)\b.*)?\s*$/.exec(name);
   const stage = VISIT_STAGES.find((s) => s.toLowerCase() === (m?.[1] ?? "").toLowerCase());
   return { stage: stage ?? "Install", people: stage && m?.[2] ? Math.max(1, Number(m[2])) : 1 };
 }
 
+const squash = (s: string) => s.toLowerCase().replace(/[-\s]+/g, " ").trim();
+
+/** The stage of the work a visit's own words name: "Install and
+    commissioning" is Install, "Fit-off and commissioning" Fit-off, "Return:
+    grilles" a Return; anything else, Install. */
+export function stageNamed(words: string): VisitStage {
+  const w = squash(words);
+  return VISIT_STAGES.find((s) => w.startsWith(squash(s))) ?? VISIT_STAGES.find((s) => w.includes(squash(s))) ?? "Install";
+}
+
+const isLabour = (l: QuoteLine) => l.kind === "labour" && l.qty > 0;
+
 /** An option's labour lines as visits: its hours over its crew, in the
     business's working day; with no working day set, a visit is still one
-    visit. */
+    visit. A line worked out task by task says its own stage and crew. */
 export function labourVisits(lines: readonly QuoteLine[], dayHours: number | null): Visit[] {
-  return lines
-    .filter((l) => l.kind === "labour" && l.qty > 0)
-    .map((l) => {
-      const { stage, people } = stageOf(l.name);
-      return { stage, people, days: dayHours && dayHours > 0 ? Math.round((l.qty / people / dayHours) * 1000) / 1000 : 1 };
-    });
+  return lines.filter(isLabour).map((l) => {
+    const { stage, people } = l.visit ? { stage: stageNamed(l.visit.stage), people: l.visit.people } : stageOf(l.name);
+    return { stage, people, days: dayHours && dayHours > 0 ? Math.round((l.qty / people / dayHours) * 1000) / 1000 : 1 };
+  });
 }
+
+/** Each of an option's labour lines' tasks, in labourVisits' order: none
+    for a line typed in hours (slice 8.2). */
+export const labourTasks = (lines: readonly QuoteLine[]): { task: string; hours: number }[][] =>
+  lines.filter(isLabour).map((l) => (l.visit?.tasks ?? []).map((t) => ({ task: t.task, hours: t.hours })));
 
 /** The quote as the job reads it: an option for each, named as the quote
     names it, its units and its labour, with the accepted mark. Null when it

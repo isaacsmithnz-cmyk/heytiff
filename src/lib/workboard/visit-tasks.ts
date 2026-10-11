@@ -54,6 +54,8 @@ export type JobTask = {
   serial: string | null;
   modelRead: string | null;
   source: "quote" | "person";
+  /** the person-hours the quote gave it (slice 8.2); none for a task made any other way */
+  hours?: number | null;
 };
 
 /** A photo taken on a task: the unit in place, its rating plate, or other. */
@@ -67,7 +69,8 @@ export type TaskUpdate = { id: string; taskId: string; day: string; from: number
     that isn't booked yet (no day). */
 export type VisitSlot = { n: number; day: string | null; state: "done" | "today" | "booked" | "planned" };
 
-export const MAX_TASKS = 40;
+/** a job's tasks: a quote worked out task by task can hand over a long list (slice 8.2) */
+export const MAX_TASKS = 120;
 export const MAX_TASK_NAME = 200;
 export const MAX_NOTE = 500;
 

@@ -1,4 +1,4 @@
-import { MAX_WHY } from "./lines";
+import { MAX_TASKS, visitHours, visitName, visitOf, type LineVisit } from "./line-visit";
 
 /* THE LABOUR, TASK BY TASK (Isaac, 2026-10-09: "If a new org starts up it
    needs realistic estimates… it shouldn't rely on sm8 information… all that
@@ -6,15 +6,15 @@ import { MAX_WHY } from "./lines";
    task hours still gets a realistic figure: the work is broken into the
    visits it takes, who's on each, and every task in it with the
    person-hours an experienced crew takes for it in this job's conditions.
-   The sum is the labour; the tasks are its reasons, on the line for anyone
-   to check. No business's own numbers are in here: the business's task
+   The sum is the labour; the tasks are the line's own (line-visit.ts), on
+   the quote for anyone to check and change, and onto the job once it's
+   accepted. No business's own numbers are in here: the business's task
    hours, and later its reviewed jobs, are what sharpen it. Pure. */
 
 export type LabourTask = { task: string; hours: number };
 export type LabourVisit = { stage: string; people: number; tasks: LabourTask[] };
 
 const MAX_VISITS = 12;
-const MAX_TASKS = 40;
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
 
 /** Visits as Tiff gives them, held to what a line can carry; or why not. */
@@ -41,15 +41,10 @@ export function labourVisitsOf(raw: unknown): LabourVisit[] | string {
   return out;
 }
 
-const halfOf = (n: number) => Math.round(n * 2) / 2;
-const daysWords = (d: number) => (d <= 0.5 ? "half a day" : d === 1 ? "1 day" : `${d} days`);
-
 /** A visit as its labour line: every person's hours added up, named for its
-    crew and how long they're there, the tasks as its why. */
-export function visitLine(v: LabourVisit, dayHours: number | null): { name: string; qty: number; why: string } {
-  const hours = halfOf(v.tasks.reduce((n, t) => n + t.hours, 0));
-  const crew = `${v.people} ${v.people === 1 ? "person" : "people"}`;
-  const days = dayHours ? Math.max(0.5, halfOf(hours / v.people / dayHours)) : null;
-  const why = v.tasks.map((t) => `${t.task} ${halfOf(t.hours)} h`).join("; ");
-  return { name: `${v.stage}: ${crew}${days != null ? `, ${daysWords(days)}` : ""}`, qty: hours, why: why.length > MAX_WHY ? `${why.slice(0, MAX_WHY - 1)}…` : why };
+    crew and how long they're there, its tasks kept on it. */
+export function visitLine(v: LabourVisit, dayHours: number | null): { name: string; qty: number; why: string; visit: LineVisit } {
+  /* to the quarter hour, as the line keeps them */
+  const visit = visitOf({ stage: v.stage, people: v.people, dayHours, tasks: v.tasks })!;
+  return { name: visitName(visit), qty: visitHours(visit), why: "Worked out task by task", visit };
 }

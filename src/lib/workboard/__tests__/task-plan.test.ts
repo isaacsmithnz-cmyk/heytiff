@@ -1,5 +1,5 @@
 import { normaliseDraft } from "@/lib/quotes/proposal";
-import { parseTasks, plannedVisits, tasksPrompt, unitTaskName, unitsOf, TASKS_SYSTEM } from "../task-plan";
+import { parseTasks, plannedVisits, tasksFromQuote, tasksPrompt, unitTaskName, unitsOf, TASKS_SYSTEM } from "../task-plan";
 
 /* Isaac, 2026-10-06: "create a task list from the TIFF quote… install
    living room unit, install kitchen unit, complete pipe work, take photos of
@@ -84,7 +84,7 @@ describe("what Tiff gives back, checked", () => {
       units,
       visits
     );
-    expect(tasks[0]).toEqual({ name: "Rough-in pipe and cable, garage to the heads", stage: "Rough-in", kind: "progress", unit: null, visit: 1, sort: 0 });
+    expect(tasks[0]).toEqual({ name: "Rough-in pipe and cable, garage to the heads", stage: "Rough-in", kind: "progress", unit: null, visit: 1, sort: 0, hours: null });
     expect(tasks[1]).toMatchObject({ kind: "unit", unit: { role: "indoor", room: "Level 2 Bedroom 3", model: "PEFY-P25VMX-A" }, visit: 4 });
     expect(tasks).toHaveLength(4);
   });
@@ -127,5 +127,38 @@ describe("what Tiff gives back, checked", () => {
   it("words a unit's task the way the crew says it", () => {
     expect(unitTaskName({ role: "indoor", room: "Bedrooms", capacity: "", type: "", model: "", qty: 2, system: 1, lps: null })).toBe("Hang the Bedrooms units");
     expect(unitTaskName({ role: "fan", room: "Bathroom", capacity: "", type: "", model: "", qty: 1, system: 0, lps: null })).toBe("Fit the Bathroom fan");
+  });
+});
+
+describe("the quote's own tasks, straight onto the job (slice 8.2)", () => {
+  const t = (task: string, hours: number) => ({ task, hours });
+  /* 3377: the rough-in and the install, as Tiff and Isaac worked them out */
+  const rough = [t("Travel and setup", 5), t("Downstairs indoor", 5), t("Six floor boots", 6), t("Six flex runs", 5), t("Floor return", 2.5), t("Kitchen cores", 2), t("Sandstone core", 6), t("Upstairs indoor", 5), t("Ceiling cut-ins", 4.5), t("Upstairs return", 2), t("Downstairs pipe", 3), t("Upstairs pipe", 6), t("Drains", 3), t("Clean up", 2)];
+  const install = [t("Travel and setup", 2), t("Set two outdoors", 3), t("Connect pipe", 3), t("Two circuits", 6), t("Controllers", 2), t("Test and vacuum", 4), t("Commission", 3), t("Clean up", 1)];
+  const quote = [
+    { stage: "Install" as const, people: 2, days: 1.5, tasks: install },
+    { stage: "Rough-in" as const, people: 2, days: 3.5625, tasks: rough },
+  ];
+
+  it("hands every visit's tasks over in the order the work happens, each keeping its hours, on no visit yet", () => {
+    const tasks = tasksFromQuote(quote, []);
+    expect(tasks.map((x) => x.name)).toEqual([...rough, ...install].map((x) => x.task));
+    expect(tasks.every((x) => x.visit === null)).toBe(true);
+    expect(tasks[0]).toEqual({ name: "Travel and setup", stage: "Rough-in", kind: "tick", unit: null, visit: null, sort: 0, hours: 5 });
+    expect(tasks.at(-1)).toMatchObject({ stage: "Install", sort: 21 });
+    expect(tasks.reduce((n, x) => n + (x.hours ?? 0), 0)).toBe(81);
+  });
+
+  it("the units keep their own tasks, for their photos and plates", () => {
+    const tasks = tasksFromQuote(quote, unitsOf(option));
+    expect(tasks.filter((x) => x.kind === "unit").map((x) => [x.name, x.visit, x.hours])).toEqual([
+      ["Set the outdoor unit, Garage", null, null],
+      ["Hang the Level 1 Dining/Kitchen unit", null, null],
+      ["Hang the Level 2 Bedroom 3 unit", null, null],
+    ]);
+  });
+
+  it("a quote with no tasks hands over none", () => {
+    expect(tasksFromQuote([{ stage: "Install", people: 2, days: 1, tasks: [] }], unitsOf(option))).toEqual([]);
   });
 });

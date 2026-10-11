@@ -53,34 +53,9 @@ import { checkIn, checkOut, readMyCheckIn, type MyCheckIn } from "@/app/actions/
 import { jobSteps, type StepKey } from "@/lib/workboard/job-steps";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { CertWizard } from "@/components/certs/cert-wizard";
-import { deleteCertificate, listCertificatesForJob } from "@/app/actions/certificates";
-import type { CertSummary } from "@/lib/certs/query";
 import { CERT_TITLE } from "@/lib/certs/mechanical";
-import { listSwmsForJob } from "@/app/actions/swms";
-import { uploadFile } from "@/lib/documents/upload-client";
-import { attachJobDocument, removeJobDocument } from "@/app/actions/job-documents";
-import {
-  addJobPapers,
-  emailJobDocuments,
-  listJobPapers,
-  readComplianceChoices,
-  readEmailDraft,
-  removeJobPaper,
-  renewJobPaper,
-} from "@/app/actions/job-compliance";
-import { readJobSm8, sendJobDocumentsToServiceM8, type JobSm8Read } from "@/app/actions/job-sm8";
-import { sendFailure, sendToast } from "@/lib/integrations/sm8-write-plan";
-import {
-  ourDocumentSendKey,
-  paperLabel,
-  paperSendable,
-  paperSendKey,
-  theirFileSendKey,
-  type JobPaper,
-  type JobPapersRead,
-} from "@/lib/compliance/papers";
-import type { SwmsSummary } from "@/lib/swms/query";
-import { andList } from "@/lib/swms/library";
+import { readComplianceChoices, readEmailDraft } from "@/app/actions/job-compliance";
+import { ourDocumentSendKey, paperLabel, type JobPaper } from "@/lib/compliance/papers";
 import { fileTypeForMime, type JobMediaItem } from "@/lib/workboard/job-media";
 import { todayInAu } from "@/lib/au-dates";
 import { JobMediaViewer } from "./job-media-viewer";
@@ -92,25 +67,14 @@ import {
 import { JobAttentionStrip } from "./job-attention-strip";
 import { StateLine } from "./state-line";
 import { useNoteScopeTarget } from "@/components/notes/note-context";
-import { addJobNote, dismissJobNote, removeJobNote, taskFromJobNote } from "@/app/actions/job-notes";
-import {
-  confirmMySm8Link,
-  markJobNoteDone,
-  readJobNoteStates,
-  replyToJobNote,
-  sendJobNoteToServiceM8,
-  takeBackJobNote,
-  undoJobNoteDone,
-} from "@/app/actions/job-note-sm8";
+import { dismissJobNote, taskFromJobNote } from "@/app/actions/job-notes";
 import { clearFlag } from "@/app/actions/workboard-notes";
 import type { JobAttention } from "@/lib/workboard/job-attention";
-import type { OurJobNote } from "@/lib/workboard/job-notes-query";
-import type { FlagState, NoteState } from "@/lib/integrations/sm8-note-plan";
-import type { NoteSender } from "@/lib/integrations/links";
-import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { thrownWords } from "@/lib/stale-deploy";
-import { somethingWaiting, useNoteStatePoll } from "./use-note-poll";
+import { useNoteStatePoll } from "./use-note-poll";
+import { useJobDiary } from "./use-job-diary";
+import { useJobPapers } from "./use-job-papers";
 import {
   clearLeftoverBooking,
   makeWorkOrder,
@@ -385,18 +349,9 @@ export function JobSheet({
      head and a suggestion just answered have to leave the screen at once.
      Seeded from the read rather than derived from it for exactly that
      reason: derived state can't be edited. */
-  const [ourNotes, setOurNotes] = useState<OurJobNote[] | null>(null);
   const [attention, setAttention] = useState<JobAttention | null>(null);
-  /* NOTES TO SERVICEM8 (two-way phase 2), seeded from the record read and
-     then local for the same reason: who the viewer sends as changes the
-     moment they answer "Is <name> you?", and a flag's line the moment they
-     mark it. All empty where the deployment sends no notes. */
-  const [sender, setSender] = useState<NoteSender | null>(null);
-  const [flags, setFlags] = useState<Record<string, FlagState>>({});
   /* the note the strip's Reply sent the reader to, by its ServiceM8 uuid */
   const [replyFor, setReplyFor] = useState<string | null>(null);
-  /* each press kicks the poll, so its own note gets its own looks */
-  const [pollKick, setPollKick] = useState(0);
   /* BOOKINGS TO SERVICEM8 (two-way phase 3), seeded from the record read
      and then local, the notes' way: every press on the job as a verb, the
      line on each standing booking of ours (by lower-case uuid), the job's
@@ -444,30 +399,11 @@ export function JobSheet({
   const [openClaim, setOpenClaim] = useState<string | null>(null);
   const [numbersOpen, setNumbersOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  /* THE JOB'S SWMS, and the wizard when it is open — a new one, or the next
-     version of one (`revise` names the version it replaces). Null until the
-     read lands, like the files. */
-  const [swms, setSwms] = useState<SwmsSummary[] | null>(null);
-  const [swmsFailed, setSwmsFailed] = useState(false);
+  /* THE SWMS WIZARD when it is open — a new one, or the next version of one
+     (`revise` names the version it replaces) — and the certificates' —
+     `reissue` the same. What they write is the papers' (use-job-papers). */
   const [swmsWizard, setSwmsWizard] = useState<{ revise: string | null } | null>(null);
-  /* THE JOB'S CERTIFICATES, and their wizard — a new one, or the next
-     version of one (`reissue` names the version it replaces). */
-  const [certs, setCerts] = useState<CertSummary[] | null>(null);
-  const [certsFailed, setCertsFailed] = useState(false);
   const [certWizard, setCertWizard] = useState<{ reissue: string | null } | null>(null);
-  /* THE BUSINESS'S PAPERS ON THIS JOB, and what this viewer may do with them
-     — its own read on its own clock, like the SWMS. */
-  const [papers, setPapers] = useState<JobPapersRead | null>(null);
-  const [papersFailed, setPapersFailed] = useState(false);
-  /* WHAT IS TICKED TO SEND, by send key (lib/compliance/papers), and whether
-     the email is open in the footer. The card holds both: the ticks live on
-     the Documents face and the letter in the footer below it. */
-  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const [writing, setWriting] = useState(false);
-  /* SERVICEM8, THE OTHER DOOR: what has gone from this job and whether this
-     viewer gets the button, and why the last press left files behind. */
-  const [sm8Read, setSm8Read] = useState<JobSm8Read | null>(null);
-  const [sm8Note, setSm8Note] = useState<string | null>(null);
   /* ONE ROW PER FILE. A file we sent comes back as ServiceM8's own once the
      next sync mirrors it; the server leaves that copy off every face and the
      story (lib/integrations/sm8-echo), by the uuid we sent it under. */
@@ -597,6 +533,72 @@ export function JobSheet({
      picklist would fetch a different job's answers into this card. */
   const cardId = detail?.remoteId ?? null;
 
+  /* THE DIARY'S OWN STATE AND DOORS (use-job-diary): our notes, who the
+     viewer sends to ServiceM8 as, the flags' lines, and every press on
+     them. Seeded from the record read below, then local. */
+  const {
+    ourNotes,
+    setOurNotes,
+    sender,
+    setSender,
+    flags,
+    setFlags,
+    flagsBusy,
+    notesSm8,
+    writeNote,
+    unwriteNote,
+    replyNote,
+    sendCopy,
+    takeBack,
+    markDone,
+    undoDone,
+    confirmLink,
+  } = useJobDiary({
+    cardId,
+    record,
+    onToast,
+    setAttention,
+    dropAttention: (key) => dropAttention(key),
+    reloadRecord: () => void reloadRecord(),
+  });
+
+  /* THE JOB'S PAPERS AND WHAT GOES OUT (use-job-papers): its SWMS, its
+     certificates, the business's papers on it, its files, what is ticked to
+     send, and the two doors out — the email and ServiceM8. */
+  const {
+    swms,
+    swmsFailed,
+    certs,
+    certsFailed,
+    papers,
+    papersFailed,
+    picked,
+    writing,
+    setWriting,
+    sm8Read,
+    sm8Note,
+    uploadDocument,
+    removeDocument,
+    removeCertificate,
+    reloadSwms,
+    tick,
+    addPapers,
+    removePaper,
+    renewPaper,
+    pickedList,
+    sendDocuments,
+    sendKeysToServiceM8,
+    sendToServiceM8,
+    certIssued,
+    certSettled,
+  } = useJobPapers({
+    cardId,
+    media: mediaRead,
+    setMedia,
+    onToast,
+    onNoteSent: (note) => setOurNotes((cur) => [note, ...(cur ?? [])]),
+  });
+
   useEffect(() => {
     if (!cardId) return;
     let live = true;
@@ -636,300 +638,11 @@ export function JobSheet({
     };
   }, [cardId]);
 
-  /* The job's certificates, on their own clock like the SWMS. A failed read
-     says so rather than offering Create on a job that may have one. */
-  useEffect(() => {
-    if (!cardId) return;
-    let live = true;
-    void listCertificatesForJob(cardId)
-      .then((list) => {
-        if (!live) return;
-        setCerts(list);
-        setCertsFailed(list === null);
-      })
-      .catch(() => {
-        if (live) setCertsFailed(true);
-      });
-    return () => {
-      live = false;
-    };
-  }, [cardId]);
-
-  /* The job's SWMS — ours, written by the wizard. Its own clock like the
-     files; a read that fails reads as none rather than taking the card down,
-     and the wizard can still be opened. */
-  useEffect(() => {
-    if (!cardId) return;
-    let live = true;
-    void listSwmsForJob(cardId)
-      .then((list) => {
-        if (!live) return;
-        setSwms(list);
-        setSwmsFailed(false);
-      })
-      .catch(() => {
-        /* NOT an empty list: that offered Create SWMS on a job that may
-           already have one, and a second press was a second SWMS */
-        if (live) setSwmsFailed(true);
-      });
-    return () => {
-      live = false;
-    };
-  }, [cardId]);
-
-  /* PAPER WE FILE OURSELVES — the Documents face's upload. The bytes take the
-     shared slot flow, the row is pointed at this job, and the files are read
-     again so the row is on the face by the time its button says it's done.
-     The face runs a batch one file at a time and says which of them didn't
-     land. */
-  const uploadDocument = async (file: File): Promise<string | null> => {
-    if (!cardId) return "This card doesn't know its job yet.";
-    try {
-      const up = await uploadFile(file, "job_document");
-      if (!up.ok) return up.error;
-      if (up.file.previewUrl) URL.revokeObjectURL(up.file.previewUrl);
-      /* a file that lands on no job is taken back out by the server */
-      const put = await attachJobDocument(up.file.documentId, cardId);
-      if (!put.ok) return put.error;
-      const fresh = await readJobFiles(cardId).catch(() => null);
-      /* two guards rather than one `&&`, because React Compiler 1.0 cannot
-         lower a value block inside a try/catch — and one it can't lower
-         skips the whole card */
-      if (fresh) {
-        if (alive.current) setMedia(fresh);
-      }
-      return null;
-    } catch (e) {
-      return thrownWords(e, "That upload didn't finish.");
-    }
-  };
-
-  /* One of OURS off the job. Off the face at once — the read would only
-     confirm what the answer already said. */
-  const removeDocument = async (item: JobMediaItem): Promise<string | null> => {
-    if (!item.documentId) return "ServiceM8's files stay in ServiceM8.";
-    try {
-      const res = await removeJobDocument(item.documentId);
-      if (!res.ok) return res.error;
-      if (alive.current)
-        setMedia((m) =>
-          m ? { ...m, documents: m.documents.filter((d) => d.remoteId !== item.remoteId) } : m
-        );
-      return null;
-    } catch (e) {
-      return thrownWords(e, "Couldn't remove that file.");
-    }
-  };
-
-  /* A CERTIFICATE DELETED takes its PDFs off the job with it: both lists
-     drop it now, and a tick on its PDF goes too */
-  const removeCertificate = async (c: CertSummary): Promise<string | null> => {
-    /* no try: React Compiler can't lower the branches below inside one */
-    const res = await deleteCertificate(c.certificateId).catch((e: unknown) => ({
-      ok: false as const,
-      error: thrownWords(e, "Couldn't delete the certificate."),
-    }));
-    if (!res.ok) return res.error;
-    if (!alive.current) return null;
-    setCerts((list) => (list ? list.filter((x) => x.certificateId !== c.certificateId) : list));
-    if (c.documentId) tick(ourDocumentSendKey(c.documentId), false);
-    if (cardId) {
-      const fresh = await readJobFiles(cardId).catch(() => null);
-      if (fresh && alive.current) setMedia(fresh);
-    }
-    return null;
-  };
-
-  const reloadSwms = () => {
-    if (!cardId) return;
-    void listSwmsForJob(cardId)
-      .then((list) => {
-        if (!alive.current) return;
-        setSwms(list);
-        setSwmsFailed(false);
-      })
-      .catch(() => {
-        if (alive.current) setSwmsFailed(true);
-      });
-  };
-
-  /* The job's licences and insurance — ours, put on it from the Documents
-     face. A read that fails says so on the face rather than drawing an empty
-     Compliance group that looks true. */
-  useEffect(() => {
-    if (!cardId) return;
-    let live = true;
-    void listJobPapers(cardId)
-      .then((read) => {
-        if (!live) return;
-        setPapers(read);
-        setPapersFailed(false);
-      })
-      .catch(() => {
-        if (live) setPapersFailed(true);
-      });
-    /* what has gone to ServiceM8 from here; a read that fails leaves the
-       rows without their ServiceM8 words and the footer without the door */
-    void readJobSm8(cardId)
-      .then((read) => {
-        if (live) setSm8Read(read);
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [cardId]);
-
-  const reloadPapers = async (): Promise<JobPapersRead | null> => {
-    if (!cardId) return null;
-    const read = await listJobPapers(cardId).catch(() => null);
-    if (alive.current && read) {
-      setPapers(read);
-      setPapersFailed(false);
-    }
-    return read;
-  };
-
-  const tick = (key: string, on: boolean) => {
-    /* the footer's "wasn't sent" was about the ticks as they were */
-    setSm8Note(null);
-    setPicked((cur) => {
-      const next = new Set(cur);
-      if (on) next.add(key);
-      else next.delete(key);
-      return next;
-    });
-  };
-
-  /* Put ticked papers on the job. What was just added is most often what is
-     about to be sent, so it arrives ticked — the footer's Email documents is
-     the next press, not a hunt back down the list. */
-  const addPapers = async (keys: string[]): Promise<string | null> => {
-    if (!cardId) return "This card doesn't know its job yet.";
-    const res = await addJobPapers(cardId, keys).catch((e: unknown) => ({
-      ok: false as const,
-      error: thrownWords(e, "Couldn't add them to the job."),
-    }));
-    if (!res.ok) return res.error;
-    const fresh = await reloadPapers();
-    if (alive.current && fresh?.may.send && res.added.length > 0)
-      setPicked((cur) => new Set([...cur, ...res.added.map(paperSendKey)]));
-    return null;
-  };
-
-  /* Off the face at once — the read would only confirm what the answer said. */
-  const removePaper = async (paper: JobPaper): Promise<string | null> => {
-    const res = await removeJobPaper(paper.id).catch((e: unknown) => ({
-      ok: false as const,
-      error: thrownWords(e, "Couldn't take that off the job."),
-    }));
-    if (!res.ok) return res.error;
-    if (alive.current) {
-      setPapers((cur) => (cur ? { ...cur, papers: cur.papers.filter((p) => p.id !== paper.id) } : cur));
-      tick(paperSendKey(paper.id), false);
-    }
-    return null;
-  };
-
-  const renewPaper = async (paper: JobPaper): Promise<string | null> => {
-    const res = await renewJobPaper(paper.id).catch((e: unknown) => ({
-      ok: false as const,
-      error: thrownWords(e, "Couldn't switch to the renewal."),
-    }));
-    if (!res.ok) return res.error;
-    await reloadPapers();
-    return null;
-  };
-
-  /* THE TICKS AS THE LETTER WILL NAME THEM — read off what the face holds
-     now, so a paper taken off or a file that went away is simply not sent
-     rather than sent as a name with nothing behind it. */
-  const pickedList = useMemo(() => {
-    const out: { key: string; name: string }[] = [];
-    for (const p of papers?.papers ?? []) {
-      const key = paperSendKey(p.id);
-      if (picked.has(key) && paperSendable(p)) out.push({ key, name: paperLabel(p) });
-    }
-    for (const d of media?.documents ?? []) {
-      const key = d.documentId ? ourDocumentSendKey(d.documentId) : theirFileSendKey(d.remoteId);
-      if (picked.has(key) && d.url) out.push({ key, name: d.name });
-    }
-    return out;
-  }, [picked, papers, media]);
-
-  const sendDocuments = async (input: { to: string[]; subject: string; message: string }): Promise<string | null> => {
-    if (!cardId) return "This card doesn't know its job yet.";
-    const res = await emailJobDocuments({
-      jobUuid: cardId,
-      keys: pickedList.map((p) => p.key),
-      ...input,
-    }).catch((e: unknown) => ({ ok: false as const, error: thrownWords(e, "The email didn't send. Try again in a minute.") }));
-    if (!res.ok) return res.error;
-    if (alive.current) {
-      setPicked(new Set());
-      setWriting(false);
-      /* the diary says what went, the moment it went */
-      const note = res.note;
-      if (note) setOurNotes((cur) => [note, ...(cur ?? [])]);
-      onToast(`Email sent to ${andList(res.to)}`);
-    }
-    return null;
-  };
-
-  /* SEND TO SERVICEM8. The press waits for its files; what went is unticked
-     and said in a toast, and what didn't keeps its tick and says why in the
-     footer — pressing again tries it again. Every row's words come from the
-     sends the answer carries, so the face is true the moment it returns. */
-  const sendKeysToServiceM8 = async (keys: string[], nameOf: (key: string) => string): Promise<void> => {
-    if (!cardId) return;
-    setSm8Note(null);
-    const res = await sendJobDocumentsToServiceM8({ jobUuid: cardId, keys }).catch((e: unknown) => ({
-      ok: false as const,
-      error: thrownWords(e, "Couldn't reach HeyTiff. Try again."),
-    }));
-    if (!alive.current) return;
-    if (!res.ok) {
-      setSm8Note(res.error);
-      return;
-    }
-    setSm8Read((cur) => (cur ? { ...cur, sends: res.sends } : cur));
-    const stay = new Set(res.failed.map((f) => f.key));
-    setPicked((cur) => new Set([...cur].filter((k) => !keys.includes(k) || stay.has(k))));
-    const toast = sendToast(res, nameOf);
-    if (toast) onToast(toast);
-    setSm8Note(sendFailure(res.failed, nameOf));
-  };
-  const sendToServiceM8 = (): Promise<void> => {
-    const names = new Map(pickedList.map((p) => [p.key, p.name]));
-    return sendKeysToServiceM8(
-      pickedList.map((p) => p.key),
-      (key) => names.get(key) ?? "A document"
-    );
-  };
-
-  /* A CERTIFICATE ISSUED: its PDF is a file on the job now, so the files and
-     the certificates are read again and the PDF arrives ticked — the next
-     press is Email or Send, not a hunt down the list. */
-  const certRead = useRef<Promise<void> | null>(null);
-  const certIssued = (issued: { documentId: string }) => {
-    if (!cardId) return;
-    certRead.current = (async () => {
-      const [fresh, list] = await Promise.all([
-        readJobFiles(cardId).catch(() => null),
-        listCertificatesForJob(cardId).catch(() => null),
-      ]);
-      if (!alive.current) return;
-      if (fresh) setMedia(fresh);
-      if (list) setCerts(list);
-      if (papers?.may.send) tick(ourDocumentSendKey(issued.documentId), true);
-    })();
-  };
-
   /* After Issue, Email to the builder: the card's own letter, with the PDF
      ticked, whose draft starts with the job's contact — the builder. */
   const emailCertificate = async (documentId: string) => {
     /* the letter names what the face holds, so the PDF must be on it first */
-    await certRead.current;
+    await certSettled();
     if (!alive.current) return;
     setCertWizard(null);
     setTab("documents");
@@ -939,7 +652,7 @@ export function JobSheet({
 
   /* After Issue, Send to ServiceM8: this one file, through the card's own door. */
   const sendCertificateToSm8 = async (documentId: string, fileName: string) => {
-    await certRead.current;
+    await certSettled();
     if (!alive.current) return;
     setCertWizard(null);
     setTab("documents");
@@ -990,7 +703,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [cardId]);
+  }, [cardId, setOurNotes, setSender, setFlags]);
 
   /* Bringing the bytes across, a few per round, with the BROWSER as the loop.
      Two rails: a hard round cap, and STOP ON NO PROGRESS.
@@ -1344,254 +1057,6 @@ export function JobSheet({
         setAttention(before);
         onToast(thrownWords(e, "Could not save that task"));
       });
-  };
-
-  /* THE PEN. A note typed at the diary's head is a diary entry the moment it
-     lands — no round trip to look at first, which is what makes it a diary
-     rather than a form. The SAVED row replaces the optimistic one because
-     the browser knows its own auth id and not the display name behind it;
-     slice 3 shipped that defect on the checklist's stamps and this is the
-     same fix, applied before it could happen twice. */
-  /* THE PEN'S OWN ID (two-way phase 2) is the optimistic row's id and the
-     saved row's, so the same words pressed twice before the save lands are
-     ONE entry — and, ticked Also in ServiceM8, one note. The send goes with
-     the SAVED id, never a temporary one. */
-  const penIds = useRef(new Set<string>());
-  const writeNote = (body: string, alsoSm8 = false, composeId?: string): Promise<void> | undefined => {
-    if (!cardId) return;
-    const text = body.trim();
-    if (!text) return;
-    if (composeId && penIds.current.has(composeId)) return;
-    if (composeId) penIds.current.add(composeId);
-    const temp: OurJobNote = {
-      id: composeId ?? `tmp-${mintPressId()}`,
-      text,
-      at: new Date().toISOString(),
-      author: null,
-    };
-    setOurNotes((cur) => [temp, ...(cur ?? [])]);
-    return addJobNote(cardId, text, composeId ? { id: composeId } : undefined)
-      .then((saved) => {
-        setOurNotes((cur) => (cur ?? []).map((n) => (n.id === temp.id ? saved : n)));
-        if (alsoSm8) sendCopy(saved.id);
-      })
-      .catch((e: unknown) => {
-        if (composeId) penIds.current.delete(composeId);
-        setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== temp.id));
-        onToast(thrownWords(e, "Could not save that note"));
-      });
-  };
-
-  const unwriteNote = (id: string) => {
-    const before = ourNotes;
-    setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== id));
-    void removeJobNote(id)
-      .then((res) => {
-        if (!res || (res.ok && res.gone)) return;
-        /* refused: it stays, and says why */
-        if (!res.ok) {
-          setOurNotes(before);
-          onToast(res.error);
-          return;
-        }
-        /* taken back but something of it may still be in ServiceM8: it
-           stays, removed, while its line says so */
-        setOurNotes((before ?? []).map((n) => (n.id === id ? { ...n, removed: true } : n)));
-        void refreshNoteStates();
-        kickPoll();
-      })
-      .catch((e: unknown) => {
-        setOurNotes(before);
-        onToast(thrownWords(e, "Could not remove that note"));
-      });
-  };
-
-  /* ── NOTES TO SERVICEM8 (two-way phase 2): every door asks the server
-     and draws what it answers — the state, in its own words ── */
-
-  const notesSm8 = record?.notesSm8 ?? null;
-
-  /** One of our notes' line, as the server now says it. */
-  const setNoteState = (id: string, state: NoteState | null, patch: Partial<OurJobNote> = {}) =>
-    setOurNotes((cur) =>
-      (cur ?? []).map((n) => (n.id === id ? { ...n, ...patch, state: state && state.key ? state : null } : n))
-    );
-
-  /** Where everything on the card stands — the poll, and after a press
-      whose answer left something on its way. */
-  const refreshNoteStates = async () => {
-    if (!cardId) return;
-    const s = await readJobNoteStates({ jobUuid: cardId });
-    if (!s || !alive.current) return;
-    setOurNotes((cur) =>
-      (cur ?? []).flatMap((n) => {
-        const line = s.ours[n.id];
-        /* a take-back that settled: nothing of it is left to draw */
-        if (line === undefined) return n.removed ? [] : [n];
-        return [{ ...n, state: line.key ? line : null }];
-      })
-    );
-    setFlags(s.flags);
-  };
-  useNoteStatePoll({
-    waiting: somethingWaiting(ourNotes, flags),
-    kick: pollKick,
-    read: refreshNoteStates,
-  });
-  const kickPoll = () => setPollKick((k) => k + 1);
-
-  const replyNote = async (input: {
-    sourceNoteUuid: string;
-    words: string;
-    spoken: boolean;
-    composeId: string;
-  }): Promise<string | null> => {
-    if (!cardId) return NOTE_WORDS.press.noNote;
-    try {
-      const res = await replyToJobNote({ jobUuid: cardId, ...input });
-      if (!res.ok) {
-        if (res.sender) setSender(res.sender);
-        return res.error;
-      }
-      setOurNotes((cur) => [res.note, ...(cur ?? []).filter((n) => n.id !== res.note.id)]);
-      /* answered: its mention leaves the strip */
-      setAttention((cur) =>
-        cur
-          ? (() => {
-              const items = cur.items.filter((i) => !(i.kind === "mention" && i.noteUuid === input.sourceNoteUuid));
-              return { items, total: Math.max(0, cur.total - (cur.items.length - items.length)) };
-            })()
-          : cur
-      );
-      kickPoll();
-      return null;
-    } catch (e) {
-      return thrownWords(e, NOTE_WORDS.press.saveFailed);
-    }
-  };
-
-  function sendCopy(noteId: string) {
-    if (!cardId) return;
-    void sendJobNoteToServiceM8({ jobUuid: cardId, noteId })
-      .then((res) => {
-        if (res.ok) setNoteState(noteId, res.state, { hasCreate: true });
-        else {
-          onToast(res.error);
-          if (res.state !== undefined) setNoteState(noteId, res.state);
-        }
-        kickPoll();
-      })
-      .catch((e: unknown) => onToast(thrownWords(e, NOTE_WORDS.press.unqueued)));
-  }
-
-  const takeBack = (noteId: string) => {
-    if (!cardId) return;
-    void takeBackJobNote({ jobUuid: cardId, noteId })
-      .then((res) => {
-        if (res.ok && res.gone) {
-          setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== noteId));
-          return;
-        }
-        if (res.ok) setNoteState(noteId, res.state, { removed: true });
-        else {
-          onToast(res.error);
-          if (res.state !== undefined) {
-            if (res.state && res.state.key) setNoteState(noteId, res.state, { removed: true });
-            else setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== noteId));
-          }
-        }
-        kickPoll();
-      })
-      .catch((e: unknown) => onToast(thrownWords(e, NOTE_WORDS.press.unqueued)));
-  };
-
-  /* ONE PRESS PER MARK. A flag's Mark done (and its Undo) carries an id
-     minted once and kept until the server ANSWERS, so a repeat of the same
-     press — a retry after a lost answer — is the same subject and the queue
-     keeps one; a fresh id only follows a settled answer. And while a press
-     on a note is out, its doors are off here and on the strip: a second
-     click never becomes a second mark. The ref is the guard (two clicks in
-     one tick see it); the state only draws it. */
-  const flagPressIds = useRef(new Map<string, string>());
-  const flagOut = useRef(new Set<string>());
-  const [flagsBusy, setFlagsBusy] = useState<ReadonlySet<string>>(() => new Set());
-  const flagPress = (noteUuid: string, doing: "done" | "clear"): string | null => {
-    if (flagOut.current.has(noteUuid)) return null;
-    flagOut.current.add(noteUuid);
-    setFlagsBusy(new Set(flagOut.current));
-    const key = `${doing}:${noteUuid}`;
-    const id = flagPressIds.current.get(key) ?? mintPressId();
-    flagPressIds.current.set(key, id);
-    return id;
-  };
-  const flagSettled = (noteUuid: string, doing: "done" | "clear", answered: boolean) => {
-    if (answered) flagPressIds.current.delete(`${doing}:${noteUuid}`);
-    flagOut.current.delete(noteUuid);
-    if (alive.current) setFlagsBusy(new Set(flagOut.current));
-  };
-
-  const markDone = (noteUuid: string, seenEditDate?: string | null) => {
-    if (!cardId) return;
-    const seen =
-      seenEditDate !== undefined
-        ? seenEditDate
-        : (record?.notes.find((n) => n.remoteId === noteUuid)?.editedAt ?? null);
-    const pressId = flagPress(noteUuid, "done");
-    if (!pressId) return;
-    void markJobNoteDone({ jobUuid: cardId, noteUuid, seenEditDate: seen, pressId })
-      .then((res) => {
-        flagSettled(noteUuid, "done", true);
-        if (res.state) setFlags((cur) => ({ ...cur, [noteUuid]: res.state! }));
-        if (res.ok) {
-          dropAttention(`sm8flag:${noteUuid}`);
-          kickPoll();
-          return;
-        }
-        onToast(res.error);
-        /* changed in ServiceM8 since it was read: look again */
-        if (res.error === NOTE_WORDS.press.changed) void reloadRecord();
-      })
-      .catch((e: unknown) => {
-        flagSettled(noteUuid, "done", false);
-        onToast(thrownWords(e, NOTE_WORDS.press.unqueued));
-      });
-  };
-
-  const undoDone = (noteUuid: string) => {
-    if (!cardId) return;
-    const pressId = flagPress(noteUuid, "clear");
-    if (!pressId) return;
-    void undoJobNoteDone({ jobUuid: cardId, noteUuid, pressId })
-      .then((res) => {
-        flagSettled(noteUuid, "clear", true);
-        if (res.state) setFlags((cur) => ({ ...cur, [noteUuid]: res.state! }));
-        if (!res.ok) onToast(res.error);
-        kickPoll();
-      })
-      .catch((e: unknown) => {
-        flagSettled(noteUuid, "clear", false);
-        onToast(thrownWords(e, NOTE_WORDS.press.unqueued));
-      });
-  };
-
-  /** "Is <name> you?" — Yes on a saved row's line then sends that row. */
-  const confirmLink = async (answer: "yes" | "no", thenSend?: string): Promise<string | null> => {
-    if (!sender || !("remoteId" in sender)) return NOTE_WORDS.press.unknown;
-    try {
-      const res = await confirmMySm8Link({ remoteId: sender.remoteId, answer });
-      if (!res.ok) {
-        onToast(res.error);
-        return res.error;
-      }
-      setSender(res.sender);
-      /* guards, not one `&&` — see the note in `uploadDocument` */
-      if (answer === "yes") {
-        if (thenSend) sendCopy(thenSend);
-      }
-      return null;
-    } catch (e) {
-      return thrownWords(e, NOTE_WORDS.press.unknown);
-    }
   };
 
   /** The whole record again — after a flag somebody changed in ServiceM8. */

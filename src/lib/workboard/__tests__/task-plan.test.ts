@@ -1,5 +1,6 @@
 import { normaliseDraft } from "@/lib/quotes/proposal";
-import { parseTasks, plannedVisits, starterTasksFor, tasksFromQuote, tasksPrompt, unitTaskName, unitsOf, withStarters, TASKS_SYSTEM } from "../task-plan";
+import { parseTasks, plannedVisits, starterTasksFor, tasksFromQuote, tasksPrompt, unitTaskName, unitsOf, variationTasks, withStarters, TASKS_SYSTEM } from "../task-plan";
+import { stageNamed } from "@/lib/quotes/lines-job";
 
 /* Isaac, 2026-10-06: "create a task list from the TIFF quote… install
    living room unit, install kitchen unit, complete pipe work, take photos of
@@ -197,5 +198,20 @@ describe("the business's starter tasks on a new job (Isaac, 2026-10-10)", () => 
       ["Commission", 2],
       ["Photos of the finished work", 3],
     ]);
+  });
+});
+
+describe("a variation's work onto the job, once accepted", () => {
+  const visit = (stage: string, tasks: [string, number][]) => ({ stage, tasks: tasks.map(([task, hours]) => ({ task, hours })) });
+  const install = { name: "Install: 2 people, 1 day", kind: "labour", qty: 9, visit: visit("Install and commissioning", [["Set the outdoor", 3], ["Commission", 6]]) };
+
+  it("is every task the accepted quote's labour hasn't, with its hours, on no visit", () => {
+    const varied = [{ ...install, qty: 11.5, visit: visit("Install and commissioning", [["Set the outdoor", 3], ["Commission", 6], ["Hallway cut-in, diffuser and flex", 2.5]]) }];
+    expect(variationTasks([install], varied, stageNamed)).toEqual([{ name: "Hallway cut-in, diffuser and flex", stage: "Install", kind: "tick", unit: null, visit: null, sort: 0, hours: 2.5 }]);
+  });
+
+  it("takes a labour line of hours it hadn't as one task, and the parts as none", () => {
+    const varied = [install, { name: "Return: balance and check", kind: "labour", qty: 2 }, { name: "CONE DIFFUSER 200", kind: "material", qty: 1 }];
+    expect(variationTasks([install], varied, stageNamed).map((t) => [t.name, t.stage, t.hours])).toEqual([["Return: balance and check", "Return", 2]]);
   });
 });

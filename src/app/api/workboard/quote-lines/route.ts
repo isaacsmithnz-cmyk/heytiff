@@ -6,7 +6,8 @@ import { addKit } from "@/lib/quotes/kits-server";
 import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
-import { approveProposal, markAccepted, nameOption, readByHand, saveProposal, setLoading, setSupplier } from "@/lib/quotes/lines-job-server";
+import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setSupplier, startVariation } from "@/lib/quotes/lines-job-server";
+import { stageNamed } from "@/lib/quotes/lines-job";
 import { approvalStands } from "@/lib/quotes/lines-proposal";
 import { orgTemplates } from "@/lib/templates/query";
 import { readSuppliers } from "@/lib/quotes/price-book-server";
@@ -14,7 +15,8 @@ import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { addEvents, readSession } from "@/lib/quotes/session/store-server";
 import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
-import { makeTasksFromQuote } from "@/lib/workboard/visit-tasks-server";
+import { addTasksToJob, makeTasksFromQuote } from "@/lib/workboard/visit-tasks-server";
+import { variationTasks } from "@/lib/workboard/task-plan";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { readOrgDay } from "@/lib/quotes/org-day-server";
 import { taskCheck } from "@/lib/quotes/task-hours";
@@ -73,6 +75,7 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     loading: byHand.loading,
     supplier: byHand.supplier,
     researched: byHand.researched,
+    variations: byHand.variations,
     suppliers,
     tasks,
     /* the proposal's words, whether an approval of them still stands, and
@@ -111,6 +114,13 @@ export async function POST(req: Request) {
   const opt = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : 0);
   /* what marking an option accepted did to the job's own materials list */
   let onJob: { added: number; removed: number } | null = null;
+  /* a variation just started: the option to open */
+  let opened: number | null = null;
+  /* the quote's history, in Tiff's thread where there is one (slice 6.2) */
+  const mark = async (text: string) => {
+    const session = await readSession(g.orgId, jobUuid).catch(() => null);
+    if (session) await addEvents(g.orgId, session.id, null, [{ kind: "milestone", author: g.userId, body: { text } }]);
+  };
   switch (body.op) {
     case "switch":
       result = (await setEngine(g.orgId, jobUuid, body.engine === "lines" ? "lines" : "old", g.userId))
@@ -194,6 +204,44 @@ export async function POST(req: Request) {
     case "loading":
       result = await setLoading(g.orgId, jobUuid, opt(body.option), { pct: body.pct, reason: body.reason }, g.userId);
       break;
+    /* A VARIATION (Isaac, 2026-10-10): started on an accepted quote, then
+       approved, then accepted by the client, its new work onto the job */
+    case "variation": {
+      const what = typeof body.what === "string" ? body.what : "";
+      const started = await startVariation(g.orgId, jobUuid, what, g.userId);
+      result = started;
+      if (started.ok) {
+        opened = started.option;
+        await mark(`Variation ${started.n} started${what.trim() ? `: ${what.trim().slice(0, 200)}` : ""}`);
+      }
+      break;
+    }
+    case "variation-approve":
+    case "variation-accept": {
+      const option = opt(body.option);
+      const was = (await readByHand(g.orgId, jobUuid)).variations.find((v) => v.option === option);
+      if (!was) {
+        result = { ok: false, reason: "That option isn't a variation." };
+        break;
+      }
+      const key = body.op === "variation-approve" ? "approvedAt" : "acceptedAt";
+      const marked = await markVariation(g.orgId, jobUuid, option, key, g.userId);
+      result = marked;
+      if (!marked.ok) break;
+      const now = marked.byHand.variations.find((v) => v.option === option)!;
+      await mark(`Variation ${now.n} ${now[key] ? (key === "approvedAt" ? "approved" : "accepted") : key === "approvedAt" ? "no longer approved" : "no longer accepted"}`);
+      /* accepted: its new work onto the job, on no visit, for the days */
+      if (key === "acceptedAt" && now.acceptedAt) {
+        const all = await readLines(g.orgId, jobUuid);
+        const tasks = variationTasks(
+          all.filter((l) => l.optionIndex === now.of),
+          all.filter((l) => l.optionIndex === option),
+          stageNamed
+        );
+        await addTasksToJob(g.orgId, g.userId, jobUuid, tasks).catch(() => null);
+      }
+      break;
+    }
     case "undo":
       result = await undoChange(g.orgId, jobUuid, typeof body.change === "number" ? body.change : -1, g.userId);
       break;
@@ -201,5 +249,5 @@ export async function POST(req: Request) {
       return Response.json({ ok: false, reason: "Not something a quote's lines can do." }, { status: 400 });
   }
   const now = await view(g.orgId, jobUuid, g.userId);
-  return Response.json(result.ok ? { ...now, onJob } : { ...now, ok: false, reason: result.reason, stale: result.stale ?? false }, { status: 200 });
+  return Response.json(result.ok ? { ...now, onJob, opened } : { ...now, ok: false, reason: result.reason, stale: result.stale ?? false }, { status: 200 });
 }

@@ -142,7 +142,7 @@ describe("making the tasks from the quote", () => {
       { id: "u", version: 1, updatedAt: "", updatedBy: "", optionIndex: 0, system: "", group: "Units", position: 0, name: "Ducted 10 kW", code: "PEA-M100", supplierKey: null, kind: "unit", qty: 1, unit: "", costCents: 0, sellCents: null, source: "said", why: "", duct: false },
       { id: "l", version: 1, updatedAt: "", updatedBy: "tiff", optionIndex: 0, system: "", group: "Labour", position: 1, name: "Install and commissioning: 2 people, 1 day", code: null, supplierKey: null, kind: "labour", qty: 18, unit: "h", costCents: 0, sellCents: null, source: "assumed", why: "", duct: false, visit },
     ];
-    linesQuote.mockReturnValue({ draft: linesDraft(lines, [], { accepted: [0], names: [], loading: {}, compare: {}, supplier: null, proposal: null, researched: {} }, new Map(), 8)!, lines });
+    linesQuote.mockReturnValue({ draft: linesDraft(lines, [], { accepted: [0], names: [], loading: {}, compare: {}, supplier: null, proposal: null, researched: {}, variations: [] }, new Map(), 8)!, lines });
     expect(await makeTasksFromQuote("org-1", "user-1", "job-1", { client, quoteOnly: true })).toEqual({ ok: true, made: 5 });
     expect(create).not.toHaveBeenCalled();
     const insert = calls.find((c) => c.table === "job_tasks" && c.op === "insert")!.row as { name: string; stage: string; visit: number | null; hours: number | null; source: string }[];
@@ -319,7 +319,7 @@ describe("the hours quoted", () => {
       line({ id: "b", name: "Install", qty: 7 }),
       line({ id: "c", optionIndex: 1, qty: 40 }),
     ];
-    linesQuote.mockReturnValue({ draft: linesDraft(lines, [], { accepted: [0], names: [], loading: {}, compare: {}, supplier: null, proposal: null, researched: {} }, new Map(), 8)!, lines });
+    linesQuote.mockReturnValue({ draft: linesDraft(lines, [], { accepted: [0], names: [], loading: {}, compare: {}, supplier: null, proposal: null, researched: {}, variations: [] }, new Map(), 8)!, lines });
     expect(quotedHours(await quotePlan("org-1", "job-1"))).toEqual({ hours: 19.5, people: 2, visits: 2 });
   });
 });

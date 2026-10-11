@@ -294,6 +294,26 @@ export async function makeTasksFromQuote(
   return { ok: true, made: tasks.length };
 }
 
+/** Tasks a variation adds to a job, once the client accepts it: after the
+    job's own, on no visit, as far as a job holds. */
+export async function addTasksToJob(
+  orgId: string,
+  userId: string,
+  cardId: string,
+  tasks: readonly { name: string; stage: VisitStage; kind: TaskKind; hours: number | null }[]
+): Promise<{ ok: true; made: number } | { ok: false; reason: string }> {
+  if (tasks.length === 0) return { ok: true, made: 0 };
+  const { data } = await supabaseAdmin.from("job_tasks").select("sort").eq("org_id", orgId).eq("sm8_job_uuid", cardId).order("sort", { ascending: false }).limit(1);
+  const count = await taskCount(orgId, cardId);
+  const room = Math.max(0, MAX_TASKS - count);
+  const from = ((data?.[0] as { sort?: number } | undefined)?.sort ?? -1) + 1;
+  const rows = tasks.slice(0, room).map((t, i) => ({ org_id: orgId, sm8_job_uuid: cardId, name: t.name, stage: t.stage, kind: t.kind, unit: null, visit: null, sort: from + i, hours: t.hours, source: "quote", created_by: userId }));
+  if (rows.length === 0) return { ok: false, reason: `A job holds ${MAX_TASKS} tasks at most.` };
+  const { error } = await supabaseAdmin.from("job_tasks").insert(rows);
+  if (error) return { ok: false, reason: "The tasks couldn't be saved. Try again." };
+  return { ok: true, made: rows.length };
+}
+
 /* ── a person's edits ── */
 
 type TaskEdit =

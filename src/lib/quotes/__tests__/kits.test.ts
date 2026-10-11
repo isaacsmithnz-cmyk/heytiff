@@ -1,5 +1,5 @@
 import type { Product } from "../families";
-import { breakerFor, cableFor, expandKit, isolatorFor, KITS } from "../kits";
+import { breakerFor, cableFor, consumablesEstimate, expandKit, isolatorFor, KITS } from "../kits";
 
 /* Kits as data (slice 1.3): what a system takes to install, picked from the
    business's own book by what each part is, never by one supplier's code.
@@ -166,5 +166,35 @@ describe("an old system's pipe, kept", () => {
   it("can't check the old pipe without the unit's", () => {
     const lines = expandKit("split", { ...facts, pipe: null, replacing: true, keptPipe: "1/4+1/2" }, book, at);
     expect(lines[0]).toMatchObject({ name: "Pair coil", source: "unknown", why: "Needs the unit's details to check the old pipe" });
+  });
+});
+
+/* Isaac, 2026-10-10: "I notice you've got to check consumables not known yet.
+   That could be an estimate. And we can confirm that" */
+describe("consumables with no allowance set: an estimate from the book", () => {
+  const consumables = [
+    product("NITTO DUCT TAPE GREY 48mm x 30M", 345),
+    product("CABLE TIE WHITE 4.5 x 200mm PK100", 396),
+    product("BOSTIK 40-317 DUCT SEALANT 280ML", 765),
+    product("BOSTIK SILICONE GREY 300ML", 801),
+    product("SKY BROWN TIP BRAZING ALLOY 900MM STICK", 2293),
+  ];
+  const allowances = { consumables: null, flush: null, recovery: null };
+
+  it("prices what an install of its kind uses from the business's own items, saying what", () => {
+    expect(consumablesEstimate("ducted", [...book, ...consumables])).toEqual({
+      costCents: 2 * 345 + 396 + 765 + 801 + 2 * 2293,
+      words: "duct tape x2, cable ties, duct sealant, silicone, brazing rods x2",
+    });
+    expect(consumablesEstimate("split", [...book, ...consumables])).toEqual({ costCents: 345 + 396 + 801, words: "duct tape, cable ties, silicone" });
+    /* a book with none of them: no estimate */
+    expect(consumablesEstimate("split", book)).toBeNull();
+  });
+
+  it("puts it on the kit as an estimate to confirm; a set allowance stands, and with neither it's not known yet", () => {
+    const line = expandKit("split", facts, [...book, ...consumables], at, allowances).find((l) => l.name === "Consumables");
+    expect(line).toMatchObject({ costCents: 1542, source: "assumed", estimate: true, why: "An estimate from your book: duct tape, cable ties, silicone" });
+    expect(expandKit("split", facts, [...book, ...consumables], at, { ...allowances, consumables: 3182 }).find((l) => l.name === "Consumables")).toMatchObject({ costCents: 3182, why: "your allowance, a head" });
+    expect(expandKit("split", facts, book, at, allowances).find((l) => l.name === "Consumables")).toMatchObject({ costCents: 0, source: "unknown", why: "Not set in Quoting" });
   });
 });

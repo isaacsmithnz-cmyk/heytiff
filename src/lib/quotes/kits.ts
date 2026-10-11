@@ -256,6 +256,42 @@ const DUCTED: KitPart[] = [
   },
 ];
 
+/* CONSUMABLES, ESTIMATED FROM THE BOOK (Isaac, 2026-10-10: "I notice
+   you've got to check consumables not known yet. That could be an
+   estimate. And we can confirm that"). With no allowance set in Quoting, a
+   kit's consumables are the business's own items for what an install of
+   its kind uses, one of each or two, priced from its book; the line says
+   it's an estimate, to confirm. Anything the book hasn't got is left out
+   and the words say what was used. */
+const CONSUMABLES: Record<KitKey, { words: string; text: string; qty: number }[]> = {
+  split: [
+    { words: "duct tape", text: "duct tape", qty: 1 },
+    { words: "cable ties", text: "cable tie", qty: 1 },
+    { words: "silicone", text: "silicone", qty: 1 },
+  ],
+  ducted: [
+    { words: "duct tape", text: "duct tape", qty: 2 },
+    { words: "cable ties", text: "cable tie", qty: 1 },
+    { words: "duct sealant", text: "duct sealant", qty: 1 },
+    { words: "silicone", text: "silicone", qty: 1 },
+    { words: "brazing rods", text: "brazing", qty: 2 },
+  ],
+};
+
+/** A kit's consumables, from the business's book: what they cost it, and
+    the words for what was used; null when the book has none of them. */
+export function consumablesEstimate(kit: KitKey, products: Product[], supplier: string | null = null): { costCents: number; words: string } | null {
+  let cost = 0;
+  const used: string[] = [];
+  for (const c of CONSUMABLES[kit]) {
+    const picked = pickItem(products, { text: c.text }, supplier);
+    if (!picked) continue;
+    cost += picked.offer.netCents * c.qty;
+    used.push(c.qty > 1 ? `${c.words} x${c.qty}` : c.words);
+  }
+  return used.length ? { costCents: Math.round(cost * 10) / 10, words: used.join(", ") } : null;
+}
+
 export const KITS: Record<KitKey, { label: string; parts: KitPart[] }> = {
   split: { label: "Split install", parts: SPLIT },
   ducted: { label: "Ducted install", parts: DUCTED },
@@ -355,7 +391,22 @@ export function expandKit(
         source: cents == null ? "unknown" : "assumed",
         why: cents == null ? "Not set in Quoting" : why,
       });
-    allow("Consumables", allowances.consumables, "your allowance, a head");
+    const estimate = allowances.consumables == null ? consumablesEstimate(kit, products, supplier) : null;
+    if (estimate) {
+      out.push({
+        optionIndex: at.optionIndex,
+        system: at.system,
+        group: "Allowances",
+        kind: "material",
+        name: "Consumables",
+        qty: 1,
+        unit: "",
+        costCents: estimate.costCents,
+        source: "assumed",
+        why: `An estimate from your book: ${estimate.words}`,
+        estimate: true,
+      });
+    } else allow("Consumables", allowances.consumables, "your allowance, a head");
     if (f.replacing) {
       allow("Refrigerant recovery and removal", allowances.recovery, "your allowance, a system");
       allow(

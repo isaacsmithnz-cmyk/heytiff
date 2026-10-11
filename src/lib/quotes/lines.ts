@@ -46,6 +46,10 @@ export type LineFields = {
   duct: boolean;
   /** a labour line worked out task by task: its visit and tasks (line-visit.ts); null otherwise */
   visit?: LineVisit | null;
+  /** its price an estimate, to confirm (Isaac, 2026-10-10: "That could be
+      an estimate. And we can confirm that"): consumables priced from the
+      business's own book when Quoting has no allowance set */
+  estimate?: boolean;
 };
 
 export type QuoteLine = LineFields & {
@@ -104,6 +108,7 @@ export function normaliseLine(raw: unknown): LineFields | null {
     why: text(r.why, MAX_WHY),
     duct: (r.duct ?? false) === true,
     visit,
+    estimate: r.estimate === true,
   };
 }
 
@@ -140,6 +145,7 @@ export function lineRow(f: LineFields) {
     why: f.why,
     duct: f.duct,
     visit: f.visit ?? null,
+    estimate: f.estimate ?? false,
   };
 }
 
@@ -163,6 +169,11 @@ export function applyPatch(line: LineFields, patch: unknown): { next: LineFields
   if (changed.length > 0 && !("source" in p) && changed.some((k) => k === "qty" || k === "costCents" || k === "sellCents" || k === "code" || k === "visit")) {
     merged.source = "by_hand";
     if (line.source !== "by_hand") changed.push("source");
+    /* a person's own figure is no estimate */
+    if (line.estimate && !("estimate" in p)) {
+      merged.estimate = false;
+      changed.push("estimate");
+    }
   }
   return { next: merged, changed };
 }

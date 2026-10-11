@@ -7,7 +7,7 @@ const flex = { optionIndex: 0, system: "Upstairs", group: "Ductwork and grilles"
 
 describe("a line, made safe", () => {
   it("keeps what a line is, and where it came from", () => {
-    expect(normaliseLine(flex)).toEqual({ ...flex, position: 0, unit: "", sellCents: null, visit: null });
+    expect(normaliseLine(flex)).toEqual({ ...flex, position: 0, unit: "", sellCents: null, visit: null, estimate: false });
   });
 
   it("needs a name and a group", () => {
@@ -78,6 +78,20 @@ describe("a change to a line", () => {
 
   it("is kept as before and after, the changed fields only", () => {
     expect(diffOf(line, { ...line, qty: 6, source: "by_hand" })).toEqual({ before: { qty: 5, source: "assumed" }, after: { qty: 6, source: "by_hand" } });
+  });
+});
+
+describe("an estimate, to confirm (Isaac, 2026-10-10)", () => {
+  const est = normaliseLine({ ...flex, name: "Consumables", group: "Allowances", code: null, costCents: 1542, estimate: true })!;
+
+  it("is kept on the line, and back from its row", () => {
+    expect(est.estimate).toBe(true);
+    expect(lineFromRow({ ...lineRow(est), id: "e1", version: 1, updated_at: "", updated_by: "tiff" })!.estimate).toBe(true);
+  });
+
+  it("is confirmed by a person, or stops being one when they set their own figure", () => {
+    expect(applyPatch(est, { estimate: false })!).toMatchObject({ next: { estimate: false, source: "assumed" }, changed: ["estimate"] });
+    expect(applyPatch(est, { costCents: 2000 })!.next).toMatchObject({ estimate: false, source: "by_hand" });
   });
 });
 

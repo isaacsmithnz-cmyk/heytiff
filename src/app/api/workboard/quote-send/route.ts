@@ -21,7 +21,9 @@ export async function GET(req: Request) {
   const job = (new URL(req.url).searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(orgId, job);
-  const view = await readSm8SendView(orgId, target.parentRemoteId);
+  /* the accepted quote as a work order, or the approved one as a quote (7.3) */
+  const as = new URL(req.url).searchParams.get("as") === "quote" ? "quote" : "accepted";
+  const view = await readSm8SendView(orgId, target.parentRemoteId, as);
   /* key: the plan as shown, for the press to be checked against */
   return Response.json({ ok: true, plan: view.plan, editDate: view.editDate, key: planKey(view.plan) });
 }

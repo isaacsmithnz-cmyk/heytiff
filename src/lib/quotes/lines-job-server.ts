@@ -16,6 +16,7 @@ import {
   withVariation,
   withVariationMark,
   withoutApproval,
+  withSent,
   type ByHand,
 } from "./lines-job";
 import { changeLine, copyOption, readEngine, readLines } from "./lines-server";
@@ -143,6 +144,9 @@ export async function startVersion(orgId: string, cardId: string, what: string, 
   }
   return { ok: true, n };
 }
+
+/** The approved quote sent to ServiceM8 as a quote (7.3), or tried in a trial run. */
+export const markSent = (orgId: string, cardId: string, by: string, trial: boolean) => changeByHand(orgId, cardId, by, (b) => withSent(b, by, new Date().toISOString(), trial));
 
 /** A variation approved to go, or accepted by the client; again takes it off. */
 export const markVariation = (orgId: string, cardId: string, option: number, mark: "approvedAt" | "acceptedAt", by: string) =>

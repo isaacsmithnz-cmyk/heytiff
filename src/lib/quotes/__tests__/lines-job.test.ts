@@ -3,7 +3,7 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, variationMaterials, variationOf, withVariation, withVariationMark, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withLoading, withName, withProposal } from "../lines-job";
+import { byHandOf, variationMaterials, variationOf, withVariation, withVariationMark, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withSent, withLoading, withName, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
@@ -237,5 +237,14 @@ describe("an accepted variation's parts onto the job's materials list", () => {
       { name: "Zone damper 200", sub: "ZD200, Variation 1", qty: "2" },
       { name: "Wall controller", sub: "Variation 1", qty: "1" },
     ]);
+  });
+});
+
+describe("sent to ServiceM8 as a quote (7.3)", () => {
+  it("is kept and read back, a trial run saying so; a new version takes it off", () => {
+    const sent = withSent(withApproval(bh([]), "u", "t1"), "u-isaac", "t2", true);
+    expect(byHandOf({ byHand: sent }).sent).toEqual({ at: "t2", by: "u-isaac", trial: true });
+    expect(withoutApproval(sent).sent).toBeNull();
+    expect(byHandOf({ byHand: bh([]) })).not.toHaveProperty("sent");
   });
 });

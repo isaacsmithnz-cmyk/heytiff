@@ -209,6 +209,7 @@ export function QuoteScreen({
               onSwitchBack={() => void switchTo("old")}
               onToast={(m) => toast(m)}
               send={<JobQuoteSend job={job} visible version={`lines-${linesRev}`} />}
+              sendQuote={(onSent) => <JobQuoteSend job={job} visible as="quote" version={`lines-${linesRev}`} onSent={onSent} />}
             />
           ) : (
             <JobQuoteFace

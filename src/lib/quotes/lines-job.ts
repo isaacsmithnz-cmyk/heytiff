@@ -40,6 +40,9 @@ export type ByHand = {
   /** changes after it was accepted, each an option of its own (Isaac,
       2026-10-10: "even after it's been approved… it'll be variation then") */
   variations: Variation[];
+  /** the approved quote sent to ServiceM8 as a quote (7.3): when, by
+      whom, and whether it was only a trial run */
+  sent?: { at: string; by: string; trial: boolean } | null;
 };
 
 /** A VARIATION TO THE ACCEPTED QUOTE: an option of its own, started as a
@@ -122,8 +125,13 @@ export function byHandOf(draft: unknown): ByHand {
     if (variations.some((w) => w.option === option)) continue;
     variations.push({ n, option, of, what: said(x.what, MAX_VARIATION_WHAT), startedAt: at("startedAt") ?? "", startedBy: said(x.startedBy, 120), approvedAt: at("approvedAt"), acceptedAt: at("acceptedAt") });
   }
-  return { accepted, names, loading, compare, supplier, proposal, researched, variations };
+  const rawSent = o.sent && typeof o.sent === "object" ? (o.sent as Record<string, unknown>) : null;
+  const sent = rawSent && typeof rawSent.at === "string" && rawSent.at ? { at: rawSent.at, by: said(rawSent.by, 120), trial: rawSent.trial === true } : null;
+  return { accepted, names, loading, compare, supplier, proposal, researched, variations, ...(sent ? { sent } : {}) };
 }
+
+/** The approved quote sent to ServiceM8 as a quote, or a trial run of it. */
+export const withSent = (b: ByHand, by: string, now: string, trial: boolean): ByHand => ({ ...b, sent: { at: now, by, trial } });
 
 /** The variation an option is, if it is one. */
 export const variationOf = (b: Pick<ByHand, "variations">, option: number): Variation | null => b.variations.find((v) => v.option === option) ?? null;
@@ -169,7 +177,7 @@ export const withApproval = (b: ByHand, by: string, now: string): ByHand => ({
 
 /** The approval taken off: the quote is the next version, to approve again
     (quote-versions.ts). Its words stay as written. */
-export const withoutApproval = (b: ByHand): ByHand => (b.proposal ? { ...b, proposal: { ...b.proposal, approvedAt: null, approvedBy: null } } : b);
+export const withoutApproval = (b: ByHand): ByHand => (b.proposal ? { ...b, proposal: { ...b.proposal, approvedAt: null, approvedBy: null }, sent: null } : b);
 
 /** A line priced from the web, with the page it rests on; null takes the mark off. */
 export function withResearched(b: ByHand, lineId: string, source: { url: string; title: string } | null): ByHand {

@@ -63,6 +63,8 @@ type View = {
   opened?: number | null;
   /** the quote as it stood at each approval before this one, newest first (quote-versions.ts) */
   versions?: QuoteVersion[];
+  /** sent to ServiceM8 as a quote (7.3), or a trial run of it */
+  sent?: { at: string; by: string; trial: boolean } | null;
   /** each option's name, and its loading on labour (lines-job.ts) */
   optionNames?: string[];
   loading?: Record<number, { pct: number; reason: string }>;
@@ -299,6 +301,7 @@ export function QuoteLinesFace({
   onSwitchBack,
   onToast,
   send,
+  sendQuote,
   meta,
 }: {
   job: string;
@@ -307,6 +310,9 @@ export function QuoteLinesFace({
   onToast?: (message: string) => void;
   /** what goes to ServiceM8 once an option is accepted (job-quote-send.tsx) */
   send?: ReactNode;
+  /** the approved quote sent to ServiceM8 as a quote, before it's accepted
+      (7.3); told when it's gone, so the progress line says so */
+  sendQuote?: (onSent: () => void) => ReactNode;
   /** who and where, for the proposal's heading */
   meta?: { title: string; client: string | null; site: string | null; jobNumber: string | null };
   /** read the price again: a line changed */
@@ -352,6 +358,7 @@ export function QuoteLinesFace({
     accepted,
     approved: view?.approved ?? false,
     version,
+    sent: view?.sent ?? null,
     lines: all.length,
     /* the lines nobody knows yet, and Tiff's questions still open */
     unknown: all.filter((l) => (l.source === "unknown" && l.costCents <= 0 && l.sellCents == null) || l.estimate).length + asked,
@@ -1085,6 +1092,7 @@ export function QuoteLinesFace({
   const rail = (
     <div className="ql-rail">
       {accepted.length > 0 && send}
+      {accepted.length === 0 && view?.approved && sendQuote?.(reload)}
       {versions.length > 0 && (
         <>
           <h2 className="hd-ls-grp">Versions</h2>

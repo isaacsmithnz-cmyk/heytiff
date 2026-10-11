@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
@@ -509,38 +510,20 @@ export function JobSheet({
     };
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      /* INNERMOST FIRST. Closing the whole card out from under an open claim
-         is the classic nested-dismiss bug. The SWMS wizard answers its own
-         Escape — it asks before throwing choices away. */
-      if (swmsWizard || certWizard) return;
-      /* Edit customer answers its own Escape and closes itself; the card
-         under it stays open. Without this both listeners fired on the one
-         key and the card closed with the dialog. */
-      if (editingCustomer) return;
-      if (viewer) {
-        setViewer(null);
-        return;
-      }
-      if (openClaim) {
-        setOpenClaim(null);
-        return;
-      }
-      if (numbersOpen) {
-        setNumbersOpen(false);
-        return;
-      }
-      if (menuOpen) {
-        setMenuOpen(false);
-        return;
-      }
-      onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, numbersOpen, openClaim, menuOpen, viewer, swmsWizard, certWizard, editingCustomer]);
+  /* INNERMOST FIRST. Closing the whole card out from under an open claim
+     is the classic nested-dismiss bug. The dialogs over the card — a claim,
+     the viewer, Edit customer, the SWMS and certificate wizards — are each
+     in front of it on the overlay stack and answer their own Escape, so the
+     card hears the key only when nothing is over it. Its own two menus
+     close before it does. */
+  const sheet = useRef<HTMLElement>(null);
+  useOverlay(sheet, {
+    onEscape: () => {
+      if (numbersOpen) setNumbersOpen(false);
+      else if (menuOpen) setMenuOpen(false);
+      else onClose();
+    },
+  });
 
   useEffect(() => {
     if (!numbersOpen) return;
@@ -2048,6 +2031,7 @@ export function JobSheet({
     <>
       <div className="wb2-scrim" onClick={onClose} />
       <aside
+        ref={sheet}
         className="wb2-sheet jc jcl"
         role="dialog"
         aria-modal="true"
@@ -2835,9 +2819,9 @@ export function JobSheet({
               onKeyDown={(e) => {
                 if (e.key === "Enter") makeProject();
                 if (e.key === "Escape") {
-                  /* Cancels the naming, not the card — without this the
-                     document listener closes the whole sheet. */
-                  e.stopPropagation();
+                  /* Cancels the naming, not the card: a key taken here is
+                     one the overlay stack leaves alone. */
+                  e.preventDefault();
                   setNaming(false);
                 }
               }}

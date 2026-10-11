@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import {
@@ -259,19 +260,17 @@ export function SwmsWizard({
     else onClose();
   };
 
-  /* Escape closes the wizard, never the card under it — the card's own
-     listener stands aside while the wizard is open. A wizard with choices in
-     it asks first: a stray key shouldn't throw away a site walk. */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+  /* Escape closes the wizard, never the card under it: the wizard is in
+     front (the overlay stack). A wizard with choices in it asks first: a
+     stray key shouldn't throw away a site walk. */
+  const dialog = useRef<HTMLElement>(null);
+  useOverlay(dialog, {
+    onEscape: () => {
       if (confirmClose) setConfirmClose(false);
       else if (dirty && !issued) setConfirmClose(true);
       else onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [confirmClose, dirty, issued, onClose]);
+    },
+  });
 
   const go = (t: Tab) => {
     setTab(t);
@@ -1234,7 +1233,7 @@ export function SwmsWizard({
   return (
     <>
       <div className="swz-scrim" onClick={askClose} />
-      <aside className={`swz${tabs ? " tall" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
+      <aside ref={dialog} className={`swz${tabs ? " tall" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className={`wb2-jcband${tabs ? "" : " bare"}`}>
           <div className="wb2-shtop">
             {job?.number && <span className="wb2-shno">{`#${job.number}`}</span>}

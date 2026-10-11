@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { TIFF_BUTTON_PLACES, TiffButton } from "../tiff-button";
-import { NoteScopeProvider, NoteScopeScreen, useNoteScope } from "../note-context";
+import { NoteScopeProvider, NoteScopeScreen, useNoteScope, useNoteScopeTarget } from "../note-context";
 
 /* ONE WAY IN, IN THE SAME CORNER OF EVERY SCREEN.
 
@@ -235,6 +235,57 @@ describe("what it is pointed at", () => {
 
     rerender(tree(false));
     expect(screen.getByTestId("scope")).toHaveTextContent("project|Smith St");
+  });
+
+  it("aims at the one in front when two are open, and closing the lower one leaves it", () => {
+    const Card = () => {
+      useNoteScopeTarget({ kind: "job", id: "j-1" }, "Job 1042");
+      return null;
+    };
+    const Wizard = () => {
+      useNoteScopeTarget({ kind: "visit", id: "v-9" }, "Meridian, CRACs");
+      return null;
+    };
+    const tree = (card: boolean, wizard: boolean) => (
+      <NoteScopeProvider voiceEnabled>
+        <Probe />
+        <NoteScopeScreen target={{ kind: "project", id: "p-1" }} targetLabel="Smith St" />
+        {card && <Card />}
+        {wizard && <Wizard />}
+        <TiffButton />
+      </NoteScopeProvider>
+    );
+    const { rerender } = render(tree(true, false));
+    expect(screen.getByTestId("scope")).toHaveTextContent("job|Job 1042");
+    rerender(tree(true, true));
+    expect(screen.getByTestId("scope")).toHaveTextContent("visit|Meridian, CRACs");
+    // the card under it goes first: the one in front keeps the aim
+    rerender(tree(false, true));
+    expect(screen.getByTestId("scope")).toHaveTextContent("visit|Meridian, CRACs");
+    rerender(tree(false, false));
+    expect(screen.getByTestId("scope")).toHaveTextContent("project|Smith St");
+  });
+
+  it("keeps a sheet's place when its label changes under one opened after it", () => {
+    const Card = ({ label }: { label: string }) => {
+      useNoteScopeTarget({ kind: "job", id: "j-1" }, label);
+      return null;
+    };
+    const Wizard = () => {
+      useNoteScopeTarget({ kind: "visit", id: "v-9" }, "Meridian, CRACs");
+      return null;
+    };
+    const tree = (label: string) => (
+      <NoteScopeProvider voiceEnabled>
+        <Probe />
+        <Card label={label} />
+        <Wizard />
+        <TiffButton />
+      </NoteScopeProvider>
+    );
+    const { rerender } = render(tree("Job 1042"));
+    rerender(tree("Job 1042, Bayview"));
+    expect(screen.getByTestId("scope")).toHaveTextContent("visit|Meridian, CRACs");
   });
 
   it("stops holding a screen once it goes away", () => {

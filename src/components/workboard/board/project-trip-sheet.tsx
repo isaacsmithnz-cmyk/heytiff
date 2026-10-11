@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -119,13 +120,10 @@ export function ProjectTripSheet({
     closeRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes this and only this: a dialog over it answers its own
+     first (the overlay stack). */
+  const dialog = useRef<HTMLElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   const run = (
     fn: () => Promise<Result>,
@@ -255,6 +253,7 @@ export function ProjectTripSheet({
     <>
       <div className="wb2-scrim" onClick={onClose} />
       <aside
+        ref={dialog}
         className={"wb2-sheet" + (closing ? " closingout" : "")}
         role="dialog"
         aria-modal="true"
@@ -301,6 +300,7 @@ export function ProjectTripSheet({
                   }
                 }
                 if (e.key === "Escape") {
+                  e.preventDefault();
                   setRenaming(false);
                   setLabelText(visit.label);
                 }
@@ -618,6 +618,7 @@ export function ProjectTripSheet({
                       if (n) run(() => linkVisitJob(visit.id, { jobNumber: n }));
                     }
                     if (e.key === "Escape") {
+                      e.preventDefault();
                       setLinking(false);
                       setJobText("");
                     }
@@ -863,6 +864,7 @@ function AddBringRow({ busy, onAdd }: { busy: boolean; onAdd: (label: string) =>
           commit();
         }
         if (e.key === "Escape") {
+          e.preventDefault();
           setEditing(false);
           setText("");
         }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { mintPressId } from "@/lib/workboard/press-id";
@@ -113,13 +114,10 @@ export function NewJobModal({ onClose }: { onClose: () => void }) {
     };
   }, [address, site.kind]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes this and only this: a dialog over it answers its own
+     first (the overlay stack). */
+  const dialog = useRef<HTMLDivElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   const pickClient = (hit: ClientHit) => {
     setWho({ kind: "existing", hit });
@@ -168,7 +166,7 @@ export function NewJobModal({ onClose }: { onClose: () => void }) {
   return createPortal(
     <>
       <div className="wb2-scrim" onClick={onClose} />
-      <div className="wb2-daymodal wb2-newmodal njob" role="dialog" aria-modal="true" aria-label="New job">
+      <div ref={dialog} className="wb2-daymodal wb2-newmodal njob" role="dialog" aria-modal="true" aria-label="New job">
         <div className="wb2-dmhd">
           <div className="wb2-dmtop">
             <h2 className="njob-title">New job</h2>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import { Choice, Seg, SignaturePad } from "@/components/swms/controls";
@@ -347,17 +348,10 @@ export function CertWizard({
     else setConfirmClose(true);
   };
 
-  /* Escape closes, through the same question as the cross */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        askClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
+  /* Escape closes, through the same question as the cross, and only this:
+     the card under it stays open (the overlay stack). */
+  const dialog = useRef<HTMLElement>(null);
+  useOverlay(dialog, { onEscape: askClose });
 
   const live = ctx && ctx !== "failed" ? ctx : null;
   const signer = live?.signatory ?? null;
@@ -1141,7 +1135,7 @@ export function CertWizard({
   return (
     <>
       <div className="swz-scrim" onClick={askClose} />
-      <aside className={`swz${tabs ? " tall" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
+      <aside ref={dialog} className={`swz${tabs ? " tall" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className={`wb2-jcband${tabs ? "" : " bare"}`}>
           <div className="wb2-shtop">
             {job?.number && <span className="wb2-shno">{`#${job.number}`}</span>}

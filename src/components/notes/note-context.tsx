@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
 
 /* WHERE THE TOKEN IS STANDING.
@@ -50,12 +50,24 @@ const EMPTY: NoteScope = {
 
 type Push = Partial<NoteScope>;
 
+/** One thing open over the screen, and what it aims the button at. */
+type Aim = { key: string; push: Push };
+
+/** The key `pushFocus` writes under: the one-slot door, kept for a caller
+    that only ever has one thing open. */
+const LONE = "lone";
+
 const Ctx = createContext<
-  NoteScope & { pushScreen: (p: Push | null) => void; pushFocus: (p: Push | null) => void }
+  NoteScope & {
+    pushScreen: (p: Push | null) => void;
+    pushFocus: (p: Push | null) => void;
+    aimFocus: (key: string, p: Push | null) => void;
+  }
 >({
   ...EMPTY,
   pushScreen: () => {},
   pushFocus: () => {},
+  aimFocus: () => {},
 });
 
 /** Wrap the APP, once, in the dashboard layout. Everything inside gets the
@@ -90,12 +102,27 @@ export function NoteScopeProvider({
      underneath, which is what a person would predict and what the old
      single-slot version got wrong the moment two things pushed at once. */
   const [screen, setScreen] = useState<Push | null>(null);
-  const [focus, setFocus] = useState<Push | null>(null);
+  /* THE FOCUS SLOT IS A STACK. Two things can be open over a screen at once
+     — a job card and a wizard over it, or a card over a sheet — so each
+     keeps its own entry for as long as it is up, the one opened last aims
+     the button, and closing the lower one leaves the aim of the one still
+     in front alone. An entry that changes keeps its place. */
+  const [aims, setAims] = useState<readonly Aim[]>([]);
   const pushScreen = useCallback((p: Push | null) => setScreen(p), []);
-  const pushFocus = useCallback((p: Push | null) => setFocus(p), []);
+  const aimFocus = useCallback(
+    (key: string, p: Push | null) =>
+      setAims((as) => {
+        if (!p) return as.filter((a) => a.key !== key);
+        return as.some((a) => a.key === key)
+          ? as.map((a) => (a.key === key ? { key, push: p } : a))
+          : [...as, { key, push: p }];
+      }),
+    [],
+  );
+  const pushFocus = useCallback((p: Push | null) => aimFocus(LONE, p), [aimFocus]);
 
   const value = useMemo(() => {
-    const aiming = focus ?? screen;
+    const aiming = aims.at(-1)?.push ?? screen;
     return {
       voiceEnabled,
       target: aiming?.target ?? EMPTY.target,
@@ -106,8 +133,9 @@ export function NoteScopeProvider({
       staffFirstNames: screen?.staffFirstNames ?? EMPTY.staffFirstNames,
       pushScreen,
       pushFocus,
+      aimFocus,
     };
-  }, [voiceEnabled, screen, focus, pushScreen, pushFocus]);
+  }, [voiceEnabled, screen, aims, pushScreen, pushFocus, aimFocus]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -122,17 +150,22 @@ export const useNoteScope = () => useContext(Ctx);
     behaviour a person would predict, and the one the old `register`/`send`
     pair got wrong by leaving the last target in place. */
 export function useNoteScopeTarget(target: NoteTarget, label?: string): void {
-  const { pushFocus } = useNoteScope();
+  const { aimFocus } = useNoteScope();
+  /* Its own entry on the stack, for as long as the caller is mounted. */
+  const key = useId();
   /* Depend on the PRIMITIVES, not the object. `target` is almost always an
      inline literal, so a `[target]` dependency would re-run this on every
      render of the sheet and push scope in a loop. */
   const id = target.id ?? null;
   const kind = target.kind;
 
+  /* Taken off on the way out only: a label that changes while the sheet is
+     up rewrites its entry where it stands, rather than lifting it over
+     whatever opened after it. */
+  useEffect(() => () => aimFocus(key, null), [key, aimFocus]);
   useEffect(() => {
-    pushFocus({ target: { kind, id }, targetLabel: label });
-    return () => pushFocus(null);
-  }, [kind, id, label, pushFocus]);
+    aimFocus(key, { target: { kind, id }, targetLabel: label });
+  }, [key, kind, id, label, aimFocus]);
 }
 
 /** Tell the frame what THIS SCREEN is about — its default target, and the

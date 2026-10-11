@@ -530,6 +530,17 @@ Every decision below is made once, here, and a guard test holds each number.
   out of a page about one job (its quote, its SWMS) still go to the
   Workboard, and so does Book in where it is the Schedule's link. The card
   itself is unchanged.
+- **One dialog is in front** (2026-10-11). Every sheet and modal says it is
+  open on one stack (`components/overlay/use-overlay`), and the one opened
+  last is in front. Escape closes that one and nothing under it: a claim, a
+  photo, Edit customer or a wizard over the job card closes alone, and the
+  card under the palette stays open. A field or a menu inside a dialog that
+  takes Escape for itself (an answer being typed, a name being given) keeps
+  the dialog open. Tab goes round inside the dialog in front and never
+  reaches the page under it, and closing a dialog puts focus back on what
+  opened it. The page underneath is not made inert: the scrim already takes
+  the pointer, and an inert page would silence the toasts a board raises
+  while its card is open.
 
 ## Scales
 

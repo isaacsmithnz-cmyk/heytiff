@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { clamp } from "@/lib/studio/geometry";
@@ -102,7 +103,10 @@ export function JobMediaViewer({
     natRef.current = nat;
   }, [nat]);
 
-  /* Arrow keys only — Escape belongs to the sheet's innermost-first chain. */
+  /* Escape closes the viewer and only the viewer, whichever host opened it
+     (the overlay stack). The arrow keys walk the lens. */
+  const dialog = useRef<HTMLDivElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight" && index < items.length - 1) onNav(index + 1);
@@ -255,7 +259,7 @@ export function JobMediaViewer({
   return (
     <>
       <div className="wb2-mvscrim" onClick={onClose} />
-      <div className="wb2-mv" role="dialog" aria-modal="true" aria-label={item.name}>
+      <div ref={dialog} className="wb2-mv" role="dialog" aria-modal="true" aria-label={item.name}>
         <div className="wb2-mvtop">
           <b>{item.name}</b>
           <em>{[when, item.origin].filter(Boolean).join(", ")}</em>

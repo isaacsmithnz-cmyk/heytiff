@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -100,13 +101,10 @@ export function AgreementSheet({
   useEffect(() => {
     closeRef.current?.focus();
   }, []);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes this and only this: a dialog over it answers its own
+     first (the overlay stack). */
+  const dialog = useRef<HTMLElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   const run = (fn: () => Promise<MaintenanceResult>, toastMsg?: string, undo?: () => void | Promise<void>) => {
     setErr(null);
@@ -176,7 +174,7 @@ export function AgreementSheet({
   return createPortal(
     <>
       <div className="wb2-scrim" onClick={onClose} />
-      <aside className="wb2-sheet" role="dialog" aria-modal="true" aria-label={`${a.clientName} — ${a.label}`}>
+      <aside ref={dialog} className="wb2-sheet" role="dialog" aria-modal="true" aria-label={`${a.clientName} — ${a.label}`}>
         <div className="wb2-shtop">
           <span className="wb2-chip blue">Service agreement</span>
           {a.status === "paused" ? (
@@ -452,6 +450,7 @@ export function AgreementSheet({
                       });
                     }
                     if (e.key === "Escape") {
+                      e.preventDefault();
                       setNewCategory(false);
                       setCategoryText("");
                     }
@@ -616,6 +615,7 @@ function AddInline({
           commit();
         }
         if (e.key === "Escape") {
+          e.preventDefault();
           setEditing(false);
           setText("");
         }

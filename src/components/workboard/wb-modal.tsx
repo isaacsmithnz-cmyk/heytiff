@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useRef } from "react";
 import { createPortal } from "react-dom";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 
 /* The Workboard's modal shell — the fleet modal's skeleton, shared instead of
    re-grown: portal to <body> (.page.in's will-change traps position:fixed,
    and .fl-ov/.fl-modal are unscoped in shell.css for exactly this), Escape
-   closes, clicks inside don't fall through. */
+   closes it and only it (the overlay stack), Tab stays inside, clicks inside
+   don't fall through. */
 
 export function WbModal({
   title,
@@ -22,17 +24,19 @@ export function WbModal({
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const dialog = useRef<HTMLDivElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   return createPortal(
     <div className="fl-ov" onClick={onClose}>
-      <div className={`fl-modal${wide ? " wide" : ""}`} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialog}
+        className={`fl-modal${wide ? " wide" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="fl-mh">
           <span>
             <b>{title}</b>

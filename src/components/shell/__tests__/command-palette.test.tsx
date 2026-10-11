@@ -11,6 +11,7 @@
    walk through them; and nobody without the Workboard is sent to ask. */
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { useRef } from "react";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { Capability } from "@/lib/permissions";
 
@@ -58,6 +59,7 @@ jest.mock("../palette-photo-viewer", () => ({
 
 import { CommandPalette } from "../command-palette";
 import { RecordsContext, type RecordsApi } from "@/components/records/records-context";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import type { PhotoHit } from "@/app/actions/photo-search";
 import type { PaletteFinds } from "@/app/actions/palette";
 import type { PaletteClient, PaletteProject, PaletteStaff } from "@/lib/workboard/palette-query";
@@ -560,5 +562,34 @@ describe("without the Workboard", () => {
 
     expect(searchPalette).not.toHaveBeenCalled();
     expect(screen.getByText(/No screen matches/)).toHaveTextContent("No screen matches “job 288”");
+  });
+});
+
+describe("over a job card", () => {
+  it("Escape closes the palette and only the palette", () => {
+    const cardClosed = jest.fn();
+    function Card() {
+      const ref = useRef<HTMLDivElement>(null);
+      useOverlay(ref, { onEscape: cardClosed });
+      return <div ref={ref} role="dialog" aria-modal="true" aria-label="Job 288" />;
+    }
+    isOpen = false;
+    const { rerender } = render(
+      <>
+        <Card />
+        <CommandPalette role="staff" caps={WORKBOARD} />
+      </>,
+    );
+    isOpen = true;
+    rerender(
+      <>
+        <Card />
+        <CommandPalette role="staff" caps={WORKBOARD} />
+      </>,
+    );
+    close.mockClear();
+    fireEvent.keyDown(box(), { key: "Escape" });
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(cardClosed).not.toHaveBeenCalled();
   });
 });

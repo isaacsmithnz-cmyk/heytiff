@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { overlayOpen } from "@/components/overlay/use-overlay";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { completeTask } from "@/app/actions/dashboard";
@@ -228,7 +229,7 @@ export function HomeDay({
     if (openKey === null || away) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
-      if (document.querySelector('[aria-modal="true"]')) return;
+      if (overlayOpen()) return;
       const t = e.target;
       if (t !== document.body && !(t instanceof Node && section.current?.contains(t))) return;
       // a key: simply shut, and anything in flight stops (law 8)

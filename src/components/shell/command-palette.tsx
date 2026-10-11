@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useCommandPalette } from "./command-palette-context";
 import { useRecords } from "@/components/records/records-context";
+import { OverlayWhileOpen } from "@/components/overlay/use-overlay";
 import { Icon } from "./icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { navFor, type NavItem } from "./nav";
@@ -100,6 +101,7 @@ export function CommandPalette({
   const records = useRecords();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [selRaw, setSel] = useState(0);
 
@@ -295,10 +297,7 @@ export function CommandPalette({
       listRef.current?.querySelectorAll<HTMLElement>(".crow")[next]?.scrollIntoView?.({ block: "nearest" });
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      } else if (e.key === "ArrowDown") {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
         if (rows.length) pick((sel + 1) % rows.length);
       } else if (e.key === "ArrowUp") {
@@ -318,7 +317,10 @@ export function CommandPalette({
     <>
     <div className={`fg-cmd${open ? " open" : ""}`} id="fg-cmd">
       <div className="ov" onClick={onClose} />
-      <div className="box">
+      {/* Escape closes the palette, and only the palette, even over a job
+          card (the overlay stack). Tab stays inside it. */}
+      {open && <OverlayWhileOpen of={boxRef} onEscape={onClose} />}
+      <div className="box" ref={boxRef}>
         <div className="cin">
           <span className="ci">
             <Icon name="search" size={20} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
@@ -85,13 +86,10 @@ export function ProjectSheet({
     closeRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes this and only this: a dialog over it answers its own
+     first (the overlay stack). */
+  const dialog = useRef<HTMLElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   const linkedJobs = project.jobs.filter((j) => j.remoteId);
 
@@ -204,6 +202,7 @@ export function ProjectSheet({
     <>
       <div className="wb2-scrim" onClick={onClose} />
       <aside
+        ref={dialog}
         className="wb2-sheet jc pv"
         role="dialog"
         aria-modal="true"

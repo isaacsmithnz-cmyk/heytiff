@@ -527,3 +527,20 @@ describe("the head (Isaac, 10 Oct: one ledger, as Analytics draws its top line)"
     expect(screen.getByRole("tab", { name: /Option 2/ })).toBeInTheDocument();
   });
 });
+
+it("shows an estimate on its line and in To confirm, and confirms it from there", async () => {
+  const cons = line({ id: "l7", system: "Downstairs", group: "Allowances", name: "Consumables", code: null, supplierKey: null, kind: "material", costCents: 1542, source: "assumed", why: "An estimate from your book: duct tape, cable ties, silicone", estimate: true });
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return { json: async () => view([indoor, cons]) };
+  });
+  face();
+  expect(await screen.findByText("Estimate")).toBeInTheDocument();
+  expect(screen.getByText("Consumables: An estimate from your book: duct tape, cable ties, silicone")).toBeInTheDocument();
+  /* the head counts it to confirm */
+  expect(screen.getByText(/1 to confirm/, { selector: "em" })).toBeInTheDocument();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+  });
+  expect(posted).toContainEqual({ job: "job-3377", op: "change", id: "l7", version: 1, patch: { estimate: false }, why: "Confirmed the estimate" });
+});

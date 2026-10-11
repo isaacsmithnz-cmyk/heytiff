@@ -6985,6 +6985,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-checks li > i { width:8px; height:8px; margin-top:4px; border-radius:50%; background:var(--hd-today); }
 .fg .ql-checks li.due > i { background:var(--warn-t); }
 .fg .ql-checks li.info > i { background:var(--info-t); }
+/* an estimate, confirmed from the list (Isaac, 2026-10-10) */
+.fg .ql-chkacts { grid-column:2; display:flex; gap:8px; padding-top:4px; }
+.fg .ql-vs.ql-est { color:var(--warn-t); }
 .fg .ql-chg { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
 .fg .ql-chg li { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:13px; line-height:1.45; color:var(--hd-ink); }
 .fg .ql-chg li:first-child { border-top:0; }

@@ -117,6 +117,7 @@ export function makeTools(store: QuoteStore) {
                 unit: l.unit,
                 cost_each_cents: l.costCents,
                 source: l.source,
+                ...(l.estimate ? { estimate: true } : {}),
                 ...(l.visit ? { visit: visitRead(l.visit) } : { why: l.why }),
               })),
           })),

@@ -335,7 +335,7 @@ export function QuoteLinesFace({
     approved: view?.approved ?? false,
     lines: all.length,
     /* the lines nobody knows yet, and Tiff's questions still open */
-    unknown: all.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).length + asked,
+    unknown: all.filter((l) => (l.source === "unknown" && l.costCents <= 0 && l.sellCents == null) || l.estimate).length + asked,
     price: priceState(price),
   });
 
@@ -420,7 +420,7 @@ export function QuoteLinesFace({
   const hours = lines.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0);
   const priced = price && price.ok && o ? o : null;
   const left = priced ? leftOn(priced).length > 0 : false;
-  const toConfirm = lines.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).length + asked;
+  const toConfirm = lines.filter((l) => (l.source === "unknown" && l.costCents <= 0 && l.sellCents == null) || l.estimate).length + asked;
   const labourCents = priced ? priced.build.labour.sellCents : 0;
   const whole = units + Math.max(0, materials) + labourCents;
   const share = (c: number) => (whole > 0 ? Math.round((c / whole) * 100) : 0);
@@ -685,6 +685,7 @@ export function QuoteLinesFace({
                                     <Globe />
                                   </a>
                                 )}
+                                {l.estimate && <em className="ql-vs ql-est"> Estimate</em>}
                                 {at > 0 && againstFirst(l, all) !== "same" && (
                                   <em className="ql-vs">{againstFirst(l, all) === "added" ? " Added" : " Changed"}</em>
                                 )}
@@ -902,7 +903,8 @@ export function QuoteLinesFace({
 
   /* what to look at before it goes: the non-Tiff half of the review (slice
      11.1) — what isn't known, what doesn't fit, and the profit */
-  type Check = { tone: "due" | "info" | "ok"; text: string };
+  /** a thing to confirm; an estimate is confirmed from the list itself */
+  type Check = { tone: "due" | "info" | "ok"; text: string; confirm?: QuoteLine };
   const checksFor = (i: number): Check[] => {
     const mine = all.filter((l) => l.optionIndex === i);
     const oi = price && price.ok ? price.options[i] : undefined;
@@ -910,6 +912,7 @@ export function QuoteLinesFace({
     const task = view?.tasks?.[i];
     return [
       ...mine.filter((l) => l.source === "unknown" && l.costCents <= 0 && l.sellCents == null).map((l) => ({ tone: "due" as const, text: `${l.name}: not known yet` })),
+      ...mine.filter((l) => l.estimate).map((l) => ({ tone: "due" as const, text: `${l.name}: ${l.why || "an estimate"}`, confirm: l })),
       ...mine.filter((l) => fitOf.get(l.id)?.state === "misfit").map((l) => ({ tone: "due" as const, text: `${l.name}: ${fitOf.get(l.id)!.why}` })),
       ...(oi?.build.loadingNeedsReason ? [{ tone: "due" as const, text: "The loading isn't on the price until it says why" }] : []),
       ...(assumed.length > 0 ? [{ tone: "info" as const, text: `${assumed.length} ${assumed.length === 1 ? "line" : "lines"} assumed` }] : []),
@@ -933,6 +936,18 @@ export function QuoteLinesFace({
           <li key={i} className={c.tone}>
             <i aria-hidden="true" />
             <span>{c.text}</span>
+            {c.confirm && (
+              <span className="ql-chkacts">
+                <button
+                  type="button"
+                  className="pbtn ghost sm"
+                  disabled={busy}
+                  onClick={() => void act({ op: "change", id: c.confirm!.id, version: c.confirm!.version, patch: { estimate: false }, why: "Confirmed the estimate" })}
+                >
+                  Confirm
+                </button>
+              </span>
+            )}
           </li>
         ))}
       </ul>

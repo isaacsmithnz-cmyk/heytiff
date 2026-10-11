@@ -10,7 +10,7 @@ import {
   rollMetresOf,
   sellCents,
 } from "../components";
-import { normaliseQuoteSettings, quoteSettingsRow, DEFAULT_QUOTE_SETTINGS } from "../settings";
+import { normaliseQuoteSettings, quoteSettingsRow, starterTasksOf, DEFAULT_QUOTE_SETTINGS, STARTER_TASKS } from "../settings";
 import { rankGroups, type ComponentGroup } from "../settings-query";
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
@@ -121,6 +121,8 @@ describe("the settings", () => {
       profitTargetPct: null,
       labourCostCents: null,
       taskHours: { zone: null, grille: null, metre: null, visit: null },
+      /* words, not figures: the basics every job starts with (Isaac, 10 Oct) */
+      starterTasks: STARTER_TASKS,
       preferred: {},
     });
     expect(normaliseQuoteSettings({ unit_markup_pct: null, material_markup_pct: "" })).toMatchObject({ unitMarkupPct: null, materialMarkupPct: null });
@@ -150,11 +152,25 @@ describe("the settings", () => {
       profitTargetPct: null,
       labourCostCents: null,
       taskHours: { zone: null, grille: null, metre: null, visit: null },
+      starterTasks: STARTER_TASKS,
       preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: 20 } },
     });
     expect(normaliseQuoteSettings({ charge_out_cents: "16500" }).chargeOutCents).toBe(16500);
     expect(normaliseQuoteSettings({ charge_out_cents: 0 }).chargeOutCents).toBeNull();
     expect(quoteSettingsRow(s).preferred).toEqual({ pair_coil_14_12: { supplier_key: "aad", code: "PC1412", roll_m: 20 } });
+  });
+});
+
+describe("what every job starts with (Isaac, 2026-10-10)", () => {
+  it("is the starter set until the business saves its own; an empty list is none", () => {
+    expect(STARTER_TASKS.map((t) => [t.when, t.photos])).toEqual([["first", true], ["every", false], ["last", true]]);
+    expect(starterTasksOf(null)).toEqual(STARTER_TASKS);
+    expect(starterTasksOf([])).toEqual([]);
+    expect(starterTasksOf([{ name: "  Check the  switchboard ", when: "first" }, { name: "", when: "last" }, { name: "Sweep", when: "sometimes", photos: "yes" }])).toEqual([
+      { name: "Check the switchboard", when: "first", photos: false },
+      { name: "Sweep", when: "every", photos: false },
+    ]);
+    expect(quoteSettingsRow(normaliseQuoteSettings({ starter_tasks: [] })).starter_tasks).toEqual([]);
   });
 });
 

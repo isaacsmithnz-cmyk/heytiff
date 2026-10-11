@@ -1,5 +1,5 @@
 import { normaliseDraft } from "@/lib/quotes/proposal";
-import { parseTasks, plannedVisits, tasksFromQuote, tasksPrompt, unitTaskName, unitsOf, TASKS_SYSTEM } from "../task-plan";
+import { parseTasks, plannedVisits, starterTasksFor, tasksFromQuote, tasksPrompt, unitTaskName, unitsOf, withStarters, TASKS_SYSTEM } from "../task-plan";
 
 /* Isaac, 2026-10-06: "create a task list from the TIFF quote… install
    living room unit, install kitchen unit, complete pipe work, take photos of
@@ -160,5 +160,42 @@ describe("the quote's own tasks, straight onto the job (slice 8.2)", () => {
 
   it("a quote with no tasks hands over none", () => {
     expect(tasksFromQuote([{ stage: "Install", people: 2, days: 1, tasks: [] }], unitsOf(option))).toEqual([]);
+  });
+});
+
+describe("the business's starter tasks on a new job (Isaac, 2026-10-10)", () => {
+  const starters = [
+    { name: "Photos of any existing damage before we start", when: "first" as const, photos: true },
+    { name: "Protect floors and walls", when: "every" as const, photos: false },
+    { name: "Photos of the finished work", when: "last" as const, photos: true },
+  ];
+  const visits = plannedVisits([{ stage: "Rough-in", people: 2, days: 2 }, { stage: "Install", people: 2, days: 1 }]);
+
+  it("puts the first visit's on visit 1, an every-visit one on each, the last visit's on the last, each in its visit's stage", () => {
+    expect(starterTasksFor(starters, visits).map((t) => [t.name, t.kind, t.visit, t.stage])).toEqual([
+      ["Photos of any existing damage before we start", "photos", 1, "Rough-in"],
+      ["Protect floors and walls", "tick", 1, "Rough-in"],
+      ["Protect floors and walls", "tick", 2, "Rough-in"],
+      ["Protect floors and walls", "tick", 3, "Install"],
+      ["Photos of the finished work", "photos", 3, "Install"],
+    ]);
+  });
+
+  it("with no visits planned, puts each on no visit, once", () => {
+    expect(starterTasksFor(starters, []).map((t) => [t.name, t.visit])).toEqual([
+      ["Photos of any existing damage before we start", null],
+      ["Protect floors and walls", null],
+      ["Photos of the finished work", null],
+    ]);
+  });
+
+  it("orders them around the quote's: first, every visit's, the quote's, last", () => {
+    const quote = tasksFromQuote([{ stage: "Install", people: 2, days: 1, tasks: [{ task: "Commission", hours: 3 }] }], []);
+    expect(withStarters(quote, starters, visits.slice(0, 1)).map((t) => [t.name, t.sort])).toEqual([
+      ["Photos of any existing damage before we start", 0],
+      ["Protect floors and walls", 1],
+      ["Commission", 2],
+      ["Photos of the finished work", 3],
+    ]);
   });
 });

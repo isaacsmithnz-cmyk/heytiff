@@ -20,9 +20,10 @@ import { andList } from "@/lib/swms/library";
    which carry to the first visit still to come. Nothing is rewritten to
    move a task; where it shows is worked out here, from what happened. Pure. */
 
-export const TASK_KINDS = ["tick", "progress", "unit"] as const;
+export const TASK_KINDS = ["tick", "progress", "unit", "photos"] as const;
 /** tick: done or not. progress: how far, with a note, over visits. unit: a
-    unit to put in, with its photos and its plate read. */
+    unit to put in, with its photos and its plate read. photos: done by
+    taking photos (a starter task: the damage before, the work after). */
 export type TaskKind = (typeof TASK_KINDS)[number];
 
 /** The quote's unit a unit task is for, as it stood when the task was made. */

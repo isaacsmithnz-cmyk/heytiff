@@ -109,6 +109,11 @@ describe("an edit as the browser sent it", () => {
 });
 
 describe("making the tasks from the quote", () => {
+  /* a business that has taken its starter tasks off: only the quote's */
+  beforeEach(() => {
+    tables.quote_settings = { one: { starter_tasks: [] } };
+  });
+
   it("writes Tiff's list onto the job, each unit with its task, planned on the quote's visits", async () => {
     const { client, create } = clientSaying({
       tasks: [
@@ -149,6 +154,21 @@ describe("making the tasks from the quote", () => {
       ["Commission", "Install", null, 4, "quote"],
       /* the unit keeps its own task, for its photos and plate */
       ["Hang the indoor unit", "Install", null, null, "quote"],
+    ]);
+  });
+
+  it("puts the business's starter tasks around the quote's: the first visit's, every visit's, the last visit's", async () => {
+    tables.quote_settings = { one: { starter_tasks: null } };
+    const { client } = clientSaying({ tasks: [{ name: "Hang the Hallway unit", stage: "Install", kind: "unit", unit: 1, visit: 1 }] });
+    expect(await makeTasksFromQuote("org-1", "user-1", "job-1", { client })).toEqual({ ok: true, made: 5 });
+    const insert = calls.find((c) => c.table === "job_tasks" && c.op === "insert")!.row as { name: string; kind: string; visit: number | null; sort: number }[];
+    /* the quote plans two days of install: two visits */
+    expect(insert.map((r) => [r.name, r.kind, r.visit, r.sort])).toEqual([
+      ["Photos of any existing damage before we start", "photos", 1, 0],
+      ["Protect floors and walls", "tick", 1, 1],
+      ["Protect floors and walls", "tick", 2, 2],
+      ["Hang the Hallway unit", "unit", 1, 3],
+      ["Photos of the finished work", "photos", 2, 4],
     ]);
   });
 

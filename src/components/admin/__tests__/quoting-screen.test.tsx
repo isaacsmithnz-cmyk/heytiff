@@ -118,3 +118,28 @@ it("saves the business's task hours, each a check beside a quote's labour", asyn
   });
   expect(saveQuoteSettingsMock).toHaveBeenCalledWith(expect.objectContaining({ taskHours: { zone: null, grille: 1.5, metre: null, visit: null } }));
 });
+
+/* Isaac, 2026-10-10: "the tasks can be auto-populated for basic things, so
+   protection, check site for damages that we could be blamed for" */
+it("shows the starter tasks every job starts with, and saves the business's own", async () => {
+  saveQuoteSettingsMock.mockResolvedValueOnce({ ok: true, settings: DEFAULT_QUOTE_SETTINGS });
+  render(<QuotingScreen initial={DEFAULT_QUOTE_SETTINGS} components={[]} ranges={[]} calc={null} />);
+  expect(screen.getByRole("heading", { name: "Every job starts with" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Starter task 1")).toHaveValue("Photos of any existing damage before we start");
+  fireEvent.click(screen.getByRole("button", { name: "Take Protect floors and walls off" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add a task" }));
+  fireEvent.change(screen.getByLabelText("Starter task 3"), { target: { value: "Check the switchboard" } });
+  fireEvent.change(screen.getByLabelText("When Check the switchboard is done"), { target: { value: "first" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Save starter tasks" }));
+  });
+  expect(saveQuoteSettingsMock).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      starterTasks: [
+        { name: "Photos of any existing damage before we start", when: "first", photos: true },
+        { name: "Photos of the finished work", when: "last", photos: true },
+        { name: "Check the switchboard", when: "first", photos: false },
+      ],
+    })
+  );
+});

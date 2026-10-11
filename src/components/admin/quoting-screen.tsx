@@ -18,12 +18,18 @@ import {
   MAX_DAY_HOURS,
   MAX_MARKUP_PCT,
   MAX_PROFIT_TARGET_PCT,
+  MAX_STARTERS,
+  MAX_STARTER_NAME,
   MAX_TASK_HOURS,
+  STARTER_WHEN,
+  STARTER_WHENS,
   TASK_KEYS,
   TASKS,
   USUAL_LAYOUT_WORDS,
   type AllowanceKey,
   type QuoteSettings,
+  type StarterTask,
+  type StarterWhen,
   type TaskKey,
 } from "@/lib/quotes/settings";
 import { orgDayOf, rateFromWords, type CalcDay } from "@/lib/quotes/org-day";
@@ -414,6 +420,13 @@ export function QuotingScreen({
               onSave={(taskHours) => void save({ ...saved, taskHours }, "Task hours saved")}
             />
 
+            <StartersGroup
+              key={JSON.stringify(saved.starterTasks)}
+              saved={saved.starterTasks}
+              busy={busy}
+              onSave={(starterTasks) => void save({ ...saved, starterTasks }, "Starter tasks saved")}
+            />
+
             <section className="qs-group">
               <h2 className="qs-h">Ductwork, when the brief doesn&apos;t say</h2>
               <div className="qs-fields">
@@ -591,6 +604,58 @@ function TaskHoursGroup({
       <div className="wb2-jqacts">
         <button type="button" className="pbtn primary" disabled={busy || !changed || !valid} onClick={() => onSave(next)}>
           Save task hours
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** WHAT EVERY JOB STARTS WITH (Isaac, 2026-10-10: "the tasks can be
+    auto-populated for basic things, so protection, check site for damages
+    that we could be blamed for"): the business's own list, on each new
+    job's visits around the quote's tasks. */
+function StartersGroup({ saved, busy, onSave }: { saved: StarterTask[]; busy: boolean; onSave: (t: StarterTask[]) => void }) {
+  const [rows, setRows] = useState<StarterTask[]>(saved);
+  const next = rows.map((r) => ({ ...r, name: r.name.replace(/\s+/g, " ").trim() })).filter((r) => r.name);
+  const changed = JSON.stringify(next) !== JSON.stringify(saved);
+  const set = (i: number, patch: Partial<StarterTask>) => setRows((cur) => cur.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  return (
+    <section className="qs-group">
+      <h2 className="qs-h">Every job starts with</h2>
+      <ul className="qs-starters">
+        {rows.map((r, i) => (
+          <li key={i}>
+            <input
+              className="wb2-fi"
+              value={r.name}
+              maxLength={MAX_STARTER_NAME}
+              disabled={busy}
+              aria-label={`Starter task ${i + 1}`}
+              onChange={(e) => set(i, { name: e.target.value })}
+            />
+            <select className="wb2-fi" value={r.when} disabled={busy} aria-label={`When ${r.name || `starter task ${i + 1}`} is done`} onChange={(e) => set(i, { when: e.target.value as StarterWhen })}>
+              {STARTER_WHENS.map((w) => (
+                <option key={w} value={w}>
+                  {STARTER_WHEN[w]}
+                </option>
+              ))}
+            </select>
+            <label className="qs-check">
+              <input type="checkbox" checked={r.photos} disabled={busy} onChange={(e) => set(i, { photos: e.target.checked })} />
+              <span>Done with photos</span>
+            </label>
+            <button type="button" className="ql-x" aria-label={`Take ${r.name || `starter task ${i + 1}`} off`} disabled={busy} onClick={() => setRows((cur) => cur.filter((_, j) => j !== i))}>
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="wb2-jqacts">
+        <button type="button" className="pbtn ghost" disabled={busy || rows.length >= MAX_STARTERS} onClick={() => setRows((cur) => [...cur, { name: "", when: "every", photos: false }])}>
+          Add a task
+        </button>
+        <button type="button" className="pbtn primary" disabled={busy || !changed} onClick={() => onSave(next)}>
+          Save starter tasks
         </button>
       </div>
     </section>

@@ -80,11 +80,11 @@ const hWords = (h: number) => `${Math.round(h * 100) / 100} h`;
 /** the task a drag carries */
 const DRAG = "application/x-heytiff-task";
 
-/** What a unit task's line says of its photos. */
+/** What a unit task's or a photos task's line says of its photos. */
 function photoWords(task: JobTask, photos: readonly TaskPhoto[]): string | null {
-  if (task.kind !== "unit") return null;
+  if (task.kind !== "unit" && task.kind !== "photos") return null;
   const n = photos.filter((p) => p.taskId === task.id).length;
-  if (n === 0) return "Unit and plate photos";
+  if (n === 0) return task.kind === "photos" ? "Photos" : "Unit and plate photos";
   return `${n} photo${n === 1 ? "" : "s"}${task.serial ? ", serial read" : ""}`;
 }
 
@@ -849,6 +849,7 @@ function TaskDetail({
       </div>
 
       {task.kind === "unit" && <UnitPhotos job={job} task={task} photos={photos} saving={saving} onEdit={onEdit} />}
+      {task.kind === "photos" && <TaskShots job={job} task={task} photos={photos} saving={saving} onEdit={onEdit} />}
 
       {task.kind === "progress" && (
         <div className="jcl-tprog">
@@ -962,6 +963,75 @@ function TaskDetail({
    unit, and serial numbers etc. can be read from there using photos"): the
    unit in place and its rating plate, whose model and serial are read,
    checked against the quote, and go on the certificate. */
+/** A task done by taking photos (a starter: the damage before, the work
+    after): what's been taken, and another. */
+function TaskShots({
+  job,
+  task,
+  photos,
+  saving,
+  onEdit,
+}: {
+  job: string;
+  task: JobTask;
+  photos: readonly TaskPhoto[];
+  saving: boolean;
+  onEdit: (e: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const take = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    const up = await fileOnJob(file, job);
+    if (up.ok) await onEdit({ kind: "photo", id: task.id, documentId: up.documentId, role: "other" });
+    else setError(up.error);
+    setBusy(false);
+  };
+  return (
+    <div className="jcl-tunit">
+      {photos.length > 0 && (
+        <div className="jcl-tshots">
+          {photos.map((p) => (
+            <figure key={p.id}>
+              {p.url ? (
+                <a href={p.url} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a signed link to our own bucket */}
+                  <img src={p.url} alt={ROLE_WORDS[p.role]} />
+                </a>
+              ) : (
+                <span className="jcl-tshot-gone">No longer here</span>
+              )}
+            </figure>
+          ))}
+        </div>
+      )}
+      <div className="wb2-jqacts">
+        {busy ? (
+          <Waiting note="Adding the photo" />
+        ) : (
+          <label className={`pbtn ${photos.length ? "ghost" : "primary"} sm jcl-tfile`}>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="sr-only"
+              disabled={saving}
+              onChange={(e) => {
+                void take(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+            {photos.length ? "Another photo" : "Take a photo"}
+          </label>
+        )}
+      </div>
+      {error && <p className="wb2-sherr">{error}</p>}
+    </div>
+  );
+}
+
 function UnitPhotos({
   job,
   task,

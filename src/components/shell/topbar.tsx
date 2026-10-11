@@ -10,6 +10,13 @@ import { TiffButton } from "@/components/notes/tiff-button";
 import type { ShellUser } from "./sidebar";
 import { useCommandPalette } from "./command-palette-context";
 
+/** What the search finds, for this viewer, in a few words. */
+function searchSaid(caps: ShellUser["caps"]): string {
+  if (caps.includes("workboard")) return "Find a job, client or screen…";
+  if (caps.includes("team")) return "Find a person or screen…";
+  return "Jump to a screen…";
+}
+
 export function Topbar({ user, today }: { user: ShellUser; today: string }) {
   /* The opener comes from context, not a prop: this component is rendered as a
      SERVER slot (it needs the viewer's name and role), and a server slot can't
@@ -48,12 +55,12 @@ export function Topbar({ user, today }: { user: ShellUser; today: string }) {
           <Icon name="search" size={18} />
         </span>
         {/* SAY WHAT IT DOES. This read "Search workspaces, tools, or ask Tiff"
-            and promised three things it has never done: there are no
-            workspaces in it (that word means the org), no way to ask Tiff from
-            here, and what it finds is screens — not tools, not content inside
-            them. The palette it opens said something different again. Both now
-            say the same true sentence. */}
-        <div className="sf">Jump to a screen…</div>
+            and promised three things it did not do. It then said "Jump to a
+            screen…", which was true until the palette learned to find jobs,
+            clients and people, open a job where you are, and hand your words
+            to Tiff. It says what it finds for this viewer, as the palette's
+            own box does. */}
+        <div className="sf">{searchSaid(user.caps)}</div>
         <span className="kbd">
           <Icon name="command" size={10} /> K
         </span>

@@ -41,6 +41,9 @@ export type RecordsApi = {
   open: (ref: RecordRef, opts?: OpenRecordOptions) => void;
   /** True inside a record host. A door outside one falls back to a link. */
   hosted: boolean;
+  /** Let every card go, the dock's and the recent list with them. Switching
+      workspace calls it: one workspace's jobs never wait in another's. */
+  forget?: () => void;
 };
 
 export const RecordsContext = createContext<RecordsApi | null>(null);
@@ -51,6 +54,12 @@ export const RecordsContext = createContext<RecordsApi | null>(null);
 
 /** How many cards wait in the dock at once. */
 export const DOCK_MAX = 3;
+
+/** How many jobs the palette lists as recent. */
+export const RECENT_MAX = 5;
+
+/** A job opened lately, as the palette lists it. */
+export type RecentRecord = { id: string; number: string | null; clientName: string | null };
 
 export type Win = {
   key: string;
@@ -89,6 +98,9 @@ export type WindowsApi = {
   /** The job after (1) or before (-1) this card's in the list it was opened
       from; null at either end, or with no list. */
   stepOf: (key: string, by: 1 | -1) => string | null;
+  /** The jobs opened lately, newest first, for the palette. Kept for the
+      visit only: a reload starts it again. */
+  recent: readonly RecentRecord[];
   /** Open that job in this card's place. */
   step: (key: string, by: 1 | -1) => void;
   toast: (words: string) => void;

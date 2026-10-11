@@ -9,16 +9,18 @@ import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { encodeRecord, openParamOf, recordKey, withOpenParam, type RecordRef } from "@/lib/records/ref";
 import {
   DOCK_MAX,
+  RECENT_MAX,
   RecordsContext,
   WindowsContext,
   type OpenRecordOptions,
   type RecordsApi,
+  type RecentRecord,
   type Win,
   type WindowsApi,
 } from "./records-context";
 
 export { DOCK_MAX, WindowsContext, useRecords } from "./records-context";
-export type { OpenRecordOptions, RecordsApi, Win, WindowsApi } from "./records-context";
+export type { OpenRecordOptions, RecentRecord, RecordsApi, Win, WindowsApi } from "./records-context";
 
 /* THE RECORD HOST — one place, app-wide, where a record opens.
 
@@ -122,6 +124,7 @@ function RecordsCore({
   syncUrl: boolean;
 }) {
   const [windows, setWindows] = useState<Win[]>([]);
+  const [recent, setRecent] = useState<RecentRecord[]>([]);
   const { toasts, toast, dismiss: dismissToast } = useBoardToasts();
   /* THE LAST ASK WINS. A record asked for by id waits on the mirror; a
      second ask, or a close, while it waits makes that answer stale, and a
@@ -207,6 +210,14 @@ function RecordsCore({
             : [...ws.filter((w) => w.aside), win];
         });
         if (address) pushAddress(ref);
+        const shows = row ?? live.current.find((w) => w.key === key)?.row;
+        if (shows)
+          setRecent((rs) =>
+            [{ id: ref.id, number: shows.number, clientName: shows.clientName }, ...rs.filter((r) => r.id !== ref.id)].slice(
+              0,
+              RECENT_MAX,
+            ),
+          );
       };
       /* A card in the dock comes back as it was left, unless the door
          brought word of its own (the row, or what it came to book). */
@@ -327,7 +338,16 @@ function RecordsCore({
     return () => window.removeEventListener("popstate", onPop);
   }, [syncUrl, openRef]);
 
-  const api = useMemo<RecordsApi>(() => ({ hosted: true, open: (ref, opts) => openRef(ref, opts) }), [openRef]);
+  const forget = useCallback(() => {
+    asked.current += 1;
+    setWindows([]);
+    setRecent([]);
+  }, []);
+
+  const api = useMemo<RecordsApi>(
+    () => ({ hosted: true, open: (ref, opts) => openRef(ref, opts), forget }),
+    [openRef, forget],
+  );
   const windowsApi = useMemo<WindowsApi>(
     () => ({
       windows: shown,
@@ -338,9 +358,10 @@ function RecordsCore({
       restore,
       stepOf,
       step,
+      recent,
       toast: (m: string) => toast(m),
     }),
-    [shown, syncUrl, close, dismiss, setAside, restore, stepOf, step, toast],
+    [shown, syncUrl, close, dismiss, setAside, restore, stepOf, step, recent, toast],
   );
 
   return (

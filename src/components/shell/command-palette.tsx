@@ -1,11 +1,14 @@
 "use client";
 
 import * as links from "@/lib/shell/links";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useCommandPalette } from "./command-palette-context";
-import { useRecords } from "@/components/records/records-context";
+import { WindowsContext, useRecords, type RecentRecord } from "@/components/records/records-context";
+import { useTiff } from "@/components/tiff/modal/tiff-context";
+import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { OverlayWhileOpen } from "@/components/overlay/use-overlay";
 import { Icon } from "./icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
@@ -35,8 +38,13 @@ const WORK_SEARCH_DELAY_MS = 250;
 
 /** One list, top to bottom: the arrow keys walk every group alike. A photo
     is the one row that goes nowhere — it opens over the screen you are on —
-    so it carries its place among the photos instead of an address. */
+    so it carries its place among the photos instead of an address. A verb
+    is something to do to the job open under the palette; a recent job is
+    one opened lately; the last row hands the words to Tiff. */
 type Row =
+  | { kind: "verb"; key: string; href: null; label: string; icon: string; keys?: string; act: () => void }
+  | { kind: "recent"; key: string; href: string; recent: RecentRecord }
+  | { kind: "tiff"; key: string; href: null; words: string }
   | { kind: "screen"; key: string; href: string; screen: NavItem }
   | { kind: "staff"; key: string; href: string; person: PaletteStaff }
   | { kind: "client"; key: string; href: string; client: PaletteClient }
@@ -48,6 +56,9 @@ type Row =
    the arrow keys. One word, two meanings, six inches apart. These name what
    the rows ARE; the jobs are ServiceM8's, which is whose numbers they carry. */
 const GROUP: { [K in Row["kind"]]: string } = {
+  verb: "This job",
+  recent: "Recent",
+  tiff: "Tiff",
   screen: "Screens",
   staff: "Staff",
   client: "Clients",
@@ -99,6 +110,7 @@ export function CommandPalette({
   const { isOpen: open, close: onClose } = useCommandPalette();
   const router = useRouter();
   const records = useRecords();
+  const tiff = useTiff();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -141,11 +153,61 @@ export function CommandPalette({
     );
   }, [query, role, caps]);
 
+  /* THE JOB UNDER THE PALETTE. Opened over a job card, the palette leads
+     with what can be done to that job: the card's own Set aside and Next
+     job, its link to send someone, and the job in ServiceM8. Typing narrows
+     them like everything else. */
+  const windows = useContext(WindowsContext);
+  const front = windows?.windows.find((w) => !w.aside) ?? null;
+  const verbs = useMemo<Row[]>(() => {
+    if (!windows || !front) return [];
+    const verb = (key: string, label: string, icon: string, act: () => void, keys?: string): Row => ({
+      kind: "verb",
+      key: `verb:${key}`,
+      href: null,
+      label,
+      icon,
+      act,
+      ...(keys ? { keys } : {}),
+    });
+    const sm8 = sm8JobUrl(front.ref.id);
+    const all = [
+      ...(windows.docked ? [verb("aside", "Set aside", "minus", () => windows.setAside(front.key))] : []),
+      ...(windows.stepOf(front.key, 1) ? [verb("next", "Next job", "chevR", () => windows.step(front.key, 1), "J")] : []),
+      verb("link", "Copy the link to this job", "send", () => {
+        const link = `${window.location.origin}${links.jobHref(front.ref.id)}`;
+        void (navigator.clipboard?.writeText(link) ?? Promise.reject()).then(
+          () => windows.toast("Link copied."),
+          () => windows.toast("Could not copy the link"),
+        );
+      }),
+      ...(sm8 ? [verb("sm8", "Open in ServiceM8", "servicem8", () => window.open(sm8, "_blank", "noopener"))] : []),
+    ];
+    const q = query.trim().toLowerCase();
+    return q ? all.filter((v) => v.kind === "verb" && v.label.toLowerCase().includes(q)) : all;
+  }, [windows, front, query]);
+
+  /* RECENT: the jobs opened lately, while nothing is typed — the way back
+     to the one you had a minute ago. */
+  const recents = useMemo<Row[]>(
+    () =>
+      query.trim() || !windows
+        ? []
+        : windows.recent
+            .filter((r) => r.id !== front?.ref.id)
+            .map((r): Row => ({ kind: "recent", key: `recent:${r.id}`, href: links.jobHref(r.id), recent: r })),
+    [query, windows, front],
+  );
+
   /* Screens first — the palette's first job is still getting about — then
      the people, then the work from the broadest answer to the narrowest: a
-     client, their projects, the jobs. */
+     client, their projects, the jobs. Under all of it, the words as they
+     stand, for Tiff. */
+  const words = query.trim();
   const rows = useMemo<Row[]>(
     () => [
+      ...verbs,
+      ...recents,
       ...screens.map((s): Row => ({ kind: "screen", key: `screen:${s.key}`, href: s.href, screen: s })),
       ...finds.staff.map(
         (p): Row => ({ kind: "staff", key: `staff:${p.id}`, href: staffHref(p), person: p })
@@ -160,8 +222,9 @@ export function CommandPalette({
       ...finds.photos.map(
         (h, at): Row => ({ kind: "photo", key: `photo:${h.remoteId}`, href: null, photo: h, at })
       ),
+      ...(words ? [{ kind: "tiff", key: "tiff", href: null, words } satisfies Row] : []),
     ],
-    [screens, finds]
+    [verbs, recents, screens, finds, words]
   );
 
   /* THE PHOTO BEING READ, over whatever screen the palette was opened on. A
@@ -268,7 +331,16 @@ export function CommandPalette({
   const choose = useCallback(
     (row: Row) => {
       onClose();
-      if (row.kind === "photo") {
+      const searchbtn = document.querySelector<HTMLElement>(".topbar .searchbtn");
+      if (row.kind === "verb") {
+        row.act();
+      } else if (row.kind === "recent") {
+        records.open({ kind: "job", id: row.recent.id }, { from: searchbtn });
+      } else if (row.kind === "tiff") {
+        /* The words go to Tiff as the first thing said, the way "Sort it
+           out" hands over what was typed in a box. */
+        tiff.open({ from: searchbtn ?? document.body, words: row.words });
+      } else if (row.kind === "photo") {
         setStars(new Set(finds.photos.filter((h) => h.starred).map((h) => h.remoteId)));
         setViewing({ items: finds.photos, index: row.at });
       } else if (row.kind === "job") {
@@ -280,7 +352,7 @@ export function CommandPalette({
         records.open(
           { kind: "job", id: row.job.remoteId },
           {
-            from: document.querySelector<HTMLElement>(".topbar .searchbtn"),
+            from: searchbtn,
             ...(jobs.length > 1 ? { list: jobs } : {}),
           }
         );
@@ -288,7 +360,7 @@ export function CommandPalette({
         router.push(row.href);
       }
     },
-    [onClose, router, records, finds]
+    [onClose, router, records, tiff, finds]
   );
 
   useEffect(() => {
@@ -318,13 +390,30 @@ export function CommandPalette({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, rows, sel, onClose, choose]);
 
+  /* The rows in their groups, each group a run of one kind, so a screen
+     reader hears which group a row is in. The index is the row's place in
+     the whole list, which is what the arrow keys walk. */
+  const groups = rows.reduce<{ kind: Row["kind"]; at: number; rows: Row[] }[]>((gs, r, i) => {
+    const last = gs[gs.length - 1];
+    if (last && last.kind === r.kind) last.rows.push(r);
+    else gs.push({ kind: r.kind, at: i, rows: [r] });
+    return gs;
+  }, []);
+  const optionId = (i: number) => `fg-cmd-o-${i}`;
+
   return (
     <>
-    <div className={`fg-cmd${open ? " open" : ""}`} id="fg-cmd">
+    {open &&
+      createPortal(
+        /* OVER EVERYTHING WHILE IT IS OPEN, a job card included: drawn at the
+           end of <body> when it is asked for, in the frame's own dress, so ⌘K
+           over a card lands on top of it rather than under it. */
+        <div className="fg" style={{ display: "contents" }}>
+    <div className="fg-cmd open" id="fg-cmd">
       <div className="ov" onClick={onClose} />
       {/* Escape closes the palette, and only the palette, even over a job
           card (the overlay stack). Tab stays inside it. */}
-      {open && <OverlayWhileOpen of={boxRef} onEscape={onClose} />}
+      <OverlayWhileOpen of={boxRef} onEscape={onClose} />
       <div className="box" ref={boxRef}>
         <div className="cin">
           <span className="ci">
@@ -337,15 +426,21 @@ export function CommandPalette({
             placeholder={asksServer ? `Search ${reachSaid}…` : "Jump to a screen…"}
             aria-label={asksServer ? `Search ${reachSaid}` : "Jump to a screen"}
             autoComplete="off"
+            role="combobox"
+            aria-expanded={rows.length > 0}
+            aria-controls="fg-cmd-list"
+            aria-autocomplete="list"
+            aria-activedescendant={rows.length ? optionId(sel) : undefined}
           />
           <kbd className="esc">ESC</kbd>
         </div>
 
-        <div className="clist no-sb" id="fg-cmd-list" ref={listRef}>
-          {rows.length === 0 ? (
-            /* Says what it is doing while the work is still being asked
-               for — never "no match" before it has had its say. */
-            <div className="cempty">
+        <div className="clist no-sb" id="fg-cmd-list" ref={listRef} role="listbox" aria-label="Found">
+          {/* Says what it is doing while the work is still being asked
+              for — never "no match" before it has had its say. Asking Tiff
+              is offered under it, so the box is never a dead end. */}
+          {rows.every((r) => r.kind === "tiff") && (
+            <div className="cempty" role="presentation">
               <b>
                 {!answered
                   ? "Searching…"
@@ -354,17 +449,60 @@ export function CommandPalette({
                     : <>No screen matches &ldquo;{query}&rdquo;</>}
               </b>
             </div>
-          ) : (
-            rows.map((r, i) => (
-              <Fragment key={r.key}>
-                {(i === 0 || rows[i - 1].kind !== r.kind) && <div className="cgl">{GROUP[r.kind]}</div>}
+          )}
+          {groups.map((g) => (
+              <div key={g.kind} className="cgroup" role="group" aria-labelledby={`fg-cmd-g-${g.kind}`}>
+                <div className="cgl" id={`fg-cmd-g-${g.kind}`}>
+                  {g.kind === "verb" && front?.row.number ? `Job ${front.row.number}` : GROUP[g.kind]}
+                </div>
+                {g.rows.map((r, j) => {
+                  const i = g.at + j;
+                  return (
                 <button
+                  key={r.key}
+                  id={optionId(i)}
+                  role="option"
+                  aria-selected={i === sel}
+                  tabIndex={-1}
                   className={`crow${i === sel ? " on" : ""}`}
                   onMouseMove={() => i !== sel && setSel(i)}
                   onClick={() => choose(r)}
                   type="button"
                 >
-                  {r.kind === "screen" ? (
+                  {r.kind === "verb" ? (
+                    <>
+                      <span className="ci2 find">
+                        <Icon name={r.icon} size={17} />
+                      </span>
+                      <span className="ck">
+                        <b>{r.label}</b>
+                      </span>
+                      {r.keys && <kbd className="ckey">{r.keys}</kbd>}
+                    </>
+                  ) : r.kind === "recent" ? (
+                    <>
+                      <span className="ci2 find">
+                        <Icon name="clock" size={17} />
+                      </span>
+                      <span className="ck">
+                        <b>
+                          {r.recent.number && <span className="cno">#{r.recent.number}</span>}
+                          {r.recent.number && " "}
+                          {r.recent.clientName ?? "Unnamed client"}
+                        </b>
+                      </span>
+                    </>
+                  ) : r.kind === "tiff" ? (
+                    <>
+                      <span className="ci2 find" aria-hidden>
+                        <TiffGlyph size={17} />
+                      </span>
+                      <span className="ck">
+                        <b>Ask Tiff</b>
+                        <em>{r.words}</em>
+                      </span>
+                    </>
+                  ) : r.kind === "screen" ? (
                     <>
                       <span className="ci2" style={{ background: `${r.screen.accent}15` }}>
                         <span style={{ color: r.screen.accent, display: "flex" }}>
@@ -452,9 +590,10 @@ export function CommandPalette({
                     <Icon name="cornerDL" size={14} />
                   </span>
                 </button>
-              </Fragment>
-            ))
-          )}
+                  );
+                })}
+              </div>
+            ))}
         </div>
 
         <div className="cfoot">
@@ -485,6 +624,9 @@ export function CommandPalette({
         </div>
       </div>
     </div>
+        </div>,
+        document.body,
+      )}
     {viewing && (
       <PalettePhotoViewer
         items={viewing.items}

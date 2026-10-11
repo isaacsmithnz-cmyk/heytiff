@@ -541,6 +541,15 @@ Every decision below is made once, here, and a guard test holds each number.
   written. Three wait at most; the oldest goes for a fourth. Next job opens
   the next one in the card's place, without stacking Back, and J and K walk
   the list while the card is in front and nothing is being typed.
+- **⌘K acts** (2026-10-11). The search box says what it finds for the
+  viewer ("Find a job, client or screen…" with the Workboard). Opened over a
+  job card, the palette comes up on top of it and leads with that job's
+  verbs under its number: Set aside, Next job with its key, Copy the link
+  to this job, Open in ServiceM8. With nothing typed it lists the jobs
+  opened lately; with words typed, the last row hands them to Tiff ("Ask
+  Tiff"), so the box is never a dead end, and "Searching…" or "Nothing
+  matches" still says where the search stands above it. A screen reader
+  hears a combobox over a list of options in named groups.
 - **One dialog is in front** (2026-10-11). Every sheet and modal says it is
   open on one stack (`components/overlay/use-overlay`), and the one opened
   last is in front. Escape closes that one and nothing under it: a claim, a

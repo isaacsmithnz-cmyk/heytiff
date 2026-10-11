@@ -10,7 +10,7 @@
    may answer; the groups run screens, clients, projects, jobs and the keys
    walk through them; and nobody without the Workboard is sent to ask. */
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useRef } from "react";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { Capability } from "@/lib/permissions";
@@ -58,7 +58,15 @@ jest.mock("../palette-photo-viewer", () => ({
 }));
 
 import { CommandPalette } from "../command-palette";
-import { RecordsContext, type RecordsApi } from "@/components/records/records-context";
+import {
+  RecordsContext,
+  WindowsContext,
+  type RecordsApi,
+  type Win,
+  type WindowsApi,
+} from "@/components/records/records-context";
+import { TiffContext, type TiffApi } from "@/components/tiff/modal/tiff-context";
+import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import type { PhotoHit } from "@/app/actions/photo-search";
 import type { PaletteFinds } from "@/app/actions/palette";
@@ -150,7 +158,7 @@ const WORKBOARD: Capability[] = ["workboard"];
 const palette = (caps: readonly Capability[] = WORKBOARD) =>
   render(<CommandPalette role="staff" caps={caps} />);
 
-const box = () => screen.getByRole("textbox");
+const box = () => screen.getByRole("combobox");
 const type = (value: string) => fireEvent.change(box(), { target: { value } });
 const press = (key: string) => fireEvent.keyDown(window, { key });
 /** Past the pause the palette waits before asking, and past the answer. */
@@ -185,7 +193,7 @@ describe("the palette finds jobs", () => {
     expect(searchPalette).toHaveBeenCalledTimes(1);
     expect(searchPalette).toHaveBeenCalledWith("288");
     expect(screen.getByText("ServiceM8 jobs")).toBeInTheDocument();
-    const row = screen.getByRole("button", { name: /#288 Kingsford Bakery/ });
+    const row = screen.getByRole("option", { name: /#288 Kingsford Bakery/ });
     expect(row).toHaveTextContent("Replace the split in the office");
     expect(row).toHaveTextContent("Completed");
 
@@ -200,7 +208,7 @@ describe("the palette finds jobs", () => {
     type("288");
     await settle();
 
-    fireEvent.click(screen.getByRole("button", { name: /#288 Kingsford Bakery/ }));
+    fireEvent.click(screen.getByRole("option", { name: /#288 Kingsford Bakery/ }));
     expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j%2Fodd%20id");
   });
 
@@ -251,8 +259,8 @@ describe("the palette finds jobs", () => {
     // the older, slower answer lands last and must not be painted
     await act(async () => first.resolve(finds({ jobs: [job({ remoteId: "j-28", jobNumber: "28" })] })));
 
-    expect(screen.getByRole("button", { name: /#288 Kingsford Bakery/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /#28 Kingsford/ })).toBeNull();
+    expect(screen.getByRole("option", { name: /#288 Kingsford Bakery/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /#28 Kingsford/ })).toBeNull();
   });
 
   it("puts the screens first and walks the keys on into the jobs", async () => {
@@ -261,8 +269,8 @@ describe("the palette finds jobs", () => {
     type("workboard");
     await settle();
 
-    const screenRow = screen.getByRole("button", { name: /^Workboard/ });
-    const jobRow = screen.getByRole("button", { name: /#2380 Kingsford Bakery/ });
+    const screenRow = screen.getByRole("option", { name: /^Workboard/ });
+    const jobRow = screen.getByRole("option", { name: /#2380 Kingsford Bakery/ });
     expect(screenRow.compareDocumentPosition(jobRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screenRow).toHaveClass("on");
 
@@ -286,7 +294,7 @@ describe("the palette finds jobs", () => {
     const { rerender } = palette();
     type("job 288");
     await settle();
-    expect(screen.getByRole("button", { name: /#288/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /#288/ })).toBeInTheDocument();
 
     isOpen = false;
     rerender(<CommandPalette role="staff" caps={WORKBOARD} />);
@@ -294,7 +302,7 @@ describe("the palette finds jobs", () => {
     rerender(<CommandPalette role="staff" caps={WORKBOARD} />);
 
     expect(box()).toHaveValue("");
-    expect(screen.queryByRole("button", { name: /#288/ })).toBeNull();
+    expect(screen.queryByRole("option", { name: /#288/ })).toBeNull();
   });
 });
 
@@ -309,11 +317,11 @@ describe("the palette finds clients and projects", () => {
 
     expect(searchPalette).toHaveBeenCalledWith("kingsford");
     const heads = [...document.querySelectorAll(".cgl")].map((h) => h.textContent);
-    expect(heads).toEqual(["Clients", "Projects", "ServiceM8 jobs"]);
-    expect(screen.getByRole("button", { name: /^Kingsford Bakery/ })).toHaveTextContent(
+    expect(heads).toEqual(["Clients", "Projects", "ServiceM8 jobs", "Tiff"]);
+    expect(screen.getByRole("option", { name: /^Kingsford Bakery/ })).toHaveTextContent(
       "12 Anzac Pde, Kingsford NSW 2032"
     );
-    const row = screen.getByRole("button", { name: /^Kingsford fitout/ });
+    const row = screen.getByRole("option", { name: /^Kingsford fitout/ });
     expect(row).toHaveTextContent("Kingsford Bakery, Kingsford");
     expect(row).toHaveTextContent("Pre-install");
   });
@@ -337,7 +345,7 @@ describe("the palette finds clients and projects", () => {
     type("fitout");
     await settle();
 
-    fireEvent.click(screen.getByRole("button", { name: /^Kingsford fitout/ }));
+    fireEvent.click(screen.getByRole("option", { name: /^Kingsford fitout/ }));
     expect(push).toHaveBeenCalledWith("/dashboard/workboard/projects/p-9");
   });
 
@@ -356,10 +364,10 @@ describe("the palette finds clients and projects", () => {
     type("tower");
     await settle();
 
-    expect(screen.getByRole("button", { name: /^Held tower/ })).toHaveTextContent("On hold");
-    expect(screen.getByRole("button", { name: /^Stuck tower/ })).toHaveTextContent("Blocked");
-    expect(screen.getByRole("button", { name: /^Finished tower/ })).toHaveTextContent("Done");
-    expect(screen.getByRole("button", { name: /^Running tower/ })).toHaveTextContent("Rough-in");
+    expect(screen.getByRole("option", { name: /^Held tower/ })).toHaveTextContent("On hold");
+    expect(screen.getByRole("option", { name: /^Stuck tower/ })).toHaveTextContent("Blocked");
+    expect(screen.getByRole("option", { name: /^Finished tower/ })).toHaveTextContent("Done");
+    expect(screen.getByRole("option", { name: /^Running tower/ })).toHaveTextContent("Rough-in");
   });
 
   it("walks the keys from a client through a project to a job", async () => {
@@ -371,7 +379,7 @@ describe("the palette finds clients and projects", () => {
     await settle();
 
     const order = ["^Kingsford Bakery", "^Kingsford fitout", "#288 Kingsford Bakery"].map((n) =>
-      screen.getByRole("button", { name: new RegExp(n) })
+      screen.getByRole("option", { name: new RegExp(n) })
     );
     expect(order[0]).toHaveClass("on");
     press("ArrowDown");
@@ -397,8 +405,8 @@ describe("the palette finds staff", () => {
     await settle();
 
     const heads = [...document.querySelectorAll(".cgl")].map((h) => h.textContent);
-    expect(heads).toEqual(["Staff", "Clients"]);
-    const row = screen.getByRole("button", { name: /Robert Smith/ });
+    expect(heads).toEqual(["Staff", "Clients", "Tiff"]);
+    const row = screen.getByRole("option", { name: /Robert Smith/ });
     expect(row).toHaveTextContent("Senior Tech");
     expect(row.querySelector(".ci2.who")).toHaveTextContent("RS");
 
@@ -419,10 +427,10 @@ describe("the palette finds staff", () => {
     type("smith");
     await settle();
 
-    expect(screen.getByRole("button", { name: /Robert Smith \(Bob\)/ })).not.toHaveTextContent(
+    expect(screen.getByRole("option", { name: /Robert Smith \(Bob\)/ })).not.toHaveTextContent(
       "Inactive"
     );
-    expect(screen.getByRole("button", { name: /Ann Smith/ })).toHaveTextContent("Inactive");
+    expect(screen.getByRole("option", { name: /Ann Smith/ })).toHaveTextContent("Inactive");
   });
 
   /* Somebody who holds the Team screen but not the Workboard still asks —
@@ -435,7 +443,7 @@ describe("the palette finds staff", () => {
     type("smith");
     await settle();
     expect(searchPalette).toHaveBeenCalledWith("smith");
-    expect(screen.getByRole("button", { name: /Robert Smith/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Robert Smith/ })).toBeInTheDocument();
   });
 
   it("names everything it reaches for someone who holds both", () => {
@@ -472,12 +480,12 @@ describe("the palette finds photos", () => {
     await settle();
 
     const heads = [...document.querySelectorAll(".cgl")].map((h) => h.textContent);
-    expect(heads).toEqual(["ServiceM8 jobs", "Photos"]);
-    const plate = screen.getByRole("button", { name: /Outdoor unit rating plate/ });
+    expect(heads).toEqual(["ServiceM8 jobs", "Photos", "Tiff"]);
+    const plate = screen.getByRole("option", { name: /Outdoor unit rating plate/ });
     expect(plate.querySelector(".ci2.shot img")).toHaveAttribute("src", "https://example.test/ph-1.jpg");
     expect(plate).toHaveTextContent("#2380, Kingsford Bakery, Thu 12 Mar");
     // a match on the words in the frame shows them, not the caption line
-    const read = screen.getAllByRole("button").find((b) => b.textContent?.includes("PUZ-M125"));
+    const read = screen.getAllByRole("option").find((b) => b.textContent?.includes("PUZ-M125"));
     expect(read).toBeDefined();
     expect(read?.querySelector(".ci2.shot img")).toBeNull();
   });
@@ -510,7 +518,7 @@ describe("the palette finds photos", () => {
     palette();
     type("plate");
     await settle();
-    fireEvent.click(screen.getByRole("button", { name: /Outdoor unit rating plate/ }));
+    fireEvent.click(screen.getByRole("option", { name: /Outdoor unit rating plate/ }));
 
     await screen.findByTestId("viewer");
     const starredLine = () => screen.getByText(/^starred:/).textContent;
@@ -591,5 +599,130 @@ describe("over a job card", () => {
     fireEvent.keyDown(box(), { key: "Escape" });
     expect(close).toHaveBeenCalledTimes(1);
     expect(cardClosed).not.toHaveBeenCalled();
+  });
+});
+
+describe("a palette that acts", () => {
+  /* ServiceM8 gives a v4 uuid, and only a uuid makes its link. */
+  const U = "0b6c4f0e-1a2b-4c3d-8e9f-0123456789ab";
+  const card: Win = {
+    key: `job.${U}`,
+    path: "/dashboard",
+    ref: { kind: "job", id: U },
+    row: { id: U, number: "4821", clientName: "Sarah Nguyen" } as AllJobRow,
+    state: null,
+    tab: undefined,
+    from: null,
+    door: null,
+    list: [U, "j-4822"],
+    aside: false,
+  };
+  const host = (over: Partial<WindowsApi> = {}): WindowsApi => ({
+    windows: [card],
+    docked: true,
+    close: jest.fn(),
+    dismiss: jest.fn(),
+    setAside: jest.fn(),
+    restore: jest.fn(),
+    stepOf: (key, by) => (key === card.key && by === 1 ? "j-4822" : null),
+    step: jest.fn(),
+    recent: [],
+    toast: jest.fn(),
+    ...over,
+  });
+  const drawWith = (windows: WindowsApi, tiff?: Partial<TiffApi>, records?: RecordsApi) =>
+    render(
+      <TiffContext.Provider value={{ open: () => false, openedBy: null, isOpen: false, landed: null, ...tiff }}>
+        <RecordsContext.Provider value={records ?? { hosted: true, open: jest.fn() }}>
+          <WindowsContext.Provider value={windows}>
+            <CommandPalette role="owner" caps={WORKBOARD} />
+          </WindowsContext.Provider>
+        </RecordsContext.Provider>
+      </TiffContext.Provider>,
+    );
+
+  it("leads with what can be done to the job open under it", () => {
+    const windows = host();
+    drawWith(windows);
+    const group = screen.getByRole("group", { name: "Job 4821" });
+    expect(within(group).getAllByRole("option").map((o) => o.textContent?.replace(/\s+/g, " ").trim())).toEqual([
+      "Set aside",
+      "Next jobJ",
+      "Copy the link to this job",
+      "Open in ServiceM8",
+    ]);
+    fireEvent.click(within(group).getByRole("option", { name: "Set aside" }));
+    expect(close).toHaveBeenCalled();
+    expect(windows.setAside).toHaveBeenCalledWith(`job.${U}`);
+  });
+
+  it("narrows the verbs as you type, and steps to the next job", () => {
+    const windows = host();
+    drawWith(windows);
+    type("next");
+    const group = screen.getByRole("group", { name: "Job 4821" });
+    expect(within(group).getAllByRole("option")).toHaveLength(1);
+    press("Enter");
+    expect(windows.step).toHaveBeenCalledWith(`job.${U}`, 1);
+  });
+
+  it("offers no Set aside where there is no dock", () => {
+    drawWith(host({ docked: false }));
+    expect(screen.queryByRole("option", { name: "Set aside" })).toBeNull();
+  });
+
+  it("lists the jobs opened lately while nothing is typed, and opens one where you are", () => {
+    const open = jest.fn();
+    drawWith(
+      host({
+        windows: [],
+        recent: [
+          { id: "j-7", number: "7", clientName: "Coogee Strata" },
+          { id: "j-8", number: null, clientName: null },
+        ],
+      }),
+      undefined,
+      { hosted: true, open },
+    );
+    const group = screen.getByRole("group", { name: "Recent" });
+    expect(within(group).getAllByRole("option").map((o) => o.textContent)).toEqual(["#7 Coogee Strata", "Unnamed client"]);
+    fireEvent.click(within(group).getByRole("option", { name: /Coogee Strata/ }));
+    expect(open).toHaveBeenCalledWith({ kind: "job", id: "j-7" }, expect.objectContaining({ from: null }));
+
+    type("coogee");
+    expect(screen.queryByRole("group", { name: "Recent" })).toBeNull();
+  });
+
+  it("hands the words to Tiff, last, whatever else is found", () => {
+    const tiffOpen = jest.fn(() => true);
+    drawWith(host({ windows: [] }), { open: tiffOpen });
+    type("what did we quote Bayview");
+    const ask = screen.getByRole("option", { name: /Ask Tiff/ });
+    expect(ask).toHaveTextContent("what did we quote Bayview");
+    fireEvent.click(ask);
+    expect(close).toHaveBeenCalled();
+    expect(tiffOpen).toHaveBeenCalledWith(expect.objectContaining({ words: "what did we quote Bayview" }));
+  });
+
+  it("is a combobox over a list of options, and says which one the keys are on", () => {
+    drawWith(host());
+    const input = box();
+    expect(input).toHaveAttribute("aria-controls", "fg-cmd-list");
+    expect(screen.getByRole("listbox")).toHaveAttribute("id", "fg-cmd-list");
+    const first = screen.getAllByRole("option")[0]!;
+    expect(input).toHaveAttribute("aria-activedescendant", first.id);
+    expect(first).toHaveAttribute("aria-selected", "true");
+    press("ArrowDown");
+    const second = screen.getAllByRole("option")[1]!;
+    expect(input).toHaveAttribute("aria-activedescendant", second.id);
+  });
+
+  it("is drawn only while it is open, at the end of the page", () => {
+    isOpen = false;
+    const { rerender } = render(<CommandPalette role="owner" caps={WORKBOARD} />);
+    expect(screen.queryByRole("combobox")).toBeNull();
+    isOpen = true;
+    rerender(<CommandPalette role="owner" caps={WORKBOARD} />);
+    expect(document.body.lastElementChild).toContainElement(box());
   });
 });

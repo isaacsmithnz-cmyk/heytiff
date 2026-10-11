@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { useContext, type ReactNode } from "react";
 import { DOCK_MAX, PageRecordsProvider, RecordsProvider, useRecords, type OpenRecordOptions } from "../record-host";
 import { RecordDock } from "../record-dock";
+import { WindowsContext } from "../records-context";
 import { RecordLink } from "../record-link";
 import { RecordWindows } from "../record-windows";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
@@ -607,3 +608,49 @@ describe("Next job", () => {
 function leave(e: MouseEvent) {
   e.preventDefault();
 }
+
+describe("what the palette reads", () => {
+  function Recent() {
+    const host = useContext(WindowsContext);
+    return <output aria-label="recent">{host?.recent.map((r) => r.number ?? r.id).join(" ") || "none"}</output>;
+  }
+  function Forget() {
+    const records = useRecords();
+    return <button onClick={() => records.forget?.()}>Switch workspace</button>;
+  }
+
+  it("keeps the jobs opened lately, newest first, once each", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Recent />
+        <Door id="j1" row={row()} label="First" />
+        <Door id="j2" row={row({ id: "j2", number: "2002" })} label="Second" />
+      </Frame>,
+    );
+    expect(screen.getByRole("status", { name: "recent" })).toHaveTextContent("none");
+    await user.click(screen.getByRole("button", { name: "First" }));
+    await user.click(screen.getByRole("button", { name: "Second" }));
+    await user.click(screen.getByRole("button", { name: "First" }));
+    expect(screen.getByRole("status", { name: "recent" })).toHaveTextContent("1042 2002");
+  });
+
+  it("lets every card go, the dock's and the recent list with them, on a switch of workspace", async () => {
+    const user = userEvent.setup();
+    render(
+      <Frame>
+        <Recent />
+        <Forget />
+        <Door id="j1" row={row()} label="First" />
+        <Door id="j2" row={row({ id: "j2", number: "2002" })} label="Second" />
+      </Frame>,
+    );
+    await user.click(screen.getByRole("button", { name: "First" }));
+    await user.click(screen.getByRole("button", { name: "Set aside" }));
+    await user.click(screen.getByRole("button", { name: "Second" }));
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+    expect(card()).toBeNull();
+    expect(dock()).toBeNull();
+    expect(screen.getByRole("status", { name: "recent" })).toHaveTextContent("none");
+  });
+});

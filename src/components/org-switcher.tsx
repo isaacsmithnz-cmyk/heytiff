@@ -2,6 +2,7 @@
 
 import { switchOrg } from "@/app/actions/switch-org";
 import { useTiff } from "@/components/tiff/modal/tiff-host";
+import { useRecords } from "@/components/records/records-context";
 
 interface Org {
   id: string;
@@ -16,13 +17,18 @@ export function OrgSwitcher({
   currentOrgId: string;
 }) {
   /* A conversation Tiff kept after moving the screen belongs to this
-     workspace; switching drops it, so its names never reach another. */
+     workspace, and so do the cards set aside and the jobs opened lately;
+     switching drops them all, so their names never reach another. */
   const tiff = useTiff();
+  const records = useRecords();
   return (
     <div className="flex flex-col items-center gap-1">
       <p className="text-xs text-zinc-400 mb-1">Switch organisation</p>
       {orgs.map((org) => (
-        <form key={org.id} action={switchOrg} onSubmit={() => tiff.forget?.()}>
+        <form key={org.id} action={switchOrg} onSubmit={() => {
+            tiff.forget?.();
+            records.forget?.();
+          }}>
           <input type="hidden" name="orgId" value={org.id} />
           <button
             type="submit"

@@ -583,9 +583,10 @@ describe("a variation to the accepted quote", () => {
     document.body.appendChild(corner);
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
       if (init?.body) posted.push(JSON.parse(init.body));
-      return { json: async () => ({ ...view([indoor, diffuser, ...varied]), accepted: [0], variations: [variation] }) };
+      return { json: async () => ({ ...view([indoor, diffuser, ...varied]), accepted: [0], variations: [variation], ...(init?.body ? { onJob: { added: 1, removed: 0 } } : {}) }) };
     });
-    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
+    const onToast = jest.fn();
+    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} onToast={onToast} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
     fireEvent.click(await screen.findByRole("tab", { name: /Variation 1/ }));
     /* one more diffuser at $12.89 + 40%, the line rounded to the cent */
     expect(screen.getByRole("tab", { name: /Variation 1/ })).toHaveTextContent("+$18.04");
@@ -607,6 +608,7 @@ describe("a variation to the accepted quote", () => {
       fireEvent.click(within(corner).getByRole("button", { name: "Mark variation 1 accepted" }));
     });
     expect(posted).toContainEqual({ job: "job-3377", op: "variation-accept", option: 1 });
+    expect(onToast).toHaveBeenCalledWith("The variation's new work is on the job's task list, and its new parts on the materials list");
     corner.remove();
   });
 });

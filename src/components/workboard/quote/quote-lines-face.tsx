@@ -416,7 +416,8 @@ export function QuoteLinesFace({
     setBusy(false);
     if (!v?.ok) return setNote(v?.reason ?? "That didn't save. Try again.");
     onPriced();
-    if (op === "variation-accept" && accepting) onToast?.("The variation's new work is on the job's task list");
+    if (op === "variation-accept" && accepting)
+      onToast?.(v.onJob?.added ? "The variation's new work is on the job's task list, and its new parts on the materials list" : "The variation's new work is on the job's task list");
   };
 
   const find = async (q: string) => {

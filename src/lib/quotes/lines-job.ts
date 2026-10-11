@@ -341,5 +341,29 @@ export function linesMaterials(lines: readonly QuoteLine[]): { name: string; sub
     .map((l) => ({ name: l.name, sub: l.code ?? "", qty: `${l.qty}${l.unit ? ` ${l.unit}` : ""}` }));
 }
 
+/** What an accepted variation puts on the job's own materials list: a part
+    it added, all of it; a part it has more of, the extra. Each is marked
+    with its variation, so it sits beside what the quote put on. A part it
+    took off or has fewer of stays where it is: a picked one is bought, and
+    a person takes off what isn't needed. */
+export function variationMaterials(base: readonly QuoteLine[], varied: readonly QuoteLine[], n: number): { name: string; sub: string; qty: string }[] {
+  const key = (l: QuoteLine) => (l.code ? `c:${l.code.toUpperCase()}` : `n:${l.name.toLowerCase()}`);
+  const parts = (ls: readonly QuoteLine[]) => ls.filter((l) => l.kind !== "labour" && l.qty > 0);
+  const had = new Map<string, number>();
+  for (const l of parts(base)) had.set(key(l), (had.get(key(l)) ?? 0) + l.qty);
+  const now = new Map<string, { line: QuoteLine; qty: number }>();
+  for (const l of parts(varied)) {
+    const was = now.get(key(l));
+    now.set(key(l), { line: was?.line ?? l, qty: (was?.qty ?? 0) + l.qty });
+  }
+  const out: { name: string; sub: string; qty: string }[] = [];
+  for (const [k, { line, qty }] of now) {
+    const extra = Math.round((qty - (had.get(k) ?? 0)) * 100) / 100;
+    if (extra <= 0) continue;
+    out.push({ name: line.name, sub: [line.code, `Variation ${n}`].filter(Boolean).join(", "), qty: `${extra}${line.unit ? ` ${line.unit}` : ""}` });
+  }
+  return out;
+}
+
 /** The labour the lines hold, in person-hours: what was priced. */
 export const linesHours = (lines: readonly QuoteLine[]) => Math.round(lines.filter((l) => l.kind === "labour").reduce((n, l) => n + l.qty, 0) * 10) / 10;

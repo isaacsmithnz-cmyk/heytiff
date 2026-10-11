@@ -83,6 +83,23 @@ export async function putAcceptedOnJob(orgId: string, userId: string, cardId: st
     const { error } = await supabaseAdmin.from("job_picklist_items").delete().eq("org_id", orgId).in("id", remove);
     if (error) return { ok: false, reason: "The job's materials couldn't be changed. Try again." };
   }
+  if (!(await addToList(orgId, userId, cardId, add))) return { ok: false, reason: "The job's materials couldn't be changed. Try again." };
+  return { ok: true, added: add.length, removed: remove.length };
+}
+
+/** AN ACCEPTED VARIATION'S PARTS (lines-job.ts variationMaterials) onto the
+    job's list, each once: accepted again, nothing goes on twice. Nothing
+    comes off. */
+export async function putVariationOnJob(orgId: string, userId: string, cardId: string, rows: readonly OptionRow[]): Promise<AcceptedOnJob> {
+  const { data } = await supabaseAdmin.from("job_picklist_items").select("name, sub").eq("org_id", orgId).eq("sm8_job_uuid", cardId).eq("kind", "material");
+  const add = rowsToAdd(rows, ((data ?? []) as { name: string; sub: string | null }[]).map((r) => ({ name: r.name, sub: r.sub ?? "" })));
+  if (!(await addToList(orgId, userId, cardId, add))) return { ok: false, reason: "The job's materials couldn't be changed. Try again." };
+  return { ok: true, added: add.length, removed: 0 };
+}
+
+/** Rows onto the end of the job's materials list; false when they couldn't go on. */
+async function addToList(orgId: string, userId: string, cardId: string, add: readonly OptionRow[]): Promise<boolean> {
+  if (add.length === 0) return true;
   const { data: tail } = await supabaseAdmin
     .from("job_picklist_items")
     .select("position")
@@ -91,21 +108,18 @@ export async function putAcceptedOnJob(orgId: string, userId: string, cardId: st
     .order("position", { ascending: false })
     .limit(1);
   const base = ((tail ?? [])[0]?.position as number | undefined) ?? -1;
-  if (add.length) {
-    const { error } = await supabaseAdmin.from("job_picklist_items").insert(
-      add.map((r, i) => ({
-        org_id: orgId,
-        sm8_job_uuid: cardId,
-        design_id: null,
-        kind: "material",
-        name: r.name.slice(0, 200),
-        sub: r.sub.slice(0, 120),
-        qty: r.qty.slice(0, 40),
-        position: base + 1 + i,
-        added_by: userId,
-      }))
-    );
-    if (error) return { ok: false, reason: "The job's materials couldn't be changed. Try again." };
-  }
-  return { ok: true, added: add.length, removed: remove.length };
+  const { error } = await supabaseAdmin.from("job_picklist_items").insert(
+    add.map((r, i) => ({
+      org_id: orgId,
+      sm8_job_uuid: cardId,
+      design_id: null,
+      kind: "material",
+      name: r.name.slice(0, 200),
+      sub: r.sub.slice(0, 120),
+      qty: r.qty.slice(0, 40),
+      position: base + 1 + i,
+      added_by: userId,
+    }))
+  );
+  return !error;
 }

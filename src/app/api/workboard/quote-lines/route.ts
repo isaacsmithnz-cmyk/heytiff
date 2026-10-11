@@ -8,14 +8,14 @@ import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
 import { readVersions } from "@/lib/quotes/quote-versions-server";
-import { stageNamed } from "@/lib/quotes/lines-job";
+import { stageNamed, variationMaterials } from "@/lib/quotes/lines-job";
 import { approvalStands } from "@/lib/quotes/lines-proposal";
 import { orgTemplates } from "@/lib/templates/query";
 import { readSuppliers } from "@/lib/quotes/price-book-server";
 import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { addEvents, readSession } from "@/lib/quotes/session/store-server";
-import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
+import { putAcceptedOnJob, putVariationOnJob } from "@/lib/quotes/accepted-materials-server";
 import { addTasksToJob, makeTasksFromQuote } from "@/lib/workboard/visit-tasks-server";
 import { variationTasks } from "@/lib/workboard/task-plan";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
@@ -243,15 +243,15 @@ export async function POST(req: Request) {
       if (!marked.ok) break;
       const now = marked.byHand.variations.find((v) => v.option === option)!;
       await mark(`Variation ${now.n} ${now[key] ? (key === "approvedAt" ? "approved" : "accepted") : key === "approvedAt" ? "no longer approved" : "no longer accepted"}`);
-      /* accepted: its new work onto the job, on no visit, for the days */
+      /* accepted: its new work onto the job, on no visit, for the days,
+         and its new parts onto the job's materials list */
       if (key === "acceptedAt" && now.acceptedAt) {
         const all = await readLines(g.orgId, jobUuid);
-        const tasks = variationTasks(
-          all.filter((l) => l.optionIndex === now.of),
-          all.filter((l) => l.optionIndex === option),
-          stageNamed
-        );
-        await addTasksToJob(g.orgId, g.userId, jobUuid, tasks).catch(() => null);
+        const base = all.filter((l) => l.optionIndex === now.of);
+        const varied = all.filter((l) => l.optionIndex === option);
+        await addTasksToJob(g.orgId, g.userId, jobUuid, variationTasks(base, varied, stageNamed)).catch(() => null);
+        const put = await putVariationOnJob(g.orgId, g.userId, jobUuid, variationMaterials(base, varied, now.n)).catch(() => null);
+        onJob = put?.ok ? { added: put.added, removed: 0 } : null;
       }
       break;
     }

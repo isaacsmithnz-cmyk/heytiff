@@ -3,7 +3,7 @@
    beside the switch. */
 import { readingFromQuote } from "@/lib/certs/from-quote";
 import type { QuoteLine } from "../lines";
-import { byHandOf, variationOf, withVariation, withVariationMark, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withLoading, withName, withProposal } from "../lines-job";
+import { byHandOf, variationMaterials, variationOf, withVariation, withVariationMark, labourTasks, labourVisits, stageNamed, linesDraft, linesHours, linesMaterials, linesUnits, toggleAccepted, withApproval, withoutApproval, withLoading, withName, withProposal } from "../lines-job";
 import type { UnitSpecs } from "../lookups";
 import { acceptedOptions } from "../proposal";
 
@@ -214,5 +214,28 @@ describe("the approval taken off for the next version", () => {
     expect(off.proposal).toMatchObject({ approvedAt: null, approvedBy: null, updatedAt: "t0" });
     expect(off.proposal!.intro).toBe(approved.proposal!.intro);
     expect(withoutApproval(bh([]))).toEqual(bh([]));
+  });
+});
+
+describe("an accepted variation's parts onto the job's materials list", () => {
+  it("puts on what it added and the extra of what it has more of, marked with its variation; nothing it has less of", () => {
+    const base = [
+      line({ id: "d", name: "Cone diffuser 200", code: "CD200", qty: 3 }),
+      line({ id: "p", name: "Pair coil 1/4 3/8", code: "PC0610", qty: 15, unit: "m" }),
+      line({ id: "i", name: "Isolator", qty: 1 }),
+      line({ id: "l", kind: "labour", name: "Install", qty: 16, unit: "h" }),
+    ];
+    const varied = [
+      line({ id: "d2", optionIndex: 1, name: "Cone diffuser 200", code: "cd200", qty: 4 }),
+      line({ id: "p2", optionIndex: 1, name: "Pair coil 1/4 3/8", code: "PC0610", qty: 12.5, unit: "m" }),
+      line({ id: "z", optionIndex: 1, name: "Zone damper 200", code: "ZD200", qty: 2 }),
+      line({ id: "w", optionIndex: 1, name: "Wall controller", qty: 1 }),
+      line({ id: "l2", optionIndex: 1, kind: "labour", name: "Install", qty: 20, unit: "h" }),
+    ];
+    expect(variationMaterials(base, varied, 1)).toEqual([
+      { name: "Cone diffuser 200", sub: "cd200, Variation 1", qty: "1" },
+      { name: "Zone damper 200", sub: "ZD200, Variation 1", qty: "2" },
+      { name: "Wall controller", sub: "Variation 1", qty: "1" },
+    ]);
   });
 });

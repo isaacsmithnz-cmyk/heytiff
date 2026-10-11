@@ -361,6 +361,23 @@ export const SESSION_TOOLS: ToolDef[] = [
     input_schema: { type: "object", properties: { line_id: { type: "string" }, what: { type: "string", description: "What to price, in a few words: \"200 mm core hole through sandstone, Sydney\"." } }, required: ["line_id", "what"], additionalProperties: false },
   },
   {
+    name: "write_up",
+    description:
+      "Write the job out, the way an estimator does on paper before pricing: what you read (the brief, the notes, the plans, each in a line), the sizing (each system's load and the unit it takes, and why), the work (system by system, what goes in and where), the visits (each stage, its crew and days), what you can't price yet, and what you're assuming. Short lines, plain words. The person sees it at the top of your panel, and you build every line from it. Write it again, whole, when the job changes.",
+    input_schema: {
+      type: "object",
+      properties: {
+        read: { type: "array", items: { type: "string" } },
+        sizing: { type: "array", items: { type: "string" } },
+        work: { type: "array", items: { type: "string" } },
+        visits: { type: "array", items: { type: "string" } },
+        unpriced: { type: "array", items: { type: "string" } },
+        assuming: { type: "array", items: { type: "string" } },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "plan_parts",
     description:
       "Before you build, say the parts of the quote you'll build, in order: each a system and a group, as the lines will carry them (\"Downstairs\" + \"Units\", \"Downstairs\" + \"Ductwork and grilles\", \"\" + \"Labour\"), with a few words on what it is. The page shows them as you work. Plan again if the plan changes.",
@@ -462,6 +479,7 @@ export const TOOL_LABELS: Record<string, string> = {
   name_option: "Named an option",
   write_proposal: "Wrote the proposal",
   plan_parts: "Planned the quote",
+  write_up: "Wrote the job out",
   research_price: "Researched a price",
   build_labour: "Worked out the labour",
   your_corrections: "Read her corrections",

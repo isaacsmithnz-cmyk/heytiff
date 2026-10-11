@@ -1,7 +1,7 @@
 import "server-only";
 import { readEngine } from "../lines-server";
 import type { ModelCall } from "./model";
-import { anthropicModel, chosenEffort, sessionModelFor } from "./model-server";
+import { anthropicModel, chosenEffort, sessionModelFor, writeUpFirst } from "./model-server";
 import { openingMessage, sessionSystemPrompt } from "./prompt";
 import { addEvents, beginTurn, endTurn, saveRound, takeAnswers } from "./store-server";
 import { SESSION_TOOLS } from "./tools";
@@ -50,7 +50,7 @@ export async function startTurn(
       return await runTurn({ messages: session.messages, summary: session.summary }, message, {
         model,
         modelName,
-        system: sessionSystemPrompt(),
+        system: sessionSystemPrompt({ writeUpFirst: writeUpFirst() }),
         tools: SESSION_TOOLS,
         effort: chosenEffort(),
         runTool: sessionTools(orgId, jobUuid),

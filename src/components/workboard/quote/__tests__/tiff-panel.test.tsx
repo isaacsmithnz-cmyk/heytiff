@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { TiffPanel } from "../tiff-panel";
 
 /* Tiff's panel on the quote (slice 5.1): off until her model is chosen;
@@ -207,4 +207,23 @@ it("shows a researched price with its page, and Use it puts it on the line (12.2
   expect(posted.at(-1)).toEqual({ job: "j", op: "use", event: 7 });
   expect(screen.getByText("On the line at $1,300 a hole")).toBeInTheDocument();
   expect(onChanged).toHaveBeenCalled();
+});
+
+it("shows the job, written out, at the top: what changed since her last one, and what's settled struck through", async () => {
+  const wrote = (id: number, writeUp: Record<string, string[]>) => ({ id, turnId: "t1", kind: "tool", author: "tiff", body: { name: "write_up", label: "Wrote the job out", said: "the job, written out", ok: true, detail: { writeUp } }, at: "2026-10-10T00:00:00Z" });
+  const first = { read: ["Luke: two ducted systems"], visits: ["Rough-in: 2 people, 3.5 days, 55 h"], unpriced: ["The sandstone core: not in your book"] };
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () =>
+    respond({ ...thread, events: [...thread.events, wrote(90, first), wrote(91, { ...first, visits: ["Rough-in: 2 people, 3.5 days, 57 h"], unpriced: [] })] })
+  );
+  render(
+    <TiffPanel job="j" onChanged={jest.fn()}>
+      {null}
+    </TiffPanel>
+  );
+  const job = within(await screen.findByRole("region", { name: "The job" }));
+  expect(job.getByText("Changed", { selector: "header em" })).toBeInTheDocument();
+  expect(job.getByText("Luke: two ducted systems")).toBeInTheDocument();
+  expect(job.getByText("Rough-in: 2 people, 3.5 days, 57 h").closest("li")).toHaveClass("changed");
+  expect(job.getByText("Rough-in: 2 people, 3.5 days, 55 h").closest("li")).toHaveClass("gone");
+  expect(job.getByText("The sandstone core: not in your book").closest("li")).toHaveClass("gone");
 });

@@ -89,7 +89,7 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
       const deps = {
         model,
         modelName,
-        system: sessionSystemPrompt(),
+        system: sessionSystemPrompt({ writeUpFirst: process.env.BENCH_WRITE_UP === "1" }),
         tools: SESSION_TOOLS,
         effort: EFFORT,
         runTool: makeTools(store),

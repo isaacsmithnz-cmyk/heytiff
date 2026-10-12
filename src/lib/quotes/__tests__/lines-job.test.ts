@@ -248,3 +248,12 @@ describe("sent to ServiceM8 as a quote (7.3)", () => {
     expect(byHandOf({ byHand: bh([]) })).not.toHaveProperty("sent");
   });
 });
+
+/* the 2026-10-12 survey: an old draft keeps four options, and a quote on its
+   lines read as one lost option 5 on (and the send threw on it) */
+it("reads every option of a quote on its lines, not an old draft's four", () => {
+  const lines = Array.from({ length: 6 }, (_, i) => line({ id: `l${i}`, optionIndex: i, name: `Unit ${i}`, kind: "unit" }));
+  const draft = linesDraft(lines, [], { ...bh([5]) }, new Map(), 8)!;
+  expect(draft.options).toHaveLength(6);
+  expect(draft.accepted).toEqual([5]);
+});

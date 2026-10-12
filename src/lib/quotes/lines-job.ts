@@ -1,5 +1,5 @@
 import { VISIT_STAGES, type Visit, type VisitStage } from "./buildup";
-import type { QuoteLine } from "./lines";
+import { MAX_OPTIONS as MAX_LINE_OPTIONS, type QuoteLine } from "./lines";
 import { proposalOf, type LinesProposal } from "./lines-proposal";
 import type { UnitSpecs } from "./lookups";
 import { normaliseDraft, type ProposalDraft, type UnitLine, type UnitRole } from "./proposal";
@@ -338,7 +338,9 @@ export function linesDraft(
       labour: visits.length ? { visits, from: "you" } : null,
     };
   });
-  return normaliseDraft({ options, accepted: byHand.accepted.filter((i) => i < count) });
+  /* every option it has, not an old draft's four: the certificate, the
+     job's tasks and the send read option 5 on too */
+  return normaliseDraft({ options, accepted: byHand.accepted.filter((i) => i < count) }, MAX_LINE_OPTIONS);
 }
 
 /** What the job's own materials list gets from one option's lines: every

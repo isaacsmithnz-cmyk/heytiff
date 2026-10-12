@@ -478,16 +478,16 @@ describe("the card is a progress line over a rail", () => {
     expect(screen.queryByRole("button", { name: /^Paid/ })).toBeNull();
   });
 
-  /* THE QUOTE IS OFFICE WORK and spends API credit on every draft: it is
-     there for whoever runs the board. For everyone else the quote steps
-     open the summary. */
-  it("opens the summary from Quoted without Workboard manage", async () => {
+  /* THE QUOTE IS EVERYONE'S ON THE WORKBOARD, its money only theirs who
+     see money (Isaac, 2026-10-12: "the quoting section should still be
+     accessible. For techs who are quoting a job"). */
+  it("opens the Quote from Quoted without Workboard manage", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await userEvent.click(screen.getByRole("button", { name: /^Quoted/ }));
-    expect(document.querySelector("#jcsec-quote")).toBeNull();
-    expect(document.querySelector("#jcsec-summary")).not.toHaveAttribute("hidden");
+    expect(document.querySelector("#jcsec-quote")).not.toHaveAttribute("hidden");
+    expect(document.querySelector("#jcsec-summary")).toHaveAttribute("hidden");
   });
 
   /* A DOOR THAT KNOWS WHAT IT CAME FOR opens the card on that face — the

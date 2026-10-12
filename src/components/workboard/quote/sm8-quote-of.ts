@@ -2,7 +2,7 @@ import { fmtAud } from "@/lib/workboard/project-money";
 import { MONEY_BASIS } from "@/lib/workboard/job-money";
 import type { FamilyMoney } from "@/lib/workboard/job-family";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
-import type { Sm8Quote } from "../board/job-quote-face";
+import type { Sm8Quote } from "../board/job-quote-card";
 
 /* SERVICEM8'S OWN QUOTE ON A JOB, as the job card and the quote page both
    show it: the PDFs it generated, the day it went, and what it came to — the

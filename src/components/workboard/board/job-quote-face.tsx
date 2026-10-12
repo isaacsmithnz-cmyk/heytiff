@@ -10,6 +10,7 @@ import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { DocRow } from "./job-documents-face";
+import type { Sm8Quote } from "./job-quote-card";
 import {
   MAX_CREW,
   MAX_UNIT_QTY,
@@ -139,18 +140,6 @@ const namedOf = (text: string) =>
   });
 const namedText = (xs: readonly { name: string; detail: string }[]) =>
   xs.map((x) => (x.detail ? `${x.name}, ${x.detail}` : x.name)).join("\n");
-
-/** ServiceM8's own quote on the job: the PDF it generated, the day it went,
-    and what it came to for a reader who sees money. */
-export type Sm8Quote = {
-  papers: JobMediaItem[];
-  sentOn: string | null;
-  /** Already worded, "$45,430 inc GST"; null without the money grant. */
-  value: string | null;
-  /** The same, as money, on the basis ServiceM8 holds it; null without the
-      money grant. */
-  quoted?: { cents: number; basis: "ex" | "inc" } | null;
-};
 
 export function JobQuoteFace({
   job,

@@ -1,5 +1,5 @@
 import type { Product } from "../families";
-import { breakerFor, cableFor, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS } from "../kits";
+import { breakerFor, cableFor, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS, stillToSize } from "../kits";
 
 /* Kits as data (slice 1.3): what a system takes to install, picked from the
    business's own book by what each part is, never by one supplier's code.
@@ -285,4 +285,10 @@ it("takes only a sane layout: duct sizes a book sells, a split into two or more,
   expect(f).toMatchObject({ takeoffs: [400, 400], fittings: [{ inMm: 400, outsMm: [300, 300], count: 2 }], reducers: [{ fromMm: 400, toMm: 300, count: 1 }], returnGrille: { w: 900, h: 550 } });
   /* none given: a kit says it needs the layout */
   expect(normaliseKitFacts({})).not.toHaveProperty("fittings");
+});
+
+it("lists what a kit left to size or price, for Tiff to settle", () => {
+  const lines = expandKit("ducted", { ...facts, outlets: 4, outletMm: 200 }, book, at);
+  expect(stillToSize(lines).map((x) => x.name)).toEqual(expect.arrayContaining(["Supply plenum", "Y branches", "Return air grille, filtered", "Return air box"]));
+  expect(stillToSize(lines).find((x) => x.name === "Y branches")!.why).toBe("Needs the layout: where the main duct splits");
 });

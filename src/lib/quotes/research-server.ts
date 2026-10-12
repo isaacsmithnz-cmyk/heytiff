@@ -9,7 +9,10 @@ import { RESEARCH_SCHEMA, researchOf, researchPrompt, searchedPages, type Resear
    that never settles can't bill for ever. Only reached with a model chosen
    for the business (tools-server.ts); a test hands it a fake `create`. */
 
-const MAX_SEARCHES = 5;
+/* enough for two or three tries at each of a few sources; the prompt says
+   how many (Isaac's production test, 2026-10-12: the recovery price ran out
+   of five searches before it found a page) */
+export const MAX_SEARCHES = 8;
 const MAX_RESUMES = 3;
 
 type Reply = { model: string; content: { type: string; [k: string]: unknown }[]; stop_reason: string | null; usage: TokenUsage & { server_tool_use?: { web_search_requests?: number } | null } };
@@ -26,7 +29,7 @@ export type ResearchRun =
   | { ok: false; reason: string; usd: number | null; model: string; searches: number };
 
 export async function runResearch(model: string, ask: ResearchAsk, create: Create = live()): Promise<ResearchRun> {
-  const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: researchPrompt(ask) }];
+  const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: researchPrompt(ask, MAX_SEARCHES) }];
   let usd: number | null = 0;
   let searches = 0;
   const pages = new Map<string, string>();

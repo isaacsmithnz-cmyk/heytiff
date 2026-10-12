@@ -40,7 +40,7 @@ export const RESEARCH_SCHEMA = {
 /** The most a researched price can be: past it, it's not one line's price. */
 const MAX_CENTS = 10_000_000;
 
-export function researchPrompt(ask: ResearchAsk): string {
+export function researchPrompt(ask: ResearchAsk, searches: number): string {
   const l = ask.line;
   return [
     "Find what an Australian air conditioning business would pay, or charge, for this, today, from the web.",
@@ -49,6 +49,7 @@ export function researchPrompt(ask: ResearchAsk): string {
     `<the-line>${l.name.slice(0, 160)}${l.qty ? `, ${l.qty}${l.unit ? ` ${l.unit}` : ""}` : ""}${l.system ? `, on the ${l.system.slice(0, 60)} part of the job` : ""}</the-line>`,
     "",
     "Search Australian sources first: suppliers' price lists, trade guides, quotes published by businesses that do the work.",
+    `You have ${searches} searches. Spend them well, and answer from what they found before they run out: a price a page gives, for work like this, is one you can stand behind.`,
     "Give ONE price, ex GST, in cents, for one of what it's priced per (a hole, each, a metre). Where the sources give a range, give the figure you'd quote at for the job as described, and say the range in the summary.",
     "The summary is two or three plain sentences: the price, the range the sources gave, and anything the job's words suggest that moves it.",
     "source_url is the one page the price rests on most, exactly as the search returned it.",

@@ -24,12 +24,14 @@ export async function startTurn(
   jobUuid: string,
   by: string,
   words: string,
-  opts: { brief?: string; model?: ModelCall; modelName?: string; noMoney?: boolean } = {}
+  /* `answered`: started by a tapped answer that leaves her work, which is in
+     the thread already and comes to her with the answers */
+  opts: { brief?: string; model?: ModelCall; modelName?: string; noMoney?: boolean; answered?: boolean } = {}
 ): Promise<Started> {
   const modelName = opts.modelName ?? sessionModelFor(orgId);
   if (!modelName) return { ok: false, reason: SESSION_OFF, status: 409 };
   const text = words.trim().slice(0, 8000);
-  if (!text && !opts.brief?.trim()) return { ok: false, reason: "Say what the job is.", status: 400 };
+  if (!text && !opts.brief?.trim() && !opts.answered) return { ok: false, reason: "Say what the job is.", status: 400 };
   if ((await readEngine(orgId, jobUuid)) !== "lines") return { ok: false, reason: "Tiff builds on the quote's lines: switch the quote to them first.", status: 409 };
 
   const begun = await beginTurn(orgId, jobUuid);
@@ -44,9 +46,10 @@ export async function startTurn(
   /* what's still open, by number, so their own words can settle it */
   const open = text ? await readOpenQuestions(orgId, session.id) : [];
   /* a person without money access: she says no prices to them (money-hidden.ts) */
-  const said = [answered, openWords(open), opts.noMoney ? NO_MONEY_WORDS : "", text].filter(Boolean).join("\n\n");
+  const goOn = opts.answered ? "Do what that answer leaves you to do." : "";
+  const said = [answered, openWords(open), opts.noMoney ? NO_MONEY_WORDS : "", text, goOn].filter(Boolean).join("\n\n");
   const message = session.messages.length === 0 ? openingMessage(opts.brief ?? "", said) : said;
-  await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job", ...(opts.brief ? { read: true } : {}) } }]);
+  if (text || opts.brief) await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job", ...(opts.brief ? { read: true } : {}) } }]);
 
   const model = opts.model ?? anthropicModel();
   const run = async () => {

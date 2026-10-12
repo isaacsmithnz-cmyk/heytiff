@@ -117,3 +117,19 @@ it("tells her the person doesn't see prices, before their words", async () => {
   expect(text).toMatch(/doesn't see prices/);
   expect(text.endsWith("Pipe run is 14 m")).toBe(true);
 });
+
+/* Isaac's production test, 2026-10-12: a tapped "Research them on the web"
+   sat until he typed; an answer that leaves her work starts her with it */
+it("starts her on a tapped answer that leaves her work, with no words of the person's", async () => {
+  beginTurn.mockResolvedValue({ ok: true, session: { ...session, messages: [{ role: "user", content: [{ type: "text", text: "Quote a split" }] }, { role: "assistant", content: [{ type: "text", text: "Done." }] }] }, turnId: "t4" });
+  takeAnswers.mockResolvedValueOnce([{ question: "Web prices or allowances?", answer: "Research them on the web" }]);
+  const model = scripted([{ content: [{ type: "text", text: "Looking." }], stopReason: "end_turn" }]);
+  expect(await startTurn("org", "job", "u1", "", { modelName: "m", model })).toMatchObject({ ok: false, reason: "Say what the job is." });
+  const started = await startTurn("org", "job", "u1", "", { modelName: "m", model, answered: true });
+  await (started as Extract<typeof started, { ok: true }>).run();
+  expect(model.calls[0]!.messages.at(-1)!.content).toEqual([
+    { type: "text", text: "They answered, and the quote was changed to match:\n- Web prices or allowances? Research them on the web\n\nDo what that answer leaves you to do." },
+  ]);
+  /* the answer is in the thread already: no second message */
+  expect(addEvents).not.toHaveBeenCalledWith("org", "s1", "t4", expect.anything());
+});

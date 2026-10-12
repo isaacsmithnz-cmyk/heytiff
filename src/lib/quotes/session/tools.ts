@@ -57,7 +57,10 @@ export type AnswerChange =
   | { op: "remove"; lineId: string }
   | { op: "add"; line: NewLine };
 
-export type Question = { question: string; why: string; topic?: string; put?: string; answers: { label: string; changes: AnswerChange[] }[] };
+/** An answer's `goOn`: picking it leaves her work to do — a price to look
+    up, a part to rebuild — so tapping it starts her turn (Isaac's production
+    test, 2026-10-12: "Research them on the web" sat until he typed). */
+export type Question = { question: string; why: string; topic?: string; put?: string; answers: { label: string; changes: AnswerChange[]; goOn?: true }[] };
 
 const SOURCES = ["said", "assumed", "unknown", "fitted"] as const;
 const KINDS = ["unit", "material", "labour"] as const;
@@ -148,7 +151,10 @@ export function questionOf(raw: unknown): Question | Err {
     .map((a) => {
       const o = obj(a);
       const label = str(o.label, 80);
-      return label ? { label, changes: (Array.isArray(o.changes) ? o.changes : []).slice(0, 10).map(changeOf).filter((c): c is AnswerChange => c != null) } : null;
+      if (!label) return null;
+      const changes = (Array.isArray(o.changes) ? o.changes : []).slice(0, 10).map(changeOf).filter((c): c is AnswerChange => c != null);
+      /* as she asks it, or as it's kept in the thread */
+      return o.go_on === true || o.goOn === true ? { label, changes, goOn: true as const } : { label, changes };
     })
     .filter((a): a is Question["answers"][number] => a != null);
   return { question, why: str(r.why, 300), topic: str(r.topic, 80), put: str(r.put, 80), answers };
@@ -438,7 +444,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "ask",
     description:
-      "Ask the business one thing you can't know and the quote needs: one question, in plain words. Up to five short answers to tap where the answer is one of a few, each carrying the line changes it makes; none for a number they'll type (a length, a distance). Ask only what changes the price or the work.",
+      "Ask the business one thing you can't know and the quote needs: one question, in plain words. Up to five short answers to tap where the answer is one of a few, each carrying the line changes it makes; none for a number they'll type (a length, a distance). Mark go_on on an answer that leaves you work to do once it's picked (look a price up, rebuild a part): tapping it starts you again. Ask only what changes the price or the work.",
     input_schema: {
       type: "object",
       properties: {
@@ -453,6 +459,7 @@ export const SESSION_TOOLS: ToolDef[] = [
             type: "object",
             properties: {
               label: { type: "string" },
+              go_on: { type: "boolean", description: "True when picking it leaves you work to do before the quote is right." },
               changes: {
                 type: "array",
                 items: {

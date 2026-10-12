@@ -85,7 +85,12 @@ export async function POST(req: Request) {
     const index = typeof body.answer === "number" ? body.answer : -1;
     const { events } = await readThread(g.orgId, target.parentRemoteId);
     const r = await answerQuestion(g.orgId, target.parentRemoteId, g.userId, event, index, events);
-    return Response.json(r, { status: r.ok ? 200 : 409 });
+    if (!r.ok) return Response.json(r, { status: 409 });
+    /* an answer that leaves her work starts her, with it */
+    if (!r.goOn) return Response.json({ ok: true });
+    const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, "", { answered: true, noMoney: !g.money });
+    if (started.ok) after(started.run);
+    return Response.json({ ok: true, working: started.ok });
   }
   /* a researched price used: read back from her saved thread, never from
      what the page sends (12.2) */

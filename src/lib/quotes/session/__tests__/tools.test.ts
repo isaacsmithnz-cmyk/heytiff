@@ -94,6 +94,12 @@ describe("what she gives, made safe", () => {
     });
     expect(q).toEqual({ question: "Single or three phase?", why: "", topic: "", put: "", answers: [{ label: "Single", changes: [] }, { label: "Three", changes: [{ op: "swap", lineId: "l1", code: "PUZ-ZM125YKA2" }] }] });
   });
+
+  it("marks an answer that leaves her work to do, as she asks it and as the thread keeps it", () => {
+    const q = questionOf({ question: "Web or allowances?", answers: [{ label: "Research them on the web", changes: [], go_on: true }, { label: "Allowances", changes: [], go_on: false }] });
+    expect(isErr(q) ? null : q.answers).toEqual([{ label: "Research them on the web", changes: [], goOn: true }, { label: "Allowances", changes: [] }]);
+    expect(isErr(q) ? null : (questionOf(q) as typeof q).answers[0]).toEqual({ label: "Research them on the web", changes: [], goOn: true });
+  });
 });
 
 describe("a price from the book, never from her", () => {

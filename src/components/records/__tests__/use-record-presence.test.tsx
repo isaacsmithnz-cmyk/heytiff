@@ -3,9 +3,10 @@ import type { RecordRef } from "@/lib/records/ref";
 
 /* WHO ELSE HAS THIS RECORD OPEN. A card joins its record's private channel
    on the workspace's own topic, says who it is, hears who else is there and
-   word when they change it, and leaves when it closes. With live records
-   off it asks for nothing. The Realtime client is a stand-in that records
-   what the card did with it. */
+   word when they change it, and leaves when it closes. Live records are on
+   unless the deployment switches them off, and then it asks for nothing.
+   The Realtime client is a stand-in that records what the card did with
+   it. */
 
 type Handler = (arg: { payload?: unknown }) => void;
 const channels: FakeChannel[] = [];
@@ -58,8 +59,10 @@ jest.mock("@/app/actions/realtime", () => ({ realtimeTicket: () => ticket() }));
 
 import * as presence from "../use-record-presence";
 
+/** On is the flag unset; off is the deployment's "0". */
 function load(live: boolean) {
-  process.env.NEXT_PUBLIC_LIVE_RECORDS = live ? "1" : "";
+  if (live) delete process.env.NEXT_PUBLIC_LIVE_RECORDS;
+  else process.env.NEXT_PUBLIC_LIVE_RECORDS = "0";
   presence.forgetLiveTicket();
   return presence;
 }
@@ -130,7 +133,7 @@ it("leaves the channel when the card closes", async () => {
   expect(removed).toContain(channels[0]);
 });
 
-it("asks for nothing while live records are off", async () => {
+it("asks for nothing while the deployment has live records switched off", async () => {
   const mod = load(false);
   render(<Card mod={mod} record={{ kind: "job", id: "j-1" }} />);
   await act(async () => {});

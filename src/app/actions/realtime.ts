@@ -8,9 +8,10 @@ import { mintRealtimeToken } from "@/lib/realtime/token";
 
    A signed-in member of a workspace gets an hour's ticket to that
    workspace's record channels, and the name the others see them by. Null
-   when live records are off, when there is no session, or when the
-   deployment has no JWT secret to sign with — a card then simply says
-   nothing about who else has it open. */
+   when the deployment has switched live records off
+   (`NEXT_PUBLIC_LIVE_RECORDS=0`), when there is no session, or when it has
+   no JWT secret to sign with — a card then simply says nothing about who
+   else has it open. */
 
 export type RealtimeTicket = {
   token: string;
@@ -20,7 +21,7 @@ export type RealtimeTicket = {
 };
 
 export async function realtimeTicket(): Promise<RealtimeTicket | null> {
-  if (process.env.NEXT_PUBLIC_LIVE_RECORDS !== "1") return null;
+  if (process.env.NEXT_PUBLIC_LIVE_RECORDS === "0") return null;
   const secret = process.env.SUPABASE_JWT_SECRET;
   if (!secret) return null;
   const session = await auth0.getSession();

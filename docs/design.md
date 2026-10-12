@@ -546,7 +546,7 @@ Every decision below is made once, here, and a guard test holds each number.
   written. Three wait at most; the oldest goes for a fourth. Next job opens
   the next one in the card's place, without stacking Back, and J and K walk
   the list while the card is in front and nothing is being typed.
-- **Who else has it open** (2026-10-11, live records, off until deployed).
+- **Who else has it open** (2026-10-11, live records, on since 2026-10-12).
   A job card says, under its chips, who else has the same job open, in
   words and the quiet colour ("Dane has this open too"; "Dane and Mia…";
   "Dane, Mia and 2 more…"). It is a fact, not a state: no dot, no chip, no

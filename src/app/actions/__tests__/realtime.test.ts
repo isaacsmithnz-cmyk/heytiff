@@ -1,6 +1,6 @@
-/* A TICKET TO LIVE RECORDS: only when the deployment has them on and can
-   sign, only for a session in a workspace, and with the name the others
-   see. */
+/* A TICKET TO LIVE RECORDS: unless the deployment has switched them off,
+   only when it can sign, only for a session in a workspace, and with the
+   name the others see. */
 
 jest.unmock("@/app/actions/realtime");
 
@@ -16,8 +16,10 @@ jest.mock("@/lib/staff/query", () => ({
 import { realtimeTicket } from "../realtime";
 
 const env = { ...process.env };
+/* On is the flag unset. */
 beforeEach(() => {
-  process.env = { ...env, NEXT_PUBLIC_LIVE_RECORDS: "1", SUPABASE_JWT_SECRET: "s3cret" };
+  process.env = { ...env, SUPABASE_JWT_SECRET: "s3cret" };
+  delete process.env.NEXT_PUBLIC_LIVE_RECORDS;
 });
 afterAll(() => {
   process.env = env;
@@ -29,8 +31,8 @@ it("signs a ticket for the session's workspace, with the viewer's first name", a
   expect(t!.token.split(".")).toHaveLength(3);
 });
 
-it("is nothing while live records are off", async () => {
-  process.env.NEXT_PUBLIC_LIVE_RECORDS = "";
+it("is nothing while the deployment has live records switched off", async () => {
+  process.env.NEXT_PUBLIC_LIVE_RECORDS = "0";
   expect(await realtimeTicket()).toBeNull();
 });
 

@@ -960,13 +960,15 @@ docs/job-analytics-plan.md is the design.
 
 ---
 
-## 3g. Live records (optional — who else has a job open)
+## 3g. Live records (who else has a job open)
 
 A job card says who else has the same job open ("Dane has this open too"),
 and a note written in its diary appears on the other open cards without a
 reload. It rides Supabase Realtime **private** channels, one per record,
-that only the record's own workspace can join. **Off by default**: with
-the flag unset the cards ask for nothing and say nothing.
+that only the record's own workspace can join. **On by default** since
+2026-10-12: nothing needs setting wherever `SUPABASE_JWT_SECRET` is set.
+`NEXT_PUBLIC_LIVE_RECORDS=0` switches it off, and then the cards ask for
+nothing and say nothing.
 
 How Supabase knows who is looking: the server signs a one-hour ticket with
 `SUPABASE_JWT_SECRET` (already set, see above), carrying the `authenticated`
@@ -975,20 +977,22 @@ change is needed. The claim is deliberately **not** `org_id`, which the five
 existing `tenant_select` policies read.
 
 1. Apply `docs/migrations/realtime_records.sql`. Run its read-only check
-   before and after.
+   before and after. **Applied to production 2026-10-12** (migration
+   `realtime_records`); the security advisors flagged nothing new.
 2. Check the project still accepts HS256 tokens signed with the legacy JWT
    secret (Supabase dashboard, Settings, JWT keys: the legacy secret is
    **current** or **previously used**, not revoked). If the project has
-   moved to asymmetric keys only, live records stay off until the ticket is
-   signed another way.
-3. Set `NEXT_PUBLIC_LIVE_RECORDS=1` in Vercel (Production and Preview) and
-   redeploy. It is read at build time.
+   moved to asymmetric keys only, switch live records off until the ticket
+   is signed another way. **Checked 2026-10-12**: the legacy HS256 key is
+   enabled.
+3. Deploy. Live records come on with the build; there is no flag to set.
 4. Verify: open the same job in two browsers signed in as two people of one
    workspace. Each card says the other has it open; a note written in one
    appears in the other within a second or two.
 
-**Rollback:** unset `NEXT_PUBLIC_LIVE_RECORDS` and redeploy. The policies
-can stay; they allow nothing without a ticket.
+**Rollback:** set `NEXT_PUBLIC_LIVE_RECORDS=0` in Vercel (Production and
+Preview) and redeploy; it is read at build time. The policies can stay;
+they allow nothing without a ticket.
 
 ## 3h. The ServiceM8 queue's heartbeat (optional)
 

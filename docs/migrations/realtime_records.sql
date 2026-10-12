@@ -17,9 +17,10 @@
 -- hearing (select) and speaking (insert: presence and broadcast) on a topic
 -- whose second part is the ticket's own workspace.
 --
--- APPLY THIS BEFORE SETTING NEXT_PUBLIC_LIVE_RECORDS=1. Without it a private
--- channel refuses every join, and the cards simply say nothing about who
--- else is there.
+-- APPLIED TO PRODUCTION 2026-10-12 (migration `realtime_records`). Live
+-- records are on unless NEXT_PUBLIC_LIVE_RECORDS=0, so a new project needs
+-- this first: without it a private channel refuses every join, and the
+-- cards simply say nothing about who else is there.
 
 create policy "heytiff live records: hear own workspace"
   on realtime.messages

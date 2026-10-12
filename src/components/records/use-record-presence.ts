@@ -14,15 +14,16 @@ import type { RecordRef } from "@/lib/records/ref";
    hears who else is there, and hears "changed" when one of them writes to
    it, so the diary can read itself again instead of waiting for a reload.
 
-   OFF UNTIL THE DEPLOYMENT TURNS IT ON (`NEXT_PUBLIC_LIVE_RECORDS=1`, after
-   the migration): until then this asks for nothing and says nobody else is
-   here. One socket for the page, opened when the first card joins. */
+   ON UNLESS THE DEPLOYMENT TURNS IT OFF (`NEXT_PUBLIC_LIVE_RECORDS=0`, see
+   DEPLOY.md §3g): then this asks for nothing and says nobody else is here.
+   A deployment with no secret to sign tickets with gets none, and the same
+   silence. One socket for the page, opened when the first card joins. */
 
 export type Present = { id: string; name: string };
 
 /* Read where it is asked, not when the module loads: Next writes the value
    in at build either way, and a test can say which. */
-const live = () => process.env.NEXT_PUBLIC_LIVE_RECORDS === "1";
+const live = () => process.env.NEXT_PUBLIC_LIVE_RECORDS !== "0";
 const NOBODY: readonly Present[] = [];
 
 /** The ticket, asked for once and again when it is close to running out. */

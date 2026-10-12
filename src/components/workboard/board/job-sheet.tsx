@@ -41,7 +41,7 @@ import {
 import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
-import { JobQuoteFace } from "./job-quote-face";
+import { JobQuoteCard } from "./job-quote-card";
 import { JobVisitTasks, type VisitDay } from "./job-visit-tasks";
 import { sm8QuoteOf } from "../quote/sm8-quote-of";
 import { JobProgressLine } from "./job-progress-line";
@@ -374,7 +374,7 @@ export function JobSheet({
   const [tab, setTab] = useState<TabKey>(() =>
     openBookIn || openClear
       ? "visits"
-      : initialTab && (initialTab !== "money" || moneyVisible) && (initialTab !== "quote" || manage)
+      : initialTab && (initialTab !== "money" || moneyVisible)
         ? initialTab
         : "summary"
   );
@@ -382,7 +382,7 @@ export function JobSheet({
      null when the rail did. A door that came to book opens on Installation;
      one that came back from the quote page, on Quoted. */
   const [step, setStep] = useState<StepKey | null>(() =>
-    openBookIn || openClear ? "installation" : initialTab === "quote" && manage ? "quoted" : null
+    openBookIn || openClear ? "installation" : initialTab === "quote" ? "quoted" : null
   );
   const [naming, setNaming] = useState(false);
   /* EDIT CUSTOMER (customer details to ServiceM8): offered only where the
@@ -1450,8 +1450,9 @@ export function JobSheet({
     { key: "compliance", label: "Compliance" },
   ];
 
-  /* What each step opens. The quote is office work and only there for whoever
-     runs the board; without it the quote steps open the summary. */
+  /* What each step opens. The quote is everyone's on the Workboard, its
+     money only theirs who see money (Isaac, 2026-10-12: "the quoting section
+     should still be accessible. For techs who are quoting a job"). */
   /* ACCEPTED opens the quote only while the job is still a Quote: on an
      accepted job it opened "Draft the proposal" over work already under way
      (Isaac, 2026-10-03). The work-order line's steps open what they're
@@ -1459,9 +1460,7 @@ export function JobSheet({
   const stillAQuote = (detail?.status ?? row.statusLabel ?? "").trim().toLowerCase() === "quote";
   const faceOf = (k: StepKey): TabKey =>
     k === "quoted" || (k === "accepted" && stillAQuote)
-      ? manage
-        ? "quote"
-        : "summary"
+      ? "quote"
       : k === "deposit" || k === "paid" || k === "invoiced"
         ? "money"
         : k === "materials"
@@ -2199,28 +2198,25 @@ export function JobSheet({
             />
           )}
 
-          {manage &&
-            panel(
-              "quote",
-              /* the card keeps a small Quote face: ServiceM8's quote, where
-                 HeyTiff's stands, and the way into the quote page (Isaac,
-                 2026-10-05: "it should have opened up the proper quote
-                 screen not a section below") */
-              <JobQuoteFace
-                job={cardId ?? row.id}
-                address={detail ? detail.address ?? detail.geoLine : null}
-                visible={tab === "quote"}
-                onToast={onToast}
-                sm8={sm8QuoteOf({
-                  documents: media?.documents ?? null,
-                  sentOn: detail?.quoteSentOn ?? null,
-                  moneyVisible,
-                  family,
-                  rowValueCents: money?.valueCents ?? null,
-                })}
-                onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
-              />
-            )}
+          {panel(
+            "quote",
+            /* the card keeps a small Quote face: ServiceM8's quote, where
+               HeyTiff's stands, and the way into the quote page (Isaac,
+               2026-10-05: "it should have opened up the proper quote screen
+               not a section below"); for everyone on the Workboard */
+            <JobQuoteCard
+              job={cardId ?? row.id}
+              visible={tab === "quote"}
+              sm8={sm8QuoteOf({
+                documents: media?.documents ?? null,
+                sentOn: detail?.quoteSentOn ?? null,
+                moneyVisible,
+                family,
+                rowValueCents: money?.valueCents ?? null,
+              })}
+              onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+            />
+          )}
 
           {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,
               2026-10-02: "compliance is supposed to sit underneath files").

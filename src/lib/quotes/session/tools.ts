@@ -459,7 +459,7 @@ export const SESSION_TOOLS: ToolDef[] = [
             type: "object",
             properties: {
               label: { type: "string" },
-              go_on: { type: "boolean", description: "True when picking it leaves you work to do before the quote is right." },
+              go_on: { type: "boolean", description: "True when picking it leaves you work to do before the quote is right (\"Research it on the web\", \"Rebuild it as the slimline\"); false when its changes make the quote right, or nothing changes." },
               changes: {
                 type: "array",
                 items: {
@@ -476,7 +476,7 @@ export const SESSION_TOOLS: ToolDef[] = [
                 },
               },
             },
-            required: ["label"],
+            required: ["label", "go_on"],
             additionalProperties: false,
           },
         },

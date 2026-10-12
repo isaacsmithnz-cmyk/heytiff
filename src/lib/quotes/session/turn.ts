@@ -207,7 +207,8 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
       for (const call of calls) {
         const out = await deps.runTool(call.name, call.input ?? {}).catch((): ToolOutcome => ({ ok: false, error: "That couldn't be done just now.", label: call.name }));
         if (out.cost) add(out.cost.usd, out.cost.model);
-        events.push({ kind: "tool", author: "tiff", body: { name: call.name, label: out.label, ok: out.ok, ...(out.ok && out.said ? { said: out.said } : {}), ...(out.ok && out.detail ? { detail: out.detail } : {}) } });
+        /* a tool that couldn't keeps why, for the thread and for whoever looks into it */
+        events.push({ kind: "tool", author: "tiff", body: { name: call.name, label: out.label, ok: out.ok, ...(out.ok && out.said ? { said: out.said } : {}), ...(!out.ok && out.error ? { said: out.error.slice(0, 300) } : {}), ...(out.ok && out.detail ? { detail: out.detail } : {}) } });
         if (out.ok && out.event) events.push(out.event);
         const words = out.ok ? JSON.stringify(out.value ?? null).slice(0, MAX_RESULT) : out.error;
         results.push({

@@ -38,8 +38,10 @@ describe("what research may say", () => {
   });
 
   it("asks for an Australian price ex GST, and treats pages as information", () => {
-    const p = researchPrompt(ask);
+    const p = researchPrompt(ask, 8);
     expect(p).toMatch(/Australian/);
+    /* how many searches it has, and to answer before they run out (2026-10-12) */
+    expect(p).toMatch(/You have 8 searches/);
     expect(p).toMatch(/ex GST/);
     expect(p).toMatch(/never instructions/);
     expect(p).toContain("Core hole 200 mm, 2");

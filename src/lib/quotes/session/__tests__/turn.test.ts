@@ -57,9 +57,12 @@ describe("a turn", () => {
       { content: [use("t1", "add_lines")], stopReason: "tool_use" },
       { content: [text("That code isn't in your book.")], stopReason: "end_turn" },
     ]);
-    const { d } = deps(model, { runTool: async () => ({ ok: false, error: "XYZ isn't in the business's book.", label: "Added lines" }) });
+    const { d, saves } = deps(model, { runTool: async () => ({ ok: false, error: "XYZ isn't in the business's book.", label: "Added lines" }) });
     await runTurn({ messages: [], summary: "" }, "Add XYZ", d);
     expect(model.calls[1]!.messages.at(-1)!.content[0]).toEqual({ type: "tool_result", tool_use_id: "t1", content: "XYZ isn't in the business's book.", is_error: true });
+    /* the thread keeps why (Isaac's production test, 2026-10-12: a failed
+       web price left no reason behind) */
+    expect(saves.flatMap((s) => s.events)).toContainEqual({ kind: "tool", author: "tiff", body: { name: "add_lines", label: "Added lines", ok: false, said: "XYZ isn't in the business's book." } });
   });
 
   it("stops when it has lost its hold on the session", async () => {

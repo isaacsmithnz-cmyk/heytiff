@@ -97,8 +97,16 @@ export function TiffPanel({
     if (v.names) setNames((n) => ({ ...n, ...v.names }));
     const fresh = v.events ?? [];
     if (fresh.length) {
-      last.current = fresh[fresh.length - 1]!.id;
-      setEvents((e) => [...e, ...fresh]);
+      last.current = Math.max(last.current, fresh[fresh.length - 1]!.id);
+      /* two reads in flight from the same point (the poll, a read after an
+         answer, coming back to the tab) both bring the same events: each
+         goes in once (Isaac's production test, 2026-10-12: questions 4 and
+         5 showed twice) */
+      setEvents((e) => {
+        const have = new Set(e.map((x) => x.id));
+        const add = fresh.filter((x) => !have.has(x.id));
+        return add.length ? [...e, ...add] : e;
+      });
       /* her lines appear as she adds them */
       if (fresh.some((e) => e.kind === "tool")) onChanged();
     }

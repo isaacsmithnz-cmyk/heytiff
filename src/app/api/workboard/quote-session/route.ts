@@ -11,6 +11,7 @@ import { researchDetailOf } from "@/lib/quotes/research";
 import { putResearchedOn } from "@/lib/quotes/lines-job-server";
 import { briefOf } from "@/lib/quotes/session/job-sources";
 import { readJobSources } from "@/lib/quotes/session/job-sources-server";
+import { threadWithoutMoney } from "@/lib/quotes/money-hidden";
 
 /* Tiff's session on a quote (slice 4.1): GET reads the thread as a person
    reads it, after an event id, with whether she's working and what the
@@ -22,16 +23,20 @@ import { readJobSources } from "@/lib/quotes/session/job-sources-server";
 /* a turn runs on after the answer, for as long as the route may */
 export const maxDuration = 300;
 
-type Gate = { ok: true; orgId: string; userId: string } | { ok: false; res: Response };
+/* anyone on the Workboard talks a quote through with her (Isaac,
+   2026-10-12: "it can still hold a conversation with the tech to get all of
+   the correct information"); its money only to `financials` (quote-lines
+   route, money-hidden.ts) */
+type Gate = { ok: true; orgId: string; userId: string; money: boolean } | { ok: false; res: Response };
 
 async function gate(): Promise<Gate> {
   const session = await auth0.getSession();
   const orgId = (session?.orgId as string | undefined) ?? null;
   const userId = (session?.user?.sub as string | undefined) ?? null;
-  if (!orgId || !userId || !(await can("workboard_manage")) || !(await can("financials"))) {
-    return { ok: false, res: Response.json({ ok: false, reason: "Tiff's session needs Workboard manage and money access." }, { status: 403 }) };
+  if (!orgId || !userId || !(await can("workboard"))) {
+    return { ok: false, res: Response.json({ ok: false, reason: "Tiff's session needs the Workboard." }, { status: 403 }) };
   }
-  return { ok: true, orgId, userId };
+  return { ok: true, orgId, userId, money: await can("financials") };
 }
 
 export async function GET(req: Request) {
@@ -47,14 +52,20 @@ export async function GET(req: Request) {
   const { session, events } = await readThread(g.orgId, target.parentRemoteId, since);
   /* her questions' answers priced, asked for once she's done rather than
      every poll: it reads the book */
-  const questions = url.searchParams.get("questions") === "1" ? await priceQuestions(g.orgId, target.parentRemoteId, since ? (await readThread(g.orgId, target.parentRemoteId)).events : events) : undefined;
+  const priced = url.searchParams.get("questions") === "1" ? await priceQuestions(g.orgId, target.parentRemoteId, since ? (await readThread(g.orgId, target.parentRemoteId)).events : events) : undefined;
+  /* without money access, an answer shows no price difference */
+  const questions =
+    priced && !g.money
+      ? Object.fromEntries(Object.entries(priced).map(([id, q]) => [id, { ...q, deltas: q.deltas.map((d) => (d === null ? null : 0)), answered: q.answered ? { ...q.answered } : null }]))
+      : priced;
   const names = await namesBySignIn(g.orgId, [...new Set([g.userId, ...events.map((e) => e.author).filter((a) => a !== "tiff")])]);
   return Response.json({
     ok: true,
     on: sessionModelFor(g.orgId) != null,
     working: session ? holding(session, Date.now()) : false,
     spentUsd: session?.spentUsd ?? 0,
-    events,
+    money: g.money,
+    events: g.money ? events : threadWithoutMoney(events),
     names,
     me: g.userId,
     ...(questions ? { questions } : {}),
@@ -79,6 +90,7 @@ export async function POST(req: Request) {
   /* a researched price used: read back from her saved thread, never from
      what the page sends (12.2) */
   if (body.op === "use") {
+    if (!g.money) return Response.json({ ok: false, reason: "Using a price needs money access." }, { status: 403 });
     const event = typeof body.event === "number" ? body.event : -1;
     const { events } = await readThread(g.orgId, target.parentRemoteId);
     const ev = events.find((e) => e.id === event && e.kind === "tool" && e.body.name === "research_price");
@@ -95,7 +107,7 @@ export async function POST(req: Request) {
     brief = briefOf((await readJobSources(g.orgId, target.parentRemoteId)).sources, ticked);
     if (!brief) return Response.json({ ok: false, reason: "Tick something for her to read." }, { status: 400 });
   }
-  const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, typeof body.message === "string" ? body.message : "", { brief });
+  const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, typeof body.message === "string" ? body.message : "", { brief, noMoney: !g.money });
   if (!started.ok) return Response.json({ ok: false, reason: started.reason }, { status: started.status });
   after(started.run);
   return Response.json({ ok: true, turn: started.turnId });

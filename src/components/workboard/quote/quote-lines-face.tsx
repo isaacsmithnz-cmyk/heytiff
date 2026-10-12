@@ -46,6 +46,8 @@ const LOOKUP = "/api/workboard/quote-lookup";
 
 type View = {
   ok: boolean;
+  /** whether this person sees the quote's money; without it the server took it out (money-hidden.ts) */
+  money?: boolean;
   reason?: string;
   stale?: boolean;
   engine: "old" | "lines";
@@ -349,6 +351,9 @@ export function QuoteLinesFace({
   const systems = [...new Set(lines.map((l) => l.system))];
   const fitOf = new Map((view?.fits ?? []).map((f) => [f.key, f]));
   const all = view?.lines ?? [];
+  /* a tech quotes too, its money hidden (Isaac, 2026-10-12): no prices,
+     no pricing, no approving; the conversation and the work are theirs */
+  const money = view?.money !== false;
   const accepted = view?.accepted ?? [];
   const versions = view?.versions ?? [];
   /* the version the quote is at: one more than the last kept */
@@ -682,7 +687,7 @@ export function QuoteLinesFace({
                   return (
                     <>
                       <span>{v ? `Variation ${v.n}` : view?.optionNames?.[i] ? `${i + 1}. ${view.optionNames[i]}` : `Option ${i + 1}`}</span>
-                      <b>{mine ? (v && of ? signed(mine.build.exGstCents - of.build.exGstCents) : fmtAud(mine.build.exGstCents)) : "–"}</b>
+                      {money && <b>{mine ? (v && of ? signed(mine.build.exGstCents - of.build.exGstCents) : fmtAud(mine.build.exGstCents)) : "–"}</b>}
                     </>
                   );
                 })()}
@@ -717,7 +722,7 @@ export function QuoteLinesFace({
             </label>
           )}
         </div>
-        {ledger}
+        {money && ledger}
       </div>
       {o?.profit?.short && leftOn(o).length === 0 && (
         <p className="qp-short" role="status">
@@ -741,14 +746,14 @@ export function QuoteLinesFace({
       )}
 
       <table className={options > 1 ? "ql-lt ql-colh many" : "ql-lt ql-colh"}>
-        <Cols />
+        <Cols money={money} />
         <thead>
           <tr>
             <th>Item</th>
             <th className="n">Qty</th>
-            <th className="n">Cost each</th>
-            <th className="n">Sell each</th>
-            <th className="n">Total</th>
+            {money && <th className="n">Cost each</th>}
+            {money && <th className="n">Sell each</th>}
+            {money && <th className="n">Total</th>}
             <th aria-label="Take off" />
           </tr>
         </thead>
@@ -763,18 +768,18 @@ export function QuoteLinesFace({
           <section key={sys || "_"} className="ql-sys" aria-label={sys || "Quote"}>
             <header className="ql-sys-h">
               <h3>{sys || "Quote"}</h3>
-              <b>{cents2(sysTotal)}</b>
+              {money && <b>{cents2(sysTotal)}</b>}
             </header>
             <table className="ql-lt">
-              <Cols />
+              <Cols money={money} />
               <tbody>
                 {groups.map((g) => {
                   const rows = mine.filter((l) => l.group === g);
                   const sub = rows.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
                   return [
                     <tr key={`g-${g}`} className="ql-sg">
-                      <td colSpan={4}>{g}</td>
-                      <td className="n">{cents2(sub)}</td>
+                      <td colSpan={money ? 4 : 2}>{g}</td>
+                      {money && <td className="n">{cents2(sub)}</td>}
                       <td />
                     </tr>,
                     ...rows.map((l) => {
@@ -793,7 +798,7 @@ export function QuoteLinesFace({
                                 }
                               />
                               <span className="nm">
-                                {l.kind !== "labour" ? (
+                                {l.kind !== "labour" && money ? (
                                   <button
                                     type="button"
                                     className="ql-nmbtn"
@@ -822,7 +827,7 @@ export function QuoteLinesFace({
                                   {buyFrom && l.supplierKey && l.supplierKey !== buyFrom && (
                                     <em className="ql-not">{`Not at ${supplierName(buyFrom)}: ${supplierName(l.supplierKey)}`}</em>
                                   )}
-                                  {l.kind === "unit" && unitPartOf(l.name, l.code) !== "outdoor" && (
+                                  {money && l.kind === "unit" && unitPartOf(l.name, l.code) !== "outdoor" && (
                                     <button type="button" className="ql-cmpbtn" aria-expanded={comparing === l.id} onClick={() => setComparing(comparing === l.id ? null : l.id)}>
                                       Compare
                                     </button>
@@ -849,7 +854,7 @@ export function QuoteLinesFace({
                               />
                             )}
                           </td>
-                          <td className="n">
+                          {money && <td className="n">
                             <Field
                               value={dollars(l.costCents)}
                               label={`What one ${l.name} costs you`}
@@ -859,8 +864,8 @@ export function QuoteLinesFace({
                                 if (c != null && Number.isFinite(c)) change(l, { costCents: c });
                               }}
                             />
-                          </td>
-                          <td className="n">
+                          </td>}
+                          {money && <td className="n">
                             <Field
                               value={
                                 l.sellCents != null
@@ -883,8 +888,8 @@ export function QuoteLinesFace({
                                 else if (Number.isFinite(c)) change(l, { sellCents: c });
                               }}
                             />
-                          </td>
-                          <td className="n">{unknown ? "—" : cents2(Math.round((each ?? 0) * l.qty))}</td>
+                          </td>}
+                          {money && <td className="n">{unknown ? "—" : cents2(Math.round((each ?? 0) * l.qty))}</td>}
                           <td className="x">
                             <button
                               type="button"
@@ -928,7 +933,7 @@ export function QuoteLinesFace({
                         ) : null,
                       ];
                     }),
-                    g === "Labour" && labourAt && sys === labourAt.system ? loadingRow : null,
+                    money && g === "Labour" && labourAt && sys === labourAt.system ? loadingRow : null,
                   ];
                 })}
               </tbody>
@@ -945,13 +950,16 @@ export function QuoteLinesFace({
 
       <section className="ql-add" aria-label="Add a line">
         <div className="ql-addrow">
-          <input
-            className="wb2-fi"
-            value={search}
-            placeholder="Add a line from your book"
-            aria-label="Search your book for a line to add"
-            onChange={(e) => void find(e.target.value)}
-          />
+          {/* the book carries prices: its search is for those who see money */}
+          {money && (
+            <input
+              className="wb2-fi"
+              value={search}
+              placeholder="Add a line from your book"
+              aria-label="Search your book for a line to add"
+              onChange={(e) => void find(e.target.value)}
+            />
+          )}
           <select className="wb2-fi ql-sysin" value={system} onChange={(e) => setSystem(e.target.value)} aria-label="The system it goes in">
             <option value="">No system</option>
             {systems.filter(Boolean).map((s) => (
@@ -984,10 +992,12 @@ export function QuoteLinesFace({
           <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => addByHand("labour")}>
             Add labour
           </button>
-          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={addProvisional}>
-            Add a provisional sum
-          </button>
-          {labourAt && !loading && (
+          {money && (
+            <button type="button" className="pbtn ghost sm" disabled={busy} onClick={addProvisional}>
+              Add a provisional sum
+            </button>
+          )}
+          {money && labourAt && !loading && (
             /* 10%: the low end of Isaac's own "10 to 15%"; not applied until it says why */
             <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setLoad({ pct: 10, reason: "" })}>
               Add a loading
@@ -1065,7 +1075,7 @@ export function QuoteLinesFace({
           <li key={i} className={c.tone}>
             <i aria-hidden="true" />
             <span>{c.text}</span>
-            {c.price && !paper && (
+            {c.price && !paper && money && (
               <span className="ql-chkacts">
                 <button type="button" className="pbtn ghost sm" onClick={() => priceOnLine(c.price!)}>
                   Price it
@@ -1091,8 +1101,8 @@ export function QuoteLinesFace({
 
   const rail = (
     <div className="ql-rail">
-      {accepted.length > 0 && send}
-      {accepted.length === 0 && view?.approved && sendQuote?.(reload)}
+      {money && accepted.length > 0 && send}
+      {money && accepted.length === 0 && view?.approved && sendQuote?.(reload)}
       {versions.length > 0 && (
         <>
           <h2 className="hd-ls-grp">Versions</h2>
@@ -1184,22 +1194,25 @@ export function QuoteLinesFace({
               </>
             ) : (
               <>
-                <button type="button" className="pbtn ghost" onClick={onSwitchBack}>
-                  Use Tiff&apos;s builder
-                </button>
-                {all.length > 0 && (
+                {money && (
+                  <button type="button" className="pbtn ghost" onClick={onSwitchBack}>
+                    Use Tiff&apos;s builder
+                  </button>
+                )}
+                {money && all.length > 0 && (
                   <button type="button" className="pbtn ghost" onClick={() => setPaper(true)}>
                     {variation ? "Preview variation" : "Preview proposal"}
                   </button>
                 )}
-                {(accepted.length > 0 || view?.approved) && !variation && (
+                {money && (accepted.length > 0 || view?.approved) && !variation && (
                   <button type="button" className="pbtn ghost" disabled={busy} onClick={() => setUpdating("")}>
                     Update quote
                   </button>
                 )}
               </>
             )}
-            {all.length > 0 &&
+            {money &&
+              all.length > 0 &&
               !shown &&
               (variation ? (
                 <button
@@ -1531,14 +1544,15 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
   );
 }
 
-function Cols() {
+/** The line table's columns; without money access, the work alone. */
+function Cols({ money = true }: { money?: boolean }) {
   return (
     <colgroup>
       <col />
       <col className="cq" />
-      <col className="cc" />
-      <col className="ce" />
-      <col className="ct" />
+      {money && <col className="cc" />}
+      {money && <col className="ce" />}
+      {money && <col className="ct" />}
       <col className="cx" />
     </colgroup>
   );

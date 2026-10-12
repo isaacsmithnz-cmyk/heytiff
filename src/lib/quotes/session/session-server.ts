@@ -7,6 +7,7 @@ import { addEvents, beginTurn, endTurn, readOpenQuestions, saveRound, takeAnswer
 import { SESSION_TOOLS } from "./tools";
 import { sessionTools } from "./tools-server";
 import { runTurn, type TurnEnd } from "./turn";
+import { NO_MONEY_WORDS } from "../money-hidden";
 
 /* A PERSON'S MESSAGE TO TIFF, ON A QUOTE (slice 4.1): the turn is taken
    (one at a time), their words go in the thread at once, and the work runs
@@ -23,7 +24,7 @@ export async function startTurn(
   jobUuid: string,
   by: string,
   words: string,
-  opts: { brief?: string; model?: ModelCall; modelName?: string } = {}
+  opts: { brief?: string; model?: ModelCall; modelName?: string; noMoney?: boolean } = {}
 ): Promise<Started> {
   const modelName = opts.modelName ?? sessionModelFor(orgId);
   if (!modelName) return { ok: false, reason: SESSION_OFF, status: 409 };
@@ -42,7 +43,8 @@ export async function startTurn(
     : "";
   /* what's still open, by number, so their own words can settle it */
   const open = text ? await readOpenQuestions(orgId, session.id) : [];
-  const said = [answered, openWords(open), text].filter(Boolean).join("\n\n");
+  /* a person without money access: she says no prices to them (money-hidden.ts) */
+  const said = [answered, openWords(open), opts.noMoney ? NO_MONEY_WORDS : "", text].filter(Boolean).join("\n\n");
   const message = session.messages.length === 0 ? openingMessage(opts.brief ?? "", said) : said;
   await addEvents(orgId, session.id, turnId, [{ kind: "message", author: by, body: { text: text || "Read the job", ...(opts.brief ? { read: true } : {}) } }]);
 

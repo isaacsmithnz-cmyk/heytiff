@@ -990,6 +990,15 @@ existing `tenant_select` policies read.
 **Rollback:** unset `NEXT_PUBLIC_LIVE_RECORDS` and redeploy. The policies
 can stay; they allow nothing without a ticket.
 
+## 3h. The ServiceM8 queue's heartbeat (optional)
+
+`/api/cron/sm8-drain` sends what is due to go to ServiceM8 within the minute,
+instead of at the next press, page load or night. Vercel's plan allows a
+daily cron only, so the database calls it: `pg_cron` and `pg_net` every
+minute, with `CRON_SECRET` kept in Vault. The SQL, the check and the off
+switch are in `docs/plans/queues.md`. Nothing calls the route until that SQL
+is run; it refuses every call without the secret.
+
 ## 4. Deploy & verify
 
 1. **Deploy**. Wait for the build to finish.

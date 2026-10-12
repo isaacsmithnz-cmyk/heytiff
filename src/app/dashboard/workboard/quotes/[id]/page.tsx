@@ -27,15 +27,16 @@ export default async function WorkboardQuotePage({ params }: { params: Promise<{
   const { id } = await params;
   const job = id.trim().slice(0, 80);
   if (!job) notFound();
-  if (!(await can("workboard_manage"))) redirect(`/dashboard/workboard?job=${encodeURIComponent(job)}`);
-
+  /* anyone on the Workboard quotes, its money hidden without `financials`
+     (Isaac, 2026-10-12: "For techs who are quoting a job") */
   const target = await resolveJobCard(orgId, job);
-  const [{ detail }, moneyVisible, financials] = await Promise.all([
+  const [{ detail }, moneyVisible, financials, manage] = await Promise.all([
     readMirrorJob(target.parentRemoteId),
     can("workboard_money"),
     can("financials"),
+    can("workboard_manage"),
   ]);
   if (!detail) notFound();
 
-  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} />;
+  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} manage={manage} />;
 }

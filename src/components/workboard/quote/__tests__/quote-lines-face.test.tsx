@@ -682,3 +682,22 @@ it("takes a line nobody knows the price of from To confirm to its own cost box",
   fireEvent.click(price);
   expect(screen.getByLabelText("What one Core hole 200 mm costs you")).toHaveFocus();
 });
+
+/* Isaac, 2026-10-12: "For techs who are quoting a job… the money visibility can be hidden" */
+it("shows a tech the work without its money: no price head, no cost or sell, no pricing or approving", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([{ ...indoor, costCents: 0, sellCents: null }]), money: false }) }));
+  const corner = document.createElement("div");
+  document.body.appendChild(corner);
+  render(<QuoteLinesFace job="job-3377" price={null} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} />);
+  expect(await screen.findByLabelText("Quantity of Ducted indoor, under the floor")).toHaveValue("1");
+  expect(screen.queryByLabelText("What one Ducted indoor, under the floor costs you")).toBeNull();
+  expect(screen.queryByLabelText("What one Ducted indoor, under the floor sells for")).toBeNull();
+  expect(screen.queryByRole("columnheader", { name: "Sell each" })).toBeNull();
+  expect(document.querySelector(".ql-led")).toBeNull();
+  expect(screen.queryByLabelText("Search your book for a line to add")).toBeNull();
+  expect(within(corner).queryByRole("button", { name: "Preview proposal" })).toBeNull();
+  expect(within(corner).queryByRole("button", { name: /Mark accepted/ })).toBeNull();
+  /* the work is still theirs */
+  expect(screen.getByRole("button", { name: "Add a line by hand" })).toBeInTheDocument();
+  corner.remove();
+});

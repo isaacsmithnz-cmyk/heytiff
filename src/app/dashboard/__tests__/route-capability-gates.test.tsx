@@ -257,11 +257,18 @@ describe("the Data Library is admin+, by role and not by capability", () => {
   });
 });
 
-/* Drafting a quote is running the board: the quote page sends anyone who
-   can't back to the job card (Isaac, 2026-10-05: the quote page). */
+/* Anyone on the Workboard quotes, its money hidden without financials
+   (Isaac, 2026-10-12: "the quoting section should still be accessible. For
+   techs who are quoting a job"); without the Workboard, nobody. */
 describe("the quote page", () => {
-  it("sends someone without Workboard manage to the job card", async () => {
-    (can as jest.Mock).mockImplementation(async (cap: string) => cap !== "workboard_manage");
-    await expect(WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }) })).rejects.toThrow("REDIRECT:/dashboard/workboard?job=x-1");
+  it("lets a tech in without Workboard manage, and says what they may do", async () => {
+    (can as jest.Mock).mockImplementation(async (cap: string) => cap === "workboard");
+    const page = (await WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }) })) as { props: { manage: boolean; financials: boolean } };
+    expect(page.props).toMatchObject({ manage: false, financials: false });
+  });
+
+  it("sends someone without the Workboard away", async () => {
+    (can as jest.Mock).mockImplementation(async () => false);
+    await expect(WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }) })).rejects.toThrow("REDIRECT:/dashboard");
   });
 });

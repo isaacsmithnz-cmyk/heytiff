@@ -21,6 +21,7 @@ import { variationTasks } from "@/lib/workboard/task-plan";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
 import { readOrgDay } from "@/lib/quotes/org-day-server";
 import { taskCheck } from "@/lib/quotes/task-hours";
+import { changesWithoutMoney, lineWithoutMoney, patchWithoutMoney } from "@/lib/quotes/money-hidden";
 
 /* A quote's kept lines (the engine rebuild, slices 2.1–2.3): read them with
    their history and who made each change, and change them one at a time.
@@ -28,24 +29,36 @@ import { taskCheck } from "@/lib/quotes/task-hours";
    carries a cost. A ROUTE, so an edit never queues behind the card's server
    actions; each change names the version it was read at (lines-server.ts). */
 
-type Gate = { ok: true; orgId: string; userId: string } | { ok: false; res: Response };
+/* WHO QUOTES (Isaac, 2026-10-12: "the quoting section should still be
+   accessible. For techs who are quoting a job, but… the money visibility
+   can be hidden… anyone with money access can review the quote and check
+   the pricing"): anyone on the Workboard builds a quote and talks it
+   through with Tiff; its money goes only to `financials`, taken out here
+   (money-hidden.ts), and pricing it, approving it and what follows are
+   theirs. Marking it accepted is the board's managers'. */
+type Gate = { ok: true; orgId: string; userId: string; money: boolean; manage: boolean } | { ok: false; res: Response };
 
 async function gate(): Promise<Gate> {
   const session = await auth0.getSession();
   const orgId = (session?.orgId as string | undefined) ?? null;
   const userId = (session?.user?.sub as string | undefined) ?? null;
-  if (!orgId || !userId || !(await can("workboard_manage")) || !(await can("financials"))) {
-    return { ok: false, res: Response.json({ ok: false, reason: "A quote's lines need Workboard manage and money access." }, { status: 403 }) };
+  if (!orgId || !userId || !(await can("workboard"))) {
+    return { ok: false, res: Response.json({ ok: false, reason: "A quote needs the Workboard." }, { status: 403 }) };
   }
-  return { ok: true, orgId, userId };
+  const [money, manage] = await Promise.all([can("financials"), can("workboard_manage")]);
+  return { ok: true, orgId, userId, money, manage };
 }
+
+/* what only someone who sees money may do to a quote, and what only a manager */
+const MONEY_OPS = new Set(["adopt", "supplier", "proposal", "approve", "loading", "version", "variation", "variation-approve", "variation-accept"]);
+const MANAGE_OPS = new Set(["accept"]);
 
 /** The suppliers a job can buy from: the business's own, with items. */
 async function bookSuppliers(orgId: string) {
   return (await readSuppliers(orgId).catch(() => [])).filter((s) => (s.itemCount ?? 0) > 0 || (s.invoiceItems ?? 0) > 0).map((s) => ({ key: s.key, name: s.name }));
 }
 
-async function view(orgId: string, jobUuid: string, userId: string) {
+async function view(orgId: string, jobUuid: string, userId: string, money = true) {
   const [engine, lines, changes, byHand, settings, day, suppliers, templates, versions] = await Promise.all([
     readEngine(orgId, jobUuid),
     readLines(orgId, jobUuid),
@@ -66,9 +79,11 @@ async function view(orgId: string, jobUuid: string, userId: string) {
   ]);
   return {
     ok: true as const,
+    /* whether this person sees its money: without it, every price is out */
+    money,
     engine,
-    lines,
-    changes,
+    lines: money ? lines : lines.map(lineWithoutMoney),
+    changes: money ? changes : changesWithoutMoney(changes),
     names,
     me: userId,
     fits,
@@ -81,8 +96,8 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     /* sent to ServiceM8 as a quote (7.3) */
     sent: byHand.sent ?? null,
     /* the quote as it stood at each approval before this one, newest first */
-    versions,
-    suppliers,
+    versions: money ? versions : [],
+    suppliers: money ? suppliers : [],
     tasks,
     /* the proposal's words, whether an approval of them still stands, and
        the business's notes and payment terms it's set from (7.1) */
@@ -103,7 +118,7 @@ export async function GET(req: Request) {
      business, nothing is drafted the old way, and nobody has chosen an
      engine for it (a person who switched back keeps the old builder) */
   const [now, drafted, chosen] = await Promise.all([
-    view(g.orgId, target.parentRemoteId, g.userId),
+    view(g.orgId, target.parentRemoteId, g.userId, g.money),
     readStoredProposal(g.orgId, target.parentRemoteId).catch(() => null),
     engineChosen(g.orgId, target.parentRemoteId).catch(() => true),
   ]);
@@ -123,6 +138,20 @@ export async function POST(req: Request) {
   const why = typeof body.why === "string" ? body.why : "";
   let result: { ok: boolean; reason?: string; stale?: true } = { ok: true };
   const opt = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : 0);
+  const op = typeof body.op === "string" ? body.op : "";
+  if (MONEY_OPS.has(op) && !g.money) return Response.json({ ok: false, reason: "Pricing and approving a quote need money access." }, { status: 403 });
+  if (MANAGE_OPS.has(op) && !g.manage) return Response.json({ ok: false, reason: "Marking a quote accepted needs Workboard manage." }, { status: 403 });
+  /* a change without money access: its work, never its price */
+  if (!g.money && (op === "add" || op === "change")) {
+    if (op === "add") body.line = patchWithoutMoney(body.line);
+    else body.patch = patchWithoutMoney(body.patch);
+  }
+  if (!g.money && op === "undo") {
+    const c = (await readChanges(g.orgId, jobUuid, 200)).find((x) => x.id === body.change);
+    const priced = (f: Record<string, unknown> | null) => !!f && ("costCents" in f || "sellCents" in f);
+    if (!c || priced(c.before as Record<string, unknown> | null) || priced(c.after as Record<string, unknown> | null))
+      return Response.json({ ok: false, reason: "Undoing a price needs money access." }, { status: 403 });
+  }
   /* what marking an option accepted did to the job's own materials list */
   let onJob: { added: number; removed: number } | null = null;
   /* a variation just started: the option to open */
@@ -268,6 +297,6 @@ export async function POST(req: Request) {
     default:
       return Response.json({ ok: false, reason: "Not something a quote's lines can do." }, { status: 400 });
   }
-  const now = await view(g.orgId, jobUuid, g.userId);
+  const now = await view(g.orgId, jobUuid, g.userId, g.money);
   return Response.json(result.ok ? { ...now, onJob, opened } : { ...now, ok: false, reason: result.reason, stale: result.stale ?? false }, { status: 200 });
 }

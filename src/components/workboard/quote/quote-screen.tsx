@@ -44,11 +44,14 @@ export function QuoteScreen({
   detail,
   moneyVisible,
   financials,
+  manage = true,
 }: {
   job: string;
   detail: Detail;
   moneyVisible: boolean;
   financials: boolean;
+  /** runs the board: the old builder is a manager's; anyone else quotes on lines with Tiff */
+  manage?: boolean;
 }) {
   const router = useRouter();
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
@@ -153,21 +156,22 @@ export function QuoteScreen({
   const starting = useSearchParams()?.get("start") === "1";
   const startTiff = useEffectEvent(() => void switchTo("lines"));
   useEffect(() => {
-    if (!financials) return;
     let live = true;
-    fetch(`/api/workboard/quote-lines?job=${encodeURIComponent(job)}`)
+    Promise.resolve()
+      .then(() => fetch(`/api/workboard/quote-lines?job=${encodeURIComponent(job)}`))
       .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines"; tiff?: boolean; drafted?: boolean; chosen?: boolean; lines?: unknown[] }>)
       .then((a) => {
-        if (!live || !a.ok) return;
+        if (!live || !a?.ok) return;
         setTiffOn(!!a.tiff);
         if (a.engine === "lines") setEngine("lines");
+        /* someone without the board's manage never gets the old builder: Tiff, on lines */ else if (!manage && a.tiff) startTiff();
         else if ((starting || a.chosen === false) && a.tiff && !a.drafted && (a.lines ?? []).length === 0) startTiff();
       })
       .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [job, financials, starting]);
+  }, [job, starting, manage]);
 
   /* the price, to the money grant only; read for each version of the quote */
   const price = useQuotePrice(job, financials, engine === "lines" ? `lines-${linesRev}` : version);

@@ -107,3 +107,13 @@ it("puts her open questions before the person's own words, by number, to settle 
     },
   ]);
 });
+
+/* Isaac, 2026-10-12: a tech quotes too, its money hidden */
+it("tells her the person doesn't see prices, before their words", async () => {
+  const model = scripted([{ content: [{ type: "text", text: "Done." }], stopReason: "end_turn" }]);
+  const started = await startTurn("org", "job", "u-tech", "Pipe run is 14 m", { modelName: "m", model, noMoney: true });
+  await (started as Extract<typeof started, { ok: true }>).run();
+  const text = (model.calls[0]!.messages.at(-1)!.content as { text: string }[])[0]!.text;
+  expect(text).toMatch(/doesn't see prices/);
+  expect(text.endsWith("Pipe run is 14 m")).toBe(true);
+});

@@ -10,6 +10,7 @@ import type { Offer } from "@/lib/quotes/price-book";
 import type { Fit } from "@/lib/quotes/fit";
 import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { linesSteps } from "@/lib/quotes/quote-steps";
+import { toConfirmOf } from "@/lib/quotes/quote-card";
 import { unsetWords } from "@/lib/quotes/build-settings";
 import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { QuoteStepsLine, leftOn, priceState } from "./quote-parts";
@@ -366,7 +367,7 @@ export function QuoteLinesFace({
     sent: view?.sent ?? null,
     lines: all.length,
     /* the lines nobody knows yet, and Tiff's questions still open */
-    unknown: all.filter((l) => (l.source === "unknown" && l.costCents <= 0 && l.sellCents == null) || l.estimate).length + asked,
+    unknown: toConfirmOf(all, asked),
     price: priceState(price),
   });
 

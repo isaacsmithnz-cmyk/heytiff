@@ -1,7 +1,7 @@
 import { priceBuildUp, type BuildLine, type BuildSettings, type BuildUp, type Loading, type Visit } from "./buildup";
-import type { LabourFrom, Unpriced } from "./job-price";
 import type { QuoteLine } from "./lines";
 import { hourCostOf, profitAt, type Profit } from "./profit";
+import type { OptionLabour } from "./proposal";
 
 /* A QUOTE PRICED FROM ITS KEPT LINES (slice 2.2) — into the same build-up
    the quote page, the price block, the progress line and the send already
@@ -15,6 +15,11 @@ import { hourCostOf, profitAt, type Profit } from "./profit";
    nothing in it) is still to price, never a $0 line. Its profit is the
    price less every line's own cost, an hour's at the line's cost or, for
    the duct contingency's hours, the business's hour. Pure. */
+
+export type Unpriced = { name: string; qty: string; why: string };
+
+/** Where an option's labour comes from: set on it, the brief's, or nowhere. */
+export type LabourFrom = OptionLabour["from"] | "brief" | "none";
 
 export type LinesOption = {
   name: string;
@@ -91,4 +96,19 @@ export function priceLines(
     });
   }
   return out;
+}
+
+/** What a priced quote still lacks before its total is the quote's: the
+    labour when nothing gives it, then each material with no price. Empty
+    means the total is whole; anything here makes it a total so far, which
+    a proposal never takes (Isaac's walk, 2026-10-05: $72 shown as the
+    quote with five items and the labour unpriced). */
+export function stillToPrice(p: { unpriced: Unpriced[]; labourFrom: LabourFrom; labourCents: number }): Unpriced[] {
+  const labour: Unpriced[] =
+    p.labourFrom === "none"
+      ? [{ name: "Labour", qty: "", why: "Not in the brief, and not set on the option" }]
+      : p.labourCents <= 0
+        ? [{ name: "Labour", qty: "", why: p.labourFrom === "brief" ? "The brief gives no days or hours to price" : "Its labour gives no days to price" }]
+        : [];
+  return [...labour, ...p.unpriced];
 }

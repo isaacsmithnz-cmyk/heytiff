@@ -1,6 +1,6 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { stillToPrice } from "./job-price";
+import { stillToPrice } from "./lines-price";
 import { readJobQuote } from "./lines-job-server";
 import { readQuotePrice } from "./quote-price-server";
 import { readQuoteSettings } from "./settings-query";

@@ -14,11 +14,11 @@ import {
   wholeRange,
   type CandidateLine,
   type RangeKind,
+  type RangeOffer,
   type RangeSize,
   type RangeView,
 } from "./ranges";
 import { familyWords } from "./families";
-import type { RangeOffer } from "./job-price";
 
 /* The business's ranges, stored (quote_range_items.sql): each item in a
    range at the size a person confirmed. What a quote prices from

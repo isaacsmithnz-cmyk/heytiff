@@ -1,5 +1,7 @@
 import type { DataPack } from "@/lib/studio/packs/schema";
 import type { CheckItem } from "./checklist";
+import { sameModel, sameUnit } from "./lookups";
+import type { OptionRow } from "./material-rows";
 import type { ProposalOption, UnitLine } from "./proposal";
 import { isBoxHead } from "@/lib/studio/multi";
 import { isVrfHead, joinsVrf, vrfOutdoorsListing } from "@/lib/studio/vrf";
@@ -32,15 +34,6 @@ import {
    outdoor the one the combination table takes them on. What isn't known
    goes on asked, and the Price says so. Nothing is stored: change a unit
    or answer the checklist and the list follows. Pure. */
-
-export type OptionRow = {
-  name: string;
-  sub: string;
-  qty: string;
-  /** the system a unit is part of, so its indoor and outdoor are priced
-      from one supplier (job-price.ts) */
-  system?: number;
-};
 
 /** A system's rows, its units marked as that system's. */
 const ofSystem = (rows: readonly OptionRow[], n: number): OptionRow[] =>
@@ -111,25 +104,6 @@ export function siteFacts(checklist: readonly CheckItem[]): SiteFacts {
 }
 
 /* ── the units, system by system ── */
-
-const norm = (m: string) => m.toUpperCase().replace(/[^A-Z0-9]/g, "");
-/** A model as written names a pack model when one starts with the other:
-    "MSZ-AP25VGD2" and "MSZ-AP25VG". */
-const sameModel = (written: string, pack: string) => {
-  const a = norm(written);
-  const b = norm(pack);
-  return a.length >= 6 && (a.startsWith(b) || b.startsWith(a));
-};
-
-/** A model's body, its maker's suffix (-A, -E, -E4, -L) taken off: the
-    office writes PEFY-P25VMX-A where the data pack holds PEFY-P25VMX-E. */
-const body = (m: string) => {
-  let x = m.toUpperCase().trim();
-  for (let y = x.replace(/-[A-Z0-9]{1,2}$/, ""); y !== x; y = x.replace(/-[A-Z0-9]{1,2}$/, "")) x = y;
-  return norm(x);
-};
-/** The same unit, by its model or its body. */
-export const sameUnit = (written: string, pack: string) => sameModel(written, pack) || (body(written).length >= 6 && body(written) === body(pack));
 
 const roomOf = (u: UnitLine, n: number, of: number): string => {
   const name = u.room.trim() || "Room";

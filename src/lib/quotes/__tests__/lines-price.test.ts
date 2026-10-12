@@ -1,6 +1,6 @@
 import type { BuildSettings } from "../buildup";
 import type { QuoteLine } from "../lines";
-import { priceLines, stillUnknown } from "../lines-price";
+import { priceLines, stillToPrice, stillUnknown } from "../lines-price";
 
 /* A quote switched to the rebuild, priced from its kept lines (slice 2.2),
    on 3377's own figures: Diamond Air's 25% on units, 40% on materials,
@@ -100,4 +100,9 @@ it("adds an option's loading on its labour, and none without a reason", () => {
   const [unsaid] = priceLines([indoor, install], [], s, { pct: null, labourCostCents: null }, { 0: { pct: 12, reason: "" } });
   expect(unsaid!.build.exGstCents).toBe(plain!.build.exGstCents);
   expect(unsaid!.build.loadingNeedsReason).toBe(true);
+});
+
+it("says labour is still to price when nothing gives it", () => {
+  expect(stillToPrice({ unpriced: [], labourFrom: "none", labourCents: 0 })).toEqual([{ name: "Labour", qty: "", why: "Not in the brief, and not set on the option" }]);
+  expect(stillToPrice({ unpriced: [], labourFrom: "you", labourCents: 1000 })).toEqual([]);
 });

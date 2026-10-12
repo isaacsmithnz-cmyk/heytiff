@@ -1,4 +1,4 @@
-import { briefVisits, countOf, optionLabour, priceJobList, stillToPrice, type JobPriceDeps } from "../job-price";
+import { briefVisits, countOf, optionLabour, priceJobList, type JobPriceDeps } from "../job-price";
 import { priceBuildUp } from "../buildup";
 import { ONE_BUSINESS } from "./fixtures/one-business";
 
@@ -87,11 +87,6 @@ describe("the labour it prices", () => {
     expect(optionLabour(own, brief)).toEqual({ visits: own.visits, from: "tiff" });
     expect(optionLabour(null, brief)).toEqual({ visits: brief, from: "brief" });
     expect(optionLabour(null, [])).toEqual({ visits: [], from: "none" });
-  });
-
-  it("says labour is still to price when nothing gives it", () => {
-    expect(stillToPrice({ unpriced: [], labourFrom: "none", labourCents: 0 })).toEqual([{ name: "Labour", qty: "", why: "Not in the brief, and not set on the option" }]);
-    expect(stillToPrice({ unpriced: [], labourFrom: "you", labourCents: 1000 })).toEqual([]);
   });
 });
 

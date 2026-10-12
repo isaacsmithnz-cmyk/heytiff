@@ -5,10 +5,11 @@ import { unitFeatures } from "./features";
 import type { LetterRule } from "./code-letters";
 import { COMPONENT_KEYS, QUOTE_COMPONENTS, matchesComponent, type ComponentKey } from "./components";
 import { ALLOWANCES, type AllowanceKey } from "./settings";
-import { RANGE_KINDS, needWords, pickFromRange, rangeNeedOf, type RangeKind, type RangeSize } from "./ranges";
-import type { Priced, PriceOf } from "./ducted-template";
+import { RANGE_KINDS, needWords, pickFromRange, rangeNeedOf, type RangeKind, type RangeOffer } from "./ranges";
+import type { Priced, PriceOf } from "./price-resolver";
 import type { BriefLabour } from "./brief-labour";
 import type { OptionLabour } from "./proposal";
+import type { LabourFrom, Unpriced } from "./lines-price";
 
 /* THE JOB'S OWN LIST, PRICED (Isaac, 2026-10-04: "Switch it on now").
 
@@ -68,9 +69,6 @@ export type ComponentPrice = {
   lengthM?: number | null;
 };
 
-/** An item in one of the business's ranges, at its size and its price. */
-export type RangeOffer = { size: RangeSize; perUnitCents: number; supplierKey: string; code: string; name: string };
-
 export type JobPriceDeps = {
   priceOf: PriceOf;
   /** a pack model's price through the codes it's linked to, or null */
@@ -126,7 +124,8 @@ const askWhy = (qty: string) =>
         ? `${qty.replace(/ to ask$/, "")} isn't in the brief: ask`
         : "Not known yet: ask";
 
-export type Unpriced = { name: string; qty: string; why: string };
+/* lines-price.ts keeps these; quote-price-server.ts still takes them from here */
+export type { LabourFrom, Unpriced };
 
 /** A row's quantity, when it can be counted: "18 m", "3", "2 x", "1 set".
     Grams or kilos are refrigerant, bought by the bottle, not by the gram. */
@@ -330,9 +329,6 @@ export function priceJobList(rows: readonly ListRow[], deps: JobPriceDeps): { li
 /** The labour a quote prices: the brief's visits, else the business's
     typical hours for the kind of work as one visit; none otherwise. Days
     come from the business's own working day. */
-/** Where an option's labour comes from: set on it, the brief's, or nowhere. */
-export type LabourFrom = OptionLabour["from"] | "brief" | "none";
-
 /** The brief's visits, in days: what prices an option that sets no labour
     of its own. A visit in hours turns into days only by the business's day. */
 export function briefVisits(brief: BriefLabour | null, dayHours: number): Visit[] {
@@ -347,19 +343,4 @@ export function optionLabour(own: OptionLabour | null, brief: readonly Visit[]):
   if (own && own.visits.length > 0) return { visits: own.visits, from: own.from };
   if (brief.length > 0) return { visits: [...brief], from: "brief" };
   return { visits: [], from: "none" };
-}
-
-/** What a priced quote still lacks before its total is the quote's: the
-    labour when nothing gives it, then each material with no price. Empty
-    means the total is whole; anything here makes it a total so far, which
-    a proposal never takes (Isaac's walk, 2026-10-05: $72 shown as the
-    quote with five items and the labour unpriced). */
-export function stillToPrice(p: { unpriced: Unpriced[]; labourFrom: LabourFrom; labourCents: number }): Unpriced[] {
-  const labour: Unpriced[] =
-    p.labourFrom === "none"
-      ? [{ name: "Labour", qty: "", why: "Not in the brief, and not set on the option" }]
-      : p.labourCents <= 0
-        ? [{ name: "Labour", qty: "", why: p.labourFrom === "brief" ? "The brief gives no days or hours to price" : "Its labour gives no days to price" }]
-        : [];
-  return [...labour, ...p.unpriced];
 }

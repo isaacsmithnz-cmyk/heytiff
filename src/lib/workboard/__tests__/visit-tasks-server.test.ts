@@ -39,7 +39,6 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 const readStoredProposal = jest.fn();
-jest.mock("@/lib/quotes/proposal-writer", () => ({ MODEL: "claude-opus-5-5" }));
 /* the quote as the job reads it: Tiff's proposal, or a switched quote's lines */
 const linesQuote = jest.fn();
 jest.mock("@/lib/quotes/lines-job-server", () => ({

@@ -1,8 +1,7 @@
 import { netCents, type Supplier } from "./price-book";
 import { refOf } from "./same-items";
-import type { PriceOf, Priced } from "./ducted-template";
 
-/* WHICH PRICE A QUOTE LINE TAKES, for a code the template asks for.
+/* WHICH PRICE A QUOTE LINE TAKES, for the code it asks for.
 
    Every supplier that sells the code — and every supplier selling a part a
    person confirmed as the same one under another code (AAD's PC1412 is
@@ -15,7 +14,11 @@ import type { PriceOf, Priced } from "./ducted-template";
    price: $0.00 is an item nobody priced, never a free one.
 
    Pure, so the tests and the quote page read the same answer; the server
-   side loads the book once and hands the closure to the template. */
+   side loads the book once and hands the closure to the quote. */
+
+export type Priced = { buyCents: number; supplierKey: string; name: string };
+/** A code's price to buy: the preferred or lowest supplier's. */
+export type PriceOf = (code: string) => Priced | null;
 
 export type BookRow = {
   supplierKey: string;

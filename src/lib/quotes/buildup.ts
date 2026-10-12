@@ -11,8 +11,6 @@
    Labour is counted as ServiceM8's quotes count it: one person for one day
    at the business's own day rate, in half days. There is no default
    rate, markup or contingency: each is the business's (Isaac, 2026-10-04).
-   Tested against 40-odd real jobs at one business's settings — see
-   past-jobs.test.ts.
 
    Pure: the quote screen, the proposal's price and the tests all read the
    same sums. */

@@ -1,7 +1,6 @@
 jest.mock("server-only", () => ({}));
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 jest.mock("@/lib/studio/packs/server", () => ({}));
-jest.mock("../proposal-writer", () => ({}));
 jest.mock("../lines-job-server", () => ({}));
 
 import { acceptedChange } from "../accepted-materials-server";

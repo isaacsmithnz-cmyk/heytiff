@@ -1,7 +1,8 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
-import { optionMaterials, type OptionRow } from "./option-materials";
+import { optionMaterials } from "./option-materials";
+import type { OptionRow } from "./material-rows";
 import { acceptedOptions } from "./proposal";
 import { linesMaterials } from "./lines-job";
 import { readJobQuote } from "./lines-job-server";

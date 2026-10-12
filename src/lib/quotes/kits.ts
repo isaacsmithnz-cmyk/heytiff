@@ -3,9 +3,8 @@ import { rollMetresOf } from "./components";
 import type { Product } from "./families";
 import type { LineFields } from "./lines";
 import { pickItem, supplierOffer, type BookQuery, type Pick } from "./lookups";
-import { inKind, isolatorOf, pickFromRange, RANGE_KINDS, sizeWords, type RangeKind, type RangeNeed, type RangeSize } from "./ranges";
+import { inKind, isolatorOf, pickFromRange, RANGE_KINDS, sizeWords, type RangeKind, type RangeNeed, type RangeOffer, type RangeSize } from "./ranges";
 import type { ComponentKey } from "./components";
-import type { RangeOffer } from "./job-price";
 import type { Preferred } from "./settings";
 
 /* KITS AS DATA (the engine rebuild, slice 1.3) — what a system takes to

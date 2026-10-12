@@ -1,5 +1,5 @@
 import type { BuildLine, Visit } from "./buildup";
-import type { Unpriced } from "./job-price";
+import type { Unpriced } from "./lines-price";
 import type { LineFields } from "./lines";
 
 /* A QUOTE BROUGHT ACROSS TO ITS KEPT LINES (the engine rebuild) — a quote

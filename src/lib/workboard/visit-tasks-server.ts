@@ -6,7 +6,7 @@ import { imageForClaude } from "@/lib/images/for-claude";
 import { VISIT_STAGES, type Visit, type VisitStage } from "@/lib/quotes/buildup";
 import { CHECKLIST } from "@/lib/quotes/checklist";
 import { acceptedOptions, type ProposalOption } from "@/lib/quotes/proposal";
-import { FALLBACK_MODEL, MODEL } from "@/lib/quotes/proposal-writer";
+import { FALLBACK_MODEL, MODEL } from "@/lib/quotes/models";
 import { labourTasks, linesHours } from "@/lib/quotes/lines-job";
 import { readJobQuote } from "@/lib/quotes/lines-job-server";
 import { readQuoteLabour } from "@/lib/quotes/quote-labour-server";

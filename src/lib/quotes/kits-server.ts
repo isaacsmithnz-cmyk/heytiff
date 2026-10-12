@@ -7,8 +7,7 @@ import { readQuoteSettings } from "./settings-query";
 import { readByHand } from "./lines-job-server";
 import { rangeOffersFrom, readRanges } from "./ranges-server";
 import { currentItemsByCode, readSuppliers } from "./price-book-server";
-import type { RangeKind } from "./ranges";
-import type { RangeOffer } from "./job-price";
+import type { RangeKind, RangeOffer } from "./ranges";
 
 /* A kit added to a quote in one press (kits.ts): its facts filled from the
    outdoor's data pack where the person named one and left them blank, each

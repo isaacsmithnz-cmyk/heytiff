@@ -1,7 +1,6 @@
 import { hasFactorySpigots, type DataPack } from "@/lib/studio/packs/schema";
 import type { CategoryKey } from "./categories";
 import { matchesWords, sizesOf, usesOf, type Product } from "./families";
-import { sameUnit } from "./option-materials";
 import { searchWords, type Offer } from "./price-book";
 import { fuzzyWord, nearestIn, wordsOf } from "./fuzzy";
 
@@ -174,6 +173,25 @@ export function pickItem(products: Product[], q: BookQuery, supplier: string | n
 }
 
 /* ── a unit, from its maker's data pack ── */
+
+const norm = (m: string) => m.toUpperCase().replace(/[^A-Z0-9]/g, "");
+/** A model as written names a pack model when one starts with the other:
+    "MSZ-AP25VGD2" and "MSZ-AP25VG". */
+export const sameModel = (written: string, pack: string) => {
+  const a = norm(written);
+  const b = norm(pack);
+  return a.length >= 6 && (a.startsWith(b) || b.startsWith(a));
+};
+
+/** A model's body, its maker's suffix (-A, -E, -E4, -L) taken off: the
+    office writes PEFY-P25VMX-A where the data pack holds PEFY-P25VMX-E. */
+const body = (m: string) => {
+  let x = m.toUpperCase().trim();
+  for (let y = x.replace(/-[A-Z0-9]{1,2}$/, ""); y !== x; y = x.replace(/-[A-Z0-9]{1,2}$/, "")) x = y;
+  return norm(x);
+};
+/** The same unit, by its model or its body. */
+export const sameUnit = (written: string, pack: string) => sameModel(written, pack) || (body(written).length >= 6 && body(written) === body(pack));
 
 export type UnitSpecs = {
   role: "indoor" | "outdoor";

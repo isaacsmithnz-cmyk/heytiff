@@ -1,4 +1,3 @@
-import { EXTRA_NOTES, EXTRA_NOTE_KEYS } from "@/lib/quotes/proposal";
 import { PAYMENT_PRESETS, PAYMENT_PRESET_KEYS, type PaymentPreset, type PaymentStage } from "@/lib/quotes/payment";
 import { DEFAULT_CHECKLIST, type ChecklistSeed } from "@/lib/workboard/stages";
 
@@ -76,6 +75,66 @@ export const MAX_FOOTER = 160;
 export const MAX_CLOSING = 60;
 
 /* ── the standard wording ──────────────────────────────────────────────── */
+
+/** The extra notes a job can need beyond the standard ones. The writer picks
+    keys; the words are these, always. */
+export const EXTRA_NOTES = {
+  client_supplied: {
+    heading: "Client-supplied equipment",
+    lines: [
+      "The unit's manufacturer warranty is between you and your supplier.",
+      "Our installation workmanship warranty still applies.",
+      "Time spent finding a fault with supplied equipment is charged.",
+    ],
+  },
+  roof_access: {
+    heading: "Roof access",
+    lines: [
+      "Roof tiles are lifted to reach the work and relaid when it is done.",
+      "Tiles that are already cracked or brittle may break when lifted, and replacing them is extra.",
+    ],
+  },
+  strata: {
+    heading: "Strata approval",
+    lines: [
+      "Strata or building management approval is needed before we start.",
+      "We can supply the specifications they ask for.",
+    ],
+  },
+  existing_removal: {
+    heading: "Existing system",
+    lines: ["The old system is removed, its refrigerant recovered, and it is disposed of."],
+  },
+  pipe_reuse: {
+    heading: "Existing pipework",
+    lines: ["Existing pipes are reused where they pass a pressure test.", "If they fail, replacing them is extra."],
+  },
+  ceiling_opening: {
+    heading: "Opening the ceiling",
+    lines: [
+      "Where the ceiling has to be opened, patching and painting are not included.",
+      "We can organise it, or your own trades can.",
+    ],
+  },
+  condensate_pump: {
+    heading: "Condensate pumps",
+    lines: ["Where a drain can't fall to a drain point, a condensate pump lifts it, and is listed in the scope."],
+  },
+  custom_grilles: {
+    heading: "Custom and powder-coated grilles",
+    lines: [
+      "Custom and powder-coated grilles are made to order, and their lead time is confirmed when you accept.",
+      "Colours are matched to a sample you approve.",
+    ],
+  },
+  trading_hours: {
+    heading: "Working around your trading hours",
+    lines: ["We plan the noisy and disruptive work around your trading hours, agreed before we start."],
+  },
+} as const satisfies Record<string, { heading: string; lines: readonly string[] }>;
+
+export type ExtraNoteKey = keyof typeof EXTRA_NOTES;
+export const EXTRA_NOTE_KEYS = Object.keys(EXTRA_NOTES) as ExtraNoteKey[];
 
 export const STANDARD_NOTES: QuoteNote[] = EXTRA_NOTE_KEYS.map((key) => ({
   key,

@@ -62,6 +62,9 @@ export type RangeSize = {
 /** What a line needs: a size, and for an isolator the outdoor's supply. */
 export type RangeNeed = RangeSize & { phase?: "1" | "3" | null };
 
+/** An item in one of the business's ranges, at its size and its price. */
+export type RangeOffer = { size: RangeSize; perUnitCents: number; supplierKey: string; code: string; name: string };
+
 /** An item in one of the business's ranges, as Quoting shows it. */
 export type RangeItemView = {
   supplierKey: string;

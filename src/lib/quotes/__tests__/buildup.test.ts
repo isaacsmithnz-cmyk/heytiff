@@ -1,139 +1,61 @@
-/* The build-up's rules, on job 2330 — a 12.5 kW Mitsubishi HAA with five
-   zones, as Isaac described it and corrected it (2026-09-30), priced from
-   the frozen book the past-job tests use. */
-import { customerBreakdown, ductTrunks, faceVelocity, priceBuildUp, recommendReturn, STANDARD_RETURNS, trunkingLengths, wallBracketCode } from "../buildup";
-import { brandOf, ductedLines, plenumRunFittings, type DuctedFacts, type PriceOf } from "../ducted-template";
-import { multiLines } from "../multi-template";
-import { splitLines } from "../split-template";
-import { PAST_JOBS } from "./fixtures/past-jobs";
+/* The build-up's rules, on a 12.5 kW Mitsubishi ducted system with five
+   zones and on a wall split, each written out as the lines a quote prices,
+   at one business's settings. */
+import { customerBreakdown, ductTrunks, faceVelocity, priceBuildUp, recommendReturn, STANDARD_RETURNS, trunkingLengths, wallBracketCode, type BuildLine } from "../buildup";
 import { ONE_BUSINESS } from "./fixtures/one-business";
-import { BLIND_JOBS_BOOK } from "./fixtures/blind-jobs-book";
-import { PAST_JOBS_BOOK } from "./fixtures/past-jobs-book";
 
-const priceOf: PriceOf = (code) => {
-  const b = PAST_JOBS_BOOK[code] ?? BLIND_JOBS_BOOK[code];
-  return b ? { supplierKey: b[0], buyCents: b[1], name: b[2] } : null;
-};
-const job2330 = PAST_JOBS.find((j) => j.job === "2330")!.facts as DuctedFacts;
+const line = (l: Omit<BuildLine, "supplierKey" | "code"> & Partial<BuildLine>): BuildLine => ({ code: null, supplierKey: "aad", ...l });
 
-describe("job 2330", () => {
-  it("builds every line from the price book, nothing missing", () => {
-    const r = ductedLines(job2330, priceOf);
-    expect(r.missing).toEqual([]);
-    expect(r.returnSize).toEqual({ wMm: 900, hMm: 550 });
-    expect(r.returnMs).toBe(2);
-    expect(r.lines.find((l) => l.key === "bracket")?.code).toBe("CWBX");
-    expect(r.lines.some((l) => /drip tray/i.test(l.name))).toBe(false);
-    expect(r.lines.find((l) => l.key === "pair-coil")).toMatchObject({ code: "PC3858", qty: 1, assumed: "15 m, one 20 m roll" });
+/* the ducted system: its units, the ductwork and grilles the contingency
+   covers, and the pipe that it doesn't */
+const DUCTED: BuildLine[] = [
+  line({ key: "indoor", group: "Units", name: "PEA-M125HAA", code: "PEA-M125HAA", qty: 1, unitBuyCents: 280000, kind: "unit" }),
+  line({ key: "outdoor", group: "Units", name: "PUZ-ZM125YKA2", code: "PUZ-ZM125YKA2", qty: 1, unitBuyCents: 320000, kind: "unit" }),
+  line({ key: "flex", group: "Ductwork and grilles", name: "Flex 250", code: "VB250", qty: 6, unitBuyCents: 4200, kind: "material", duct: true }),
+  line({ key: "grilles", group: "Ductwork and grilles", name: "Bar grille 1200 × 150", code: "BG12015", qty: 5, unitBuyCents: 9000, kind: "material", duct: true }),
+  line({ key: "pair-coil", group: "Pipe, power and controls", name: "Pair coil 3/8 + 5/8", code: "PC3858", qty: 1, unitBuyCents: 15747, kind: "material", assumed: "15 m, one 20 m roll" }),
+];
+
+const WALL_SPLIT: BuildLine[] = [
+  line({ key: "indoor", group: "Units", name: "MSZ-AP42VGKD2-A2", code: "MSZ-AP42VGKD2-A2", qty: 1, unitBuyCents: 90000, kind: "unit" }),
+  line({ key: "outdoor", group: "Units", name: "MUZ-AP42VGD2-A2", code: "MUZ-AP42VGD2-A2", qty: 1, unitBuyCents: 110000, kind: "unit" }),
+  line({ key: "pair-coil", group: "Pipe, power and controls", name: "Pair coil 1/4 + 3/8", code: "PC1438", qty: 7, unitBuyCents: 15747 / 20, kind: "material" }),
+  line({ key: "trunking", group: "Pipe, power and controls", name: "Trunking 2.4 m", code: "1610375-1", qty: 1.5, unitBuyCents: 3614, kind: "material" }),
+];
+
+describe("the build-up", () => {
+  it("groups the lines in the order they come, each at its markup", () => {
+    const b = priceBuildUp(DUCTED, [], ONE_BUSINESS);
+    expect(b.groups.map((g) => [g.name, g.buyCents, g.sellCents])).toEqual([
+      ["Units", 600000, 750000],
+      ["Ductwork and grilles", 70200, 98280],
+      ["Pipe, power and controls", 15747, 22046],
+    ]);
   });
 
   it("prices a person-day as the working day at the charge-out rate, and the contingency's hours at that rate", () => {
-    const b = priceBuildUp(ductedLines(job2330, priceOf).lines, [{ stage: "Install", people: 5, days: 1 }], ONE_BUSINESS);
-    expect(b.contingency).toEqual({ buyCents: 20011, sellCents: 28015, hours: 2 });
+    const b = priceBuildUp(DUCTED, [{ stage: "Install", people: 5, days: 1 }], ONE_BUSINESS);
+    /* 15% of the $702 of ductwork and grilles, at the materials markup */
+    expect(b.contingency).toEqual({ buyCents: 10530, sellCents: 14742, hours: 2 });
     /* a person-day is the business's working hours at its charge-out rate; the contingency's hours at the same rate */
     expect(b.labour).toMatchObject({ personDays: 5, hours: 2, sellCents: 5 * 8 * 16500 + 2 * 16500 });
     expect(b.incGstCents - b.exGstCents).toBe(b.gstCents);
+    expect(b.gstCents).toBe(Math.round(b.exGstCents / 10));
   });
 
   it("a hard job's loading goes on the visits' labour, and only with a reason", () => {
-    const lines = ductedLines(job2330, priceOf).lines;
     const visits = [{ stage: "Install" as const, people: 5, days: 1 }, { stage: "Fit-off" as const, people: 2, days: 1 }];
-    const plain = priceBuildUp(lines, visits, ONE_BUSINESS);
-    const loaded = priceBuildUp(lines, visits, ONE_BUSINESS, { pct: 15, reason: "scissor lift, commercial ductwork" });
+    const plain = priceBuildUp(DUCTED, visits, ONE_BUSINESS);
+    const loaded = priceBuildUp(DUCTED, visits, ONE_BUSINESS, { pct: 15, reason: "scissor lift, commercial ductwork" });
     expect(loaded.loading).toEqual({ pct: 15, reason: "scissor lift, commercial ductwork", sellCents: Math.round(7 * 132000 * 0.15) });
     expect(loaded.exGstCents - plain.exGstCents).toBe(138600);
-    expect(priceBuildUp(lines, visits, ONE_BUSINESS, { pct: 15, reason: " " }).loading).toBeNull();
+    expect(priceBuildUp(DUCTED, visits, ONE_BUSINESS, { pct: 15, reason: " " }).loading).toBeNull();
   });
 
-  it("the linear kit brings its receiver, a sensor and batteries per zone", () => {
-    const r = ductedLines({ ...job2330, zoning: "meLinear" }, priceOf);
-    const codes = r.lines.map((l) => [l.code ?? l.key, l.qty]);
-    expect(codes).toEqual(expect.arrayContaining([["PAC-ZC10L240C-A", 1], ["PAR-ZM01A-A", 1], ["PAR-ZR01R-A", 1], ["PAR-ZR01S-A", 5], ["zone-batteries", 5]]));
+  it("only ductwork carries the duct contingency: a wall split, or a swap that keeps its ductwork, has none", () => {
+    expect(priceBuildUp(WALL_SPLIT, [{ stage: "Install", people: 2, days: 1 }], ONE_BUSINESS).contingency).toBeNull();
+    expect(priceBuildUp(DUCTED.filter((l) => !l.duct), [{ stage: "Install", people: 3, days: 1 }], ONE_BUSINESS).contingency).toBeNull();
   });
-
-  it("custom grilles bring their JH box, and three phase brings the 4-pole isolator", () => {
-    const r = ductedLines({ ...job2330, grilles: "custom", threePhase: true }, priceOf);
-    expect(r.lines.find((l) => l.key === "grille-boxes")?.code).toBe("JH-LBOX-1.5");
-    expect(r.lines.find((l) => l.key === "isolator")?.code).toBe("3421175-1");
-  });
-
-  it("with no zone kit the unit gets its own wall controller", () => {
-    const r = ductedLines({ ...job2330, zoning: "none" }, priceOf);
-    expect(r.lines.find((l) => l.key === "controller")?.code).toBe("PAR-41MAAM");
-    expect(r.lines.some((l) => l.key === "zone-dampers")).toBe(false);
-  });
-});
-
-describe("Isaac's standard ducted kit", () => {
-  it("feeds six cone diffusers from two plenums, three BTOs a run", () => {
-    const r = ductedLines({ ...job2330, supply: "plenums", grilles: "cone", outlets: 6, mount: "ground" }, priceOf);
-    const qty = (code: string) => r.lines.filter((l) => l.code === code).reduce((a, l) => a + l.qty, 0);
-    expect(r.lines.find((l) => l.key === "plenums")?.qty).toBe(2);
-    expect([qty("MB141412"), qty("MB141410"), qty("MB141010")]).toEqual([2, 2, 2]);
-    expect([qty("VB400"), qty("VB350"), qty("VB300"), qty("VB250")]).toEqual([2, 2, 2, 6]);
-    expect(qty("CD250")).toBe(6);
-    expect(qty("CMADJ")).toBe(1);
-    expect(r.lines.some((l) => l.code === "BG10514" || l.code === "NCMIT100HAA")).toBe(false);
-  });
-
-  it("splits the outlets across the runs, three at most on each", () => {
-    expect(plenumRunFittings(3)).toEqual(["MB141412", "MB141410", "MB141010"]);
-    expect(plenumRunFittings(2)).toEqual(["MB141410", "MB141010"]);
-    const r = ductedLines({ ...job2330, supply: "plenums", outlets: 8 }, priceOf);
-    expect(r.lines.find((l) => l.key === "plenums")?.qty).toBe(3);
-  });
-});
-
-describe("a swap into the old system", () => {
-  it("keeps what the scope keeps, recovers the old refrigerant, and has no duct contingency", () => {
-    const r = ductedLines({ ...job2330, trunkingM: null, reuse: { pipe: true, ductwork: true }, replacing: true }, priceOf);
-    const keys = r.lines.map((l) => l.key);
-    expect(keys).toEqual(expect.arrayContaining(["reconnect", "flush", "recovery"]));
-    expect(keys.some((k) => /^(fitting|flex|grilles|return|nose-cone|pair-coil|trunking)/.test(k))).toBe(false);
-    expect(priceBuildUp(r.lines, [{ stage: "Install", people: 3, days: 1 }], ONE_BUSINESS).contingency).toBeNull();
-    const unflushed = ductedLines({ ...job2330, reuse: { pipe: true, flush: false, ductwork: true } }, priceOf);
-    expect(unflushed.lines.some((l) => l.key === "flush")).toBe(false);
-  });
-
-});
-
-describe("a multi-split", () => {
-  const head = (indoor: string, kw: number) => ({ indoor, kw, pipe: "1/4+3/8" as const });
-  it("runs a pipe, trunking and consumables to each head, the outdoor's kit once", () => {
-    const r = multiLines({ outdoor: "MXZ-3F54VGD-A2", heads: [head("MSZ-AP25VGKD2-A2", 2.5), head("MSZ-AP42VGKD2-A2", 4.2)], newCircuit: true }, priceOf);
-    expect(r.lines.filter((l) => l.key.startsWith("pair-coil")).map((l) => l.qty)).toEqual([10, 10]);
-    expect(r.lines.find((l) => l.key === "trunking")?.qty).toBe(3);
-    expect(r.lines.find((l) => l.key === "consumables")?.qty).toBe(2);
-    expect(r.lines.filter((l) => l.key === "isolator" || l.key === "mount").length).toBe(2);
-    expect(r.lines.find((l) => l.key === "circuit")).toBeTruthy();
-  });
-
-});
-
-describe("the wall-split kit", () => {
-  const f = { indoor: "MSZ-AP42VGKD2-A2", outdoor: "MUZ-AP42VGD2-A2", kw: 4.2, pipe: "1/4+3/8" as const };
-  it("carries what every one of Isaac's split quotes carries", () => {
-    const r = splitLines(f, priceOf);
-    expect(r.missing).toEqual([]);
-    expect(r.lines.map((l) => [l.key, l.qty])).toEqual([
-      ["indoor", 1],
-      ["outdoor", 1],
-      ["pair-coil", 7],
-      ["isolator", 1],
-      ["mount", 1],
-      ["trunking", 1.5],
-      ["consumables", 1],
-    ]);
-    expect(r.lines.find((l) => l.key === "pair-coil")?.unitBuyCents).toBeCloseTo(15747 / 20);
-  });
-
-  it("goes on the wall bracket by size, and brings a pump only when asked", () => {
-    const r = splitLines({ ...f, mount: "wall", outdoorWidthMm: 800, outdoorWeightKg: 40, pump: true }, priceOf);
-    expect(r.lines.find((l) => l.key === "bracket")?.code).toBe("CWB180");
-    expect(r.lines.find((l) => l.key === "pump")?.code).toBe("MINIAQUA");
-  });
-
-
 });
 
 describe("the layout rules", () => {
@@ -162,56 +84,30 @@ describe("the layout rules", () => {
   });
 });
 
-describe("2749, a Daikin apartment changeover", () => {
-  const daikin: PriceOf = (code) =>
-    ({ BRC1E63: { supplierKey: "aad", buyCents: 10101, name: "DAI WIRED 7 DAY PROG CONTROL" }, "JH-ACCESS": { supplierKey: "jh", buyCents: 4500, name: "ACCESS PANEL" } })[code] ?? priceOf(code);
-  const swap = { ...job2330, indoor: "FDYAN71AV1", outdoor: "RZAC71C2V1", zoning: "none" as const, zones: 0, reuse: { ductwork: true }, replacing: true };
-
-  it("tells a Daikin from a Mitsubishi by the indoor's code", () => {
-    expect(brandOf("FDYAN71AV1")).toBe("daikin");
-    expect(brandOf("PEA-M125HAA")).toBe("mitsubishi");
-  });
-
-  it("gives a Daikin its own wall controller, and flags a zone kit it hasn't got", () => {
-    expect(ductedLines(swap, daikin).lines.find((l) => l.key === "controller")?.code).toBe("BRC1E63");
-    expect(ductedLines(job2330, daikin).lines.find((l) => l.key === "controller")).toBeUndefined();
-    expect(ductedLines({ ...swap, zoning: "me24", zones: 4 }, daikin).missing.join()).toMatch(/Daikin/);
-  });
-
-
-
-  it("a swap can still take a new plenum and an access panel", () => {
-    const keys = ductedLines({ ...swap, swapNew: { plenum: true, accessPanel: true } }, daikin).lines.map((l) => l.key);
-    expect(keys).toEqual(expect.arrayContaining(["reconnect", "plenum", "access-panel"]));
-  });
-});
-
 describe("a price offered below the build-up", () => {
-  const lines = () => ductedLines(job2330, priceOf).lines;
   const visits = [{ stage: "Install" as const, people: 4, days: 1 }];
 
   it("needs a reason, and shows what it gives away", () => {
-    const full = priceBuildUp(lines(), visits, ONE_BUSINESS);
-    const offered = priceBuildUp(lines(), visits, ONE_BUSINESS, null, { exGstCents: 990000, reason: "priced low to win it" });
+    const full = priceBuildUp(DUCTED, visits, ONE_BUSINESS);
+    const offered = priceBuildUp(DUCTED, visits, ONE_BUSINESS, null, { exGstCents: 990000, reason: "priced low to win it" });
     expect(offered.exGstCents).toBe(990000);
     expect(offered.buildExGstCents).toBe(full.exGstCents);
     expect(offered.offered?.discountCents).toBe(full.exGstCents - 990000);
-    const bare = priceBuildUp(lines(), visits, ONE_BUSINESS, null, { exGstCents: 990000, reason: "" });
+    const bare = priceBuildUp(DUCTED, visits, ONE_BUSINESS, null, { exGstCents: 990000, reason: "" });
     expect(bare.exGstCents).toBe(full.exGstCents);
     expect(bare.offeredNeedsReason).toBe(true);
   });
 
   it("a loading with no reason says so rather than vanishing", () => {
-    expect(priceBuildUp(lines(), visits, ONE_BUSINESS, { pct: 15, reason: "" }).loadingNeedsReason).toBe(true);
+    expect(priceBuildUp(DUCTED, visits, ONE_BUSINESS, { pct: 15, reason: "" }).loadingNeedsReason).toBe(true);
   });
 });
 
 describe("what the customer sees in a breakdown", () => {
-  const lines = ductedLines(job2330, priceOf).lines;
   const visits = [{ stage: "Install" as const, people: 5, days: 1 }];
 
   it("spreads the loading, contingency and a discount across the lines, summing to the cent", () => {
-    const b = priceBuildUp(lines, visits, ONE_BUSINESS, { pct: 15, reason: "hard access" }, { exGstCents: 1_200_000, reason: "to win it" });
+    const b = priceBuildUp(DUCTED, visits, ONE_BUSINESS, { pct: 15, reason: "hard access" }, { exGstCents: 1_200_000, reason: "to win it" });
     const c = customerBreakdown(b);
     expect(c.lines.reduce((a, l) => a + l.sellCents, 0)).toBe(b.exGstCents);
     expect(c.lines.some((l) => /loading|difficulty|contingency|discount/i.test(l.name))).toBe(false);
@@ -219,14 +115,9 @@ describe("what the customer sees in a breakdown", () => {
   });
 
   it("leaves the lines as priced when nothing is hidden", () => {
-    const b = priceBuildUp(lines, visits, { ...ONE_BUSINESS, contingency: null });
+    const b = priceBuildUp(DUCTED, visits, { ...ONE_BUSINESS, contingency: null });
     const c = customerBreakdown(b);
     expect(c.hiddenCents).toBe(0);
     expect(c.lines.reduce((a, l) => a + l.sellCents, 0)).toBe(b.exGstCents);
-  });
-
-  it("a wall split carries no contingency row", () => {
-    const split = priceBuildUp(splitLines({ indoor: "MSZ-AP42VGKD2-A2", outdoor: "MUZ-AP42VGD2-A2", kw: 4.2, pipe: "1/4+3/8" }, priceOf).lines, [{ stage: "Install", people: 2, days: 1 }], ONE_BUSINESS);
-    expect(split.contingency).toBeNull();
   });
 });

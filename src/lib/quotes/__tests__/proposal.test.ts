@@ -7,21 +7,14 @@
    the payment presets add up to 100% at the suggested 10% deposit, and any
    other deposit is the business's to set. */
 
-import { CHECKLIST, CHECKLIST_KEYS, capAsks, orderChecklist } from "../checklist";
+import { CHECKLIST, CHECKLIST_KEYS, orderChecklist } from "../checklist";
 import { PAYMENT_PRESETS, SUGGESTED_DEPOSIT_PCT, paymentProblems, suggestedDeposit } from "../payment";
 import {
   MAX_OPTIONS,
-  acceptedAfterRemoving,
   acceptedOptions,
-  blankUnit,
   normaliseDraft,
   optionHeading,
   proposalTitle,
-  removeUnit,
-  setUnitRole,
-  toggleAccepted,
-  unitPlace,
-  unitWords,
   type ProposalDraft,
 } from "../proposal";
 
@@ -135,13 +128,6 @@ describe("normaliseDraft", () => {
     expect(many.checklist.every((i) => i.rank === undefined)).toBe(true);
   });
 
-  it("cuts Tiff's asks to the eight that matter most, unranked last", () => {
-    const items = CHECKLIST_KEYS.filter((k) => k !== "labour").map((key, n) => ({ key, state: "ask" as const, answer: "", rank: n < 9 ? 9 - n : undefined }));
-    const kept = capAsks(items).filter((i) => i.state === "ask");
-    expect(kept).toHaveLength(8);
-    expect(kept.map((i) => i.rank).sort((a, b) => a! - b!)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-  });
-
   it("keeps a person's answer marked fresh until the scope is rewritten with it", () => {
     const d = normaliseDraft(base({ checklist: [{ key: "pipe_colour", state: "known", answer: "Paperbark", fresh: true }] }))!;
     expect(d.checklist[0]).toEqual({ key: "pipe_colour", state: "known", answer: "Paperbark", fresh: true });
@@ -252,75 +238,17 @@ describe("the equipment rows", () => {
     expect(u[3]).toMatchObject({ capacity: "", lps: 67 });
     expect(u[2].qty).toBe(2);
   });
-
-  it("says each row as the card shows it, and never fills in a model that wasn't given", () => {
-    const u = vrf();
-    expect(unitPlace(u[0])).toBe("Outdoor unit 1, side of the house");
-    expect(unitWords(u[0])).toBe("15.5 kW, Outdoor unit, PUMY-P140YKM");
-    expect(unitWords(u[2])).toBe("2 x 2.2 kW, High wall");
-    expect(unitWords(u[3])).toBe("In-line fan, SJMF100, 67 L/s");
-  });
-
-  it("keeps an indoor unit on its own outdoor when an earlier outdoor is removed", () => {
-    const rows = [blankUnit("outdoor", 0), blankUnit("outdoor", 1), { ...blankUnit("indoor", 2), room: "Study" }];
-    expect(rows[2].system).toBe(2);
-    expect(removeUnit(rows, 0).map((r) => [r.role, r.system])).toEqual([
-      ["outdoor", 1],
-      ["indoor", 1],
-    ]);
-  });
-
-  it("keeps every indoor unit on its own outdoor when a row changes kind", () => {
-    const rows = [blankUnit("outdoor", 0), blankUnit("outdoor", 1), blankUnit("outdoor", 2), { ...blankUnit("indoor", 3), room: "Study" }];
-    expect(rows[3].system).toBe(3);
-    /* outdoor 2 becomes an indoor unit: the study stays on the old outdoor 3, now numbered 2 */
-    const fewer = setUnitRole(rows, 1, "indoor");
-    expect(fewer.map((r) => [r.role, r.system])).toEqual([
-      ["outdoor", 1],
-      ["indoor", 1],
-      ["outdoor", 2],
-      ["indoor", 2],
-    ]);
-    /* and back: a new outdoor above moves the units below it with their own */
-    expect(setUnitRole(fewer, 1, "outdoor").map((r) => [r.role, r.system])).toEqual([
-      ["outdoor", 1],
-      ["outdoor", 2],
-      ["outdoor", 3],
-      ["indoor", 3],
-    ]);
-    /* a fan runs from no outdoor, and its airflow goes when it stops being one */
-    expect(setUnitRole([{ ...blankUnit("fan", 0), lps: 40 }], 0, "indoor")[0]).toMatchObject({ role: "indoor", system: 0, lps: null });
-  });
-
-  it("puts an indoor unit whose outdoor is removed under the nearest outdoor above it", () => {
-    const rows = [blankUnit("outdoor", 0), blankUnit("outdoor", 1), { ...blankUnit("indoor", 2), room: "Study" }];
-    expect(removeUnit(rows, 1).map((r) => [r.role, r.system])).toEqual([
-      ["outdoor", 1],
-      ["indoor", 1],
-    ]);
-  });
 });
 
 describe("the accepted option", () => {
   const two = (mode: string) => normaliseDraft(base({ pricing_mode: mode, options: [{ name: "A", lines: ["x"] }, { name: "B", lines: ["y"] }] }))!;
 
-  it("is one option when the client picks one, and any number when they tick the ones they want", () => {
-    const pick = two("multiple_choice");
-    expect(toggleAccepted({ ...pick, accepted: [0] }, 1)).toEqual([1]);
-    const tick = two("optional");
-    expect(toggleAccepted({ ...tick, accepted: [1] }, 0)).toEqual([0, 1]);
-    expect(normaliseDraft({ ...base({ options: [{ name: "A", lines: ["x"] }, { name: "B", lines: ["y"] }] }), accepted: [1, 0, 9] })!.accepted).toEqual([0]);
-  });
-
   it("is the only option when there is one, and nothing when several are unmarked", () => {
     expect(acceptedOptions(normaliseDraft(base())!).map((o) => o.name)).toEqual(["A"]);
     expect(acceptedOptions(two("multiple_choice"))).toEqual([]);
     expect(acceptedOptions({ ...two("multiple_choice"), accepted: [1] }).map((o) => o.name)).toEqual(["B"]);
-  });
-
-  it("follows its option when an earlier one is removed", () => {
-    expect(acceptedAfterRemoving([0, 2], 1)).toEqual([0, 1]);
-    expect(acceptedAfterRemoving([1], 1)).toEqual([]);
+    /* a client who picks one has accepted one, and only an option there is */
+    expect(normaliseDraft({ ...base({ options: [{ name: "A", lines: ["x"] }, { name: "B", lines: ["y"] }] }), accepted: [1, 0, 9] })!.accepted).toEqual([0]);
   });
 });
 

@@ -6,7 +6,7 @@ import { readByHand } from "@/lib/quotes/lines-job-server";
 import { approvalStands } from "@/lib/quotes/lines-proposal";
 import { readVersions } from "@/lib/quotes/quote-versions-server";
 import { readOpenQuestions, readSession } from "@/lib/quotes/session/store-server";
-import { readStoredProposal } from "@/lib/quotes/proposal-writer";
+import { readStoredProposal } from "@/lib/quotes/old-draft-server";
 import { toConfirmOf, type QuoteFacts } from "@/lib/quotes/quote-card";
 
 /* WHERE A JOB'S QUOTE STANDS, for the job card's Quote section (quote-card.ts):

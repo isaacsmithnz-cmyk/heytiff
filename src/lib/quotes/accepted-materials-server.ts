@@ -1,7 +1,5 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
-import { optionMaterials } from "./option-materials";
 import type { OptionRow } from "./material-rows";
 import { acceptedOptions } from "./proposal";
 import { linesMaterials } from "./lines-job";
@@ -11,15 +9,13 @@ import { readJobQuote } from "./lines-job-server";
    "whichever one is accepted as an option will then turn into the materials
    list for the job").
 
-   The accepted options' lists (option-materials.ts) go on the job's own
+   The accepted options' parts (lines-job.ts linesMaterials) go on the job's own
    Materials list — the one "Materials sorted" ticks off. A row already
    there by name and detail isn't added twice. What a person put on by hand
    stays, and so does anything picked: it's bought. Only an unpicked row
    that came from one of the quote's other options gives way. HeyTiff's
    own list only: nothing goes to ServiceM8. Service role, by org; the
    route gates. */
-
-const PACK_BRAND = "mitsubishi-electric";
 
 export type AcceptedOnJob = { ok: true; added: number; removed: number } | { ok: false; reason: string };
 
@@ -54,22 +50,12 @@ export function rowsToAdd(accepted: readonly OptionRow[], already: readonly { na
 
 export async function putAcceptedOnJob(orgId: string, userId: string, cardId: string): Promise<AcceptedOnJob> {
   const quote = await readJobQuote(orgId, cardId);
-  if (!quote) return { ok: false, reason: "There's no quote on this job." };
-  const options = acceptedOptions(quote.draft);
-  if (options.length === 0) return { ok: false, reason: "No option is marked accepted." };
-  let accepted: OptionRow[];
-  let everyOption: OptionRow[];
-  if (quote.lines) {
-    /* a quote built on its lines: its parts are the list, one for one */
-    const taken = new Set(quote.draft.accepted.length ? quote.draft.accepted : [0]);
-    accepted = linesMaterials(quote.lines.filter((l) => taken.has(l.optionIndex)));
-    everyOption = linesMaterials(quote.lines);
-  } else {
-    const ref = await latestInstalledPack(PACK_BRAND);
-    const pack = ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
-    accepted = options.flatMap((o) => optionMaterials(o, quote.draft.checklist, pack));
-    everyOption = quote.draft.options.flatMap((o) => optionMaterials(o, quote.draft.checklist, pack));
-  }
+  if (!quote?.lines) return { ok: false, reason: "There's no quote on this job." };
+  if (acceptedOptions(quote.draft).length === 0) return { ok: false, reason: "No option is marked accepted." };
+  /* its parts are the list, one for one */
+  const taken = new Set(quote.draft.accepted.length ? quote.draft.accepted : [0]);
+  const accepted = linesMaterials(quote.lines.filter((l) => taken.has(l.optionIndex)));
+  const everyOption = linesMaterials(quote.lines);
 
   const { data } = await supabaseAdmin
     .from("job_picklist_items")

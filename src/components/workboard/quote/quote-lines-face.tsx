@@ -27,6 +27,10 @@ import type { Variation } from "@/lib/quotes/lines-job";
 import { VariationPaper } from "./variation-paper";
 import { VersionPaper } from "./version-paper";
 import type { QuoteVersion } from "@/lib/quotes/quote-versions";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import type { JobMediaItem } from "@/lib/workboard/job-media";
+import { DocRow } from "../board/job-documents-face";
+import type { Sm8Quote } from "../board/job-quote-card";
 
 /* THE QUOTE BY HAND, ON ITS KEPT LINES (the engine rebuild, slice 2.3, to
    the mock-ups Isaac shaped on 7 October): the total in its own card, pinned
@@ -301,11 +305,12 @@ export function QuoteLinesFace({
   price,
   actionsEl,
   onPriced,
-  onSwitchBack,
   onToast,
   send,
   sendQuote,
   meta,
+  sm8 = null,
+  onOpenPaper,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
@@ -318,9 +323,13 @@ export function QuoteLinesFace({
   sendQuote?: (onSent: () => void) => ReactNode;
   /** who and where, for the proposal's heading */
   meta?: { title: string; client: string | null; site: string | null; jobNumber: string | null };
+  /** ServiceM8's own quote on the job, at the top of the list on the right
+      (Isaac, 2026-10-03: "if a quote has been generated in sm8 it should
+      show on our quote page") */
+  sm8?: Sm8Quote | null;
+  onOpenPaper?: (item: JobMediaItem) => void;
   /** read the price again: a line changed */
   onPriced: () => void;
-  onSwitchBack: () => void;
 }) {
   const { view, post, reload } = useQuoteLines(job, true);
   const [at, setAt] = useState(0);
@@ -1102,6 +1111,15 @@ export function QuoteLinesFace({
 
   const rail = (
     <div className="ql-rail">
+      {sm8 && (sm8.papers.length > 0 || sm8.sentOn) && (
+        <section aria-label="Quote from ServiceM8">
+          <h2 className="hd-ls-grp">Quote from ServiceM8</h2>
+          <p className="qp-sm8">{[sm8.sentOn ? `Sent ${fmtAuWeekdayDayMonth(sm8.sentOn)}` : "Not sent yet", sm8.value].filter(Boolean).join(", ")}</p>
+          {sm8.papers.map((p) => (
+            <DocRow key={p.remoteId} item={p} onOpen={(item) => onOpenPaper?.(item)} />
+          ))}
+        </section>
+      )}
       {money && accepted.length > 0 && send}
       {money && accepted.length === 0 && view?.approved && sendQuote?.(reload)}
       {versions.length > 0 && (
@@ -1195,11 +1213,6 @@ export function QuoteLinesFace({
               </>
             ) : (
               <>
-                {money && (
-                  <button type="button" className="pbtn ghost" onClick={onSwitchBack}>
-                    Use Tiff&apos;s builder
-                  </button>
-                )}
                 {money && all.length > 0 && (
                   <button type="button" className="pbtn ghost" onClick={() => setPaper(true)}>
                     {variation ? "Preview variation" : "Preview proposal"}

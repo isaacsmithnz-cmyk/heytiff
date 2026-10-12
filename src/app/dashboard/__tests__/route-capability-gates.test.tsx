@@ -261,10 +261,10 @@ describe("the Data Library is admin+, by role and not by capability", () => {
    (Isaac, 2026-10-12: "the quoting section should still be accessible. For
    techs who are quoting a job"); without the Workboard, nobody. */
 describe("the quote page", () => {
-  it("lets a tech in without Workboard manage, and says what they may do", async () => {
+  it("lets a tech in without Workboard manage, without the money", async () => {
     (can as jest.Mock).mockImplementation(async (cap: string) => cap === "workboard");
-    const page = (await WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }) })) as { props: { manage: boolean; financials: boolean } };
-    expect(page.props).toMatchObject({ manage: false, financials: false });
+    const page = (await WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }) })) as { props: { moneyVisible: boolean; financials: boolean } };
+    expect(page.props).toMatchObject({ moneyVisible: false, financials: false });
   });
 
   it("sends someone without the Workboard away", async () => {

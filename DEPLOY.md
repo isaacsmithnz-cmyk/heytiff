@@ -994,14 +994,18 @@ existing `tenant_select` policies read.
 Preview) and redeploy; it is read at build time. The policies can stay;
 they allow nothing without a ticket.
 
-## 3h. The ServiceM8 queue's heartbeat (optional)
+## 3h. The ServiceM8 queue's heartbeat
 
 `/api/cron/sm8-drain` sends what is due to go to ServiceM8 within the minute,
 instead of at the next press, page load or night. Vercel's plan allows a
 daily cron only, so the database calls it: `pg_cron` and `pg_net` every
-minute, with `CRON_SECRET` kept in Vault. The SQL, the check and the off
-switch are in `docs/plans/queues.md`. Nothing calls the route until that SQL
-is run; it refuses every call without the secret.
+minute, with `CRON_SECRET` kept in Vault. **Applied to production
+2026-10-12** (migrations `sm8_drain_heartbeat_extensions` and
+`sm8_drain_heartbeat_schedule`): the job `heytiff-sm8-drain` runs every
+minute and sends nothing until the secret is in Vault. **Left to do:** put
+`CRON_SECRET` in Vault as `heytiff_cron_secret` (one statement, in
+`docs/plans/queues.md` with the check and the off switch). The route refuses
+every call without the secret.
 
 ## 4. Deploy & verify
 

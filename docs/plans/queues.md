@@ -37,46 +37,67 @@ nobody opens the board again.
 Vercel's Hobby plan runs a cron at most once a day (`api/cron/sm8-sync` explains how that
 was found). So the minute comes from the database instead:
 
-- **`/api/cron/sm8-drain`** (in this branch) sends only what is due, for at most ten
+- **`/api/cron/sm8-drain`** sends only what is due, for at most ten
   workspaces a call, each on a 15-second slice, inside a 60-second function. No sync, no
   settling, counts only in its answer. Locked by `CRON_SECRET` exactly as the nightly route
   is, failing closed, and let through the canonical-host move by the proxy like every
   `/api/cron/` path.
-- **`pg_cron` + `pg_net`** call it every minute. Neither is installed on the project today
-  (checked 2026-10-12: both available, neither installed; `supabase_vault` is installed).
+- **`pg_cron` + `pg_net`** call it every minute.
 
-### To turn it on (not applied: production)
+### What is applied (production, 2026-10-12)
 
-Run in the Supabase SQL editor, with the real secret and host:
+Migrations `sm8_drain_heartbeat_extensions` and `sm8_drain_heartbeat_schedule`:
 
 ```sql
+create extension if not exists pg_net with schema extensions;
 create extension if not exists pg_cron;
-create extension if not exists pg_net;
 
--- the same value as CRON_SECRET in Vercel, kept in Vault, never in the job text
-select vault.create_secret('<CRON_SECRET>', 'heytiff_cron_secret');
-
+-- Every minute: call the drain with CRON_SECRET read from Vault at run time
+-- (never in the job text). Selecting FROM the secret means a minute with no
+-- secret in Vault sends nothing, rather than a refused call.
 select cron.schedule(
   'heytiff-sm8-drain',
   '* * * * *',
   $$
   select net.http_get(
-    url := 'https://<APP_BASE_URL host>/api/cron/sm8-drain',
-    headers := jsonb_build_object(
-      'Authorization',
-      'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'heytiff_cron_secret')
-    ),
+    url := 'https://go.hey-tiff.com/api/cron/sm8-drain',
+    headers := jsonb_build_object('Authorization', 'Bearer ' || s.decrypted_secret),
     timeout_milliseconds := 60000
-  );
+  )
+  from vault.decrypted_secrets s
+  where s.name = 'heytiff_cron_secret';
   $$
+);
+
+-- pg_cron keeps a row per run (1,440 a day from the heartbeat): keep a week.
+select cron.schedule(
+  'heytiff-cron-history-trim',
+  '17 3 * * *',
+  $$ delete from cron.job_run_details where end_time < now() - interval '7 days' $$
 );
 ```
 
-Check: `select * from cron.job_run_details order by start_time desc limit 5;` and
-`select status_code, content from net._http_response order by created desc limit 5;`
-(a 200 with `{"workspaces":…,"sent":…}`; a 401 means the secret differs).
+Checked the same day: a call with no secret answered 401 "Not authorised." on
+`go.hey-tiff.com`, so the route is live and fails closed; the job runs every minute and,
+with no secret in Vault, sends nothing ("0 rows"). The security advisors flagged nothing new.
 
-Off again: `select cron.unschedule('heytiff-sm8-drain');`
+### The one step left: the secret
+
+Only someone holding `CRON_SECRET` can do this. Run once in the Supabase SQL editor, with
+the same value as `CRON_SECRET` in Vercel:
+
+```sql
+select vault.create_secret('<CRON_SECRET>', 'heytiff_cron_secret');
+```
+
+The next minute calls the drain. Check: `select * from cron.job_run_details order by
+start_time desc limit 5;` (now "1 row") and
+`select status_code, content from net._http_response order by created desc limit 5;`
+(a 200 with `{"workspaces":…,"sent":…}`; a 401 means the secret differs). A changed
+`CRON_SECRET` in Vercel needs `vault.update_secret` here too.
+
+Off again: `select cron.unschedule('heytiff-sm8-drain');`, or delete the Vault secret,
+which leaves the job sending nothing.
 
 **Cost.** 1,440 calls a day. A minute with nothing due is one indexed query
 (`orgsWithDueSm8Writes`) and returns. If the plan's function allowance is tight, run it every

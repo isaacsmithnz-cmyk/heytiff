@@ -40,7 +40,7 @@ export async function priceQuestions(orgId: string, jobUuid: string, events: rea
   return out;
 }
 
-export async function answerQuestion(orgId: string, jobUuid: string, by: string, eventId: number, index: number, events: readonly ThreadEvent[]): Promise<{ ok: true } | { ok: false; reason: string }> {
+export async function answerQuestion(orgId: string, jobUuid: string, by: string, eventId: number, index: number, events: readonly ThreadEvent[]): Promise<{ ok: true; goOn: boolean } | { ok: false; reason: string }> {
   const session = await readSession(orgId, jobUuid);
   if (!session) return { ok: false, reason: "There's no question to answer." };
   if (holding(session, Date.now())) return { ok: false, reason: "Tiff is working on the quote: answer once she's done." };
@@ -78,5 +78,5 @@ export async function answerQuestion(orgId: string, jobUuid: string, by: string,
     }
   }
   await addEvents(orgId, session.id, null, [{ kind: "message", author: by, body: { text: answer.label, answered: eventId, index, question: q.question } }]);
-  return { ok: true };
+  return { ok: true, goOn: answer.goOn === true };
 }

@@ -85,11 +85,20 @@ describe("a tapped answer", () => {
   });
 
   it("makes its changes as the person, saying what they answered, and goes in the thread", async () => {
-    expect(await answerQuestion("org", "job", "u-isaac", 5, 1, events)).toEqual({ ok: true });
+    expect(await answerQuestion("org", "job", "u-isaac", 5, 1, events)).toEqual({ ok: true, goOn: false });
     const why = "“Three phase”, to “Single or three phase at the board?”";
     expect(changeLine).toHaveBeenCalledWith("org", "job", "od", 1, expect.objectContaining({ code: "PUZ-ZM125YKA2", costCents: 340000, source: "said" }), "u-isaac", why);
     expect(removeLine).toHaveBeenCalledWith("org", "job", "iso", 1, "u-isaac", why);
     expect(addEvents).toHaveBeenCalledWith("org", "s1", null, [{ kind: "message", author: "u-isaac", body: { text: "Three phase", answered: 5, index: 1, question: phase.question } }]);
+  });
+
+  /* Isaac's production test, 2026-10-12: "Research them on the web" sat
+     until he typed */
+  it("says when it leaves her work to do, as she marked it when she asked", async () => {
+    const research = { question: "Look these prices up on the web?", why: "", answers: [{ label: "Research them on the web", changes: [], goOn: true }, { label: "I'll give allowances", changes: [] }] };
+    const asked = [{ id: 7, turnId: "t1", kind: "question" as const, author: "tiff", at: "", body: research as unknown as Record<string, unknown> }];
+    expect(await answerQuestion("org", "job", "u", 7, 0, asked)).toEqual({ ok: true, goOn: true });
+    expect(await answerQuestion("org", "job", "u", 7, 1, asked)).toEqual({ ok: true, goOn: false });
   });
 
   it("waits while Tiff is working, and is answered once", async () => {

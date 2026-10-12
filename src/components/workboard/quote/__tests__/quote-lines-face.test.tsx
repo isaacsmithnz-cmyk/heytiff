@@ -583,9 +583,10 @@ describe("a variation to the accepted quote", () => {
     document.body.appendChild(corner);
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
       if (init?.body) posted.push(JSON.parse(init.body));
-      return { json: async () => ({ ...view([indoor, diffuser, ...varied]), accepted: [0], variations: [variation] }) };
+      return { json: async () => ({ ...view([indoor, diffuser, ...varied]), accepted: [0], variations: [variation], ...(init?.body ? { onJob: { added: 1, removed: 0 } } : {}) }) };
     });
-    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
+    const onToast = jest.fn();
+    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} onToast={onToast} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
     fireEvent.click(await screen.findByRole("tab", { name: /Variation 1/ }));
     /* one more diffuser at $12.89 + 40%, the line rounded to the cent */
     expect(screen.getByRole("tab", { name: /Variation 1/ })).toHaveTextContent("+$18.04");
@@ -607,6 +608,77 @@ describe("a variation to the accepted quote", () => {
       fireEvent.click(within(corner).getByRole("button", { name: "Mark variation 1 accepted" }));
     });
     expect(posted).toContainEqual({ job: "job-3377", op: "variation-accept", option: 1 });
+    expect(onToast).toHaveBeenCalledWith("The variation's new work is on the job's task list, and its new parts on the materials list");
     corner.remove();
   });
+});
+
+/* the round-2 mock: "Before it's accepted (approved or sent), the same
+   button makes version 2 of the quote: the approval comes off and it goes
+   back through Approve and Send" */
+describe("version 2 before it's accepted", () => {
+  const kept = {
+    n: 1,
+    what: "Client wants a bigger unit in the lounge.",
+    approvedAt: "2026-10-11T01:00:00Z",
+    madeAt: "2026-10-11T02:00:00Z",
+    options: [{ name: "Option 1", exGstCents: 133438, incGstCents: 146782, lines: [{ name: "Ducted indoor, under the floor", code: "PEA-M125HAA", qty: 1, unit: "", totalCents: 133438 }] }],
+  };
+  const mount = (answer: Record<string, unknown>) => {
+    const corner = document.createElement("div");
+    document.body.appendChild(corner);
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+      if (init?.body) posted.push(JSON.parse(init.body));
+      return { json: async () => ({ ...view([indoor, core]), ...answer }) };
+    });
+    render(<QuoteLinesFace job="job-3377" price={price} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
+    return corner;
+  };
+
+  it("starts from Update quote on an approved quote nobody has accepted", async () => {
+    const corner = mount({ approved: true });
+    fireEvent.click(await within(corner).findByRole("button", { name: "Update quote" }));
+    const dialog = screen.getByRole("dialog", { name: "Update quote" });
+    expect(within(dialog).getByText(/is approved, so this is version 2\. Version 1 is kept as it stands, the approval comes off/)).toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText("What's changing"), { target: { value: "Client wants a bigger unit in the lounge." } });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Start version 2" }));
+    });
+    expect(posted).toContainEqual({ job: "job-3377", op: "version", what: "Client wants a bigger unit in the lounge." });
+    corner.remove();
+  });
+
+  it("isn't offered on a quote not yet approved", async () => {
+    const corner = mount({});
+    await within(corner).findByRole("button", { name: "Preview proposal" });
+    expect(within(corner).queryByRole("button", { name: "Update quote" })).toBeNull();
+    corner.remove();
+  });
+
+  it("says the version it's at, and opens a past one as it stood, read only", async () => {
+    const corner = mount({ versions: [kept] });
+    expect(await screen.findByText("Version 2")).toBeInTheDocument();
+    const rail = within(screen.getByRole("list", { name: "Versions" }));
+    expect(rail.getByText("Option 1: $1,467.82 inc GST")).toBeInTheDocument();
+    fireEvent.click(rail.getByRole("button", { name: "Open" }));
+    const paper = within(screen.getByRole("article", { name: "Version 1" }));
+    expect(paper.getByText("Client wants a bigger unit in the lounge.")).toBeInTheDocument();
+    expect(paper.getByText("What changed for version 2")).toBeInTheDocument();
+    expect(paper.getByText("Ducted indoor, under the floor")).toBeInTheDocument();
+    expect(paper.getByText("$1,467.82")).toBeInTheDocument();
+    /* nothing to approve or accept on a kept version */
+    expect(within(corner).queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(within(corner).queryByRole("button", { name: "Mark accepted" })).toBeNull();
+    fireEvent.click(within(corner).getByRole("button", { name: "Back to the lines" }));
+    expect(screen.queryByRole("article", { name: "Version 1" })).not.toBeInTheDocument();
+    corner.remove();
+  });
+});
+
+/* Isaac, 2026-10-11 (3343): "it says its length isn't known yet… doesn't actually give me anywhere to put that" */
+it("takes a line nobody knows the price of from To confirm to its own cost box", async () => {
+  face();
+  const price = await screen.findByRole("button", { name: "Price it" });
+  fireEvent.click(price);
+  expect(screen.getByLabelText("What one Core hole 200 mm costs you")).toHaveFocus();
 });

@@ -116,6 +116,8 @@ export function QuoteScreen({
      on its own kept lines (quote-lines-face.tsx). Every quote opens as it
      always has; one switched shows its lines once the switch is read. */
   const [engine, setEngine] = useState<"old" | "lines">("old");
+  /* Tiff on for the business: a quote drafted the old way can be quoted again with her */
+  const [tiffOn, setTiffOn] = useState(false);
   const [linesRev, setLinesRev] = useState(0);
   /* a quote Tiff's builder priced, brought across to its kept lines as it's
      priced today, to change by hand (lines-adopt.ts) */
@@ -144,19 +146,22 @@ export function QuoteScreen({
     } else toast("The quote couldn't be switched. Try again.");
   };
 
-  /* Create a quote, from the job card: starts Tiff on the quote's lines
-     when she's on for the business and nothing is drafted (slice 4.4) */
+  /* a new quote starts Tiff on its lines when she's on for the business and
+     nothing is drafted (slice 4.4): from Create a quote, or opened any other
+     way while nobody has chosen its engine (Isaac, 2026-10-11: the old
+     Draft proposal took 25 seconds) */
   const starting = useSearchParams()?.get("start") === "1";
   const startTiff = useEffectEvent(() => void switchTo("lines"));
   useEffect(() => {
     if (!financials) return;
     let live = true;
     fetch(`/api/workboard/quote-lines?job=${encodeURIComponent(job)}`)
-      .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines"; tiff?: boolean; drafted?: boolean; lines?: unknown[] }>)
+      .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines"; tiff?: boolean; drafted?: boolean; chosen?: boolean; lines?: unknown[] }>)
       .then((a) => {
         if (!live || !a.ok) return;
+        setTiffOn(!!a.tiff);
         if (a.engine === "lines") setEngine("lines");
-        else if (starting && a.tiff && !a.drafted && (a.lines ?? []).length === 0) startTiff();
+        else if ((starting || a.chosen === false) && a.tiff && !a.drafted && (a.lines ?? []).length === 0) startTiff();
       })
       .catch(() => undefined);
     return () => {
@@ -179,11 +184,18 @@ export function QuoteScreen({
           </div>
           <div className="wb2-vtabs">
             <h1 className="wb2-h1">{proposalTitle(address)}</h1>
-            {engine === "old" && price?.ok && price.options.some((o) => o.rows > 0) && (
+            {engine === "old" && (tiffOn || (price?.ok && price.options.some((o) => o.rows > 0))) && (
               <div className="qp-acts">
-                <button type="button" className="pbtn ghost" onClick={() => void adopt()}>
-                  Edit the lines by hand
-                </button>
+                {tiffOn && (
+                  <button type="button" className="pbtn ghost" onClick={() => void switchTo("lines")}>
+                    Quote it with Tiff
+                  </button>
+                )}
+                {price?.ok && price.options.some((o) => o.rows > 0) && (
+                  <button type="button" className="pbtn ghost" onClick={() => void adopt()}>
+                    Edit the lines by hand
+                  </button>
+                )}
               </div>
             )}
             <div className="qp-acts" ref={setActionsEl} />
@@ -198,6 +210,7 @@ export function QuoteScreen({
               onSwitchBack={() => void switchTo("old")}
               onToast={(m) => toast(m)}
               send={<JobQuoteSend job={job} visible version={`lines-${linesRev}`} />}
+              sendQuote={(onSent) => <JobQuoteSend job={job} visible as="quote" version={`lines-${linesRev}`} onSent={onSent} />}
             />
           ) : (
             <JobQuoteFace

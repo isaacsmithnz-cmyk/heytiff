@@ -28,9 +28,11 @@ import { sm8CallOf } from "@/lib/integrations/sm8-http";
 import { readSm8Raw } from "@/lib/integrations/sm8-write";
 import { sameEditDate } from "@/lib/integrations/sm8-note-plan";
 import { QUOTE_WORDS, quoteRows } from "@/lib/integrations/sm8-quote-plan";
-import { readSm8SendView } from "@/lib/quotes/sm8-send-server";
+import { readSm8SendView, type SendAs } from "@/lib/quotes/sm8-send-server";
+import { markSent } from "@/lib/quotes/lines-job-server";
 import { planKey } from "@/lib/quotes/sm8-send-plan";
 import { queueAcceptedQuote } from "./sm8-quote-queue";
+import { quotesOnTrial } from "@/lib/integrations/sm8-quote-trial";
 
 const SEND_BUDGET_MS = 12_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -52,7 +54,8 @@ export async function quoteSendOffered(): Promise<{ offered: boolean; trial: boo
   const g = await gate();
   if ("error" in g) return { offered: false, trial: false };
   const state = await readSm8WriteState(g.orgId);
-  return { offered: offersSend(state, "quote"), trial: state.mode === "trial" };
+  /* quotes on their own trial run say so, however the connection is set */
+  return { offered: offersSend(state, "quote"), trial: state.mode === "trial" || (await quotesOnTrial(g.orgId)) };
 }
 
 export type QuoteSendAnswer =
@@ -63,14 +66,17 @@ export async function sendQuoteToSm8(
   jobUuid: string,
   pressId: string,
   seenEditDate: string | null,
-  seenPlan: string | null
+  seenPlan: string | null,
+  /** the accepted quote as a work order, or the approved one as a quote (7.3) */
+  as: SendAs = "accepted"
 ): Promise<QuoteSendAnswer> {
   const startedAt = Date.now();
   const g = await gate();
   if ("error" in g) return { ok: false, error: g.error };
   if (!UUID.test(jobUuid) || !UUID.test(pressId)) return { ok: false, error: QUOTE_WORDS.press.unqueued };
 
-  const view = await readSm8SendView(g.orgId, jobUuid);
+  const sendAs: SendAs = as === "quote" ? "quote" : "accepted";
+  const view = await readSm8SendView(g.orgId, jobUuid, sendAs);
   if (!view.plan.ok) return { ok: false, error: view.plan.why };
   /* the plan as it was on screen: never lines the person wasn't shown */
   if (typeof seenPlan !== "string" || seenPlan !== planKey(view.plan)) return { ok: false, error: QUOTE_WORDS.press.quoteChanged };
@@ -95,9 +101,12 @@ export async function sendQuoteToSm8(
   const rows = (data ?? []) as { id: string; status: string; last_error: string | null }[];
   /* job lines get no live updates: read what landed back now */
   if (rows.some((r) => r.status === "sent")) syncSm8AfterSend(g.orgId);
+  const trial = rows.length > 0 && rows.every((r) => r.status === "trial");
+  /* the quote marked sent, on its progress line: a trial run says so */
+  if (sendAs === "quote" && (trial || rows.some((r) => r.status === "sent"))) await markSent(g.orgId, jobUuid, press.userId, trial).catch(() => null);
   return {
     ok: true,
-    trial: rows.length > 0 && rows.every((r) => r.status === "trial"),
+    trial,
     sent: rows.filter((r) => r.status === "sent").length,
     waiting: rows.filter((r) => r.status === "queued" || r.status === "sending").length,
     failed: rows.filter((r) => r.status === "failed" || r.status === "cancelled").map((r) => r.last_error ?? QUOTE_WORDS.row.refused),

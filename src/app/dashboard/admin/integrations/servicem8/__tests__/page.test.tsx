@@ -16,6 +16,7 @@ jest.mock("next/navigation", () => ({
   },
 }));
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: jest.fn(async () => ({ orgId: "org-1" })) } }));
+jest.mock("@/lib/integrations/sm8-quote-trial", () => ({ quotesOnTrial: jest.fn(async () => true) }));
 jest.mock("@/lib/permissions-server", () => ({ getDbRole: jest.fn(async () => "owner") }));
 jest.mock("@/components/integrations/servicem8-screen", () => ({ Servicem8Screen: () => null }));
 

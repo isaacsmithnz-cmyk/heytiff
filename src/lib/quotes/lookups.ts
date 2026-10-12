@@ -1,8 +1,9 @@
-import type { DataPack } from "@/lib/studio/packs/schema";
+import { hasFactorySpigots, type DataPack } from "@/lib/studio/packs/schema";
 import type { CategoryKey } from "./categories";
 import { matchesWords, sizesOf, usesOf, type Product } from "./families";
 import { sameUnit } from "./option-materials";
 import { searchWords, type Offer } from "./price-book";
+import { fuzzyWord, nearestIn, wordsOf } from "./fuzzy";
 
 /* WHAT A QUOTE LOOKS THINGS UP IN (the engine rebuild, slice 1.1) — the
    business's own book, and the shared data packs for what a unit is.
@@ -90,7 +91,7 @@ function carries(hay: { plain: string; squashed: string }, w: string): boolean {
 /* its maker too: Mitsubishi's own names never say "Mitsubishi" */
 const hayOf = (p: Product) => {
   const plain = `${p.brand ?? ""} ${p.offers.map((o) => `${o.code} ${o.name}`).join(" ")}`.toLowerCase();
-  return { plain, squashed: squash(plain) };
+  return { plain, squashed: squash(plain), words: wordsOf(plain) };
 };
 
 export function findInBook(products: Product[], q: BookQuery): BookHit[] {
@@ -102,7 +103,9 @@ export function findInBook(products: Product[], q: BookQuery): BookHit[] {
   let hits = products.filter((p) => (words.length === 0 || matchesWords(p, words)) && fits(p));
   /* nothing as typed: every word, as a supplier might write it */
   if (hits.length === 0 && words.length > 0) hits = products.filter((p) => fits(p) && words.every((w) => carries(hayOf(p), w)));
-  /* still nothing, for a person's search: the items with most of the words */
+  /* still nothing, for a person's search or Tiff's: the items with most of
+     the words, a word typed a letter out found by its nearest (fuzzy.ts),
+     the nearest first */
   let matched = new Map<Product, number>();
   if (hits.length === 0 && q.loose) {
     const content = words.filter((w) => w.length >= 3 && !STOP.has(w));
@@ -110,8 +113,16 @@ export function findInBook(products: Product[], q: BookQuery): BookHit[] {
     for (const p of products) {
       if (!fits(p)) continue;
       const hay = hayOf(p);
-      const n = content.filter((w) => carries(hay, w)).length;
-      if (n >= need) matched.set(p, n);
+      let n = 0;
+      let score = 0;
+      for (const w of content) {
+        const s = carries(hay, w) ? 1 : fuzzyWord(w) ? nearestIn(w, hay.words) : 0;
+        if (s > 0) {
+          n++;
+          score += s;
+        }
+      }
+      if (n >= need) matched.set(p, score);
     }
     hits = [...matched.keys()];
   } else matched = new Map();
@@ -179,6 +190,16 @@ export type UnitSpecs = {
   mcaAmps: number | null;
   /** the pipe it connects with, mm */
   pipeMm: { liquid: number; gas: number } | null;
+  /** a ducted indoor's air faces, from its data book: what its supply and
+      return plenums are made for; `returnSpigots` when its return takes
+      duct straight on (no return plenum) */
+  air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean };
+};
+
+/** A data book's opening as a face, mm, when it gives one. */
+const faceOfOpening = (o: unknown): { w: number; h: number } | null => {
+  const r = o && typeof o === "object" ? (o as { w_mm?: unknown; h_mm?: unknown }) : null;
+  return r && typeof r.w_mm === "number" && typeof r.h_mm === "number" ? { w: r.w_mm, h: r.h_mm } : null;
 };
 
 export type UnitLookup = { found: true; specs: UnitSpecs; pack: string } | { found: false; reason: "no data pack" | "not in the pack" };
@@ -229,6 +250,15 @@ export function unitSpecs(packs: Record<string, DataPack | null | undefined>, br
       maxAmps: n(ind.max_amps_a),
       mcaAmps: null,
       pipeMm: { liquid: ind.conn_liquid_mm, gas: ind.conn_gas_mm },
+      ...(ind.supply_opening || ind.return_opening
+        ? {
+            air: {
+              supply: faceOfOpening(ind.supply_opening),
+              ret: faceOfOpening(ind.return_opening),
+              returnSpigots: ind.return_opening === "built-in" || hasFactorySpigots(ind.return_opening),
+            },
+          }
+        : {}),
     },
   };
 }

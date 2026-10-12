@@ -6,13 +6,17 @@
    rule that guesses which note is about the work is the kind of rule that
    missed the ones that were.
 
+   A quote first drafted on the old builder brings what the person answered
+   there too (Isaac, 2026-10-11, on 3343: quoted again with Tiff, nothing he
+   told the old one is asked again).
+
    The brief is the ticked sources, oldest note first, each marked with what
    it is, when and who. A whole job's notes are bounded: past the budget the
    oldest notes give way, and the person is told how many. Pure. */
 
 export type JobSource = {
   id: string;
-  kind: "description" | "sm8_quote" | "note";
+  kind: "description" | "sm8_quote" | "note" | "earlier";
   /** what it is, as the list shows it: "Note, 6 Oct, Luke" */
   label: string;
   text: string;
@@ -36,12 +40,16 @@ export function jobSources(input: {
   description: string | null;
   sm8Quote: string | null;
   notes: readonly { id: string; text: string; at: string | null; by: string | null }[];
+  /** what the person answered on the old builder, question by question */
+  earlier?: readonly { question: string; answer: string }[];
 }): { sources: JobSource[]; left: number } {
   const out: JobSource[] = [];
   const description = squash(input.description ?? "");
   if (description) out.push({ id: "description", kind: "description", label: "The job's description", text: description, at: null });
   const quote = squash(input.sm8Quote ?? "");
   if (quote) out.push({ id: "sm8_quote", kind: "sm8_quote", label: "ServiceM8's quote", text: quote, at: null });
+  const earlier = (input.earlier ?? []).filter((a) => a.question.trim() && a.answer.trim());
+  if (earlier.length) out.push({ id: "earlier", kind: "earlier", label: "Your answers to the old builder", text: earlier.map((a) => `- ${a.question.trim()} ${a.answer.trim()}`).join("\n"), at: null });
 
   /* every note, oldest first, once: a HeyTiff note sent to ServiceM8 is
      both, word for word */

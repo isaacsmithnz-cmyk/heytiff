@@ -51,6 +51,7 @@ import {
   type WriteVerdict,
 } from "./sm8-write-plan";
 import type { Sm8Access } from "./sm8-store";
+import { quotesOnTrial } from "./sm8-quote-trial";
 import type { Finish, WriteRow } from "./sm8-writes";
 
 type Sent = { finish: Finish; access: Sm8Access | null };
@@ -102,7 +103,8 @@ export async function sendQuoteRow(
   const sendInTime = () => elapsed() < NOTE_SEND_BY_MS;
   const ctx = (): VerdictContext => ({ now: t.clock(), timezoneName: state.timezoneName, freeRetries: row.free_retries ?? 0, kind: "quote", op });
   const letGo = (): Finish => fromVerdict(verdictForLetGo(row.free_retries ?? 0, "quote"));
-  const live = state.mode === "live" && access !== null ? access : null;
+  /* quotes carry their own trial run, however the connection is set (sm8-quote-trial.ts) */
+  const live = state.mode === "live" && access !== null && !(await quotesOnTrial(orgId)) ? access : null;
 
   const finish = await send();
   return { finish, access };

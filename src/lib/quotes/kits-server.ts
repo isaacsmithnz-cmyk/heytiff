@@ -1,6 +1,6 @@
 import "server-only";
 import { bookProducts } from "./book-view-server";
-import { expandKit, pipeFromMm, type KitFacts, type KitKey } from "./kits";
+import { expandKit, indoorFacts, pipeFromMm, type KitFacts, type KitKey } from "./kits";
 import { addLine } from "./lines-server";
 import { lookupUnit } from "./lookups-server";
 import { readQuoteSettings } from "./settings-query";
@@ -29,15 +29,20 @@ export async function addKit(
   facts: KitFacts,
   at: { optionIndex: number; system: string },
   unit: { brand: string; model: string } | null,
-  by: string
+  by: string,
+  /** ducted: the indoor, whose faces its plenums are made for */
+  indoor: { brand: string; model: string } | null = null
 ): Promise<{ ok: true; added: number } | { ok: false; reason: string }> {
   const f = { ...facts };
-  if (unit) {
-    const u = await lookupUnit(unit.brand, unit.model);
+  for (const which of [unit, indoor]) {
+    if (!which) continue;
+    const u = await lookupUnit(which.brand, which.model);
     if (u.found && u.specs.role === "outdoor") {
       if (!f.pipe && u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
       if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
     }
+    /* a ducted indoor: its plenums are made for its faces (kits, round 2) */
+    if (u.found && u.specs.role === "indoor") Object.assign(f, indoorFacts(u.specs), f.supplyFace ? { supplyFace: f.supplyFace } : {});
   }
   const [products, settings, byHand, ranges] = await Promise.all([bookProducts(orgId), readQuoteSettings(orgId), readByHand(orgId, jobUuid), readRangeOffers(orgId)]);
   const a = settings.allowances;

@@ -209,6 +209,12 @@ export async function readEngine(orgId: string, jobUuid: string): Promise<Engine
   return engineOf(data?.engine);
 }
 
+/** Whether anyone has chosen this quote's engine, or drafted it: a row for it. */
+export async function engineChosen(orgId: string, jobUuid: string): Promise<boolean> {
+  const { data } = await supabaseAdmin.from("quote_drafts").select("sm8_job_uuid").eq("org_id", orgId).eq("sm8_job_uuid", jobUuid).maybeSingle();
+  return !!data;
+}
+
 /** Switches a quote between engines. A quote with no draft gets a row that
     holds only the switch: an empty draft, which every proposal reader takes
     as no proposal (normaliseDraft refuses a draft with no option). */

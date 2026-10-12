@@ -1,5 +1,5 @@
 import type { Product } from "../families";
-import { breakerFor, cableFor, consumablesEstimate, expandKit, isolatorFor, KITS } from "../kits";
+import { breakerFor, cableFor, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS } from "../kits";
 
 /* Kits as data (slice 1.3): what a system takes to install, picked from the
    business's own book by what each part is, never by one supplier's code.
@@ -80,12 +80,15 @@ it("a part the book hasn't got stays on the quote, saying so", () => {
 it("the ducted kit adds flex and an outlet to each outlet, and a return", () => {
   expect(KITS.ducted.parts.map((p) => p.key)).toEqual([
     "pair-coil", "interconnect", "power", "breaker", "isolator", "mount", "drain", "trunking",
-    "flex", "outlets", "floor-grilles", "boots", "hangers", "return", "return-box", "controller",
+    "supply-plenum", "return-plenum", "flex", "outlets", "ys", "reducers", "floor-grilles", "boots", "hangers", "return", "return-box", "controller",
   ]);
   const lines = expandKit("ducted", { ...facts, outlets: 5, outletMm: 250 }, [...book, product("VORTEX FLEX R1.0 250MM X 6M", 3045), product("CONE DIFFUSER 250MM", 1887)], at);
   expect(lines.find((l) => l.name === "VORTEX FLEX R1.0 250MM X 6M")).toMatchObject({ qty: 5, costCents: 3045 });
   expect(lines.find((l) => l.name === "CONE DIFFUSER 250MM")).toMatchObject({ qty: 5 });
-  expect(lines.find((l) => l.name === "Return air grille, filtered")).toMatchObject({ source: "unknown", why: "Not in your book" });
+  /* sized by the unit and the layout: never a guessed size */
+  expect(lines.find((l) => l.name === "Supply plenum")).toMatchObject({ source: "unknown", why: "Needs the indoor unit" });
+  expect(lines.find((l) => l.name === "Y branches")).toMatchObject({ source: "unknown", why: "Needs the layout: where the main duct splits" });
+  expect(lines.find((l) => l.name === "Return air grille, filtered")).toMatchObject({ source: "unknown", why: "Needs its size: pick it from your range" });
   /* every hand-built ducted quote had a return box and a wall controller */
   expect(lines.find((l) => l.name === "Return air box")).toMatchObject({ qty: 1, source: "unknown" });
   expect(lines.find((l) => l.name === "Wall controller")).toMatchObject({ qty: 1, source: "unknown" });
@@ -197,4 +200,78 @@ describe("consumables with no allowance set: an estimate from the book", () => {
     expect(expandKit("split", facts, [...book, ...consumables], at, { ...allowances, consumables: 3182 }).find((l) => l.name === "Consumables")).toMatchObject({ costCents: 3182, why: "your allowance, a head" });
     expect(expandKit("split", facts, book, at, allowances).find((l) => l.name === "Consumables")).toMatchObject({ costCents: 0, source: "unknown", why: "Not set in Quoting" });
   });
+});
+
+/* Isaac, 2026-10-11, kits round 2: "the Y branches should be all of the Y
+   branch combinations… supply plenum and return plenum… it depends on the
+   unit. Reducer, same thing… return grille again, range of sizes". Real
+   names from AAD's and Reece's books; 3377's PEA-M125HAA under the floor. */
+describe("a ducted kit sized by its unit and its layout", () => {
+  const ducted = [
+    product("MEA N/C 10kW 1330x271 - 2x350", 16254),
+    product("MEA N/C 12-16kW 1330x271 - 2x400", 16254),
+    product("MEA N/C 10-12kW 1360x180 - 2x350", 10680),
+    product("R/AIR PLENUM 1062 X 351 + 2 X 350 SPIGOT (EA)", 6270),
+    product("METAL Y 400.300.300 NSW", 2906),
+    product("METAL Y 300.200.200 NSW", 2275),
+    product("AIRLOC SMARTFIT REDUCER 400 - 300", 1715),
+    product("EGGCRATE HIGH STATIC FILTER 900X550 NSW", 7966),
+    product("EGGCRATE HIGH STATIC FILTER 900X500 NSW", 7392),
+    product("900 X 550 RETURN AIR BOX 2 X 400MM (EA)", 12582),
+  ];
+  const haa = {
+    ...facts,
+    outlets: 6,
+    outletMm: 200,
+    ...indoorFacts({ model: "PEA-M125HAA", air: { supply: { w: 1330, h: 271 }, ret: null, returnSpigots: true } }),
+    takeoffs: [400, 400],
+    fittings: [
+      { inMm: 400, outsMm: [300, 300], count: 1 },
+      { inMm: 300, outsMm: [200, 200], count: 3 },
+    ],
+    reducers: [{ fromMm: 400, toMm: 300, count: 1 }],
+    returnGrille: { w: 900, h: 550 },
+  };
+
+  it("takes the plenum made for the unit's face, a Y for each split and a reducer where it steps down, each from the book at its size", () => {
+    const lines = expandKit("ducted", haa, [...book, ...ducted], at);
+    const by = (name: string) => lines.find((l) => l.name === name);
+    expect(by("MEA N/C 12-16kW 1330x271 - 2x400")).toMatchObject({ qty: 1, costCents: 16254, why: "made for the PEA-M125HAA's 1330 × 271 supply; in your book" });
+    expect(by("METAL Y 400.300.300 NSW")).toMatchObject({ qty: 1 });
+    expect(by("METAL Y 300.200.200 NSW")).toMatchObject({ qty: 3, why: "where the main duct splits, Ø300 to Ø200 and Ø200; in your book" });
+    expect(by("AIRLOC SMARTFIT REDUCER 400 - 300")).toMatchObject({ qty: 1 });
+    /* the grille and its box at the one face, never each other */
+    expect(by("EGGCRATE HIGH STATIC FILTER 900X550 NSW")).toMatchObject({ qty: 1, costCents: 7966 });
+    expect(by("900 X 550 RETURN AIR BOX 2 X 400MM (EA)")).toMatchObject({ qty: 1 });
+    /* its return takes duct straight on: no return plenum */
+    expect(lines.some((l) => /plenum/i.test(l.name ?? "") && /r\/air|return/i.test(l.name ?? ""))).toBe(false);
+  });
+
+  it("a unit whose return has a face takes the return plenum made for it", () => {
+    const lines = expandKit("ducted", { ...haa, ...indoorFacts({ model: "ARTH45KHTA", air: { supply: { w: 921, h: 304 }, ret: { w: 1062, h: 351 }, returnSpigots: false } }) }, [...book, ...ducted], at);
+    expect(lines.find((l) => l.name === "R/AIR PLENUM 1062 X 351 + 2 X 350 SPIGOT (EA)")).toMatchObject({ qty: 1, why: "made for the ARTH45KHTA's 1062 × 351 return; in your book" });
+    /* no supply plenum for its 921 × 304 face in this book: said, not guessed */
+    expect(lines.find((l) => l.name === "Supply plenum")).toMatchObject({ source: "unknown", why: "No supply plenum for the ARTH45KHTA's 921 × 304 face with 2 × Ø400 in your book" });
+  });
+
+  it("says a size the book hasn't got, and takes the business's range before the book", () => {
+    const lines = expandKit("ducted", { ...haa, fittings: [{ inMm: 350, outsMm: [250, 250], count: 2 }] }, [...book, ...ducted], at);
+    expect(lines.find((l) => l.name === "Y branches Ø350 → Ø250 / Ø250")).toMatchObject({ qty: 2, source: "unknown", why: "None at Ø350 → Ø250 / Ø250 in your book" });
+    const range = new Map([["fitting" as const, [{ size: { ins: [400], outs: [300, 300] }, perUnitCents: 3100, supplierKey: "s1", code: ducted[4]!.offers[0]!.code, name: "METAL Y 400.300.300 NSW" }]]]);
+    const ranged = expandKit("ducted", haa, [...book, ...ducted], at, null, null, { ranges: range, components: {} });
+    expect(ranged.find((l) => l.name === "METAL Y 400.300.300 NSW")?.why).toMatch(/your range$/);
+  });
+});
+
+it("takes only a sane layout: duct sizes a book sells, a split into two or more, a step down", async () => {
+  const { normaliseKitFacts } = await import("../kits");
+  const f = normaliseKitFacts({
+    takeoffs: [400, "400", 333, 9000],
+    fittings: [{ inMm: 400, outsMm: [300, 300], count: 2 }, { inMm: 400, outsMm: [300] }, { inMm: "junk", outsMm: [200, 200] }],
+    reducers: [{ fromMm: 400, toMm: 300 }, { fromMm: 300, toMm: 400 }],
+    returnGrille: { w: 900, h: 550 },
+  });
+  expect(f).toMatchObject({ takeoffs: [400, 400], fittings: [{ inMm: 400, outsMm: [300, 300], count: 2 }], reducers: [{ fromMm: 400, toMm: 300, count: 1 }], returnGrille: { w: 900, h: 550 } });
+  /* none given: a kit says it needs the layout */
+  expect(normaliseKitFacts({})).not.toHaveProperty("fittings");
 });

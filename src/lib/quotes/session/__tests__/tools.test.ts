@@ -18,7 +18,13 @@ jest.mock("../../lines-server", () => ({
   removeLine: jest.fn(),
 }));
 const saveProposal = jest.fn(async (..._a: unknown[]) => ({ ok: true }));
-jest.mock("../../kits-server", () => ({ addKit: jest.fn() }));
+const addKit = jest.fn();
+jest.mock("../../kits-server", () => ({ addKit: (...a: unknown[]) => (addKit as jest.Mock)(...a) }));
+const openQuestions = jest.fn(async () => [{ id: 41, question: "How long is the pipe run?", put: "10 m" }]);
+jest.mock("../store-server", () => ({
+  readSession: jest.fn(async () => ({ id: "s1" })),
+  readOpenQuestions: (...a: unknown[]) => (openQuestions as jest.Mock)(...a),
+}));
 jest.mock("../job-files-server", () => ({ jobFiles: jest.fn(async () => []), lookAt: jest.fn() }));
 jest.mock("../../corrections-server", () => ({ readCorrections: jest.fn(async () => []), jobKind: jest.fn(async () => null) }));
 jest.mock("../../lines-job-server", () => ({
@@ -86,7 +92,7 @@ describe("what she gives, made safe", () => {
         { label: "Three", changes: [{ op: "swap", line_id: "l1", code: "PUZ-ZM125YKA2" }, { op: "explode" }, { op: "qty", line_id: "l2" }] },
       ],
     });
-    expect(q).toEqual({ question: "Single or three phase?", why: "", answers: [{ label: "Single", changes: [] }, { label: "Three", changes: [{ op: "swap", lineId: "l1", code: "PUZ-ZM125YKA2" }] }] });
+    expect(q).toEqual({ question: "Single or three phase?", why: "", topic: "", put: "", answers: [{ label: "Single", changes: [] }, { label: "Three", changes: [{ op: "swap", lineId: "l1", code: "PUZ-ZM125YKA2" }] }] });
   });
 });
 
@@ -189,6 +195,45 @@ describe("her tools, run", () => {
   it("puts a question in the thread with its answers", async () => {
     const out = await run("ask", { question: "Which wall?", answers: [{ label: "North" }] });
     expect(out).toMatchObject({ ok: true, event: { kind: "question", body: { question: "Which wall?" } } });
+  });
+
+  it("asks for a figure with nothing to tap, saying what the quote has now", async () => {
+    const out = await run("ask", { question: "How long is the pipe run, indoor to outdoor?", topic: "Pipe run, indoor to outdoor", put: "10 m", answers: [] });
+    expect(out).toMatchObject({ ok: true, event: { kind: "question", body: { topic: "Pipe run, indoor to outdoor", put: "10 m", answers: [] } } });
+  });
+
+  /* Isaac, 2026-10-11: answered in his own words, as in the chat */
+  it("ticks off the open questions a person's own words answered, and only those", async () => {
+    const out = await run("settle", { settled: [{ question: 41, answer: "14 m" }, { question: 99, answer: "yes" }] });
+    expect(out).toMatchObject({ ok: true, said: "14 m", detail: { settled: [{ question: 41, answer: "14 m" }] }, value: { settled: 1, notOpen: [99] } });
+    expect(await run("settle", { settled: [{ question: 99, answer: "yes" }] })).toMatchObject({ ok: false, error: "None of those is open. Open: 41." });
+    expect(await run("settle", { settled: [] })).toMatchObject({ ok: false });
+  });
+
+  /* Isaac, 2026-10-11, kits round 2: the plenums by the unit, the Ys and reducers by the layout */
+  it("adds a ducted kit naming its indoor and the layout, so its parts come at their sizes", async () => {
+    addKit.mockResolvedValueOnce({ ok: true, added: 18 });
+    const out = await run("add_kit", {
+      kit: "ducted",
+      option: 0,
+      system: "Downstairs",
+      brand: "mitsubishi-electric",
+      model: "PUZ-ZM125VKA2",
+      indoor_model: "PEA-M125HAA",
+      takeoffs: [400, 400],
+      fittings: [{ in_mm: 400, outs_mm: [300, 300], count: 1 }, { in_mm: 300, outs_mm: [200, 200], count: 3 }],
+      reducers: [{ from_mm: 400, to_mm: 300 }],
+      return_grille: { w_mm: 900, h_mm: 550 },
+    });
+    expect(out).toMatchObject({ ok: true, said: "Ducted, 18 parts" });
+    const [, , kit, facts, at, unit, , indoor] = addKit.mock.calls.at(-1)!;
+    expect([kit, at, unit, indoor]).toEqual(["ducted", { optionIndex: 0, system: "Downstairs" }, { brand: "mitsubishi-electric", model: "PUZ-ZM125VKA2" }, { brand: "mitsubishi-electric", model: "PEA-M125HAA" }]);
+    expect(facts).toMatchObject({
+      takeoffs: [400, 400],
+      fittings: [{ inMm: 400, outsMm: [300, 300], count: 1 }, { inMm: 300, outsMm: [200, 200], count: 3 }],
+      reducers: [{ fromMm: 400, toMm: 300, count: 1 }],
+      returnGrille: { w: 900, h: 550 },
+    });
   });
 
   it("says so for a tool that doesn't exist", async () => {

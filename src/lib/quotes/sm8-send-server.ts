@@ -4,7 +4,9 @@ import { stillToPrice } from "./job-price";
 import { readJobQuote } from "./lines-job-server";
 import { readQuotePrice } from "./quote-price-server";
 import { readQuoteSettings } from "./settings-query";
-import { sendPlan, usualTaxRate, type SendPlan } from "./sm8-send-plan";
+import { sendAsQuotePlan, sendPlan, usualTaxRate, type SendPlan } from "./sm8-send-plan";
+import { readByHand } from "./lines-job-server";
+import { approvalStands } from "./lines-proposal";
 
 /* What one press would send to ServiceM8 for a job's accepted quote
    (sm8-send-plan.ts says what and why), read for the card to show before
@@ -21,7 +23,11 @@ export async function readSm8SendPlan(orgId: string, cardId: string): Promise<Se
   return (await readSm8SendView(orgId, cardId)).plan;
 }
 
-export async function readSm8SendView(orgId: string, cardId: string): Promise<SendView> {
+/** What goes: the accepted quote as a work order, or (slice 7.3) the
+    approved quote as a quote, before it's accepted. */
+export type SendAs = "accepted" | "quote";
+
+export async function readSm8SendView(orgId: string, cardId: string, as: SendAs = "accepted"): Promise<SendView> {
   const [quote, price, settings, job, lines, rates] = await Promise.all([
     readJobQuote(orgId, cardId),
     readQuotePrice(orgId, cardId),
@@ -35,6 +41,29 @@ export async function readSm8SendView(orgId: string, cardId: string): Promise<Se
   if (!quote) return { plan: { ok: false, why: "There's no quote on this job." }, editDate };
   if (!price.ok) return { plan: { ok: false, why: "The quote can't be priced yet: set what Quoting asks for." }, editDate };
   if (!row) return { plan: { ok: false, why: "That job isn't in HeyTiff's copy of ServiceM8." }, editDate };
+  const existing = ((lines.data ?? []) as { uuid: string; name: string | null; active: number | boolean | null }[])
+    .filter((l) => l.active !== 0 && l.active !== false)
+    .map((l) => ({ uuid: l.uuid, name: l.name ?? "" }));
+  const taxRateUuid = usualTaxRate(((rates.data ?? []) as { tax_rate_uuid: string | null }[]).map((r) => r.tax_rate_uuid));
+  const jobNow = { status: row.status, invoiced: row.invoice_sent === true || row.invoice_sent === 1 };
+  if (as === "quote") {
+    /* a quote built on its lines: its approval, and every option but a variation */
+    if (!quote.lines) return { plan: { ok: false, why: "Only a quote built on its lines is sent as a quote." }, editDate };
+    const byHand = await readByHand(orgId, cardId);
+    const varied = new Set(byHand.variations.map((v) => v.option));
+    const approved = !!byHand.proposal && approvalStands(byHand.proposal, quote.lines.map((l) => l.updatedAt));
+    const plan = sendAsQuotePlan({
+      draft: quote.draft,
+      options: price.options.flatMap((o, index) =>
+        varied.has(index) ? [] : [{ index, build: o.build, left: stillToPrice({ unpriced: o.unpriced, labourFrom: o.labourFrom, labourCents: o.build.labour.sellCents }).length }]
+      ),
+      approved,
+      job: jobNow,
+      existing,
+      taxRateUuid,
+    });
+    return { plan, editDate };
+  }
   const accepted = quote.draft.accepted.length
     ? quote.draft.accepted
     : quote.draft.options.length === 1
@@ -47,11 +76,9 @@ export async function readSm8SendView(orgId: string, cardId: string): Promise<Se
       return o ? [{ index, build: o.build, left: stillToPrice({ unpriced: o.unpriced, labourFrom: o.labourFrom, labourCents: o.build.labour.sellCents }).length }] : [];
     }),
     showLines: quote.draft.showLines ?? settings.showLines,
-    job: { status: row.status, invoiced: row.invoice_sent === true || row.invoice_sent === 1 },
-    existing: ((lines.data ?? []) as { uuid: string; name: string | null; active: number | boolean | null }[])
-      .filter((l) => l.active !== 0 && l.active !== false)
-      .map((l) => ({ uuid: l.uuid, name: l.name ?? "" })),
-    taxRateUuid: usualTaxRate(((rates.data ?? []) as { tax_rate_uuid: string | null }[]).map((r) => r.tax_rate_uuid)),
+    job: jobNow,
+    existing,
+    taxRateUuid,
   });
   return { plan, editDate };
 }

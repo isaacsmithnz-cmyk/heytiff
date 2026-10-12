@@ -32,3 +32,20 @@ it("says a day as people do", () => {
   expect(dayOf("2026-10-06 09:12:00")).toBe("6 Oct 2026");
   expect(dayOf(null)).toBe("");
 });
+
+/* Isaac, 2026-10-11 (3343): quoted again with Tiff, nothing he told the old builder asked again */
+it("brings what the person answered on the old builder, question by question", () => {
+  const { sources } = jobSources({
+    description: null,
+    sm8Quote: null,
+    notes: [],
+    earlier: [
+      { question: "Which outside wall do the outdoor unit brackets go on?", answer: "Rear wall, longer run" },
+      { question: "How are the pipes concealed?", answer: "Under the floor" },
+      { question: "", answer: "dropped" },
+    ],
+  });
+  expect(sources).toEqual([
+    { id: "earlier", kind: "earlier", label: "Your answers to the old builder", text: "- Which outside wall do the outdoor unit brackets go on? Rear wall, longer run\n- How are the pipes concealed? Under the floor", at: null },
+  ]);
+});

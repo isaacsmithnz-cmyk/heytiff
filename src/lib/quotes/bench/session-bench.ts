@@ -1,6 +1,6 @@
 import type { BuildSettings } from "../buildup";
 import type { Product } from "../families";
-import { expandKit, pipeFromMm, type KitAllowances, type KitPreferences } from "../kits";
+import { expandKit, indoorFacts, pipeFromMm, type KitAllowances, type KitPreferences } from "../kits";
 import { applyPatch, lineFromRow, lineRow, normaliseLine, sortLines, type QuoteLine } from "../lines";
 import { priceLines } from "../lines-price";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
@@ -36,6 +36,8 @@ export function memoryStore(opts: {
   kitPrefs?: KitPreferences | null;
   /** the quote as a conversation left it, to carry on from */
   seed?: QuoteLine[];
+  /** her questions a conversation left open, by number */
+  openQuestions?: { id: number; question: string }[];
 }): QuoteStore & { lines: () => QuoteLine[] } {
   let lines: QuoteLine[] = [...(opts.seed ?? [])];
   const names: string[] = [];
@@ -75,15 +77,17 @@ export function memoryStore(opts: {
       for (const l of mine) add({ ...l, optionIndex: to, position: l.position });
       return { ok: true, line: null };
     },
-    addKit: async (kit, facts, at, unit) => {
-      /* the outdoor's pack fills what wasn't said, as kits-server.ts does */
+    addKit: async (kit, facts, at, unit, indoor) => {
+      /* the units' packs fill what wasn't said, as kits-server.ts does */
       const f = { ...facts };
-      if (unit && opts.lookup) {
-        const u = await opts.lookup(unit.brand, unit.model);
+      for (const which of [unit, indoor]) {
+        if (!which || !opts.lookup) continue;
+        const u = await opts.lookup(which.brand, which.model);
         if (u.found && u.specs.role === "outdoor") {
           if (!f.pipe && u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
           if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
         }
+        if (u.found && u.specs.role === "indoor") Object.assign(f, indoorFacts(u.specs), f.supplyFace ? { supplyFace: f.supplyFace } : {});
       }
       const made = expandKit(kit, f, opts.products, at, opts.allowances ?? null, opts.supplier ?? null, opts.kitPrefs ?? null);
       for (const l of made) add(l as Record<string, unknown>);
@@ -109,6 +113,7 @@ export function memoryStore(opts: {
     lookupUnit: async (brand, model) => (opts.lookup ? opts.lookup(brand, model) : (opts.units?.[model.toUpperCase()] ?? { found: false, reason: "no data pack" })),
     totals: async () => ({ ok: true, options: priceLines(lines, [], opts.settings, { pct: null, labourCostCents: null }).map((o) => o.build.exGstCents) }),
     taskHours: async () => ({ hours: opts.taskHours ?? { zone: null, grille: null, metre: null, visit: null }, dayHours: opts.settings.dayHours }),
+    openQuestions: async () => opts.openQuestions ?? [],
   };
 }
 

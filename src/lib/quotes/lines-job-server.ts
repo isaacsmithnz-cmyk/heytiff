@@ -15,6 +15,8 @@ import {
   withSupplier,
   withVariation,
   withVariationMark,
+  withoutApproval,
+  withSent,
   type ByHand,
 } from "./lines-job";
 import { changeLine, copyOption, readEngine, readLines } from "./lines-server";
@@ -25,6 +27,10 @@ import { readOrgDay } from "./org-day-server";
 import type { ProposalDraft } from "./proposal";
 import { readStoredProposal } from "./proposal-writer";
 import type { ResearchDetail } from "./research";
+import { approvalStands } from "./lines-proposal";
+import { readQuotePrice } from "./quote-price-server";
+import { versionSnapshot } from "./quote-versions";
+import { dropVersion, keepVersion, readVersions } from "./quote-versions-server";
 
 /* THE QUOTE, AS THE JOB READS IT, whichever engine prices it (lines-job.ts
    says why): the proposal Tiff's builder wrote, or a switched quote's
@@ -116,6 +122,31 @@ export async function startVariation(orgId: string, cardId: string, what: string
   if (!saved.ok) return saved;
   return { ok: true, option, n: saved.byHand.variations.find((v) => v.option === option)?.n ?? 1 };
 }
+
+/** VERSION 2, BEFORE IT'S ACCEPTED (quote-versions.ts): the approved quote
+    kept as it stands, numbered, and the approval taken off, so the quote
+    carries on as the next version and goes back through Approve. Refused on
+    an accepted quote (that's a variation) and on one not approved (change
+    it as it is). */
+export async function startVersion(orgId: string, cardId: string, what: string, by: string): Promise<{ ok: true; n: number } | { ok: false; reason: string }> {
+  const [b, lines, price, kept] = await Promise.all([readByHand(orgId, cardId), readLines(orgId, cardId), readQuotePrice(orgId, cardId), readVersions(orgId, cardId)]);
+  if (b.accepted.length > 0) return { ok: false, reason: "It's accepted: a change is a variation." };
+  if (!b.proposal || !approvalStands(b.proposal, lines.map((l) => l.updatedAt))) return { ok: false, reason: "It isn't approved: change it as it is." };
+  if (!price.ok) return { ok: false, reason: "Set Quoting to price it first." };
+  const n = (kept[0]?.n ?? 0) + 1;
+  const options = versionSnapshot(lines, price.options, new Set(b.variations.map((v) => v.option)));
+  const saved = await keepVersion(orgId, cardId, { n, what: what.trim().slice(0, 500), options, approvedAt: b.proposal.approvedAt, approvedBy: b.proposal.approvedBy }, by);
+  if (!saved.ok) return saved;
+  const off = await changeByHand(orgId, cardId, by, withoutApproval);
+  if (!off.ok) {
+    await dropVersion(orgId, saved.id);
+    return off;
+  }
+  return { ok: true, n };
+}
+
+/** The approved quote sent to ServiceM8 as a quote (7.3), or tried in a trial run. */
+export const markSent = (orgId: string, cardId: string, by: string, trial: boolean) => changeByHand(orgId, cardId, by, (b) => withSent(b, by, new Date().toISOString(), trial));
 
 /** A variation approved to go, or accepted by the client; again takes it off. */
 export const markVariation = (orgId: string, cardId: string, option: number, mark: "approvedAt" | "acceptedAt", by: string) =>

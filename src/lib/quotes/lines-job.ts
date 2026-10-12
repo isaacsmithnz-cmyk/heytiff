@@ -40,6 +40,9 @@ export type ByHand = {
   /** changes after it was accepted, each an option of its own (Isaac,
       2026-10-10: "even after it's been approved… it'll be variation then") */
   variations: Variation[];
+  /** the approved quote sent to ServiceM8 as a quote (7.3): when, by
+      whom, and whether it was only a trial run */
+  sent?: { at: string; by: string; trial: boolean } | null;
 };
 
 /** A VARIATION TO THE ACCEPTED QUOTE: an option of its own, started as a
@@ -122,8 +125,13 @@ export function byHandOf(draft: unknown): ByHand {
     if (variations.some((w) => w.option === option)) continue;
     variations.push({ n, option, of, what: said(x.what, MAX_VARIATION_WHAT), startedAt: at("startedAt") ?? "", startedBy: said(x.startedBy, 120), approvedAt: at("approvedAt"), acceptedAt: at("acceptedAt") });
   }
-  return { accepted, names, loading, compare, supplier, proposal, researched, variations };
+  const rawSent = o.sent && typeof o.sent === "object" ? (o.sent as Record<string, unknown>) : null;
+  const sent = rawSent && typeof rawSent.at === "string" && rawSent.at ? { at: rawSent.at, by: said(rawSent.by, 120), trial: rawSent.trial === true } : null;
+  return { accepted, names, loading, compare, supplier, proposal, researched, variations, ...(sent ? { sent } : {}) };
 }
+
+/** The approved quote sent to ServiceM8 as a quote, or a trial run of it. */
+export const withSent = (b: ByHand, by: string, now: string, trial: boolean): ByHand => ({ ...b, sent: { at: now, by, trial } });
 
 /** The variation an option is, if it is one. */
 export const variationOf = (b: Pick<ByHand, "variations">, option: number): Variation | null => b.variations.find((v) => v.option === option) ?? null;
@@ -166,6 +174,10 @@ export const withApproval = (b: ByHand, by: string, now: string): ByHand => ({
   ...b,
   proposal: { ...(b.proposal ?? { ...proposalOf({}), updatedAt: now }), approvedAt: now, approvedBy: by },
 });
+
+/** The approval taken off: the quote is the next version, to approve again
+    (quote-versions.ts). Its words stay as written. */
+export const withoutApproval = (b: ByHand): ByHand => (b.proposal ? { ...b, proposal: { ...b.proposal, approvedAt: null, approvedBy: null }, sent: null } : b);
 
 /** A line priced from the web, with the page it rests on; null takes the mark off. */
 export function withResearched(b: ByHand, lineId: string, source: { url: string; title: string } | null): ByHand {
@@ -335,6 +347,30 @@ export function linesMaterials(lines: readonly QuoteLine[]): { name: string; sub
   return lines
     .filter((l) => l.kind !== "labour" && l.qty > 0)
     .map((l) => ({ name: l.name, sub: l.code ?? "", qty: `${l.qty}${l.unit ? ` ${l.unit}` : ""}` }));
+}
+
+/** What an accepted variation puts on the job's own materials list: a part
+    it added, all of it; a part it has more of, the extra. Each is marked
+    with its variation, so it sits beside what the quote put on. A part it
+    took off or has fewer of stays where it is: a picked one is bought, and
+    a person takes off what isn't needed. */
+export function variationMaterials(base: readonly QuoteLine[], varied: readonly QuoteLine[], n: number): { name: string; sub: string; qty: string }[] {
+  const key = (l: QuoteLine) => (l.code ? `c:${l.code.toUpperCase()}` : `n:${l.name.toLowerCase()}`);
+  const parts = (ls: readonly QuoteLine[]) => ls.filter((l) => l.kind !== "labour" && l.qty > 0);
+  const had = new Map<string, number>();
+  for (const l of parts(base)) had.set(key(l), (had.get(key(l)) ?? 0) + l.qty);
+  const now = new Map<string, { line: QuoteLine; qty: number }>();
+  for (const l of parts(varied)) {
+    const was = now.get(key(l));
+    now.set(key(l), { line: was?.line ?? l, qty: (was?.qty ?? 0) + l.qty });
+  }
+  const out: { name: string; sub: string; qty: string }[] = [];
+  for (const [k, { line, qty }] of now) {
+    const extra = Math.round((qty - (had.get(k) ?? 0)) * 100) / 100;
+    if (extra <= 0) continue;
+    out.push({ name: line.name, sub: [line.code, `Variation ${n}`].filter(Boolean).join(", "), qty: `${extra}${line.unit ? ` ${line.unit}` : ""}` });
+  }
+  return out;
 }
 
 /** The labour the lines hold, in person-hours: what was priced. */

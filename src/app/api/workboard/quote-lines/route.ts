@@ -1,20 +1,21 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
-import { addLine, changeLine, copyOption, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
+import { addLine, changeLine, copyOption, engineChosen, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
 import { addKit } from "@/lib/quotes/kits-server";
 import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
-import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setSupplier, startVariation } from "@/lib/quotes/lines-job-server";
-import { stageNamed } from "@/lib/quotes/lines-job";
+import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
+import { readVersions } from "@/lib/quotes/quote-versions-server";
+import { stageNamed, variationMaterials } from "@/lib/quotes/lines-job";
 import { approvalStands } from "@/lib/quotes/lines-proposal";
 import { orgTemplates } from "@/lib/templates/query";
 import { readSuppliers } from "@/lib/quotes/price-book-server";
 import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { addEvents, readSession } from "@/lib/quotes/session/store-server";
-import { putAcceptedOnJob } from "@/lib/quotes/accepted-materials-server";
+import { putAcceptedOnJob, putVariationOnJob } from "@/lib/quotes/accepted-materials-server";
 import { addTasksToJob, makeTasksFromQuote } from "@/lib/workboard/visit-tasks-server";
 import { variationTasks } from "@/lib/workboard/task-plan";
 import { readQuoteSettings } from "@/lib/quotes/settings-query";
@@ -45,7 +46,7 @@ async function bookSuppliers(orgId: string) {
 }
 
 async function view(orgId: string, jobUuid: string, userId: string) {
-  const [engine, lines, changes, byHand, settings, day, suppliers, templates] = await Promise.all([
+  const [engine, lines, changes, byHand, settings, day, suppliers, templates, versions] = await Promise.all([
     readEngine(orgId, jobUuid),
     readLines(orgId, jobUuid),
     readChanges(orgId, jobUuid, 50),
@@ -54,6 +55,7 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     readOrgDay(orgId),
     bookSuppliers(orgId),
     orgTemplates(orgId).catch(() => null),
+    readVersions(orgId, jobUuid).catch(() => []),
   ]);
   /* the business's own task hours, beside each option's (slice 8.1) */
   const options = Math.max(0, ...lines.map((l) => l.optionIndex + 1));
@@ -76,6 +78,10 @@ async function view(orgId: string, jobUuid: string, userId: string) {
     supplier: byHand.supplier,
     researched: byHand.researched,
     variations: byHand.variations,
+    /* sent to ServiceM8 as a quote (7.3) */
+    sent: byHand.sent ?? null,
+    /* the quote as it stood at each approval before this one, newest first */
+    versions,
     suppliers,
     tasks,
     /* the proposal's words, whether an approval of them still stands, and
@@ -93,10 +99,15 @@ export async function GET(req: Request) {
   const job = (new URL(req.url).searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(g.orgId, job);
-  /* whether Create a quote starts Tiff here (slice 4.4): she's on for the
-     business, and nothing is drafted the old way */
-  const [now, drafted] = await Promise.all([view(g.orgId, target.parentRemoteId, g.userId), readStoredProposal(g.orgId, target.parentRemoteId).catch(() => null)]);
-  return Response.json({ ...now, tiff: sessionModelFor(g.orgId) != null, drafted: drafted != null });
+  /* whether the quote starts with Tiff here (slice 4.4): she's on for the
+     business, nothing is drafted the old way, and nobody has chosen an
+     engine for it (a person who switched back keeps the old builder) */
+  const [now, drafted, chosen] = await Promise.all([
+    view(g.orgId, target.parentRemoteId, g.userId),
+    readStoredProposal(g.orgId, target.parentRemoteId).catch(() => null),
+    engineChosen(g.orgId, target.parentRemoteId).catch(() => true),
+  ]);
+  return Response.json({ ...now, tiff: sessionModelFor(g.orgId) != null, drafted: drafted != null, chosen });
 }
 
 export async function POST(req: Request) {
@@ -216,6 +227,15 @@ export async function POST(req: Request) {
       }
       break;
     }
+    /* VERSION 2 (quote-versions.ts): an approved quote, not yet accepted,
+       kept as it stood; the approval comes off */
+    case "version": {
+      const what = typeof body.what === "string" ? body.what : "";
+      const kept = await startVersion(g.orgId, jobUuid, what, g.userId);
+      result = kept;
+      if (kept.ok) await mark(`Version ${kept.n + 1} started${what.trim() ? `: ${what.trim().slice(0, 200)}` : ""}`);
+      break;
+    }
     case "variation-approve":
     case "variation-accept": {
       const option = opt(body.option);
@@ -230,15 +250,15 @@ export async function POST(req: Request) {
       if (!marked.ok) break;
       const now = marked.byHand.variations.find((v) => v.option === option)!;
       await mark(`Variation ${now.n} ${now[key] ? (key === "approvedAt" ? "approved" : "accepted") : key === "approvedAt" ? "no longer approved" : "no longer accepted"}`);
-      /* accepted: its new work onto the job, on no visit, for the days */
+      /* accepted: its new work onto the job, on no visit, for the days,
+         and its new parts onto the job's materials list */
       if (key === "acceptedAt" && now.acceptedAt) {
         const all = await readLines(g.orgId, jobUuid);
-        const tasks = variationTasks(
-          all.filter((l) => l.optionIndex === now.of),
-          all.filter((l) => l.optionIndex === option),
-          stageNamed
-        );
-        await addTasksToJob(g.orgId, g.userId, jobUuid, tasks).catch(() => null);
+        const base = all.filter((l) => l.optionIndex === now.of);
+        const varied = all.filter((l) => l.optionIndex === option);
+        await addTasksToJob(g.orgId, g.userId, jobUuid, variationTasks(base, varied, stageNamed)).catch(() => null);
+        const put = await putVariationOnJob(g.orgId, g.userId, jobUuid, variationMaterials(base, varied, now.n)).catch(() => null);
+        onJob = put?.ok ? { added: put.added, removed: 0 } : null;
       }
       break;
     }

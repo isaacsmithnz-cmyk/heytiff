@@ -118,7 +118,16 @@ export function quoteSteps(input: {
     build-up is priced when nothing is left to price. Approved and Sent
     wait for the proposal, which these quotes don't write yet; Accepted is
     the option a person marked. */
-export function linesSteps(input: { lines: number; unknown: number; price: PriceState; accepted?: readonly number[]; approved?: boolean }): QuoteStep[] {
+export function linesSteps(input: {
+  lines: number;
+  unknown: number;
+  price: PriceState;
+  accepted?: readonly number[];
+  approved?: boolean;
+  version?: number;
+  /** sent to ServiceM8 as a quote (7.3), or only a trial run of it */
+  sent?: { trial: boolean } | null;
+}): QuoteStep[] {
   const step = (key: StepKey, state: StepState, words: string): QuoteStep => ({ key, label: LABELS[key], state, words });
   const { lines, unknown, price } = input;
   const built =
@@ -137,8 +146,11 @@ export function linesSteps(input: { lines: number; unknown: number; price: Price
        unknown could just be something that we haven't told Tiff yet") */
     { ...step("questions", unknown > 0 ? "due" : lines > 0 ? "done" : "todo", unknown > 0 ? `${unknown} to confirm` : lines > 0 ? "None" : ""), label: "To confirm" },
     built,
-    input.approved ? step("approved", "done", "Approved") : step("approved", "todo", ""),
-    step("sent", "todo", ""),
+    /* version 2 on, the version it's at (quote-versions.ts) */
+    input.approved
+      ? step("approved", "done", (input.version ?? 1) > 1 ? `Version ${input.version} approved` : "Approved")
+      : step("approved", "todo", (input.version ?? 1) > 1 ? `Version ${input.version}` : ""),
+    input.sent ? step("sent", "done", input.sent.trial ? "Trial run" : "To ServiceM8") : step("sent", "todo", ""),
     input.accepted?.length ? step("accepted", "done", acceptedWords(input.accepted)) : step("accepted", "todo", ""),
   ];
 }

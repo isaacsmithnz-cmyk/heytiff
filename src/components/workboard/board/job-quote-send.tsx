@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { quoteSendOffered, sendQuoteToSm8, type QuoteSendAnswer } from "@/app/actions/quote-sm8";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { NONE_ACCEPTED, type SendPlan } from "@/lib/quotes/sm8-send-plan";
+import { NONE_ACCEPTED, NOT_APPROVED, type SendPlan } from "@/lib/quotes/sm8-send-plan";
 
 /* WHAT GOES TO SERVICEM8, on the job card's Quote section once an option
    is accepted (Isaac, 2026-10-05: "copy the scope and line items to service
@@ -23,7 +23,10 @@ type Seen = { plan: SendPlan; editDate: string | null; key: string; at: string |
 
 const qtyWords = (n: number) => String(Math.round(n * 100) / 100);
 
-export function JobQuoteSend({ job, visible, version }: { job: string; visible: boolean; version?: string | null }) {
+/** `as`: "quote" sends the approved quote as a quote, before it's accepted
+    (slice 7.3): its scope as the job's description, the job left a Quote. */
+export function JobQuoteSend({ job, visible, version, as = "accepted", onSent }: { job: string; visible: boolean; version?: string | null; as?: "accepted" | "quote"; onSent?: () => void }) {
+  const asQuote = as === "quote";
   const [seen, setSeen] = useState<Seen | null | undefined>(undefined);
   const [offer, setOffer] = useState<{ offered: boolean; trial: boolean }>({ offered: false, trial: false });
   const [sending, setSending] = useState(false);
@@ -41,7 +44,7 @@ export function JobQuoteSend({ job, visible, version }: { job: string; visible: 
   useEffect(() => {
     if (!visible) return;
     let live = true;
-    fetch(`${ROUTE}?job=${encodeURIComponent(job)}`)
+    fetch(`${ROUTE}?job=${encodeURIComponent(job)}${asQuote ? "&as=quote" : ""}`)
       .then((r) => r.json() as Promise<Answer>)
       .then((a) => live && setSeen(a.ok ? { plan: a.plan, editDate: a.editDate, key: a.key, at: version } : null))
       .catch(() => live && setSeen(null));
@@ -51,7 +54,7 @@ export function JobQuoteSend({ job, visible, version }: { job: string; visible: 
     return () => {
       live = false;
     };
-  }, [job, visible, reads, version]);
+  }, [job, visible, reads, version, asQuote]);
 
   /* read for this version of the quote: until then, nothing can be sent */
   const fresh = !!seen && seen.at === version;
@@ -59,14 +62,15 @@ export function JobQuoteSend({ job, visible, version }: { job: string; visible: 
     if (!seen || !fresh) return;
     setSending(true);
     setAnswer(null);
-    const a = await sendQuoteToSm8(job, crypto.randomUUID(), seen.editDate, seen.key).catch((): QuoteSendAnswer => ({ ok: false, error: "HeyTiff couldn't send that. Nothing went; try again." }));
+    const a = await sendQuoteToSm8(job, crypto.randomUUID(), seen.editDate, seen.key, as).catch((): QuoteSendAnswer => ({ ok: false, error: "HeyTiff couldn't send that. Nothing went; try again." }));
     setAnswer(a);
     setSending(false);
     setReads((n) => n + 1);
+    if (a.ok) onSent?.();
   };
 
   const plan = seen?.plan;
-  if (!plan || (!plan.ok && plan.why === NONE_ACCEPTED)) return null;
+  if (!plan || (!plan.ok && (plan.why === NONE_ACCEPTED || plan.why === NOT_APPROVED))) return null;
 
   if (!plan.ok) {
     return (
@@ -84,11 +88,11 @@ export function JobQuoteSend({ job, visible, version }: { job: string; visible: 
     <section className="wb2-jcsec" aria-label="To ServiceM8">
       <div className="wb2-jcdhead">
         <b>To ServiceM8</b>
-        <em>{plan.status ? "Becomes a Work Order" : "Its Work Order, updated"}</em>
+        <em>{asQuote ? "Stays a Quote" : plan.status ? "Becomes a Work Order" : "Its Work Order, updated"}</em>
       </div>
       <div className="wb2-mline">
-        <b>Invoice description</b>
-        <em className="wb2-jcread">{plan.workDone}</em>
+        <b>{asQuote ? "Job description" : "Invoice description"}</b>
+        <em className="wb2-jcread">{asQuote ? plan.jobDescription : plan.workDone}</em>
       </div>
       {plan.lines.map((l, i) => (
         <div className="wb2-mline" key={`l-${i}`}>
@@ -108,7 +112,7 @@ export function JobQuoteSend({ job, visible, version }: { job: string; visible: 
       {offer.offered && (
         <div className="wb2-jqacts">
           <button type="button" className="pbtn primary" disabled={sending || !fresh} onClick={() => void send()}>
-            {sending ? "Sending" : offer.trial ? "Trial send to ServiceM8" : "Send to ServiceM8 as a work order"}
+            {sending ? "Sending" : offer.trial ? "Trial send to ServiceM8" : asQuote ? "Send to ServiceM8 as a quote" : "Send to ServiceM8 as a work order"}
           </button>
         </div>
       )}

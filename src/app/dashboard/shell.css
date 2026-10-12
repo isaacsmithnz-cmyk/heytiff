@@ -6850,6 +6850,13 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt-qa { display:flex; flex-direction:column; gap:8px; padding:12px 0; }
 .fg .qt-qa + .qt-qa { border-top:1px solid var(--hd-rule2); }
 .fg .qt-q { margin:0; font-size:14px; font-weight:600; line-height:1.4; color:var(--hd-ink); }
+/* her questions numbered as her message numbers them, with what the quote has now */
+.fg .qt-qn { display:inline-block; min-width:12px; margin-right:4px; font-weight:500; color:var(--hd-body); font-variant-numeric:tabular-nums; }
+.fg .qt-put { margin:0; padding-left:16px; font-size:13px; line-height:1.45; color:var(--hd-body); }
+.fg .qt-qa .qt-ans { padding-left:16px; }
+.fg .qt-done { margin:4px 0 8px; }
+.fg .qt-done b { font-weight:600; }
+.fg .qt-done small { display:block; font-size:12px; color:var(--q); }
 .fg .qt-ans { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
 .fg .qt-ans button { display:inline-flex; align-items:center; gap:8px; min-height:32px; padding:4px 12px; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); font:inherit; font-size:13px; color:var(--hd-ink); cursor:pointer; }
 .fg .qt-ans button:hover:not(:disabled) { border-color:var(--ink); }

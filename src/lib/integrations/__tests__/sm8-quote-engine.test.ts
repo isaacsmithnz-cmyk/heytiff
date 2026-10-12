@@ -221,6 +221,15 @@ describe("an accepted quote goes to ServiceM8", () => {
     expect(rows().every((r) => r.status === "trial")).toBe(true);
   });
 
+  /* Isaac, 2026-10-11: "Trial first", while the connection is live for everything else */
+  it("sends nothing while quotes are on their own trial run, the connection live", async () => {
+    (fake.db.integration_connections as Row[])[0]!.trial_kinds = ["quote"];
+    await send();
+    await run();
+    expect(calls).toEqual([]);
+    expect(rows().every((r) => r.status === "trial")).toBe(true);
+  });
+
   it("queues nothing while the owner has Accepted quotes off", async () => {
     (fake.db.integration_connections as Row[])[0]!.write_kinds = ["attachment"];
     expect(await send()).toEqual({ ok: false, error: QUOTE_WORDS.press.kindOff });

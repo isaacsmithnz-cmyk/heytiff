@@ -41,7 +41,13 @@ export type QuoteStore = {
   /** the proposal's words, changed by the blocks given (7.1) */
   writeProposal: (patch: Partial<LinesProposal>) => Promise<{ ok: true } | { ok: false; reason: string }>;
   compareWith: (lineId: string, code: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
-  addKit: (kit: KitKey, facts: KitFacts, at: { optionIndex: number; system: string }, unit: { brand: string; model: string } | null) => Promise<{ ok: true; added: number } | { ok: false; reason: string }>;
+  addKit: (
+    kit: KitKey,
+    facts: KitFacts,
+    at: { optionIndex: number; system: string },
+    unit: { brand: string; model: string } | null,
+    indoor?: { brand: string; model: string } | null
+  ) => Promise<{ ok: true; added: number } | { ok: false; reason: string }>;
   book: () => Promise<Product[]>;
   /** an hour of labour's cost to the business; null when it isn't set */
   hourCost: () => Promise<number | null>;
@@ -58,6 +64,8 @@ export type QuoteStore = {
   look: (id: string) => Promise<MediaBlock[] | string>;
   /** the business's own task hours and working day (slice 8.1) */
   taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
+  /** her questions still open, by their numbers: what a person's own words can settle */
+  openQuestions: () => Promise<{ id: number; question: string }[]>;
 };
 
 const SEARCH_LIMIT = 12;
@@ -203,7 +211,7 @@ export function makeTools(store: QuoteStore) {
       }
       case "add_kit": {
         const k = kitAskOf(input);
-        const res = await store.addKit(k.kit, normaliseKitFacts(k.facts), k.at, k.unit);
+        const res = await store.addKit(k.kit, normaliseKitFacts(k.facts), k.at, k.unit, k.indoor);
         return res.ok ? { ok: true, label, said: `${k.kit === "split" ? "Split" : "Ducted"}, ${res.added} parts`, value: { added: res.added } } : fail(res.reason);
       }
       case "copy_option": {
@@ -329,6 +337,26 @@ export function makeTools(store: QuoteStore) {
         const q = questionOf(input);
         if (isErr(q)) return fail(q.error);
         return { ok: true, label, said: q.question, value: { asked: true }, event: { kind: "question", author: "tiff", body: q } };
+      }
+      /* a question the person answered in their own words, ticked off once
+         she's changed the lines to match (Isaac, 2026-10-11) */
+      case "settle": {
+        const given = (Array.isArray(input.settled) ? input.settled : []).slice(0, 10).flatMap((x) => {
+          const o = x && typeof x === "object" ? (x as Record<string, unknown>) : {};
+          const answer = typeof o.answer === "string" ? o.answer.trim().slice(0, 80) : "";
+          return typeof o.question === "number" && answer ? [{ question: Math.round(o.question), answer }] : [];
+        });
+        if (given.length === 0) return fail("Give each question's number and the answer in a few words.");
+        const open = new Map((await store.openQuestions()).map((q) => [q.id, q.question]));
+        const settled = given.filter((g) => open.has(g.question));
+        if (settled.length === 0) return fail(`None of those is open. Open: ${[...open.keys()].join(", ") || "none"}.`);
+        return {
+          ok: true,
+          label,
+          said: settled.map((s) => s.answer).join(", "),
+          value: { settled: settled.length, notOpen: given.filter((g) => !open.has(g.question)).map((g) => g.question) },
+          detail: { settled },
+        };
       }
       default:
         return fail(`There's no tool called ${name}.`);

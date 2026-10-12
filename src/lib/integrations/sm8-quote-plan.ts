@@ -8,7 +8,10 @@
    fields):
 
      job          the job's invoice description (work_done_description),
-                  and its status to "Work Order" when it was a Quote: update
+                  and its status to "Work Order" when it was a Quote: update;
+                  or, a quote sent as a quote before it's accepted (slice
+                  7.3), its job description (job_description), its status
+                  left as it is
      jobmaterial  a line on the job, under a uuid chosen when the row was
                   queued: create; or a line that was there: delete (soft)
 
@@ -29,7 +32,7 @@ export type QuoteObject = "job" | "jobmaterial";
 
 /** The fields each record may have sent by HeyTiff, and nothing else. */
 export const QUOTE_FIELDS: Record<QuoteObject, readonly string[]> = {
-  job: ["work_done_description", "status"],
+  job: ["work_done_description", "job_description", "status"],
   jobmaterial: ["name", "quantity", "price", "cost", "displayed_amount", "displayed_amount_is_tax_inclusive", "tax_rate_uuid", "sort_order"],
 };
 
@@ -83,17 +86,22 @@ export function quoteRows(
   plan: {
     status: { to: string } | null;
     workDone: string;
+    /** a quote sent as a quote: the job's description, its status as it is */
+    jobDescription?: string;
     lines: readonly { name: string; quantity: number; unitPriceCents: number; unitCostCents: number | null }[];
     remove: readonly { uuid: string; name: string }[];
     taxRateUuid: string;
   }
 ): QuoteRowInput[] {
+  const asQuote = plan.jobDescription != null;
   const job: QuoteRowInput = {
     object: "job",
     op: "update",
     uuid: jobUuid,
-    fields: { work_done_description: plan.workDone.slice(0, 20_000), ...(plan.status ? { status: WORK_ORDER } : {}) },
-    label: QUOTE_WORDS.label.job,
+    fields: asQuote
+      ? { job_description: plan.jobDescription!.slice(0, 20_000) }
+      : { work_done_description: plan.workDone.slice(0, 20_000), ...(plan.status ? { status: WORK_ORDER } : {}) },
+    label: asQuote ? QUOTE_WORDS.label.asQuoteJob : QUOTE_WORDS.label.job,
     key: "job",
   };
   const off = plan.remove.map((r) => ({
@@ -101,7 +109,7 @@ export function quoteRows(
     op: "delete" as const,
     uuid: r.uuid,
     fields: {},
-    label: fill(QUOTE_WORDS.label.off, r.name || "a line"),
+    label: fill(asQuote ? QUOTE_WORDS.label.asQuoteOff : QUOTE_WORDS.label.off, r.name || "a line"),
     key: `off:${r.uuid.toLowerCase()}`,
   }));
   const add = plan.lines.map((l, i) => {
@@ -120,7 +128,7 @@ export function quoteRows(
         tax_rate_uuid: plan.taxRateUuid,
         sort_order: String(i + 1),
       },
-      label: fill(QUOTE_WORDS.label.add, l.name.slice(0, 60)),
+      label: fill(asQuote ? QUOTE_WORDS.label.asQuoteAdd : QUOTE_WORDS.label.add, l.name.slice(0, 60)),
       key: `add:${i + 1}`,
     };
   });

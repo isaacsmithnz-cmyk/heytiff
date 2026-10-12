@@ -15,13 +15,14 @@ export function chosenModel(): string | null {
 
 /** Whether Tiff's session is on for a business: a model chosen, and the
     business one she's switched on for (QUOTE_SESSION_ORGS, its ids, comma
-    separated: Isaac's business first, slice 4.4). Unlisted: off, and
-    nothing is spent for it. */
+    separated: Isaac's business first, slice 4.4), or every business with
+    "*" (Isaac, 2026-10-12, retiring the old builder: "retire"). Unlisted:
+    off, and nothing is spent for it. */
 export function sessionModelFor(orgId: string): string | null {
   const model = chosenModel();
   if (!model) return null;
   const orgs = (process.env.QUOTE_SESSION_ORGS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return orgs.includes(orgId) ? model : null;
+  return orgs.includes("*") || orgs.includes(orgId) ? model : null;
 }
 
 /** How hard she thinks on a quote, as chosen for the deployment

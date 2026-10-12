@@ -9,9 +9,7 @@ import type { DataPack } from "@/lib/studio/packs/schema";
    The studio is a client component; packs live on the server's disk. This
    returns the resolved, validated pack for a brand so the split module can
    propose pairs and price materials. Gated on `studio` like every server
-   function the studio calls (reachable by direct POST). The Data Library
-   page reads the same packs but is admin+ and renders them server-side, so
-   its gate is its own — nothing comes through here. */
+   function the studio calls (reachable by direct POST). */
 
 export async function loadStudioPack(
   brand: string

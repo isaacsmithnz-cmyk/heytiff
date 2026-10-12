@@ -18,7 +18,7 @@ import { Studio } from "@/components/studio/studio";
    The newest installed version of each brand, as `latestInstalledPack`
    resolves it ("2026.1"-style versions sort lexically). A pack that fails to
    load is left out rather than taking the screen down: the home is for
-   designing, and the Data Library is where a broken pack is reported. */
+   designing, and a pack's problems are checked in HQ's data pages. */
 async function studioLibrary(): Promise<LibraryManifest> {
   const latest = new Map<string, InstalledPackRef>();
   for (const ref of await installedPacks()) {

@@ -1,9 +1,8 @@
 /* Design Studio — data packs, SERVER side (Stage 2 bridge).
    Reads pack JSON off disk and turns it into a validated, engine-ready-scored
-   DataPack for (a) the Data Library browser and (b) resolving the packs a
-   design pins. fs/path make this server-only — never import it into a client
-   component; the Data Library page (a Server Component) imports it and passes
-   plain serialisable data down to the client renderer.
+   DataPack for resolving the packs a design pins and for HQ's data pages.
+   fs/path make this server-only — never import it into a client component;
+   server pages import it and pass plain serialisable data down.
 
    All fns take an optional `baseDir` so tests point at a fixture dir instead of
    the live `data/packs/` (which the extraction agent may be writing). */

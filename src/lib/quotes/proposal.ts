@@ -394,10 +394,12 @@ function suggestionOf(raw: unknown): LabourSuggestion | null {
   return visits.length ? { visits, why: cleanLine(o.why) } : null;
 }
 
-export function normaliseDraft(raw: unknown): ProposalDraft | null {
+/** `maxOptions`: an old draft keeps four; a quote built on its lines, as
+    many as it has (its read as a draft, lines-job.ts linesDraft). */
+export function normaliseDraft(raw: unknown, maxOptions: number = MAX_OPTIONS): ProposalDraft | null {
   const r = obj(raw);
   if (!r) return null;
-  const options = pairs(r.options, MAX_OPTIONS, (x): ProposalOption | null => {
+  const options = pairs(r.options, maxOptions, (x): ProposalOption | null => {
     const name = cleanName(x.name);
     const lines = lineList(x.lines, MAX_LINES);
     const u = units(x.units);

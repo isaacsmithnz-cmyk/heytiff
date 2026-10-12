@@ -49,6 +49,7 @@ jest.mock("@/lib/supabase-server", () => ({
 
 import {
   readJobFamily,
+  readJobTracked,
   readMirrorJobDetail,
   readMirrorJobRow,
   resolveJobCard,
@@ -634,6 +635,37 @@ describe("readMirrorJobRow", () => {
   it("answers null for a job this org's mirror does not hold", async () => {
     singleBy["sm8_jobs"] = null;
     expect(await readMirrorJobRow("org-1", "j-elsewhere", TODAY)).toBeNull();
+  });
+});
+
+/* A card opened by uuid alone (Home, ⌘K, Tiff) holds nothing the board
+   loaded, so what the job is tracked as is read for that one job. */
+describe("readJobTracked", () => {
+  afterEach(() => {
+    delete rowsBy["project_jobs"];
+    delete rowsBy["maintenance_visits"];
+    delete singleBy["projects"];
+    delete singleBy["maintenance_agreements"];
+  });
+
+  it("names the project a linked job belongs to, ahead of any visit", async () => {
+    rowsBy["project_jobs"] = [{ project_id: "p-7" }];
+    rowsBy["maintenance_visits"] = [{ id: "v-1", agreement_id: "a-1", status: "upcoming" }];
+    singleBy["projects"] = { id: "p-7", name: "Bayview fit-out" };
+    expect(await readJobTracked("org-1", "j-1")).toEqual({ kind: "project", label: "Bayview fit-out", id: "p-7" });
+  });
+
+  it("falls back to the maintenance visit, an open one first, named by its agreement's client", async () => {
+    rowsBy["maintenance_visits"] = [
+      { id: "v-done", agreement_id: "a-1", status: "done" },
+      { id: "v-open", agreement_id: "a-1", status: "booked" },
+    ];
+    singleBy["maintenance_agreements"] = { client_name: "Mosman Marina" };
+    expect(await readJobTracked("org-1", "j-1")).toEqual({ kind: "visit", label: "Mosman Marina", id: "v-open" });
+  });
+
+  it("answers null for a job nothing tracks", async () => {
+    expect(await readJobTracked("org-1", "j-1")).toBeNull();
   });
 });
 

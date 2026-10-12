@@ -73,7 +73,7 @@ test("without VERCEL_ENV (local) nothing moves", async () => {
    not follow a redirect, so a 308 here is a cron that never runs. */
 test("a scheduled call on the deployment's own address reaches its route: no move, no session work", async () => {
   const host = "heytiff-bddd85eyg-isaacsmithnz-3848s-projects.vercel.app";
-  for (const path of ["/api/cron/sm8-sync", "/api/cron/reminders", "/api/cron/xero-drift"]) {
+  for (const path of ["/api/cron/sm8-sync", "/api/cron/sm8-drain", "/api/cron/reminders", "/api/cron/xero-drift"]) {
     const res = await proxy(req(`https://${host}${path}`, host));
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();

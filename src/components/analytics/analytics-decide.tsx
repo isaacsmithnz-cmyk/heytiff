@@ -186,7 +186,7 @@ export function ToDecide({
               </span>
             </div>
             <p className="an-say">{questionWhy(q, quoteFromCents)}</p>
-            <div className="an-qlist">
+            <div className="an-qlist" data-record-list>
               {shown.map((a) => (
                 <Row
                   key={keyOf(a)}

@@ -309,7 +309,8 @@ Every decision below is made once, here, and a guard test holds each number.
   slide across"): the Calendar across the whole body, Tasks across the
   diary column, in 280 ms, and at once under reduced motion. The list
   stands in the right-hand column beside Diary and Tasks. One job card
-  serves every door on the page. The Debrief is gone (2026-09-24).
+  serves every door on the page, and it is the app's (a job opens where
+  you are). The Debrief is gone (2026-09-24).
   "Your day" is his slanted bar: the viewer's own bookings and timed
   tasks as 45° cards in their Workboard colours, the one on now filling
   as it runs, finished work pale with a tick and folded into one block
@@ -513,6 +514,64 @@ Every decision below is made once, here, and a guard test holds each number.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.
+- **A job opens where you are** (Isaac, 2026-10-11: "the way that jobs are
+  opened up and how they can float across different screens… so that you
+  don't have to exit out of everything"). A job opened from ⌘K, Tiff, the
+  bell, an Action required tile, a list on Home or Analytics opens over the
+  screen you are on, in the board's own job card; nothing navigates and the
+  screen underneath keeps its place. The record host sits in the dashboard
+  frame beside Tiff's modal (`components/records`). One card at a time: a
+  second door replaces the first. The address carries the open job
+  (`?open=job.<uuid>`), so Back closes it, Forward opens it again, a refresh
+  brings it back over the same screen and the address can be sent to
+  someone. Going to another screen puts it away, and Back to the screen it
+  was open over brings it back. A link to a job is still the job's real
+  address, so a ⌘-click still opens the Workboard in a new tab. Back links
+  out of a page about one job (its quote, its SWMS) still go to the
+  Workboard, and so does Book in where it is the Schedule's link. The card
+  itself is unchanged. A maintenance visit and its service agreement open
+  the same way: neither has a page of its own, so a link to a visit (on
+  Home, from a job card's chip, from Tiff) opens the board's own visit
+  sheet over the screen you are on, built from the same data the board
+  hands it, and the visit's agreement chip opens the agreement in its
+  place. A project keeps its own page; that page is its window.
+- **A card can be set aside** (2026-10-11). A job opened where you are has
+  two worded buttons in its band beside the ⋯: Set aside, and Next job when
+  the door that opened it showed a list (⌘K's jobs, the bell, Action
+  required, a list in Analytics). Set aside puts the card in the dock, a row
+  of the dark frame under the page, there only while something waits in it,
+  on every screen: a job set aside on Home comes back over the Schedule. A
+  card in the dock is its job's number and client and a close cross, and it
+  comes back exactly as it was left, on the face it was on with a note half
+  written. Three wait at most; the oldest goes for a fourth. Next job opens
+  the next one in the card's place, without stacking Back, and J and K walk
+  the list while the card is in front and nothing is being typed.
+- **Who else has it open** (2026-10-11, live records, off until deployed).
+  A job card says, under its chips, who else has the same job open, in
+  words and the quiet colour ("Dane has this open too"; "Dane and Mia…";
+  "Dane, Mia and 2 more…"). It is a fact, not a state: no dot, no chip, no
+  avatar. A note written in the diary by one of them appears on the other
+  cards without a reload.
+- **⌘K acts** (2026-10-11). The search box says what it finds for the
+  viewer ("Find a job, client or screen…" with the Workboard). Opened over a
+  job card, the palette comes up on top of it and leads with that job's
+  verbs under its number: Set aside, Next job with its key, Copy the link
+  to this job, Open in ServiceM8. With nothing typed it lists the jobs
+  opened lately; with words typed, the last row hands them to Tiff ("Ask
+  Tiff"), so the box is never a dead end, and "Searching…" or "Nothing
+  matches" still says where the search stands above it. A screen reader
+  hears a combobox over a list of options in named groups.
+- **One dialog is in front** (2026-10-11). Every sheet and modal says it is
+  open on one stack (`components/overlay/use-overlay`), and the one opened
+  last is in front. Escape closes that one and nothing under it: a claim, a
+  photo, Edit customer or a wizard over the job card closes alone, and the
+  card under the palette stays open. A field or a menu inside a dialog that
+  takes Escape for itself (an answer being typed, a name being given) keeps
+  the dialog open. Tab goes round inside the dialog in front and never
+  reaches the page under it, and closing a dialog puts focus back on what
+  opened it. The page underneath is not made inert: the scrim already takes
+  the pointer, and an inert page would silence the toasts a board raises
+  while its card is open.
 
 ## Scales
 
@@ -1160,7 +1219,8 @@ It breaks these laws, on his word. This is the note:
 **While she moves you** (interim, universal Tiff Phase 1). When Tiff moves the
 screen, her line stays up for 900 ms, then the modal closes the way it always
 does, and the page moves once it has gone, so a sheet the page opens never
-lands under it. A key or a press in the modal during the hold keeps it open
+lands under it. A job she names opens over the screen you are on rather than
+moving you to the Workboard (a job opens where you are). A key or a press in the modal during the hold keeps it open
 and moves nothing. The hold is not motion, so it holds under reduced motion
 and from the keyboard too. The next bare press of a Tiff button within ten
 minutes opens on the conversation she moved you from, listening; a diary

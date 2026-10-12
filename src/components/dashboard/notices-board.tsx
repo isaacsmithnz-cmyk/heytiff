@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { DateField } from "@/components/ui/date-field";
@@ -279,22 +280,19 @@ function ReactionRow({
    and restores page scrolling on the way out — a viewer you can't get out of is
    worse than no viewer. */
 function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const dialog = useRef<HTMLDivElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose]);
+  }, []);
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="nb-lb" role="dialog" aria-modal="true" onClick={onClose}>
+    <div ref={dialog} className="nb-lb" role="dialog" aria-modal="true" onClick={onClose}>
       <button type="button" className="nb-lb-x" aria-label="Close" onClick={onClose}>
         <Icon name="x" size={22} />
       </button>

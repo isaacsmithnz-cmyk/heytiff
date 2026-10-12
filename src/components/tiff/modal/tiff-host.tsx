@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { prefersStill } from "./box-motion";
+import { useRecords } from "@/components/records/records-context";
+import { recordOfHref } from "@/lib/records/ref";
 import { TiffContext, type TiffApi, type TiffLanded, type TiffOpen } from "./tiff-context";
 import { TiffModal, type TiffClosed, type TiffSession } from "./tiff-modal";
 
@@ -38,6 +40,7 @@ export const CARRY_ON_MS = 10 * 60 * 1000;
 
 export function TiffModalProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const records = useRecords();
   const [session, setSession] = useState<TiffSession | null>(null);
   const [landed, setLanded] = useState<TiffLanded | null>(null);
   const opened = useRef(0);
@@ -95,16 +98,23 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
       /* A move goes now, with the modal gone (a job's sheet portals to the
          same layer, and one opened under a folding modal would paint over
          it); the push fetches the page, so it needs no refresh besides. */
-      if (c.moveTo) router.push(c.moveTo);
+      /* A RECORD she names opens over the screen you are on, in the record
+         host, and nothing navigates: the screen under the modal is still
+         there when it folds. A screen she names is still a move. */
+      const record = c.moveTo && records.hosted ? recordOfHref(c.moveTo) : null;
+      const to = c.back?.isConnected ? c.back : c.from;
+      if (record) {
+        records.open(record.ref, { ...(record.face ? { tab: record.face } : {}), from: to });
+        if (c.changed) router.refresh();
+      } else if (c.moveTo) router.push(c.moveTo);
       else if (c.changed) router.refresh();
       if (c.moveTo && c.turns.length) kept.current = { turns: c.turns, at: Date.now() };
       /* Focus goes back to the button pressed; after a move it may have gone
          with the page, so then to the frame's own Tiff button. */
-      const to = c.back?.isConnected ? c.back : c.from;
       if (to.isConnected) to.focus({ preventScroll: true });
       else document.querySelector<HTMLElement>(".tiffbtn-topbar")?.focus({ preventScroll: true });
     },
-    [router]
+    [router, records]
   );
 
   useEffect(() => {

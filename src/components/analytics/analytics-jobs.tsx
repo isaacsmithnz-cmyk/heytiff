@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { decideJob } from "@/app/actions/analytics-decide";
@@ -8,6 +7,8 @@ import { markUnsuccessful } from "@/app/actions/booking-sm8";
 import { answerSaid } from "@/lib/analytics/decisions";
 import { longDay, money, type AnalyticsJob } from "@/lib/analytics/job-analytics";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
+import { jobHref } from "@/lib/shell/links";
+import { RecordLink } from "@/components/records/record-link";
 
 /* A JOB ON THE ANALYTICS PAGE, and calling it void (Isaac, 2026-10-07: "i
    also need a way to mark jobs void or something, unsuccessful isnt accurate
@@ -30,10 +31,10 @@ export function JobCell({ job, client }: { job: AnalyticsJob; client: string | n
     .join(", ");
   return (
     <div className="an-qjob">
-      <Link href={`/dashboard/workboard?job=${encodeURIComponent(job.id)}`}>
+      <RecordLink href={jobHref(job.id)}>
         {job.number ? `#${job.number} ` : ""}
         {client ?? "No client name"}
-      </Link>
+      </RecordLink>
       <span>{facts}</span>
     </div>
   );
@@ -231,7 +232,7 @@ export function VoidList({
   const rows = all ? shown : shown.slice(0, 20);
   return (
     <>
-      <div className="an-qlist">
+      <div className="an-qlist" data-record-list>
         {rows.map((job) => {
           const isVoid = voids.isVoid(job, serverVoid);
           const kept = keep ? keep.marks.isOn(job, keep.server(job)) : false;

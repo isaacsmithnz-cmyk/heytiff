@@ -1253,7 +1253,11 @@ function SiteChecklist({
                 onChange={(e) => setOwn(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void answer(own);
-                  if (e.key === "Escape") setOwn(null);
+                  if (e.key === "Escape") {
+                    /* the answer, not the card */
+                    e.preventDefault();
+                    setOwn(null);
+                  }
                 }}
               />
               <button type="button" className="pbtn primary" disabled={saving || !own.trim()} onClick={() => void answer(own)}>

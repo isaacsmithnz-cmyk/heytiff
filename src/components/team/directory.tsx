@@ -1,5 +1,6 @@
 "use client";
 
+import { staffHref } from "@/lib/shell/links";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -443,7 +444,7 @@ export function TeamDirectory({
                 <div
                   key={s.id}
                   className={`dirrow${inactive ? " off" : ""}${unclaimed ? " unclaimed" : ""}`}
-                  onClick={() => router.push(`/dashboard/team/${s.id}`)}
+                  onClick={() => router.push(staffHref(s.id))}
                 >
                   <span className="dname">
                     {/* the hue rides in as a custom property, never as
@@ -465,7 +466,7 @@ export function TeamDirectory({
                         {/* stopPropagation so the row's own click doesn't push
                             the same route a second time behind the anchor */}
                         <Link
-                          href={`/dashboard/team/${s.id}`}
+                          href={staffHref(s.id)}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {s.name}
@@ -513,7 +514,7 @@ export function TeamDirectory({
                             Invite to join
                           </button>
                         )}
-                        <Link href={`/dashboard/team/${s.id}`}>
+                        <Link href={staffHref(s.id)}>
                           <Icon name="arrowUR" size={15} />
                           View profile
                         </Link>

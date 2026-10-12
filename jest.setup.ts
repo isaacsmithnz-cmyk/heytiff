@@ -109,6 +109,22 @@ jest.mock('@/app/actions/certificates', () => ({
   deleteCertificate: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
 }))
 
+/* Opening a maintenance visit or agreement where you are, for the same
+   reason: the record host imports it at module scope, and the record host is
+   in the frame round every screen and in Home's own. The default is the
+   empty answer, the board not holding it. workboard-records.test.ts tests
+   the real one and `jest.unmock`s it. */
+jest.mock('@/app/actions/workboard-records', () => ({
+  openMaintenanceCard: jest.fn(async () => null),
+}))
+
+/* The live records ticket, for the same reason: the job card asks for it at
+   module scope. The default is no ticket, which is what a deployment with
+   live records off answers. */
+jest.mock('@/app/actions/realtime', () => ({
+  realtimeTicket: jest.fn(async () => null),
+}))
+
 /* Filing a document on a job, for the same reason: the job card imports it
    at module scope for its Documents face's upload. The default refuses, so no
    suite proceeds as though a file had been filed; job-documents.test.ts tests

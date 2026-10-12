@@ -1,11 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import { openMirrorJob } from "@/app/actions/workboard";
-import { JobSheet, type JobSheetTab } from "@/components/workboard/board/job-sheet";
-import type { ScheduleJobState } from "@/components/workboard/board/schedule-tab";
-import { ToastHost, useBoardToasts } from "@/components/workboard/board/toasts";
+import { useContext, useMemo, type ReactNode } from "react";
+import { PageRecordsProvider } from "@/components/records/record-host";
+import { RecordWindows } from "@/components/records/record-windows";
+import { RecordsContext, type OpenRecordOptions } from "@/components/records/records-context";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 
 /* ONE JOB CARD FOR THE WHOLE OF THE NEW HOME.
@@ -13,16 +11,18 @@ import type { AllJobRow } from "@/lib/workboard/all-jobs";
    Four things on this Home open a job: a booking on the day, a row in the
    list, a mention in the diary, a task's Job. Each was going to host a
    sheet of its own, and two sheets mounted side by side is two cards open
-   at once. So there is one host, above everything on the page, and every
-   door calls it: `openJob(row)` with the row it holds, or `openJob(uuid)`
-   for a door that knows the job and not its row — the mirror is asked for
-   the row the board's own builder makes (`openMirrorJob`), so the card is
-   the same card whichever way it was reached.
+   at once. So there is one host and every door calls it: `openJob(row)`
+   with the row it holds, or `openJob(uuid)` for a door that knows the job
+   and not its row — the mirror is asked for the row the board's own builder
+   makes (`openMirrorJob`), so the card is the same card whichever way it
+   was reached.
 
-   The card is the board's own, on the same row and wearing the day-state a
-   booking wore; its agreement door lands on the board with the job open
-   (`?job=`), where the modal it needs lives. Closing it puts focus back
-   where the press came from.
+   THE HOST IS THE APP'S NOW (components/records/record-host). This grew
+   into it: the dashboard layout mounts it above every screen, so ⌘K, Tiff
+   and the bell open a job the way Home's doors always did — over the
+   screen, nothing thrown away. Inside the frame this is only Home's name
+   for that host's door. Drawn on its own (a test, or a page outside the
+   frame) it brings a host of its own, with the grants it is handed.
 
    A DOOR THAT CAME TO BOOK OR TO CLEAR (two-way phase 3): the list's Book
    in opens the card on its Visits face with Book in's panel open, and a
@@ -30,51 +30,25 @@ import type { AllJobRow } from "@/lib/workboard/all-jobs";
    door like that is a fresh one even on the job already open, so what it
    came for is what the card opens on. */
 
-export type OpenJobOptions = {
-  /** What today's schedule says the job is doing — only when a booking
-      opened it, so the card's header says what the day drew. */
-  state?: ScheduleJobState | null;
-  /** The face to open on, for a door that knows what it came for. */
-  tab?: JobSheetTab;
-  /** Where focus goes back to on close. The element that has focus when
-      the card is asked for, unless the door says otherwise. */
-  from?: HTMLElement | null;
-  /** Open on the Visits face with Book in's panel open. */
-  bookIn?: true;
-  /** Open on the Visits face with this leftover booking's Clear asked (an
-      activity uuid). */
-  clear?: string;
-};
+export type OpenJobOptions = Omit<OpenRecordOptions, "row">;
 
 export type DeskJobs = {
   openJob: (job: AllJobRow | string, opts?: OpenJobOptions) => void;
 };
 
-const DeskJobsContext = createContext<DeskJobs | null>(null);
-
 /** The desk's one card. Only inside `DeskJobHost`. */
 export function useDeskJobs(): DeskJobs {
-  const jobs = useContext(DeskJobsContext);
-  if (!jobs) throw new Error("useDeskJobs is only for the new Home, inside its DeskJobHost");
-  return jobs;
-}
-
-type Open = {
-  row: AllJobRow;
-  state: ScheduleJobState | null;
-  tab: JobSheetTab | undefined;
-  from: HTMLElement | null;
-  /** What a booking door came for — Book in, or a leftover's Clear — and
-      the ask that brought it, so the card opens afresh on it. */
-  door: { bookIn: boolean; clear: string | null; n: number } | null;
-};
-
-/** The element that has focus now, when it is something focus can go back
-    to — not the page itself. */
-function focused(): HTMLElement | null {
-  if (typeof document === "undefined") return null;
-  const el = document.activeElement;
-  return el instanceof HTMLElement && el !== document.body ? el : null;
+  const records = useContext(RecordsContext);
+  if (!records) throw new Error("useDeskJobs is only for the new Home, inside its DeskJobHost");
+  return useMemo<DeskJobs>(
+    () => ({
+      openJob: (job, opts = {}) =>
+        typeof job === "string"
+          ? records.open({ kind: "job", id: job }, opts)
+          : records.open({ kind: "job", id: job.id }, { ...opts, row: job }),
+    }),
+    [records],
+  );
 }
 
 export function DeskJobHost({
@@ -83,85 +57,18 @@ export function DeskJobHost({
   children,
 }: {
   /** The board's own answers, read by the loader from the same capabilities,
-      so the card offers here exactly what it offers there. */
+      so the card offers here exactly what it offers there. Used only when
+      there is no frame round Home to host the card. */
   manage: boolean;
   moneyVisible: boolean;
   children: ReactNode;
 }) {
-  const router = useRouter();
-  const [open, setOpen] = useState<Open | null>(null);
-  const { toasts, toast, dismiss } = useBoardToasts();
-  /* THE LAST ASK WINS. A card asked for by uuid waits on the mirror; a
-     second ask, or a close, while it waits makes that answer stale, and a
-     stale answer must not open a card over whatever came after it. */
-  const asked = useRef(0);
-
-  const openJob = useCallback(
-    (job: AllJobRow | string, opts: OpenJobOptions = {}) => {
-      const n = ++asked.current;
-      const from = opts.from !== undefined ? opts.from : focused();
-      const door = opts.bookIn || opts.clear ? { bookIn: !!opts.bookIn, clear: opts.clear ?? null, n } : null;
-      const land = (row: AllJobRow) =>
-        setOpen({ row, state: opts.state ?? null, tab: door ? "visits" : opts.tab, from, door });
-      if (typeof job !== "string") {
-        land(job);
-        return;
-      }
-      void openMirrorJob(job).then(
-        (row) => {
-          if (n !== asked.current) return;
-          if (row) land(row);
-          else toast("That job isn't in ServiceM8's copy any more.");
-        },
-        () => {
-          if (n === asked.current) toast("Could not open that job");
-        },
-      );
-    },
-    [toast],
-  );
-
-  const close = () => {
-    asked.current += 1;
-    const from = open?.from;
-    setOpen(null);
-    if (from?.isConnected) from.focus();
-  };
-
-  const value = useMemo<DeskJobs>(() => ({ openJob }), [openJob]);
-
+  const framed = useContext(RecordsContext)?.hosted ?? false;
+  if (framed) return <>{children}</>;
   return (
-    <DeskJobsContext.Provider value={value}>
+    <PageRecordsProvider>
       {children}
-      {/* Portalled to <body> by the sheet itself. Keyed by the job, so a
-          second job is a new card rather than the old one refilling. No
-          mirror-health chip: Home does not carry the sync clock, and the
-          card says "Open in ServiceM8" in its place. */}
-      {open && (
-        <JobSheet
-          key={open.door ? `${open.row.id}:${open.door.n}` : open.row.id}
-          row={open.row}
-          manage={manage}
-          moneyVisible={moneyVisible}
-          scheduleState={open.state}
-          initialTab={open.tab}
-          {...(open.door?.bookIn ? { openBookIn: true as const } : {})}
-          {...(open.door?.clear ? { openClear: open.door.clear } : {})}
-          onClose={close}
-          onCreateAgreement={(row) => {
-            setOpen(null);
-            router.push(`/dashboard/workboard?job=${encodeURIComponent(row.id)}`);
-          }}
-          onOpenTracked={(t) => {
-            setOpen(null);
-            router.push(
-              t.kind === "project" ? `/dashboard/workboard/projects/${t.id}` : "/dashboard/workboard",
-            );
-          }}
-          onToast={(m) => toast(m)}
-        />
-      )}
-      <ToastHost toasts={toasts} onDismiss={dismiss} />
-    </DeskJobsContext.Provider>
+      <RecordWindows manage={manage} moneyVisible={moneyVisible} />
+    </PageRecordsProvider>
   );
 }

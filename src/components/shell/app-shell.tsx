@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { CommandPaletteProvider } from "./command-palette-context";
+import { RecordDock } from "@/components/records/record-dock";
 
 /* The app frame — and NOTHING in it knows who you are.
 
@@ -19,12 +20,15 @@ export function AppShell({
   sidebar,
   topbar,
   palette,
+  records,
   children,
 }: {
   /** Server slots, each pre-wrapped in <Suspense> by the layout. */
   sidebar: React.ReactNode;
   topbar: React.ReactNode;
   palette: React.ReactNode;
+  /** The record host's windows (components/records/record-host). */
+  records?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -56,8 +60,11 @@ export function AppShell({
         <main className="outlet" key={pathname}>
           {children}
         </main>
+        {/* the cards set aside, under the page and never over it */}
+        <RecordDock />
       </div>
       {palette}
+      {records}
     </div>
     </CommandPaletteProvider>
   );

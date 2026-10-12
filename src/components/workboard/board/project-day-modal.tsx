@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -58,13 +59,10 @@ export function ProjectDayModal({
     closeRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes this and only this: a dialog over it answers its own
+     first (the overlay stack). */
+  const dialog = useRef<HTMLDivElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   const dayVisits = useMemo(
     () =>
@@ -293,6 +291,7 @@ export function ProjectDayModal({
     <>
       <div className="wb2-scrim" onClick={onClose} />
       <div
+        ref={dialog}
         className="wb2-daymodal"
         role="dialog"
         aria-modal="true"

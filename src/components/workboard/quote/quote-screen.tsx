@@ -1,5 +1,6 @@
 "use client";
 
+import { jobHref } from "@/lib/shell/links";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useEffectEvent, useState } from "react";
@@ -102,7 +103,7 @@ export function QuoteScreen({
   const { toasts, toast, dismiss } = useBoardToasts();
 
   /* back to the card, on its Quote face */
-  const back = `/dashboard/workboard?job=${encodeURIComponent(job)}&face=quote`;
+  const back = jobHref(job, "quote");
   const address = detail.address ?? detail.geoLine;
   const sm8 = sm8QuoteOf({
     documents: media?.documents ?? null,

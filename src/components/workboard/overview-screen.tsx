@@ -1,5 +1,6 @@
 "use client";
 
+import { projectHref } from "@/lib/shell/links";
 import {
   useCallback,
   useEffect,
@@ -201,7 +202,7 @@ export function OverviewScreen({
 
   const followTracked = (target: { kind: "visit" | "agreement" | "project"; id: string }) => {
     if (target.kind === "project") {
-      router.push(`/dashboard/workboard/projects/${target.id}`);
+      router.push(projectHref(target.id));
       return;
     }
     setHandoff({ side: "maintenance", kind: target.kind, id: target.id });
@@ -487,7 +488,7 @@ export function OverviewScreen({
     const go = hit.go;
     if (go.kind === "project") {
       clearQuery();
-      router.push(`/dashboard/workboard/projects/${go.id}`);
+      router.push(projectHref(go.id));
       return;
     }
     if (go.kind === "job") {

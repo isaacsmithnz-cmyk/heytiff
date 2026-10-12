@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { overlayOpen } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 
 /* THE INSPECTOR — what is selected on the board, beside the board.
@@ -49,9 +50,9 @@ export function Inspector({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
-      /* a sheet or a modal over the board owns its own Escape; this only
-         answers one that reached the document unclaimed */
-      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      /* a sheet or a modal over the board owns its own Escape (the overlay
+         stack); this only answers one that reached the document unclaimed */
+      if (overlayOpen()) return;
       onClose();
     };
     document.addEventListener("keydown", onKey);

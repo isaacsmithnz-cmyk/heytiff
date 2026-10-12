@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState, useTransition } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -98,13 +99,10 @@ export function NewAgreementModal({
   }, []);
 
   const pickedInitial = useRef(false);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes this and only this: a dialog over it answers its own
+     first (the overlay stack). */
+  const dialog = useRef<HTMLDivElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   /** The duplicate guard: same client already holding agreements. Case falls
       away; the person decides — open one of theirs, or create deliberately. */
@@ -231,7 +229,7 @@ export function NewAgreementModal({
   return createPortal(
     <>
       <div className="wb2-scrim" onClick={onClose} />
-      <div className="wb2-daymodal wb2-newmodal" role="dialog" aria-modal="true" aria-label="New service agreement">
+      <div ref={dialog} className="wb2-daymodal wb2-newmodal" role="dialog" aria-modal="true" aria-label="New service agreement">
         <div className="wb2-dmhd">
           <div className="wb2-dmtop">
             <span className="wb2-sect">New service agreement</span>

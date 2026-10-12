@@ -59,6 +59,7 @@ import {
   sm8CheckInLeftOpen,
   sm8DateFacts,
   sm8MinutesBetween,
+  type AllJobRow,
   type AllJobsMirrorJob,
   type JobChecklistItem,
 } from "./all-jobs";
@@ -1730,6 +1731,53 @@ export async function readMirrorJobRow(
   if (!data) return null;
   const [job] = await hydrateMirrorJobs(orgId, [data as unknown as JobRow], today, includeMoney);
   return job ?? null;
+}
+
+/** WHAT ONE JOB IS TRACKED AS, for a card opened by its uuid alone. The board
+    works this out from everything it loaded (all-jobs-board's
+    `trackedByJob`); a door that holds only the uuid has nothing loaded, so
+    without this read its card never wore the chip. The board's precedence
+    holds: a project link wins over a maintenance visit. An open visit wins
+    over a finished one, and the newest over the oldest. */
+export async function readJobTracked(orgId: string, remoteId: string): Promise<AllJobRow["tracked"]> {
+  const [{ data: links }, { data: visits }] = await Promise.all([
+    supabaseAdmin
+      .from("project_jobs")
+      .select("project_id")
+      .eq("org_id", orgId)
+      .eq("provider", "servicem8")
+      .eq("remote_id", remoteId)
+      .limit(1),
+    supabaseAdmin
+      .from("maintenance_visits")
+      .select("id, agreement_id, status, due_date")
+      .eq("org_id", orgId)
+      .eq("remote_id", remoteId)
+      .order("due_date", { ascending: false })
+      .limit(10),
+  ]);
+  const projectId = (links as { project_id: string }[] | null)?.[0]?.project_id;
+  if (projectId) {
+    const { data: project } = await supabaseAdmin
+      .from("projects")
+      .select("id, name")
+      .eq("org_id", orgId)
+      .eq("id", projectId)
+      .maybeSingle();
+    const p = project as { id: string; name: string | null } | null;
+    if (p) return { kind: "project", label: p.name ?? "Project", id: p.id };
+  }
+  const rows = (visits ?? []) as { id: string; agreement_id: string; status: string }[];
+  const visit = rows.find((v) => v.status === "upcoming" || v.status === "booked") ?? rows[0];
+  if (!visit) return null;
+  const { data: agreement } = await supabaseAdmin
+    .from("maintenance_agreements")
+    .select("client_name")
+    .eq("org_id", orgId)
+    .eq("id", visit.agreement_id)
+    .maybeSingle();
+  const label = (agreement as { client_name: string | null } | null)?.client_name ?? "Service visit";
+  return { kind: "visit", label, id: visit.id };
 }
 
 /** Slim rows become board rows: the client's name, the category, the next

@@ -55,7 +55,7 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
               {chips.self.length > 0 && (
                 <>
                   {chips.team.length > 0 && <div className="dash-sub">Yours</div>}
-                  <div className="dash-grid">
+                  <div className="dash-grid" data-record-list>
                     {chips.self.map((c) => (
                       <ChipTile key={c.key} chip={c} />
                     ))}
@@ -65,7 +65,7 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
               {chips.team.length > 0 && (
                 <>
                   <div className="dash-sub">Across the team</div>
-                  <div className="dash-grid">
+                  <div className="dash-grid" data-record-list>
                     {chips.team.map((c) => (
                       <ChipTile key={c.key} chip={c} />
                     ))}

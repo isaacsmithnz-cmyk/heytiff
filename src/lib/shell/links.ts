@@ -9,11 +9,18 @@
 export const staffHref = (id: string) => `/dashboard/team/${encodeURIComponent(id)}`;
 
 /** A job opens where its card lives: the Workboard, with its sheet up, found
-    in the board's window or past it (the page reads the whole mirror). */
-export const jobHref = (uuid: string) => `/dashboard/workboard?job=${encodeURIComponent(uuid)}`;
+    in the board's window or past it (the page reads the whole mirror) — on
+    the face named, when one is. Inside the frame a link like this opens the
+    card where you are instead (components/records/record-link). */
+export const jobHref = (uuid: string, face?: string) =>
+  `/dashboard/workboard?job=${encodeURIComponent(uuid)}${face ? `&face=${encodeURIComponent(face)}` : ""}`;
 
 /** A client has no page of their own: the Workboard's search, run on their
     name, is every job, visit, project and photo that names them. */
 export const clientHref = (name: string) => `/dashboard/workboard?q=${encodeURIComponent(name)}`;
 
 export const projectHref = (id: string) => `/dashboard/workboard/projects/${encodeURIComponent(id)}`;
+
+/** A maintenance visit opens on the board's Maintenance side with its sheet
+    up (the page reads `?visit=`). */
+export const visitHref = (id: string) => `/dashboard/workboard?visit=${encodeURIComponent(id)}`;

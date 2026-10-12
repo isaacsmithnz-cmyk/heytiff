@@ -17,6 +17,7 @@
    read the same `regoDays` / `serviceKmLeft` the register does, so a rego chip
    on the dashboard and the same chip in Assets can't drift apart. */
 
+import { jobHref } from "@/lib/shell/links";
 import {
   SERVICE_WARN_KM,
   fmtKm,
@@ -909,7 +910,7 @@ export function sm8BookingChip(trouble: { jobUuid: string; number: string; op: B
     state: "bad",
     label: BOOKING_BELL[trouble.op],
     subject: `Job ${trouble.number}`,
-    href: `/dashboard/workboard?job=${encodeURIComponent(trouble.jobUuid)}`,
+    href: jobHref(trouble.jobUuid),
     urgency: urgency("bad", 0),
     // a press that didn't go has no day to fall due on, and is no record's
     due: null,

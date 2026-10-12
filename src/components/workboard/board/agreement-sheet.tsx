@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -58,6 +59,8 @@ export function AgreementSheet({
   manage,
   onToast,
   onClose,
+  onChanged,
+  windowControls,
 }: {
   agreement: BoardAgreement;
   categories: BoardCategory[];
@@ -66,8 +69,19 @@ export function AgreementSheet({
   manage: boolean;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
   onClose: () => void;
+  /** After a press changed the agreement: a sheet opened where you are
+      (components/records) is drawn from what was read, and reads it again. */
+  onChanged?: () => void;
+  /** What the window it opened in adds to its band (Set aside). */
+  windowControls?: React.ReactNode;
 }) {
   const router = useRouter();
+  /* The page's data again, and the card's own when it was opened where you
+     are. */
+  const refresh = () => {
+    router.refresh();
+    onChanged?.();
+  };
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -100,13 +114,10 @@ export function AgreementSheet({
   useEffect(() => {
     closeRef.current?.focus();
   }, []);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes this and only this: a dialog over it answers its own
+     first (the overlay stack). */
+  const dialog = useRef<HTMLElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   const run = (fn: () => Promise<MaintenanceResult>, toastMsg?: string, undo?: () => void | Promise<void>) => {
     setErr(null);
@@ -114,7 +125,7 @@ export function AgreementSheet({
       const res = await fn();
       if (!res.ok) setErr(res.error);
       else if (toastMsg) onToast(toastMsg, undo);
-      router.refresh();
+      refresh();
     });
   };
 
@@ -176,7 +187,7 @@ export function AgreementSheet({
   return createPortal(
     <>
       <div className="wb2-scrim" onClick={onClose} />
-      <aside className="wb2-sheet" role="dialog" aria-modal="true" aria-label={`${a.clientName} — ${a.label}`}>
+      <aside ref={dialog} className="wb2-sheet" role="dialog" aria-modal="true" aria-label={`${a.clientName} — ${a.label}`}>
         <div className="wb2-shtop">
           <span className="wb2-chip blue">Service agreement</span>
           {a.status === "paused" ? (
@@ -185,6 +196,7 @@ export function AgreementSheet({
             <span className="wb2-chip ok">Active</span>
           )}
           {a.category && <span className="wb2-chip">{a.category.name}</span>}
+          {windowControls}
           {/* ON THE SHEET, because nothing outside its scrim can be clicked. */}
           <TiffButton where="sheet" />
           <button ref={closeRef} className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
@@ -229,7 +241,7 @@ export function AgreementSheet({
                   onClick={() =>
                     run(() => setAgreementStatus(a.id, "active"), `Resumed — ${a.clientName}`, async () => {
                       await setAgreementStatus(a.id, "paused");
-                      router.refresh();
+                      refresh();
                     })
                   }
                 >
@@ -242,7 +254,7 @@ export function AgreementSheet({
                   onClick={() =>
                     run(() => setAgreementStatus(a.id, "paused"), `Paused — ${a.clientName}`, async () => {
                       await setAgreementStatus(a.id, "active");
-                      router.refresh();
+                      refresh();
                     })
                   }
                 >
@@ -258,7 +270,7 @@ export function AgreementSheet({
                       setEnding(false);
                       run(() => setAgreementStatus(a.id, "ended"), `Ended — ${a.clientName}`, async () => {
                         await setAgreementStatus(a.id, "active");
-                        router.refresh();
+                        refresh();
                       });
                       onClose();
                     }}
@@ -452,6 +464,7 @@ export function AgreementSheet({
                       });
                     }
                     if (e.key === "Escape") {
+                      e.preventDefault();
                       setNewCategory(false);
                       setCategoryText("");
                     }
@@ -616,6 +629,7 @@ function AddInline({
           commit();
         }
         if (e.key === "Escape") {
+          e.preventDefault();
           setEditing(false);
           setText("");
         }

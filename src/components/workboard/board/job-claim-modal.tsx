@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
@@ -40,6 +41,9 @@ export function JobClaimModal({
   const [detail, setDetail] = useState<ClaimDetailRead | null>(null);
   const [loading, setLoading] = useState(true);
   const closeRef = useRef<HTMLButtonElement>(null);
+  /* Escape closes the claim and leaves the card under it open. */
+  const dialog = useRef<HTMLElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -74,6 +78,7 @@ export function JobClaimModal({
     <>
       <div className="wb2-clscrim" onClick={onClose} />
       <aside
+        ref={dialog}
         className="wb2-claim"
         role="dialog"
         aria-modal="true"

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { CONTACT_ROLES, CUSTOMER_WORDS, type CustomerForm, type FormContact } from "@/lib/integrations/sm8-customer-plan";
@@ -40,13 +41,9 @@ export function JobCustomerDialog({ jobUuid, onClose, onSaved }: { jobUuid: stri
     };
   }, [jobUuid]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes this and only this: the card under it stays open. */
+  const dialog = useRef<HTMLDivElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   const setContact = (i: number, patch: Partial<FormContact>) =>
     setForm((f) => (f ? { ...f, contacts: f.contacts.map((c, k) => (k === i ? { ...c, ...patch } : c)) } : f));
@@ -72,7 +69,7 @@ export function JobCustomerDialog({ jobUuid, onClose, onSaved }: { jobUuid: stri
   return createPortal(
     <>
       <div className="wb2-scrim" onClick={onClose} />
-      <div className="wb2-daymodal wb2-newmodal njob" role="dialog" aria-modal="true" aria-label="Edit customer">
+      <div ref={dialog} className="wb2-daymodal wb2-newmodal njob" role="dialog" aria-modal="true" aria-label="Edit customer">
         <div className="wb2-dmhd">
           <div className="wb2-dmtop">
             <h2 className="njob-title">Edit customer</h2>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { screenLabelFor } from "@/components/shell/nav";
@@ -302,6 +303,10 @@ export function TiffModal({
     window.addEventListener("keydown", listen, true);
     return () => window.removeEventListener("keydown", listen, true);
   }, []);
+  /* On the overlay stack too, so a card or a board under the modal knows
+     something is in front of it. The keys stay its own, and so does where
+     focus goes back to (its host decides). */
+  useOverlay(dialog, { trap: false, restoreFocus: false });
 
   const context = c.targetLabel ?? (session.room ? ROOM[session.room] : screenLabelFor(pathname));
 

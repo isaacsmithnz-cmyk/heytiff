@@ -2,6 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DeskJobHost, useDeskJobs, type OpenJobOptions } from "../home-job-sheet";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
+import { openMaintenanceCard } from "@/app/actions/workboard-records";
 
 /* THE NEW HOME'S ONE JOB CARD. Every door on the desk opens its job here,
    by the row it holds or by the job's uuid; this suite pins the host — one
@@ -24,6 +25,7 @@ jest.mock("@/components/workboard/board/job-sheet", () => ({
     scheduleState: { word: string } | null;
     onClose: () => void;
     onCreateAgreement: (row: { id: string }) => void;
+    onOpenTracked: (t: { kind: "visit" | "project"; label: string; id: string }) => void;
     onToast: (m: string) => void;
   }) => (
     <div role="dialog" aria-label={`Job ${p.row.number ?? ""}`}>
@@ -31,6 +33,8 @@ jest.mock("@/components/workboard/board/job-sheet", () => ({
       {String(p.manage)}, money:{String(p.moneyVisible)}
       <button onClick={p.onClose}>Close the card</button>
       <button onClick={() => p.onCreateAgreement(p.row)}>Create an agreement from this job</button>
+      <button onClick={() => p.onOpenTracked({ kind: "visit", label: "Bayview", id: "v-7" })}>On the maintenance board</button>
+      <button onClick={() => p.onOpenTracked({ kind: "project", label: "Fit-out", id: "p-3" })}>On the projects board</button>
     </div>
   ),
 }));
@@ -128,6 +132,21 @@ describe("a door with the row", () => {
     await user.click(screen.getByRole("button", { name: "Open" }));
     await user.click(screen.getByRole("button", { name: "Close the card" }));
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "The booking" }));
+  });
+
+  it("opens the visit the tracked chip names where you are, and follows a project to its page", async () => {
+    const user = userEvent.setup();
+    host(<Door job={row()} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(screen.getByRole("button", { name: "On the maintenance board" }));
+    // a visit has no page of its own: it is asked for, to open in the card's place
+    expect(jest.mocked(openMaintenanceCard)).toHaveBeenCalledWith("visit", "v-7");
+    expect(push).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Close the card" }));
+
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(screen.getByRole("button", { name: "On the projects board" }));
+    expect(push).toHaveBeenLastCalledWith("/dashboard/workboard/projects/p-3");
   });
 
   it("sends the agreement door to the board with the job in the URL", async () => {

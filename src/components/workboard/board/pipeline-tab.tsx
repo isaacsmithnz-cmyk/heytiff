@@ -1,5 +1,6 @@
 "use client";
 
+import { projectHref } from "@/lib/shell/links";
 import { useMemo } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
@@ -228,7 +229,7 @@ function ProjectRow({
      open-three-projects-in-tabs triage a real <a> gives for free. */
   return (
     <Link
-      href={`/dashboard/workboard/projects/${p.id}`}
+      href={projectHref(p.id)}
       className="wb2-plrow"
       data-sev={sev}
       onClick={

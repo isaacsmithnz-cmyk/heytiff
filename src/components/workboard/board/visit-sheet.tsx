@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -112,6 +113,8 @@ export function VisitSheet({
   onOpenVisit,
   onToast,
   onClose,
+  onChanged,
+  windowControls,
 }: {
   visit: BoardVisit;
   tone: VisitTone;
@@ -143,8 +146,20 @@ export function VisitSheet({
   onOpenVisit: (visitId: string) => void;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
   onClose: () => void;
+  /** After a press changed the visit: a sheet opened where you are
+      (components/records) is drawn from what was read, and reads it again.
+      The board's own sheet has the page's refresh. */
+  onChanged?: () => void;
+  /** What the window it opened in adds to its band (Set aside). */
+  windowControls?: React.ReactNode;
 }) {
   const router = useRouter();
+  /* The page's data again, and the card's own when it was opened where you
+     are. */
+  const refresh = () => {
+    router.refresh();
+    onChanged?.();
+  };
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("visit");
@@ -208,13 +223,10 @@ export function VisitSheet({
     closeRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /* Escape closes this and only this: a dialog over it answers its own
+     first (the overlay stack). */
+  const dialog = useRef<HTMLElement>(null);
+  useOverlay(dialog, { onEscape: onClose });
 
   /** Actions whose effect stays visible in the sheet run silently; ones
       whose subject LEAVES a list (placed, completed, skipped) raise a toast
@@ -229,13 +241,13 @@ export function VisitSheet({
       const res = await fn();
       if (!res.ok) setErr(res.error);
       else if (toastMsg) onToast(toastMsg, undo);
-      router.refresh();
+      refresh();
     });
   };
 
   const undoable = (fn: () => Promise<MaintenanceResult>) => async () => {
     await fn();
-    router.refresh();
+    refresh();
   };
 
   const gates = gatesOf(visit);
@@ -338,7 +350,7 @@ export function VisitSheet({
         return;
       }
       after?.();
-      router.refresh();
+      refresh();
     });
   };
 
@@ -457,6 +469,7 @@ export function VisitSheet({
           remainder of the card". Closing out is a one-thing-at-a-time act;
           the band stays crisp so you can still see WHICH visit it is. */}
       <aside
+        ref={dialog}
         className={"wb2-sheet jc mv" + (closing ? " closingout" : "")}
         role="dialog"
         aria-modal="true"
@@ -477,6 +490,7 @@ export function VisitSheet({
                 {visit.siteLabel ? `, ${visit.siteLabel}` : ""}
               </p>
             </span>
+            {windowControls}
             <span className="wb2-shchips">
               {toneChip}
               <span className="wb2-chip" title="How often this service comes round">
@@ -609,7 +623,10 @@ export function VisitSheet({
                             e.preventDefault();
                             saveEstimate();
                           }
-                          if (e.key === "Escape") cancelEstimate();
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            cancelEstimate();
+                          }
                         }}
                       />
                       {/* a field's save is a word; a composer's send is the glyph (law 25) */}
@@ -645,7 +662,10 @@ export function VisitSheet({
                         value={visit.techsNeeded}
                         onChange={(e) => saveCrew(Number(e.target.value))}
                         onKeyDown={(e) => {
-                          if (e.key === "Escape") setCrewOpen(false);
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            setCrewOpen(false);
+                          }
                         }}
                       >
                         {[1, 2, 3, 4, 5, 6].map((n) => (
@@ -994,6 +1014,7 @@ export function VisitSheet({
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Escape") {
+                              e.preventDefault();
                               setLinking(false);
                               setJobQuery("");
                               setJobHits(null);
@@ -1481,6 +1502,7 @@ function AddPackRow({ busy, onAdd }: { busy: boolean; onAdd: (label: string) => 
           commit();
         }
         if (e.key === "Escape") {
+          e.preventDefault();
           setEditing(false);
           setText("");
         }

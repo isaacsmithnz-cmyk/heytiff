@@ -31,24 +31,35 @@ import {
 
    The job card is the board's own and has its own suite: here it is a
    dialog that says what it was opened on, rendered by the desk's host
-   OUTSIDE the page, as the real one is portalled to <body>. "use server"
-   modules cannot be imported into jsdom, so the actions are stubbed. */
+   OUTSIDE the page, as the real one is portalled to <body>, and on the
+   overlay stack as the real one is. "use server" modules cannot be
+   imported into jsdom, so the actions are stubbed. */
 const mockRefresh = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mockRefresh, push: jest.fn() }),
 }));
-jest.mock("@/components/workboard/board/job-sheet", () => ({
-  JobSheet: (p: {
-    row: { number: string | null; clientName: string | null };
-    scheduleState: { word: string } | null;
-    onClose: () => void;
-  }) => (
-    <div role="dialog" aria-modal="true" aria-label={`Job ${p.row.number ?? ""}`}>
-      {p.row.clientName}, {p.scheduleState?.word ?? "no state"}
-      <button onClick={p.onClose}>Close the card</button>
-    </div>
-  ),
-}));
+jest.mock("@/components/workboard/board/job-sheet", () => {
+  const { useRef } = jest.requireActual<typeof import("react")>("react");
+  const { useOverlay } = jest.requireActual<typeof import("@/components/overlay/use-overlay")>(
+    "@/components/overlay/use-overlay",
+  );
+  return {
+    JobSheet: function JobSheet(p: {
+      row: { number: string | null; clientName: string | null };
+      scheduleState: { word: string } | null;
+      onClose: () => void;
+    }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useOverlay(ref, { onEscape: p.onClose });
+      return (
+        <div ref={ref} role="dialog" aria-modal="true" aria-label={`Job ${p.row.number ?? ""}`}>
+          {p.row.clientName}, {p.scheduleState?.word ?? "no state"}
+          <button onClick={p.onClose}>Close the card</button>
+        </div>
+      );
+    },
+  };
+});
 jest.mock("@/app/actions/workboard", () => ({ openMirrorJob: jest.fn(async () => null) }));
 const mockComplete = jest.fn(async (id: string) => void id);
 jest.mock("@/app/actions/dashboard", () => ({
@@ -349,7 +360,8 @@ describe("closing the card", () => {
     const sheet = screen.getByRole("dialog", { name: "Job 3342" });
     (document.activeElement as HTMLElement).blur();
     await user.keyboard("{Escape}");
-    expect(sheet).toBeInTheDocument();
+    // the card in front answers it, and only the card
+    expect(sheet).not.toBeInTheDocument();
     expect(isOpen()).toBe(true);
   });
 

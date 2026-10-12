@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
+import { RecordLink } from "@/components/records/record-link";
 import { actionRequiredItems } from "@/app/actions/action-required";
 import { myDueReminders, snoozeReminder } from "@/app/actions/reminders";
 import { acknowledgeTask, myNewAssignments } from "@/app/actions/assignments";
@@ -76,6 +77,13 @@ import {
    So they are a separate group with their own row, and the only thing they
    share with the chips is the badge — which is the honest part, because "three
    things need you" is a count of everything that needs you. */
+
+/* A ROW THAT NAMES A JOB OPENS IT WHERE YOU ARE (RecordLink), and the panel
+   closes behind it — so focus, when the job closes, goes back to the bell
+   that opened the panel rather than to a row that is gone. */
+function bellButton(row: HTMLAnchorElement): HTMLElement | null {
+  return row.closest(".bell-top")?.querySelector<HTMLElement>("button.bell") ?? null;
+}
 
 /** How many rows the panel will draw before it stops and points at the board. */
 const PANEL_CAP = 20;
@@ -498,9 +506,15 @@ export function BellPanel({
           <em>Everything is in date and nobody is waiting on an answer.</em>
         </div>
       ) : items.length === 0 ? null : (
-        <div className="bp-list">
+        <div className="bp-list" data-record-list>
           {shown.map((c) => (
-            <Link key={c.key} className={`bp-row ${c.state}`} href={c.href} onClick={onLeave}>
+            <RecordLink
+              key={c.key}
+              className={`bp-row ${c.state}`}
+              href={c.href}
+              onClick={onLeave}
+              returnFocus={bellButton}
+            >
               <span className="bp-ic">
                 <Icon name={GROUP_ICON[chipGroup(c.kind)]} size={15} />
               </span>
@@ -513,7 +527,7 @@ export function BellPanel({
               <span className="bp-chev">
                 <Icon name="arrowR" size={15} />
               </span>
-            </Link>
+            </RecordLink>
           ))}
         </div>
       )}

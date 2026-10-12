@@ -122,6 +122,24 @@ it("sends a message and shows her working", async () => {
   expect(screen.getByText("Working")).toBeInTheDocument();
 });
 
+/* Isaac's production test, 2026-10-12: two reads from the same point (the
+   poll, a read after an answer, coming back to the tab) both brought the same
+   events, and questions 4 and 5 showed twice */
+it("shows each event once when two reads bring the same ones", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_u: string, init?: { body?: string }) =>
+    init?.body ? respond({ ok: true, turn: "t2" }) : respond(thread)
+  );
+  render(<TiffPanel job="j" onChanged={jest.fn()}>{null}</TiffPanel>);
+  expect(await screen.findByText("A 12.5 kW ducted, priced from your book.")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Message Tiff"), { target: { value: "Carry on" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+  });
+  await act(async () => {});
+  expect(screen.getAllByText("Single or three phase?")).toHaveLength(1);
+  expect(screen.getAllByText("A 12.5 kW ducted, priced from your book.")).toHaveLength(1);
+});
+
 it("says why when she can't take the message", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_u: string, init?: { body?: string }) =>
     init?.body ? respond({ ok: false, reason: "Tiff is still working on the last one." }) : respond({ ...thread, events: [] })

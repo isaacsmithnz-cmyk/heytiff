@@ -2,18 +2,17 @@
 
 import { jobHref } from "@/lib/shell/links";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { readJobFiles, readJobRecord, type readMirrorJob } from "@/app/actions/workboard";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import { Icon } from "@/components/shell/icon";
+import { Waiting } from "@/components/ui/orb";
 import { proposalTitle } from "@/lib/quotes/proposal";
 import type { FamilyMoney } from "@/lib/workboard/job-family";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import { JobMediaViewer } from "../board/job-media-viewer";
-import { JobQuoteFace } from "../board/job-quote-face";
 import { JobQuoteSend } from "../board/job-quote-send";
 import { useQuotePrice } from "./quote-parts";
 import { QuoteLinesFace } from "./quote-lines-face";
@@ -24,11 +23,14 @@ import { sm8QuoteOf } from "./sm8-quote-of";
    2026-10-05: "it should have opened up the proper quote screen not a
    section below"), in Home's frame (2026-10-06, the mock-up he called "much
    cleaner"): the way back to the job card, the title with the quote's next
-   step in its corner, then the builder (job-quote-face, page mode) — the
-   progress line, Build-up and Proposal, and the list on the right with
-   ServiceM8's own quote, the price of each option, and what goes to
-   ServiceM8 once an option is accepted, each read afresh whenever the
-   quote changes.
+   step in its corner, then the quote on its lines (quote-lines-face.tsx) —
+   the progress line, the lines and Tiff, and the list on the right with
+   ServiceM8's own quote and what goes to ServiceM8, its price read afresh
+   whenever the quote changes.
+
+   EVERY QUOTE IS BUILT ON ITS LINES (retiring the old builder, Isaac,
+   2026-10-12): one still on the old builder is switched to them as it's
+   opened, and Tiff reads what its old draft said (job-sources-server.ts).
 
    It reads the job as the card does (the same actions; the page hands the
    job itself in, read on the server), so the two never tell different
@@ -44,19 +46,14 @@ export function QuoteScreen({
   detail,
   moneyVisible,
   financials,
-  manage = true,
 }: {
   job: string;
   detail: Detail;
   moneyVisible: boolean;
   financials: boolean;
-  /** runs the board: the old builder is a manager's; anyone else quotes on lines with Tiff */
-  manage?: boolean;
 }) {
-  const router = useRouter();
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [family, setFamily] = useState<FamilyMoney | null>(null);
-  const [version, setVersion] = useState<string | null>(null);
   const [paper, setPaper] = useState<JobMediaItem | null>(null);
   /* the band's corner, where the builder puts the quote's next step */
   const [actionsEl, setActionsEl] = useState<HTMLDivElement | null>(null);
@@ -115,66 +112,30 @@ export function QuoteScreen({
     family,
     rowValueCents: moneyVisible ? (detail.money?.valueCents ?? null) : null,
   });
-  /* which engine prices it: a quote switched to the rebuild is built by hand
-     on its own kept lines (quote-lines-face.tsx). Every quote opens as it
-     always has; one switched shows its lines once the switch is read. */
-  const [engine, setEngine] = useState<"old" | "lines">("old");
-  /* Tiff on for the business: a quote drafted the old way can be quoted again with her */
-  const [tiffOn, setTiffOn] = useState(false);
+  /* on its lines: undefined while a quote on the old builder is switched,
+     false when that failed */
+  const [onLines, setOnLines] = useState<boolean | undefined>(undefined);
+  const [tries, setTries] = useState(0);
   const [linesRev, setLinesRev] = useState(0);
-  /* a quote Tiff's builder priced, brought across to its kept lines as it's
-     priced today, to change by hand (lines-adopt.ts) */
-  const adopt = async () => {
-    const r = await fetch("/api/workboard/quote-lines", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ job, op: "adopt" }),
-    }).catch(() => null);
-    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean; reason?: string } | null) : null;
-    if (a?.ok) {
-      setEngine("lines");
-      setLinesRev((n) => n + 1);
-    } else toast(a?.reason ?? "The lines couldn't be brought across. Try again.");
-  };
-  const switchTo = async (to: "old" | "lines") => {
-    const r = await fetch("/api/workboard/quote-lines", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ job, op: "switch", engine: to }),
-    }).catch(() => null);
-    const a = r ? ((await r.json().catch(() => null)) as { ok: boolean } | null) : null;
-    if (a?.ok) {
-      setEngine(to);
-      setLinesRev((n) => n + 1);
-    } else toast("The quote couldn't be switched. Try again.");
-  };
-
-  /* a new quote starts Tiff on its lines when she's on for the business and
-     nothing is drafted (slice 4.4): from Create a quote, or opened any other
-     way while nobody has chosen its engine (Isaac, 2026-10-11: the old
-     Draft proposal took 25 seconds) */
-  const starting = useSearchParams()?.get("start") === "1";
-  const startTiff = useEffectEvent(() => void switchTo("lines"));
   useEffect(() => {
     let live = true;
+    const post = (body: Record<string, unknown>) =>
+      fetch("/api/workboard/quote-lines", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(
+        (r) => r.json() as Promise<{ ok: boolean }>
+      );
     Promise.resolve()
       .then(() => fetch(`/api/workboard/quote-lines?job=${encodeURIComponent(job)}`))
-      .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines"; tiff?: boolean; drafted?: boolean; chosen?: boolean; lines?: unknown[] }>)
-      .then((a) => {
-        if (!live || !a?.ok) return;
-        setTiffOn(!!a.tiff);
-        if (a.engine === "lines") setEngine("lines");
-        /* someone without the board's manage never gets the old builder: Tiff, on lines */ else if (!manage && a.tiff) startTiff();
-        else if ((starting || a.chosen === false) && a.tiff && !a.drafted && (a.lines ?? []).length === 0) startTiff();
-      })
-      .catch(() => undefined);
+      .then((r) => r.json() as Promise<{ ok: boolean; engine?: "old" | "lines" }>)
+      .then((a) => (a?.ok && a.engine !== "lines" ? post({ job, op: "switch", engine: "lines" }) : a))
+      .then((a) => live && setOnLines(!!a?.ok))
+      .catch(() => live && setOnLines(false));
     return () => {
       live = false;
     };
-  }, [job, starting, manage]);
+  }, [job, tries]);
 
   /* the price, to the money grant only; read for each version of the quote */
-  const price = useQuotePrice(job, financials, engine === "lines" ? `lines-${linesRev}` : version);
+  const price = useQuotePrice(job, financials, onLines ? `lines-${linesRev}` : null);
 
   return (
     <div className="page in full">
@@ -188,50 +149,37 @@ export function QuoteScreen({
           </div>
           <div className="wb2-vtabs">
             <h1 className="wb2-h1">{proposalTitle(address)}</h1>
-            {engine === "old" && (tiffOn || (price?.ok && price.options.some((o) => o.rows > 0))) && (
-              <div className="qp-acts">
-                {tiffOn && (
-                  <button type="button" className="pbtn ghost" onClick={() => void switchTo("lines")}>
-                    Quote it with Tiff
-                  </button>
-                )}
-                {price?.ok && price.options.some((o) => o.rows > 0) && (
-                  <button type="button" className="pbtn ghost" onClick={() => void adopt()}>
-                    Edit the lines by hand
-                  </button>
-                )}
-              </div>
-            )}
             <div className="qp-acts" ref={setActionsEl} />
           </div>
-          {engine === "lines" ? (
+          {onLines ? (
             <QuoteLinesFace
               job={job}
               meta={{ title: proposalTitle(address), client: detail.clientName ?? null, site: address ?? null, jobNumber: detail.jobNumber ?? null }}
               price={price}
               actionsEl={actionsEl}
               onPriced={() => setLinesRev((n) => n + 1)}
-              onSwitchBack={() => void switchTo("old")}
               onToast={(m) => toast(m)}
               send={<JobQuoteSend job={job} visible version={`lines-${linesRev}`} />}
               sendQuote={(onSent) => <JobQuoteSend job={job} visible as="quote" version={`lines-${linesRev}`} onSent={onSent} />}
+              sm8={sm8}
+              onOpenPaper={(item) => setPaper(item)}
             />
+          ) : onLines === false ? (
+            <div className="hd-body qp-face">
+              <p className="wb2-sherr">The quote couldn&rsquo;t be opened.</p>
+              <div className="wb2-jqacts">
+                <button type="button" className="pbtn ghost" onClick={() => {
+                    setOnLines(undefined);
+                    setTries((n) => n + 1);
+                  }}>
+                  Try again
+                </button>
+              </div>
+            </div>
           ) : (
-            <JobQuoteFace
-            mode="page"
-            job={job}
-            address={address}
-            visible
-            onToast={(m) => toast(m)}
-            sm8={sm8}
-            onOpenPaper={(item) => setPaper(item)}
-            onVersion={setVersion}
-            onCancel={() => router.push(back)}
-            price={price}
-            actionsEl={actionsEl}
-            send={financials ? <JobQuoteSend job={job} visible version={version} /> : null}
-            onByHand={financials ? () => void switchTo("lines") : undefined}
-          />
+            <div className="hd-body qp-face">
+              <Waiting note="Opening the quote" />
+            </div>
           )}
         </div>
       </div>

@@ -63,7 +63,7 @@ beforeEach(() => {
   });
 });
 
-const face = (onPriced = jest.fn()) => render(<QuoteLinesFace job="job-3377" price={price} actionsEl={null} onPriced={onPriced} onSwitchBack={jest.fn()} />);
+const face = (onPriced = jest.fn()) => render(<QuoteLinesFace job="job-3377" price={price} actionsEl={null} onPriced={onPriced} />);
 
 it("shows the total in its card, each system with its total, and every line's qty, cost and sell", async () => {
   face();
@@ -263,7 +263,7 @@ it("marks the option accepted from the corner, says its parts went on the job, a
     return { json: async () => ({ ...view([indoor]), accepted, onJob: init?.body ? { added: 1, removed: 0 } : null }) };
   });
   render(
-    <QuoteLinesFace job="job-3377" price={price} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} onToast={onToast} send={<p>To ServiceM8</p>} />
+    <QuoteLinesFace job="job-3377" price={price} actionsEl={corner} onPriced={jest.fn()} onToast={onToast} send={<p>To ServiceM8</p>} />
   );
   expect(screen.queryByText("To ServiceM8")).not.toBeInTheDocument();
   const mark = await screen.findByRole("button", { name: "Mark accepted" });
@@ -393,7 +393,7 @@ describe("the proposal (7.1)", () => {
   const corner = () => {
     const el = document.createElement("div");
     document.body.appendChild(el);
-    render(<QuoteLinesFace job="job-3377" price={price} actionsEl={el} onPriced={jest.fn()} onSwitchBack={jest.fn()} meta={{ title: "Air conditioning for 12 Smith St", client: "Jo Bloggs", site: "12 Smith St", jobNumber: "3377" }} />);
+    render(<QuoteLinesFace job="job-3377" price={price} actionsEl={el} onPriced={jest.fn()} meta={{ title: "Air conditioning for 12 Smith St", client: "Jo Bloggs", site: "12 Smith St", jobNumber: "3377" }} />);
     return el;
   };
 
@@ -437,7 +437,7 @@ it("on the proposal, reviews every option before it's approved (11.1)", async ()
   document.body.appendChild(el);
   const second = { ...core, id: "l3", optionIndex: 1, name: "Core hole 100 mm" };
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => view([indoor, core, second]) }));
-  render(<QuoteLinesFace job="job-3377" price={price} actionsEl={el} onPriced={jest.fn()} onSwitchBack={jest.fn()} />);
+  render(<QuoteLinesFace job="job-3377" price={price} actionsEl={el} onPriced={jest.fn()} />);
   fireEvent.click(await within(el).findByRole("button", { name: "Preview proposal" }));
   expect(screen.getByRole("heading", { name: "Before you approve" })).toBeInTheDocument();
   expect(screen.getByText("Option 1: Core hole 200 mm: not known yet")).toBeInTheDocument();
@@ -566,7 +566,7 @@ describe("a variation to the accepted quote", () => {
       if (init?.body) posted.push(JSON.parse(init.body));
       return { json: async () => (init?.body ? { ...view([indoor, diffuser, ...varied]), accepted: [0], variations: [variation], opened: 1 } : { ...view([indoor, diffuser]), accepted: [0] }) };
     });
-    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser])} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} />);
+    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser])} actionsEl={corner} onPriced={jest.fn()} />);
     fireEvent.click(await within(corner).findByRole("button", { name: "Update quote" }));
     const dialog = screen.getByRole("dialog", { name: "Update quote" });
     expect(within(dialog).getByText(/is accepted, so this is a variation/)).toBeInTheDocument();
@@ -586,7 +586,7 @@ describe("a variation to the accepted quote", () => {
       return { json: async () => ({ ...view([indoor, diffuser, ...varied]), accepted: [0], variations: [variation], ...(init?.body ? { onJob: { added: 1, removed: 0 } } : {}) }) };
     });
     const onToast = jest.fn();
-    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} onToast={onToast} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
+    render(<QuoteLinesFace job="job-3377" price={priceFor([indoor, diffuser, ...varied])} actionsEl={corner} onPriced={jest.fn()} onToast={onToast} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
     fireEvent.click(await screen.findByRole("tab", { name: /Variation 1/ }));
     /* one more diffuser at $12.89 + 40%, the line rounded to the cent */
     expect(screen.getByRole("tab", { name: /Variation 1/ })).toHaveTextContent("+$18.04");
@@ -631,7 +631,7 @@ describe("version 2 before it's accepted", () => {
       if (init?.body) posted.push(JSON.parse(init.body));
       return { json: async () => ({ ...view([indoor, core]), ...answer }) };
     });
-    render(<QuoteLinesFace job="job-3377" price={price} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
+    render(<QuoteLinesFace job="job-3377" price={price} actionsEl={corner} onPriced={jest.fn()} meta={{ title: "Ducted", client: "Andrew", site: null, jobNumber: "3377" }} />);
     return corner;
   };
 
@@ -688,7 +688,7 @@ it("shows a tech the work without its money: no price head, no cost or sell, no 
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([{ ...indoor, costCents: 0, sellCents: null }]), money: false }) }));
   const corner = document.createElement("div");
   document.body.appendChild(corner);
-  render(<QuoteLinesFace job="job-3377" price={null} actionsEl={corner} onPriced={jest.fn()} onSwitchBack={jest.fn()} />);
+  render(<QuoteLinesFace job="job-3377" price={null} actionsEl={corner} onPriced={jest.fn()} />);
   expect(await screen.findByLabelText("Quantity of Ducted indoor, under the floor")).toHaveValue("1");
   expect(screen.queryByLabelText("What one Ducted indoor, under the floor costs you")).toBeNull();
   expect(screen.queryByLabelText("What one Ducted indoor, under the floor sells for")).toBeNull();
@@ -700,4 +700,44 @@ it("shows a tech the work without its money: no price head, no cost or sell, no 
   /* the work is still theirs */
   expect(screen.getByRole("button", { name: "Add a line by hand" })).toBeInTheDocument();
   corner.remove();
+});
+
+/* Isaac, 2026-10-03: "if a quote has been generated in sm8 it should show on
+   our quote page"; retiring the old builder, it heads the list on the right
+   of the lines too */
+it("shows ServiceM8's quote at the top of the list on the right, its PDF opening there", async () => {
+  const paper = {
+    remoteId: "att-q",
+    name: "Quote #3377",
+    fileType: ".pdf",
+    kind: "document" as const,
+    origin: "Quote",
+    takenAt: "2026-10-01 14:25:35",
+    url: "https://files.example/q.pdf",
+    width: null,
+    height: null,
+    fromClaim: null,
+  };
+  const onOpenPaper = jest.fn();
+  render(
+    <QuoteLinesFace
+      job="job-3377"
+      price={price}
+      actionsEl={null}
+      onPriced={jest.fn()}
+     
+      sm8={{ papers: [paper], sentOn: "2026-10-01", value: "$45,430 inc GST" }}
+      onOpenPaper={onOpenPaper}
+    />
+  );
+  const group = await screen.findByRole("region", { name: "Quote from ServiceM8" });
+  expect(within(group).getByText("Sent Thu 1 Oct, $45,430 inc GST")).toBeInTheDocument();
+  fireEvent.click(within(group).getByRole("button", { name: /Quote #3377/ }));
+  expect(onOpenPaper).toHaveBeenCalledWith(paper);
+});
+
+it("shows no ServiceM8 quote on a job ServiceM8 never quoted", async () => {
+  render(<QuoteLinesFace job="job-3377" price={price} actionsEl={null} onPriced={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
+  expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
+  expect(screen.queryByText("Quote from ServiceM8")).toBeNull();
 });

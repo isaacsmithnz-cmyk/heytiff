@@ -12,9 +12,8 @@ import { QuoteScreen } from "@/components/workboard/quote/quote-screen";
    it; its way back is the job card.
 
    The id names a job — re-resolved inside the caller's org (a claim opens
-   its parent), so a foreign id is a 404, not a leak. Drafting a quote is
-   running the board: without workboard_manage the job card is where it
-   goes. Money is its own grant, asked once and handed down. The job is
+   its parent), so a foreign id is a 404, not a leak. Anyone on the
+   Workboard quotes; money is its own grant, asked once and handed down. The job is
    read here, as the card reads it, so the page lands with its title and
    ServiceM8's quote already known. */
 
@@ -30,13 +29,12 @@ export default async function WorkboardQuotePage({ params }: { params: Promise<{
   /* anyone on the Workboard quotes, its money hidden without `financials`
      (Isaac, 2026-10-12: "For techs who are quoting a job") */
   const target = await resolveJobCard(orgId, job);
-  const [{ detail }, moneyVisible, financials, manage] = await Promise.all([
+  const [{ detail }, moneyVisible, financials] = await Promise.all([
     readMirrorJob(target.parentRemoteId),
     can("workboard_money"),
     can("financials"),
-    can("workboard_manage"),
   ]);
   if (!detail) notFound();
 
-  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} manage={manage} />;
+  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} />;
 }

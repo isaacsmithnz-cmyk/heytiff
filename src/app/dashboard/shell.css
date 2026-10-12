@@ -7055,67 +7055,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    workboard"). */
 .fg .hd-face.qp-face, .fg .hd-list.qp-rail { overscroll-behavior-x:none; }
 .fg .qp-face { padding:0 24px 32px; }
-.fg .qp-sec { display:flex; flex-direction:column; gap:12px; padding:24px 0; border-top:1px solid var(--hd-rule); }
-.fg .qp-sec:first-child { border-top:0; padding-top:8px; }
-.fg .qp-sh { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.fg .qp-sh > .pbtn { margin-left:auto; }
-.fg .qp-h { display:flex; align-items:baseline; gap:8px; margin:0; font-size:20px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
-.fg .qp-h.due { color:var(--warn-t); }
-.fg .qp-h.done { color:var(--hd-today); }
-.fg .qp-sub { margin:0; font-size:16px; font-weight:600; color:var(--hd-ink); }
 .fg .qp-none { margin:0; font-size:14px; color:var(--q); }
-/* the brief, in the person's own words, two lines until it's asked for */
-.fg .qp-brief { display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin:0; padding:12px 16px;
-  border-radius:var(--r-button); background:var(--tint); font-size:14px; line-height:1.55; color:var(--hd-ink); }
-.fg .qp-brief > span { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:pre-wrap; }
-.fg .qp-brief.open > span { display:block; }
-/* what Tiff took from it: a label, the answer, and its Change */
-.fg .qp-read { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
-.fg .qp-read > li { display:grid; grid-template-columns:128px minmax(0, 1fr) auto; gap:12px; align-items:baseline;
-  padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:14px; line-height:1.45; color:var(--hd-ink); }
-.fg .qp-read > li:first-child { border-top:0; }
-.fg .qp-read > li > span:first-child { font-size:13px; font-weight:500; color:var(--q); }
-.fg .qp-read > li.na > span:nth-child(2) { color:var(--q); }
-/* the questions still open, under the one being asked */
-.fg .qp-asks { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
-.fg .qp-asks > li { display:grid; grid-template-columns:128px minmax(0, 1fr) auto; gap:12px; align-items:baseline;
-  padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:14px; line-height:1.45; color:var(--hd-ink); }
-.fg .qp-asks > li > span:first-child { font-size:13px; font-weight:500; color:var(--warn-t); }
-/* WHAT'S IN IT: one option's lines by group, the group's total on its row,
-   what's still to price at the foot in the late red */
-.fg .qp-bu { width:100%; border-collapse:collapse; font-size:14px; color:var(--hd-ink); }
-.fg .qp-bu td { padding:8px 0; vertical-align:baseline; border-top:1px solid var(--hd-rule2); }
-.fg .qp-bu td small { display:block; font-size:13px; font-weight:500; color:var(--q); }
-.fg .qp-bu td.q { width:72px; padding-left:12px; text-align:right; font-size:13px; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .qp-bu td.a { width:112px; padding-left:12px; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.fg .qp-bu .qp-gr td { padding-top:16px; border-top-color:var(--hd-rule); font-weight:600; }
-.fg .qp-bu .qp-gr:first-child td { padding-top:4px; border-top:0; }
-.fg .qp-bu .qp-gr td small { font-weight:500; }
-.fg .qp-bu .qp-li td:first-child { padding-left:16px; }
-.fg .qp-bu .qp-left td, .fg .qp-bu .qp-left td small { color:var(--hd-late); }
-/* THE PROPOSAL, as the client reads it: the blocks on a sheet of paper */
-.fg .qp-desk { display:flex; justify-content:center; padding:24px; border-radius:var(--r-card); background:var(--bg); }
-.fg .qp-paper { width:100%; max-width:720px; display:flex; flex-direction:column; gap:16px; padding:32px 48px;
-  border:1px solid var(--hd-edge); background:var(--paper); }
-/* THE LIST'S TOP: the option being read, its price, and what it's made of */
-.fg .qp-seg { display:flex; gap:2px; margin-top:16px; padding:2px; border-radius:var(--r-button); background:var(--tint-2); }
-.fg .qp-seg > button { flex:1 1 0; min-width:0; height:32px; padding:0 12px; border:0; border-radius:calc(10px - 2px);
-  background:none; font:inherit; font-size:13px; font-weight:500; color:var(--q); cursor:pointer;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fg .qp-seg > button[aria-pressed="true"] { background:var(--paper); color:var(--hd-ink); font-weight:600; }
-.fg .qp-seg > button:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .qp-price { display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:16px 0 8px; }
-.fg .qp-l { font-size:13px; font-weight:500; color:var(--q); }
-.fg .qp-big { font-size:32px; font-weight:700; line-height:1.15; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
-.fg .qp-unset { font-size:16px; font-weight:600; color:var(--warn-t); }
-.fg .qp-kv { align-self:stretch; display:flex; flex-direction:column; margin:8px 0 0; }
-.fg .qp-kv > div { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid var(--hd-rule2); font-size:14px; }
-.fg .qp-kv dt { color:var(--hd-body); }
-.fg .qp-kv dd { margin:0; font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
-.fg .qp-kv dd.late { color:var(--hd-late); }
-.fg .qp-kv > div.q dt, .fg .qp-kv > div.q dd { font-size:13px; font-weight:500; color:var(--q); }
+/* the list on the right: what's due in its colour, and ServiceM8's own quote */
 .fg .hd-list.qp-rail .hd-ls-dot[data-dot="due"] { background:var(--warn-t); }
-.fg .qp-known { margin:0; padding:12px 0; font-size:14px; line-height:1.5; color:var(--hd-body); }
 .fg .qp-sm8 { margin:0; padding:8px 0 4px; font-size:14px; color:var(--hd-body); }
 /* ── THE TABBED JOB CARD (slice 2) ────────────────────────────────────────
    The sheet became ONE CARD OF EIGHT FACES. `.jc` turns the grid modal into
@@ -7666,68 +7608,14 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
    Each block is a GROUP, a hairline over it and its title, because what you
    act on is the block's two words at the right (Edit, Copy), not a card
    around it. The blocks follow the ServiceM8 Proposal's own order. */
-.wb2-jqblock { border-top:1px solid var(--line); padding-top:12px; }
-.wb2-jqbtns { margin-left:auto; display:flex; gap:8px; align-self:center; }
 .wb2-jqacts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
-.wb2-jqlead { margin-right:auto; }
 .wb2-jq .wb2-sherr { margin-top:8px; }
-.wb2-jqbul { margin:4px 0 0; padding-left:16px; list-style:disc; display:flex; flex-direction:column; gap:4px;
-  font-size:14px; line-height:1.5; color:var(--ink); max-width:68ch; }
-.wb2-jqnote { margin-top:8px; }
-.wb2-jqnote > b { font-size:13px; font-weight:600; }
-.wb2-jqmode { margin:4px 0 0; font-size:13px; font-weight:500; color:var(--q); }
-/* the pricing lines, the units and the payment stages are ruled lists: one
-   row each, a hairline between */
-.wb2-jqlines { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; }
-.wb2-jqlines li { display:grid; grid-template-columns:120px minmax(0, 1fr); gap:12px; padding:8px 0;
-  border-top:1px solid var(--line); font-size:14px; }
-.wb2-jqlines li span { font-size:13px; font-weight:500; color:var(--q); }
-.wb2-jqlines li b { font-weight:600; }
-.wb2-jqlines li b em { display:block; font-style:normal; font-weight:400; font-size:13px; color:var(--q); }
-.wb2-jqtitle { margin:4px 0 0; font-size:16px; font-weight:600; }
-/* THE SITE CHECKLIST. Tiff's one question at a time sits on the tint over the
-   list; the list is a ledger by group, its state a word in the state's
-   colour (law 26), the row being asked filled with the selection tint. */
-.wb2-jqnow { margin-top:8px; padding:12px 16px; border-radius:var(--r-card); background:var(--tint);
-  display:flex; flex-direction:column; gap:4px; }
-.wb2-jqnow .wb2-jqacts .pbtn.ghost { background:var(--paper); }
-.wb2-jqask { margin:0; font-size:16px; font-weight:600; line-height:1.45; max-width:62ch; }
-.wb2-jqhas { margin:0; font-size:14px; line-height:1.5; color:var(--q); max-width:62ch; }
-.wb2-jqlead-r { margin-left:auto; }
-.wb2-jqown { display:flex; gap:8px; align-items:center; margin-top:8px; }
-.wb2-jqown .wb2-fi { flex:1; min-width:0; }
-.wb2-jqfresh { display:flex; align-items:center; gap:12px; margin-top:8px; font-size:14px; font-weight:500; color:var(--warn-t); }
-.wb2-jqcheck-list { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; }
-.wb2-jqcg > b { display:block; padding:12px 0 4px; font-size:13px; font-weight:600; }
-.wb2-jqcg > ul { list-style:none; margin:0; padding:0; }
-.wb2-jqcg > ul > li { display:grid; grid-template-columns:150px minmax(0, 1fr) 88px 72px; gap:12px; align-items:center;
-  padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
-.wb2-jqcg > ul > li.on { background:var(--tint); }
-.wb2-jqct { font-size:13px; font-weight:500; color:var(--q); }
-.wb2-jqcs { font-size:14px; font-weight:500; }
-.wb2-jqcs.ok { color:var(--ok-t); }
-.wb2-jqcs.warn { color:var(--warn-t); }
-.wb2-jqcs.q { color:var(--q); }
 /* the payment terms: a segmented choice on a fill tray (law 1) */
 .wb2-jqseg { display:inline-flex; gap:2px; padding:2px; margin-top:8px; border-radius:var(--r-button); background:var(--tint-2); align-self:flex-start; }
 .wb2-jqseg button { padding:4px 12px; border-radius:calc(10px - 2px); font-size:13px; font-weight:500; color:var(--q); }
 .wb2-jqseg button.on { background:var(--paper); color:var(--ink); font-weight:600; }
-.wb2-jqstage { display:grid; grid-template-columns:minmax(0, 1fr) 72px 16px auto; gap:8px; align-items:center; }
-.wb2-jqpct { text-align:right; }
-.wb2-jqpcts { font-size:14px; color:var(--q); }
-.wb2-jqform { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
-.wb2-jqfield { display:flex; flex-direction:column; gap:4px; }
-.wb2-jqfield > span { font-size:12px; font-weight:500; color:var(--q); }
-.wb2-jqcheck { display:flex; align-items:center; gap:8px; font-size:14px; }
 /* THE EQUIPMENT EDITOR: one unit a row, its fields wrapping on a narrow card;
    the Accepted mark is the one option the job's equipment comes from */
-.wb2-jqunited { display:flex; flex-direction:column; }
-.wb2-jqunit { display:flex; flex-wrap:wrap; align-items:flex-end; gap:8px; padding:8px 0; border-top:1px solid var(--line); }
-.wb2-jqunit > label { display:flex; flex-direction:column; gap:4px; flex:1 1 140px; min-width:0; }
-.wb2-jqunit > label.m { flex:0 1 144px; }
-.wb2-jqunit > label.s { flex:0 0 96px; }
-.wb2-jqunit > label > span { font-size:12px; font-weight:500; color:var(--q); }
-.wb2-jqunitx { flex:none; margin-bottom:4px; }
 .wb2-jqacc.on { background:var(--tint); color:var(--ink); font-weight:600; }
 /* "Where it's up to" — title + right-aligned stamp on one line, a
    reading-size paragraph, on a whisper of the job's own colour */

@@ -232,7 +232,7 @@ describe("a server action", () => {
     const page = await proxy(req("https://go.hey-tiff.com/dashboard/workboard", "go.hey-tiff.com"));
     expect(page.cookies.get("__session")?.value).toBe("rolled");
     const post = await proxy(
-      new NextRequest("https://go.hey-tiff.com/api/workboard/quote-draft", { method: "POST", headers: { host: "go.hey-tiff.com" }, body: "{}" })
+      new NextRequest("https://go.hey-tiff.com/api/workboard/quote-lines", { method: "POST", headers: { host: "go.hey-tiff.com" }, body: "{}" })
     );
     expect(post.cookies.get("__session")?.value).toBe("rolled");
     expect(middlewareSpy).toHaveBeenCalledTimes(2);

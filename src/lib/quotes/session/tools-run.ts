@@ -47,7 +47,7 @@ export type QuoteStore = {
     at: { optionIndex: number; system: string },
     unit: { brand: string; model: string } | null,
     indoor?: { brand: string; model: string } | null
-  ) => Promise<{ ok: true; added: number } | { ok: false; reason: string }>;
+  ) => Promise<{ ok: true; added: number; still?: { name: string; why: string }[] } | { ok: false; reason: string }>;
   book: () => Promise<Product[]>;
   /** an hour of labour's cost to the business; null when it isn't set */
   hourCost: () => Promise<number | null>;
@@ -212,7 +212,15 @@ export function makeTools(store: QuoteStore) {
       case "add_kit": {
         const k = kitAskOf(input);
         const res = await store.addKit(k.kit, normaliseKitFacts(k.facts), k.at, k.unit, k.indoor);
-        return res.ok ? { ok: true, label, said: `${k.kit === "split" ? "Split" : "Ducted"}, ${res.added} parts`, value: { added: res.added } } : fail(res.reason);
+        if (!res.ok) return fail(res.reason);
+        /* what it couldn't size or price: hers to settle, from the book or by asking */
+        const still = res.still ?? [];
+        return {
+          ok: true,
+          label,
+          said: `${k.kit === "split" ? "Split" : "Ducted"}, ${res.added} parts${still.length ? `, ${still.length} to settle` : ""}`,
+          value: still.length ? { added: res.added, still_to_settle: still } : { added: res.added },
+        };
       }
       case "copy_option": {
         const n = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : -1);

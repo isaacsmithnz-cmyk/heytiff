@@ -1,6 +1,6 @@
 import type { BuildSettings } from "../buildup";
 import type { Product } from "../families";
-import { expandKit, indoorFacts, pipeFromMm, type KitAllowances, type KitPreferences } from "../kits";
+import { expandKit, indoorFacts, pipeFromMm, stillToSize, type KitAllowances, type KitPreferences } from "../kits";
 import { applyPatch, lineFromRow, lineRow, normaliseLine, sortLines, type QuoteLine } from "../lines";
 import { priceLines } from "../lines-price";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
@@ -91,7 +91,7 @@ export function memoryStore(opts: {
       }
       const made = expandKit(kit, f, opts.products, at, opts.allowances ?? null, opts.supplier ?? null, opts.kitPrefs ?? null);
       for (const l of made) add(l as Record<string, unknown>);
-      return { ok: true, added: made.length };
+      return { ok: true, added: made.length, still: stillToSize(made) };
     },
     nameOption: async (option, name) => {
       names[option] = name;

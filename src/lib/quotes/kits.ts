@@ -553,6 +553,12 @@ const MM_INCH: [number, string][] = [
   [15.88, "5/8"],
   [19.05, "3/4"],
 ];
+/** The parts a kit left needing their size, the layout or a price: what
+    Tiff has to settle, from the book or by asking (the 2026-10-12 bench:
+    3384's return grille, box and Ys were left unpriced and never asked). */
+export const stillToSize = (lines: readonly Partial<LineFields>[]) =>
+  lines.filter((l) => l.source === "unknown").map((l) => ({ name: l.name ?? "", why: l.why ?? "" }));
+
 /** A unit's pipe from its data pack's connections, mm, as a kit's size. */
 export function pipeFromMm(liquid: number, gas: number): PipeSize | null {
   const inch = (mm: number) => MM_INCH.find(([v]) => Math.abs(v - mm) < 0.2)?.[1];

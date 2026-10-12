@@ -236,6 +236,13 @@ describe("her tools, run", () => {
     });
   });
 
+  /* the 2026-10-12 bench: 3384's return grille, box and Ys were left unpriced and never asked */
+  it("hands back what the kit couldn't size, for her to settle from the book or ask", async () => {
+    addKit.mockResolvedValueOnce({ ok: true, added: 18, still: [{ name: "Return air grille, filtered", why: "Needs its size: pick it from your range" }, { name: "Y branches", why: "Needs the layout: where the main duct splits" }] });
+    const out = await run("add_kit", { kit: "ducted", option: 0, system: "Upstairs" });
+    expect(out).toMatchObject({ ok: true, said: "Ducted, 18 parts, 2 to settle", value: { added: 18, still_to_settle: [{ name: "Return air grille, filtered" }, { name: "Y branches" }] } });
+  });
+
   it("says so for a tool that doesn't exist", async () => {
     expect(await run("drop_table", {})).toMatchObject({ ok: false, error: "There's no tool called drop_table." });
   });

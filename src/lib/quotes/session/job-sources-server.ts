@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { familyMediaSources, readJobNotes } from "@/lib/workboard/all-jobs-query";
 import { readOurJobNotes } from "@/lib/workboard/job-notes-query";
 import { readSm8QuoteBrief } from "../sm8-quote-brief-server";
-import { readStoredProposal } from "../proposal-writer";
+import { readStoredProposal } from "../old-draft-server";
 import { jobSources, type JobSource } from "./job-sources";
 
 /* Read the job (job-sources.ts says what's read and why nothing is judged

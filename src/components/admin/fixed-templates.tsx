@@ -12,7 +12,6 @@ import { HandoverChrome } from "@/app/handover/[id]/sheet-chrome";
 import { Letterhead } from "@/components/org/letterhead";
 import { hasBrand, type OrgBrand } from "@/lib/org/brand";
 import { PAYMENT_PRESET_KEYS } from "@/lib/quotes/payment";
-import { CHECKLIST_KEYS, GROUP_ORDER } from "@/lib/quotes/checklist";
 import type { ChecklistSeed } from "@/lib/workboard/stages";
 import { documentsLetter } from "@/lib/email/documents-letter";
 import { fillEmail, type OrgTemplates } from "@/lib/templates/settings";
@@ -157,10 +156,6 @@ export function QuoteTemplate({ brand, templates, isOwner }: TemplateProps) {
               </div>
             </>
           )}
-          <div className="tpl-card">
-            <h2>Before it goes out</h2>
-            <p className="tpl-quiet">{`Tiff checks ${CHECKLIST_KEYS.length} things before a quote is ready: ${GROUP_ORDER.join(", ").toLowerCase()}.`}</p>
-          </div>
         </>
       }
     />

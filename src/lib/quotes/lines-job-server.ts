@@ -25,7 +25,7 @@ import { bookPrice } from "./session/tools";
 import type { QuoteLine } from "./lines";
 import { readOrgDay } from "./org-day-server";
 import type { ProposalDraft } from "./proposal";
-import { readStoredProposal } from "./proposal-writer";
+import { readStoredProposal } from "./old-draft-server";
 import type { ResearchDetail } from "./research";
 import { approvalStands } from "./lines-proposal";
 import { readQuotePrice } from "./quote-price-server";

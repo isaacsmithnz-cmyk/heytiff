@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { labourFromBrief, type BriefLabour } from "./brief-labour";
 import type { TypicalLabour } from "./labour-history";
 import { readOrgDay } from "./org-day-server";
-import { readStoredProposal } from "./proposal-writer";
+import { readStoredProposal } from "./old-draft-server";
 
 /* THE JOB'S LABOUR, for one job of one business (Isaac, 2026-10-04: "any
    job should not recommend labour without data… number one source is the

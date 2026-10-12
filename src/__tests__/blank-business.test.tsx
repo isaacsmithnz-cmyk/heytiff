@@ -14,7 +14,7 @@ import { CertificateTemplate } from "@/components/admin/approved-templates";
 import { CertificatePaper } from "@/components/certs/certificate-paper";
 import { DEFAULT_CERT_ANSWERS, buildCertificate, certProblemList, type CertAnswers } from "@/lib/certs/mechanical";
 import { readQuote } from "@/lib/certs/quote";
-import { jobBlock, SYSTEM_PROMPT } from "@/lib/quotes/proposal-writer";
+import { sessionSystemPrompt } from "@/lib/quotes/session/prompt";
 
 jest.mock("@/app/actions/certificates", () => ({ approveCertWording: jest.fn() }));
 jest.mock("@/app/actions/swms", () => ({ approveSwmsLibrary: jest.fn() }));
@@ -87,21 +87,8 @@ describe("a business that has set up nothing", () => {
     expect(html).not.toContain("Construction Certificate");
   });
 
-  it("is never named in Tiff's instructions, and is handed to Tiff as no business at all", () => {
-    expect(SYSTEM_PROMPT).not.toMatch(ANOTHER_BUSINESS);
-    const job = {
-      business: null,
-      noteLibrary: blank.templates.quoteNotes,
-      paymentTerms: blank.templates.paymentTerms,
-      cardId: "j",
-      jobNumber: "12",
-      address: "1 Main St",
-      clientName: null,
-      contactFirstName: null,
-      category: null,
-      scope: null,
-      notes: [],
-    };
-    expect(jobBlock(job)).not.toContain("The business writing this quote");
+  it("is never named in Tiff's instructions for a quote", () => {
+    expect(sessionSystemPrompt()).not.toMatch(ANOTHER_BUSINESS);
+    expect(sessionSystemPrompt({ writeUpFirst: true })).not.toMatch(ANOTHER_BUSINESS);
   });
 });

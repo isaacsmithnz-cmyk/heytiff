@@ -1,5 +1,4 @@
 import {
-  CHECKLIST,
   CHECKLIST_KEYS,
   orderChecklist,
   type CheckItem,
@@ -148,12 +147,6 @@ function statusOf(raw: unknown): QuoteStatus | null {
   if (!r) return null;
   const s = { approvedAt: whenOf(r.approvedAt), sentAt: whenOf(r.sentAt) };
   return s.approvedAt || s.sentAt ? s : null;
-}
-
-/** The status after the quote itself changed: approval is of a version, so
-    it goes; the day it was sent stays. */
-export function statusAfterChange(status: QuoteStatus | null | undefined): QuoteStatus | null {
-  return status?.sentAt ? { approvedAt: null, sentAt: status.sentAt } : null;
 }
 
 /* ── the clamps ── */
@@ -407,92 +400,6 @@ export function acceptedOptions(draft: ProposalDraft): ProposalOption[] {
   return draft.options.length === 1 ? [draft.options[0]] : [];
 }
 
-/** Marking option `i` accepted, or taking the mark off. A client who
-    picks one option has accepted only that one. */
-export function toggleAccepted(draft: ProposalDraft, i: number): number[] {
-  if (draft.accepted.includes(i)) return draft.accepted.filter((x) => x !== i);
-  return draft.pricingMode === "multiple_choice" ? [i] : [...draft.accepted, i].sort((a, b) => a - b);
-}
-
-/** A new, empty row of the given kind, under the last outdoor unit. */
-export function blankUnit(role: UnitRole, outdoors: number): UnitLine {
-  return {
-    role,
-    room: "",
-    capacity: "",
-    type: role === "outdoor" ? "Outdoor unit" : "",
-    model: "",
-    qty: 1,
-    system: role === "outdoor" ? outdoors + 1 : role === "indoor" ? Math.max(1, outdoors) : 0,
-    lps: null,
-  };
-}
-
-/** Each row's outdoor unit number by position (1, 2 …), 0 for the rest. */
-function outdoorNumbers(units: readonly UnitLine[]): number[] {
-  let n = 0;
-  return units.map((u) => (u.role === "outdoor" ? (n += 1) : 0));
-}
-
-/* OUTDOOR UNITS ARE NUMBERED BY POSITION, and an indoor unit names the one it
-   runs from by that number. So every change to which rows are outdoor units
-   comes through here: the outdoors are numbered again, and each indoor unit's
-   number moves with its own outdoor unit, so an edit above never re-pairs the
-   units below it. `from[k]` is the row of `before` that row k of `after` was.
-   An indoor unit whose outdoor unit is gone runs from the nearest one above
-   it, else the first. */
-function rewire(before: readonly UnitLine[], after: readonly UnitLine[], from: readonly number[]): UnitLine[] {
-  const was = outdoorNumbers(before);
-  const now = outdoorNumbers(after);
-  const moved = new Map<number, number>();
-  after.forEach((u, k) => {
-    const j = from[k];
-    if (u.role === "outdoor" && j >= 0 && before[j]?.role === "outdoor") moved.set(was[j], now[k]);
-  });
-  const first = now.find((n) => n > 0) ?? 0;
-  let above = 0;
-  return after.map((u, k) => {
-    if (u.role === "outdoor") {
-      above = now[k];
-      return { ...u, system: now[k] };
-    }
-    if (u.role === "fan") return { ...u, system: 0 };
-    const kept = before[from[k]]?.role === "indoor" ? moved.get(u.system) : undefined;
-    return { ...u, system: kept ?? (above || first) };
-  });
-}
-
-/** The rows after the row at `i` is taken out. */
-export function removeUnit(units: readonly UnitLine[], i: number): UnitLine[] {
-  const keep = units.map((_, j) => j).filter((j) => j !== i);
-  return rewire(units, keep.map((j) => units[j]), keep);
-}
-
-/** The rows after the row at `i` becomes another kind of unit. */
-export function setUnitRole(units: readonly UnitLine[], i: number, role: UnitRole): UnitLine[] {
-  const after = units.map((u, j) => (j === i ? { ...u, role, lps: null } : u));
-  return rewire(units, after, units.map((_, j) => j));
-}
-
-/** An accepted index list after option `removed` is taken out. */
-export function acceptedAfterRemoving(accepted: readonly number[], removed: number): number[] {
-  return accepted.filter((i) => i !== removed).map((i) => (i > removed ? i - 1 : i));
-}
-
-/** One unit, as the card and the proposal say it: what it is after where. */
-export function unitWords(u: UnitLine): string {
-  const what = [u.capacity, u.type, u.model].filter(Boolean).join(", ");
-  const airflow = u.role === "fan" && u.lps !== null ? `${u.lps} L/s` : "";
-  const count = u.qty > 1 ? `${u.qty} x ` : "";
-  return count + [what, airflow].filter(Boolean).join(", ");
-}
-
-/** Where a unit is, as a heading for its row. */
-export function unitPlace(u: UnitLine): string {
-  if (u.role === "outdoor") return u.room ? `Outdoor unit ${u.system}, ${u.room.charAt(0).toLowerCase()}${u.room.slice(1)}` : `Outdoor unit ${u.system}`;
-  return u.room || (u.role === "fan" ? "Fan" : "Indoor unit");
-}
-
 /* ── the words drawn around the fields ── */
 
 /** "Air Conditioning Scope – 37 Taleeban Rd, Riverview". The address as the
@@ -514,12 +421,3 @@ export function optionHeading(draft: ProposalDraft, index: number): string {
   const name = draft.options[index]?.name ?? "";
   return draft.pricingMode === "multiple_choice" ? `Option ${index + 1}: ${name}` : name;
 }
-
-export const PRICING_WORDS: Record<PricingMode, string> = {
-  multiple_choice: "The client picks one",
-  optional: "The client ticks the ones they want",
-  itemised: "Priced line by line",
-};
-
-/** The checklist topic's own words, for a row on the card. */
-export const topicOf = (key: ChecklistKey) => CHECKLIST[key];

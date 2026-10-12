@@ -84,6 +84,12 @@ export type KitAllowances = { consumables: number | null; flush: number | null; 
 export type KitPart = {
   key: string;
   group: string;
+  /** how many, in words, and what sizes it, as Quoting's Kits says them
+      (Isaac's kits, round 2) */
+  rule?: string;
+  sizedBy?: string;
+  /** the range Quoting's Kits shows under it, and which of its kind are this part */
+  shows?: { kind: RangeKind; only?: (name: string) => boolean };
   /** the line's name when the book has nothing for it */
   name: string;
   /** what to look for in the book, or null when a fact it needs is missing;
@@ -148,6 +154,8 @@ const one = (why: string) => () => ({ qty: 1, unit: "" as const, why });
 const SPLIT: KitPart[] = [
   {
     key: "pair-coil",
+    rule: "The pipe run",
+    sizedBy: "The unit's pipe sizes",
     group: "Pipe, power and controls",
     name: "Pair coil",
     search: (f) => (f.pipe ? { text: `coil ${pipeWords(f.pipe)}` } : null),
@@ -156,6 +164,7 @@ const SPLIT: KitPart[] = [
   },
   {
     key: "interconnect",
+    rule: "With the pipe",
     group: "Pipe, power and controls",
     name: "Interconnect cable",
     search: () => ({ text: "interconnect" }),
@@ -163,6 +172,8 @@ const SPLIT: KitPart[] = [
   },
   {
     key: "power",
+    rule: "From the board",
+    sizedBy: "What the outdoor draws",
     group: "Pipe, power and controls",
     name: "Power cable",
     search: (f) => (f.amps != null ? { text: `tps ${cableFor(f.amps)}` } : null),
@@ -172,6 +183,8 @@ const SPLIT: KitPart[] = [
   },
   {
     key: "breaker",
+    rule: "One for the new circuit",
+    sizedBy: "At or above what the outdoor draws",
     group: "Pipe, power and controls",
     name: "RCBO",
     search: (f) => (f.amps != null ? { text: "rcbo", pool: atLeast(f.amps, /rcbo/i) } : null),
@@ -179,6 +192,9 @@ const SPLIT: KitPart[] = [
   },
   {
     key: "isolator",
+    rule: "One at the outdoor",
+    sizedBy: "At or above what the outdoor draws",
+    shows: { kind: "isolator" },
     group: "Pipe, power and controls",
     name: "Isolator",
     search: (f) => (f.amps != null ? { text: "isolator", pool: atLeast(f.amps, /isolat/i) } : null),
@@ -187,6 +203,9 @@ const SPLIT: KitPart[] = [
   },
   {
     key: "mount",
+    rule: "Under the outdoor",
+    sizedBy: "Feet, or a bracket for its weight and width",
+    shows: { kind: "wall_bracket" },
     group: "Mounting and drain",
     name: "Outdoor mount",
     search: (f) => (f.mount === "wall" ? { text: "wall bracket" } : { text: "feet" }),
@@ -195,6 +214,7 @@ const SPLIT: KitPart[] = [
   },
   {
     key: "drain",
+    rule: "The drain's run",
     group: "Mounting and drain",
     name: "Drain hose",
     search: () => ({ text: "drain hose" }),
@@ -203,6 +223,7 @@ const SPLIT: KitPart[] = [
   },
   {
     key: "trunking",
+    rule: "The outside run, in 2.4 m lengths",
     group: "Mounting and drain",
     name: "Trunking",
     skip: (f) => !f.trunkingM,
@@ -220,6 +241,9 @@ const DUCTED: KitPart[] = [
   ...SPLIT,
   {
     key: "supply-plenum",
+    rule: "One on the unit's supply",
+    sizedBy: "Fits the indoor unit: its model and its face",
+    shows: { kind: "plenum" },
     group: "Ductwork and grilles",
     name: "Supply plenum",
     needs: "Needs the indoor unit",
@@ -230,6 +254,9 @@ const DUCTED: KitPart[] = [
   },
   {
     key: "return-plenum",
+    rule: "One on the unit's return, unless it has return spigots",
+    sizedBy: "Fits the indoor unit's return",
+    shows: { kind: "return_plenum" },
     group: "Ductwork and grilles",
     name: "Return plenum",
     needs: "Needs the indoor unit",
@@ -242,6 +269,9 @@ const DUCTED: KitPart[] = [
   },
   {
     key: "flex",
+    rule: "A 6 m bag to each outlet",
+    sizedBy: "Each outlet's size",
+    shows: { kind: "flex_duct" },
     group: "Ductwork and grilles",
     name: "Flex duct",
     search: (f) => (f.outletMm ? { text: "flex", sizeMm: f.outletMm } : null),
@@ -250,6 +280,9 @@ const DUCTED: KitPart[] = [
   },
   {
     key: "outlets",
+    rule: "One per outlet",
+    sizedBy: "Each outlet's size",
+    shows: { kind: "round_diffuser" },
     group: "Ductwork and grilles",
     name: "Outlet diffuser",
     skip: (f) => !!f.underfloor,
@@ -259,6 +292,9 @@ const DUCTED: KitPart[] = [
   },
   {
     key: "ys",
+    rule: "Where the main duct splits to the outlets",
+    sizedBy: "By the duct sizes in and out",
+    shows: { kind: "fitting" },
     group: "Ductwork and grilles",
     name: "Y branches",
     search: () => ({ text: "metal y" }),
@@ -271,6 +307,9 @@ const DUCTED: KitPart[] = [
   },
   {
     key: "reducers",
+    rule: "Where the main duct steps down",
+    sizedBy: "By the duct sizes either side",
+    shows: { kind: "reducer" },
     group: "Ductwork and grilles",
     name: "Reducer",
     search: () => ({ text: "reducer" }),
@@ -282,6 +321,8 @@ const DUCTED: KitPart[] = [
   /* under the floor: a floor grille on a boot at each outlet, the indoor on springs */
   {
     key: "floor-grilles",
+    rule: "One per floor outlet",
+    sizedBy: "The boot's face",
     group: "Ductwork and grilles",
     name: "Floor grille",
     skip: (f) => !f.underfloor,
@@ -290,6 +331,8 @@ const DUCTED: KitPart[] = [
   },
   {
     key: "boots",
+    rule: "One under each floor grille",
+    sizedBy: "The grille's face and the outlet's size",
     group: "Ductwork and grilles",
     name: "Floor boot",
     skip: (f) => !f.underfloor,
@@ -298,6 +341,7 @@ const DUCTED: KitPart[] = [
   },
   {
     key: "hangers",
+    rule: "Four, at the indoor's hanging points",
     group: "Mounting and drain",
     name: "Spring hangers",
     skip: (f) => !f.underfloor,
@@ -308,6 +352,9 @@ const DUCTED: KitPart[] = [
      size (Isaac, 2026-10-11: "Return grille again, range of sizes") */
   {
     key: "return",
+    rule: "One on the return",
+    sizedBy: "Sized to the unit's return air",
+    shows: { kind: "return_grille", only: (n) => !BOX.test(n) },
     group: "Ductwork and grilles",
     name: "Return air grille, filtered",
     needs: "Needs its size: pick it from your range",
@@ -318,6 +365,9 @@ const DUCTED: KitPart[] = [
   },
   {
     key: "return-box",
+    rule: "One behind the return grille",
+    sizedBy: "The grille's face",
+    shows: { kind: "return_grille", only: (n) => BOX.test(n) },
     group: "Ductwork and grilles",
     name: "Return air box",
     needs: "Needs its size: pick it from your range",
@@ -328,6 +378,7 @@ const DUCTED: KitPart[] = [
   },
   {
     key: "controller",
+    rule: "One for the indoor",
     group: "Pipe, power and controls",
     name: "Wall controller",
     search: () => ({ text: "wired controller" }),
@@ -440,10 +491,13 @@ export function expandKit(
   /** the job's supplier, bought from where it sells the part */
   supplier: string | null = null,
   /** the business's ranges and Quoting's preferred items, first */
-  preferred: KitPreferences | null = null
+  preferred: KitPreferences | null = null,
+  /** one part alone, with no allowances: Quoting's Kits, part by part */
+  only: string | null = null
 ): Partial<LineFields>[] {
   const out: Partial<LineFields>[] = [];
   for (const part of KITS[kit].parts) {
+    if (only && part.key !== only) continue;
     if (part.skip?.(f)) continue;
     /* a part at several sizes: a line for each, from the range */
     if (part.many) {
@@ -504,7 +558,7 @@ export function expandKit(
   }
   /* the business's own allowances, at what it set them at; one it hasn't
      set is on the quote as not known yet */
-  if (allowances) {
+  if (allowances && !only) {
     const allow = (name: string, cents: number | null, why: string) =>
       out.push({
         optionIndex: at.optionIndex,
@@ -553,6 +607,12 @@ const MM_INCH: [number, string][] = [
   [15.88, "5/8"],
   [19.05, "3/4"],
 ];
+/** The parts a kit left needing their size, the layout or a price: what
+    Tiff has to settle, from the book or by asking (the 2026-10-12 bench:
+    3384's return grille, box and Ys were left unpriced and never asked). */
+export const stillToSize = (lines: readonly Partial<LineFields>[]) =>
+  lines.filter((l) => l.source === "unknown").map((l) => ({ name: l.name ?? "", why: l.why ?? "" }));
+
 /** A unit's pipe from its data pack's connections, mm, as a kit's size. */
 export function pipeFromMm(liquid: number, gas: number): PipeSize | null {
   const inch = (mm: number) => MM_INCH.find(([v]) => Math.abs(v - mm) < 0.2)?.[1];
@@ -634,43 +694,62 @@ function layoutFacts(r: Record<string, unknown>): Partial<KitFacts> {
   return out;
 }
 
-/* ── the kits as the business's price list (slice 14.1) ──
-   Every part of every kit at each size it comes in, as the business's own
-   book would price it today: what it picks, why, and what it costs. A part
-   the book hasn't got says so, which is the list of what to add. */
+/* ── the kits in Quoting, part by part (Isaac's kits, round 2, 2026-10-11:
+   "there should be a selection under each item… all of the Y branch
+   combinations") ──
+   Each part as the kit says it (how many, what sizes it), what it comes to
+   at the business's example, and under it every item of its kind in the
+   book: ticked where it's in the business's range (every size, until the
+   business narrows it), and the ones the example used. Pure. */
 
-export type KitRow = { kit: KitKey; part: string; size: string; pick: { name: string; code: string; why: string; cents: number; perMetre: boolean } | null };
+export type KitPreviewItem = { supplierKey: string; supplierName: string; code: string; name: string; words: string; size: RangeSize; cents: number; ticked: boolean; used: boolean };
+export type KitPreviewLine = { name: string; code: string | null; qty: number; unit: string; eachCents: number; totalCents: number; known: boolean; why: string };
+export type KitPreviewPart = {
+  key: string;
+  name: string;
+  rule: string;
+  sizedBy: string;
+  lines: KitPreviewLine[];
+  range: { kind: RangeKind; held: boolean; items: KitPreviewItem[] } | null;
+};
 
-const ALL_FACTS: KitFacts = { pipe: null, pipeM: 1, powerM: 1, amps: null, mount: "ground", trunkingM: 2.4, drainM: 1, outlets: 1, outletMm: null };
-
-export function kitPriceList(products: Product[], preferred: KitPreferences | null = null): KitRow[] {
-  const rows: KitRow[] = [];
+export function kitPreview(kit: KitKey, f: KitFacts, products: Product[], preferred: KitPreferences | null): { parts: KitPreviewPart[]; totalCents: number } {
   const at = { optionIndex: 0, system: "" };
-  const one = (kit: KitKey, partKey: string, size: string, f: KitFacts) => {
-    const part = KITS[kit].parts.find((p) => p.key === partKey)!;
-    const s = part.search(f);
-    const picked = s ? (chosenFor(part, f, products, preferred, null) ?? pickItem(s.pool ? s.pool(products) : products, s)) : null;
-    const line = picked ? expandKit(kit, f, products, at, null, null, preferred).find((l) => l.code === picked.offer.code) : null;
-    rows.push({
-      kit,
-      part: part.name,
-      size,
-      pick: picked
-        ? { name: picked.product.name, code: picked.offer.code, why: picked.why, cents: line?.costCents ?? picked.offer.netCents, perMetre: line?.unit === "m" }
-        : null,
+  const supplierName = new Map(products.flatMap((p) => p.offers.map((o) => [o.supplierKey, o.supplierName] as const)));
+  const parts: KitPreviewPart[] = [];
+  let total = 0;
+  for (const part of KITS[kit].parts) {
+    if (part.skip?.(f)) continue;
+    const lines = expandKit(kit, f, products, at, null, null, preferred, part.key).map((l) => {
+      const known = !!l.code && (l.costCents ?? 0) > 0;
+      const each = l.costCents ?? 0;
+      const totalCents = Math.round(each * (l.qty ?? 0));
+      if (known) total += totalCents;
+      return { name: l.name ?? part.name, code: l.code ?? null, qty: l.qty ?? 0, unit: l.unit ?? "", eachCents: each, totalCents, known, why: l.why ?? "" };
     });
-  };
-  for (const pipe of PIPE_SIZES) one("split", "pair-coil", pipe.replace("+", " + "), { ...ALL_FACTS, pipe });
-  one("split", "interconnect", "", ALL_FACTS);
-  for (const amps of [20, 32, 40]) one("split", "power", `${cableFor(amps)} mm²`, { ...ALL_FACTS, amps });
-  for (const b of [16, 20, 25, 32, 40]) one("split", "breaker", `${b} A`, { ...ALL_FACTS, amps: b });
-  for (const i of ISOLATORS) one("split", "isolator", `${i} A`, { ...ALL_FACTS, amps: i });
-  one("split", "mount", "Feet", ALL_FACTS);
-  one("split", "mount", "Wall bracket", { ...ALL_FACTS, mount: "wall" });
-  one("split", "drain", "", ALL_FACTS);
-  one("split", "trunking", "", ALL_FACTS);
-  for (const mm of [150, 200, 250, 300, 350, 400]) one("ducted", "flex", `${mm} mm`, { ...ALL_FACTS, outletMm: mm });
-  for (const mm of [150, 200, 250, 300]) one("ducted", "outlets", `${mm} mm`, { ...ALL_FACTS, outletMm: mm });
-  one("ducted", "return", "", ALL_FACTS);
-  return rows;
+    let range: KitPreviewPart["range"] = null;
+    if (part.shows) {
+      const { kind, only } = part.shows;
+      const held = (preferred?.ranges.get(kind) ?? []).filter((o) => !only || only(o.name));
+      const inRange = new Set(held.map((o) => `${o.supplierKey}|${o.code}`));
+      const used = new Set(lines.filter((l) => l.code).map((l) => l.code!));
+      range = {
+        kind,
+        held: held.length > 0,
+        items: bookRange(products, kind, only).map((o) => ({
+          supplierKey: o.supplierKey,
+          supplierName: supplierName.get(o.supplierKey) ?? o.supplierKey,
+          code: o.code,
+          name: o.name,
+          words: sizeWords(kind, o.size),
+          size: o.size,
+          cents: o.perUnitCents,
+          ticked: held.length === 0 || inRange.has(`${o.supplierKey}|${o.code}`),
+          used: used.has(o.code),
+        })),
+      };
+    }
+    parts.push({ key: part.key, name: part.name, rule: part.rule ?? "", sizedBy: part.sizedBy ?? "", lines, range });
+  }
+  return { parts, totalCents: total };
 }

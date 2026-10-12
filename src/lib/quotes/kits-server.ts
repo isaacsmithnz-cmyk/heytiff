@@ -1,6 +1,6 @@
 import "server-only";
 import { bookProducts } from "./book-view-server";
-import { expandKit, indoorFacts, pipeFromMm, type KitFacts, type KitKey } from "./kits";
+import { expandKit, indoorFacts, pipeFromMm, stillToSize, type KitFacts, type KitKey } from "./kits";
 import { addLine } from "./lines-server";
 import { lookupUnit } from "./lookups-server";
 import { readQuoteSettings } from "./settings-query";
@@ -32,7 +32,7 @@ export async function addKit(
   by: string,
   /** ducted: the indoor, whose faces its plenums are made for */
   indoor: { brand: string; model: string } | null = null
-): Promise<{ ok: true; added: number } | { ok: false; reason: string }> {
+): Promise<{ ok: true; added: number; still: { name: string; why: string }[] } | { ok: false; reason: string }> {
   const f = { ...facts };
   for (const which of [unit, indoor]) {
     if (!which) continue;
@@ -55,5 +55,5 @@ export async function addKit(
     const r = await addLine(orgId, jobUuid, l, by, `${kit === "split" ? "Split" : "Ducted"} kit`);
     if (r.ok) added++;
   }
-  return added > 0 ? { ok: true, added } : { ok: false, reason: "The kit couldn't be added. Try again." };
+  return added > 0 ? { ok: true, added, still: stillToSize(lines) } : { ok: false, reason: "The kit couldn't be added. Try again." };
 }

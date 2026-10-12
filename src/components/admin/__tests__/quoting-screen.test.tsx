@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/app/actions/quote-settings", () => ({ saveQuoteSettings: jest.fn() }));
@@ -68,25 +68,47 @@ it("keeps the business's own allowances, at cost, and none until it sets them", 
   expect(saveQuoteSettings.mock.calls[0][0].allowances).toEqual({ consumables: 3182, newCircuit: 50000, flush: null, recovery: null });
 });
 
-/* the engine rebuild, slice 14.1: the kits as the business's own book prices them */
-it("lists each kit's parts as the book prices them, and what the book hasn't got", () => {
-  render(
-    <QuotingScreen
-      initial={DEFAULT_QUOTE_SETTINGS}
-      components={[]}
-      ranges={[]}
-      calc={null}
-      kits={[
-        { kit: "split", part: "Pair coil", size: "1/4 + 1/2", pick: { name: "PAIRED COIL 1/4+1/2X20M", code: "PC1412", why: "On your quotes", cents: 955, perMetre: true } },
-        { kit: "split", part: "RCBO", size: "16 A", pick: null },
-      ]}
-    />
-  );
-  expect(screen.getByRole("heading", { name: "Kit: Split install" })).toBeInTheDocument();
-  expect(screen.getByText("PAIRED COIL 1/4+1/2X20M")).toBeInTheDocument();
-  expect(screen.getByText("PC1412, on your quotes")).toBeInTheDocument();
-  expect(screen.getByText("$9.55 a metre")).toBeInTheDocument();
-  expect(screen.getByText("Not in your book")).toBeInTheDocument();
+/* Isaac's kits, round 2 (2026-10-11): a kit priced at the business's own
+   example, part by part, each sized part's range under it to tick */
+it("shows each kit part with how many, what sizes it, and its range from the book, ticking one out", async () => {
+  const preview = {
+    ok: true,
+    unit: { model: "PEA-M125HAA", role: "indoor", coolKw: 12.5 },
+    brands: ["mitsubishi-electric"],
+    totalCents: 2906,
+    parts: [
+      {
+        key: "ys",
+        name: "Y branches",
+        rule: "Where the main duct splits to the outlets",
+        sizedBy: "By the duct sizes in and out",
+        lines: [{ name: "METAL Y 400.300.300 NSW", code: "MY161212", qty: 1, unit: "", eachCents: 2906, totalCents: 2906, known: true, why: "" }],
+        range: {
+          kind: "fitting",
+          held: false,
+          items: [
+            { supplierKey: "aad", supplierName: "AAD", code: "MY161212", name: "METAL Y 400.300.300 NSW", words: "Ø400 → Ø300 / Ø300", size: { ins: [400], outs: [300, 300] }, cents: 2906, ticked: true, used: true },
+            { supplierKey: "aad", supplierName: "AAD", code: "MY1288", name: "METAL Y 300.200.200 NSW", words: "Ø300 → Ø200 / Ø200", size: { ins: [300], outs: [200, 200] }, cents: 2275, ticked: true, used: false },
+          ],
+        },
+      },
+    ],
+  };
+  const posted: Record<string, unknown>[] = [];
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return { ok: true, json: async () => (String(url).startsWith("/api/quoting/kit") ? preview : { ok: true }) };
+  });
+  render(<QuotingScreen initial={DEFAULT_QUOTE_SETTINGS} components={[]} ranges={[]} calc={null} />);
+  const ys = within(await screen.findByRole("region", { name: "Y branches" }));
+  expect(ys.getByText("Where the main duct splits to the outlets")).toBeInTheDocument();
+  expect(ys.getByText("2 of 2 in your book, every size until you narrow it")).toBeInTheDocument();
+  expect(ys.getByText("At this size")).toBeInTheDocument();
+  /* the first untick keeps every other size */
+  await act(async () => {
+    fireEvent.click(ys.getAllByRole("checkbox")[1]!);
+  });
+  expect(posted).toContainEqual({ kind: "fitting", add: [{ supplierKey: "aad", code: "MY161212", size: { ins: [400], outs: [300, 300] } }], remove: [] });
 });
 
 /* habits, slice 13.2: a swap made again and again, asked about, one press to say yes */

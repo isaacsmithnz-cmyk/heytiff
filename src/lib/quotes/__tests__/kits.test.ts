@@ -1,5 +1,5 @@
 import type { Product } from "../families";
-import { breakerFor, cableFor, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS } from "../kits";
+import { breakerFor, cableFor, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS, stillToSize } from "../kits";
 
 /* Kits as data (slice 1.3): what a system takes to install, picked from the
    business's own book by what each part is, never by one supplier's code.
@@ -126,15 +126,26 @@ it("reads a unit's pipe off its data pack's connections, and makes a person's fa
   expect(normaliseKitFacts({ replacing: "yes", keptPipe: "3/8+5/8" })).toMatchObject({ replacing: true, keptPipe: null });
 });
 
-it("lists every kit part at each size as the book prices it today, and what the book hasn't got", async () => {
-  const { kitPriceList } = await import("../kits");
-  const rows = kitPriceList(book);
-  expect(rows.find((r) => r.part === "Pair coil" && r.size === "1/4 + 1/2")!.pick).toMatchObject({ name: "PAIRED COIL 1/4+1/2X20M", cents: 955, perMetre: true });
-  expect(rows.find((r) => r.part === "RCBO" && r.size === "20 A")!.pick).toMatchObject({ cents: 3886, perMetre: false });
-  /* no 16 A in the book: the next rating up it has */
-  expect(rows.find((r) => r.part === "RCBO" && r.size === "16 A")!.pick).toMatchObject({ name: "RCBO 20A 30MA 1P+N" });
-  expect(rows.find((r) => r.part === "Outdoor mount" && r.size === "Wall bracket")!.pick).toBeNull();
-  expect(rows.filter((r) => r.kit === "ducted").map((r) => r.part)).toContain("Flex duct");
+it("prices each part at the business's example, with every item of its kind in the book under it", async () => {
+  const { kitPreview } = await import("../kits");
+  const book2 = [...book, product("METAL Y 400.300.300 NSW", 2906), product("METAL Y 300.200.200 NSW", 2275), product("MEA N/C 12-16kW 1330x271 - 2x400", 16254)];
+  const f = { ...facts, outlets: 6, outletMm: 200, ...indoorFacts({ model: "PEA-M125HAA", air: { supply: { w: 1330, h: 271 }, ret: null, returnSpigots: true } }), takeoffs: [400, 400], fittings: [{ inMm: 400, outsMm: [300, 300], count: 1 }] };
+  const p = kitPreview("ducted", f, book2, null);
+  const part = (key: string) => p.parts.find((x) => x.key === key)!;
+  expect(part("supply-plenum")).toMatchObject({ rule: "One on the unit's supply", sizedBy: "Fits the indoor unit: its model and its face" });
+  expect(part("supply-plenum").lines[0]).toMatchObject({ name: "MEA N/C 12-16kW 1330x271 - 2x400", known: true, totalCents: 16254 });
+  /* every Y in the book, ticked until the business narrows it, the one used marked */
+  expect(part("ys").range!.items.map((i) => [i.words, i.ticked, i.used])).toEqual([
+    ["Ø400 → Ø300 / Ø300", true, true],
+    ["Ø300 → Ø200 / Ø200", true, false],
+  ]);
+  expect(part("ys").range!.held).toBe(false);
+  /* its return takes spigots: no return plenum */
+  expect(p.parts.some((x) => x.key === "return-plenum")).toBe(false);
+  /* a business's range: only its items ticked */
+  const ranges = new Map([["fitting" as const, [{ size: { ins: [400], outs: [300, 300] }, perUnitCents: 2906, supplierKey: "s1", code: book2.at(-3)!.offers[0]!.code, name: "METAL Y 400.300.300 NSW" }]]]);
+  const held = kitPreview("ducted", f, book2, { ranges, components: {} });
+  expect(held.parts.find((x) => x.key === "ys")!.range!.items.map((i) => i.ticked)).toEqual([true, false]);
 });
 
 it("adds the business's own allowances: consumables always, recovery and a flush when an old system comes out", () => {
@@ -274,4 +285,10 @@ it("takes only a sane layout: duct sizes a book sells, a split into two or more,
   expect(f).toMatchObject({ takeoffs: [400, 400], fittings: [{ inMm: 400, outsMm: [300, 300], count: 2 }], reducers: [{ fromMm: 400, toMm: 300, count: 1 }], returnGrille: { w: 900, h: 550 } });
   /* none given: a kit says it needs the layout */
   expect(normaliseKitFacts({})).not.toHaveProperty("fittings");
+});
+
+it("lists what a kit left to size or price, for Tiff to settle", () => {
+  const lines = expandKit("ducted", { ...facts, outlets: 4, outletMm: 200 }, book, at);
+  expect(stillToSize(lines).map((x) => x.name)).toEqual(expect.arrayContaining(["Supply plenum", "Y branches", "Return air grille, filtered", "Return air box"]));
+  expect(stillToSize(lines).find((x) => x.name === "Y branches")!.why).toBe("Needs the layout: where the main duct splits");
 });

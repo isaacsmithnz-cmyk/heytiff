@@ -1,9 +1,8 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
-import { addLine, changeLine, copyOption, engineChosen, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
+import { addLine, changeLine, copyOption, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
 import { addKit } from "@/lib/quotes/kits-server";
-import { adoptQuote } from "@/lib/quotes/lines-adopt-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
@@ -12,8 +11,6 @@ import { stageNamed, variationMaterials } from "@/lib/quotes/lines-job";
 import { approvalStands } from "@/lib/quotes/lines-proposal";
 import { orgTemplates } from "@/lib/templates/query";
 import { readSuppliers } from "@/lib/quotes/price-book-server";
-import { sessionModelFor } from "@/lib/quotes/session/model-server";
-import { readStoredProposal } from "@/lib/quotes/proposal-writer";
 import { addEvents, readSession } from "@/lib/quotes/session/store-server";
 import { putAcceptedOnJob, putVariationOnJob } from "@/lib/quotes/accepted-materials-server";
 import { addTasksToJob, makeTasksFromQuote } from "@/lib/workboard/visit-tasks-server";
@@ -50,7 +47,7 @@ async function gate(): Promise<Gate> {
 }
 
 /* what only someone who sees money may do to a quote, and what only a manager */
-const MONEY_OPS = new Set(["adopt", "supplier", "proposal", "approve", "loading", "version", "variation", "variation-approve", "variation-accept"]);
+const MONEY_OPS = new Set(["supplier", "proposal", "approve", "loading", "version", "variation", "variation-approve", "variation-accept"]);
 const MANAGE_OPS = new Set(["accept"]);
 
 /** The suppliers a job can buy from: the business's own, with items. */
@@ -114,15 +111,7 @@ export async function GET(req: Request) {
   const job = (new URL(req.url).searchParams.get("job") ?? "").trim().slice(0, 80);
   if (!job) return Response.json({ ok: false, reason: "No job named." }, { status: 400 });
   const target = await resolveJobCard(g.orgId, job);
-  /* whether the quote starts with Tiff here (slice 4.4): she's on for the
-     business, nothing is drafted the old way, and nobody has chosen an
-     engine for it (a person who switched back keeps the old builder) */
-  const [now, drafted, chosen] = await Promise.all([
-    view(g.orgId, target.parentRemoteId, g.userId, g.money),
-    readStoredProposal(g.orgId, target.parentRemoteId).catch(() => null),
-    engineChosen(g.orgId, target.parentRemoteId).catch(() => true),
-  ]);
-  return Response.json({ ...now, tiff: sessionModelFor(g.orgId) != null, drafted: drafted != null, chosen });
+  return Response.json(await view(g.orgId, target.parentRemoteId, g.userId, g.money));
 }
 
 export async function POST(req: Request) {
@@ -184,9 +173,6 @@ export async function POST(req: Request) {
       result = await addKit(g.orgId, jobUuid, kit, normaliseKitFacts(body.facts), at, model && brand ? { brand, model } : null, g.userId);
       break;
     }
-    case "adopt":
-      result = await adoptQuote(g.orgId, jobUuid, g.userId);
-      break;
     case "copy": {
       const n = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : -1);
       result = await copyOption(g.orgId, jobUuid, n(body.from), n(body.to), g.userId);

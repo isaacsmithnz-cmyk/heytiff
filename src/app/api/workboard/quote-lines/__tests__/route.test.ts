@@ -20,7 +20,6 @@ jest.mock("@/lib/quotes/lines-server", () => ({
   readLines: async () => [LINE],
   readChanges: async () => [{ id: 7, lineId: "l1", action: "change", before: { sellCents: 500000 }, after: { sellCents: 520000 }, why: "", madeBy: "u", madeAt: "" }],
   namesBySignIn: async () => ({}),
-  engineChosen: async () => true,
   changeLine: (...a: unknown[]) => (changeLine as jest.Mock)(...a),
   addLine: jest.fn(),
   copyOption: jest.fn(),
@@ -29,7 +28,6 @@ jest.mock("@/lib/quotes/lines-server", () => ({
   undoChange: jest.fn(),
 }));
 jest.mock("@/lib/quotes/kits-server", () => ({ addKit: jest.fn() }));
-jest.mock("@/lib/quotes/lines-adopt-server", () => ({ adoptQuote: jest.fn() }));
 jest.mock("@/lib/quotes/fit-server", () => ({ linesFit: async () => [] }));
 jest.mock("@/lib/quotes/lines-job-server", () => ({
   readByHand: async () => ({ accepted: [], names: [], loading: {}, compare: {}, supplier: null, proposal: null, researched: {}, variations: [] }),
@@ -46,8 +44,6 @@ jest.mock("@/lib/quotes/lines-job-server", () => ({
 jest.mock("@/lib/quotes/quote-versions-server", () => ({ readVersions: async () => [{ n: 1, what: "", approvedAt: null, madeAt: "", options: [{ name: "Option 1", exGstCents: 1, incGstCents: 1, lines: [] }] }] }));
 jest.mock("@/lib/templates/query", () => ({ orgTemplates: async () => null }));
 jest.mock("@/lib/quotes/price-book-server", () => ({ readSuppliers: async () => [{ key: "aad", name: "AAD", itemCount: 9 }] }));
-jest.mock("@/lib/quotes/session/model-server", () => ({ sessionModelFor: () => "claude-opus-5-5" }));
-jest.mock("@/lib/quotes/proposal-writer", () => ({ readStoredProposal: async () => null }));
 jest.mock("@/lib/quotes/session/store-server", () => ({ addEvents: jest.fn(), readSession: async () => null }));
 jest.mock("@/lib/quotes/accepted-materials-server", () => ({ putAcceptedOnJob: jest.fn(), putVariationOnJob: jest.fn() }));
 jest.mock("@/lib/workboard/visit-tasks-server", () => ({ addTasksToJob: jest.fn(), makeTasksFromQuote: jest.fn() }));

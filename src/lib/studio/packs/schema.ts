@@ -577,6 +577,14 @@ export interface PairTable {
   pipe_liquid_mm: number;
   pipe_gas_mm: number;
   max_length_m: number;
+  /** what `max_length_m` measures, as the book prints it: "actual" (the pipe
+      run, the default when absent) or "equivalent" — the run plus an
+      allowance for every bend and fitting and the vertical rise (Actron
+      Advance B, AIRES, VCC: "max equivalent pipe length 60 m … vertical
+      included"). The Studio measures drawn length and rise, never fittings,
+      so an equivalent limit is checked on what it can measure and warned
+      near the limit (split.ts). Set it ONLY where the book says equivalent. */
+  max_length_basis?: "actual" | "equivalent";
   max_lift_m: number;
   additional_charge: AdditionalChargeRule;
   rated_cool_kw?: number;

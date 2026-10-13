@@ -455,7 +455,8 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     const sizes = [...new Set(heads.map((h) => pipeSize(pack, sys, h, oduRow.model)).filter((s): s is string => s != null))];
     pipeText = sizes.length ? sizes.map((s) => `${s} mm`).join(", ") : null;
     const pair = heads[0] ? pack.pair_tables.find((p) => p.idu_model === heads[0].model && p.odu_model === oduRow.model) : null;
-    if (pair) limitsText = `${pair.max_length_m} m, ${pair.max_lift_m} m lift`;
+    if (pair)
+      limitsText = `${pair.max_length_m} m${pair.max_length_basis === "equivalent" ? " equivalent" : ""}, ${pair.max_lift_m} m lift`;
   }
   const runs = draft.objects.filter((o) => o.systemId === sys.id && (o.type as string) === "pipe-run").length;
   const runsText = `${runs} ${runs === 1 ? "run" : "runs"}`;

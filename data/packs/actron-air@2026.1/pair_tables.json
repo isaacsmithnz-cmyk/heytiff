@@ -5,6 +5,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -26,6 +27,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -47,6 +49,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -68,6 +71,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -89,6 +93,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -110,6 +115,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -131,6 +137,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 22.22,
   "max_length_m": 50,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -152,6 +159,7 @@
   "pipe_liquid_mm": 12.7,
   "pipe_gas_mm": 22.22,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -173,6 +181,7 @@
   "pipe_liquid_mm": 12.7,
   "pipe_gas_mm": 22.22,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -194,6 +203,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 15.88,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -215,6 +225,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -236,6 +247,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -257,6 +269,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -278,6 +291,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -299,6 +313,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -320,6 +335,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 19.05,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -341,6 +357,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 22.22,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -362,6 +379,7 @@
   "pipe_liquid_mm": 9.52,
   "pipe_gas_mm": 22.22,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -698,6 +716,7 @@
   "pipe_liquid_mm": 15.88,
   "pipe_gas_mm": 28.58,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",
@@ -719,6 +738,7 @@
   "pipe_liquid_mm": 15.88,
   "pipe_gas_mm": 28.58,
   "max_length_m": 60,
+  "max_length_basis": "equivalent",
   "max_lift_m": 20,
   "additional_charge": {
    "method": "threshold_then_rate",

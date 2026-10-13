@@ -14,7 +14,7 @@ import {
 } from "../document";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
-import { proposePairs, validateSplitSystem, systemBadge } from "../split";
+import { proposePairs, validateSplitSystem, systemBadge, EQUIV_LENGTH_CLOSE_RATIO } from "../split";
 import { buildSystemGraph, findPath } from "../graph";
 import { evaluateAdditionalCharge } from "../materials";
 import { buildSummaryModel } from "../summary";
@@ -441,5 +441,81 @@ describe("stepped_by_length on a split pair", () => {
       ),
     };
     expect(validateSplitSystem(scenarioA1(), tight, "sys_split").findings.map((f) => f.code)).toEqual(["over-length"]);
+  });
+});
+
+/* ═══════════ a pair whose book limits EQUIVALENT length ═══════════
+   Actron Advance B, AIRES and VCC print "max equivalent pipe length 60 m …
+   vertical included": the run, its rise, and an allowance for every bend and
+   fitting. The Studio measures the run and the rise, never the fittings: over
+   the limit on what it measures is red, close to it amber, never refused on
+   the margin. A1's run is 30 m on one floor. */
+
+describe("max_length_basis: equivalent", () => {
+  const withLimit = (max: number, basis?: "actual" | "equivalent"): DataPack => ({
+    ...pack,
+    pair_tables: pack.pair_tables.map((p) =>
+      p.idu_model === "PLA-M100EA2-A" && p.odu_model === "PUZ-M100VKA-A"
+        ? { ...p, max_length_m: max, ...(basis ? { max_length_basis: basis } : {}) }
+        : p
+    ),
+  });
+  const codes = (p: DataPack, doc = scenarioA1()) => validateSplitSystem(doc, p, "sys_split").findings;
+  /* the indoor unit mounted 2.4 m up: the run on the plan leaves that climb out */
+  const mounted = (): DesignDocument => {
+    const d = scenarioA1();
+    d.objects = d.objects.map((o) => (o.id === "obj_idu" ? { ...o, props: { ...o.props, mountM: 2.4 } } : o));
+    return d;
+  };
+
+  it("the margin is 80% of the limit", () => {
+    expect(EQUIV_LENGTH_CLOSE_RATIO).toBe(0.8);
+  });
+
+  it("far from the limit: nothing (30 m of 40 m is 75%)", () => {
+    expect(codes(withLimit(40, "equivalent"))).toEqual([]);
+  });
+
+  it("within 20% of it: amber, never red — 30 m of 36 m", () => {
+    expect(codes(withLimit(36, "equivalent"))).toEqual([
+      {
+        severity: "amber",
+        code: "near-equivalent-limit",
+        message:
+          "Run is 30.0 m, within 20% of the book's 36 m — an equivalent length, which also counts bends and fittings. Allow for its fittings",
+      },
+    ]);
+    // at the limit itself, still only amber
+    expect(codes(withLimit(30, "equivalent")).map((x) => x.code)).toEqual(["near-equivalent-limit"]);
+  });
+
+  it("the climb between where the ends are mounted counts toward an equivalent limit", () => {
+    const g = buildSystemGraph(mounted().objects, mounted().floors, "sys_split");
+    expect(findPath(g, "obj_idu", "obj_odu")!.unmeasuredRiseM).toBeCloseTo(2.4, 5);
+    expect(codes(withLimit(31, "equivalent"), mounted())).toEqual([
+      {
+        severity: "red",
+        code: "over-length",
+        message: "Run is 32.4 m with 2.4 m of rise — max for this pair is 31 m equivalent, and that is before its bends and fittings",
+      },
+    ]);
+  });
+
+  it("an actual limit is judged as before: the drawn run alone, no margin", () => {
+    expect(codes(withLimit(31, "actual"), mounted())).toEqual([]);
+    expect(codes(withLimit(31), mounted())).toEqual([]);
+    expect(codes(withLimit(29)).map((x) => x.code)).toEqual(["over-length"]);
+    expect(codes(withLimit(29))[0].message).toBe("Run is 30.0 m — max for this pair is 29 m");
+  });
+
+  it("a riser's height is already in the run: not counted twice", () => {
+    const d = scenarioA2();
+    const path = findPath(buildSystemGraph(d.objects, d.floors, "sys_split"), "obj_idu", "obj_odu")!;
+    expect(path.lengthM).toBeCloseTo(23, 5);
+    expect(path.unmeasuredRiseM).toBeCloseTo(0, 5);
+  });
+
+  it("no Mitsubishi Electric pair carries a basis", () => {
+    for (const p of pack.pair_tables) expect(p.max_length_basis).toBeUndefined();
   });
 });

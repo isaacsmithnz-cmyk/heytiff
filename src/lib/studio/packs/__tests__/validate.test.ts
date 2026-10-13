@@ -506,4 +506,20 @@ describe("validator catches broken packs", () => {
       ])
     );
   });
+
+  it("a pair's length basis is actual or equivalent", () => {
+    const p = base();
+    p.pair_tables.push({
+      idu_model: "I",
+      odu_model: "O",
+      pipe_liquid_mm: 9.52,
+      pipe_gas_mm: 15.88,
+      max_length_m: 60,
+      max_length_basis: "fitted" as "actual",
+      max_lift_m: 20,
+      additional_charge: { method: "none_required" },
+      provenance: prov,
+    });
+    expect(validatePack(p).errors.map((e) => e.message)).toContain('max_length_basis must be "actual" or "equivalent": fitted');
+  });
 });

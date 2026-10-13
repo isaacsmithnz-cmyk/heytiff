@@ -107,7 +107,14 @@ The largest section. One row per model.
 ### 4. `pair_tables` (split 1:1)
 One row per approved IDU+ODU pairing — the split engine reads *only* this section for matching.
 
-`idu_model` · `odu_model` (**R**, validated refs) · `pipe_liquid_mm`, `pipe_gas_mm` (**R**) · `max_length_m`, `max_lift_m` (**R**) · `additional_charge` rule block (**R** — materials needs it) · `rated_cool_kw`, `rated_heat_kw` (O, defaults from units) · `provenance`.
+`idu_model` · `odu_model` (**R**, validated refs) · `pipe_liquid_mm`, `pipe_gas_mm` (**R**) · `max_length_m`, `max_lift_m` (**R**) · `max_length_basis` (O: `"actual"`, the default, or `"equivalent"` — see below) · `additional_charge` rule block (**R** — materials needs it) · `rated_cool_kw`, `rated_heat_kw` (O, defaults from units) · `provenance`.
+
+**`max_length_basis`.** What `max_length_m` measures, as the book prints it. `"actual"` (or absent) is the pipe run. `"equivalent"` is the run plus an allowance for every bend and fitting **and the vertical rise** — Actron Advance B, AIRES and VCC: "max equivalent pipe length 60 m (50 m CRV19BT) … vertical 20 m included" (9590-0030-01 pp.7, 9; 9590-0027-01 pp.7, 9; ICG 0525-066 pp.16–18). The Studio measures the drawn run and the climb between where its ends are mounted (a riser's height is already in the run), never fittings, and never invents a bend allowance:
+- run + climb **over** the limit → red `over-length` (the true equivalent length is longer still);
+- run + climb **at or over 80%** of the limit (`EQUIV_LENGTH_CLOSE_RATIO`, split.ts) → amber `near-equivalent-limit`: allow for the run's fittings. Never refused on the margin;
+- `"actual"`: the drawn run against the limit, as before, no margin.
+
+Where a book prints both ("75 m (90 m) — it is equivalent length in the inside", Daikin EDAU282388), store the actual figure with the default basis.
 
 ### 5. `multi_rules`
 Per multi ODU (or per series): `odu_model_ref` · `port_pipe_sizes` (per port or by connected IDU size, **in the book's port order, A first** — port A is not always the largest: Daikin 3/4MXM's A is the smallest gas port, 5MXM100's the largest) (**R**) · `compatibility` rule block(s) (**R** — combination table, family whitelist and/or ratio band, plus any of the multi limits above, per the book's method) · `max_total_pipe_m`, `max_per_branch_m`, `max_lift_m` (**R**) · `max_lift_idu_idu_m` (O — the height between any two heads: Daikin Super Multi NX 7.5 m "between Indoor Units" (EDTAU122219A), Fujitsu AOTH24–45KB 10 m (DR_MU034ES_01), MHI SCM; judged on where the heads are placed — floor plus height on it — red about the drawing; absent = not checked) · `additional_charge` rule block (**R**) · branch-box models/rules (ref → §7) · `provenance`.

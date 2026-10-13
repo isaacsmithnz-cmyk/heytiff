@@ -76,7 +76,8 @@ describe("validator catches broken packs", () => {
     expect(validatePack(ok).errors).toEqual([]);
 
     const bad = base();
-    bad.brands[0].system_names = { vrf: " ", ["vrv" as "vrf"]: "VRV" };
+    // "vrv" is a name, not a system type: the shape a typo'd pack row would have
+    bad.brands[0].system_names = { vrf: " ", vrv: "VRV" } as unknown as Record<"vrf", string>;
     const messages = validatePack(bad).errors.map((e) => e.message);
     expect(messages).toContain("system_names.vrf blank");
     expect(messages).toContain("system_names: unknown system type vrv");

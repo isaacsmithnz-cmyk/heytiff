@@ -1,0 +1,39 @@
+{
+ "brand": "panasonic",
+ "version": "2026.1",
+ "packSchemaVersion": 1,
+ "name": "Panasonic",
+ "updated": "2026-10-13",
+ "sources": [
+  {
+   "title": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "access": "public"
+  },
+  {
+   "title": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "access": "public"
+  },
+  {
+   "title": "Panasonic Residential Air Conditioners catalogue (NZ)",
+   "edition": "PNZ-J8888 Version 09.24",
+   "access": "public"
+  },
+  {
+   "title": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+   "access": "public"
+  },
+  {
+   "title": "Panasonic Z Series wall split brochure (AU)",
+   "edition": "AC-AUS-Z-L24 (July 2024)",
+   "access": "public"
+  },
+  {
+   "title": "Panasonic RZ Series wall split leaflet (AU)",
+   "edition": "AC-AUS-RZ-L24 (July 2024)",
+   "access": "public"
+  }
+ ]
+}

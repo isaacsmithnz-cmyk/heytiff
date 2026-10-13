@@ -1,0 +1,1583 @@
+[
+ {
+  "model": "S-60PE4R",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 60,
+  "airflow_ls": 366,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1297,
+  "depth_mm": 877,
+  "height_mm": 300,
+  "sound_low_dba": 32,
+  "sound_high_dba": 38,
+  "weight_kg": 51,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "14-15; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-71PE4R",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 500,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1297,
+  "depth_mm": 877,
+  "height_mm": 300,
+  "sound_low_dba": 35,
+  "sound_high_dba": 43,
+  "weight_kg": 51,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "12-13; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-100PE4R",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 12.5,
+  "capacity_code": 100,
+  "airflow_ls": 700,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1297,
+  "depth_mm": 877,
+  "height_mm": 300,
+  "sound_low_dba": 34,
+  "sound_high_dba": 42,
+  "weight_kg": 51,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "12-13; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-125PE4R",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 14.0,
+  "capacity_code": 125,
+  "airflow_ls": 833,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1297,
+  "depth_mm": 949,
+  "height_mm": 400,
+  "sound_low_dba": 34,
+  "sound_high_dba": 42,
+  "weight_kg": 61,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "12-13; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-140PE4R",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_code": 140,
+  "airflow_ls": 1000,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1297,
+  "depth_mm": 949,
+  "height_mm": 400,
+  "sound_low_dba": 37,
+  "sound_high_dba": 45,
+  "weight_kg": 61,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "12-13; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-160PE4R",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "capacity_code": 160,
+  "airflow_ls": 1000,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1297,
+  "depth_mm": 949,
+  "height_mm": 400,
+  "sound_low_dba": 37,
+  "sound_high_dba": 45,
+  "weight_kg": 61,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "12-13; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-160PE4RA",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 16.0,
+  "capacity_heat_kw": 18.0,
+  "capacity_code": 160,
+  "airflow_ls": 1000,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1297,
+  "depth_mm": 949,
+  "height_mm": 400,
+  "sound_low_dba": 37,
+  "sound_high_dba": 45,
+  "weight_kg": 61,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "12-13; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-180PE4R",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 18.0,
+  "capacity_heat_kw": 20.0,
+  "capacity_code": 180,
+  "airflow_ls": 1202,
+  "static_pressure_pa": 150,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1456,
+  "depth_mm": 916,
+  "height_mm": 486,
+  "sound_low_dba": 41,
+  "sound_high_dba": 46,
+  "weight_kg": 82,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "12-13; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-200PE4R",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 20.0,
+  "capacity_heat_kw": 22.4,
+  "capacity_code": 200,
+  "airflow_ls": 1202,
+  "static_pressure_pa": 180,
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1456,
+  "depth_mm": 916,
+  "height_mm": 486,
+  "sound_low_dba": 41,
+  "sound_high_dba": 46,
+  "weight_kg": 83,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "12-13; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-224PE4R",
+  "brand": "panasonic",
+  "series": "PACi NX PE4 (High Static Pressure Splittable Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 22.4,
+  "capacity_heat_kw": 25.0,
+  "capacity_code": 224,
+  "airflow_ls": 1402,
+  "static_pressure_pa": 200,
+  "conn_liquid_mm": 12.7,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1456,
+  "depth_mm": 916,
+  "height_mm": 486,
+  "sound_low_dba": 42,
+  "sound_high_dba": 47,
+  "weight_kg": 87,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Premium Inverter Ducted Air Conditioning catalogue (AU); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC Duct_CAT_2025_V2 (August 2025)",
+   "page": "12-13; PACi catalogue 3, 22-27"
+  }
+ },
+ {
+  "model": "S-3650PF3E",
+  "brand": "panasonic",
+  "series": "PACi NX PF3 (High Static Pressure Adaptive Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.6,
+  "capacity_heat_kw": 5.0,
+  "airflow_ls": 267,
+  "static_pressure_pa": 150,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 800,
+  "depth_mm": 730,
+  "height_mm": 250,
+  "sound_low_dba": 25,
+  "sound_high_dba": 34,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 28-31"
+  }
+ },
+ {
+  "model": "S-6071PF3E",
+  "brand": "panasonic",
+  "series": "PACi NX PF3 (High Static Pressure Adaptive Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 6.8,
+  "capacity_heat_kw": 7.5,
+  "airflow_ls": 350,
+  "static_pressure_pa": 150,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1000,
+  "depth_mm": 730,
+  "height_mm": 250,
+  "sound_low_dba": 23,
+  "sound_high_dba": 30,
+  "weight_kg": 30,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 28-31"
+  }
+ },
+ {
+  "model": "S-1014PF3E",
+  "brand": "panasonic",
+  "series": "PACi NX PF3 (High Static Pressure Adaptive Ducted)",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 13.4,
+  "capacity_heat_kw": 15.5,
+  "airflow_ls": 601,
+  "static_pressure_pa": 150,
+  "filter": "built-in",
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1400,
+  "depth_mm": 730,
+  "height_mm": 250,
+  "sound_low_dba": 29,
+  "sound_high_dba": 39,
+  "weight_kg": 39,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 28-31"
+  }
+ },
+ {
+  "model": "CS-Z25UD3RAW",
+  "brand": "panasonic",
+  "series": "UD3 Ultra Slim Ducted",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.6,
+  "capacity_heat_kw": 3.3,
+  "capacity_code": 25,
+  "airflow_ls": 175,
+  "static_pressure_pa": 43,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 640,
+  "height_mm": 200,
+  "sound_low_dba": 24,
+  "sound_high_dba": 33,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "32-33; Multi brochure AC-AUS-MULTI-C-24 7, 11; NZ catalogue PNZ-J8888 31"
+  }
+ },
+ {
+  "model": "CS-Z35UD3RAW",
+  "brand": "panasonic",
+  "series": "UD3 Ultra Slim Ducted",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.7,
+  "capacity_heat_kw": 4.2,
+  "capacity_code": 35,
+  "airflow_ls": 187,
+  "static_pressure_pa": 44,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 640,
+  "height_mm": 200,
+  "sound_low_dba": 23,
+  "sound_high_dba": 33,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "32-33; Multi brochure AC-AUS-MULTI-C-24 7, 11; NZ catalogue PNZ-J8888 31"
+  }
+ },
+ {
+  "model": "CS-Z50UD3RAW",
+  "brand": "panasonic",
+  "series": "UD3 Ultra Slim Ducted",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.1,
+  "capacity_code": 50,
+  "airflow_ls": 255,
+  "static_pressure_pa": 49,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 640,
+  "height_mm": 200,
+  "sound_low_dba": 26,
+  "sound_high_dba": 39,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "32-33; Multi brochure AC-AUS-MULTI-C-24 7, 11; NZ catalogue PNZ-J8888 31"
+  }
+ },
+ {
+  "model": "CS-Z60UD3RAW",
+  "brand": "panasonic",
+  "series": "UD3 Ultra Slim Ducted",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 7.0,
+  "capacity_code": 60,
+  "airflow_ls": 262,
+  "static_pressure_pa": 51,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 640,
+  "height_mm": 200,
+  "sound_low_dba": 27,
+  "sound_high_dba": 41,
+  "weight_kg": 19,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "32-33; Multi brochure AC-AUS-MULTI-C-24 7, 11; NZ catalogue PNZ-J8888 31"
+  }
+ },
+ {
+  "model": "S-6071PU3E",
+  "brand": "panasonic",
+  "series": "PACi NX PU3 (4-Way Cassette)",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "airflow_ls": 367,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 256,
+  "sound_low_dba": 28,
+  "sound_high_dba": 37,
+  "weight_kg": 20,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 34-37"
+  }
+ },
+ {
+  "model": "S-1014PU3E",
+  "brand": "panasonic",
+  "series": "PACi NX PU3 (4-Way Cassette)",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "airflow_ls": 634,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 319,
+  "sound_low_dba": 34,
+  "sound_high_dba": 47,
+  "weight_kg": 25,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 34-37"
+  }
+ },
+ {
+  "model": "S-25PY3E",
+  "brand": "panasonic",
+  "series": "PACi NX PY3 (Low Profile Mini Cassette)",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 25,
+  "airflow_ls": 141,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 243,
+  "sound_low_dba": 25,
+  "sound_high_dba": 31,
+  "weight_kg": 15,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 8-9, 10 (capacity_code = the chart's kW class)"
+  }
+ },
+ {
+  "model": "S-36PY3E",
+  "brand": "panasonic",
+  "series": "PACi NX PY3 (Low Profile Mini Cassette)",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 3.6,
+  "capacity_code": 35,
+  "airflow_ls": 158,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 243,
+  "sound_low_dba": 25,
+  "sound_high_dba": 34,
+  "weight_kg": 15,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 8-9, 10 (capacity_code = the chart's kW class)"
+  }
+ },
+ {
+  "model": "S-50PY3E",
+  "brand": "panasonic",
+  "series": "PACi NX PY3 (Low Profile Mini Cassette)",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.0,
+  "capacity_code": 50,
+  "airflow_ls": 200,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 243,
+  "sound_low_dba": 27,
+  "sound_high_dba": 39,
+  "weight_kg": 15,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 8-9, 10 (capacity_code = the chart's kW class)"
+  }
+ },
+ {
+  "model": "S-60PY3E",
+  "brand": "panasonic",
+  "series": "PACi NX PY3 (Low Profile Mini Cassette)",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 60,
+  "airflow_ls": 233,
+  "drain_pump": "built-in",
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 575,
+  "depth_mm": 575,
+  "height_mm": 243,
+  "sound_low_dba": 31,
+  "sound_high_dba": 43,
+  "weight_kg": 15,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 8-9, 10 (capacity_code = the chart's kW class)"
+  }
+ },
+ {
+  "model": "S-6071PT3E",
+  "brand": "panasonic",
+  "series": "PACi NX PT3 (Under Ceiling)",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 6.8,
+  "capacity_heat_kw": 6.8,
+  "airflow_ls": 350,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1275,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "sound_low_dba": 30,
+  "sound_high_dba": 39,
+  "weight_kg": 34,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 40-43"
+  }
+ },
+ {
+  "model": "S-1014PT3E",
+  "brand": "panasonic",
+  "series": "PACi NX PT3 (Under Ceiling)",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 13.4,
+  "capacity_heat_kw": 16.0,
+  "airflow_ls": 584,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1590,
+  "depth_mm": 690,
+  "height_mm": 235,
+  "sound_low_dba": 36,
+  "sound_high_dba": 47,
+  "weight_kg": 40,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 40-43"
+  }
+ },
+ {
+  "model": "S-25PK4R",
+  "brand": "panasonic",
+  "series": "PACi NX PK4 (Wall Mounted)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.0,
+  "capacity_code": 25,
+  "airflow_ls": 188,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 765,
+  "depth_mm": 214,
+  "height_mm": 290,
+  "sound_low_dba": 25,
+  "sound_high_dba": 40,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 44-45"
+  }
+ },
+ {
+  "model": "S-50PK4R",
+  "brand": "panasonic",
+  "series": "PACi NX PK4 (Wall Mounted)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 208,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 765,
+  "depth_mm": 214,
+  "height_mm": 290,
+  "sound_low_dba": 34,
+  "sound_high_dba": 44,
+  "weight_kg": 9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 44-45"
+  }
+ },
+ {
+  "model": "S-71PK4R",
+  "brand": "panasonic",
+  "series": "PACi NX PK4 (Wall Mounted)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 375,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1060,
+  "depth_mm": 249,
+  "height_mm": 295,
+  "sound_low_dba": 37,
+  "sound_high_dba": 49,
+  "weight_kg": 14,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 44-45"
+  }
+ },
+ {
+  "model": "S-100PK4R",
+  "brand": "panasonic",
+  "series": "PACi NX PK4 (Wall Mounted)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 9.0,
+  "capacity_code": 100,
+  "airflow_ls": 375,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1060,
+  "depth_mm": 249,
+  "height_mm": 295,
+  "sound_low_dba": 41,
+  "sound_high_dba": 49,
+  "weight_kg": 14,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "3, 44-45"
+  }
+ },
+ {
+  "model": "CS-Z25UFRAW",
+  "brand": "panasonic",
+  "series": "UF Floor Console",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.4,
+  "capacity_code": 25,
+  "airflow_ls": 163,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 207,
+  "height_mm": 600,
+  "sound_low_dba": 20,
+  "sound_high_dba": 38,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "46-47; NZ catalogue PNZ-J8888 24-25; Multi brochure AC-AUS-MULTI-C-24 7, 11"
+  }
+ },
+ {
+  "model": "CS-Z35UFRAW",
+  "brand": "panasonic",
+  "series": "UF Floor Console",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.3,
+  "capacity_code": 35,
+  "airflow_ls": 170,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 207,
+  "height_mm": 600,
+  "sound_low_dba": 20,
+  "sound_high_dba": 39,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "46-47; NZ catalogue PNZ-J8888 24-25; Multi brochure AC-AUS-MULTI-C-24 7, 11"
+  }
+ },
+ {
+  "model": "CS-Z50UFRAW",
+  "brand": "panasonic",
+  "series": "UF Floor Console",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 5.6,
+  "capacity_code": 50,
+  "airflow_ls": 198,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 750,
+  "depth_mm": 207,
+  "height_mm": 600,
+  "sound_low_dba": 27,
+  "sound_high_dba": 44,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
+   "page": "46-47; NZ catalogue PNZ-J8888 24-25; Multi brochure AC-AUS-MULTI-C-24 7, 11"
+  }
+ },
+ {
+  "model": "CS-Z25AKRW",
+  "brand": "panasonic",
+  "series": "Z Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.0,
+  "capacity_code": 25,
+  "airflow_ls": 188,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 779,
+  "depth_mm": 209,
+  "height_mm": 290,
+  "weight_kg": 8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Z Series wall split brochure (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-Z-L24 (July 2024)",
+   "page": "2; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-Z35AKRW",
+  "brand": "panasonic",
+  "series": "Z Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 35,
+  "airflow_ls": 193,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 779,
+  "depth_mm": 209,
+  "height_mm": 290,
+  "sound_low_dba": 26,
+  "sound_high_dba": 44,
+  "weight_kg": 8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-Z-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 20; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-Z42AKRW",
+  "brand": "panasonic",
+  "series": "Z Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.2,
+  "capacity_heat_kw": 5.0,
+  "capacity_code": 42,
+  "airflow_ls": 193,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 779,
+  "depth_mm": 209,
+  "height_mm": 290,
+  "sound_low_dba": 31,
+  "sound_high_dba": 44,
+  "weight_kg": 8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-Z-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 20; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-Z50AKRW",
+  "brand": "panasonic",
+  "series": "Z Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 208,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 779,
+  "depth_mm": 209,
+  "height_mm": 290,
+  "sound_low_dba": 34,
+  "sound_high_dba": 44,
+  "weight_kg": 8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-Z-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 20; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-Z60AKRW",
+  "brand": "panasonic",
+  "series": "Z Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 6.5,
+  "capacity_code": 60,
+  "airflow_ls": 328,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1040,
+  "depth_mm": 244,
+  "height_mm": 295,
+  "weight_kg": 12,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Z Series wall split brochure (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-Z-L24 (July 2024)",
+   "page": "2; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-Z71AKRW",
+  "brand": "panasonic",
+  "series": "Z Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 352,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1040,
+  "depth_mm": 244,
+  "height_mm": 295,
+  "sound_low_dba": 37,
+  "sound_high_dba": 49,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-Z-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 20; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-Z80YKR",
+  "brand": "panasonic",
+  "series": "Z Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.0,
+  "capacity_heat_kw": 9.0,
+  "capacity_code": 80,
+  "airflow_ls": 367,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1040,
+  "depth_mm": 244,
+  "height_mm": 295,
+  "sound_low_dba": 38,
+  "sound_high_dba": 51,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
+   "edition": "AC-AUS-Z-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 20"
+  }
+ },
+ {
+  "model": "CS-Z95AKR",
+  "brand": "panasonic",
+  "series": "Z Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.5,
+  "capacity_heat_kw": 10.3,
+  "capacity_code": 95,
+  "airflow_ls": 407,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1212,
+  "depth_mm": 269,
+  "height_mm": 309,
+  "sound_low_dba": 40,
+  "sound_high_dba": 53,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
+   "edition": "AC-AUS-Z-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 20"
+  }
+ },
+ {
+  "model": "CS-RZ25AKRW",
+  "brand": "panasonic",
+  "series": "RZ Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.5,
+  "capacity_heat_kw": 3.0,
+  "capacity_code": 25,
+  "airflow_ls": 188,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 779,
+  "depth_mm": 209,
+  "height_mm": 290,
+  "sound_low_dba": 25,
+  "sound_high_dba": 40,
+  "weight_kg": 8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-RZ-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 22; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-RZ35AKRW",
+  "brand": "panasonic",
+  "series": "RZ Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.5,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 35,
+  "airflow_ls": 193,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 779,
+  "depth_mm": 209,
+  "height_mm": 290,
+  "sound_low_dba": 26,
+  "sound_high_dba": 44,
+  "weight_kg": 8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-RZ-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 22; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-RZ42AKRW",
+  "brand": "panasonic",
+  "series": "RZ Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.2,
+  "capacity_heat_kw": 5.0,
+  "capacity_code": 42,
+  "airflow_ls": 193,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 779,
+  "depth_mm": 209,
+  "height_mm": 290,
+  "sound_low_dba": 31,
+  "sound_high_dba": 44,
+  "weight_kg": 8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-RZ-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 22; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-RZ50AKRW",
+  "brand": "panasonic",
+  "series": "RZ Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.0,
+  "capacity_heat_kw": 6.0,
+  "capacity_code": 50,
+  "airflow_ls": 208,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 779,
+  "depth_mm": 209,
+  "height_mm": 290,
+  "sound_low_dba": 34,
+  "sound_high_dba": 44,
+  "weight_kg": 8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-RZ-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 22; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-RZ60AKRW",
+  "brand": "panasonic",
+  "series": "RZ Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 6.0,
+  "capacity_heat_kw": 6.5,
+  "capacity_code": 60,
+  "airflow_ls": 328,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1040,
+  "depth_mm": 244,
+  "height_mm": 295,
+  "sound_low_dba": 36,
+  "sound_high_dba": 47,
+  "weight_kg": 12,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-RZ-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 22; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-RZ71AKRW",
+  "brand": "panasonic",
+  "series": "RZ Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 71,
+  "airflow_ls": 352,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair",
+   "multi"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1040,
+  "depth_mm": 244,
+  "height_mm": 295,
+  "sound_low_dba": 37,
+  "sound_high_dba": 49,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-RZ-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 22; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+  }
+ },
+ {
+  "model": "CS-RZ80YKR",
+  "brand": "panasonic",
+  "series": "RZ Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 8.0,
+  "capacity_heat_kw": 9.0,
+  "capacity_code": 80,
+  "airflow_ls": 367,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1040,
+  "depth_mm": 244,
+  "height_mm": 295,
+  "sound_low_dba": 38,
+  "sound_high_dba": 51,
+  "weight_kg": 13,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
+   "edition": "AC-AUS-RZ-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 22"
+  }
+ },
+ {
+  "model": "CS-RZ95AKR",
+  "brand": "panasonic",
+  "series": "RZ Series (wall)",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.5,
+  "capacity_heat_kw": 10.3,
+  "capacity_code": 95,
+  "airflow_ls": 407,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "split-pair"
+  ],
+  "refrigerant": "R32",
+  "width_mm": 1212,
+  "depth_mm": 269,
+  "height_mm": 309,
+  "sound_low_dba": 40,
+  "sound_high_dba": 53,
+  "weight_kg": 17,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
+   "edition": "AC-AUS-RZ-L24 (July 2024)",
+   "page": "2; NZ catalogue PNZ-J8888 22"
+  }
+ }
+]

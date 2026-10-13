@@ -382,6 +382,10 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
   /* (1)-(4), top-down */
   const capDown = table.downstream_not_larger !== false;
   const sized = new Map<string, SizedSection>();
+  /* each section's size from its own table, before the cap below: once the
+     conditional rules have raised a section, what follows it is capped again
+     at the size actually chosen (see "re-cap" further down) */
+  const ownSize = new Map<string, { liquid: number; gas: number }>();
   const visit = (nodeId: string, parent: { liquid: number; gas: number } | null) => {
     for (const s of children.get(nodeId) ?? []) {
       const to = nodeById.get(s.to)!;
@@ -449,6 +453,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         });
         continue;
       }
+      ownSize.set(s.id, size);
       if (parent && capDown && role !== "box")
         size = { liquid: Math.min(size.liquid, parent.liquid), gas: Math.min(size.gas, parent.gas) };
       sized.set(s.id, {
@@ -762,6 +767,31 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         code: "head-height-over",
         message: `Two heads are ${Math.round(worst)} m apart in height, over the book's ${cap} m`,
       });
+  }
+
+  /* RE-CAP: "downstream never larger than upstream" is against the size
+     ACTUALLY chosen upstream. The cap above ran on the table sizes; the rules
+     since (a main upsized by its length, ratio or run to the first tube,
+     Fujitsu Table A; PUHY's Table 1 step) can raise a section, and what
+     follows it may then take its own table size up to the new one (Fujitsu
+     J-IV at 100 m: main gas 19.05, so an AUXA36 branch is its own 19.05, not
+     the old 15.88). Only ever raises; a section raised by its own rule keeps
+     it. */
+  if (capDown) {
+    const recap = (nodeId: string) => {
+      for (const s of children.get(nodeId) ?? []) {
+        const sec = sized.get(s.id);
+        const own = ownSize.get(s.id);
+        const parent = incoming.get(s.from);
+        const up = parent ? sized.get(parent.id) : undefined;
+        if (sec && own && up && sec.role !== "box") {
+          sec.liquidMm = Math.max(sec.liquidMm, Math.min(own.liquid, up.liquidMm));
+          sec.gasMm = Math.max(sec.gasMm, Math.min(own.gas, up.gasMm));
+        }
+        recap(s.to);
+      }
+    };
+    recap(root.id);
   }
 
   /* A SIZE SET BY HAND wins over every rule above, and the fittings, the

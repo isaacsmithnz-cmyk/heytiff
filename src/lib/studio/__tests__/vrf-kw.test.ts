@@ -157,9 +157,10 @@ function fujitsu(): DataPack {
     head("ASYA18GACH", 18, 5.6),
     head("ASYA24GACH", 24, 7.1),
     head("ARXC060GTEH", 60, 18.0, "ducted"),
+    head("AUXA36GALH", 36, 10.0, "cassette-4way"),
   ];
   p.outdoor_units = [
-    outdoor("AJT054LBLCH", 15.5, "J-IV", { vrf_head_families: ["ASYA*"] }),
+    outdoor("AJT054LBLCH", 15.5, "J-IV", { vrf_head_families: ["ASYA*", "AUXA*"] }),
     outdoor("AJY072LELBH", 22.4, "J-IVL", { phase: "3", vrf_head_families: ["ASYA*", "ARXC*"] }),
     outdoor("AJY090LELBH", 28.0, "J-IVL", { phase: "3", vrf_head_families: ["ASYA*", "ARXC*"] }),
   ];
@@ -310,6 +311,21 @@ describe("the book's conditional sizes", () => {
   it("J-IV: farthest ≥ 90 m takes the main's gas to 19.05 on the outdoors named", () => {
     expect(section(sizeVrfTree(pack, odu("AJT054LBLCH"), two(79)), "A").gasMm).toBe(15.88); // 89 m
     expect(section(sizeVrfTree(pack, odu("AJT054LBLCH"), two(80)), "A")).toMatchObject({ gasMm: 19.05, liquidMm: 9.52 }); // 90 m
+  });
+
+  /* the cap is against the size ACTUALLY chosen upstream: an upsized main
+     lets what follows it take its own size up to the new one (Table C gives
+     a 36 9.52/19.05; with the main at 15.88 gas it was held to 15.88) */
+  it("J-IV at 100 m: main gas 19.05, and an AUXA36 branch takes its own 19.05", () => {
+    const far = (m: number) => tree([{ model: "AUXA36GALH", m }, { model: "ASYA12GACH", m: 8 }]);
+    const t = sizeVrfTree(pack, odu("AJT054LBLCH"), far(90));
+    expect(section(t, "A")).toMatchObject({ liquidMm: 9.52, gasMm: 19.05 });
+    expect(section(t, "b0")).toMatchObject({ liquidMm: 9.52, gasMm: 19.05 });
+    expect(section(t, "b1")).toMatchObject({ liquidMm: 6.35, gasMm: 12.7 }); // its own size, never raised
+    // under 90 m the main stays 15.88 and the 36 is held to it
+    const near = sizeVrfTree(pack, odu("AJT054LBLCH"), far(79));
+    expect(section(near, "A").gasMm).toBe(15.88);
+    expect(section(near, "b0").gasMm).toBe(15.88);
   });
 
   it("J-IVL: over 70 m to the first tube, the 10 HP main is 12.70/22.22", () => {

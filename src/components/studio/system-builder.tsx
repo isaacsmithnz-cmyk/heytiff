@@ -7,6 +7,7 @@ import { usePipeUnits } from "./pipe-units";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack, FormFactor, IndoorUnit, OutdoorUnit } from "@/lib/studio/packs/schema";
+import { indexNotation, indexPairText } from "@/lib/studio/packs/schema";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { coverPct, coversLoad, shortKw } from "@/lib/studio/fit";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
@@ -413,11 +414,12 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
         ? `${oduKw}, split outdoor`
         : oduKw;
   const headWord = (n: number) => `${n} ${n === 1 ? "head" : "heads"}`;
-  /* a VRF says it the way its book counts: P-numbers (PUHY) or kW (PUMY) */
+  /* a VRF says it the way its book counts: its capacity indexes, in the
+     brand's own notation (ME's P-numbers on a PUHY), or kW (PUMY) */
   const connectedText = vrfShare
     ? vrfShare.basis === "kw"
       ? `${vrfShare.connected.toFixed(1)} of ${vrfShare.outdoor.toFixed(1)} kW, ${headWord(headRows.length)}`
-      : `P${vrfShare.connected} of P${vrfShare.outdoor}, ${headWord(headRows.length)}`
+      : `${indexPairText(indexNotation(pack, oduRow?.brand), vrfShare.connected, vrfShare.outdoor, " of ")}, ${headWord(headRows.length)}`
     : ratio
     ? `${ratio.connectedKw.toFixed(1)} kW, ${headWord(ratio.heads)}`
     : oduRow && headRows.length

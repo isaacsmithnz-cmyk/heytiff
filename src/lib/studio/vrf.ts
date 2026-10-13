@@ -13,6 +13,7 @@
    limits and the charge are vrf-tree.ts. */
 
 import type { CompatibilityRule, DataPack, IndoorUnit, OutdoorUnit } from "./packs/schema";
+import { indexNotation, indexRangeText, indexText } from "./packs/schema";
 import { indoorReadiness, outdoorReadiness, vrfLineupTakes } from "./packs/ready";
 import { checkBlock, isBoxHead, type MultiFinding } from "./multi";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
@@ -116,7 +117,9 @@ function envelope(pack: DataPack, odu: OutdoorUnit, heads: IndoorUnit[]): MultiF
     out.push({ severity: "red", code: "no-rule", message: `${odu.model} has no connection limits in the book` });
     return out;
   }
-  if (odu.ratio_basis !== "kw") return [...out, ...checkBlock(band, odu, cm)];
+  /* an index as the brand's books write it: ME's "P50", else "index 50" */
+  const notation = indexNotation(pack, odu.brand);
+  if (odu.ratio_basis !== "kw") return [...out, ...checkBlock(band, odu, cm, undefined, notation)];
 
   /* PUMY: the heads by how they connect, then the kW ratio */
   const bb = odu.branch_boxes;
@@ -126,7 +129,7 @@ function envelope(pack: DataPack, odu: OutdoorUnit, heads: IndoorUnit[]): MultiF
       out.push({
         severity: "red",
         code: "outside-index-band",
-        message: `${u.model} is P${idx}, and ${odu.model} takes P${band.index_min ?? 0}–P${band.index_max ?? "∞"}`,
+        message: `${u.model} is ${indexText(notation, idx)}, and ${odu.model} takes ${indexRangeText(notation, band.index_min, band.index_max)}`,
       });
   }
   if (!box.length && cm.length > band.max_idus)

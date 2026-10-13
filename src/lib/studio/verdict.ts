@@ -13,6 +13,7 @@
 
 import type { DesignDocument, DesignSystem } from "./document";
 import type { DataPack, IndoorUnit, OutdoorUnit } from "./packs/schema";
+import { indexNotation } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { checkMultiCompatibility, UNDER_MINIMUM } from "./multi";
 import { outdoorsListing, pairFor } from "./builder";
@@ -199,7 +200,7 @@ function combinationFindings(doc: DesignDocument, pack: DataPack, sys: DesignSys
     if (!rule) {
       out.push({ severity: "red", code: "no-rule", message: `${odu.model} has no combination rule in the book` });
     } else if (heads.length) {
-      for (const f of checkMultiCompatibility(rule, oduSpec, heads)) {
+      for (const f of checkMultiCompatibility(rule, oduSpec, heads, indexNotation(pack, oduSpec.brand))) {
         /* a minimum the set is under is amber while it is being built (it
            can grow); with the outdoor chosen it is held against the system,
            as a VRF's under-ratio is — one head on a Daikin Super Multi is

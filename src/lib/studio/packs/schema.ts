@@ -361,6 +361,41 @@ export interface Brand {
       (systemTypeLabel), and a brand without one shows the generic alone.
       Kept here, in the data, so no label ever asks which brand it is. */
   system_names?: Partial<Record<SystemType, string>>;
+  /** how the brand's books write a capacity index, `{n}` standing for the
+      number: Mitsubishi Electric prints "P50" (the P-number), so "P{n}".
+      Absent for a brand whose books just say "capacity index" (Daikin) or
+      print no notation of their own: findings then read "index 50". A
+      display form only, like system_names. */
+  capacity_index_notation?: string;
+}
+
+/** a capacity index as a finding writes it, when the brand's books print no
+    notation of their own */
+export const DEFAULT_INDEX_NOTATION = "index {n}";
+
+/** the notation a brand's books use for a capacity index (brands.json
+    `capacity_index_notation`), else the plain "index {n}" */
+export function indexNotation(pack: Pick<DataPack, "brands">, brandId: string | null | undefined): string {
+  const own = pack.brands.find((b) => b.id === brandId)?.capacity_index_notation;
+  return typeof own === "string" && own.split("{n}").length === 2 ? own : DEFAULT_INDEX_NOTATION;
+}
+
+/** one index in a notation: "P50", "index 50" */
+export function indexText(notation: string, n: number | string): string {
+  return notation.replace("{n}", String(n));
+}
+
+/** two indexes joined ("–", " of "): the mark on both where the notation is
+    a mark on the number ("P10–P100", "P250 of P200"), said once where it is
+    a word before it ("index 10–100", "index 250 of 200") */
+export function indexPairText(notation: string, a: number | string, b: number | string, join: string): string {
+  const [pre, post] = notation.split("{n}");
+  return pre === "" || /\s$/.test(pre) ? `${pre}${a}${join}${b}${post}` : `${pre}${a}${post}${join}${pre}${b}${post}`;
+}
+
+/** a span of indexes, "P10–P100" / "index 10–100"; "… or more" with no top */
+export function indexRangeText(notation: string, lo: number | null | undefined, hi: number | null | undefined): string {
+  return hi == null ? `${indexText(notation, lo ?? 0)} or more` : indexPairText(notation, lo ?? 0, hi, "–");
 }
 
 /** a brand's own name for a system type ("VRV", "City Multi"); null when the

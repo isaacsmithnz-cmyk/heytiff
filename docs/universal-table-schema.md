@@ -55,7 +55,9 @@ The ingestion checklist question is therefore never "what's the g/m value?" but 
 ## Sections
 
 ### 1. `brands`
-`id` · `name` · `regions` · notes · `system_names` (O).
+`id` · `name` · `regions` · notes · `system_names` (O) · `capacity_index_notation` (O).
+
+`capacity_index_notation` is how the brand's books write a capacity index, `{n}` for the number: `"P{n}"` for Mitsubishi Electric (its P-number, "P50"). Absent, findings read "index 50" — right for Daikin ("Capacity index") and for any book that prints no notation of its own.
 
 `system_names` is the brand's own name for a system type, where it sells one under a name of its own: `{ "vrf": "VRV" }` for Daikin, `{ "vrf": "City Multi" }` for Mitsubishi Electric. "VRF" is the generic type for every brand; a label shows it with the brand's own beside it ("VRF (VRV)"), and a brand without one shows "VRF" alone. A display name, never a rule, so no code asks which brand it is.
 

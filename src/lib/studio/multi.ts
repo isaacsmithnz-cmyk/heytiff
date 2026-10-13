@@ -18,6 +18,7 @@ import type {
   MultiRule,
   OutdoorUnit,
 } from "./packs/schema";
+import { DEFAULT_INDEX_NOTATION, indexNotation, indexRangeText, indexText } from "./packs/schema";
 import { indoorReadiness, outdoorReadiness } from "./packs/ready";
 import { matchesModelGlob } from "./model-glob";
 import { capacityFit, type UnitFit } from "./fit";
@@ -336,7 +337,9 @@ export function checkBlock(
   c: CompatibilityRule,
   odu: OutdoorUnit,
   idus: IndoorUnit[],
-  table: TableStanding = { accepts: false, lists: false }
+  table: TableStanding = { accepts: false, lists: false },
+  /** how the outdoor's brand writes an index (indexNotation): "P{n}" */
+  notation: string = DEFAULT_INDEX_NOTATION
 ): MultiFinding[] {
   const out: MultiFinding[] = [];
   switch (c.method) {
@@ -453,7 +456,7 @@ export function checkBlock(
           out.push({
             severity: "red",
             code: "outside-index-band",
-            message: `${u.model} is P${idx}, and ${odu.model} takes P${c.index_min ?? 0}–P${c.index_max ?? "∞"}`,
+            message: `${u.model} is ${indexText(notation, idx)}, and ${odu.model} takes ${indexRangeText(notation, c.index_min, c.index_max)}`,
           });
       }
       const missing = idus.filter((u) => u.capacity_index == null);
@@ -589,11 +592,13 @@ export function checkBlock(
 export function checkMultiCompatibility(
   rule: MultiRule,
   odu: OutdoorUnit,
-  idus: IndoorUnit[]
+  idus: IndoorUnit[],
+  /** how the outdoor's brand writes an index (indexNotation) */
+  notation: string = DEFAULT_INDEX_NOTATION
 ): MultiFinding[] {
   const table = tableStanding(rule, idus);
   const findings: MultiFinding[] = [];
-  for (const f of rule.compatibility.flatMap((c) => checkBlock(c, odu, idus, table)))
+  for (const f of rule.compatibility.flatMap((c) => checkBlock(c, odu, idus, table, notation)))
     // two blocks that can't read a size class say so once
     if (f.code !== "capacity-code-unknown" || !findings.some((g) => g.code === f.code)) findings.push(f);
   if (odu.ports != null && idus.length > odu.ports)
@@ -638,7 +643,7 @@ export function proposeMultiOdus(
     if (!outdoorReadiness(pack, odu).roles.multi) continue;
     const rule = pack.multi_rules.find((r) => r.odu_model_ref === odu.model);
     if (!rule || odu.ports == null) continue; // readiness guarantees these; belt+braces
-    const findings = checkMultiCompatibility(rule, odu, idus);
+    const findings = checkMultiCompatibility(rule, odu, idus, indexNotation(pack, odu.brand));
     out.push({
       odu,
       rule,

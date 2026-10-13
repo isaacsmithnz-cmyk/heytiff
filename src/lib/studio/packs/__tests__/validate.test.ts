@@ -83,6 +83,15 @@ describe("validator catches broken packs", () => {
     expect(messages).toContain("system_names: unknown system type vrv");
   });
 
+  it("takes an index notation that marks the number once, and refuses one that doesn't", () => {
+    const ok = base();
+    ok.brands[0].capacity_index_notation = "P{n}";
+    expect(validatePack(ok).errors).toEqual([]);
+    const bad = base();
+    bad.brands[0].capacity_index_notation = "P";
+    expect(validatePack(bad).errors.map((e) => e.message)).toContain("capacity_index_notation must hold {n} once");
+  });
+
   it("flags a pair_table referencing a non-existent unit", () => {
     const p = base();
     p.pair_tables.push({

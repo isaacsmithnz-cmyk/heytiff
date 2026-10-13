@@ -1,0 +1,413 @@
+[
+ {
+  "odu_model_ref": "CU-2Z52VBR",
+  "port_pipe_sizes": [
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   }
+  ],
+  "compatibility": [
+   {
+    "method": "family_whitelist_with_limits",
+    "families": [
+     "CS-Z25AKRW",
+     "CS-RZ25AKRW",
+     "CS-Z35AKRW",
+     "CS-RZ35AKRW",
+     "CS-Z42AKRW",
+     "CS-RZ42AKRW",
+     "CS-Z50AKRW",
+     "CS-RZ50AKRW",
+     "S-25PY3E",
+     "S-36PY3E",
+     "S-50PY3E",
+     "CS-Z25UD3RAW",
+     "CS-Z35UD3RAW",
+     "CS-Z50UD3RAW",
+     "CS-Z25UFRAW",
+     "CS-Z35UFRAW",
+     "CS-Z50UFRAW"
+    ],
+    "max_count": 2
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "max": 2,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "8, 11"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "min": 3.2,
+    "max": 7.7,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "8, 11"
+    }
+   }
+  ],
+  "max_total_pipe_m": 30,
+  "max_per_branch_m": 20,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 15
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+   "page": "8, 11"
+  }
+ },
+ {
+  "odu_model_ref": "CU-3Z54VBR",
+  "port_pipe_sizes": [
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   }
+  ],
+  "compatibility": [
+   {
+    "method": "family_whitelist_with_limits",
+    "families": [
+     "CS-Z25AKRW",
+     "CS-RZ25AKRW",
+     "CS-Z35AKRW",
+     "CS-RZ35AKRW",
+     "CS-Z42AKRW",
+     "CS-RZ42AKRW",
+     "CS-Z50AKRW",
+     "CS-RZ50AKRW",
+     "S-25PY3E",
+     "S-36PY3E",
+     "S-50PY3E",
+     "CS-Z25UD3RAW",
+     "CS-Z35UD3RAW",
+     "CS-Z50UD3RAW"
+    ],
+    "max_count": 3
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "max": 3,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "8, 11"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "min": 4.5,
+    "max": 9.5,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "8, 11"
+    }
+   }
+  ],
+  "max_total_pipe_m": 50,
+  "max_per_branch_m": 25,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 20
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+   "page": "8, 11"
+  }
+ },
+ {
+  "odu_model_ref": "CU-4Z71VBR",
+  "port_pipe_sizes": [
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   }
+  ],
+  "compatibility": [
+   {
+    "method": "family_whitelist_with_limits",
+    "families": [
+     "CS-Z25AKRW",
+     "CS-RZ25AKRW",
+     "CS-Z35AKRW",
+     "CS-RZ35AKRW",
+     "CS-Z42AKRW",
+     "CS-RZ42AKRW",
+     "CS-Z50AKRW",
+     "CS-RZ50AKRW",
+     "CS-Z60AKRW",
+     "CS-RZ60AKRW",
+     "S-25PY3E",
+     "S-36PY3E",
+     "S-50PY3E",
+     "S-60PY3E",
+     "CS-Z25UD3RAW",
+     "CS-Z35UD3RAW",
+     "CS-Z50UD3RAW",
+     "CS-Z60UD3RAW"
+    ],
+    "max_count": 4
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "max": 4,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "8, 11"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "min": 4.5,
+    "max": 11.5,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "8, 11"
+    }
+   }
+  ],
+  "max_total_pipe_m": 60,
+  "max_per_branch_m": 25,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 30,
+   "g_per_m_beyond": 20
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+   "page": "8, 11"
+  }
+ },
+ {
+  "odu_model_ref": "CU-4Z80VBR",
+  "port_pipe_sizes": [
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   }
+  ],
+  "compatibility": [
+   {
+    "method": "family_whitelist_with_limits",
+    "families": [
+     "CS-Z25AKRW",
+     "CS-RZ25AKRW",
+     "CS-Z35AKRW",
+     "CS-RZ35AKRW",
+     "CS-Z42AKRW",
+     "CS-RZ42AKRW",
+     "CS-Z50AKRW",
+     "CS-RZ50AKRW",
+     "CS-Z60AKRW",
+     "CS-RZ60AKRW",
+     "CS-Z71AKRW",
+     "CS-RZ71AKRW",
+     "S-25PY3E",
+     "S-36PY3E",
+     "S-50PY3E",
+     "S-60PY3E",
+     "CS-Z25UD3RAW",
+     "CS-Z35UD3RAW",
+     "CS-Z50UD3RAW",
+     "CS-Z60UD3RAW"
+    ],
+    "max_count": 4
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "max": 4,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "9, 11"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "min": 4.5,
+    "max": 14.7,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "9, 11"
+    }
+   }
+  ],
+  "max_total_pipe_m": 70,
+  "max_per_branch_m": 25,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 45,
+   "g_per_m_beyond": 20
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+   "page": "9, 11"
+  }
+ },
+ {
+  "odu_model_ref": "CU-5Z100VBR",
+  "port_pipe_sizes": [
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   },
+   {
+    "liquid_mm": 6.35,
+    "gas_mm": 9.52
+   }
+  ],
+  "compatibility": [
+   {
+    "method": "family_whitelist_with_limits",
+    "families": [
+     "CS-Z25AKRW",
+     "CS-RZ25AKRW",
+     "CS-Z35AKRW",
+     "CS-RZ35AKRW",
+     "CS-Z42AKRW",
+     "CS-RZ42AKRW",
+     "CS-Z50AKRW",
+     "CS-RZ50AKRW",
+     "CS-Z60AKRW",
+     "CS-RZ60AKRW",
+     "CS-Z71AKRW",
+     "CS-RZ71AKRW",
+     "S-25PY3E",
+     "S-36PY3E",
+     "S-50PY3E",
+     "S-60PY3E",
+     "CS-Z25UD3RAW",
+     "CS-Z35UD3RAW",
+     "CS-Z50UD3RAW",
+     "CS-Z60UD3RAW"
+    ],
+    "max_count": 5
+   },
+   {
+    "method": "head_count",
+    "min": 2,
+    "max": 5,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "9, 11"
+    }
+   },
+   {
+    "method": "connected_capacity",
+    "basis": "class_kw",
+    "min": 4.5,
+    "max": 18.3,
+    "provenance": {
+     "kind": "extracted",
+     "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+     "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+     "page": "9, 11"
+    }
+   }
+  ],
+  "max_total_pipe_m": 80,
+  "max_per_branch_m": 25,
+  "max_lift_m": 15,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 45,
+   "g_per_m_beyond": 20
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
+   "edition": "AC-AUS-MULTI-C-24 (July 2024)",
+   "page": "9, 11"
+  }
+ }
+]

@@ -4,6 +4,7 @@ import { ChangesList, type ChangeEvent } from "../changes-list";
 const events: ChangeEvent[] = [
   {
     id: "2",
+    brand: "Mitsubishi Electric",
     section: "indoor_units",
     rowKey: "PEFY-1",
     field: "airflow_ls",
@@ -15,6 +16,7 @@ const events: ChangeEvent[] = [
   },
   {
     id: "1",
+    brand: "Daikin",
     section: "outdoor_units",
     rowKey: "PUHY-9",
     field: "ports",
@@ -37,6 +39,10 @@ describe("ChangesList", () => {
 
     const clear = screen.getByText("PUHY-9").closest(".hq-change") as HTMLElement;
     expect(within(clear).getByText(/8 → pack/)).toBeInTheDocument();
+
+    // the log holds every brand's edits: each names its brand before the model
+    expect(set.querySelector(".hq-change-body")).toHaveTextContent(/^set Mitsubishi Electric PEFY-1, Airflow/);
+    expect(clear.querySelector(".hq-change-body")).toHaveTextContent(/^cleared Daikin PUHY-9/);
   });
 
   it("renders tag-list (array) values readably", () => {
@@ -45,6 +51,7 @@ describe("ChangesList", () => {
         events={[
           {
             id: "3",
+            brand: "Mitsubishi Electric",
             section: "indoor_units",
             rowKey: "MSZ-AP25",
             field: "system_roles",

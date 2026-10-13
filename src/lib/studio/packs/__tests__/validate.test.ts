@@ -70,6 +70,19 @@ describe("validator catches broken packs", () => {
   }
   const prov = { kind: "extracted" as const, source: "book" };
 
+  it("takes a brand's own system name, and refuses a blank one or an unknown type", () => {
+    const ok = base();
+    ok.brands[0].system_names = { vrf: "VRV" };
+    expect(validatePack(ok).errors).toEqual([]);
+
+    const bad = base();
+    // "vrv" is a name, not a system type: the shape a typo'd pack row would have
+    bad.brands[0].system_names = { vrf: " ", vrv: "VRV" } as unknown as Record<"vrf", string>;
+    const messages = validatePack(bad).errors.map((e) => e.message);
+    expect(messages).toContain("system_names.vrf blank");
+    expect(messages).toContain("system_names: unknown system type vrv");
+  });
+
   it("flags a pair_table referencing a non-existent unit", () => {
     const p = base();
     p.pair_tables.push({

@@ -28,7 +28,7 @@ export default async function HqDataPage() {
       const kpis = catalogKpis(view);
       return {
         brand: r.brand,
-        name: pack.brands[0]?.name ?? r.brand,
+        name: pack.brands.find((b) => b.id === r.brand)?.name ?? r.brand,
         packName: r.meta.name,
         version: r.version,
         idu: view.indoor.length,

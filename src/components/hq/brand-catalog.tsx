@@ -470,7 +470,7 @@ export function HqBrandCatalog({
         <div className="hq-dt-summary">
           {view.matches === 0 ? (
             <>
-              No {tab.label.toLowerCase()} rows match <b className="hq-dt-q">{query}</b>
+              Nothing under {tab.label} matches <b className="hq-dt-q">{query}</b>
             </>
           ) : (
             <>

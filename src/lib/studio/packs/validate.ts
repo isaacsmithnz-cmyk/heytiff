@@ -12,6 +12,7 @@ import {
   FORM_FACTORS,
   REFRIGERANTS,
   SYSTEM_ROLES,
+  SYSTEM_TYPES,
   ADDITIONAL_CHARGE_METHODS,
   COMPATIBILITY_METHODS,
   PIPE_SIZING_METHODS,
@@ -21,6 +22,7 @@ import {
   type HeadMatch,
   type PipeSizingRule,
   type Provenance,
+  type SystemType,
 } from "./schema";
 
 const PLANES = new Set([
@@ -323,6 +325,16 @@ export function validatePack(pack: DataPack): ValidationResult {
     if (!str(b.name)) push("name missing");
     if (seenBrand.has(b.id)) push("duplicate brand id");
     seenBrand.add(b.id);
+    // the brand's own system names: a known system type each, never blank
+    if (b.system_names != null) {
+      if (typeof b.system_names !== "object" || Array.isArray(b.system_names))
+        push("system_names must be an object");
+      else
+        for (const [type, own] of Object.entries(b.system_names)) {
+          if (!SYSTEM_TYPES.includes(type as SystemType)) push(`system_names: unknown system type ${type}`);
+          if (typeof own !== "string" || !own.trim()) push(`system_names.${type} blank`);
+        }
+    }
   }
 
   // indoor units

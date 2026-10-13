@@ -39,7 +39,15 @@ describe("the library manifest", () => {
     const me = m.brands.find((b) => b.id === "mitsubishi-electric");
     expect(me?.name).toBe("Mitsubishi Electric");
     expect(me?.version).toMatch(/^\d{4}\.\d+$/);
-    expect(me?.systems.map((s) => s.label)).toEqual(["Split systems", "Multi-split", "VRF"]);
+    /* VRF is the generic type; "City Multi" is Mitsubishi Electric's own name
+       for it, read from its brands.json row, and so is Daikin's "VRV" */
+    expect(me?.systems.map((s) => s.label)).toEqual(["Split systems", "Multi-split", "VRF (City Multi)"]);
+    expect(me?.systems.map((s) => s.phrase)).toEqual(["split systems", "multi-split", "City Multi"]);
+    const daikin = m.brands.find((b) => b.id === "daikin");
+    expect(daikin?.systems.find((s) => s.system === "vrf")).toMatchObject({ label: "VRF (VRV)", phrase: "VRV" });
+    /* a brand with no name of its own goes by the generic one */
+    const actron = m.brands.find((b) => b.id === "actron-air");
+    expect(actron?.systems.find((s) => s.system === "vrf")).toMatchObject({ label: "VRF", phrase: "VRF" });
     /* and the day it last changed, as the pack says it (the gate in
        installed-packs.test.ts is what requires the pack to say) */
     expect(me?.updated).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -162,9 +170,9 @@ function manifest(version: string, split: Record<string, string[]>, vrf: Record<
         version,
         updated: "2026-08-18",
         systems: [
-          { system: "split", label: "Split systems", series: series(split, "indoor") },
-          { system: "multi", label: "Multi-split", series: [] },
-          { system: "vrf", label: "VRF", series: series(vrf, "indoor") },
+          { system: "split", label: "Split systems", phrase: "split systems", series: series(split, "indoor") },
+          { system: "multi", label: "Multi-split", phrase: "multi-split", series: [] },
+          { system: "vrf", label: "VRF", phrase: "VRF", series: series(vrf, "indoor") },
         ],
       },
     ],

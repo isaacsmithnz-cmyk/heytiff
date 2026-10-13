@@ -1,6 +1,7 @@
 import { requireHqPage } from "@/lib/hq/guard";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { installedPacks, loadInstalledPack } from "@/lib/studio/packs/server";
+import { loadInstalledPack } from "@/lib/studio/packs/server";
+import { latestPackRefs } from "@/lib/hq/packs";
 import { indoorReadiness, outdoorReadiness } from "@/lib/studio/packs/ready";
 import { buildOrgRows } from "@/lib/hq/overview";
 import { KpiGrid, type Kpi } from "@/components/hq/kpi-grid";
@@ -22,11 +23,13 @@ async function countOf(
   return count ?? 0;
 }
 
-/** Catalog units + engine-ready share across installed packs (raw, no overrides
-    yet in Stage A). A unit is engine-ready when no claimed role is missing a
-    field, i.e. its readiness `missing` map is empty. */
-async function catalogSummary(): Promise<{ units: number; readyPct: number }> {
-  const refs = await installedPacks();
+/** Catalog units + engine-ready share across every brand's newest pack (raw,
+    no overrides yet in Stage A) — the same packs /hq/data shows, so an older
+    edition left installed beside a new one isn't counted twice. A unit is
+    engine-ready when no claimed role is missing a field, i.e. its readiness
+    `missing` map is empty. */
+async function catalogSummary(): Promise<{ units: number; readyPct: number; brands: number }> {
+  const refs = await latestPackRefs();
   let units = 0;
   let ready = 0;
   for (const ref of refs) {
@@ -40,7 +43,11 @@ async function catalogSummary(): Promise<{ units: number; readyPct: number }> {
       if (Object.keys(outdoorReadiness(pack, odu).missing).length === 0) ready++;
     }
   }
-  return { units, readyPct: units ? Math.round((ready / units) * 100) : 0 };
+  return {
+    units,
+    readyPct: units ? Math.round((ready / units) * 100) : 0,
+    brands: refs.length,
+  };
 }
 
 export default async function HqOverviewPage() {
@@ -155,7 +162,12 @@ export default async function HqOverviewPage() {
     {
       label: "Catalog units",
       value: catalog.units,
-      sub: <><b>{catalog.readyPct}%</b> engine-ready</>,
+      sub: (
+        <>
+          <b>{catalog.readyPct}%</b> engine-ready, {catalog.brands} brand
+          {catalog.brands === 1 ? "" : "s"}
+        </>
+      ),
     },
   ];
 

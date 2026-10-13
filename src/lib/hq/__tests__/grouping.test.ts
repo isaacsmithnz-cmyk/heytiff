@@ -105,8 +105,22 @@ describe("groupBrandCatalog", () => {
     expect(g.systems.map((s) => s.label)).toEqual([
       "Split systems",
       "Multi-split",
-      "VRF (City Multi)",
+      "VRF",
     ]);
+  });
+
+  it("names a system type the brand's own way, from its brands.json row", () => {
+    const view = buildCatalogView(fixture(), []);
+    const label = (names?: Record<string, string>) =>
+      groupBrandCatalog(view, names ? { system_names: names } : null).systems.map((s) => s.label);
+    // VRF is every brand's; VRV is Daikin's own name, City Multi ME's
+    expect(label({ vrf: "VRV" })).toEqual(["Split systems", "Multi-split", "VRF (VRV)"]);
+    expect(label({ vrf: "City Multi" })[2]).toBe("VRF (City Multi)");
+    // a name that already says VRF stands alone rather than "VRF (AIRSTAGE VRF)"
+    expect(label({ vrf: "AIRSTAGE VRF" })[2]).toBe("AIRSTAGE VRF");
+    // no name of its own: the generic one
+    expect(label()[2]).toBe("VRF");
+    expect(label({})[2]).toBe("VRF");
   });
 
   it("counts per system: multi is ODU-only in this fixture", () => {

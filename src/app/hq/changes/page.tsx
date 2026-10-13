@@ -1,5 +1,6 @@
 import { requireHqPage } from "@/lib/hq/guard";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { brandNames } from "@/lib/hq/packs";
 import { ChangesList, type ChangeEvent } from "@/components/hq/changes-list";
 
 /* HQ change log — the manual-edit audit trail, newest first. */
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 type LogRow = {
   id: string;
+  brand: string;
   section: string;
   row_key: string;
   field: string;
@@ -21,14 +23,18 @@ type LogRow = {
 export default async function HqChangesPage() {
   await requireHqPage();
 
-  const { data } = await supabaseAdmin
-    .from("pack_override_log")
-    .select("id, section, row_key, field, action, old_value, new_value, entered_by, entered_at")
-    .order("entered_at", { ascending: false })
-    .limit(200);
+  const [{ data }, names] = await Promise.all([
+    supabaseAdmin
+      .from("pack_override_log")
+      .select("id, brand, section, row_key, field, action, old_value, new_value, entered_by, entered_at")
+      .order("entered_at", { ascending: false })
+      .limit(200),
+    brandNames(),
+  ]);
 
   const events: ChangeEvent[] = ((data as LogRow[]) ?? []).map((r) => ({
     id: r.id,
+    brand: names.get(r.brand) ?? r.brand,
     section: r.section,
     rowKey: r.row_key,
     field: r.field,

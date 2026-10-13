@@ -666,7 +666,7 @@
    "kind": "extracted",
    "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
    "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 8-9, 10 (capacity_code = the chart's kW class)"
   }
  },
  {
@@ -676,7 +676,7 @@
   "form_factor": "cassette-compact",
   "capacity_cool_kw": 3.6,
   "capacity_heat_kw": 3.6,
-  "capacity_code": 36,
+  "capacity_code": 35,
   "airflow_ls": 158,
   "drain_pump": "built-in",
   "conn_liquid_mm": 6.35,
@@ -700,7 +700,7 @@
    "kind": "extracted",
    "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
    "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 8-9, 10 (capacity_code = the chart's kW class)"
   }
  },
  {
@@ -734,7 +734,7 @@
    "kind": "extracted",
    "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
    "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 8-9, 10 (capacity_code = the chart's kW class)"
   }
  },
  {
@@ -768,7 +768,7 @@
    "kind": "extracted",
    "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Multi Split Air Conditioners 2024/2025 brochure (AU)",
    "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 10"
+   "page": "38-39; Multi brochure AC-AUS-MULTI-C-24 7, 8-9, 10 (capacity_code = the chart's kW class)"
   }
  },
  {

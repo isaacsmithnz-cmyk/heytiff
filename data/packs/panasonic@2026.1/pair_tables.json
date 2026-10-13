@@ -1428,69 +1428,6 @@
   }
  },
  {
-  "idu_model": "S-36PY3E",
-  "odu_model": "U-36PZ3R5",
-  "pipe_liquid_mm": 6.35,
-  "pipe_gas_mm": 12.7,
-  "max_length_m": 20,
-  "max_lift_m": 15,
-  "additional_charge": {
-   "method": "threshold_then_rate",
-   "free_up_to_m": 7.5,
-   "g_per_m_beyond": 10
-  },
-  "rated_cool_kw": 3.6,
-  "rated_heat_kw": 3.6,
-  "provenance": {
-   "kind": "extracted",
-   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
-   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "38-39 (pipe, length, lift, rating); 30-31, 36-37 (that outdoor's chargeless length and g/m)"
-  }
- },
- {
-  "idu_model": "S-50PY3E",
-  "odu_model": "U-50PZ3R5",
-  "pipe_liquid_mm": 6.35,
-  "pipe_gas_mm": 12.7,
-  "max_length_m": 30,
-  "max_lift_m": 15,
-  "additional_charge": {
-   "method": "threshold_then_rate",
-   "free_up_to_m": 10,
-   "g_per_m_beyond": 15
-  },
-  "rated_cool_kw": 5.0,
-  "rated_heat_kw": 5.0,
-  "provenance": {
-   "kind": "extracted",
-   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
-   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "38-39 (pipe, length, lift, rating); 30-31, 36-37 (that outdoor's chargeless length and g/m)"
-  }
- },
- {
-  "idu_model": "S-60PY3E",
-  "odu_model": "U-60PZ4R5",
-  "pipe_liquid_mm": 6.35,
-  "pipe_gas_mm": 12.7,
-  "max_length_m": 30,
-  "max_lift_m": 15,
-  "additional_charge": {
-   "method": "threshold_then_rate",
-   "free_up_to_m": 10,
-   "g_per_m_beyond": 15
-  },
-  "rated_cool_kw": 6.0,
-  "rated_heat_kw": 6.0,
-  "provenance": {
-   "kind": "extracted",
-   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
-   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "38-39 (pipe, length, lift, rating); 30-31, 36-37 (that outdoor's chargeless length and g/m)"
-  }
- },
- {
   "idu_model": "S-25PK4R",
   "odu_model": "CU-RZ25AKR",
   "pipe_liquid_mm": 6.35,
@@ -1593,69 +1530,6 @@
    "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
    "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
    "page": "44-45"
-  }
- },
- {
-  "idu_model": "CS-Z25UD3RAW",
-  "odu_model": "CU-Z25UBRA",
-  "pipe_liquid_mm": 6.35,
-  "pipe_gas_mm": 9.52,
-  "max_length_m": 20,
-  "max_lift_m": 15,
-  "additional_charge": {
-   "method": "threshold_then_rate",
-   "free_up_to_m": 7.5,
-   "g_per_m_beyond": 10
-  },
-  "rated_cool_kw": 2.6,
-  "rated_heat_kw": 3.3,
-  "provenance": {
-   "kind": "extracted",
-   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
-   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "32-33; NZ catalogue PNZ-J8888 24-25 (that outdoor's chargeless length and g/m)"
-  }
- },
- {
-  "idu_model": "CS-Z35UD3RAW",
-  "odu_model": "CU-Z35UBRA",
-  "pipe_liquid_mm": 6.35,
-  "pipe_gas_mm": 9.52,
-  "max_length_m": 20,
-  "max_lift_m": 15,
-  "additional_charge": {
-   "method": "threshold_then_rate",
-   "free_up_to_m": 7.5,
-   "g_per_m_beyond": 10
-  },
-  "rated_cool_kw": 3.7,
-  "rated_heat_kw": 4.2,
-  "provenance": {
-   "kind": "extracted",
-   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
-   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "32-33; NZ catalogue PNZ-J8888 24-25 (that outdoor's chargeless length and g/m)"
-  }
- },
- {
-  "idu_model": "CS-Z50UD3RAW",
-  "odu_model": "CU-Z50UBRA",
-  "pipe_liquid_mm": 6.35,
-  "pipe_gas_mm": 12.7,
-  "max_length_m": 30,
-  "max_lift_m": 20,
-  "additional_charge": {
-   "method": "threshold_then_rate",
-   "free_up_to_m": 7.5,
-   "g_per_m_beyond": 15
-  },
-  "rated_cool_kw": 5.0,
-  "rated_heat_kw": 6.1,
-  "provenance": {
-   "kind": "extracted",
-   "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
-   "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "32-33; NZ catalogue PNZ-J8888 24-25 (that outdoor's chargeless length and g/m)"
   }
  },
  {

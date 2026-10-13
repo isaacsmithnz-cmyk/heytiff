@@ -2171,5 +2171,2640 @@
    "edition": "DR_AB020ES_01 (GENERAL Partner Portal)",
    "page": "f.4; DR_AB021ES_01 f.2"
   }
+ },
+ {
+  "model": "AUXB007GLEH",
+  "brand": "fujitsu",
+  "series": "AUXB-GLEH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.8,
+  "capacity_code": 7,
+  "airflow_ls": 150,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 245,
+  "sound_low_dba": 27,
+  "sound_high_dba": 34,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-5 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXB009GLEH",
+  "brand": "fujitsu",
+  "series": "AUXB-GLEH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 9,
+  "airflow_ls": 153,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 245,
+  "sound_low_dba": 27,
+  "sound_high_dba": 35,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-5 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXB012GLEH",
+  "brand": "fujitsu",
+  "series": "AUXB-GLEH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.1,
+  "capacity_code": 12,
+  "airflow_ls": 167,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 245,
+  "sound_low_dba": 29,
+  "sound_high_dba": 37,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-6 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXB014GLEH",
+  "brand": "fujitsu",
+  "series": "AUXB-GLEH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_code": 14,
+  "airflow_ls": 189,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 245,
+  "sound_low_dba": 30,
+  "sound_high_dba": 38,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-6 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXB018GLEH",
+  "brand": "fujitsu",
+  "series": "AUXB-GLEH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 197,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 245,
+  "sound_low_dba": 30,
+  "sound_high_dba": 41,
+  "weight_kg": 17.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-6 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXB024GLEH",
+  "brand": "fujitsu",
+  "series": "AUXB-GLEH",
+  "form_factor": "cassette-compact",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 286,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 570,
+  "depth_mm": 570,
+  "height_mm": 245,
+  "sound_low_dba": 35,
+  "sound_high_dba": 50,
+  "weight_kg": 17.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-6 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXD18GALH",
+  "brand": "fujitsu",
+  "series": "AUXD-GALH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 319,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 246,
+  "sound_low_dba": 29,
+  "sound_high_dba": 36,
+  "weight_kg": 22.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-7 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXD24GALH",
+  "brand": "fujitsu",
+  "series": "AUXD-GALH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 356,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 246,
+  "sound_low_dba": 29,
+  "sound_high_dba": 38,
+  "weight_kg": 22.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-7 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXA18GALH",
+  "brand": "fujitsu",
+  "series": "AUXA-GALH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 394,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 33,
+  "sound_high_dba": 40,
+  "weight_kg": 27.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-8 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXA24GALH",
+  "brand": "fujitsu",
+  "series": "AUXA-GALH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 394,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 33,
+  "sound_high_dba": 40,
+  "weight_kg": 27.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-8 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXA30GALH",
+  "brand": "fujitsu",
+  "series": "AUXA-GALH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 30,
+  "airflow_ls": 444,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 33,
+  "sound_high_dba": 40,
+  "weight_kg": 27.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-9 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXA34GALH",
+  "brand": "fujitsu",
+  "series": "AUXA-GALH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "capacity_code": 34,
+  "airflow_ls": 486,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 33,
+  "sound_high_dba": 43,
+  "weight_kg": 27.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-9 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXA36GALH",
+  "brand": "fujitsu",
+  "series": "AUXA-GALH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_code": 36,
+  "airflow_ls": 500,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 33,
+  "sound_high_dba": 44,
+  "weight_kg": 27.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-10 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXA45GALH",
+  "brand": "fujitsu",
+  "series": "AUXA-GALH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 14.0,
+  "capacity_code": 45,
+  "airflow_ls": 528,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 33,
+  "sound_high_dba": 46,
+  "weight_kg": 27.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-10 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXA54GALH",
+  "brand": "fujitsu",
+  "series": "AUXA-GALH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_code": 54,
+  "airflow_ls": 556,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 33,
+  "sound_high_dba": 47,
+  "weight_kg": 27.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-10 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXM018GLEH",
+  "brand": "fujitsu",
+  "series": "AUXM-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 292,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 246,
+  "sound_low_dba": 29,
+  "sound_high_dba": 33,
+  "weight_kg": 24.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-12 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXM024GLEH",
+  "brand": "fujitsu",
+  "series": "AUXM-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 311,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 246,
+  "sound_low_dba": 30,
+  "sound_high_dba": 35,
+  "weight_kg": 24.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-12 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXM030GLEH",
+  "brand": "fujitsu",
+  "series": "AUXM-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 30,
+  "airflow_ls": 408,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 246,
+  "sound_low_dba": 31,
+  "sound_high_dba": 40,
+  "weight_kg": 24.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-12 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXK018GLEH",
+  "brand": "fujitsu",
+  "series": "AUXK-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 394,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 34,
+  "sound_high_dba": 38,
+  "weight_kg": 26.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-13 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXK024GLEH",
+  "brand": "fujitsu",
+  "series": "AUXK-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 394,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 34,
+  "sound_high_dba": 38,
+  "weight_kg": 26.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-13 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXK030GLEH",
+  "brand": "fujitsu",
+  "series": "AUXK-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 30,
+  "airflow_ls": 400,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 35,
+  "sound_high_dba": 39,
+  "weight_kg": 29.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-13 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXK034GLEH",
+  "brand": "fujitsu",
+  "series": "AUXK-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "capacity_code": 34,
+  "airflow_ls": 400,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 35,
+  "sound_high_dba": 39,
+  "weight_kg": 29.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-13 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXK036GLEH",
+  "brand": "fujitsu",
+  "series": "AUXK-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_code": 36,
+  "airflow_ls": 450,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 35,
+  "sound_high_dba": 41,
+  "weight_kg": 29.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-14 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXK045GLEH",
+  "brand": "fujitsu",
+  "series": "AUXK-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 14.0,
+  "capacity_code": 45,
+  "airflow_ls": 506,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 36,
+  "sound_high_dba": 44,
+  "weight_kg": 29.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-14 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXK054GLEH",
+  "brand": "fujitsu",
+  "series": "AUXK-GLEH",
+  "form_factor": "cassette-4way",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_code": 54,
+  "airflow_ls": 567,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 840,
+  "height_mm": 288,
+  "sound_low_dba": 36,
+  "sound_high_dba": 47,
+  "weight_kg": 29.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-14 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXV007GLEH",
+  "brand": "fujitsu",
+  "series": "AUXV-GLEH",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.8,
+  "capacity_code": 7,
+  "airflow_ls": 153,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 785,
+  "depth_mm": 570,
+  "height_mm": 198,
+  "sound_low_dba": 33,
+  "sound_high_dba": 42,
+  "weight_kg": 19.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-15 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXV009GLEH",
+  "brand": "fujitsu",
+  "series": "AUXV-GLEH",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 9,
+  "airflow_ls": 153,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 785,
+  "depth_mm": 570,
+  "height_mm": 198,
+  "sound_low_dba": 33,
+  "sound_high_dba": 42,
+  "weight_kg": 19.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-15 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXV012GLEH",
+  "brand": "fujitsu",
+  "series": "AUXV-GLEH",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 12,
+  "airflow_ls": 186,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 785,
+  "depth_mm": 570,
+  "height_mm": 198,
+  "sound_low_dba": 36,
+  "sound_high_dba": 45,
+  "weight_kg": 19.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-15 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXV014GLEH",
+  "brand": "fujitsu",
+  "series": "AUXV-GLEH",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_code": 14,
+  "airflow_ls": 200,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1190,
+  "depth_mm": 570,
+  "height_mm": 198,
+  "sound_low_dba": 33,
+  "sound_high_dba": 37,
+  "weight_kg": 26.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-16 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXV018GLEH",
+  "brand": "fujitsu",
+  "series": "AUXV-GLEH",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 247,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1190,
+  "depth_mm": 570,
+  "height_mm": 198,
+  "sound_low_dba": 36,
+  "sound_high_dba": 44,
+  "weight_kg": 26.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-16 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AUXV024GLEH",
+  "brand": "fujitsu",
+  "series": "AUXV-GLEH",
+  "form_factor": "cassette-1way",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 319,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1190,
+  "depth_mm": 570,
+  "height_mm": 198,
+  "sound_low_dba": 39,
+  "sound_high_dba": 49,
+  "weight_kg": 27.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-16 (spec); f.06-20 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ARXK007GLGH",
+  "brand": "fujitsu",
+  "series": "ARXK-GLGH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.8,
+  "capacity_code": 7,
+  "airflow_ls": 128,
+  "static_pressure_pa": 30,
+  "supply_opening": {
+   "w_mm": 650,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 198,
+  "sound_low_dba": 22,
+  "sound_high_dba": 26,
+  "weight_kg": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-17 (spec); f.06-21 (type, pipe sizes); f.04-47 (outline)"
+  }
+ },
+ {
+  "model": "ARXK009GLGH",
+  "brand": "fujitsu",
+  "series": "ARXK-GLGH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 9,
+  "airflow_ls": 128,
+  "static_pressure_pa": 30,
+  "supply_opening": {
+   "w_mm": 650,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 198,
+  "sound_low_dba": 22,
+  "sound_high_dba": 26,
+  "weight_kg": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-17 (spec); f.06-21 (type, pipe sizes); f.04-47 (outline)"
+  }
+ },
+ {
+  "model": "ARXK012GLGH",
+  "brand": "fujitsu",
+  "series": "ARXK-GLGH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 12,
+  "airflow_ls": 153,
+  "static_pressure_pa": 30,
+  "supply_opening": {
+   "w_mm": 650,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 198,
+  "sound_low_dba": 24,
+  "sound_high_dba": 29,
+  "weight_kg": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-17 (spec); f.06-21 (type, pipe sizes); f.04-47 (outline)"
+  }
+ },
+ {
+  "model": "ARXK014GLGH",
+  "brand": "fujitsu",
+  "series": "ARXK-GLGH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_code": 14,
+  "airflow_ls": 211,
+  "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 650,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 700,
+  "depth_mm": 450,
+  "height_mm": 198,
+  "sound_low_dba": 24,
+  "sound_high_dba": 34,
+  "weight_kg": 16.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-18 (spec); f.06-21 (type, pipe sizes); f.04-47 (outline)"
+  }
+ },
+ {
+  "model": "ARXK018GLGH",
+  "brand": "fujitsu",
+  "series": "ARXK-GLGH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 258,
+  "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 850,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 775,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 900,
+  "depth_mm": 450,
+  "height_mm": 198,
+  "sound_low_dba": 24,
+  "sound_high_dba": 33,
+  "weight_kg": 19.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-18 (spec); f.06-21 (type, pipe sizes); f.04-48 (outline)"
+  }
+ },
+ {
+  "model": "ARXK024GLGH",
+  "brand": "fujitsu",
+  "series": "ARXK-GLGH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 322,
+  "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 1050,
+   "h_mm": 150
+  },
+  "return_opening": {
+   "w_mm": 975,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1100,
+  "depth_mm": 450,
+  "height_mm": 198,
+  "sound_low_dba": 25,
+  "sound_high_dba": 32,
+  "weight_kg": 22.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-18 (spec); f.06-21 (type, pipe sizes); f.04-49 (outline)"
+  }
+ },
+ {
+  "model": "ARXD007GLEH",
+  "brand": "fujitsu",
+  "series": "ARXD-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.8,
+  "capacity_code": 7,
+  "airflow_ls": 153,
+  "static_pressure_pa": 90,
+  "supply_opening": {
+   "w_mm": 650,
+   "h_mm": 151
+  },
+  "return_opening": {
+   "w_mm": 574,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 198,
+  "sound_low_dba": 22,
+  "sound_high_dba": 28,
+  "weight_kg": 17.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-19 (spec); f.06-21 (type, pipe sizes); f.04-51 (outline)"
+  }
+ },
+ {
+  "model": "ARXD009GLEH",
+  "brand": "fujitsu",
+  "series": "ARXD-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 9,
+  "airflow_ls": 167,
+  "static_pressure_pa": 90,
+  "supply_opening": {
+   "w_mm": 650,
+   "h_mm": 151
+  },
+  "return_opening": {
+   "w_mm": 574,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 198,
+  "sound_low_dba": 22,
+  "sound_high_dba": 29,
+  "weight_kg": 17.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-19 (spec); f.06-21 (type, pipe sizes); f.04-51 (outline)"
+  }
+ },
+ {
+  "model": "ARXD012GLEH",
+  "brand": "fujitsu",
+  "series": "ARXD-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 12,
+  "airflow_ls": 167,
+  "static_pressure_pa": 90,
+  "supply_opening": {
+   "w_mm": 650,
+   "h_mm": 151
+  },
+  "return_opening": {
+   "w_mm": 574,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 198,
+  "sound_low_dba": 24,
+  "sound_high_dba": 30,
+  "weight_kg": 18.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-19 (spec); f.06-21 (type, pipe sizes); f.04-51 (outline)"
+  }
+ },
+ {
+  "model": "ARXD014GLEH",
+  "brand": "fujitsu",
+  "series": "ARXD-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_code": 14,
+  "airflow_ls": 222,
+  "static_pressure_pa": 90,
+  "supply_opening": {
+   "w_mm": 650,
+   "h_mm": 151
+  },
+  "return_opening": {
+   "w_mm": 574,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 700,
+  "depth_mm": 620,
+  "height_mm": 198,
+  "sound_low_dba": 25,
+  "sound_high_dba": 34,
+  "weight_kg": 18.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-20 (spec); f.06-21 (type, pipe sizes); f.04-51 (outline)"
+  }
+ },
+ {
+  "model": "ARXD018GLEH",
+  "brand": "fujitsu",
+  "series": "ARXD-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 261,
+  "static_pressure_pa": 90,
+  "supply_opening": {
+   "w_mm": 850,
+   "h_mm": 151
+  },
+  "return_opening": {
+   "w_mm": 774,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 900,
+  "depth_mm": 620,
+  "height_mm": 198,
+  "sound_low_dba": 25,
+  "sound_high_dba": 34,
+  "weight_kg": 22.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-20 (spec); f.06-21 (type, pipe sizes); f.04-52 (outline)"
+  }
+ },
+ {
+  "model": "ARXD024GLEH",
+  "brand": "fujitsu",
+  "series": "ARXD-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 369,
+  "static_pressure_pa": 50,
+  "supply_opening": "open",
+  "return_opening": {
+   "w_mm": 974,
+   "h_mm": 174
+  },
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1100,
+  "depth_mm": 620,
+  "height_mm": 198,
+  "sound_low_dba": 24,
+  "sound_high_dba": 35,
+  "weight_kg": 26.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-20 (spec); f.06-21 (type, pipe sizes); f.04-53 (outline)"
+  }
+ },
+ {
+  "model": "ARXA024GLEH",
+  "brand": "fujitsu",
+  "series": "ARXA-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 356,
+  "static_pressure_pa": 150,
+  "supply_opening": "open",
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1135,
+  "depth_mm": 700,
+  "height_mm": 270,
+  "sound_low_dba": 24,
+  "sound_high_dba": 31,
+  "weight_kg": 36.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline)"
+  }
+ },
+ {
+  "model": "ARXA030GLEH",
+  "brand": "fujitsu",
+  "series": "ARXA-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 30,
+  "airflow_ls": 392,
+  "static_pressure_pa": 150,
+  "supply_opening": "open",
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1135,
+  "depth_mm": 700,
+  "height_mm": 270,
+  "sound_low_dba": 30,
+  "sound_high_dba": 34,
+  "weight_kg": 40.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline)"
+  }
+ },
+ {
+  "model": "ARXA036GLEH",
+  "brand": "fujitsu",
+  "series": "ARXA-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_code": 36,
+  "airflow_ls": 511,
+  "static_pressure_pa": 150,
+  "supply_opening": "open",
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1135,
+  "depth_mm": 700,
+  "height_mm": 270,
+  "sound_low_dba": 34,
+  "sound_high_dba": 37,
+  "weight_kg": 40.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline)"
+  }
+ },
+ {
+  "model": "ARXA045GLEH",
+  "brand": "fujitsu",
+  "series": "ARXA-GLEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 14.0,
+  "capacity_code": 45,
+  "airflow_ls": 547,
+  "static_pressure_pa": 150,
+  "supply_opening": "open",
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1135,
+  "depth_mm": 700,
+  "height_mm": 270,
+  "sound_low_dba": 37,
+  "sound_high_dba": 41,
+  "weight_kg": 40.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline)"
+  }
+ },
+ {
+  "model": "ARXC036GTEH",
+  "brand": "fujitsu",
+  "series": "ARXC-GTEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_code": 36,
+  "airflow_ls": 553,
+  "static_pressure_pa": 200,
+  "supply_opening": {
+   "w_mm": 851,
+   "h_mm": 295
+  },
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1050,
+  "depth_mm": 500,
+  "height_mm": 400,
+  "sound_low_dba": 32,
+  "sound_high_dba": 42,
+  "weight_kg": 40.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-22 (spec); f.06-21 (type, pipe sizes); f.04-58 (outline)"
+  }
+ },
+ {
+  "model": "ARXC045GTEH",
+  "brand": "fujitsu",
+  "series": "ARXC-GTEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 14.0,
+  "capacity_code": 45,
+  "airflow_ls": 972,
+  "static_pressure_pa": 250,
+  "supply_opening": {
+   "w_mm": 851,
+   "h_mm": 295
+  },
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1050,
+  "depth_mm": 500,
+  "height_mm": 400,
+  "sound_low_dba": 42,
+  "sound_high_dba": 49,
+  "weight_kg": 46.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-22 (spec); f.06-21 (type, pipe sizes); f.04-58 (outline)"
+  }
+ },
+ {
+  "model": "AGYA007GCGH",
+  "brand": "fujitsu",
+  "series": "AGYA-GCGH",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.8,
+  "capacity_code": 7,
+  "airflow_ls": 131,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 740,
+  "depth_mm": 200,
+  "height_mm": 600,
+  "sound_low_dba": 29,
+  "sound_high_dba": 37,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-23 (spec); f.06-21 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AGYA009GCGH",
+  "brand": "fujitsu",
+  "series": "AGYA-GCGH",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 9,
+  "airflow_ls": 139,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 740,
+  "depth_mm": 200,
+  "height_mm": 600,
+  "sound_low_dba": 29,
+  "sound_high_dba": 38,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-23 (spec); f.06-21 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AGYA012GCGH",
+  "brand": "fujitsu",
+  "series": "AGYA-GCGH",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 12,
+  "airflow_ls": 164,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 740,
+  "depth_mm": 200,
+  "height_mm": 600,
+  "sound_low_dba": 33,
+  "sound_high_dba": 42,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-24 (spec); f.06-21 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "AGYA014GCGH",
+  "brand": "fujitsu",
+  "series": "AGYA-GCGH",
+  "form_factor": "floor-console",
+  "capacity_cool_kw": 4.0,
+  "capacity_heat_kw": 4.5,
+  "capacity_code": 14,
+  "airflow_ls": 186,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 740,
+  "depth_mm": 200,
+  "height_mm": 600,
+  "sound_low_dba": 33,
+  "sound_high_dba": 46,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-24 (spec); f.06-21 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ABYA012GTEH",
+  "brand": "fujitsu",
+  "series": "ABYA-GTEH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 12,
+  "airflow_ls": 183,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 990,
+  "depth_mm": 655,
+  "height_mm": 199,
+  "sound_low_dba": 29,
+  "sound_high_dba": 36,
+  "weight_kg": 25.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-27 (spec); f.06-21 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ABYA014GTEH",
+  "brand": "fujitsu",
+  "series": "ABYA-GTEH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 4.5,
+  "capacity_heat_kw": 5.0,
+  "capacity_code": 14,
+  "airflow_ls": 217,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 990,
+  "depth_mm": 655,
+  "height_mm": 199,
+  "sound_low_dba": 35,
+  "sound_high_dba": 40,
+  "weight_kg": 26.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-27 (spec); f.06-21 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ABYA018GTEH",
+  "brand": "fujitsu",
+  "series": "ABYA-GTEH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 278,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 990,
+  "depth_mm": 655,
+  "height_mm": 199,
+  "sound_low_dba": 37,
+  "sound_high_dba": 46,
+  "weight_kg": 26.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-27 (spec); f.06-21 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ABYA024GTEH",
+  "brand": "fujitsu",
+  "series": "ABYA-GTEH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 278,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 990,
+  "depth_mm": 655,
+  "height_mm": 199,
+  "sound_low_dba": 39,
+  "sound_high_dba": 47,
+  "weight_kg": 27.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-27 (spec); f.06-21 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ABYA030GTEH",
+  "brand": "fujitsu",
+  "series": "ABYA-GTEH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 30,
+  "airflow_ls": 453,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1660,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_low_dba": 35,
+  "sound_high_dba": 42,
+  "weight_kg": 46.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-28 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ABYA036GTEH",
+  "brand": "fujitsu",
+  "series": "ABYA-GTEH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 11.2,
+  "capacity_heat_kw": 12.5,
+  "capacity_code": 36,
+  "airflow_ls": 469,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1660,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_low_dba": 36,
+  "sound_high_dba": 45,
+  "weight_kg": 48.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-28 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ABYA045GTEH",
+  "brand": "fujitsu",
+  "series": "ABYA-GTEH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 12.5,
+  "capacity_heat_kw": 14.0,
+  "capacity_code": 45,
+  "airflow_ls": 558,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1660,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_low_dba": 38,
+  "sound_high_dba": 48,
+  "weight_kg": 48.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-28 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ABYA054GTEH",
+  "brand": "fujitsu",
+  "series": "ABYA-GTEH",
+  "form_factor": "under-ceiling",
+  "capacity_cool_kw": 14.0,
+  "capacity_heat_kw": 16.0,
+  "capacity_code": 54,
+  "airflow_ls": 631,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1660,
+  "depth_mm": 700,
+  "height_mm": 240,
+  "sound_low_dba": 40,
+  "sound_high_dba": 51,
+  "weight_kg": 48.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-28 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ASYA007GCGH",
+  "brand": "fujitsu",
+  "series": "ASYA-GCGH",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.2,
+  "capacity_heat_kw": 2.8,
+  "capacity_code": 7,
+  "airflow_ls": 153,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 203,
+  "height_mm": 268,
+  "sound_low_dba": 26,
+  "sound_high_dba": 34,
+  "weight_kg": 8.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-29 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ASYA009GCGH",
+  "brand": "fujitsu",
+  "series": "ASYA-GCGH",
+  "form_factor": "wall",
+  "capacity_cool_kw": 2.8,
+  "capacity_heat_kw": 3.2,
+  "capacity_code": 9,
+  "airflow_ls": 169,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 9.52,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 203,
+  "height_mm": 268,
+  "sound_low_dba": 26,
+  "sound_high_dba": 37,
+  "weight_kg": 8.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-29 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ASYA012GCGH",
+  "brand": "fujitsu",
+  "series": "ASYA-GCGH",
+  "form_factor": "wall",
+  "capacity_cool_kw": 3.6,
+  "capacity_heat_kw": 4.0,
+  "capacity_code": 12,
+  "airflow_ls": 192,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 203,
+  "height_mm": 268,
+  "sound_low_dba": 30,
+  "sound_high_dba": 40,
+  "weight_kg": 8.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-30 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ASYA014GCGH",
+  "brand": "fujitsu",
+  "series": "ASYA-GCGH",
+  "form_factor": "wall",
+  "capacity_cool_kw": 4.0,
+  "capacity_heat_kw": 4.5,
+  "capacity_code": 14,
+  "airflow_ls": 222,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 840,
+  "depth_mm": 203,
+  "height_mm": 268,
+  "sound_low_dba": 34,
+  "sound_high_dba": 44,
+  "weight_kg": 8.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-30 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ASYA18GBCH",
+  "brand": "fujitsu",
+  "series": "ASYA-GBCH",
+  "form_factor": "wall",
+  "capacity_cool_kw": 5.6,
+  "capacity_heat_kw": 6.3,
+  "capacity_code": 18,
+  "airflow_ls": 233,
+  "conn_liquid_mm": 6.35,
+  "conn_gas_mm": 12.7,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 998,
+  "depth_mm": 238,
+  "height_mm": 320,
+  "sound_low_dba": 35,
+  "sound_high_dba": 41,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-31 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ASYA24GBCH",
+  "brand": "fujitsu",
+  "series": "ASYA-GBCH",
+  "form_factor": "wall",
+  "capacity_cool_kw": 7.1,
+  "capacity_heat_kw": 8.0,
+  "capacity_code": 24,
+  "airflow_ls": 306,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 998,
+  "depth_mm": 238,
+  "height_mm": 320,
+  "sound_low_dba": 35,
+  "sound_high_dba": 48,
+  "weight_kg": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-31 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ASYA030GTEH",
+  "brand": "fujitsu",
+  "series": "ASYA-GTEH",
+  "form_factor": "wall",
+  "capacity_cool_kw": 9.0,
+  "capacity_heat_kw": 10.0,
+  "capacity_code": 30,
+  "airflow_ls": 400,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1150,
+  "depth_mm": 280,
+  "height_mm": 340,
+  "sound_low_dba": 39,
+  "sound_high_dba": 53,
+  "weight_kg": 18.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-31 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ASYA034GTEH",
+  "brand": "fujitsu",
+  "series": "ASYA-GTEH",
+  "form_factor": "wall",
+  "capacity_cool_kw": 10.0,
+  "capacity_heat_kw": 11.2,
+  "capacity_code": 34,
+  "airflow_ls": 400,
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "room",
+  "allowed_planes": [
+   "room"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1150,
+  "depth_mm": 280,
+  "height_mm": 340,
+  "sound_low_dba": 39,
+  "sound_high_dba": 55,
+  "weight_kg": 18.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.04-31 (spec); f.06-22 (type, pipe sizes)"
+  }
+ },
+ {
+  "model": "ARXC060GTEH",
+  "brand": "fujitsu",
+  "series": "ARXC-GTEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 18.0,
+  "capacity_heat_kw": 20.0,
+  "capacity_code": 60,
+  "airflow_ls": 972,
+  "static_pressure_pa": 250,
+  "supply_opening": {
+   "w_mm": 851,
+   "h_mm": 295
+  },
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 15.88,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1050,
+  "depth_mm": 500,
+  "height_mm": 400,
+  "sound_low_dba": 42,
+  "sound_high_dba": 49,
+  "weight_kg": 46.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.04-22 (spec); f.06-21 (type, pipe sizes); f.04-58 (outline)"
+  }
+ },
+ {
+  "model": "ARXC072GTEH",
+  "brand": "fujitsu",
+  "series": "ARXC-GTEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 22.4,
+  "capacity_heat_kw": 25.0,
+  "capacity_code": 72,
+  "airflow_ls": 1083,
+  "static_pressure_pa": 300,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 350
+  },
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1587,
+  "depth_mm": 700,
+  "height_mm": 450,
+  "sound_low_dba": 40,
+  "sound_high_dba": 47,
+  "weight_kg": 84.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.04-22 (spec); f.06-21 (type, pipe sizes); f.04-60 (outline)"
+  }
+ },
+ {
+  "model": "ARXC090GTEH",
+  "brand": "fujitsu",
+  "series": "ARXC-GTEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 25.0,
+  "capacity_heat_kw": 28.0,
+  "capacity_code": 90,
+  "airflow_ls": 1195,
+  "static_pressure_pa": 300,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 350
+  },
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 19.05,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1587,
+  "depth_mm": 700,
+  "height_mm": 450,
+  "sound_low_dba": 44,
+  "sound_high_dba": 48,
+  "weight_kg": 84.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.04-22 (spec); f.06-21 (type, pipe sizes); f.04-60 (outline)"
+  }
+ },
+ {
+  "model": "ARXC096GTEH",
+  "brand": "fujitsu",
+  "series": "ARXC-GTEH",
+  "form_factor": "ducted",
+  "capacity_cool_kw": 28.0,
+  "capacity_heat_kw": 31.5,
+  "capacity_code": 96,
+  "airflow_ls": 1347,
+  "static_pressure_pa": 300,
+  "supply_opening": {
+   "w_mm": 1200,
+   "h_mm": 350
+  },
+  "return_opening": "open",
+  "conn_liquid_mm": 9.52,
+  "conn_gas_mm": 22.22,
+  "default_plane": "ceiling-cavity",
+  "allowed_planes": [
+   "ceiling-cavity"
+  ],
+  "system_roles": [
+   "vrf"
+  ],
+  "refrigerant": "R410A",
+  "phase": "1",
+  "power_supply": "230 V ~ 50 Hz",
+  "width_mm": 1587,
+  "depth_mm": 700,
+  "height_mm": 550,
+  "sound_low_dba": 42,
+  "sound_high_dba": 48,
+  "weight_kg": 105.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.04-22 (spec); f.06-21 (type, pipe sizes); f.04-61 (outline)"
+  }
  }
 ]

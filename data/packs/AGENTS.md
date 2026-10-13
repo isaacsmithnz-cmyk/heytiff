@@ -205,6 +205,23 @@ an equivalent basis makes the Studio warn near the limit, and a wrong one warns
 on every long run. MHI's "equivalent length Le" for a charge table is a
 liquid-size weighting, not this (see `length_weights`, §3a).
 
+### 3d. A VRF that counts in kW
+
+Where the book selects pipes, tubes and headers by "total cooling capacity of
+indoor units (kW)" and prints no capacity index (Fujitsu AIRSTAGE):
+- the outdoor gets `ratio_basis: "kw"`; heads leave `capacity_index` out and
+  carry `capacity_code` (the number in the model name);
+- `pipe_sizing` is `size_by_downstream_kw`; a table keyed by the head's model
+  code is `branch_sizing: size_by_downstream_index` read on that code;
+- tubes and headers take `kw_max` instead of `index_max`, in the book's order;
+- a lineup that differs between outdoors goes on each outdoor as
+  `vrf_head_families` (model globs) — only where the book's lineup says so;
+- conditional upsizes go in `liquid_step_ups` / `branch_step_ups` with the
+  conditions the book prints (`farthest_m_min`, `ratio_over_pct`,
+  `to_first_joint_over_m`, `own_over_m`, `odus`), and minimum lengths in
+  `limits.min_odu_to_nearest_m` / `min_odu_to_first_joint_m`;
+- anything else the book prints that has no field stays in the PR as a note.
+
 ## 4. Units and types
 
 Canonical units, converted on entry — the display layer handles imperial:

@@ -447,7 +447,7 @@ export function validatePack(pack: DataPack): ValidationResult {
     if (!t.joint_selection?.steps?.length) push("joint_selection.steps empty");
     else
       t.joint_selection.steps.forEach((s, j) => {
-        if (!num(s.index_max)) push(`joint_selection.steps[${j}].index_max missing`);
+        if (!num(s.index_max) && !num(s.kw_max)) push(`joint_selection.steps[${j}] needs index_max or kw_max`);
         if (!partModels.has(s.part_ref)) push(`joint_selection part_ref not in parts[]: ${s.part_ref}`);
       });
     for (const [odu, ref] of Object.entries(t.joint_selection?.first_joint_by_odu ?? {})) {
@@ -456,7 +456,7 @@ export function validatePack(pack: DataPack): ValidationResult {
     }
     (t.header_selection?.steps ?? []).forEach((s, j) => {
       if (!partModels.has(s.part_ref)) push(`header_selection part_ref not in parts[]: ${s.part_ref}`);
-      if (!num(s.branches_max) || !num(s.index_max)) push(`header_selection.steps[${j}] incomplete`);
+      if (!num(s.branches_max) || (!num(s.index_max) && !num(s.kw_max))) push(`header_selection.steps[${j}] incomplete`);
       for (const odu of s.direct_odus ?? [])
         if (!oduModels.has(odu)) push(`header_selection.steps[${j}].direct_odus not an ODU: ${odu}`);
     });
@@ -467,6 +467,18 @@ export function validatePack(pack: DataPack): ValidationResult {
       if (!num(m)) push(`limits.bend_equiv_m_by_odu[${odu}] not numeric`);
     }
     if (!t.limits) push("limits missing");
+    for (const k of ["min_odu_to_nearest_m", "min_odu_to_first_joint_m"] as const)
+      if (t.limits?.[k] != null && !pos(t.limits[k])) push(`limits.${k} not a positive number`);
+    (t.liquid_step_ups ?? []).forEach((r, j) => {
+      if (r.liquid_mm == null && r.gas_mm == null) push(`liquid_step_ups[${j}] sizes nothing (liquid_mm or gas_mm)`);
+      if (!r.roles?.length) push(`liquid_step_ups[${j}].roles empty`);
+      for (const odu of r.odus ?? []) if (!oduModels.has(odu)) push(`liquid_step_ups[${j}].odus not an ODU: ${odu}`);
+    });
+    (t.branch_step_ups ?? []).forEach((r, j) => {
+      if (r.liquid_mm == null && r.gas_mm == null) push(`branch_step_ups[${j}] sizes nothing (liquid_mm or gas_mm)`);
+      if (r.below_index == null && r.after_first_joint_over_m == null && r.own_over_m == null)
+        push(`branch_step_ups[${j}] has no condition`);
+    });
     checkAdditionalCharge(push, t.additional_charge);
     checkProvenance(push, t.provenance);
   });
@@ -482,6 +494,12 @@ export function validatePack(pack: DataPack): ValidationResult {
       ["mixed_table_ref", o.mixed_table_ref],
     ] as const)
       if (ref && !seriesRefs.has(ref)) push(`${field} has no vrf_pipe_tables series: ${ref}`);
+    if (o.vrf_head_families != null) {
+      if (o.system_type !== "vrf") push("vrf_head_families on an outdoor that isn't VRF");
+      if (!o.vrf_head_families.length) push("vrf_head_families empty");
+      for (const p of o.vrf_head_families)
+        if (!str(p) || p.slice(0, -1).includes("*")) push(`vrf_head_families pattern invalid: ${p}`);
+    }
     const bb = o.branch_boxes;
     if (bb) {
       if (!o.branch_box_table_ref) push("branch_boxes without a branch_box_table_ref");

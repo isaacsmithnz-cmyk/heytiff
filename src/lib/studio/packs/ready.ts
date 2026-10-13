@@ -6,6 +6,7 @@
    and the generated gap questionnaire ("airflow missing for this range"). */
 
 import { hasDuctAirway } from "../form-factors";
+import { matchesModelGlob } from "../model-glob";
 import {
   isSpigotOpening,
   spigotDiametersMm,
@@ -93,9 +94,11 @@ export function indoorReadiness(pack: DataPack, idu: IndoorUnit): Readiness {
   }
 
   // VRF-ready (IDU): placeable + caps + capacity_index + connection sizes.
+  // The index is not asked of a head whose outdoors all count in kW
+  // (vrfCountsInKw) — the book prints none (Fujitsu AIRSTAGE).
   if (idu.system_roles?.includes("vrf")) {
     const m = [...placeM, ...capMsg()];
-    if (!has(idu.capacity_index)) m.push("capacity_index");
+    if (!has(idu.capacity_index) && !vrfCountsInKw(pack, idu)) m.push("capacity_index");
     if (!has(idu.conn_liquid_mm)) m.push("conn_liquid_mm");
     if (!has(idu.conn_gas_mm)) m.push("conn_gas_mm");
     if (m.length) missing["vrf-idu"] = m;
@@ -123,6 +126,23 @@ export function indoorReadiness(pack: DataPack, idu: IndoorUnit): Readiness {
     },
     missing,
   };
+}
+
+/** a VRF outdoor's lineup takes this head: its model on the outdoor's
+    `vrf_head_families`, or the outdoor names none */
+export function vrfLineupTakes(odu: OutdoorUnit, idu: IndoorUnit): boolean {
+  return !odu.vrf_head_families?.length || odu.vrf_head_families.some((p) => matchesModelGlob(idu.model, p));
+}
+
+/** Does every VRF outdoor of this head's brand that would take it count the
+    connection in rated kW (ratio_basis "kw")? Then sizing, joints and the
+    ratio all read kW and the head needs no capacity index. False when no
+    such outdoor exists — a head with nowhere to go proves nothing. */
+export function vrfCountsInKw(pack: DataPack, idu: IndoorUnit): boolean {
+  const odus = pack.outdoor_units.filter(
+    (o) => o.system_type === "vrf" && o.brand === idu.brand && vrfLineupTakes(o, idu)
+  );
+  return odus.length > 0 && odus.every((o) => o.ratio_basis === "kw");
 }
 
 /* ───────────────────────── outdoor units ───────────────────────── */

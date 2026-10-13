@@ -37,7 +37,7 @@ import type { DataPack, IndoorUnit, OutdoorUnit, PipeSizingRule, VrfPipeTable } 
 import { allocationsOf, hasAllocations } from "./allocations";
 import { zoneIdsOf } from "./zones";
 import { evaluateVrfCharge, isVrfChargeRule } from "./materials";
-import { isBoxHead, isVrfHead } from "./vrf";
+import { isBoxHead, isVrfHead, vrfRatio } from "./vrf";
 
 export interface VrfTreeNode {
   id: string;
@@ -108,6 +108,8 @@ export interface SizedFitting {
   /** null when no row of the book's table covers it */
   part: string | null;
   downstreamIndex: number;
+  /** the heads' rated cooling kW downstream (a kW-keyed table reads this) */
+  downstreamKw?: number;
   branches: number;
   /** the first fitting after the outdoor */
   first: boolean;
@@ -163,6 +165,7 @@ export interface TreeFinding {
     | "box-height-over"
     | "outdoor-above-over"
     | "outdoor-below-over"
+    | "too-short"
     | "head-height-over"
     | "charge-over";
   message: string;
@@ -198,6 +201,17 @@ const LIQUID_LADDER = [6.35, 9.52, 12.7, 15.88, 19.05, 22.2];
 const oneUp = (mm: number): number => LIQUID_LADDER.find((s) => s > mm + 1e-6) ?? mm;
 const key = (mm: number): string => String(mm);
 const fmtM = (m: number) => `${Math.round(m * 10) / 10} m`;
+
+/** does a selection step (joint, header) cover this much downstream? Each
+    bound it gives must hold, inclusive; a step with neither covers nothing */
+const stepCovers = (s: { index_max?: number; kw_max?: number }, index: number, kw: number): boolean =>
+  (s.index_max != null || s.kw_max != null) &&
+  (s.index_max == null || index <= s.index_max) &&
+  (s.kw_max == null || kw <= s.kw_max + 1e-9);
+
+/** "P250" or "23.4 kW": what a step was looked up by, for a finding */
+const downText = (index: number, kw: number, byKw: boolean): string =>
+  byKw ? `${Math.round(kw * 10) / 10} kW` : `P${index}`;
 
 /** a size from a table keyed by downstream index or by downstream kW */
 function sizeBy(rule: PipeSizingRule | undefined, index: number, kw: number): { liquid: number; gas: number } | null {
@@ -624,22 +638,60 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     if (m) m.liquidMm = up.liquid_mm;
   }
 
-  /* (5) PUMY: the book's conditional liquid sizes */
+  /* (5) the book's conditional sizes (PUMY p.77-84 liquid; Fujitsu Table A:
+     a gas upsize by the farthest length, and by the connected ratio or the
+     run to the first tube) */
   const headIndexes = new Set(heads.map(iduIndex));
+  const headUnits = heads.map(unitOf).filter((u): u is IndoorUnit => u != null);
+  const ratioPct = vrfRatio(odu, headUnits)?.pct ?? null;
+  const toFirstM = firstFitting && mainSection ? (mainSection.lengthM ?? null) : null;
   for (const rule of table.liquid_step_ups ?? []) {
+    if (rule.odus && !rule.odus.includes(odu.model)) continue;
     const on =
       (rule.farthest_over_m != null && farthestM != null && farthestM > rule.farthest_over_m) ||
+      (rule.farthest_m_min != null && farthestM != null && farthestM >= rule.farthest_m_min) ||
       (rule.to_box_over_m != null && toBoxM != null && toBoxM > rule.to_box_over_m) ||
+      (rule.ratio_over_pct != null && ratioPct != null && ratioPct > rule.ratio_over_pct) ||
+      (rule.to_first_joint_over_m != null && toFirstM != null && toFirstM > rule.to_first_joint_over_m) ||
       (rule.heads_index ?? []).some((i) => headIndexes.has(i));
     if (!on) continue;
-    for (const s of sized.values())
-      if ((rule.roles as string[]).includes(s.role) && s.liquidMm < rule.liquid_mm) s.liquidMm = rule.liquid_mm;
+    for (const s of sized.values()) {
+      if (!(rule.roles as string[]).includes(s.role)) continue;
+      if (rule.liquid_mm != null && s.liquidMm < rule.liquid_mm) s.liquidMm = rule.liquid_mm;
+      if (rule.gas_mm != null && s.gasMm < rule.gas_mm) s.gasMm = rule.gas_mm;
+    }
   }
   for (const rule of table.branch_step_ups ?? []) {
-    if (afterFirstM == null || afterFirstM <= rule.after_first_joint_over_m) continue;
-    for (const s of sized.values())
-      if (s.role === "branch" && s.downstreamIndex < rule.below_index && s.liquidMm < rule.liquid_mm) s.liquidMm = rule.liquid_mm;
+    if (rule.after_first_joint_over_m != null && (afterFirstM == null || afterFirstM <= rule.after_first_joint_over_m)) continue;
+    for (const s of sized.values()) {
+      if (s.role !== "branch") continue;
+      if (rule.below_index != null && !(s.downstreamIndex < rule.below_index)) continue;
+      if (rule.own_over_m != null && !(s.lengthM != null && s.lengthM > rule.own_over_m)) continue;
+      if (rule.liquid_mm != null && s.liquidMm < rule.liquid_mm) s.liquidMm = rule.liquid_mm;
+      if (rule.gas_mm != null && s.gasMm < rule.gas_mm) s.gasMm = rule.gas_mm;
+    }
   }
+
+  /* the book's shortest pipe: the outdoor to its nearest head, and to its
+     first joint (Fujitsu f.06-18: 5 m, 3 m) — too little pipe overcharges
+     the system, so it is red, about the drawing */
+  if (drawn && L.min_odu_to_nearest_m != null && heads.length) {
+    const nearest = Math.min(...heads.map((h) => lengthOf(pathTo(h.id))));
+    if (nearest < L.min_odu_to_nearest_m - 1e-9)
+      findings.push({
+        severity: "red",
+        code: "too-short",
+        message: `The nearest head is ${fmtM(nearest)} from the outdoor, under the book's ${L.min_odu_to_nearest_m} m`,
+        fix: "Run more pipe to it (a loop), or move the outdoor",
+      });
+  }
+  if (drawn && L.min_odu_to_first_joint_m != null && toFirstM != null && toFirstM < L.min_odu_to_first_joint_m - 1e-9)
+    findings.push({
+      severity: "red",
+      code: "too-short",
+      message: `The first joint is ${fmtM(toFirstM)} from the outdoor, under the book's ${L.min_odu_to_first_joint_m} m`,
+      fix: "Move the first joint further from the outdoor",
+    });
 
   /* (5a) PUHY: past 40 m from the first joint, the section where it is
      passed and everything after it one liquid size up, red past 90 m.
@@ -734,6 +786,8 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     if (!seen.has(n.id)) continue;
     const outs = children.get(n.id) ?? [];
     const down = below.get(n.id) ?? 0;
+    // the float sum read to the watt: 7.1 × 3 is 21.3, not 21.299999…
+    const downKw = Math.round((belowKw.get(n.id) ?? 0) * 1000) / 1000;
     const first = n.id === firstFitting;
     if (n.kind === "box") {
       if (!outs.length) {
@@ -782,10 +836,15 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     }
     if (n.kind !== "joint") continue;
     if (outs.length >= 3) {
-      const step = (table.header_selection?.steps ?? []).find((h) => outs.length <= h.branches_max && down <= h.index_max);
-      fittings.push({ nodeId: n.id, kind: "header", part: step?.part_ref ?? null, downstreamIndex: down, branches: outs.length, first });
+      const steps = table.header_selection?.steps ?? [];
+      const step = steps.find((h) => outs.length <= h.branches_max && stepCovers(h, down, downKw));
+      fittings.push({ nodeId: n.id, kind: "header", part: step?.part_ref ?? null, downstreamIndex: down, downstreamKw: downKw, branches: outs.length, first });
       if (!step)
-        findings.push({ severity: "red", code: "no-fitting-part", message: `No header in the book takes ${outs.length} branches at P${down}` });
+        findings.push({
+          severity: "red",
+          code: "no-fitting-part",
+          message: `No header in the book takes ${outs.length} branches at ${downText(down, downKw, steps.some((h) => h.index_max == null && h.kw_max != null))}`,
+        });
       if (outs.some((s) => nodeById.get(s.to)?.kind !== "idu"))
         findings.push({ severity: "red", code: "branch-after-header", message: "The pipework branches again after a header", fix: "Run each header branch straight to its head" });
       if (step && first && mainSection?.from === root.id && step.direct_odus && !step.direct_odus.includes(odu.model))
@@ -798,9 +857,15 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
       }
     } else {
       const byOdu = first ? table.joint_selection.first_joint_by_odu?.[odu.model] : undefined;
-      const part = byOdu ?? table.joint_selection.steps.find((j) => down <= j.index_max)?.part_ref ?? null;
-      fittings.push({ nodeId: n.id, kind: "joint", part, downstreamIndex: down, branches: outs.length, first });
-      if (!part) findings.push({ severity: "red", code: "no-fitting-part", message: `No joint in the book for P${down}` });
+      const steps = table.joint_selection.steps;
+      const part = byOdu ?? steps.find((j) => stepCovers(j, down, downKw))?.part_ref ?? null;
+      fittings.push({ nodeId: n.id, kind: "joint", part, downstreamIndex: down, downstreamKw: downKw, branches: outs.length, first });
+      if (!part)
+        findings.push({
+          severity: "red",
+          code: "no-fitting-part",
+          message: `No joint in the book for ${downText(down, downKw, steps.some((j) => j.index_max == null && j.kw_max != null))}`,
+        });
     }
   }
   const bb = odu.branch_boxes;

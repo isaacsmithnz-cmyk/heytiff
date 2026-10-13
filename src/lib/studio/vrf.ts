@@ -13,7 +13,7 @@
    limits and the charge are vrf-tree.ts. */
 
 import type { CompatibilityRule, DataPack, IndoorUnit, OutdoorUnit } from "./packs/schema";
-import { indoorReadiness, outdoorReadiness } from "./packs/ready";
+import { indoorReadiness, outdoorReadiness, vrfLineupTakes } from "./packs/ready";
 import { checkBlock, isBoxHead, type MultiFinding } from "./multi";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 
@@ -105,7 +105,9 @@ function envelope(pack: DataPack, odu: OutdoorUnit, heads: IndoorUnit[]): MultiF
   const cm: IndoorUnit[] = [];
   const box: IndoorUnit[] = [];
   for (const u of heads) {
-    if (isVrfHead(pack, u)) cm.push(u);
+    /* a head outside the outdoor's lineup (vrf_head_families: Fujitsu's
+       ARXC060–096 join only the J-IVL) can't join it */
+    if (isVrfHead(pack, u) && vrfLineupTakes(odu, u)) cm.push(u);
     else if (odu.branch_boxes && isBoxHead(pack, odu, u)) box.push(u);
     else out.push({ severity: "red", code: "not-vrf-head", message: `${u.model} can't join ${odu.model}` });
   }

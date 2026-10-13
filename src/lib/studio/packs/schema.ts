@@ -559,6 +559,12 @@ export interface OutdoorUnit {
       default) or rated cooling kW (PUMY, M-P0860 p.2-7 "50 to 130% of outdoor
       unit capacity", the install manual's SP112 "6.3 – 16.2 kW") */
   ratio_basis?: "index" | "kw";
+  /** the indoor families this VRF outdoor takes, as model globs ("ARXC*",
+      model-glob.ts): the book's lineup for this outdoor where it differs
+      between outdoors (Fujitsu: ARXC060–096 only in the J-IVL lineup,
+      DV_J4LT065EF_07 f.01-3…01-5). A VRF head outside the list can't join
+      it. Absent = every VRF head the pack has. */
+  vrf_head_families?: string[];
   /** a VRF that also takes heads on branch boxes (PUMY): the tables for a
       system on branch boxes only, and for a mixed one (vrf_pipe_tables.series) */
   branch_box_table_ref?: string;
@@ -653,6 +659,10 @@ export interface VrfLimits {
   max_lift_odu_above_m: number;
   max_lift_odu_below_m: number;
   max_lift_idu_idu_m: number;
+  /** the shortest pipe the book allows from the outdoor to its nearest head,
+      and to the first joint/tube/header (Fujitsu f.06-18: ≥ 5 m, ≥ 3 m) */
+  min_odu_to_nearest_m?: number;
+  min_odu_to_first_joint_m?: number;
   /** outdoor model → metres each bend adds to a run's equivalent length */
   bend_equiv_m_by_odu?: Record<string, number>;
   /** after-first-joint may reach this when the LIQUID pipe goes one size up
@@ -698,22 +708,43 @@ export interface VrfPipeTable {
   /** a section is never larger than the one before it (PUHY p.140 Note 5);
       false where the book does not say so (PUMY) */
   downstream_not_larger?: boolean;
-  /** the book's conditional liquid sizes (PUMY p.77-84): when the farthest
-      head from the outdoor is past `farthest_over_m`, or the farthest branch
-      box along the mains is past `to_box_over_m`, or a head of one of
-      `heads_index` is on the system, the named sections take `liquid_mm`
-      (any one condition is enough) */
+  /** the book's conditional sizes for the main and the sections between
+      joints (PUMY p.77-84; Fujitsu Table A, f.06-23): when the farthest head
+      is past `farthest_over_m` or at least `farthest_m_min`, or the farthest
+      branch box along the mains is past `to_box_over_m`, or a head of one of
+      `heads_index` is on the system, or the connected ratio (on the
+      outdoor's ratio_basis) is over `ratio_over_pct`, or the outdoor → first
+      joint/tube/header run is over `to_first_joint_over_m`, the named
+      sections take `liquid_mm` and/or `gas_mm` — never smaller than they
+      were (any one condition is enough). `odus` limits the rule to those
+      outdoors (Fujitsu prints its upsizes per HP); absent = every outdoor on
+      the table. */
   liquid_step_ups?: {
     farthest_over_m?: number;
+    farthest_m_min?: number;
     to_box_over_m?: number;
     heads_index?: number[];
-    liquid_mm: number;
+    ratio_over_pct?: number;
+    to_first_joint_over_m?: number;
+    odus?: string[];
+    liquid_mm?: number;
+    gas_mm?: number;
     roles: ("main" | "between")[];
   }[];
-  /** a City Multi head's own pipe goes to `liquid_mm` when it is under
-      `below_index` and the farthest head is past `after_first_joint_over_m`
-      from the first joint (PUMY p.76 *) */
-  branch_step_ups?: { below_index: number; after_first_joint_over_m: number; liquid_mm: number }[];
+  /** a head's own pipe steps up: when it is under `below_index` (its index,
+      else the size code its model prints), and — each only where given —
+      the farthest head is past `after_first_joint_over_m` from the first
+      joint (PUMY p.76 *), and its own pipe is longer than `own_over_m`
+      (Fujitsu J-IVL Table C: "When the pipe length between Separation Tube
+      (Header) and indoor unit exceeds 20 m, gas pipe diameter should be
+      12.70 mm" for the 07/09). Every condition given must hold. */
+  branch_step_ups?: {
+    below_index?: number;
+    after_first_joint_over_m?: number;
+    own_over_m?: number;
+    liquid_mm?: number;
+    gas_mm?: number;
+  }[];
   /** a head on a branch box: its pipe by its series (the first letter of its
       model, M, S or P: Isaac, 2026-09-28) and model number (kW type). A row
       the book doesn't print carries its own provenance. */
@@ -733,16 +764,22 @@ export interface VrfPipeTable {
       farthest indoor unit (Mitsubishi Table 1 notes): outdoor model → from
       this many metres (inclusive), use liquid_mm instead of the connection */
   odu_liquid_upsize?: Record<string, { farthest_m_min: number; liquid_mm: number }>;
-  /** joint part by downstream index; optional first-joint-by-ODU override table */
+  /** joint part by what is downstream of it: the heads' capacity index added
+      up (`index_max`, City Multi) or their rated cooling kW (`kw_max`,
+      Fujitsu "Total cooling capacity of indoor unit (kW) 19.6 or less →
+      UTP-AX054A"). The first step whose bounds hold wins (each inclusive; a
+      step may give both). Optional first-joint-by-ODU override table. */
   joint_selection: {
-    steps: { index_max: number; part_ref: string }[];
+    steps: { index_max?: number; kw_max?: number; part_ref: string }[];
     first_joint_by_odu?: Record<string, string>;
   };
   /** header part by branch count + downstream index (where the brand offers headers) */
   header_selection?: {
     steps: {
       branches_max: number;
-      index_max: number;
+      /** downstream index, or downstream kW — as joint_selection */
+      index_max?: number;
+      kw_max?: number;
       part_ref: string;
       /** the outdoor models this header may connect to DIRECTLY (no joint
           before it); absent = the book sets no limit */

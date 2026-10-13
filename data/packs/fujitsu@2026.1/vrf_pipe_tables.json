@@ -232,20 +232,6 @@
     }
    ]
   },
-  "header_selection": {
-   "steps": [
-    {
-     "branches_max": 6,
-     "kw_max": 28.0,
-     "part_ref": "UTR-H0906L"
-    },
-    {
-     "branches_max": 8,
-     "kw_max": 28.0,
-     "part_ref": "UTR-H0908L"
-    }
-   ]
-  },
   "limits": {
    "max_total_m": 180,
    "max_farthest_actual_m": 120,
@@ -273,7 +259,7 @@
    "kind": "extracted",
    "source": "AIRSTAGE J-IV Design & Technical Manual AJT040-054LBLCH",
    "edition": "DV_J4T068EF_09 (GENERAL Partner Portal)",
-   "page": "f.06-18 (limits, actual pipe length); f.06-23 (Table A: condition 1 < 90 m = the connections, condition 2 ≥ 90 m gas 19.05); f.06-24 (Tables B, C; B > A → A, C > B → B); f.06-25 (separation tubes by total indoor kW; headers UTR-H0906L/H0908L printed without a kW — 28.0 kW is the same parts' limit on J-IVS DV_J4ST070EF_08 f.06-24 and J-IVL f.06-25); f.06-27, f.06-28 (additional charge, round up to 0.01 kg)"
+   "page": "f.06-18 (limits, actual pipe length); f.06-23 (Table A: condition 1 < 90 m = the connections, condition 2 ≥ 90 m gas 19.05); f.06-24 (Tables B, C; B > A → A, C > B → B); f.06-25 (separation tubes by total indoor kW; headers UTR-H0906L/H0908L printed without a kW, so no header_selection is written); f.06-27, f.06-28 (additional charge, round up to 0.01 kg)"
   }
  },
  {
@@ -339,20 +325,6 @@
     }
    ]
   },
-  "header_selection": {
-   "steps": [
-    {
-     "branches_max": 6,
-     "kw_max": 28.0,
-     "part_ref": "UTR-H0906L"
-    },
-    {
-     "branches_max": 8,
-     "kw_max": 28.0,
-     "part_ref": "UTR-H0908L"
-    }
-   ]
-  },
   "limits": {
    "max_total_m": 180,
    "max_farthest_actual_m": 120,
@@ -380,7 +352,7 @@
    "kind": "extracted",
    "source": "AIRSTAGE J-IV Design & Technical Manual AJY040-054LBLBH",
    "edition": "DV_J4T068EF_03 (GENERAL Partner Portal)",
-   "page": "f.06-18 (limits, actual pipe length); f.06-23 (Table A: condition 1 < 90 m = the connections, condition 2 ≥ 90 m gas 19.05); f.06-24 (Tables B, C; B > A → A, C > B → B); f.06-25 (separation tubes by total indoor kW; headers UTR-H0906L/H0908L printed without a kW — 28.0 kW is the same parts' limit on J-IVS DV_J4ST070EF_08 f.06-24 and J-IVL f.06-25); f.06-27, f.06-28 (additional charge, round up to 0.01 kg)"
+   "page": "f.06-18 (limits, actual pipe length); f.06-23 (Table A: condition 1 < 90 m = the connections, condition 2 ≥ 90 m gas 19.05); f.06-24 (Tables B, C; B > A → A, C > B → B); f.06-25 (separation tubes by total indoor kW; headers UTR-H0906L/H0908L printed without a kW, so no header_selection is written); f.06-27, f.06-28 (additional charge, round up to 0.01 kg)"
   }
  },
  {

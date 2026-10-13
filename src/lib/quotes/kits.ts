@@ -6,6 +6,7 @@ import { pickItem, supplierOffer, type BookQuery, type Pick } from "./lookups";
 import { inKind, isolatorOf, pickFromRange, RANGE_KINDS, sizeWords, type RangeKind, type RangeNeed, type RangeOffer, type RangeSize } from "./ranges";
 import type { ComponentKey } from "./components";
 import type { Preferred } from "./settings";
+import type { ZoningController } from "@/lib/studio/packs/schema";
 
 /* KITS AS DATA (the engine rebuild, slice 1.3) — what a system takes to
    install, part by part, for any business: each part named by what it is
@@ -75,7 +76,49 @@ export type KitFacts = {
   reducers?: { fromMm: number; toMm: number; count: number }[] | null;
   /** the return grille's face, mm; its box is the same face */
   returnGrille?: { w: number; h: number } | null;
+  /** ducted, zoned: how many zones, controlled by temperature or on/off,
+      and WiFi when the brief asks for it */
+  zones?: number | null;
+  zoneControl?: "temperature" | "on_off" | null;
+  wifi?: boolean;
+  /** the maker's zone system for it, from its data pack (zoneKitOf) */
+  zoning?: ZoneKit | null;
 };
+
+/** THE MAKER'S ZONE SYSTEM ON A DUCTED JOB, from its data pack (Isaac,
+    2026-10-13, on 3231: the PAR-41MAAM is the standard controller "but it is
+    not compatible with the zone control box"): the interface for the zones
+    and the control, the system's own main controller in place of the unit's
+    wall controller, a sensor in every zone where it controls by temperature
+    with the receiver they talk to, and the system's WiFi. */
+export type ZoneKit = {
+  zones: number;
+  control: "temperature" | "on_off";
+  /** null: none of the maker's interfaces takes this many zones */
+  interface: string | null;
+  mainController: string | null;
+  receiver: string | null;
+  sensor: string | null;
+  wifi: string | null;
+  /** the document it's read from, for the line's why */
+  from: string;
+};
+
+export function zoneKitOf(z: ZoningController, zones: number, control: "temperature" | "on_off", wifi: boolean): ZoneKit {
+  const fits = (z.interfaces ?? []).filter((i) => i.control === control && i.max_zones >= zones).sort((a, b) => a.max_zones - b.max_zones);
+  const wireless = (z.sensors ?? []).find((s) => s.kind === "wireless") ?? null;
+  const sensor = control === "temperature" && z.temperature_sensor_per_zone && wireless ? wireless.model : null;
+  return {
+    zones,
+    control,
+    interface: fits[0]?.model ?? null,
+    mainController: z.main_controller?.model ?? null,
+    receiver: sensor && z.wireless_receiver ? z.wireless_receiver.model : null,
+    sensor,
+    wifi: wifi ? (z.wifi ?? null) : null,
+    from: [z.provenance.source, z.provenance.edition].filter(Boolean).join(" "),
+  };
+}
 
 /** The business's own allowances (Quoting): at cost, null when not set. */
 export type KitAllowances = { consumables: number | null; flush: number | null; recovery: number | null };
@@ -380,9 +423,50 @@ const DUCTED: KitPart[] = [
     rule: "One for the indoor",
     group: "Pipe, power and controls",
     name: "Wall controller",
-    search: () => ({ text: "wired controller" }),
-    component: () => "wall_controller",
-    qty: one("for the indoor"),
+    /* zoned: the zone system's own controller, never the unit's */
+    search: (f) => ({ text: f.zoning?.mainController ?? "wired controller" }),
+    component: (f) => (f.zoning?.mainController ? null : "wall_controller"),
+    qty: (f) =>
+      f.zoning?.mainController
+        ? { qty: 1, unit: "", why: `the zone system's own controller, in place of the unit's: ${f.zoning.from}` }
+        : { qty: 1, unit: "", why: "for the indoor" },
+  },
+  {
+    key: "zone-interface",
+    rule: "One for the zones",
+    group: "Pipe, power and controls",
+    name: "Zone interface",
+    skip: (f) => !f.zoning,
+    needs: "None of the maker's zone interfaces takes this many zones",
+    search: (f) => (f.zoning?.interface ? { text: f.zoning.interface } : null),
+    qty: (f) => ({ qty: 1, unit: "", why: `${f.zoning!.zones} zones, ${f.zoning!.control === "temperature" ? "by temperature" : "on and off"}: ${f.zoning!.from}` }),
+  },
+  {
+    key: "zone-receiver",
+    rule: "One for the wireless sensors",
+    group: "Pipe, power and controls",
+    name: "Wireless receiver",
+    skip: (f) => !f.zoning?.receiver,
+    search: (f) => ({ text: f.zoning!.receiver! }),
+    qty: (f) => ({ qty: 1, unit: "", why: `the sensors talk to it: ${f.zoning!.from}` }),
+  },
+  {
+    key: "zone-sensors",
+    rule: "One in every zone, by temperature",
+    group: "Pipe, power and controls",
+    name: "Zone sensor",
+    skip: (f) => !f.zoning?.sensor,
+    search: (f) => ({ text: f.zoning!.sensor! }),
+    qty: (f) => ({ qty: f.zoning!.zones, unit: "", why: `one in every zone, as temperature control needs: ${f.zoning!.from}` }),
+  },
+  {
+    key: "zone-wifi",
+    rule: "When asked for",
+    group: "Pipe, power and controls",
+    name: "WiFi",
+    skip: (f) => !f.zoning?.wifi,
+    search: (f) => ({ text: f.zoning!.wifi! }),
+    qty: (f) => ({ qty: 1, unit: "", why: `the zone system's WiFi: ${f.zoning!.from}` }),
   },
 ];
 
@@ -647,6 +731,17 @@ export function normaliseKitFacts(raw: unknown): KitFacts {
     underfloor: r.underfloor === true || r.underfloor === "yes",
     keptPipe: r.replacing === "keep" && (OLD_PIPES as readonly unknown[]).includes(r.keptPipe) ? (r.keptPipe as OldPipe) : null,
     ...layoutFacts(r),
+    ...zoneFacts(r),
+  };
+}
+
+/** Zoned, as given: only what was said, so an unzoned kit carries none. */
+function zoneFacts(r: Record<string, unknown>): Partial<KitFacts> {
+  const z = typeof r.zones === "number" ? r.zones : Number(r.zones);
+  return {
+    ...(Number.isFinite(z) && z >= 1 ? { zones: Math.min(20, Math.round(z)) } : {}),
+    ...(r.zoneControl === "temperature" || r.zoneControl === "on_off" ? { zoneControl: r.zoneControl } : {}),
+    ...(r.wifi === true ? { wifi: true } : {}),
   };
 }
 

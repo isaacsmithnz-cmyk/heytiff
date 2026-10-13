@@ -1,5 +1,7 @@
 import type { Product } from "../families";
-import { breakerFor, cableFor, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS, stillToSize } from "../kits";
+import { breakerFor, cableFor, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS, normaliseKitFacts, stillToSize, zoneKitOf } from "../kits";
+import type { ZoningController } from "@/lib/studio/packs/schema";
+import zoning from "../../../../data/packs/mitsubishi-electric@2026.1/zoning_controllers.json";
 
 /* Kits as data (slice 1.3): what a system takes to install, picked from the
    business's own book by what each part is, never by one supplier's code.
@@ -81,6 +83,7 @@ it("the ducted kit adds flex and an outlet to each outlet, and a return", () => 
   expect(KITS.ducted.parts.map((p) => p.key)).toEqual([
     "pair-coil", "interconnect", "power", "breaker", "isolator", "mount", "drain", "trunking",
     "supply-plenum", "return-plenum", "flex", "outlets", "ys", "reducers", "floor-grilles", "boots", "hangers", "return", "return-box", "controller",
+    "zone-interface", "zone-receiver", "zone-sensors", "zone-wifi",
   ]);
   const lines = expandKit("ducted", { ...facts, outlets: 5, outletMm: 250 }, [...book, product("VORTEX FLEX R1.0 250MM X 6M", 3045), product("CONE DIFFUSER 250MM", 1887)], at);
   expect(lines.find((l) => l.name === "VORTEX FLEX R1.0 250MM X 6M")).toMatchObject({ qty: 5, costCents: 3045 });
@@ -291,4 +294,59 @@ it("lists what a kit left to size or price, for Tiff to settle", () => {
   const lines = expandKit("ducted", { ...facts, outlets: 4, outletMm: 200 }, book, at);
   expect(stillToSize(lines).map((x) => x.name)).toEqual(expect.arrayContaining(["Supply plenum", "Y branches", "Return air grille, filtered", "Return air box"]));
   expect(stillToSize(lines).find((x) => x.name === "Y branches")!.why).toBe("Needs the layout: where the main duct splits");
+});
+
+/* Isaac, 2026-10-13, on 3231: the PAR-41MAAM is the standard controller "but
+   it is not compatible with the zone control box". Zoned, the kit takes the
+   maker's zone system from its pack: its own controller, never the unit's. */
+describe("a zoned ducted system", () => {
+  const me = (zoning as unknown as ZoningController[])[0]!;
+
+  it("takes the maker's interface for the zones, its own controller, a sensor a zone and the receiver, from its pack", () => {
+    expect(zoneKitOf(me, 5, "temperature", true)).toEqual({
+      zones: 5,
+      control: "temperature",
+      interface: "PAC-ZC10L240C-A",
+      mainController: "PAR-ZM01A-A",
+      receiver: "PAR-ZR01R-A",
+      sensor: "PAR-ZR01S-A",
+      wifi: "MAC-588IF-E",
+      from: "Mitsubishi Electric Zone Controller with Intelligent Comfort Brochure 2026",
+    });
+    expect(zoneKitOf(me, 4, "on_off", false)).toMatchObject({ interface: "PAC-ZC04S240C-A", sensor: null, receiver: null, wifi: null });
+    expect(zoneKitOf(me, 12, "temperature", false).interface).toBeNull();
+  });
+
+  it("puts the zone system's controller on in place of the unit's wall controller", () => {
+    const zbook = [
+      ...book,
+      product("WIRED CONTROLLER WITH BACKLIT LCD PAR-41MAAM", 12530),
+      product("ZONE CONTROLLER INTERFACE 10 ZONE LINEAR PAC-ZC10L240C-A", 57820),
+      product("ME ACC SMART ZONE CONTROLLER PAR-ZM01A-A", 30000),
+      product("WIRELESS RECEIVER PAR-ZR01R-A", 6860),
+      product("WIRELESS SENSOR PAR-ZR01S-A", 5530),
+      product("WI-FI INTERFACE MAC-588IF-E", 7344),
+    ];
+    const lines = expandKit("ducted", { ...facts, zoning: zoneKitOf(me, 5, "temperature", true) }, zbook, at);
+    const names = lines.map((l) => l.name);
+    expect(names).toContain("ME ACC SMART ZONE CONTROLLER PAR-ZM01A-A");
+    expect(names).not.toContain("WIRED CONTROLLER WITH BACKLIT LCD PAR-41MAAM");
+    expect(lines.find((l) => l.name === "ME ACC SMART ZONE CONTROLLER PAR-ZM01A-A")!.why).toMatch(/^the zone system's own controller, in place of the unit's/);
+    expect(lines.find((l) => l.name === "ZONE CONTROLLER INTERFACE 10 ZONE LINEAR PAC-ZC10L240C-A")).toMatchObject({ qty: 1 });
+    expect(lines.find((l) => l.name === "WIRELESS SENSOR PAR-ZR01S-A")).toMatchObject({ qty: 5 });
+    expect(lines.find((l) => l.name === "WIRELESS RECEIVER PAR-ZR01R-A")).toMatchObject({ qty: 1 });
+    expect(lines.find((l) => l.name === "WI-FI INTERFACE MAC-588IF-E")).toMatchObject({ qty: 1 });
+    /* not zoned: the unit's own wall controller, and nothing of a zone system */
+    const plain = expandKit("ducted", facts, zbook, at).map((l) => l.name);
+    expect(plain).toContain("WIRED CONTROLLER WITH BACKLIT LCD PAR-41MAAM");
+    expect(plain.some((n) => /PAR-ZM01A-A|PAC-ZC10L/.test(n ?? ""))).toBe(false);
+  });
+
+  it("reads the zones, the control and WiFi from what Tiff or a person gave", () => {
+    expect(normaliseKitFacts({ zones: 5, zoneControl: "temperature", wifi: true })).toMatchObject({ zones: 5, zoneControl: "temperature", wifi: true });
+    const none = normaliseKitFacts({ zones: "lots", zoneControl: "fast" });
+    expect(none).not.toHaveProperty("zones");
+    expect(none).not.toHaveProperty("zoneControl");
+    expect(none).not.toHaveProperty("wifi");
+  });
 });

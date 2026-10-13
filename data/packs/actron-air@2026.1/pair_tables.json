@@ -1,0 +1,737 @@
+[
+ {
+  "idu_model": "EVV13BS",
+  "odu_model": "CRV13BS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 13.0,
+  "rated_heat_kw": 12.85,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
+   "page": "4 (nett rated), 6-7 (field pipe sizes, max EQUIVALENT pipe length, max vertical 20 m included, factory charge, pre-charge length 15 m, additional g/m); ICG 0525-137 p.42-43 (PDF p.38-39: equivalent length includes fittings and vertical rise), p.51 (PDF p.47: charge table)"
+  }
+ },
+ {
+  "idu_model": "EVV15BS",
+  "odu_model": "CRV15BS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 14.8,
+  "rated_heat_kw": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
+   "page": "4 (nett rated), 6-7 (field pipe sizes, max EQUIVALENT pipe length, max vertical 20 m included, factory charge, pre-charge length 15 m, additional g/m); ICG 0525-137 p.42-43 (PDF p.38-39: equivalent length includes fittings and vertical rise), p.51 (PDF p.47: charge table)"
+  }
+ },
+ {
+  "idu_model": "EVV17BS",
+  "odu_model": "CRV17BS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 17.0,
+  "rated_heat_kw": 17.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
+   "page": "4 (nett rated), 6-7 (field pipe sizes, max EQUIVALENT pipe length, max vertical 20 m included, factory charge, pre-charge length 15 m, additional g/m); ICG 0525-137 p.42-43 (PDF p.38-39: equivalent length includes fittings and vertical rise), p.51 (PDF p.47: charge table)"
+  }
+ },
+ {
+  "idu_model": "EVV13BS",
+  "odu_model": "CRV13BT",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 13.0,
+  "rated_heat_kw": 12.85,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
+   "page": "5 (nett rated), 8-9 (field pipe sizes, max EQUIVALENT pipe length, max vertical 20 m included, factory charge, pre-charge length 15 m, additional g/m); ICG 0525-137 p.42-43 (PDF p.38-39: equivalent length includes fittings and vertical rise), p.51 (PDF p.47: charge table)"
+  }
+ },
+ {
+  "idu_model": "EVV15BS",
+  "odu_model": "CRV15BT",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 14.8,
+  "rated_heat_kw": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
+   "page": "5 (nett rated), 8-9 (field pipe sizes, max EQUIVALENT pipe length, max vertical 20 m included, factory charge, pre-charge length 15 m, additional g/m); ICG 0525-137 p.42-43 (PDF p.38-39: equivalent length includes fittings and vertical rise), p.51 (PDF p.47: charge table)"
+  }
+ },
+ {
+  "idu_model": "EVV17BS",
+  "odu_model": "CRV17BT",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 17.0,
+  "rated_heat_kw": 17.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
+   "page": "5 (nett rated), 8-9 (field pipe sizes, max EQUIVALENT pipe length, max vertical 20 m included, factory charge, pre-charge length 15 m, additional g/m); ICG 0525-137 p.42-43 (PDF p.38-39: equivalent length includes fittings and vertical rise), p.51 (PDF p.47: charge table)"
+  }
+ },
+ {
+  "idu_model": "EVV19BS",
+  "odu_model": "CRV19BT",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 22.22,
+  "max_length_m": 50,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 19.0,
+  "rated_heat_kw": 19.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
+   "page": "5 (nett rated), 8-9 (field pipe sizes, max EQUIVALENT pipe length, max vertical 20 m included, factory charge, pre-charge length 15 m, additional g/m); ICG 0525-137 p.42-43 (PDF p.38-39: equivalent length includes fittings and vertical rise), p.51 (PDF p.47: charge table)"
+  }
+ },
+ {
+  "idu_model": "EVV22BS",
+  "odu_model": "CRV22BT",
+  "pipe_liquid_mm": 12.7,
+  "pipe_gas_mm": 22.22,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 80
+  },
+  "rated_cool_kw": 22.0,
+  "rated_heat_kw": 23.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
+   "page": "5 (nett rated), 8-9 (field pipe sizes, max EQUIVALENT pipe length, max vertical 20 m included, factory charge, pre-charge length 15 m, additional g/m); ICG 0525-137 p.42-43 (PDF p.38-39: equivalent length includes fittings and vertical rise), p.51 (PDF p.47: charge table)"
+  }
+ },
+ {
+  "idu_model": "EVV25BS",
+  "odu_model": "CRV25BT",
+  "pipe_liquid_mm": 12.7,
+  "pipe_gas_mm": 22.22,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 80
+  },
+  "rated_cool_kw": 25.0,
+  "rated_heat_kw": 26.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
+   "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
+   "page": "5 (nett rated), 8-9 (field pipe sizes, max EQUIVALENT pipe length, max vertical 20 m included, factory charge, pre-charge length 15 m, additional g/m); ICG 0525-137 p.42-43 (PDF p.38-39: equivalent length includes fittings and vertical rise), p.51 (PDF p.47: charge table)"
+  }
+ },
+ {
+  "idu_model": "EVA10AS",
+  "odu_model": "CRS10AS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 10,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 10.52,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
+   "page": "4 (nett rated), 6-7 (pre-charge length, additional 40 g/m, max EQUIVALENT pipe length 60, vertical 20 included, field pipe sizes); ICG 0525-133 p.25 (equivalent length includes fittings and vertical rise), p.82-83"
+  }
+ },
+ {
+  "idu_model": "EVA13AS",
+  "odu_model": "CRS13AS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 13.02,
+  "rated_heat_kw": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
+   "page": "4 (nett rated), 6-7 (pre-charge length, additional 40 g/m, max EQUIVALENT pipe length 60, vertical 20 included, field pipe sizes); ICG 0525-133 p.25 (equivalent length includes fittings and vertical rise), p.82-83"
+  }
+ },
+ {
+  "idu_model": "EVA15AS",
+  "odu_model": "CRS15AS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 15.4,
+  "rated_heat_kw": 16.74,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
+   "page": "4 (nett rated), 6-7 (pre-charge length, additional 40 g/m, max EQUIVALENT pipe length 60, vertical 20 included, field pipe sizes); ICG 0525-133 p.25 (equivalent length includes fittings and vertical rise), p.82-83"
+  }
+ },
+ {
+  "idu_model": "EVA17AS",
+  "odu_model": "CRS17AS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 17.0,
+  "rated_heat_kw": 19.29,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
+   "page": "4 (nett rated), 6-7 (pre-charge length, additional 40 g/m, max EQUIVALENT pipe length 60, vertical 20 included, field pipe sizes); ICG 0525-133 p.25 (equivalent length includes fittings and vertical rise), p.82-83"
+  }
+ },
+ {
+  "idu_model": "EVA13AS",
+  "odu_model": "CRS13AT",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 13.0,
+  "rated_heat_kw": 15.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
+   "page": "5 (nett rated), 8-9 (pre-charge length, additional 40 g/m, max EQUIVALENT pipe length 60, vertical 20 included, field pipe sizes); ICG 0525-133 p.25 (equivalent length includes fittings and vertical rise), p.82-83"
+  }
+ },
+ {
+  "idu_model": "EVA15AS",
+  "odu_model": "CRS15AT",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 15.2,
+  "rated_heat_kw": 16.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
+   "page": "5 (nett rated), 8-9 (pre-charge length, additional 40 g/m, max EQUIVALENT pipe length 60, vertical 20 included, field pipe sizes); ICG 0525-133 p.25 (equivalent length includes fittings and vertical rise), p.82-83"
+  }
+ },
+ {
+  "idu_model": "EVA17AS",
+  "odu_model": "CRS17AT",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 17.0,
+  "rated_heat_kw": 19.08,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
+   "page": "5 (nett rated), 8-9 (pre-charge length, additional 40 g/m, max EQUIVALENT pipe length 60, vertical 20 included, field pipe sizes); ICG 0525-133 p.25 (equivalent length includes fittings and vertical rise), p.82-83"
+  }
+ },
+ {
+  "idu_model": "EVA20AS",
+  "odu_model": "CRS20AT",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 22.22,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 19.8,
+  "rated_heat_kw": 22.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
+   "page": "5 (nett rated), 8-9 (pre-charge length, additional 40 g/m, max EQUIVALENT pipe length 60, vertical 20 included, field pipe sizes); ICG 0525-133 p.25 (equivalent length includes fittings and vertical rise), p.82-83"
+  }
+ },
+ {
+  "idu_model": "EVA23AS",
+  "odu_model": "CRS23AT",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 22.22,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 40
+  },
+  "rated_cool_kw": 22.6,
+  "rated_heat_kw": 24.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
+   "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
+   "page": "5 (nett rated), 8-9 (pre-charge length, additional 40 g/m, max EQUIVALENT pipe length 60, vertical 20 included, field pipe sizes); ICG 0525-133 p.25 (equivalent length includes fittings and vertical rise), p.82-83"
+  }
+ },
+ {
+  "idu_model": "LRE-071DS",
+  "odu_model": "LRC-071DS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 25,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 24
+  },
+  "rated_cool_kw": 7.3,
+  "rated_heat_kw": 7.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System",
+   "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623",
+   "page": "3 (pre-charge length 20 m, additional 24 g/m, maximum piping length and height); IM 9590-5031 p.35 (max field pipe length including vertical rise, field pipe sizes), p.58 (charge details)"
+  }
+ },
+ {
+  "idu_model": "LRE-100DS",
+  "odu_model": "URC-100DS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 75,
+  "max_lift_m": 30,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 24
+  },
+  "rated_cool_kw": 10.2,
+  "rated_heat_kw": 12.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System",
+   "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623",
+   "page": "3 (pre-charge length 20 m, additional 24 g/m, maximum piping length and height); IM 9590-5031 p.35 (max field pipe length including vertical rise, field pipe sizes), p.58 (charge details)"
+  }
+ },
+ {
+  "idu_model": "LRE-125DS",
+  "odu_model": "URC-125DS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 75,
+  "max_lift_m": 30,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 24
+  },
+  "rated_cool_kw": 12.6,
+  "rated_heat_kw": 14.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System",
+   "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623",
+   "page": "3 (pre-charge length 20 m, additional 24 g/m, maximum piping length and height); IM 9590-5031 p.35 (max field pipe length including vertical rise, field pipe sizes), p.58 (charge details)"
+  }
+ },
+ {
+  "idu_model": "LRE-140DS",
+  "odu_model": "URC-140DS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 75,
+  "max_lift_m": 30,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 24
+  },
+  "rated_cool_kw": 14.0,
+  "rated_heat_kw": 15.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System",
+   "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623",
+   "page": "3 (pre-charge length 20 m, additional 24 g/m, maximum piping length and height); IM 9590-5031 p.35 (max field pipe length including vertical rise, field pipe sizes), p.58 (charge details)"
+  }
+ },
+ {
+  "idu_model": "LRE-170DS",
+  "odu_model": "LRC-170DS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 19.05,
+  "max_length_m": 75,
+  "max_lift_m": 30,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 24
+  },
+  "rated_cool_kw": 17.0,
+  "rated_heat_kw": 18.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System",
+   "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623",
+   "page": "3 (pre-charge length 20 m, additional 24 g/m, maximum piping length and height); IM 9590-5031 p.35 (max field pipe length including vertical rise, field pipe sizes), p.58 (charge details)"
+  }
+ },
+ {
+  "idu_model": "CRE-100DS",
+  "odu_model": "URC-100DS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 75,
+  "max_lift_m": 30,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 24
+  },
+  "rated_cool_kw": 10.0,
+  "rated_heat_kw": 10.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Cascade Cassette DS Series, Technical Selection Data; Installation and Commissioning Guide, Cascade DS Series Split System",
+   "edition": "9590-0032-01 Ver. 2 260331; 9590-5032 Ver. 3 260930",
+   "page": "3 (operating capacity), 4 (pre-charge length 20 m, additional 24 g/m, maximum piping 75 m / height 30 m); IM 9590-5032 p.43 (charge details, field pipe sizes)"
+  }
+ },
+ {
+  "idu_model": "CRE-125DS",
+  "odu_model": "URC-125DS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 75,
+  "max_lift_m": 30,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 24
+  },
+  "rated_cool_kw": 12.9,
+  "rated_heat_kw": 13.3,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Cascade Cassette DS Series, Technical Selection Data; Installation and Commissioning Guide, Cascade DS Series Split System",
+   "edition": "9590-0032-01 Ver. 2 260331; 9590-5032 Ver. 3 260930",
+   "page": "3 (operating capacity), 4 (pre-charge length 20 m, additional 24 g/m, maximum piping 75 m / height 30 m); IM 9590-5032 p.43 (charge details, field pipe sizes)"
+  }
+ },
+ {
+  "idu_model": "CRE-140DS",
+  "odu_model": "URC-140DS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 75,
+  "max_lift_m": 30,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 20,
+   "g_per_m_beyond": 24
+  },
+  "rated_cool_kw": 14.1,
+  "rated_heat_kw": 14.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Cascade Cassette DS Series, Technical Selection Data; Installation and Commissioning Guide, Cascade DS Series Split System",
+   "edition": "9590-0032-01 Ver. 2 260331; 9590-5032 Ver. 3 260930",
+   "page": "3 (operating capacity), 4 (pre-charge length 20 m, additional 24 g/m, maximum piping 75 m / height 30 m); IM 9590-5032 p.43 (charge details, field pipe sizes)"
+  }
+ },
+ {
+  "idu_model": "WRE-026DS",
+  "odu_model": "WRC-026DS",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 25,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 12
+  },
+  "rated_cool_kw": 2.63,
+  "rated_heat_kw": 2.7,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
+   "page": "2 (pre-charge length 15 m, additional g/m), 3 (maximum piping length and height); IM 9590-5037 p.27 (max field pipe length, max vertical, field pipe sizes), p.53 (charge details)"
+  }
+ },
+ {
+  "idu_model": "WRE-035DS",
+  "odu_model": "WRC-035DS",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 9.52,
+  "max_length_m": 25,
+  "max_lift_m": 10,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 12
+  },
+  "rated_cool_kw": 3.5,
+  "rated_heat_kw": 3.9,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
+   "page": "2 (pre-charge length 15 m, additional g/m), 3 (maximum piping length and height); IM 9590-5037 p.27 (max field pipe length, max vertical, field pipe sizes), p.53 (charge details)"
+  }
+ },
+ {
+  "idu_model": "WRE-050DS",
+  "odu_model": "WRC-050DS",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 12
+  },
+  "rated_cool_kw": 5.05,
+  "rated_heat_kw": 6.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
+   "page": "2 (pre-charge length 15 m, additional g/m), 3 (maximum piping length and height); IM 9590-5037 p.27 (max field pipe length, max vertical, field pipe sizes), p.53 (charge details)"
+  }
+ },
+ {
+  "idu_model": "WRE-060DS",
+  "odu_model": "WRC-060DS",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 12.7,
+  "max_length_m": 30,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 12
+  },
+  "rated_cool_kw": 6.0,
+  "rated_heat_kw": 6.6,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
+   "page": "2 (pre-charge length 15 m, additional g/m), 3 (maximum piping length and height); IM 9590-5037 p.27 (max field pipe length, max vertical, field pipe sizes), p.53 (charge details)"
+  }
+ },
+ {
+  "idu_model": "WRE-072DS",
+  "odu_model": "WRC-072DS",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 25,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 12
+  },
+  "rated_cool_kw": 7.2,
+  "rated_heat_kw": 8.2,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
+   "page": "2 (pre-charge length 15 m, additional g/m), 3 (maximum piping length and height); IM 9590-5037 p.27 (max field pipe length, max vertical, field pipe sizes), p.53 (charge details)"
+  }
+ },
+ {
+  "idu_model": "WRE-080DS",
+  "odu_model": "WRC-080DS",
+  "pipe_liquid_mm": 6.35,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 25,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 12
+  },
+  "rated_cool_kw": 8.0,
+  "rated_heat_kw": 9.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
+   "page": "2 (pre-charge length 15 m, additional g/m), 3 (maximum piping length and height); IM 9590-5037 p.27 (max field pipe length, max vertical, field pipe sizes), p.53 (charge details)"
+  }
+ },
+ {
+  "idu_model": "WRE-090DS",
+  "odu_model": "WRC-090DS",
+  "pipe_liquid_mm": 9.52,
+  "pipe_gas_mm": 15.88,
+  "max_length_m": 50,
+  "max_lift_m": 25,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 15,
+   "g_per_m_beyond": 24
+  },
+  "rated_cool_kw": 9.0,
+  "rated_heat_kw": 9.8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
+   "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
+   "page": "2 (pre-charge length 15 m, additional g/m), 3 (maximum piping length and height); IM 9590-5037 p.27 (max field pipe length, max vertical, field pipe sizes), p.53 (charge details)"
+  }
+ },
+ {
+  "idu_model": "EVA290T",
+  "odu_model": "CRV290T",
+  "pipe_liquid_mm": 15.88,
+  "pipe_gas_mm": 28.58,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 5,
+   "g_per_m_beyond": 165
+  },
+  "rated_cool_kw": 29.6,
+  "rated_heat_kw": 29.8,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Technical Selection Data, Split Ducted Unit CRV290T / EVA290T; Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
+   "edition": "9590-0009-01A Ver. 11 241203; 0525-066 Ver. 10 251008",
+   "page": "8 (pre-charge length 5 m, additional 165 g/m, max pipe length 60 m, vertical 20 m included, field pipe sizes); ICG 0525-066 p.16-18 (max total EQUIVALENT field pipe length 60 m incl. fittings and vertical rise; Table 2), p.50 (charge details)"
+  }
+ },
+ {
+  "idu_model": "EVA330T",
+  "odu_model": "CRV330T",
+  "pipe_liquid_mm": 15.88,
+  "pipe_gas_mm": 28.58,
+  "max_length_m": 60,
+  "max_lift_m": 20,
+  "additional_charge": {
+   "method": "threshold_then_rate",
+   "free_up_to_m": 5,
+   "g_per_m_beyond": 165
+  },
+  "rated_cool_kw": 33.0,
+  "rated_heat_kw": 32.5,
+  "provenance": {
+   "kind": "extracted",
+   "source": "Technical Selection Data, Split Ducted Unit CRV330T / EVA330T; Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
+   "edition": "9590-0009-02A Ver. 8 241203; 0525-066 Ver. 10 251008",
+   "page": "8 (pre-charge length 5 m, additional 165 g/m, max pipe length 60 m, vertical 20 m included, field pipe sizes); ICG 0525-066 p.16-18 (max total EQUIVALENT field pipe length 60 m incl. fittings and vertical rise; Table 2), p.50 (charge details)"
+  }
+ }
+]

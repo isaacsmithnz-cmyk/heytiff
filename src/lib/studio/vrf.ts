@@ -139,7 +139,7 @@ function envelope(pack: DataPack, odu: OutdoorUnit, heads: IndoorUnit[]): MultiF
         severity: "red",
         code: "over-max-count",
         message: cm.length
-          ? `${cm.length} City Multi and ${box.length} branch box heads is more than ${odu.model} takes mixed`
+          ? `${cm.length} VRF and ${box.length} branch box heads is more than ${odu.model} takes mixed`
           : `${box.length} heads on branch boxes, and ${odu.model} takes up to ${bb.max_heads}`,
       });
   }

@@ -1,3 +1,3 @@
 [
-  { "id": "mitsubishi-heavy-industries", "name": "Mitsubishi Heavy Industries", "regions": ["AU"] }
+  { "id": "mitsubishi-heavy-industries", "name": "Mitsubishi Heavy Industries", "regions": ["AU"], "system_names": { "vrf": "KX" } }
 ]

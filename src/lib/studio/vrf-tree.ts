@@ -317,7 +317,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
       message:
         method === "joint"
           ? `${odu.model} has no piping table in the book`
-          : `${odu.model} doesn't take branch boxes${method === "mixed" ? " with City Multi heads" : ""}`,
+          : `${odu.model} doesn't take branch boxes${method === "mixed" ? " with VRF heads" : ""}`,
     });
     return empty;
   }

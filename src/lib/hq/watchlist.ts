@@ -15,15 +15,15 @@
    3. Multi rules with no combination rule: per-unit limits only, so the pack
       can't say whether a SET of indoor units is legal. Signals 1 and 2 can't
       see this — the book IS cited, the families DO match; what went missing is
-      the whole-set bound the book prints (a combination table for ME, a ratio
-      band or total-kW cap — connected_capacity — for brands that publish one
-      instead).
+      the whole-set bound the book prints (a combination table, a ratio
+      band, or a total-kW cap — connected_capacity — whichever the brand
+      publishes).
    4. Multi limits the brand records on some outdoors and not others: the
       height between indoor units, a head count, a connected total. Absent is
       safe — nothing is checked — and for a brand that never prints one it is
-      the book's own answer (ME takes one head; its guide prints no height
-      between indoor units), so a pack where NO row carries a limit is never
-      flagged. A row missing what its siblings carry is: the same book, or
+      the book's own answer (a guide that prints no height between indoor
+      units), so a pack where NO row carries a limit is never flagged: each
+      pack is judged against its own rows, never another brand's. A row missing what its siblings carry is: the same book, or
       its sibling, printed it.
 
    Manual watch items (staff-entered, pack_watchlist table) are the IO side —

@@ -263,18 +263,20 @@ function Lineup({
     const fromVrf = indoor.some((s) => inVrf.has(s.series));
     const ownOnly = indoor.every((s) => inSplit.has(s.series) || inVrf.has(s.series));
     if (ownOnly && (fromSplit || fromVrf)) {
+      /* the brand's own name for its VRF ("the VRV indoor ranges") */
+      const vrf = brand.systems.find((g) => g.system === "vrf")?.phrase ?? "VRF";
       indoorNote =
         fromSplit && fromVrf
-          ? "The split and VRF indoor ranges"
+          ? `The split and ${vrf} indoor ranges`
           : fromSplit
             ? "The split indoor ranges"
-            : "The VRF indoor ranges";
+            : `The ${vrf} indoor ranges`;
     }
   }
 
   return (
     <section className="ds-libm-sec">
-      <h3>{several ? `${brand.name} ${group.label.toLowerCase()}` : group.label}</h3>
+      <h3>{several ? `${brand.name} ${group.phrase}` : group.label}</h3>
       <dl className="ds-libm-lineup">
         {group.system !== "split" && outdoor.length > 0 && (
           <>

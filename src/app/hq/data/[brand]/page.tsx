@@ -43,8 +43,11 @@ export default async function HqBrandPage({
     brand: ref.brand,
     version: ref.version,
   });
-  const groups = groupBrandCatalog(view);
-  const displayName = pack.brands[0]?.name ?? ref.brand;
+  /* the pack's row for THIS brand, by id — not the first row, which only
+     happened to be the right one while each pack carried a single brand */
+  const brandRow = pack.brands.find((b) => b.id === ref.brand) ?? null;
+  const groups = groupBrandCatalog(view, brandRow);
+  const displayName = brandRow?.name ?? ref.brand;
   const signals = packWatchSignals(pack);
   const watchItems: WatchItem[] = (watchRes.data ?? []).map((r) => ({
     id: r.id,

@@ -37,10 +37,10 @@ function manifest(version = "2026.1", ap: string[] = ["MSZ-AP25VGD", "MSZ-AP35VG
         version,
         updated,
         systems: [
-          { system: "split", label: "Split systems", series: [...split, odu("MUZ-AP", ["MUZ-AP25VG", "MUZ-AP35VG"])] },
+          { system: "split", label: "Split systems", phrase: "split systems", series: [...split, odu("MUZ-AP", ["MUZ-AP25VG", "MUZ-AP35VG"])] },
           /* the multi's indoor units are the split and VRF ranges again */
-          { system: "multi", label: "Multi-split", series: [split[0], split[1], vrf[0], odu("MXZ-F", ["MXZ-2F52VGD"])] },
-          { system: "vrf", label: "VRF", series: [...vrf, odu("PUHY-P-YNW-A1", ["PUHY-P200YNW-A1"])] },
+          { system: "multi", label: "Multi-split", phrase: "multi-split", series: [split[0], split[1], vrf[0], odu("MXZ-F", ["MXZ-2F52VGD"])] },
+          { system: "vrf", label: "VRF", phrase: "VRF", series: [...vrf, odu("PUHY-P-YNW-A1", ["PUHY-P200YNW-A1"])] },
         ],
       },
     ],
@@ -177,6 +177,44 @@ describe("the library's door", () => {
     const notes = within(screen.getByRole("dialog")).getByRole("region", { name: "What's new" });
     expect(notes).toHaveTextContent("No longer offered: MSZ-AP35VGD.");
     expect(notes).not.toHaveTextContent("is now on");
+  });
+
+  it("names each brand's lineups after it, in the brand's own word for its VRF", async () => {
+    const user = userEvent.setup();
+    const me = manifest().brands[0];
+    /* the route builds these from each pack's brands.json: Daikin calls its
+       VRF "VRV", and Mitsubishi Electric "City Multi" */
+    const library: LibraryManifest = {
+      brands: [
+        {
+          ...me,
+          id: "daikin",
+          name: "Daikin",
+          systems: [
+            { system: "split", label: "Split systems", phrase: "split systems", series: [] },
+            { system: "multi", label: "Multi-split", phrase: "multi-split", series: [idu("FTXM-A", "wall", ["FTXM25A"]), odu("MXM-R", ["3MXM68R"])] },
+            { system: "vrf", label: "VRF (VRV)", phrase: "VRV", series: [idu("FXFQ-AVM", "cassette-4way", ["FXFQ25AVM"]), odu("RXYMQ-A2V4A", ["RXYMQ3A2V4A"])] },
+          ],
+        },
+        {
+          ...me,
+          systems: me.systems.map((g) => (g.system === "vrf" ? { ...g, label: "VRF (City Multi)", phrase: "City Multi" } : g)),
+        },
+      ],
+    };
+    render(studio(library));
+    await user.click(await screen.findByRole("button", { name: /^Library/ }));
+    const dialog = screen.getByRole("dialog", { name: "Library" });
+    expect(within(dialog).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
+      "Daikin multi-split",
+      "Daikin VRV",
+      "Mitsubishi Electric split systems",
+      "Mitsubishi Electric multi-split",
+      "Mitsubishi Electric City Multi",
+    ]);
+    /* the multi's indoor units, said in the brand's own word */
+    const multi = within(dialog).getByRole("heading", { name: "Mitsubishi Electric multi-split" }).parentElement!;
+    expect(defs(multi)).toEqual(["MXZ-F", "The split and City Multi indoor ranges"]);
   });
 
   it("says so when nothing is installed", async () => {

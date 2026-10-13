@@ -20,6 +20,8 @@
 
 import {
   FORM_FACTORS,
+  brandSystemName,
+  systemTypeLabel,
   type DataPack,
   type FormFactor,
   type IndoorUnit,
@@ -35,10 +37,21 @@ import { multiCapableIdus } from "../multi";
 export const LIBRARY_SYSTEMS: readonly SystemType[] = ["split", "multi", "vrf"];
 
 /* `satisfies`, not an annotation, so a fourth SystemType is a compile error
-   here rather than a group that silently never renders. */
+   here rather than a group that silently never renders. The generic names,
+   the same for every brand: "VRV" is Daikin's own name for VRF and "City
+   Multi" Mitsubishi Electric's, so those come from the brand's row in its
+   pack (`system_names`), never from here. */
 export const LIBRARY_SYSTEM_LABELS = {
   split: "Split systems",
   multi: "Multi-split",
+  vrf: "VRF",
+} satisfies Record<SystemType, string>;
+
+/** the same names as they read after a brand's ("Daikin split systems"):
+    lower case, except the one that is initials */
+const LIBRARY_SYSTEM_PHRASES = {
+  split: "split systems",
+  multi: "multi-split",
   vrf: "VRF",
 } satisfies Record<SystemType, string>;
 
@@ -55,7 +68,11 @@ export interface LibrarySeries {
 
 export interface LibrarySystemGroup {
   system: SystemType;
+  /** the group's heading on its own: "Split systems", "VRF (VRV)" */
   label: string;
+  /** what follows the brand's name when the heading carries it: "split
+      systems", "VRV" — the brand's own name for the type when it has one */
+  phrase: string;
   series: LibrarySeries[];
 }
 
@@ -187,17 +204,24 @@ function groupSeries(pack: DataPack, system: SystemType): LibrarySeries[] {
 export function libraryManifest(
   packs: readonly { meta: PackMeta; pack: DataPack }[]
 ): LibraryManifest {
-  const brands = packs.map(({ meta, pack }) => ({
-    id: meta.brand,
-    name: pack.brands.find((b) => b.id === meta.brand)?.name ?? meta.name,
-    version: meta.version,
-    updated: meta.updated && /^\d{4}-\d{2}-\d{2}$/.test(meta.updated) ? meta.updated : null,
-    systems: LIBRARY_SYSTEMS.map((system) => ({
-      system,
-      label: LIBRARY_SYSTEM_LABELS[system],
-      series: groupSeries(pack, system),
-    })),
-  }));
+  const brands = packs.map(({ meta, pack }) => {
+    const row = pack.brands.find((b) => b.id === meta.brand);
+    return {
+      id: meta.brand,
+      name: row?.name ?? meta.name,
+      version: meta.version,
+      updated: meta.updated && /^\d{4}-\d{2}-\d{2}$/.test(meta.updated) ? meta.updated : null,
+      systems: LIBRARY_SYSTEMS.map((system) => {
+        const own = brandSystemName(row, system);
+        return {
+          system,
+          label: systemTypeLabel(LIBRARY_SYSTEM_LABELS[system], own),
+          phrase: own ?? LIBRARY_SYSTEM_PHRASES[system],
+          series: groupSeries(pack, system),
+        };
+      }),
+    };
+  });
   brands.sort((a, b) => a.name.localeCompare(b.name));
   return { brands };
 }

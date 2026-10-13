@@ -55,7 +55,9 @@ The ingestion checklist question is therefore never "what's the g/m value?" but 
 ## Sections
 
 ### 1. `brands`
-`id` · `name` · `regions` · notes.
+`id` · `name` · `regions` · notes · `system_names` (O).
+
+`system_names` is the brand's own name for a system type, where it sells one under a name of its own: `{ "vrf": "VRV" }` for Daikin, `{ "vrf": "City Multi" }` for Mitsubishi Electric. "VRF" is the generic type for every brand; a label shows it with the brand's own beside it ("VRF (VRV)"), and a brand without one shows "VRF" alone. A display name, never a rule, so no code asks which brand it is.
 
 ### 2. `indoor_units`
 The largest section. One row per model.

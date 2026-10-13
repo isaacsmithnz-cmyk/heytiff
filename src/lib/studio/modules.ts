@@ -39,7 +39,8 @@ export const SYSTEM_MODULES: Record<SystemType, SystemModule> = {
   split: { type: "split", label: "Split (1:1)", unitFlow: "pair" },
   "multi-split": { type: "multi-split", label: "Multi-split", unitFlow: "per-room" },
   ducted: { type: "ducted", label: "Ducted", unitFlow: "ducted" },
-  vrf: { type: "vrf", label: "VRF / VRV", unitFlow: "per-room" },
+  /* VRF is the type for every brand; "VRV" is Daikin's own name for it */
+  vrf: { type: "vrf", label: "VRF", unitFlow: "per-room" },
   ventilation: { type: "ventilation", label: "Ventilation", unitFlow: "per-room" },
   "sheet-metal": { type: "sheet-metal", label: "Sheet metal ductwork", unitFlow: "ducted" },
 };

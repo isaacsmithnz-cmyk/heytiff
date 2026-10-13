@@ -50,6 +50,7 @@ export type SystemRole = "split-pair" | "multi" | "vrf";
 export const SYSTEM_ROLES: readonly SystemRole[] = ["split-pair", "multi", "vrf"];
 
 export type SystemType = "split" | "multi" | "vrf";
+export const SYSTEM_TYPES: readonly SystemType[] = ["split", "multi", "vrf"];
 
 /** Electrical supply phase — single (230V 1N~) or three (400V 3N~). */
 export type Phase = "1" | "3";
@@ -353,6 +354,33 @@ export interface Brand {
   name: string;
   regions?: string[];
   notes?: string;
+  /** the brand's own name for a system type, where it sells one under a name
+      of its own: Daikin's VRF is "VRV", Mitsubishi Electric's "City Multi".
+      A display name, nothing reads it as a rule. "VRF" is the generic type
+      for every brand, so a label shows the generic name and this beside it
+      (systemTypeLabel), and a brand without one shows the generic alone.
+      Kept here, in the data, so no label ever asks which brand it is. */
+  system_names?: Partial<Record<SystemType, string>>;
+}
+
+/** a brand's own name for a system type ("VRV", "City Multi"); null when the
+    brand has none and goes by the generic name */
+export function brandSystemName(
+  brand: Pick<Brand, "system_names"> | null | undefined,
+  type: SystemType
+): string | null {
+  const own = brand?.system_names?.[type];
+  return typeof own === "string" && own.trim() ? own.trim() : null;
+}
+
+/** the generic name with the brand's own beside it: "VRF (City Multi)",
+    "VRF (VRV)". The generic alone when the brand has no name of its own, and
+    the brand's alone when it already says the generic word ("AIRSTAGE VRF"
+    rather than "VRF (AIRSTAGE VRF)"). */
+export function systemTypeLabel(generic: string, own: string | null): string {
+  if (!own) return generic;
+  const word = generic.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|\\W)${word}($|\\W)`, "i").test(own) ? own : `${generic} (${own})`;
 }
 
 /** one published spigot group on a factory-spigot face — `2 × Ø400`. Books

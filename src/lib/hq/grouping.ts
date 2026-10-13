@@ -11,14 +11,23 @@
    are split-world data and only ever appear under the split branch. */
 
 import type { HqCatalogView, HqRow } from "./catalog";
-import { FORM_FACTORS, type SystemType } from "@/lib/studio/packs/schema";
+import {
+  FORM_FACTORS,
+  brandSystemName,
+  systemTypeLabel,
+  type Brand,
+  type SystemType,
+} from "@/lib/studio/packs/schema";
 import { FORM_FACTOR_LABELS } from "@/lib/studio/select";
 
-export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
+/* The generic names, the same for every brand. VRF is the type; "VRV" is
+   Daikin's own name for it and "City Multi" Mitsubishi Electric's, so those
+   come from the brand's row in the pack (`system_names`), never from here. */
+export const SYSTEM_TYPE_LABELS = {
   split: "Split systems",
   multi: "Multi-split",
-  vrf: "VRF (City Multi)",
-};
+  vrf: "VRF",
+} satisfies Record<SystemType, string>;
 
 const SYSTEM_ORDER: SystemType[] = ["split", "multi", "vrf"];
 
@@ -98,8 +107,13 @@ function seriesGroups(
   return groups;
 }
 
-/** Group a brand's catalog view for the drill-down page. */
-export function groupBrandCatalog(view: HqCatalogView): HqBrandGroups {
+/** Group a brand's catalog view for the drill-down page. `brand` is the
+    pack's row for it: a system type it sells under its own name is labelled
+    with that name beside the generic one ("VRF (VRV)"). */
+export function groupBrandCatalog(
+  view: HqCatalogView,
+  brand?: Pick<Brand, "system_names"> | null
+): HqBrandGroups {
   const systems = SYSTEM_ORDER.map((key): HqSystemGroup => {
     const idus = view.indoor.filter((r) => r.systemTypes.includes(key));
     const odus = view.outdoor.filter((r) => r.systemTypes.includes(key));
@@ -126,7 +140,7 @@ export function groupBrandCatalog(view: HqCatalogView): HqBrandGroups {
     const units = [...idus, ...odus];
     return {
       key,
-      label: SYSTEM_TYPE_LABELS[key],
+      label: systemTypeLabel(SYSTEM_TYPE_LABELS[key], brandSystemName(brand, key)),
       iduForms,
       oduSeries: seriesGroups(odus, unitOrder),
       pairSeries: seriesGroups(pairs, (a, b) => a.title.localeCompare(b.title), true),

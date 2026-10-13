@@ -328,7 +328,7 @@ export const NODES: MapNode[] = [
     name: "Platform overview",
     kind: "feature",
     group: "HQ portal",
-    blurb: "Org-first KPIs: signups, activity, catalog readiness, env health.",
+    blurb: "Org-first KPIs: signups, activity, catalog readiness across every brand, env health.",
     detail:
       "The HQ landing page. The whole /hq surface sits behind the HQ_USER_IDS allowlist of Auth0 account ids — signed-out → login, non-staff → 404 so the route stays invisible.",
     href: "/hq",
@@ -341,7 +341,7 @@ export const NODES: MapNode[] = [
     group: "HQ portal",
     blurb: "Brand → system → series curation of every unit field.",
     detail:
-      "Field pills show extracted values, manual overrides (amber) and engine-blocking gaps (red). Edits never touch the pack — they write overrides that merge at load time.",
+      "One card per brand pack, then that brand's units by system type, form and series. Field pills show extracted values, manual overrides (amber) and engine-blocking gaps (red). Edits never touch the pack — they write overrides, kept per brand, that merge at load time.",
     href: "/hq/data",
     paths: ["src/app/hq/data", "src/app/actions/hq-overrides.ts"],
   },
@@ -350,7 +350,7 @@ export const NODES: MapNode[] = [
     name: "Change log",
     kind: "feature",
     group: "HQ portal",
-    blurb: "Who set or cleared which field, when — grouped by day.",
+    blurb: "Who set or cleared which brand's field, when — grouped by day.",
     href: "/hq/changes",
     paths: ["src/app/hq/changes/page.tsx"],
   },
@@ -631,9 +631,9 @@ export const NODES: MapNode[] = [
     name: "Manufacturer data packs",
     kind: "store",
     group: "Files & local",
-    blurb: "Repo-seeded pack JSON — mitsubishi-electric@2026.1 today.",
+    blurb: "Repo-seeded pack JSON, one pack per brand and edition.",
     detail:
-      "Extracted from uploaded documents only (hard rule: never web-sourced). Read from data/packs at request time.",
+      "Extracted from uploaded documents only (hard rule: never web-sourced). Read from data/packs at request time; HQ reads the newest edition of each brand. A brand's own name for a system type (Daikin's VRV, Mitsubishi Electric's City Multi) lives in its brands.json row, beside the generic VRF.",
     paths: ["data/packs"],
   },
   {
@@ -807,7 +807,7 @@ export const EDGES: MapEdge[] = [
   { from: "hq-overview", to: "eng-auth", label: "HQ_USER_IDS allowlist guards all of /hq" },
   { from: "hq-overview", to: "db-accounts", label: "live org / user / invite counts" },
   { from: "hq-overview", to: "db-designs", label: "designs per org, last activity" },
-  { from: "hq-overview", to: "eng-packs", label: "catalog size + engine-ready share" },
+  { from: "hq-overview", to: "eng-packs", label: "catalog size + engine-ready share, every brand's newest pack" },
   { from: "hq-data", to: "eng-packs", label: "packs grouped brand → system → series" },
   { from: "hq-data", to: "db-universal", label: "writes overrides + audit entries" },
   { from: "hq-changes", to: "db-universal", label: "reads the override audit log" },

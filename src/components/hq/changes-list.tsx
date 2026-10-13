@@ -4,10 +4,13 @@ import { formatDate, formatDateTime } from "@/lib/hq/format";
 /* HQ change log — every manual edit to the universal table, by time and staff
    member (the audit-trail requirement). Presentational: the page reads
    pack_override_log and passes serialisable events; grouped by day, newest
-   first. */
+   first. Every event names its brand: the log holds all the packs at once,
+   and a model code alone doesn't say whose book it came from. */
 
 export interface ChangeEvent {
   id: string;
+  /** the brand's name as its pack gives it ("Daikin"), else its id */
+  brand: string;
   section: string;
   rowKey: string;
   field: string;
@@ -57,7 +60,7 @@ export function ChangesList({ events }: { events: ChangeEvent[] }) {
                 <span className={`hq-change-act ${e.action}`}>
                   {e.action === "set" ? "set" : "cleared"}
                 </span>{" "}
-                <b>{e.rowKey}</b>, {label(e.section, e.field)}
+                {e.brand} <b>{e.rowKey}</b>, {label(e.section, e.field)}
                 <span className="hq-change-delta">
                   {" "}
                   {val(e.oldValue)} → {e.action === "clear" ? "pack" : val(e.newValue)}

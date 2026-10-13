@@ -125,11 +125,12 @@ function iduSystemTypes(roles: SystemRole[] | undefined): SystemType[] {
 // when they actually gate a claimed role (via ready.ts).
 //
 // `drain_pressure` is deliberately ABSENT from this list. It stays a fully
-// editable positive/negative field on every air-handling row, but no
-// Mitsubishi document we hold states it (checked across M-P0922, the AU Ducted
-// Brochure 2024 and City Multi MEES21K067), so listing it here reported a
-// permanent extraction debt against all 172 indoor rows for a figure no book
-// will ever supply. It is entered by staff, not extracted.
+// editable positive/negative field on every air-handling row, but no book
+// behind any installed pack states it (first checked across Mitsubishi
+// Electric's M-P0922, AU Ducted Brochure 2024 and MEES21K067; no row of the
+// Daikin, Fujitsu, MHI or Actron Air packs carries it either), so listing it
+// here reported a permanent extraction debt against every indoor row for a
+// figure no book supplies. It is entered by staff, not extracted.
 const IDU_NICE = [
   "sound_low_dba",
   "sound_high_dba",

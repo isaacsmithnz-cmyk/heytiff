@@ -6,7 +6,10 @@
    step (an AI screening pass will pre-fill them later). Raster path is
    browser-only; the floor-mapping helpers are pure + unit-tested. */
 
-import { newId, type DesignDocument, type Floor, type PlanSheet, type Point } from "./document";
+import { newId, type DesignDocument, type DesignObject, type Floor, type PlanSheet, type Point } from "./document";
+import { ATTACHED_RUN_TYPES } from "./attach";
+import { pointInPolygon, polygonCentroid } from "./geometry";
+import { attachOf } from "./graph";
 import { trimBorders, type TrimRect } from "./plan-trim";
 
 /** A rasterised candidate floor plan (one PDF page or one uploaded image).
@@ -301,9 +304,34 @@ export interface SplitSheetOpts {
   newSheetId: string;
 }
 
+/** Is world point `p` inside the area drawn on `sheet`? */
+function inRegion(p: Point, sheet: PlanSheet, region: SheetRegion): boolean {
+  const local = { x: p.x - sheet.x, y: p.y - sheet.y };
+  if (region.shape) return pointInPolygon(local, region.shape);
+  const { x, y, w, h } = region.rect;
+  return local.x >= x && local.x <= x + w && local.y >= y && local.y <= y + h;
+}
+
+/** Does this object sit in the area: a point by its position, an outline (a
+    room, a note's cloud) by its centre, a run only when every point is in. */
+function objectInRegion(o: DesignObject, sheet: PlanSheet, region: SheetRegion): boolean {
+  const g = o.geometry;
+  if (g.kind === "point") return inRegion(g.at, sheet, region);
+  if (g.kind === "polygon") return g.points.length > 0 && inRegion(polygonCentroid(g.points), sheet, region);
+  return g.points.length > 0 && g.points.every((p) => inRegion(p, sheet, region));
+}
+
 /** Keep `keep` on this floor and give `other` to a new floor. One document
-    change, so it is one undo step. Rooms, units and pipework already drawn stay
-    where they are. */
+    change, so it is one undo step.
+    What is already drawn in the `other` area goes with it (48 Thorne St: the
+    outdoor was placed before the split, stayed on the old floor on the faded
+    half of the page, and no pipe could reach it from the floor it was on).
+    Both floors show the sheet in the same place, so nothing moves on the page;
+    only its floor changes. A unit, riser, joint or box goes by its position; a
+    room or note by its centre; a run only when all of it is in the area; a
+    plenum with its unit. A run across the line stays and is the installer's to
+    redraw: an end of it on something that went to the other floor is cut, so
+    it reads as the loose pipe it now is. */
 export function splitFloorOffSheet(doc: DesignDocument, o: SplitSheetOpts): DesignDocument {
   const floor = doc.floors.find((f) => f.id === o.floorId);
   const sheet = floor?.plans.find((s) => s.id === o.sheetId);
@@ -325,13 +353,7 @@ export function splitFloorOffSheet(doc: DesignDocument, o: SplitSheetOpts): Desi
 
   // the north arrow goes with the floor whose area it sits in
   const np = floor.northPos;
-  const r = o.other.rect;
-  const northInOther =
-    np !== null &&
-    np.x >= sheet.x + r.x &&
-    np.x <= sheet.x + r.x + r.w &&
-    np.y >= sheet.y + r.y &&
-    np.y <= sheet.y + r.y + r.h;
+  const northInOther = np !== null && inRegion(np, sheet, o.other);
 
   const newFloor: Floor = {
     id: o.newFloorId,
@@ -344,8 +366,35 @@ export function splitFloorOffSheet(doc: DesignDocument, o: SplitSheetOpts): Desi
     plans: [withRegion({ ...sheet, id: o.newSheetId }, o.other)],
   };
 
+  const here = doc.objects.filter((x) => x.floorId === floor.id);
+  const hereIds = new Set(here.map((x) => x.id));
+  const going = new Set(
+    here.filter((x) => x.type !== "plenum" && objectInRegion(x, sheet, o.other)).map((x) => x.id)
+  );
+  for (const x of here) {
+    if (x.type === "plenum" && going.has(String(x.props.unitId ?? ""))) going.add(x.id);
+  }
+  // an end on something left on the other floor (not one already elsewhere)
+  const across = (run: DesignObject, key: "startAttach" | "endAttach") => {
+    const a = attachOf(run.props[key]);
+    return a !== null && hereIds.has(a.id) && going.has(a.id) !== going.has(run.id);
+  };
+  const objects = here.length
+    ? doc.objects.map((x) => {
+        if (x.floorId !== floor.id) return x;
+        const cutS = ATTACHED_RUN_TYPES.has(x.type) && across(x, "startAttach");
+        const cutE = ATTACHED_RUN_TYPES.has(x.type) && across(x, "endAttach");
+        if (!going.has(x.id) && !cutS && !cutE) return x;
+        const props = { ...x.props };
+        if (cutS) delete props.startAttach;
+        if (cutE) delete props.endAttach;
+        return { ...x, floorId: going.has(x.id) ? o.newFloorId : x.floorId, props };
+      })
+    : doc.objects;
+
   return {
     ...doc,
+    objects,
     floors: [
       ...floors.map((f) =>
         f.id === floor.id

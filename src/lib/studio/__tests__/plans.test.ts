@@ -1,7 +1,14 @@
 /* Plans pipeline — pure helpers. The pdf.js raster path is browser-only and
    exercised manually; these pin sequential labelling and floor mapping. */
 
-import { createDesign, type Floor } from "../document";
+import {
+  createDesign,
+  type DesignDocument,
+  type DesignObject,
+  type DesignSystem,
+  type Floor,
+} from "../document";
+import { loosePipes } from "../verdict";
 import {
   applyBuilderRows,
   builderRowsFromFloors,
@@ -28,6 +35,7 @@ import {
   splitFloorOffSheet,
   withRegion,
   type PageImage,
+  type SheetRegion,
   type UploadedSheet,
 } from "../plans";
 
@@ -622,6 +630,140 @@ describe("splitFloorOffSheet", () => {
     expect(g.plans[1].crop).toBeUndefined();
     expect(out.objects).toBe(d.objects);
     expect(out.planImport).toBe(d.planImport);
+  });
+
+  describe("what is already drawn goes with its area", () => {
+    // sheet at world (30, 40): world = sheet point + (30, 40)
+    const top = { rect: { x: 0, y: 0, w: 2000, h: 480 } };
+    const bottom = { rect: { x: 0, y: 520, w: 2000, h: 480 } };
+    const at = (x: number, y: number) => ({ x: x + 30, y: y + 40 });
+    const obj = (
+      id: string,
+      type: string,
+      geometry: DesignObject["geometry"],
+      props: Record<string, unknown> = {},
+      floorId = "flr_g"
+    ): DesignObject => ({ id, type, systemId: "sys_1", floorId, geometry, plane: "room", props });
+    const point = (id: string, type: string, x: number, y: number, props?: Record<string, unknown>) =>
+      obj(id, type, { kind: "point", at: at(x, y) }, props);
+    const line = (id: string, pts: [number, number][], props?: Record<string, unknown>) =>
+      obj(id, "pipe-run", { kind: "polyline", points: pts.map(([x, y]) => at(x, y)) }, props);
+    const floorOf = (doc: DesignDocument, id: string) => doc.objects.find((x) => x.id === id)!.floorId;
+    // the top half is the new floor, the bottom half stays
+    const split = (d: DesignDocument, other: SheetRegion = top) => run({ keep: bottom, other }, d);
+
+    it("an outdoor placed in the top half before the split ends up on the new floor", () => {
+      // 48 Thorne St: the outdoor stayed behind on the faded half, out of reach
+      const d = mk();
+      d.objects.push(point("odu", "unit", 1500, 200, { role: "odu" }));
+      expect(floorOf(split(d), "odu")).toBe("flr_new");
+    });
+
+    it("one in the kept half stays", () => {
+      const d = mk();
+      d.objects.push(point("odu", "unit", 1500, 800, { role: "odu" }));
+      const out = split(d);
+      expect(floorOf(out, "odu")).toBe("flr_g");
+      expect(out.objects[0]).toBe(d.objects[0]);
+    });
+
+    it("moves only the floor: positions are the same on both floors", () => {
+      const d = mk();
+      d.objects.push(point("odu", "unit", 1500, 200));
+      const moved = split(d).objects[0];
+      expect(moved.geometry).toEqual(d.objects[0].geometry);
+      expect(d.objects[0].floorId).toBe("flr_g"); // the input is not mutated
+    });
+
+    it("risers, joints and boxes go by position; rooms and notes by their centre; runs when all of them is in", () => {
+      const d = mk();
+      d.objects.push(
+        point("riser", "riser", 100, 100),
+        point("joint", "joint", 200, 100),
+        point("box", "branch-box", 300, 100),
+        // a room reaching over the line, most of it up top
+        obj("room_up", "room", { kind: "polygon", points: [at(0, 0), at(600, 0), at(600, 560), at(0, 560)] }),
+        obj("room_down", "room", { kind: "polygon", points: [at(0, 400), at(600, 400), at(600, 1000), at(0, 1000)] }),
+        obj("note", "note", { kind: "polygon", points: [at(900, 50), at(1100, 50), at(1100, 150), at(900, 150)] }),
+        line("run_in", [[100, 100], [200, 100]]),
+        line("run_out", [[100, 900], [200, 900]])
+      );
+      const out = split(d);
+      expect(
+        Object.fromEntries(out.objects.map((x) => [x.id, x.floorId]))
+      ).toEqual({
+        riser: "flr_new",
+        joint: "flr_new",
+        box: "flr_new",
+        room_up: "flr_new",
+        room_down: "flr_g",
+        note: "flr_new",
+        run_in: "flr_new",
+        run_out: "flr_g",
+      });
+    });
+
+    it("a freeform area takes only what is inside its outline", () => {
+      // the top half's left triangle: (1500, 400) is in the box but not the outline
+      const tri = { rect: top.rect, shape: [{ x: 0, y: 0 }, { x: 2000, y: 0 }, { x: 0, y: 480 }] };
+      const d = mk();
+      d.objects.push(point("in", "unit", 100, 100), point("out", "unit", 1500, 400));
+      const out = split(d, tri);
+      expect([floorOf(out, "in"), floorOf(out, "out")]).toEqual(["flr_new", "flr_g"]);
+    });
+
+    it("a plenum goes with its unit, wherever its own point is", () => {
+      const d = mk();
+      d.objects.push(
+        point("ahu", "unit", 1000, 450),
+        point("plenum", "plenum", 1000, 600, { unitId: "ahu" })
+      );
+      const out = split(d);
+      expect([floorOf(out, "ahu"), floorOf(out, "plenum")]).toEqual(["flr_new", "flr_new"]);
+    });
+
+    it("a run across the line stays, its end on the outdoor that went cut loose — a finding until it is redrawn", () => {
+      const d = mk();
+      d.objects.push(
+        point("odu", "unit", 1500, 200),
+        point("idu", "unit", 1500, 800),
+        line("run", [[1500, 800], [1500, 200]], {
+          startAttach: { kind: "unit", id: "idu" },
+          endAttach: { kind: "unit", id: "odu" },
+        })
+      );
+      const out = split(d);
+      const r = out.objects.find((x) => x.id === "run")!;
+      expect(r.floorId).toBe("flr_g");
+      expect(r.geometry).toEqual(d.objects[2].geometry);
+      expect(r.props).toEqual({ startAttach: { kind: "unit", id: "idu" } });
+      const sys: DesignSystem = { id: "sys_1", type: "split", brand: "x", colour: "#000", name: "S", settings: {} };
+      expect(loosePipes(d, sys)).toBeNull();
+      expect(loosePipes(out, sys)).toMatchObject({ code: "loose-pipe" });
+    });
+
+    it("a run that goes keeps its ends on what went with it, and loses the ones on what stayed", () => {
+      const d = mk();
+      d.objects.push(
+        point("joint", "joint", 500, 300),
+        point("riser", "riser", 500, 490), // in the gap between the areas: stays
+        line("run", [[500, 300], [500, 470]], {
+          startAttach: { kind: "joint", id: "joint" },
+          endAttach: { kind: "riser", id: "riser" },
+        })
+      );
+      const out = split(d);
+      expect(floorOf(out, "run")).toBe("flr_new");
+      expect(floorOf(out, "riser")).toBe("flr_g");
+      expect(out.objects.find((x) => x.id === "run")!.props).toEqual({ startAttach: { kind: "joint", id: "joint" } });
+    });
+
+    it("leaves other floors' objects alone, even where they sit in the area", () => {
+      const d = mk();
+      const elsewhere = obj("up", "unit", { kind: "point", at: at(100, 100) }, {}, "flr_1");
+      d.objects.push(elsewhere);
+      expect(split(d).objects[0]).toBe(elsewhere);
+    });
   });
 
   it("returns the document untouched when the ids don't match", () => {

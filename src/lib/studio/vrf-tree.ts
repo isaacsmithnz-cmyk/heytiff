@@ -34,6 +34,7 @@
 import type { DesignDocument, DesignSystem } from "./document";
 import { buildSystemGraph, floorBasesM, mountOf } from "./graph";
 import type { DataPack, IndoorUnit, OutdoorUnit, PipeSizingRule, VrfPipeTable } from "./packs/schema";
+import { indexNotation, indexText } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { zoneIdsOf } from "./zones";
 import { evaluateVrfCharge, isVrfChargeRule } from "./materials";
@@ -210,8 +211,8 @@ const stepCovers = (s: { index_max?: number; kw_max?: number }, index: number, k
   (s.kw_max == null || kw <= s.kw_max + 1e-9);
 
 /** "P250" or "23.4 kW": what a step was looked up by, for a finding */
-const downText = (index: number, kw: number, byKw: boolean): string =>
-  byKw ? `${Math.round(kw * 10) / 10} kW` : `P${index}`;
+const downText = (notation: string, index: number, kw: number, byKw: boolean): string =>
+  byKw ? `${Math.round(kw * 10) / 10} kW` : indexText(notation, index);
 
 /** a size from a table keyed by downstream index or by downstream kW */
 function sizeBy(rule: PipeSizingRule | undefined, index: number, kw: number): { liquid: number; gas: number } | null {
@@ -289,6 +290,8 @@ function tableFor(pack: DataPack, odu: OutdoorUnit, method: VrfMethod): VrfPipeT
 /** size a VRF tree against its outdoor's table */
 export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): SizedTree {
   const findings: TreeFinding[] = [];
+  /* an index as the brand's books write it: ME's "P50", else "index 50" */
+  const notation = indexNotation(pack, odu.brand);
   const nodeById = new Map(tree.nodes.map((n) => [n.id, n]));
   const root = tree.nodes.find((n) => n.kind === "odu");
   const children = new Map<string, VrfTreeSection[]>();
@@ -445,7 +448,13 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
           message:
             role === "box"
               ? `The book gives no branch box pipe for ${to.model} on ${odu.model}`
-              : `No pipe size in the book for P${down}`,
+              : `No pipe size in the book for ${downText(
+                  notation,
+                  down,
+                  downKw,
+                  (role === "branch" ? (table.branch_sizing ?? table.pipe_sizing) : table.pipe_sizing)?.method ===
+                    "size_by_downstream_kw"
+                )}`,
         });
         continue;
       }
@@ -843,7 +852,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         findings.push({
           severity: "red",
           code: "no-fitting-part",
-          message: `No header in the book takes ${outs.length} branches at ${downText(down, downKw, steps.some((h) => h.index_max == null && h.kw_max != null))}`,
+          message: `No header in the book takes ${outs.length} branches at ${downText(notation, down, downKw, steps.some((h) => h.index_max == null && h.kw_max != null))}`,
         });
       if (outs.some((s) => nodeById.get(s.to)?.kind !== "idu"))
         findings.push({ severity: "red", code: "branch-after-header", message: "The pipework branches again after a header", fix: "Run each header branch straight to its head" });
@@ -864,7 +873,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         findings.push({
           severity: "red",
           code: "no-fitting-part",
-          message: `No joint in the book for ${downText(down, downKw, steps.some((j) => j.index_max == null && j.kw_max != null))}`,
+          message: `No joint in the book for ${downText(notation, down, downKw, steps.some((j) => j.index_max == null && j.kw_max != null))}`,
         });
     }
   }

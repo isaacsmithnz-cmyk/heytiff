@@ -325,6 +325,9 @@ export function validatePack(pack: DataPack): ValidationResult {
     if (!str(b.name)) push("name missing");
     if (seenBrand.has(b.id)) push("duplicate brand id");
     seenBrand.add(b.id);
+    // the books' index notation: the number's place marked once
+    if (b.capacity_index_notation != null && (typeof b.capacity_index_notation !== "string" || b.capacity_index_notation.split("{n}").length !== 2))
+      push("capacity_index_notation must hold {n} once");
     // the brand's own system names: a known system type each, never blank
     if (b.system_names != null) {
       if (typeof b.system_names !== "object" || Array.isArray(b.system_names))

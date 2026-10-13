@@ -16,6 +16,7 @@
 
 import { newId, type DesignDocument, type DesignObject, type DesignSystem, type Point } from "./document";
 import type { DataPack, IndoorUnit, OutdoorUnit, PairTable } from "./packs/schema";
+import { indexNotation } from "./packs/schema";
 import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
 import { roomAtPoint, roomCoverage, systemCover, type CoverageCap } from "./coverage";
 import { checkMultiCompatibility, multiCapableIdus, UNDER_MINIMUM } from "./multi";
@@ -156,7 +157,7 @@ export function outdoorsListing(
       const capable = new Set(multiCapableIdus(pack, [rule]).map((u) => u.model));
       if (!heads.every((h) => capable.has(h.model))) continue;
     }
-    const findings = checkMultiCompatibility(rule, odu, heads);
+    const findings = checkMultiCompatibility(rule, odu, heads, indexNotation(pack, odu.brand));
     if (
       findings.some(
         (f) => f.severity === "red" || UNCHECKABLE.has(f.code) || (!opts.proposing && UNDER_MINIMUM.has(f.code))

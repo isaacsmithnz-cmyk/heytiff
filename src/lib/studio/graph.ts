@@ -69,6 +69,9 @@ export interface GraphEdge {
   /** elbows the edge itself puts in the pipe: a riser turns at each end a
       run leaves it (a run's own corners are counted from its drawing) */
   bends?: number;
+  /** the vertical is already in `lengthM` (a riser gap is its height); a
+      drawn run's length is on the plan and its rise is not */
+  riseInLength?: boolean;
 }
 
 export interface SystemGraph {
@@ -258,6 +261,7 @@ export function buildSystemGraph(
         lengthM: manual ?? Math.abs(h),
         riseM: h,
         bends: (runOn(lower.id) ? 1 : 0) + (runOn(upper.id) ? 1 : 0),
+        riseInLength: true,
       });
     }
   }
@@ -272,6 +276,11 @@ export interface PathResult {
   lengthM: number | null;
   /** |net vertical| in metres between the endpoints */
   liftM: number;
+  /** metres of climb and drop the drawn length leaves out: each run's rise
+      between the heights its ends are mounted at (a riser gap's height is
+      already in `lengthM`). Drawn length + this is the least an equivalent
+      length can be — the book's equivalent also counts bends and fittings. */
+  unmeasuredRiseM: number;
 }
 
 /** BFS shortest path (by hop count) between two nodes; null when unreachable. */
@@ -300,18 +309,20 @@ export function findPath(
   const nodeIds = [toId];
   let lengthM: number | null = 0;
   let rise = 0;
+  let unmeasuredRiseM = 0;
   let cur = toId;
   while (cur !== fromId) {
     const p = prev.get(cur)!;
     if (lengthM != null)
       lengthM = p.edge.lengthM == null ? null : lengthM + p.edge.lengthM;
+    if (!p.edge.riseInLength) unmeasuredRiseM += Math.abs(p.edge.riseM);
     // rise is stored a→b; walking b→a flips the sign
     rise += p.edge.a === p.node ? p.edge.riseM : -p.edge.riseM;
     cur = p.node;
     nodeIds.push(cur);
   }
   nodeIds.reverse();
-  return { nodeIds, lengthM, liftM: Math.abs(rise) };
+  return { nodeIds, lengthM, liftM: Math.abs(rise), unmeasuredRiseM };
 }
 
 /** Total drawn pipe length for a system in metres (all runs + riser gaps);

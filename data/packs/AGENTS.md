@@ -192,6 +192,19 @@ checks nothing, which is the safe answer:
 - **Store `port_pipe_sizes` in the book's port order, A first** — don't sort
   them. Port A isn't always the largest (Daikin 3/4MXM vs 5MXM100).
 
+### 3c. Pair length limits — actual or equivalent?
+
+Read the words beside a pair's maximum length. When the book calls it
+**equivalent** length ("max equivalent pipe length 60 m", "equivalent length
+includes fittings and vertical rise"), set `"max_length_basis": "equivalent"`
+on that pair and cite the page that says so. When it says "piping length",
+"one-way length" or "actual", leave the basis out (actual is the default).
+When it prints both — "75 m (90 m) (It is equivalent length in the inside)" —
+store the actual figure and leave the basis out. Never set it from a guess:
+an equivalent basis makes the Studio warn near the limit, and a wrong one warns
+on every long run. MHI's "equivalent length Le" for a charge table is a
+liquid-size weighting, not this (see `length_weights`, §3a).
+
 ## 4. Units and types
 
 Canonical units, converted on entry — the display layer handles imperial:

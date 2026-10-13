@@ -88,10 +88,21 @@ export interface Finding {
     | "over-length"
     | "over-lift"
     | "past-charge-table"
+    | "near-equivalent-limit"
     | "uncalibrated"
     | "under-capacity";
   message: string;
 }
+
+/** How close to an EQUIVALENT-length limit a run may come, measured, before
+    it is amber. The Studio measures the drawn run and the rise between where
+    its ends are mounted; the book's equivalent length adds an allowance for
+    every bend and fitting, which the Studio doesn't know and never invents.
+    Typical split runs carry a handful of elbows at a few tenths of a metre to
+    a metre each, so at 80% of the limit (12 m short of a 60 m figure) the
+    fittings can plausibly decide it — that is the point to look, never a
+    reason to refuse. */
+export const EQUIV_LENGTH_CLOSE_RATIO = 0.8;
 
 export type BadgeStatus = "green" | "amber" | "red" | "empty";
 
@@ -193,11 +204,20 @@ export function validateSplitSystem(
           message: "Floor not calibrated — pipe lengths are unknown",
         });
       } else if (pair) {
-        if (lengthM > pair.max_length_m)
+        /* an EQUIVALENT limit counts the rise and the fittings: judge it on
+           the run plus the climb the drawing leaves out — the least the
+           equivalent length can be — and warn close to it */
+        const equivalent = pair.max_length_basis === "equivalent";
+        const climbM = equivalent ? path.unmeasuredRiseM : 0;
+        const measuredM = lengthM + climbM;
+        const withRise = climbM > 0.05 ? ` with ${climbM.toFixed(1)} m of rise` : "";
+        if (measuredM > pair.max_length_m)
           findings.push({
             severity: "red",
             code: "over-length",
-            message: `Run is ${lengthM.toFixed(1)} m — max for this pair is ${pair.max_length_m} m`,
+            message: equivalent
+              ? `Run is ${measuredM.toFixed(1)} m${withRise} — max for this pair is ${pair.max_length_m} m equivalent, and that is before its bends and fittings`
+              : `Run is ${lengthM.toFixed(1)} m — max for this pair is ${pair.max_length_m} m`,
           });
         /* a stepped charge table ends (Daikin prints "Impossible" past its
            last column): a run the pair allows but the table doesn't reach
@@ -212,6 +232,16 @@ export function validateSplitSystem(
             message: `Run is ${lengthM.toFixed(1)} m — the book's charge table for this pair stops at ${end != null ? +end.toFixed(1) : "?"} m`,
           });
         }
+        if (
+          !findings.some((f) => f.code === "over-length" || f.code === "past-charge-table") &&
+          equivalent &&
+          measuredM >= pair.max_length_m * EQUIV_LENGTH_CLOSE_RATIO
+        )
+          findings.push({
+            severity: "amber",
+            code: "near-equivalent-limit",
+            message: `Run is ${measuredM.toFixed(1)} m${withRise}, within ${Math.round((1 - EQUIV_LENGTH_CLOSE_RATIO) * 100)}% of the book's ${pair.max_length_m} m — an equivalent length, which also counts bends and fittings. Allow for its fittings`,
+          });
         if (liftM > pair.max_lift_m)
           findings.push({
             severity: "red",

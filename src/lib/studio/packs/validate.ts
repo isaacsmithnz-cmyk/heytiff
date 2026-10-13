@@ -398,6 +398,8 @@ export function validatePack(pack: DataPack): ValidationResult {
     if (!oduModels.has(pt.odu_model)) push(`odu_model not found: ${pt.odu_model}`);
     if (!pos(pt.pipe_liquid_mm) || !pos(pt.pipe_gas_mm)) push("pipe sizes missing");
     if (!pos(pt.max_length_m) || !num(pt.max_lift_m)) push("length/lift limits missing");
+    if (pt.max_length_basis != null && pt.max_length_basis !== "actual" && pt.max_length_basis !== "equivalent")
+      push(`max_length_basis must be "actual" or "equivalent": ${pt.max_length_basis}`);
     checkAdditionalCharge(push, pt.additional_charge);
     const shortTable = steppedEndWarning(pt.additional_charge, pt.pipe_liquid_mm, pt.max_length_m);
     if (shortTable) warn("pair_tables", `${pt.idu_model}+${pt.odu_model}`, shortTable);

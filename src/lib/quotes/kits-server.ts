@@ -1,8 +1,8 @@
 import "server-only";
 import { bookProducts } from "./book-view-server";
-import { expandKit, indoorFacts, pipeFromMm, stillToSize, type KitFacts, type KitKey } from "./kits";
+import { expandKit, indoorFacts, pipeFromMm, stillToSize, zoneKitOf, type KitFacts, type KitKey } from "./kits";
 import { addLine } from "./lines-server";
-import { lookupUnit } from "./lookups-server";
+import { lookupUnit, zoningFor } from "./lookups-server";
 import { readQuoteSettings } from "./settings-query";
 import { readByHand } from "./lines-job-server";
 import { rangeOffersFrom, readRanges } from "./ranges-server";
@@ -42,6 +42,12 @@ export async function addKit(
     }
     /* a ducted indoor: its plenums are made for its faces (kits, round 2) */
     if (u.found && u.specs.role === "indoor") Object.assign(f, indoorFacts(u.specs), f.supplyFace ? { supplyFace: f.supplyFace } : {});
+  }
+  /* zoned: the maker's zone system, from the pack of the brand it's for */
+  const brand = (indoor ?? unit)?.brand ?? null;
+  if (kit === "ducted" && f.zones && brand) {
+    const z = await zoningFor(brand);
+    if (z) f.zoning = zoneKitOf(z, f.zones, f.zoneControl ?? "temperature", !!f.wifi);
   }
   const [products, settings, byHand, ranges] = await Promise.all([bookProducts(orgId), readQuoteSettings(orgId), readByHand(orgId, jobUuid), readRangeOffers(orgId)]);
   const a = settings.allowances;

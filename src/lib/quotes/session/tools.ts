@@ -306,6 +306,9 @@ export const SESSION_TOOLS: ToolDef[] = [
         replacing: { type: "string", enum: ["no", "yes", "keep"], description: "An old system comes out; keep: and its pipe is kept" },
         underfloor: { type: "boolean", description: "Ducted: the indoor goes under the floor, its outlets floor grilles on boots" },
         kept_pipe: { type: "string", enum: [...OLD_PIPES] },
+        zones: { type: "integer", description: "Ducted, zoned: how many zones. The kit takes the maker's zone system from its data: its interface, its own controller in place of the unit's, a sensor in every zone" },
+        zone_control: { type: "string", enum: ["temperature", "on_off"], description: "Ducted, zoned: by temperature (linear, a sensor a zone) or on and off" },
+        wifi: { type: "boolean", description: "WiFi asked for: the zone system's own" },
       },
       required: ["kit", "option", "system"],
       additionalProperties: false,
@@ -570,6 +573,9 @@ export function kitAskOf(raw: unknown): {
       fittings: list(r.fittings)?.map((x) => ({ inMm: x.in_mm, outsMm: x.outs_mm, count: x.count })),
       reducers: list(r.reducers)?.map((x) => ({ fromMm: x.from_mm, toMm: x.to_mm, count: x.count })),
       returnGrille: grille.w_mm != null ? { w: grille.w_mm, h: grille.h_mm } : undefined,
+      zones: r.zones,
+      zoneControl: r.zone_control,
+      wifi: r.wifi === true,
     },
   };
 }

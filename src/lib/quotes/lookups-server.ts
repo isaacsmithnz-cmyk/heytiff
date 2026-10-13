@@ -1,6 +1,6 @@
 import "server-only";
 import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
-import type { DataPack } from "@/lib/studio/packs/schema";
+import type { DataPack, ZoningController } from "@/lib/studio/packs/schema";
 import { bookProducts } from "./book-view-server";
 import { findInBook, unitSpecs, type BookHit, type BookQuery, type UnitLookup } from "./lookups";
 
@@ -16,6 +16,13 @@ export async function lookupBook(orgId: string, q: BookQuery): Promise<BookHit[]
 async function packFor(brand: string): Promise<DataPack | null> {
   const ref = await latestInstalledPack(brand.toLowerCase());
   return ref ? (await loadInstalledPack(ref.brand, ref.version)).pack : null;
+}
+
+/** A brand's zone system from its pack: the one made for it, else none. */
+export async function zoningFor(brand: string): Promise<ZoningController | null> {
+  const pack = await packFor(brand).catch(() => null);
+  const key = brand.toLowerCase();
+  return pack?.zoning_controllers.find((z) => !z.compatible_brands || z.compatible_brands.includes(key)) ?? null;
 }
 
 export async function lookupUnit(brand: string, model: string): Promise<UnitLookup> {

@@ -47,11 +47,13 @@ export function evaluateAdditionalCharge(
     }
     case "formula_coefficients": {
       if (ctx.liquidSizeMm == null) return null;
+      // the heads term needs a network's connected index — no figure on one run
+      if (rule.plus_per_index_over_odu_g != null) return null;
       const term = rule.terms.find((t) => t.liquid_mm === ctx.liquidSizeMm);
       if (!term) return null;
       const g =
         ctx.liquidLengthM * term.coeff_g_per_m - (rule.deduction_g ?? 0);
-      return Math.max(rule.min_charge_g ?? 0, g);
+      return roundNearest(Math.max(rule.min_charge_g ?? 0, g), rule.round_g);
     }
     case "fixed_per_idu":
       return null; // needs an idu-size key — no consumer yet
@@ -72,11 +74,16 @@ export function evaluateAdditionalCharge(
       const chargeless = rule.chargeless_up_to_m != null && L <= rule.chargeless_up_to_m + EPS;
       let g = chargeless ? 0 : L * rate;
       if (rule.plus_past && L > rule.plus_past.over_m + EPS) g += rule.plus_past.add_g;
-      const step = rule.round_g ?? 0;
       // "rounded off in units of 0.1 kg": to the NEAREST step, not up
-      return step > 0 ? Math.round(Math.round(g * 1000) / 1000 / step) * step : g;
+      return roundNearest(g, rule.round_g);
     }
   }
+}
+
+/** to the nearest step ("rounded off in units of 0.1 kg"), not up; the float
+    sum is settled to the gram first so 2.95 kg doesn't read as 2.9499… */
+function roundNearest(g: number, step: number | undefined): number {
+  return step != null && step > 0 ? Math.round(Math.round(g * 1000) / 1000 / step) * step : g;
 }
 
 /** a run measured to the millimetre must not fall out of the band it reads
@@ -119,7 +126,14 @@ export function chargeTableEndM(rule: AdditionalChargeRule, liquidSizeMm?: numbe
   return per == null || per <= 0 ? null : rule.bands[rule.bands.length - 1].up_to_m / per;
 }
 
-type VrfChargeRule = Extract<AdditionalChargeRule, { method: "per_meter_by_liquid_size_by_farthest" }>;
+type VrfChargeRule = Extract<
+  AdditionalChargeRule,
+  { method: "per_meter_by_liquid_size_by_farthest" | "formula_coefficients" }
+>;
+
+/** the charge methods a VRF network is evaluated by */
+export const isVrfChargeRule = (rule: AdditionalChargeRule): rule is VrfChargeRule =>
+  rule.method === "per_meter_by_liquid_size_by_farthest" || rule.method === "formula_coefficients";
 
 /** A VRF system's additional charge in grams, from the whole network: metres
     of liquid pipe per size, the outdoor → farthest indoor length, the total
@@ -136,8 +150,11 @@ export function evaluateVrfCharge(
     connectedKw?: number;
     oduModel: string;
     iduModels: string[];
+    /** the outdoor's own capacity index (formula_coefficients' heads term) */
+    oduIndex?: number;
   }
 ): number | null {
+  if (rule.method === "formula_coefficients") return formulaNetworkCharge(rule, ctx);
   const band = rule.bands.find((b) => b.farthest_m_max == null || ctx.farthestM <= b.farthest_m_max);
   if (!band) return null;
   let g = 0;
@@ -167,6 +184,30 @@ export function evaluateVrfCharge(
   const step = rule.round_up_g ?? 0;
   // the float sum can sit a hair above a whole step (12450.000000002)
   return step > 0 ? Math.ceil(Math.round(g * 1000) / 1000 / step) * step : g;
+}
+
+/** formula_coefficients over a network (MHI KX Micro, KX-T-374 p.21):
+    P = Σ metres per liquid size × coefficient − deduction, never under the
+    floor; then I = grams per index point the heads exceed the outdoor by;
+    the total rounded to the nearest step. Null when a size has no
+    coefficient, or the heads term needs an index that isn't recorded. */
+function formulaNetworkCharge(
+  rule: Extract<AdditionalChargeRule, { method: "formula_coefficients" }>,
+  ctx: { liquidM: Record<string, number>; connectedIndex: number; oduIndex?: number }
+): number | null {
+  let g = 0;
+  for (const [size, m] of Object.entries(ctx.liquidM)) {
+    if (m <= 0) continue;
+    const term = rule.terms.find((t) => t.liquid_mm === Number(size));
+    if (!term) return null;
+    g += m * term.coeff_g_per_m;
+  }
+  g = Math.max(rule.min_charge_g ?? 0, g - (rule.deduction_g ?? 0));
+  if (rule.plus_per_index_over_odu_g != null) {
+    if (ctx.oduIndex == null) return null;
+    g += Math.max(0, ctx.connectedIndex - ctx.oduIndex) * rule.plus_per_index_over_odu_g;
+  }
+  return roundNearest(g, rule.round_g);
 }
 
 /** "4-way cassette indoor unit, 3.2/3.6 kW" — one wording for a unit, shared

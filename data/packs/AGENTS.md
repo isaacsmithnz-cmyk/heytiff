@@ -137,6 +137,7 @@ Read the charge page and match its *form*, not its numbers:
 | g/m by size on the **whole** length once past a chargeless length | `whole_length_by_liquid_size` + `chargeless_up_to_m` | Daikin RZQ: `rates: {"12.7": 120, "9.52": 59}`, `chargeless_up_to_m: 30`, `round_g: 100` |
 | g/m by size from the first metre, plus a fixed "A" past a length | `whole_length_by_liquid_size` + `plus_past` | Daikin RZYQ 7–8 HP: `plus_past: {over_m: 30, add_g: 700}` |
 | a VRF network formula (rates by farthest length, + by index/outdoor/head) | `per_meter_by_liquid_size_by_farthest` | ME PUHY |
+| standard charge + metres × rate per size − factory charge (nothing if negative), + a rate per index point the heads exceed the outdoor by | `formula_coefficients` + `plus_per_index_over_odu_g` (+ `round_g`) | MHI KX Micro: terms 9.52 → 50, 6.35 → 20, `deduction_g: 1000` (4.2 − 3.2 kg), `min_charge_g: 0`, `plus_per_index_over_odu_g: 5`, `round_g: 100` |
 | "no additional charge" (and the max length is the chargeless length) | `none_required` | |
 
 Rules for the stepped form:
@@ -152,6 +153,15 @@ Rules for the stepped form:
   row; leave it out only when the page prints none.
 - A table for **re-used or one-size-up pipe** is a different installation, not
   the pair's rule — the pair row takes the standard-pipe table.
+
+### 3a-VRF. A connection ratio that changes with the head count
+
+The ratio band lives on the VRF outdoor (`ratio_min_pct`, `ratio_max_pct`,
+`max_idus`) — write the bottom the book prints for that outdoor (KX Micro 80%,
+its FDC90 100%), never a default. Where the book lowers the top for big sets
+("with 9 units or more: 5HP 110%, 6HP 100%"), add
+`ratio_max_pct_by_heads: [{ "min_heads": 9, "max_pct": 110 }]` to that outdoor
+only; `ratio_max_pct` stays the book's normal top (150%).
 
 ### 3b. Multi limits — which kinds does the book print?
 

@@ -151,6 +151,16 @@ function checkAdditionalCharge(
         if (!pos(v)) push(`additional_charge.length_weights[${k}] not a positive number`);
     }
   }
+  if (c.method === "formula_coefficients") {
+    if (!c.terms?.length) push("additional_charge.terms empty");
+    (c.terms ?? []).forEach((t, i) => {
+      if (!pos(t.liquid_mm) || !num(t.coeff_g_per_m) || t.coeff_g_per_m < 0)
+        push(`additional_charge.terms[${i}] needs a liquid_mm and a coeff_g_per_m ≥ 0`);
+    });
+    if (c.plus_per_index_over_odu_g != null && (!num(c.plus_per_index_over_odu_g) || c.plus_per_index_over_odu_g < 0))
+      push("additional_charge.plus_per_index_over_odu_g not a number ≥ 0");
+    if (c.round_g != null && !pos(c.round_g)) push("additional_charge.round_g not a positive number");
+  }
   if (c.method === "whole_length_by_liquid_size") {
     if (!c.rates || Object.keys(c.rates).length === 0) push("additional_charge.rates empty");
     else
@@ -356,6 +366,17 @@ export function validatePack(pack: DataPack): ValidationResult {
     if (!(REFRIGERANTS as readonly string[]).includes(o.refrigerant))
       push(`refrigerant invalid: ${o.refrigerant}`);
     checkSound((m) => warn("outdoor_units", o.model ?? "-", m), o.sound_low_dba, o.sound_high_dba);
+    (o.ratio_max_pct_by_heads ?? []).forEach((t, i) => {
+      if (!Number.isInteger(t.min_heads) || t.min_heads < 2)
+        push(`ratio_max_pct_by_heads[${i}].min_heads not a whole number ≥ 2`);
+      if (!pos(t.max_pct)) push(`ratio_max_pct_by_heads[${i}].max_pct not a positive number`);
+      else if (num(o.ratio_max_pct) && t.max_pct >= o.ratio_max_pct)
+        push(`ratio_max_pct_by_heads[${i}].max_pct ${t.max_pct} doesn't lower ratio_max_pct ${o.ratio_max_pct}`);
+      if (num(o.max_idus) && t.min_heads > o.max_idus)
+        push(`ratio_max_pct_by_heads[${i}].min_heads ${t.min_heads} over max_idus ${o.max_idus}`);
+    });
+    if (o.ratio_max_pct_by_heads?.length && !num(o.ratio_max_pct))
+      push("ratio_max_pct_by_heads without a ratio_max_pct");
     checkProvenance(push, o.provenance);
   }
 

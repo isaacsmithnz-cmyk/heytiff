@@ -94,10 +94,26 @@ export type AdditionalChargeRule =
       precharged_allowance_m?: number;
     }
   | {
+      /** a computed charge: metres of liquid pipe per size × its coefficient,
+          less a deduction, never under `min_charge_g`. On a pair the run's one
+          size; on a VRF network every size's metres added up (vrf-tree.ts).
+          MHI KX Micro (KX-T-374 p.21): P = standard 3.2 kg + L(φ9.52) × 0.050
+          + L(φ6.35) × 0.020 − factory 4.2 kg, nothing when negative →
+          terms 9.52: 50, 6.35: 20, deduction_g 1000, min_charge_g 0. */
       method: "formula_coefficients";
       terms: { liquid_mm: number; coeff_g_per_m: number }[];
       deduction_g?: number;
       min_charge_g?: number;
+      /** a VRF network's heads term, added after the floor: grams per point
+          by which the connected heads' capacity indexes added up exceed the
+          outdoor's own index, nothing when they don't. KX-T-374 p.21: "I = D ×
+          0.005", D = total indoor capacity − outdoor capacity → 5. A one-run
+          (pair) charge has no connected index, so a rule carrying this gives
+          no figure there. */
+      plus_per_index_over_odu_g?: number;
+      /** the total rounded to the NEAREST step ("rounding to the nearest
+          0.1kg" → 100) */
+      round_g?: number;
     }
   | { method: "threshold_then_rate"; free_up_to_m: number; g_per_m_beyond: number }
   | { method: "fixed_per_idu"; /** idu-size key → grams */ table: Record<string, number> }
@@ -499,6 +515,13 @@ export interface OutdoorUnit {
   /* vrf/multi connectable envelope */
   ratio_min_pct?: number;
   ratio_max_pct?: number;
+  /** a lower top to the ratio once the system has this many heads or more —
+      the lowest tier that applies wins over `ratio_max_pct`. MHI KX Micro (R32
+      VRF brochure, Mar 2026, folio 25): 100–150%, but "When connecting 9
+      units or more … 5HP : 110% or less, 6HP : 100% or less" → FDC140:
+      [{ min_heads: 9, max_pct: 110 }], FDCA155: [{ min_heads: 9, max_pct:
+      100 }]. Absent = the one top for every head count. */
+  ratio_max_pct_by_heads?: { min_heads: number; max_pct: number }[];
   max_idus?: number;
   idu_index_min?: number;
   idu_index_max?: number;

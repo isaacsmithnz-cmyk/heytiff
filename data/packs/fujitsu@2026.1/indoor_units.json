@@ -3749,7 +3749,14 @@
   "capacity_code": 24,
   "airflow_ls": 356,
   "static_pressure_pa": 150,
-  "supply_opening": "open",
+  "supply_opening": {
+   "spigots": [
+    {
+     "count": 4,
+     "dia_mm": 205
+    }
+   ]
+  },
   "return_opening": "open",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -3771,9 +3778,9 @@
   "weight_kg": 36.0,
   "provenance": {
    "kind": "extracted",
-   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
-   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
-   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline)"
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH; Duct Type Installation Manual ARXA024-045GLEH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal); PART No. 9373385257 (GENERAL Partner Portal)",
+   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline); Duct Type Installation Manual ARXA024-045GLEH PART No. 9373385257 En-4 (3.3.4 Outlet duct: round duct outlet × 4, factory setting)"
   }
  },
  {
@@ -3786,7 +3793,14 @@
   "capacity_code": 30,
   "airflow_ls": 392,
   "static_pressure_pa": 150,
-  "supply_opening": "open",
+  "supply_opening": {
+   "spigots": [
+    {
+     "count": 4,
+     "dia_mm": 205
+    }
+   ]
+  },
   "return_opening": "open",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -3808,9 +3822,9 @@
   "weight_kg": 40.0,
   "provenance": {
    "kind": "extracted",
-   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
-   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
-   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline)"
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH; Duct Type Installation Manual ARXA024-045GLEH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal); PART No. 9373385257 (GENERAL Partner Portal)",
+   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline); Duct Type Installation Manual ARXA024-045GLEH PART No. 9373385257 En-4 (3.3.4 Outlet duct: round duct outlet × 4, factory setting)"
   }
  },
  {
@@ -3823,7 +3837,14 @@
   "capacity_code": 36,
   "airflow_ls": 511,
   "static_pressure_pa": 150,
-  "supply_opening": "open",
+  "supply_opening": {
+   "spigots": [
+    {
+     "count": 4,
+     "dia_mm": 205
+    }
+   ]
+  },
   "return_opening": "open",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -3845,9 +3866,9 @@
   "weight_kg": 40.0,
   "provenance": {
    "kind": "extracted",
-   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
-   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
-   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline)"
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH; Duct Type Installation Manual ARXA024-045GLEH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal); PART No. 9373385257 (GENERAL Partner Portal)",
+   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline); Duct Type Installation Manual ARXA024-045GLEH PART No. 9373385257 En-4 (3.3.4 Outlet duct: round duct outlet × 4, factory setting)"
   }
  },
  {
@@ -3860,7 +3881,14 @@
   "capacity_code": 45,
   "airflow_ls": 547,
   "static_pressure_pa": 150,
-  "supply_opening": "open",
+  "supply_opening": {
+   "spigots": [
+    {
+     "count": 4,
+     "dia_mm": 205
+    }
+   ]
+  },
   "return_opening": "open",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -3882,9 +3910,9 @@
   "weight_kg": 40.0,
   "provenance": {
    "kind": "extracted",
-   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
-   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
-   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline)"
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH; Duct Type Installation Manual ARXA024-045GLEH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal); PART No. 9373385257 (GENERAL Partner Portal)",
+   "page": "f.04-21 (spec); f.06-21 (type, pipe sizes); f.04-56 (outline); Duct Type Installation Manual ARXA024-045GLEH PART No. 9373385257 En-4 (3.3.4 Outlet duct: round duct outlet × 4, factory setting)"
   }
  },
  {
@@ -4621,7 +4649,7 @@
   "capacity_cool_kw": 10.0,
   "capacity_heat_kw": 11.2,
   "capacity_code": 34,
-  "airflow_ls": 400,
+  "airflow_ls": 450,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "room",

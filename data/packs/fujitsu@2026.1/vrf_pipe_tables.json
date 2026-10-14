@@ -517,7 +517,7 @@
    "kind": "extracted",
    "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
    "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
-   "page": "f.06-18 (limits, actual pipe length; H2 printed as 50 m ODU higher / 40 m ODU lower — the lower is written); f.06-23 (Table A: standard = the connections, condition 1 ratio > 110 %, condition 2 ODU → first tube > 70 m); f.06-24 (Tables B, C and the 20 m note; B > A → A, C > B → B); f.06-25 (separation tubes, headers by total indoor kW); f.06-27, f.06-28 (additional charge, round up to 0.01 kg)"
+   "page": "f.06-18 (limits, actual pipe length; H2 50 m with the outdoor above, 40 m with it below — the lower is written); f.06-23 (Table A: standard = the connections, condition 1 ratio > 110 %, condition 2 ODU → first tube > 70 m); f.06-24 (Tables B, C and the 20 m note; B > A → A, C > B → B); f.06-25 (separation tubes, headers by total indoor kW); f.06-27, f.06-28 (additional charge, round up to 0.01 kg)"
   }
  }
 ]

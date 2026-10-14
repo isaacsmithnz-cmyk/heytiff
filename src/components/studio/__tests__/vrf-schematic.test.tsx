@@ -176,3 +176,100 @@ describe("a riser dropped on the trunk (Isaac, 2026-09-30: it sat on the pipe wi
     expect(screen.getByText("3 m up to Level 1")).toBeTruthy();
   });
 });
+
+describe("pipework that never reaches the outdoor (48 Thorne St, 2026-10-13)", () => {
+  /* four heads, two a floor, each piped to its floor's riser of one pair;
+     the outdoor placed with no pipe on it */
+  function thorneSt(piped: boolean): { doc: DesignDocument; systemId: string } {
+    let doc = createDesign({ name: "48 Thorne St", mode: "blank" });
+    const g = doc.floors[0];
+    doc = { ...doc, floors: [{ ...g, name: "Ground floor" }, { ...g, id: "flr_up", name: "Level 1", level: 1 }] };
+    const rooms: [string, string][] = [
+      ["Lounge", g.id],
+      ["Kitchen", g.id],
+      ["Bed 1", "flr_up"],
+      ["Bed 2", "flr_up"],
+    ];
+    for (const [id, floorId] of rooms)
+      doc.objects.push({
+        id,
+        type: "room",
+        systemId: null,
+        floorId,
+        plane: "room",
+        geometry: { kind: "polygon", points: [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 400 }, { x: 0, y: 400 }] },
+        props: { name: id },
+      } as RoomObj as DesignObject);
+    const made = newSystem(doc, pack.meta.version);
+    const systemId = made.systemId;
+    doc = made.doc;
+    const p40 = pack.indoor_units.find((u) => u.capacity_index === 40 && u.system_roles?.includes("vrf"))!.model;
+    for (const [id] of rooms) doc = addHead(doc, pack, { systemId, zoneId: id, iduModel: p40 });
+    doc = chooseOutdoor(doc, pack, "worst-of-both", systemId, "PUHY-P200YNW-A1");
+    const allocs = allocationsOf(doc.systems.find((s) => s.id === systemId)!);
+    const odu = allocs.find((a) => a.role === "odu")!;
+    const heads = allocs.filter((a) => a.role === "idu");
+    const floorOf = (h: (typeof heads)[number]) => rooms.find(([id]) => id === h.roomId)![1];
+    const pt = (id: string, type: string, floorId: string, x: number, props: Record<string, unknown>): DesignObject =>
+      ({ id, type, systemId, floorId, geometry: { kind: "point", at: { x, y: 0 } }, plane: "room", props }) as DesignObject;
+    const run = (id: string, floorId: string, x0: number, x1: number, a: [string, string], b: [string, string]): DesignObject =>
+      ({
+        id,
+        type: "pipe-run",
+        systemId,
+        floorId,
+        geometry: { kind: "polyline", points: [{ x: x0, y: 0 }, { x: x1, y: 0 }] },
+        plane: "room",
+        props: { startAttach: { kind: a[0], id: a[1] }, endAttach: { kind: b[0], id: b[1] } },
+      }) as DesignObject;
+    doc = {
+      ...doc,
+      objects: [
+        ...doc.objects,
+        pt(odu.id, "unit", g.id, 0, { role: "odu", model: odu.model }),
+        ...heads.map((h, i) => pt(h.id, "unit", floorOf(h), 1000 + i * 200, { role: "idu", model: h.model })),
+        ...(piped
+          ? [
+              pt("r0", "riser", g.id, 500, { group: "A" }),
+              pt("r1", "riser", "flr_up", 500, { group: "A" }),
+              ...heads.map((h, i) =>
+                run(`p${i}`, floorOf(h), 500, 1000 + i * 200, ["riser", floorOf(h) === g.id ? "r0" : "r1"], ["unit", h.id])
+              ),
+            ]
+          : []),
+      ],
+    };
+    return { doc, systemId };
+  }
+
+  it("names every head and says the outdoor has no pipe on it", () => {
+    const { doc, systemId } = thorneSt(true);
+    const sys = doc.systems.find((s) => s.id === systemId)!;
+    const tree = systemVrfTree(pack, sys, doc)!;
+    expect(tree.joined).toBe(0);
+    const codes = systemFindings(doc, pack, sys).map((f) => f.code);
+    // every run is attached at both ends and both risers have a pipe on their floor
+    expect(codes).not.toContain("loose-pipe");
+    expect(codes).not.toContain("stray-riser");
+    const finding = systemFindings(doc, pack, sys).find((f) => f.code === "outdoor-unpiped");
+    expect(finding).toMatchObject({
+      severity: "red",
+      drawing: true,
+      message: "Not piped to the outdoor yet",
+      fix: "Draw a pipe from the outdoor",
+    });
+    render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
+    expect(screen.getByText("Not piped to the outdoor yet: Lounge, Kitchen, Bed 1, Bed 2")).toBeTruthy();
+    expect(screen.getByText("Fails")).toBeTruthy();
+    // said once, in the line that names the heads
+    expect(screen.queryByText("Not piped to the outdoor yet. Draw a pipe from the outdoor.")).toBeNull();
+  });
+
+  it("with no run drawn at all, says neither", () => {
+    const { doc, systemId } = thorneSt(false);
+    const sys = doc.systems.find((s) => s.id === systemId)!;
+    expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("outdoor-unpiped");
+    render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
+    expect(screen.queryByText(/Not piped to the outdoor yet/)).toBeNull();
+  });
+});

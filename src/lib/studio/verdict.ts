@@ -49,7 +49,9 @@ export function brandName(pack: DataPack, id: string): string {
 /** every finding on a system, red first */
 export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {
   const out = combinationFindings(doc, pack, sys);
-  const drawing = [loosePipes(doc, sys), ...strayFittings(doc, sys)].filter((f): f is SystemFinding => f != null);
+  const drawing = [loosePipes(doc, sys), unpipedOutdoor(doc, sys), ...strayFittings(doc, sys)].filter(
+    (f): f is SystemFinding => f != null
+  );
   return [...out, ...drawing];
 }
 
@@ -126,6 +128,30 @@ export function loosePipes(doc: DesignDocument, sys: DesignSystem): SystemFindin
     drawing: true,
     message: n === 1 ? "A pipe isn't connected at one end" : `${n} pipes aren't connected at one end`,
     fix: "Connect it, or delete it",
+  };
+}
+
+/* PIPEWORK THAT NEVER REACHES THE OUTDOOR (48 Thorne St, 2026-10-13: four
+   runs from the heads to a riser pair, none to the outdoor). Every run was
+   attached at both ends and every riser had a pipe on its floor, so nothing
+   said the outdoor had no pipe on it. A VRF's runs all leave from its
+   outdoor; with runs drawn and none on it, the drawing is not connected. */
+export function unpipedOutdoor(doc: DesignDocument, sys: DesignSystem): SystemFinding | null {
+  if (sys.type !== "vrf" || !hasAllocations(sys)) return null;
+  const odu = allocationsOf(sys).find((a) => a.role === "odu" && a.model);
+  if (!odu) return null;
+  const runs = doc.objects.filter((o) => o.type === "pipe-run" && o.systemId === sys.id);
+  if (!runs.length) return null;
+  const onOutdoor = runs.some(
+    (o) => attachOf(o.props.startAttach)?.id === odu.id || attachOf(o.props.endAttach)?.id === odu.id
+  );
+  if (onOutdoor) return null;
+  return {
+    severity: "red",
+    code: "outdoor-unpiped",
+    drawing: true,
+    message: "Not piped to the outdoor yet",
+    fix: "Draw a pipe from the outdoor",
   };
 }
 

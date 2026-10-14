@@ -107,8 +107,21 @@ export function VrfSchematic({
   };
   const headModel = (id: string) => allocs.find((a) => a.id === id)?.model ?? "";
   const word = combinationWord(doc, pack, sys);
-  /* a failing system says why under its name, in the rail's words */
-  const reds = word === "Fails" ? blockingFindings(systemFindings(doc, pack, sys)) : [];
+  /* the heads a drawing misses, once any refrigerant run is drawn — a
+     drawing that never reaches the outdoor misses every one (48 Thorne St,
+     2026-10-13: four runs to a riser pair, none to the outdoor, and no word) */
+  const unpiped =
+    tree && !tree.drawn && doc.objects.some((o) => o.type === "pipe-run" && o.systemId === sys.id)
+      ? tree.unjoined
+      : [];
+  /* a failing system says why under its name, in the rail's words; the
+     outdoor's own finding is the line above, which names the heads */
+  const reds =
+    word === "Fails"
+      ? blockingFindings(systemFindings(doc, pack, sys)).filter(
+          (f) => !(f.code === "outdoor-unpiped" && unpiped.length > 0)
+        )
+      : [];
 
   /* DELETE on the schematic (Isaac, 2026-09-29): what is picked goes — a
      section's drawn runs, a joint (its run put back together), a box, or a
@@ -399,9 +412,9 @@ export function VrfSchematic({
           zone five and zone six. But it's showing up on the schematic as
           though they are"): until the drawing reaches every head the pipes
           here are the zones' order, dashed, and the heads it misses are named */}
-      {!tree.drawn && tree.joined > 0 && tree.unjoined.length > 0 && (
+      {unpiped.length > 0 && (
         <p className="ds-schem-unpiped">
-          {`Not piped to the outdoor yet: ${tree.unjoined.map((id) => zoneName(id) || headModel(id)).join(", ")}`}
+          {`Not piped to the outdoor yet: ${unpiped.map((id) => zoneName(id) || headModel(id)).join(", ")}`}
         </p>
       )}
       {reds.length > 0 && (

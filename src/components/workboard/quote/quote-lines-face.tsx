@@ -86,6 +86,8 @@ type View = {
   /** lines priced from the web, by id: the page each rests on (12.2) */
   researched?: Record<string, { url: string; title: string }>;
   suppliers?: { key: string; name: string }[];
+  /** every installed data pack's maker, for a kit's unit (lookups-server.ts) */
+  packs?: { key: string; name: string }[];
   /** what marking it did to the job's own materials list */
   onJob?: { added: number; removed: number } | null;
   /** each option's labour by the business's own task hours (task-hours.ts) */
@@ -1042,6 +1044,7 @@ export function QuoteLinesFace({
           <KitForm
             busy={busy}
             system={system}
+            packs={view?.packs ?? []}
             onAdd={(k) => {
               setKitOpen(false);
               void act({ op: "kit", optionIndex: at, ...k });
@@ -1454,17 +1457,45 @@ function PickList({
   );
 }
 
-type KitAsk = { kit: "split" | "ducted"; system: string; brand: string; model: string; facts: Record<string, string> };
+type KitAsk = { kit: "split" | "ducted"; system: string; brand: string; model: string; facts: Record<string, unknown> };
 
 /** What a kit needs to know: the unit (its pipe and current read off its
-    data pack when blank), the runs, and the outlets for a ducted one. A run
-    left blank leaves its part on the quote as not known yet. */
-function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd: (k: KitAsk) => void }) {
+    data pack when blank), the runs, and the outlets for a ducted one, and
+    its zones. A run left blank leaves its part on the quote as not known
+    yet. Its data pack starts on none: every installed pack is offered, and
+    none is any business's default (2026-10-15: it started everyone on
+    Mitsubishi Electric). */
+function KitForm({ busy, system, packs, onAdd }: { busy: boolean; system: string; packs: { key: string; name: string }[]; onAdd: (k: KitAsk) => void }) {
   const [kit, setKit] = useState<"split" | "ducted">("split");
   const [sys, setSys] = useState(system || "");
-  const [brand, setBrand] = useState("mitsubishi-electric");
+  const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
-  const [f, setF] = useState<Record<string, string>>({ pipe: "", pipeM: "", powerM: "", amps: "", mount: "ground", trunkingM: "", drainM: "", outlets: "", outletMm: "", replacing: "", keptPipe: "", underfloor: "" });
+  const [f, setF] = useState<Record<string, string>>({
+    pipe: "",
+    pipeM: "",
+    powerM: "",
+    amps: "",
+    mount: "ground",
+    trunkingM: "",
+    drainM: "",
+    outlets: "",
+    outletMm: "",
+    replacing: "",
+    keptPipe: "",
+    underfloor: "",
+    zones: "",
+    zoneControl: "temperature",
+    wifi: "",
+  });
+  /* zoned, as Tiff's add_kit gives them (tools.ts kitAskOf, 2026-10-13):
+     the zones a whole number, the control by its word, WiFi yes or no; a
+     split has none */
+  const factsOf = (): Record<string, unknown> => {
+    const { zones, zoneControl, wifi, ...runs } = f;
+    if (kit !== "ducted") return runs;
+    const n = Number(zones);
+    return { ...runs, ...(zones.trim() && Number.isFinite(n) && n >= 1 ? { zones: Math.round(n) } : {}), zoneControl, wifi: wifi === "yes" };
+  };
   const set = (k: string) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const num = (k: string, label: string, unit: string) => (
     <label className="ql-kf">
@@ -1496,8 +1527,12 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
         <label className="ql-kf">
           <span>Its data pack</span>
           <select className="wb2-fi" value={brand} onChange={(e) => setBrand(e.target.value)} aria-label="The outdoor's data pack">
-            <option value="mitsubishi-electric">Mitsubishi Electric</option>
             <option value="">None</option>
+            {packs.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.name}
+              </option>
+            ))}
           </select>
         </label>
         <label className="ql-kf">
@@ -1555,9 +1590,28 @@ function KitForm({ busy, system, onAdd }: { busy: boolean; system: string; onAdd
         )}
         {kit === "ducted" && num("outlets", "Outlets", "")}
         {kit === "ducted" && num("outletMm", "Outlet size", "mm")}
+        {kit === "ducted" && num("zones", "Zones", "")}
+        {kit === "ducted" && (
+          <label className="ql-kf">
+            <span>Zone control</span>
+            <select className="wb2-fi" value={f.zoneControl} onChange={set("zoneControl")} aria-label="Zone control">
+              <option value="temperature">By temperature</option>
+              <option value="on_off">On and off</option>
+            </select>
+          </label>
+        )}
+        {kit === "ducted" && (
+          <label className="ql-kf">
+            <span>WiFi</span>
+            <select className="wb2-fi" value={f.wifi} onChange={set("wifi")} aria-label="WiFi">
+              <option value="">No</option>
+              <option value="yes">Yes</option>
+            </select>
+          </label>
+        )}
       </div>
       <div className="wb2-jqacts">
-        <button type="button" className="pbtn primary sm" disabled={busy} onClick={() => onAdd({ kit, system: sys.trim(), brand, model: model.trim(), facts: f })}>
+        <button type="button" className="pbtn primary sm" disabled={busy} onClick={() => onAdd({ kit, system: sys.trim(), brand, model: model.trim(), facts: factsOf() })}>
           Add the kit
         </button>
       </div>

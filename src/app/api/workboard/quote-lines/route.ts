@@ -3,6 +3,7 @@ import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { addLine, changeLine, copyOption, namesBySignIn, readChanges, readEngine, readLines, removeLine, setEngine, undoChange } from "@/lib/quotes/lines-server";
 import { addKit } from "@/lib/quotes/kits-server";
+import { packMakers } from "@/lib/quotes/lookups-server";
 import { linesFit } from "@/lib/quotes/fit-server";
 import { normaliseKitFacts } from "@/lib/quotes/kits";
 import { approveProposal, markAccepted, markVariation, nameOption, readByHand, saveProposal, setLoading, setSupplier, startVariation, startVersion } from "@/lib/quotes/lines-job-server";
@@ -56,7 +57,7 @@ async function bookSuppliers(orgId: string) {
 }
 
 async function view(orgId: string, jobUuid: string, userId: string, money = true) {
-  const [engine, lines, changes, byHand, settings, day, suppliers, templates, versions] = await Promise.all([
+  const [engine, lines, changes, byHand, settings, day, suppliers, templates, versions, packs] = await Promise.all([
     readEngine(orgId, jobUuid),
     readLines(orgId, jobUuid),
     readChanges(orgId, jobUuid, 50),
@@ -66,6 +67,7 @@ async function view(orgId: string, jobUuid: string, userId: string, money = true
     bookSuppliers(orgId),
     orgTemplates(orgId).catch(() => null),
     readVersions(orgId, jobUuid).catch(() => []),
+    packMakers(),
   ]);
   /* the business's own task hours, beside each option's (slice 8.1) */
   const options = Math.max(0, ...lines.map((l) => l.optionIndex + 1));
@@ -95,6 +97,8 @@ async function view(orgId: string, jobUuid: string, userId: string, money = true
     /* the quote as it stood at each approval before this one, newest first */
     versions: money ? versions : [],
     suppliers: money ? suppliers : [],
+    /* the makers a kit's unit can be read off: every installed pack */
+    packs,
     tasks,
     /* the proposal's words, whether an approval of them still stands, and
        the business's notes and payment terms it's set from (7.1) */

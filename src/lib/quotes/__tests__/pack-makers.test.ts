@@ -11,6 +11,7 @@ import path from "path";
 
 jest.mock("server-only", () => ({}));
 jest.mock("../book-view-server", () => ({ bookProducts: jest.fn(async () => []) }));
+jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
 import { packMakers } from "../lookups-server";
 

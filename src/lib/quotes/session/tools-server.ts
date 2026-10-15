@@ -61,8 +61,8 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
       (hour ??= Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) =>
         d.rate ? hourCostOf(d.rate.perHourCents, s.profitTargetPct, s.labourCostCents) : null
       )),
-    lookupUnit: (brand, model) => lookupUnit(brand, model),
-    pairing: (brand, outdoor, indoors) => lookupPairing(brand, outdoor, indoors),
+    lookupUnit: (brand, model) => lookupUnit(brand, model, orgId),
+    pairing: (brand, outdoor, indoors) => lookupPairing(brand, outdoor, indoors, orgId),
     airflowGuide: () => loadAirflowGuide(),
     taskHours: () =>
       Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) => ({ hours: s.taskHours, dayHours: d.hours?.hours ?? null })),

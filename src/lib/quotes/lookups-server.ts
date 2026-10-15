@@ -1,9 +1,10 @@
 import "server-only";
+import { supabaseAdmin } from "@/lib/supabase-server";
 import { installedPacks, latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
 import type { DataPack, ZoningController } from "@/lib/studio/packs/schema";
 import { brandNames } from "@/lib/hq/packs";
 import { bookProducts } from "./book-view-server";
-import { findInBook, unitSpecs, type BookHit, type BookQuery, type UnitLookup } from "./lookups";
+import { findInBook, unitSpecs, type BookHit, type BookQuery, type ConfirmedLink, type UnitLookup } from "./lookups";
 import { pairingOf, type Pairing } from "./pairing";
 
 /* The lookups (lookups.ts), read for one business: its own book, and the
@@ -38,12 +39,24 @@ export async function packMakers(baseDir?: string): Promise<{ key: string; name:
   return [...new Set(refs.map((r) => r.brand))].map((key) => ({ key, name: names.get(key) ?? key.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") }));
 }
 
-export async function lookupUnit(brand: string, model: string): Promise<UnitLookup> {
+/** The pack links a business has confirmed on the Quoting page: an order
+    code and the pack model it is. None without a business. */
+export async function confirmedLinks(orgId: string | null | undefined): Promise<ConfirmedLink[]> {
+  if (!orgId) return [];
+  const { data } = await supabaseAdmin.from("quote_code_links").select("model, code").eq("org_id", orgId).eq("decision", "confirmed");
+  return (data ?? []) as ConfirmedLink[];
+}
+
+/** A unit's specs off its maker's pack; an order code the pack doesn't
+    name, through the business's confirmed links when it's given. */
+export async function lookupUnit(brand: string, model: string, orgId?: string | null): Promise<UnitLookup> {
   const key = brand.toLowerCase();
-  return unitSpecs({ [key]: await packFor(key) }, key, model);
+  const [pack, links] = await Promise.all([packFor(key), confirmedLinks(orgId)]);
+  return unitSpecs({ [key]: pack }, key, model, links);
 }
 
 /** Whether an outdoor takes the indoors given, by its maker's book (pairing.ts). */
-export async function lookupPairing(brand: string, outdoor: string, indoors: string[]): Promise<Pairing> {
-  return pairingOf(await packFor(brand.toLowerCase()).catch(() => null), outdoor, indoors);
+export async function lookupPairing(brand: string, outdoor: string, indoors: string[], orgId?: string | null): Promise<Pairing> {
+  const [pack, links] = await Promise.all([packFor(brand.toLowerCase()).catch(() => null), confirmedLinks(orgId)]);
+  return pairingOf(pack, outdoor, indoors, links);
 }

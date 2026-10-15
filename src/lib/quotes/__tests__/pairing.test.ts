@@ -41,6 +41,18 @@ describe("whether an outdoor takes its indoors", () => {
     expect(pairingOf(pack, "PUZ-M100VKA-A", ["PEA-M100HAA", "PEA-M100HAA"])).toMatchObject({ connects: false });
   });
 
+  /* Isaac, 2026-10-16: the book's AP order codes, linked on the Quoting page */
+  it("reads order codes the pack doesn't name through the business's confirmed links, saying so", () => {
+    const links = [
+      { model: "MSZ-AP35VGD2", code: "MSZ-AP35VGKD2-A2" },
+      { model: "MUZ-AP35VG2", code: "MUZ-AP35VGD2-A2" },
+    ];
+    expect(pairingOf(pack, "MUZ-AP35VGD2-A2", ["MSZ-AP35VGKD2-A2"])).toMatchObject({ found: false, reason: "not in the pack" });
+    const p = pairingOf(pack, "MUZ-AP35VGD2-A2", ["MSZ-AP35VGKD2-A2"], links);
+    expect(p).toMatchObject({ found: true, system: "split", connects: true });
+    expect(p.found && p.said).toEqual(expect.arrayContaining(["MUZ-AP35VGD2-A2 read as MUZ-AP35VG2, your confirmed link", "MSZ-AP35VGKD2-A2 read as MSZ-AP35VGD2, your confirmed link"]));
+  });
+
   it("says when a model isn't in the pack, or there's no pack", () => {
     expect(pairingOf(pack, "PUZ-M100VKA2-A", ["PEA-M100HAA"])).toEqual({ found: false, reason: "not in the pack", model: "PUZ-M100VKA2-A" });
     expect(pairingOf(pack, "PUZ-M100VKA-A", ["XYZ-123456"])).toEqual({ found: false, reason: "not in the pack", model: "XYZ-123456" });

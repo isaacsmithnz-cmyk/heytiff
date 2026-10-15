@@ -74,7 +74,7 @@ async function view(orgId: string, jobUuid: string, userId: string, money = true
   const tasks = Array.from({ length: options }, (_, i) => taskCheck(lines.filter((l) => l.optionIndex === i), settings.taskHours, day.hours?.hours ?? null));
   const [names, fits] = await Promise.all([
     namesBySignIn(orgId, [...changes.map((c) => c.madeBy), ...lines.map((l) => l.updatedBy), userId, ...(byHand.proposal?.approvedBy ? [byHand.proposal.approvedBy] : [])]),
-    linesFit(lines).catch(() => []),
+    linesFit(lines, orgId).catch(() => []),
   ]);
   return {
     ok: true as const,

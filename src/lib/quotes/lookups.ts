@@ -3,6 +3,7 @@ import type { CategoryKey } from "./categories";
 import { matchesWords, sizesOf, usesOf, type Product } from "./families";
 import { searchWords, type Offer } from "./price-book";
 import { fuzzyWord, nearestIn, wordsOf } from "./fuzzy";
+import { sameUnitKey } from "./code-links";
 
 /* WHAT A QUOTE LOOKS THINGS UP IN (the engine rebuild, slice 1.1) — the
    business's own book, and the shared data packs for what a unit is.
@@ -227,14 +228,39 @@ const faceOfOpening = (o: unknown): { w: number; h: number } | null => {
   return r && typeof r.w_mm === "number" && typeof r.h_mm === "number" ? { w: r.w_mm, h: r.h_mm } : null;
 };
 
-export type UnitLookup = { found: true; specs: UnitSpecs; pack: string } | { found: false; reason: "no data pack" | "not in the pack" };
+export type UnitLookup =
+  | { found: true; specs: UnitSpecs; pack: string; /** the code asked for, read as the pack model a person linked it to */ linkedFrom?: string }
+  | { found: false; reason: "no data pack" | "not in the pack" };
+
+/** A business's pack link (code-links.ts), confirmed on the Quoting page:
+    an order code and the pack model it is. */
+export type ConfirmedLink = { model: string; code: string };
+
+/** The pack model a code was linked to, whatever revision or region tag the
+    code wears; null when nobody has linked it. */
+export function linkedModel(links: readonly ConfirmedLink[], code: string): string | null {
+  const key = sameUnitKey(code);
+  return links.find((l) => sameUnitKey(l.code) === key)?.model ?? null;
+}
 
 const n = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
-/** A model's specs from the pack for its brand; `packs` keyed by brand. */
-export function unitSpecs(packs: Record<string, DataPack | null | undefined>, brand: string, model: string): UnitLookup {
+/** A model's specs from the pack for its brand; `packs` keyed by brand. An
+    order code the pack doesn't name is read through the business's
+    confirmed links (Isaac, 2026-10-16: the book's MSZ-AP35VGKD2-A2 is the
+    pack's MSZ-AP35VGD2, linked on the Quoting page, and Tiff was told "not
+    in the pack"). */
+export function unitSpecs(packs: Record<string, DataPack | null | undefined>, brand: string, model: string, links: readonly ConfirmedLink[] = []): UnitLookup {
   const pack = packs[brand.toLowerCase()];
   if (!pack) return { found: false, reason: "no data pack" };
+  const direct = specsIn(pack, brand, model);
+  if (direct.found) return direct;
+  const linked = linkedModel(links, model);
+  const via = linked ? specsIn(pack, brand, linked) : null;
+  return via?.found ? { ...via, linkedFrom: model } : direct;
+}
+
+function specsIn(pack: DataPack, brand: string, model: string): UnitLookup {
   const out = pack.outdoor_units.find((u) => sameUnit(model, u.model));
   if (out) {
     const w = n(out.width_mm);

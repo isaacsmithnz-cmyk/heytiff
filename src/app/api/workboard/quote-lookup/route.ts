@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   if (model) {
     const brand = (p.get("brand") ?? "").trim().slice(0, 60);
     if (!brand) return Response.json({ ok: false, reason: "A unit needs its brand." }, { status: 400 });
-    return Response.json({ ok: true, unit: await lookupUnit(brand, model) });
+    return Response.json({ ok: true, unit: await lookupUnit(brand, model, orgId) });
   }
   const text = (p.get("q") ?? "").slice(0, 120);
   const size = Number(p.get("size"));

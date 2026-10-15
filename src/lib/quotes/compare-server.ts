@@ -75,7 +75,7 @@ export async function compareView(orgId: string, jobUuid: string, lineId: string
   ].filter((p, i, all) => p.indoor.code !== line.code && all.findIndex((q) => q.indoor.code === p.indoor.code) === i);
 
   const pairs = [current, ...others];
-  const specs = await specsOfCodes(pairs.flatMap((p) => [p.indoor, ...(p.outdoor ? [p.outdoor] : [])]));
+  const specs = await specsOfCodes(pairs.flatMap((p) => [p.indoor, ...(p.outdoor ? [p.outdoor] : [])]), orgId);
   const lineSell = (l: QuoteLine) => (sellOf(l.costCents, l.sellCents) ?? 0) * Math.max(1, l.qty);
   const curSell = markup == null && line.sellCents == null ? null : lineSell(line) + (outLine ? lineSell(outLine) : 0);
 

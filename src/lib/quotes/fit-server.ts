@@ -12,7 +12,7 @@ import { lookupUnit } from "./lookups-server";
 /** The data packs HeyTiff holds, by the brand a code names. */
 const PACK_OF: Record<string, string> = { mitsubishi: "mitsubishi-electric" };
 
-export async function linesFit(lines: QuoteLine[]): Promise<Fit[]> {
+export async function linesFit(lines: QuoteLine[], orgId?: string | null): Promise<Fit[]> {
   const outdoor = new Map<string, UnitLookup>();
   const units = lines.filter((l) => l.kind === "unit" && l.code);
   for (const key of [...new Set(units.map((l) => `${l.optionIndex}|${l.system}`))]) {
@@ -24,7 +24,7 @@ export async function linesFit(lines: QuoteLine[]): Promise<Fit[]> {
         found = { found: false, reason: "no data pack" };
         continue;
       }
-      const r = await lookupUnit(pack, u.code!).catch((): UnitLookup => ({ found: false, reason: "not in the pack" }));
+      const r = await lookupUnit(pack, u.code!, orgId).catch((): UnitLookup => ({ found: false, reason: "not in the pack" }));
       if (r.found && r.specs.role === "outdoor") {
         found = r;
         break;
@@ -43,12 +43,12 @@ export async function linesFit(lines: QuoteLine[]): Promise<Fit[]> {
 
 /** Each unit line's specs off its maker's pack, by line id: null where the
     brand has no pack or the pack hasn't the model. */
-export async function unitSpecsOf(lines: readonly QuoteLine[]): Promise<Map<string, UnitSpecs | null>> {
+export async function unitSpecsOf(lines: readonly QuoteLine[], orgId?: string | null): Promise<Map<string, UnitSpecs | null>> {
   const out = new Map<string, UnitSpecs | null>();
   for (const u of lines.filter((l) => l.kind === "unit" && l.code)) {
     const brand = brandOfCode(u.code!, u.name);
     const pack = brand ? PACK_OF[brand] : undefined;
-    const r = pack ? await lookupUnit(pack, u.code!).catch((): UnitLookup => ({ found: false, reason: "not in the pack" })) : null;
+    const r = pack ? await lookupUnit(pack, u.code!, orgId).catch((): UnitLookup => ({ found: false, reason: "not in the pack" })) : null;
     out.set(u.id, r?.found ? r.specs : null);
   }
   return out;
@@ -56,13 +56,13 @@ export async function unitSpecsOf(lines: readonly QuoteLine[]): Promise<Map<stri
 
 /** Each code's specs off its maker's pack, by code: null where the brand
     has no pack or the pack hasn't the model. */
-export async function specsOfCodes(units: readonly { code: string; name: string }[]): Promise<Map<string, UnitSpecs | null>> {
+export async function specsOfCodes(units: readonly { code: string; name: string }[], orgId?: string | null): Promise<Map<string, UnitSpecs | null>> {
   const out = new Map<string, UnitSpecs | null>();
   for (const u of units) {
     if (out.has(u.code)) continue;
     const brand = brandOfCode(u.code, u.name);
     const pack = brand ? PACK_OF[brand] : undefined;
-    const r = pack ? await lookupUnit(pack, u.code).catch((): UnitLookup => ({ found: false, reason: "not in the pack" })) : null;
+    const r = pack ? await lookupUnit(pack, u.code, orgId).catch((): UnitLookup => ({ found: false, reason: "not in the pack" })) : null;
     out.set(u.code, r?.found ? r.specs : null);
   }
   return out;

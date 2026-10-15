@@ -23,7 +23,7 @@ import { VersionPaper } from "./version-paper";
 import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { Sm8Quote } from "../board/job-quote-card";
-import { QuoteLineItems, sellEachOf } from "./quote-line-items";
+import { QuoteLineItems, groupKey, sellEachOf } from "./quote-line-items";
 import { QuoteCard, QuoteRail } from "./quote-rail";
 import { QuoteCorner } from "./quote-corner";
 
@@ -180,6 +180,22 @@ export function QuoteLinesFace({
   /* a line to price from To confirm: its cost box, once the line items are up */
   const pricing = useRef<string | null>(null);
   const [priceAsked, setPriceAsked] = useState(0);
+  /* THE LINE ITEMS' GROUPS, OPEN (Isaac, 2026-10-15: "when you hit view
+     line items, I think have everything collapsed first… so it doesn't take
+     up so much space. Collapsed with the total next to it"): none at
+     first, and one opened stays open while the page is up. Kept here, not
+     in the line items, which go when the Conversation tab or the paper
+     takes their place. */
+  const [openGroups, setOpenGroups] = useState<ReadonlySet<string>>(() => new Set());
+  const showGroups = (keys: string[], on: boolean) =>
+    setOpenGroups((was) => {
+      const next = new Set(was);
+      for (const k of keys) {
+        if (on) next.add(k);
+        else next.delete(k);
+      }
+      return next;
+    });
 
   const lines = (view?.lines ?? []).filter((l) => l.optionIndex === at);
   const options = Math.max(1, ...(view?.lines ?? []).map((l) => l.optionIndex + 1), price && price.ok ? price.options.length : 1);
@@ -226,6 +242,7 @@ export function QuoteLinesFace({
     if (!v) setNote("That didn't save. Try again.");
     else if (!v.ok) setNote(v.reason ?? "That didn't save. Try again.");
     onPriced();
+    return v;
   };
 
   /* the client's choice: its parts go on the job's own materials list */
@@ -243,11 +260,12 @@ export function QuoteLinesFace({
   };
 
   /* a line nobody knows the price of, from To confirm: the line items up,
-     then its cost box, in view and ready to type */
+     its group open, then its cost box, in view and ready to type */
   const priceOnLine = (l: QuoteLine) => {
     pricing.current = `What one ${l.name} costs you`;
     setPaper(false);
     setTab("lines");
+    showGroups([groupKey(l)], true);
     setPriceAsked((n) => n + 1);
   };
   useEffect(() => {
@@ -444,6 +462,8 @@ export function QuoteLinesFace({
       options={options}
       money={money}
       busy={busy}
+      open={openGroups}
+      onGroups={showGroups}
       act={act}
       onCompared={() => {
         reload();

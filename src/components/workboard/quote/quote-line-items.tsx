@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useState, type KeyboardEvent } from "react";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { againstFirst, isProvisional, missingFromFirst, PROVISIONAL, type LineFields, type QuoteLine } from "@/lib/quotes/lines";
 import { offerFor, type BookHit } from "@/lib/quotes/lookups";
@@ -11,6 +11,7 @@ import { cents2 } from "@/lib/quotes/quote-sum";
 import { unitPartOf } from "@/lib/quotes/brands";
 import { visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
 import type { Variation } from "@/lib/quotes/lines-job";
+import { Icon } from "@/components/shell/icon";
 import { Globe } from "./tiff-panel";
 import { CompareCard } from "./compare-card";
 import type { LinesView } from "./quote-lines-face";
@@ -24,7 +25,10 @@ import type { LinesView } from "./quote-lines-face";
    qty × sell. A line is added from the business's own book (searched as it
    buys: lookups.ts) or by hand, and taken off with its ×. At the foot, the
    versions kept and every change with who made it, and Undo; the total and
-   its parts are the rail's card now (quote-rail.tsx).
+   its parts are the rail's card now (quote-rail.tsx). Every group starts
+   shut, its band its name and its total, and opens on a press (Isaac,
+   2026-10-15: "have everything collapsed first… collapsed with the total
+   next to it").
 
    Each edit goes to the route with the version the line was read at, so two
    people never overwrite each other (lines-server.ts); the price is read
@@ -39,6 +43,11 @@ const SOURCE_WORDS: Record<LineFields["source"], string> = {
   fitted: "Fitted",
   by_hand: "Set by hand",
 };
+
+/** A group's place on the page. Which ones are open is the page's to keep
+    (quote-lines-face.tsx), so it outlives the tab; not the option's, so a
+    group opened on option 1 is open on option 2, to compare the two. */
+export const groupKey = (l: { system: string; group: string }) => JSON.stringify([l.system, l.group]);
 
 /** cents to the box's dollars: a tenth of a cent shows only when there is one */
 const dollars = (cents: number) => (Number.isInteger(cents) ? (cents / 100).toFixed(2) : (cents / 100).toFixed(3));
@@ -224,6 +233,8 @@ export function QuoteLineItems({
   options,
   money,
   busy,
+  open,
+  onGroups,
   act,
   onCompared,
   onOpenVersion,
@@ -237,8 +248,12 @@ export function QuoteLineItems({
   options: number;
   money: boolean;
   busy: boolean;
-  /** a change to the quote, through the route, the price read again after it */
-  act: (body: Record<string, unknown>) => Promise<void>;
+  /** the groups open (groupKey), and opening or shutting some */
+  open: ReadonlySet<string>;
+  onGroups: (keys: string[], open: boolean) => void;
+  /** a change to the quote, through the route, the price read again after
+      it; what the route said back, the lines as they now stand */
+  act: (body: Record<string, unknown>) => Promise<LinesView | null>;
   /** compare changed the line: read the lines and the price again */
   onCompared: () => void;
   /** a version kept at an approval, opened on the paper */
@@ -252,6 +267,8 @@ export function QuoteLineItems({
   const [swapping, setSwapping] = useState<string | null>(null);
   /* the unit line whose compare is open (compare-card.tsx) */
   const [comparing, setComparing] = useState<string | null>(null);
+  /* each group's rows carry an id its band's button names */
+  const uid = useId();
 
   const all = view?.lines ?? [];
   const lines = all.filter((l) => l.optionIndex === at);
@@ -266,6 +283,18 @@ export function QuoteLineItems({
 
   const change = (l: QuoteLine, patch: Partial<LineFields>) => void act({ op: "change", id: l.id, version: l.version, patch });
 
+  /* A LINE JUST ADDED OPENS ITS GROUP: the groups start shut, so a line
+     added by hand, from the book or with a kit would land out of sight.
+     Whatever the change brought that wasn't here before is shown. Tiff's
+     lines, and a line that wants looking at, leave the groups as they are:
+     To confirm lists those. */
+  const adding = async (body: Record<string, unknown>) => {
+    const had = new Set(all.map((l) => l.id));
+    const v = await act(body);
+    const fresh = (v?.lines ?? []).filter((l) => !had.has(l.id));
+    if (fresh.length > 0) onGroups(fresh.map(groupKey), true);
+  };
+
   const find = async (q: string) => {
     setSearch(q);
     if (q.trim().length < 2) return setHits(null);
@@ -277,7 +306,7 @@ export function QuoteLineItems({
   const addFromBook = (h: BookHit) => {
     const offer = offerFor(h.product, view?.supplier ?? null);
     const unit = h.product.category === "units";
-    void act({
+    void adding({
       op: "add",
       line: {
         optionIndex: at,
@@ -297,13 +326,13 @@ export function QuoteLineItems({
   };
 
   const addProvisional = () =>
-    void act({
+    void adding({
       op: "add",
       line: { optionIndex: at, system, group: PROVISIONAL, name: search.trim() || "Provisional sum", kind: "material", qty: 1, costCents: 0, sellCents: null, source: "unknown", why: "Its price to set" },
     });
 
   const addByHand = (kind: "material" | "labour") =>
-    void act({
+    void adding({
       op: "add",
       line:
         kind === "labour"
@@ -318,6 +347,7 @@ export function QuoteLineItems({
      of its Labour group, in the price, never a line the customer sees */
   const loading = view?.loading?.[at] ?? null;
   const labourAt = lines.find((l) => l.group === "Labour");
+  const compared = comparing ? lines.find((l) => l.id === comparing) : undefined;
   const setLoad = (next: { pct: number | null; reason: string }) => void act({ op: "loading", option: at, ...next });
   const loadingRow = loading ? (
     <tr key="loading" className="ql-it ql-load">
@@ -398,8 +428,9 @@ export function QuoteLineItems({
         )}
       </div>
 
-      {comparing && lines.some((l) => l.id === comparing) && (
-        <CompareCard key={comparing} job={job} lineId={comparing} onClose={() => setComparing(null)} onChanged={onCompared} />
+      {/* a line's compare is its group's: shut, the group hides it too */}
+      {compared && open.has(groupKey(compared)) && (
+        <CompareCard key={compared.id} job={job} lineId={compared.id} onClose={() => setComparing(null)} onChanged={onCompared} />
       )}
 
       <table className="ql-lt ql-colh">
@@ -417,7 +448,7 @@ export function QuoteLineItems({
       </table>
 
       {systems.length === 0 && <p className="qp-none">No lines yet.</p>}
-      {systems.map((sys) => {
+      {systems.map((sys, si) => {
         const mine = lines.filter((l) => l.system === sys);
         const groups = [...new Set(mine.map((l) => l.group))];
         const sysTotal = mine.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
@@ -429,174 +460,192 @@ export function QuoteLineItems({
             </header>
             <table className="ql-lt">
               <Cols money={money} />
-              <tbody>
-                {groups.map((g) => {
-                  const rows = mine.filter((l) => l.group === g);
-                  const sub = rows.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
-                  return [
-                    <tr key={`g-${g}`} className="ql-sg">
-                      <td colSpan={money ? 4 : 2}>{g}</td>
-                      {money && <td className="n">{cents2(sub)}</td>}
+              {groups.map((g, gi) => {
+                const rows = mine.filter((l) => l.group === g);
+                const sub = rows.reduce((n, l) => n + Math.round((sells.get(l.id) ?? 0) * l.qty), 0);
+                const key = groupKey({ system: sys, group: g });
+                const shown = open.has(key);
+                const body = `${uid}-${si}-${gi}`;
+                return [
+                  <tbody key={`g-${g}`}>
+                    {/* the whole band takes the press; its button is the
+                        keyboard's and a screen reader's way in, and its
+                        click is the band's. A tech, who sees no money, sees
+                        how many lines it holds where the total stands */}
+                    <tr className="ql-sg" onClick={() => onGroups([key], !shown)}>
+                      <td colSpan={money ? 4 : 1}>
+                        <button type="button" className="ql-sgbtn" aria-expanded={shown} aria-controls={body}>
+                          <Icon name={shown ? "chevD" : "chevR"} size={16} />
+                          {g}
+                        </button>
+                      </td>
+                      <td className="n">{money ? cents2(sub) : `${rows.length} ${rows.length === 1 ? "line" : "lines"}`}</td>
                       <td />
-                    </tr>,
-                    ...rows.map((l) => {
-                      const unknown = l.source === "unknown" && l.costCents <= 0 && l.sellCents == null;
-                      const each = sells.get(l.id);
-                      return [
-                        <tr key={l.id} className="ql-it">
-                          <td>
-                            <span className="ql-n">
-                              <i
-                                className={`ql-d ${fitOf.get(l.id)?.state === "fitted" ? "fitted" : l.source}`}
-                                title={
-                                  fitOf.get(l.id)
-                                    ? `${fitOf.get(l.id)!.state === "fitted" ? "Fitted" : fitOf.get(l.id)!.state === "misfit" ? "Doesn't fit" : "Not checked"}: ${fitOf.get(l.id)!.why}`
-                                    : `${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`
-                                }
-                              />
-                              <span className="nm">
-                                {l.kind !== "labour" && money ? (
-                                  <button
-                                    type="button"
-                                    className="ql-nmbtn"
-                                    title="Select preferred item"
-                                    aria-expanded={swapping === l.id}
-                                    onClick={() => setSwapping(swapping === l.id ? null : l.id)}
-                                  >
-                                    {l.name}
-                                  </button>
-                                ) : (
-                                  l.name
-                                )}
-                                {view?.researched?.[l.id] && (
-                                  <a className="ql-web" href={view.researched[l.id]!.url} target="_blank" rel="noopener noreferrer" title={`From the web: ${view.researched[l.id]!.title}`} aria-label={`From the web: ${view.researched[l.id]!.title}`}>
-                                    <Globe />
-                                  </a>
-                                )}
-                                {l.estimate && <em className="ql-vs ql-est"> Estimate</em>}
-                                {at !== base && againstFirst(l, all, base) !== "same" && (
-                                  <em className="ql-vs">{againstFirst(l, all, base) === "added" ? " Added" : " Changed"}</em>
-                                )}
-                              </span>
-                              {l.code && (
-                                <span className="cd">
-                                  {l.code}
-                                  {buyFrom && l.supplierKey && l.supplierKey !== buyFrom && (
-                                    <em className="ql-not">{`Not at ${supplierName(buyFrom)}: ${supplierName(l.supplierKey)}`}</em>
-                                  )}
-                                  {money && l.kind === "unit" && unitPartOf(l.name, l.code) !== "outdoor" && (
-                                    <button type="button" className="ql-cmpbtn" aria-expanded={comparing === l.id} onClick={() => setComparing(comparing === l.id ? null : l.id)}>
-                                      Compare
+                    </tr>
+                  </tbody>,
+                  /* shut, its rows and what hangs off them (a labour line's
+                     tasks, a pick list, the loading) are not drawn */
+                  <tbody key={`r-${g}`} id={body}>
+                    {shown && [
+                      ...rows.map((l) => {
+                        const unknown = l.source === "unknown" && l.costCents <= 0 && l.sellCents == null;
+                        const each = sells.get(l.id);
+                        return [
+                          <tr key={l.id} className="ql-it">
+                            <td>
+                              <span className="ql-n">
+                                <i
+                                  className={`ql-d ${fitOf.get(l.id)?.state === "fitted" ? "fitted" : l.source}`}
+                                  title={
+                                    fitOf.get(l.id)
+                                      ? `${fitOf.get(l.id)!.state === "fitted" ? "Fitted" : fitOf.get(l.id)!.state === "misfit" ? "Doesn't fit" : "Not checked"}: ${fitOf.get(l.id)!.why}`
+                                      : `${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`
+                                  }
+                                />
+                                <span className="nm">
+                                  {l.kind !== "labour" && money ? (
+                                    <button
+                                      type="button"
+                                      className="ql-nmbtn"
+                                      title="Select preferred item"
+                                      aria-expanded={swapping === l.id}
+                                      onClick={() => setSwapping(swapping === l.id ? null : l.id)}
+                                    >
+                                      {l.name}
                                     </button>
+                                  ) : (
+                                    l.name
+                                  )}
+                                  {view?.researched?.[l.id] && (
+                                    <a className="ql-web" href={view.researched[l.id]!.url} target="_blank" rel="noopener noreferrer" title={`From the web: ${view.researched[l.id]!.title}`} aria-label={`From the web: ${view.researched[l.id]!.title}`}>
+                                      <Globe />
+                                    </a>
+                                  )}
+                                  {l.estimate && <em className="ql-vs ql-est"> Estimate</em>}
+                                  {at !== base && againstFirst(l, all, base) !== "same" && (
+                                    <em className="ql-vs">{againstFirst(l, all, base) === "added" ? " Added" : " Changed"}</em>
                                   )}
                                 </span>
+                                {l.code && (
+                                  <span className="cd">
+                                    {l.code}
+                                    {buyFrom && l.supplierKey && l.supplierKey !== buyFrom && (
+                                      <em className="ql-not">{`Not at ${supplierName(buyFrom)}: ${supplierName(l.supplierKey)}`}</em>
+                                    )}
+                                    {money && l.kind === "unit" && unitPartOf(l.name, l.code) !== "outdoor" && (
+                                      <button type="button" className="ql-cmpbtn" aria-expanded={comparing === l.id} onClick={() => setComparing(comparing === l.id ? null : l.id)}>
+                                        Compare
+                                      </button>
+                                    )}
+                                  </span>
+                                )}
+                                {fitOf.get(l.id)?.state === "misfit" && <span className="ql-misfit">{fitOf.get(l.id)!.why}</span>}
+                              </span>
+                            </td>
+                            <td className="n">
+                              {l.visit ? (
+                                /* its hours are its tasks', changed below */
+                                <span className="ql-fq">{qtyWords(l)}</span>
+                              ) : (
+                                <Field
+                                  value={qtyWords(l)}
+                                  label={`Quantity of ${l.name}`}
+                                  disabled={busy}
+                                  onCommit={(t) => {
+                                    const n = Number(t.replace(/[^\d.]/g, ""));
+                                    if (Number.isFinite(n) && n >= 0) change(l, { qty: n });
+                                  }}
+                                />
                               )}
-                              {fitOf.get(l.id)?.state === "misfit" && <span className="ql-misfit">{fitOf.get(l.id)!.why}</span>}
-                            </span>
-                          </td>
-                          <td className="n">
-                            {l.visit ? (
-                              /* its hours are its tasks', changed below */
-                              <span className="ql-fq">{qtyWords(l)}</span>
-                            ) : (
-                              <Field
-                                value={qtyWords(l)}
-                                label={`Quantity of ${l.name}`}
-                                disabled={busy}
-                                onCommit={(t) => {
-                                  const n = Number(t.replace(/[^\d.]/g, ""));
-                                  if (Number.isFinite(n) && n >= 0) change(l, { qty: n });
-                                }}
-                              />
+                            </td>
+                            {money && (
+                              <td className="n">
+                                <Field
+                                  value={dollars(l.costCents)}
+                                  label={`What one ${l.name} costs you`}
+                                  disabled={busy}
+                                  onCommit={(t) => {
+                                    const c = centsOf(t);
+                                    if (c != null && Number.isFinite(c)) change(l, { costCents: c });
+                                  }}
+                                />
+                              </td>
                             )}
-                          </td>
-                          {money && (
-                            <td className="n">
-                              <Field
-                                value={dollars(l.costCents)}
-                                label={`What one ${l.name} costs you`}
+                            {money && (
+                              <td className="n">
+                                <Field
+                                  value={
+                                    l.sellCents != null
+                                      ? dollars(l.sellCents)
+                                      : each == null
+                                        ? ""
+                                        : /* by the metre a tenth of a cent is real (20.741 × 10 m = 207.41); a counted item is to the cent */
+                                          l.unit === "m"
+                                          ? dollars(Math.round(each * 10) / 10)
+                                          : dollars(Math.round(each))
+                                  }
+                                  label={`What one ${l.name} sells for`}
+                                  disabled={busy}
+                                  onCommit={(t) => {
+                                    const c = centsOf(t);
+                                    /* a provisional sum sells at what it costs: no markup on top */
+                                    if (isProvisional(l)) {
+                                      if (c != null && Number.isFinite(c)) change(l, { sellCents: c, costCents: c });
+                                    } else if (c === null) change(l, { sellCents: null });
+                                    else if (Number.isFinite(c)) change(l, { sellCents: c });
+                                  }}
+                                />
+                              </td>
+                            )}
+                            {money && <td className="n">{unknown ? "—" : cents2(Math.round((each ?? 0) * l.qty))}</td>}
+                            <td className="x">
+                              <button
+                                type="button"
+                                className="ql-x"
+                                aria-label={`Take ${l.name} off`}
                                 disabled={busy}
-                                onCommit={(t) => {
-                                  const c = centsOf(t);
-                                  if (c != null && Number.isFinite(c)) change(l, { costCents: c });
-                                }}
-                              />
+                                onClick={() => void act({ op: "remove", id: l.id, version: l.version })}
+                              >
+                                ×
+                              </button>
                             </td>
-                          )}
-                          {money && (
-                            <td className="n">
-                              <Field
-                                value={
-                                  l.sellCents != null
-                                    ? dollars(l.sellCents)
-                                    : each == null
-                                      ? ""
-                                      : /* by the metre a tenth of a cent is real (20.741 × 10 m = 207.41); a counted item is to the cent */
-                                        l.unit === "m"
-                                        ? dollars(Math.round(each * 10) / 10)
-                                        : dollars(Math.round(each))
-                                }
-                                label={`What one ${l.name} sells for`}
-                                disabled={busy}
-                                onCommit={(t) => {
-                                  const c = centsOf(t);
-                                  /* a provisional sum sells at what it costs: no markup on top */
-                                  if (isProvisional(l)) {
-                                    if (c != null && Number.isFinite(c)) change(l, { sellCents: c, costCents: c });
-                                  } else if (c === null) change(l, { sellCents: null });
-                                  else if (Number.isFinite(c)) change(l, { sellCents: c });
-                                }}
-                              />
-                            </td>
-                          )}
-                          {money && <td className="n">{unknown ? "—" : cents2(Math.round((each ?? 0) * l.qty))}</td>}
-                          <td className="x">
-                            <button
-                              type="button"
-                              className="ql-x"
-                              aria-label={`Take ${l.name} off`}
-                              disabled={busy}
-                              onClick={() => void act({ op: "remove", id: l.id, version: l.version })}
-                            >
-                              ×
-                            </button>
-                          </td>
-                        </tr>,
-                        l.visit ? <LabourTasks key={`${l.id}-tasks`} line={l} visit={l.visit} busy={busy} onChange={(visit) => change(l, { visit })} /> : null,
-                        swapping === l.id ? (
-                          <tr key={`${l.id}-pick`} className="ql-pickrow">
-                            <td colSpan={6}>
-                              <PickList
-                                line={l}
-                                busy={busy}
-                                onCancel={() => setSwapping(null)}
-                                onPick={(h, prefer, offer) => {
-                                  setSwapping(null);
-                                  void act({
-                                    op: "change",
-                                    id: l.id,
-                                    version: l.version,
-                                    patch: { name: h.product.name, code: offer.code, supplierKey: offer.supplierKey, costCents: offer.netCents, sellCents: null },
-                                    why: "Select preferred item",
-                                  }).then(() => {
-                                    if (prefer)
-                                      void fetch("/api/quoting/preferred", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ ref: `${offer.supplierKey}|${offer.code}`, on: true, was: l.name }),
-                                      }).catch(() => undefined);
-                                  });
-                                }}
-                              />
-                            </td>
-                          </tr>
-                        ) : null,
-                      ];
-                    }),
-                    money && g === "Labour" && labourAt && sys === labourAt.system ? loadingRow : null,
-                  ];
-                })}
-              </tbody>
+                          </tr>,
+                          l.visit ? <LabourTasks key={`${l.id}-tasks`} line={l} visit={l.visit} busy={busy} onChange={(visit) => change(l, { visit })} /> : null,
+                          swapping === l.id ? (
+                            <tr key={`${l.id}-pick`} className="ql-pickrow">
+                              <td colSpan={6}>
+                                <PickList
+                                  line={l}
+                                  busy={busy}
+                                  onCancel={() => setSwapping(null)}
+                                  onPick={(h, prefer, offer) => {
+                                    setSwapping(null);
+                                    void act({
+                                      op: "change",
+                                      id: l.id,
+                                      version: l.version,
+                                      patch: { name: h.product.name, code: offer.code, supplierKey: offer.supplierKey, costCents: offer.netCents, sellCents: null },
+                                      why: "Select preferred item",
+                                    }).then(() => {
+                                      if (prefer)
+                                        void fetch("/api/quoting/preferred", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ ref: `${offer.supplierKey}|${offer.code}`, on: true, was: l.name }),
+                                        }).catch(() => undefined);
+                                    });
+                                  }}
+                                />
+                              </td>
+                            </tr>
+                          ) : null,
+                        ];
+                      }),
+                      money && g === "Labour" && labourAt && sys === labourAt.system ? loadingRow : null,
+                    ]}
+                  </tbody>,
+                ];
+              })}
             </table>
           </section>
         );
@@ -658,8 +707,17 @@ export function QuoteLineItems({
             </button>
           )}
           {money && labourAt && !loading && (
-            /* 10%: the low end of Isaac's own "10 to 15%"; not applied until it says why */
-            <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setLoad({ pct: 10, reason: "" })}>
+            /* 10%: the low end of Isaac's own "10 to 15%"; not applied until
+               it says why, typed on its row: Labour opens to show it */
+            <button
+              type="button"
+              className="pbtn ghost sm"
+              disabled={busy}
+              onClick={() => {
+                onGroups([groupKey(labourAt)], true);
+                setLoad({ pct: 10, reason: "" });
+              }}
+            >
               Add a loading
             </button>
           )}
@@ -690,7 +748,7 @@ export function QuoteLineItems({
             packs={view?.packs ?? []}
             onAdd={(k) => {
               setKitOpen(false);
-              void act({ op: "kit", optionIndex: at, ...k });
+              void adding({ op: "kit", optionIndex: at, ...k });
             }}
           />
         )}

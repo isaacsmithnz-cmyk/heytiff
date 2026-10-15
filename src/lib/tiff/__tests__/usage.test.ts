@@ -34,6 +34,14 @@ describe("costOf", () => {
     expect(costOf("claude-opus-5", { cache_creation_input_tokens: 1_000_000 })).toBeCloseTo(6.25, 6);
   });
 
+  it("charges an hour's cache write at twice the input rate", () => {
+    const usage = {
+      cache_creation_input_tokens: 1_000_000,
+      cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 1_000_000 },
+    };
+    expect(costOf("claude-opus-5-5", usage)).toBeCloseTo(8, 6);
+  });
+
   /* The reason caching is a judgement call and not a free win: the round that
      writes a prefix pays more than it would have uncached, and only earns it
      back when a later round reads it. A costOf that ignored writes would make

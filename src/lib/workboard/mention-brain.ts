@@ -61,7 +61,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import { RECORD_IN_ENGLISH, RECORD_LANGUAGE } from "@/lib/lang/policy";
-import { MODEL } from "./note-brain";
+import { FALLBACK_BETA, FALLBACKS, MODEL } from "./note-brain";
 import { englishStrings } from "./note-english";
 
 /* The routing decision is the product here as it is in the router, so the
@@ -416,12 +416,14 @@ async function read<T>(
   if (!canReadAsks()) return { ok: false, error: NO_KEY, why: "outage" };
   const started = Date.now();
   const client = new Anthropic();
-  let response: Anthropic.Message;
+  let response: Anthropic.Beta.BetaMessage;
   try {
-    response = await client.messages.create(
+    response = await client.beta.messages.create(
       {
         model: MODEL,
         max_tokens: MAX_TOKENS,
+        betas: [FALLBACK_BETA],
+        fallbacks: FALLBACKS,
         output_config: { effort: EFFORT, format: { type: "json_schema", schema } },
         system,
         messages: [{ role: "user", content }],

@@ -151,9 +151,14 @@ export type KitPart = {
   /** what to say when nothing in the book fits its size */
   none?: (f: KitFacts) => string;
   /** what to say when what sizes it isn't known */
-  needs?: string;
+  needs?: string | ((f: KitFacts) => string);
   /** the part as Quoting names its preferred item (components.ts) */
   component?: (f: KitFacts) => ComponentKey | null;
+  /** ductwork: the air side, from the plenums to the grilles, which the
+      business's duct contingency is a share of (buildup.ts). Never the
+      unit, its pipe, power, controls, mounting or drain: a layout changes on
+      site, they don't */
+  duct?: boolean;
 };
 
 /** What the business has chosen for a kit's parts (1.2, one preferred
@@ -287,6 +292,7 @@ const DUCTED: KitPart[] = [
     sizedBy: "Fits the indoor unit: its model and its face",
     shows: { kind: "plenum" },
     group: "Ductwork and grilles",
+    duct: true,
     name: "Supply plenum",
     needs: "Needs the indoor unit",
     search: (f) => (f.supplyFace ? { text: "plenum" } : null),
@@ -300,6 +306,7 @@ const DUCTED: KitPart[] = [
     sizedBy: "Fits the indoor unit's return",
     shows: { kind: "return_plenum" },
     group: "Ductwork and grilles",
+    duct: true,
     name: "Return plenum",
     needs: "Needs the indoor unit",
     /* a return that takes spigots takes its duct straight on */
@@ -315,6 +322,7 @@ const DUCTED: KitPart[] = [
     sizedBy: "Each outlet's size",
     shows: { kind: "flex_duct" },
     group: "Ductwork and grilles",
+    duct: true,
     name: "Flex duct",
     search: (f) => (f.outletMm ? { text: "flex", sizeMm: f.outletMm } : null),
     range: (f) => (f.outletMm ? { kind: "flex_duct", need: { mm: f.outletMm } } : null),
@@ -326,6 +334,7 @@ const DUCTED: KitPart[] = [
     sizedBy: "Each outlet's size",
     shows: { kind: "round_diffuser" },
     group: "Ductwork and grilles",
+    duct: true,
     name: "Outlet diffuser",
     skip: (f) => !!f.underfloor,
     search: (f) => (f.outletMm ? { text: "diffuser", sizeMm: f.outletMm } : null),
@@ -338,6 +347,7 @@ const DUCTED: KitPart[] = [
     sizedBy: "By the duct sizes in and out",
     shows: { kind: "fitting" },
     group: "Ductwork and grilles",
+    duct: true,
     name: "Y branches",
     search: () => ({ text: "metal y" }),
     many: (f) =>
@@ -353,6 +363,7 @@ const DUCTED: KitPart[] = [
     sizedBy: "By the duct sizes either side",
     shows: { kind: "reducer" },
     group: "Ductwork and grilles",
+    duct: true,
     name: "Reducer",
     search: () => ({ text: "reducer" }),
     /* only where the layout says the main duct steps down */
@@ -366,6 +377,7 @@ const DUCTED: KitPart[] = [
     rule: "One per floor outlet",
     sizedBy: "The boot's face",
     group: "Ductwork and grilles",
+    duct: true,
     name: "Floor grille",
     skip: (f) => !f.underfloor,
     search: () => ({ text: "floor grille" }),
@@ -376,6 +388,7 @@ const DUCTED: KitPart[] = [
     rule: "One under each floor grille",
     sizedBy: "The grille's face and the outlet's size",
     group: "Ductwork and grilles",
+    duct: true,
     name: "Floor boot",
     skip: (f) => !f.underfloor,
     search: () => ({ text: "boot" }),
@@ -398,6 +411,7 @@ const DUCTED: KitPart[] = [
     sizedBy: "Sized to the unit's return air",
     shows: { kind: "return_grille", only: (n) => !BOX.test(n) },
     group: "Ductwork and grilles",
+    duct: true,
     name: "Return air grille, filtered",
     needs: "Needs its size: pick it from your range",
     search: (f) => (f.returnGrille ? { text: "return filter" } : null),
@@ -411,6 +425,7 @@ const DUCTED: KitPart[] = [
     sizedBy: "The grille's face",
     shows: { kind: "return_grille", only: (n) => BOX.test(n) },
     group: "Ductwork and grilles",
+    duct: true,
     name: "Return air box",
     needs: "Needs its size: pick it from your range",
     search: (f) => (f.returnGrille ? { text: "return box" } : null),
@@ -436,10 +451,17 @@ const DUCTED: KitPart[] = [
     rule: "One for the zones",
     group: "Pipe, power and controls",
     name: "Zone interface",
-    skip: (f) => !f.zoning,
-    needs: "None of the maker's zone interfaces takes this many zones",
+    /* zones asked for and no zone system read (no data pack named, or one
+       without a zone system): a line not known yet, saying so. Skipped, "5
+       zones" with the pack left on None added a kit with no zone parts and
+       no word of it (2026-10-15) */
+    skip: (f) => !f.zoning && !f.zones,
+    needs: (f) => (f.zoning ? "None of the maker's zone interfaces takes this many zones" : "Needs the maker's zone system: none read off the unit's data pack"),
     search: (f) => (f.zoning?.interface ? { text: f.zoning.interface } : null),
-    qty: (f) => ({ qty: 1, unit: "", why: `${f.zoning!.zones} zones, ${f.zoning!.control === "temperature" ? "by temperature" : "on and off"}: ${f.zoning!.from}` }),
+    qty: (f) =>
+      f.zoning
+        ? { qty: 1, unit: "", why: `${f.zoning.zones} zones, ${f.zoning.control === "temperature" ? "by temperature" : "on and off"}: ${f.zoning.from}` }
+        : { qty: 1, unit: "", why: `${f.zones} zones` },
   },
   {
     key: "zone-receiver",
@@ -562,6 +584,12 @@ function atSize(kind: RangeKind, need: RangeNeed, products: readonly Product[], 
   return product && offer ? { product, offer, why: held.length ? "Your range" : "In your book" } : null;
 }
 
+/* the flag rides on the line into the quote (lines.ts keeps it), so a
+   kit's ductwork carries the business's duct contingency like a hand-built
+   quote's does: before it, a kit-built ducted quote priced it at nothing.
+   On a line not known yet too, so it counts once a person prices it. */
+const ductOf = (part: KitPart) => (part.duct ? { duct: true } : {});
+
 /** A kit's parts as lines for one option and system, each picked from the
     book; a part with a fact missing, or that the book hasn't got, is a line
     nobody knows the price of yet, saying why. */
@@ -584,7 +612,7 @@ export function expandKit(
     if (part.skip?.(f)) continue;
     /* a part at several sizes: a line for each, from the range */
     if (part.many) {
-      const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const };
+      const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part) };
       const each = part.many(f);
       if (each == null) {
         out.push({ ...base, name: part.name, qty: 0, unit: "", costCents: 0, source: "unknown", why: part.none?.(f) ?? "Needs the layout" });
@@ -609,9 +637,10 @@ export function expandKit(
     }
     const q = part.qty(f);
     const s = part.search(f);
-    const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const };
+    const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part) };
     if (!q || !s) {
-      const why = !s ? (part.needs ?? (part.key === "pair-coil" && f.keptPipe ? "Needs the unit's details to check the old pipe" : "Needs the unit's details")) : "Needs the run";
+      const needs = typeof part.needs === "function" ? part.needs(f) : part.needs;
+      const why = !s ? (needs ?? (part.key === "pair-coil" && f.keptPipe ? "Needs the unit's details to check the old pipe" : "Needs the unit's details")) : "Needs the run";
       out.push({ ...base, name: part.name, qty: q?.qty ?? 0, unit: q?.unit ?? "", costCents: 0, source: "unknown", why });
       continue;
     }

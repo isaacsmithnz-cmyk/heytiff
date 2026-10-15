@@ -82,6 +82,9 @@ const nextConfig: NextConfig = {
     "/api/quoting/links": ["./data/packs/**/*"],
     "/api/quoting/unit-prices": ["./data/packs/**/*"],
     "/dashboard/admin/quoting": ["./data/packs/**/*"],
+    /* a quote's Add a kit lists every installed pack and reads its unit
+       off one: untraced, the list would be just None, and no error */
+    "/api/workboard/quote-lines": ["./data/packs/**/*"],
     /* Chromium's brotli archives are read off disk at run time, so the
        tracer never sees them: name them, or the first PDF dies looking */
     "/api/studio/design-pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],

@@ -28,6 +28,7 @@ jest.mock("@/lib/quotes/lines-server", () => ({
   undoChange: jest.fn(),
 }));
 jest.mock("@/lib/quotes/kits-server", () => ({ addKit: jest.fn() }));
+jest.mock("@/lib/quotes/lookups-server", () => ({ packMakers: async () => [{ key: "daikin", name: "Daikin" }, { key: "fujitsu", name: "Fujitsu" }] }));
 jest.mock("@/lib/quotes/fit-server", () => ({ linesFit: async () => [] }));
 jest.mock("@/lib/quotes/lines-job-server", () => ({
   readByHand: async () => ({ accepted: [], names: [], loading: {}, compare: {}, supplier: null, proposal: null, researched: {}, variations: [] }),
@@ -70,6 +71,8 @@ it("is the Workboard's: a tech reads the quote's work, never its money", async (
   /* the history's price change is gone */
   expect(a.changes).toEqual([]);
   expect(JSON.stringify(a)).not.toMatch(/520000|400000/);
+  /* a tech adds a kit too: every installed pack its unit can be read off */
+  expect(a.packs).toEqual([{ key: "daikin", name: "Daikin" }, { key: "fujitsu", name: "Fujitsu" }]);
 });
 
 it("gives the money to whoever has it", async () => {

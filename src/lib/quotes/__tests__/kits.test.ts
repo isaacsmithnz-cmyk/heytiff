@@ -275,6 +275,43 @@ describe("a ducted kit sized by its unit and its layout", () => {
     const ranged = expandKit("ducted", haa, [...book, ...ducted], at, null, null, { ranges: range, components: {} });
     expect(ranged.find((l) => l.name === "METAL Y 400.300.300 NSW")?.why).toMatch(/your range$/);
   });
+
+  /* the duct contingency is a share of the ductwork (buildup.ts), so a kit's
+     ductwork has to say it's ductwork: before it did, every kit-built ducted
+     quote priced the business's contingency at nothing (found mapping the
+     quote page, 2026-10-15) */
+  const air = [...ducted, product("VORTEX FLEX R1.0 200MM X 6M", 2489), product("CONE DIFFUSER 200MM", 1289)];
+  const allowances = { consumables: 3182, flush: null, recovery: null };
+
+  it("marks its ductwork for the duct contingency: the plenum to the grilles, never the unit's pipe, power, controls, mounting or drain", () => {
+    const lines = expandKit("ducted", haa, [...book, ...air], at, allowances);
+    const duct = (name: string) => lines.find((l) => l.name === name)?.duct;
+    for (const name of ["MEA N/C 12-16kW 1330x271 - 2x400", "METAL Y 400.300.300 NSW", "AIRLOC SMARTFIT REDUCER 400 - 300", "VORTEX FLEX R1.0 200MM X 6M", "CONE DIFFUSER 200MM", "EGGCRATE HIGH STATIC FILTER 900X550 NSW", "900 X 550 RETURN AIR BOX 2 X 400MM (EA)"])
+      expect([name, duct(name)]).toEqual([name, true]);
+    for (const name of ["PAIRED COIL 1/4+1/2X20M", "INTERCONNECT 3C+E PER METRE", "TPS 2.5MM 2C+E 100M", "RCBO 20A 30MA 1P+N", "ISOLATOR 20A 2P IP66", "ANTI VIBRATION RUBBER FEET (SET)", "DRAIN HOSE 16MM PER METRE", "Wall controller", "Consumables"])
+      expect([name, duct(name)]).toEqual([name, undefined]);
+    /* a part not known yet is still ductwork, so it counts once it's priced */
+    expect(expandKit("ducted", { ...facts, outlets: 4, outletMm: 200 }, book, at).find((l) => l.name === "Supply plenum")).toMatchObject({ source: "unknown", duct: true });
+    /* under the floor: the grilles and their boots are, the springs the indoor hangs on aren't */
+    const under = expandKit("ducted", { ...haa, underfloor: true }, [...book, ...air, product("FLOOR GRILLE 350X150 ANODISED", 3500), product("UNI BOOT 350X150 200MM", 2800), product("SPRING HANGER 15-30KG", 2286)], at);
+    expect(under.find((l) => l.name === "FLOOR GRILLE 350X150 ANODISED")?.duct).toBe(true);
+    expect(under.find((l) => l.name === "UNI BOOT 350X150 200MM")?.duct).toBe(true);
+    expect(under.find((l) => l.name === "SPRING HANGER 15-30KG")?.duct).toBeUndefined();
+    /* a split has no ductwork */
+    expect(expandKit("split", facts, book, at, allowances).some((l) => l.duct)).toBe(false);
+  });
+
+  it("a kit-built quote carries the business's duct contingency, kept through the stored line", async () => {
+    const { lineFromRow, lineRow, normaliseLine } = await import("../lines");
+    const { priceLines } = await import("../lines-price");
+    const kept = expandKit("ducted", haa, [...book, ...air], at, allowances).map((l, i) => lineFromRow({ ...lineRow(normaliseLine(l)!), id: `k${i}` })!);
+    const settings = { unitMarkupPct: 25, materialMarkupPct: 40, chargeOutCents: 14000, dayHours: 8, contingency: { pct: 15, hours: 2 } };
+    const [o] = priceLines(kept, [], settings, { pct: null, labourCostCents: null });
+    const ductwork = kept.filter((l) => l.group === "Ductwork and grilles").reduce((n, l) => n + Math.round(l.costCents * l.qty), 0);
+    expect(ductwork).toBeGreaterThan(0);
+    const share = Math.round((ductwork * 15) / 100);
+    expect(o!.build.contingency).toEqual({ buyCents: share, sellCents: Math.round(share * 1.4), hours: 2 });
+  });
 });
 
 it("takes only a sane layout: duct sizes a book sells, a split into two or more, a step down", async () => {
@@ -340,6 +377,19 @@ describe("a zoned ducted system", () => {
     const plain = expandKit("ducted", facts, zbook, at).map((l) => l.name);
     expect(plain).toContain("WIRED CONTROLLER WITH BACKLIT LCD PAR-41MAAM");
     expect(plain.some((n) => /PAR-ZM01A-A|PAC-ZC10L/.test(n ?? ""))).toBe(false);
+  });
+
+  /* 2026-10-15: "5 zones" with the kit form's pack left on None added a kit
+     with no zone parts, and nothing to settle said so */
+  it("zones asked for and no zone system read: the interface is a line not known yet, saying why, for Tiff to settle", () => {
+    const lines = expandKit("ducted", { ...facts, zones: 5, zoneControl: "temperature", wifi: true }, book, at);
+    expect(lines.find((l) => l.name === "Zone interface")).toMatchObject({ qty: 1, costCents: 0, source: "unknown", why: "Needs the maker's zone system: none read off the unit's data pack" });
+    expect(stillToSize(lines).map((x) => x.name)).toContain("Zone interface");
+    /* read, and none of its interfaces takes that many: said as before */
+    const many = expandKit("ducted", { ...facts, zones: 12, zoning: zoneKitOf(me, 12, "temperature", false) }, book, at);
+    expect(many.find((l) => l.name === "Zone interface")).toMatchObject({ source: "unknown", why: "None of the maker's zone interfaces takes this many zones" });
+    /* not zoned: no zone line at all */
+    expect(expandKit("ducted", facts, book, at).some((l) => l.name === "Zone interface")).toBe(false);
   });
 
   it("reads the zones, the control and WiFi from what Tiff or a person gave", () => {

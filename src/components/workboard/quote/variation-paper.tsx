@@ -1,7 +1,7 @@
 "use client";
 
 import { fmtAud } from "@/lib/workboard/project-money";
-import { fmtAuWeekdayDate } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 
 /* A VARIATION, AS THE CLIENT GETS IT (Isaac, 2026-10-10, the round-2 mock):
    what changes, the accepted price, the variation's, the new total, and
@@ -35,7 +35,8 @@ export function VariationPaper({
   newIncCents: number;
   changes: VariationChanges;
 }) {
-  const day = startedAt ? fmtAuWeekdayDate(startedAt.slice(0, 10)) : "";
+  /* started at a time: the day it was in Australia, never its UTC date */
+  const day = startedAt ? fmtAuWeekdayDate(auDayOf(startedAt)) : "";
   const list = (label: string, items: string[]) =>
     items.length > 0 && (
       <div className="lp-vchg">

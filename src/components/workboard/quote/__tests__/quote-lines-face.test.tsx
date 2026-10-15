@@ -47,6 +47,10 @@ const view = (lines: QuoteLine[]) => ({
   ],
   names: { "u-luke": "Luke Bennett" },
   me: "u-isaac",
+  packs: [
+    { key: "daikin", name: "Daikin" },
+    { key: "mitsubishi-electric", name: "Mitsubishi Electric" },
+  ],
 });
 
 beforeEach(() => {
@@ -146,6 +150,11 @@ it("adds a kit for a system: the outdoor named, the runs given, the rest read of
   face();
   await screen.findByText("Ducted indoor, under the floor");
   fireEvent.click(screen.getByRole("button", { name: "Add a kit" }));
+  /* every installed pack, and none of them anyone's default (2026-10-15) */
+  const pack = screen.getByLabelText("The outdoor's data pack");
+  expect(pack).toHaveValue("");
+  expect(within(pack).getAllByRole("option").map((o) => o.textContent)).toEqual(["None", "Daikin", "Mitsubishi Electric"]);
+  fireEvent.change(pack, { target: { value: "mitsubishi-electric" } });
   fireEvent.change(screen.getByLabelText("The system it's for"), { target: { value: "Living room" } });
   fireEvent.change(screen.getByLabelText("Outdoor model"), { target: { value: "MUZ-AP60VG2" } });
   fireEvent.change(screen.getByLabelText("Pipe run"), { target: { value: "20" } });
@@ -164,6 +173,41 @@ it("adds a kit for a system: the outdoor named, the runs given, the rest read of
       facts: expect.objectContaining({ pipeM: "20", powerM: "25", pipe: "", mount: "ground" }),
     })
   );
+  /* a split has no zones */
+  expect((posted.find((p) => p.op === "kit")!.facts as Record<string, unknown>)).not.toHaveProperty("zones");
+  expect(screen.queryByLabelText("Zones")).toBeNull();
+});
+
+/* a zoned ducted kit, as Tiff's add_kit gives it (2026-10-13): the zones a
+   whole number, the control by its word, WiFi yes or no */
+it("adds a zoned ducted kit with its zones, their control and WiFi, as Tiff's tool gives them", async () => {
+  face();
+  await screen.findByText("Ducted indoor, under the floor");
+  fireEvent.click(screen.getByRole("button", { name: "Add a kit" }));
+  fireEvent.change(screen.getByLabelText("Kit"), { target: { value: "ducted" } });
+  /* the zone system is read off the unit's pack: named, as a zoned kit needs */
+  fireEvent.change(screen.getByLabelText("The outdoor's data pack"), { target: { value: "mitsubishi-electric" } });
+  fireEvent.change(screen.getByLabelText("Outdoor model"), { target: { value: "PUZ-ZM100YKA" } });
+  /* a whole number: the keypad without a point */
+  expect(screen.getByLabelText("Zones")).toHaveAttribute("inputmode", "numeric");
+  fireEvent.change(screen.getByLabelText("Zones"), { target: { value: "5" } });
+  fireEvent.change(screen.getByLabelText("Zone control"), { target: { value: "on_off" } });
+  fireEvent.change(screen.getByLabelText("WiFi"), { target: { value: "yes" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add the kit" }));
+  });
+  const sent = posted.find((p) => p.op === "kit")!;
+  expect(sent).toMatchObject({ kit: "ducted", brand: "mitsubishi-electric", model: "PUZ-ZM100YKA", facts: { zones: 5, zoneControl: "on_off", wifi: true } });
+  /* none said: none sent, and WiFi no */
+  posted = [];
+  fireEvent.click(screen.getByRole("button", { name: "Add a kit" }));
+  fireEvent.change(screen.getByLabelText("Kit"), { target: { value: "ducted" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Add the kit" }));
+  });
+  const plain = posted.find((p) => p.op === "kit")!.facts as Record<string, unknown>;
+  expect(plain).not.toHaveProperty("zones");
+  expect(plain).toMatchObject({ zoneControl: "temperature", wifi: false });
 });
 
 /* options as whole jobs, slice 10.1 */

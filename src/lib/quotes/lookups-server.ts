@@ -1,6 +1,7 @@
 import "server-only";
-import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
+import { installedPacks, latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/server";
 import type { DataPack, ZoningController } from "@/lib/studio/packs/schema";
+import { brandNames } from "@/lib/hq/packs";
 import { bookProducts } from "./book-view-server";
 import { findInBook, unitSpecs, type BookHit, type BookQuery, type UnitLookup } from "./lookups";
 
@@ -23,6 +24,17 @@ export async function zoningFor(brand: string): Promise<ZoningController | null>
   const pack = await packFor(brand).catch(() => null);
   const key = brand.toLowerCase();
   return pack?.zoning_controllers.find((z) => !z.compatible_brands || z.compatible_brands.includes(key)) ?? null;
+}
+
+/** Every maker with a data pack installed (data/packs/<brand>@<version>),
+    by the key a lookup reads it by and in words: what a kit's unit can be
+    read off. None is anyone's default (2026-10-15: the kit form offered
+    Mitsubishi Electric or nothing, and started every business on it). */
+export async function packMakers(baseDir?: string): Promise<{ key: string; name: string }[]> {
+  /* in the words its own pack gives it (brands.json): a key title-cased
+     would make an "lg" pack "Lg" */
+  const [refs, names] = await Promise.all([installedPacks(baseDir).catch(() => []), brandNames(baseDir).catch(() => new Map<string, string>())]);
+  return [...new Set(refs.map((r) => r.brand))].map((key) => ({ key, name: names.get(key) ?? key.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") }));
 }
 
 export async function lookupUnit(brand: string, model: string): Promise<UnitLookup> {

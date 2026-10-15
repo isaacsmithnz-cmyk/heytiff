@@ -61,6 +61,11 @@ describe("which price a quote takes", () => {
       from: "invoice",
     });
     expect(effectivePrice({ ...base, listedOn: null, paidCents: 1, paidOn: "2026-09-29" }).price.from).toBe("list");
+    /* the upload day is the day it was in Australia: taken in at 8:30 on
+       the 13th in Sydney (21:30 UTC on the 12th), it's newer than the
+       12th's invoice */
+    const morning = effectivePrice({ ...base, listedOn: null, importedAt: "2026-10-12T21:30:00Z", paidCents: 1, paidOn: "2026-10-12" });
+    expect([morning.price.from, morning.price.on]).toEqual(["list", "2026-10-13"]);
   });
 
   it("reads a search the same way everywhere: lower case, four words, nothing that breaks a filter", () => {

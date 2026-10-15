@@ -90,19 +90,22 @@ export async function addEvents(orgId: string, sessionId: string, turnId: string
 
 export type ThreadEvent = { id: number; turnId: string | null; kind: AnyEvent["kind"]; author: string; body: Record<string, unknown>; at: string };
 
-/** The thread as a person reads it, after `since` (an event id), oldest first. */
+/** The most of a thread one read brings. */
+const THREAD_READ = 500;
+
+/** The thread as a person reads it, after `since` (an event id), oldest
+    first. Opened (since 0), it's the newest THREAD_READ: read from the
+    start, a session past them showed its first 500 events for good and
+    never what she'd just said. A poll reads on from `since`, oldest first,
+    and the panel's next poll carries on from the last of them, so a burst
+    bigger than one read skips nothing. */
 export async function readThread(orgId: string, jobUuid: string, since = 0): Promise<{ session: SessionRow | null; events: ThreadEvent[] }> {
   const session = await readSession(orgId, jobUuid);
   if (!session) return { session: null, events: [] };
-  const { data } = await supabaseAdmin
-    .from("quote_session_events")
-    .select("id, turn_id, kind, author, body, at")
-    .eq("org_id", orgId)
-    .eq("session_id", session.id)
-    .gt("id", since)
-    .order("id", { ascending: true })
-    .limit(500);
-  const events = ((data ?? []) as { id: number; turn_id: string | null; kind: AnyEvent["kind"]; author: string; body: Record<string, unknown>; at: string }[]).map((e) => ({
+  const q = supabaseAdmin.from("quote_session_events").select("id, turn_id, kind, author, body, at").eq("org_id", orgId).eq("session_id", session.id);
+  const { data } = since > 0 ? await q.gt("id", since).order("id", { ascending: true }).limit(THREAD_READ) : await q.order("id", { ascending: false }).limit(THREAD_READ);
+  const rows = (data ?? []) as { id: number; turn_id: string | null; kind: AnyEvent["kind"]; author: string; body: Record<string, unknown>; at: string }[];
+  const events = (since > 0 ? rows : [...rows].reverse()).map((e) => ({
     id: e.id,
     turnId: e.turn_id,
     kind: e.kind,
@@ -111,6 +114,22 @@ export async function readThread(orgId: string, jobUuid: string, since = 0): Pro
     at: e.at,
   }));
   return { session, events };
+}
+
+/** A thread from one event on, all of it, oldest first: what a tapped
+    answer or a used price acts on, with everything said since (any answer
+    to it among them). The panel holds the newest THREAD_READ it opened on
+    and every poll after, so what it shows can sit further back than one
+    read of the newest by the time it's tapped. */
+export async function readThreadFrom(orgId: string, jobUuid: string, id: number): Promise<ThreadEvent[]> {
+  if (!(id >= 1)) return [];
+  const out: ThreadEvent[] = [];
+  for (let since = id - 1; ; ) {
+    const { events } = await readThread(orgId, jobUuid, since);
+    out.push(...events);
+    if (events.length < THREAD_READ) return out;
+    since = events.at(-1)!.id;
+  }
 }
 
 /** Her questions still open in a session, oldest first (answers.ts). */

@@ -20,6 +20,8 @@
 
    Pure: parsing and the sums, for the import, the page and the tests. */
 
+import { auDayOf } from "@/lib/au-dates";
+
 export type PricingKind = "net" | "list_less";
 
 /** A discount that applies to a range instead of the supplier's own. */
@@ -386,7 +388,8 @@ export type PricePoint = { cents: number; net: boolean; on: string | null; from:
 export function effectivePrice(p: StoredPrices): { price: PricePoint; other: PricePoint | null } {
   const paid: PricePoint | null = p.paidCents != null ? { cents: p.paidCents, net: true, on: p.paidOn, from: "invoice" } : null;
   if (!p.onList) return { price: paid ?? { cents: p.cents, net: true, on: p.pricedOn, from: "invoice" }, other: null };
-  const list: PricePoint = { cents: p.cents, net: false, on: p.pricedOn ?? p.listedOn ?? (p.importedAt ? p.importedAt.slice(0, 10) : null), from: "list" };
+  /* taken in at a time: the day it was in Australia, as an invoice's date is */
+  const list: PricePoint = { cents: p.cents, net: false, on: p.pricedOn ?? p.listedOn ?? (p.importedAt ? auDayOf(p.importedAt) || null : null), from: "list" };
   if (!paid) return { price: list, other: null };
   const paidNewer = paid.on != null && (list.on == null || paid.on >= list.on);
   return paidNewer ? { price: paid, other: list } : { price: list, other: paid };

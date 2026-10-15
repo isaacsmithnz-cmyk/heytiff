@@ -1,7 +1,7 @@
 "use client";
 
 import { fmtAud } from "@/lib/workboard/project-money";
-import { fmtAuWeekdayDate } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 
 /* A PAST VERSION OF THE QUOTE, AS IT STOOD (quote-versions.ts): each
@@ -9,7 +9,8 @@ import type { QuoteVersion } from "@/lib/quotes/quote-versions";
    it. Kept, never changed; read only. */
 
 export function VersionPaper({ version, jobNumber, client }: { version: QuoteVersion; jobNumber: string | null; client: string | null }) {
-  const approved = version.approvedAt ? fmtAuWeekdayDate(version.approvedAt.slice(0, 10)) : "";
+  /* approved at a time: the day it was in Australia, never its UTC date */
+  const approved = version.approvedAt ? fmtAuWeekdayDate(auDayOf(version.approvedAt)) : "";
   return (
     <article className="lp-paper" aria-label={`Version ${version.n}`}>
       <header className="lp-lh">

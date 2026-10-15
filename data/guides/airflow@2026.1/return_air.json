@@ -1,0 +1,626 @@
+{
+  "about": "The return: its grille, its filter, its duct and the way back from each room. Velocities are each publisher's on the area it states; one that doesn't say is read as through the free area, the cautious reading, which sizes a grille larger. A grille named by its face is sized on that gross face, its free area the face times its free-area %.",
+  "grille_velocity_ms": {
+    "no_filter_free_area": {
+      "value": 2.54,
+      "mean": 2.59,
+      "low": 2.38,
+      "high": 2.91,
+      "n": 6,
+      "unit": "m/s",
+      "from": [
+        {"source":"actronair-0520-026","value":2.5,"basis":"return grilles sized at it, through the free area"},
+        {
+          "source": "actronair-db0817",
+          "value": 2.25,
+          "basis": "the middle of its 2–2.5 m/s for grille selection; the area not said, read as the free area"
+        },
+        {"source":"ccc-memo","value":2.5,"basis":"a ceiling-plenum return's face below it; the area not said, read as the free area"},
+        {"source":"ashrae-a23-ch49","value":2.54,"basis":"the most at a return opening for RC 30, through the free area"},
+        {
+          "source": "ashrae-f01-via-krueger",
+          "value": 2.822,
+          "basis": "a return inlet in the occupied zone, near seats, the middle: 2.54 m/s on the gross face ÷ an eggcrate's 90% free"
+        },
+        {"source":"acca-manual-d","value":2.54,"basis":"a return grille's face, Table 3-1; the area not said, read as the free area"},
+        {"source":"hart-cooley","value":2.54,"basis":"the middle of its 400–600 fpm on the effective area, through the free area"},
+        {
+          "source": "brivis-classic",
+          "value": 2.911,
+          "basis": "the least egg-crate opening for BX315 (300): 2.62 m/s on the gross face ÷ an eggcrate's 90% free"
+        },
+        {
+          "source": "brivis-classic",
+          "value": 2.933,
+          "basis": "the least egg-crate opening for BX320 (300): 2.64 m/s on the gross face ÷ an eggcrate's 90% free"
+        },
+        {
+          "source": "brivis-classic",
+          "value": 2.878,
+          "basis": "the least egg-crate opening for BX320 (350): 2.59 m/s on the gross face ÷ an eggcrate's 90% free"
+        },
+        {
+          "source": "brivis-classic",
+          "value": 2.844,
+          "basis": "the least egg-crate opening for BX326 (350): 2.56 m/s on the gross face ÷ an eggcrate's 90% free"
+        },
+        {
+          "source": "brivis-classic",
+          "value": 2.922,
+          "basis": "the least egg-crate opening for BX326 (400): 2.63 m/s on the gross face ÷ an eggcrate's 90% free"
+        },
+        {
+          "source": "brivis-classic",
+          "value": 2.956,
+          "basis": "the least egg-crate opening for 2PWN15: 2.66 m/s on the gross face ÷ an eggcrate's 90% free"
+        },
+        {
+          "source": "brivis-classic",
+          "value": 2.911,
+          "basis": "the least egg-crate opening for 2PWN26 XA: 2.62 m/s on the gross face ÷ an eggcrate's 90% free"
+        },
+        {
+          "source": "brivis-classic",
+          "value": 2.467,
+          "basis": "the least egg-crate opening for UF326 XA: 2.22 m/s on the gross face ÷ an eggcrate's 90% free"
+        }
+      ],
+      "most": 2.91,
+      "about": "An open return grille (eggcrate, no filter): the air through its free area. most is the publishers' high."
+    },
+    "no_filter_gross_eggcrate": {"value":2.29,"most":2.62,"unit":"m/s","derived":"The free-area figure × an eggcrate's 90% free."},
+    "filtered_gross": {
+      "value": 1.46,
+      "mean": 1.43,
+      "low": 1.08,
+      "high": 1.81,
+      "n": 5,
+      "unit": "m/s",
+      "from": [
+        {"source":"brivis-classic","value":1.78,"basis":"the least filtered opening for BX315 (300), on the gross face"},
+        {"source":"brivis-classic","value":1.82,"basis":"the least filtered opening for BX320 (300), on the gross face"},
+        {"source":"brivis-classic","value":1.78,"basis":"the least filtered opening for BX320 (350), on the gross face"},
+        {"source":"brivis-classic","value":1.78,"basis":"the least filtered opening for BX326 (350), on the gross face"},
+        {"source":"brivis-classic","value":1.81,"basis":"the least filtered opening for BX326 (400), on the gross face"},
+        {"source":"brivis-classic","value":1.81,"basis":"the least filtered opening for 2PWN15, on the gross face"},
+        {"source":"brivis-classic","value":1.82,"basis":"the least filtered opening for 2PWN26 XA, on the gross face"},
+        {"source":"brivis-classic","value":1.82,"basis":"the least filtered opening for UF326 XA, on the gross face"},
+        {
+          "source": "aa-purtech",
+          "value": 1.214,
+          "basis": "Purtech 1200x600 at NR 25, clean filter: 1.64 m/s through the free area × its own 74% free"
+        },
+        {
+          "source": "aa-purtech",
+          "value": 1.306,
+          "basis": "Purtech 900x400 at NR 25, clean filter: 1.92 m/s through the free area × its own 68% free"
+        },
+        {
+          "source": "aa-purtech",
+          "value": 1.306,
+          "basis": "Purtech 750x550 at NR 25, clean filter: 1.84 m/s through the free area × its own 71% free"
+        },
+        {"source":"aa-slimline","value":1.36,"basis":"Slimline 560x360 at NR 25, clean filter, on the gross face"},
+        {"source":"airflow-nz","value":1.5,"basis":"the velocity its filter grilles are rated at, on the gross face"},
+        {
+          "source": "acca-manual-d",
+          "value": 1.079,
+          "basis": "a filter grille's face, Table 3-1: 1.52 m/s (the area not said, read as the free area) × a filter grille's 71% free"
+        },
+        {
+          "source": "hart-cooley",
+          "value": 1.626,
+          "basis": "filter returns at no more than 450 fpm on the effective area: 2.29 m/s through the free area × a filter grille's 71% free"
+        },
+        {"source":"hart-cooley","value":1.46,"basis":"its filter-size table, 20x20 in filter, on the gross face"},
+        {"source":"hart-cooley","value":1.46,"basis":"its filter-size table, 20x25 in filter, on the gross face"},
+        {"source":"hart-cooley","value":1.46,"basis":"its filter-size table, 20x30 in filter, on the gross face"},
+        {"source":"hart-cooley","value":1.52,"basis":"its filter-size table, 24x24 in filter, on the gross face"},
+        {"source":"hart-cooley","value":1.3,"basis":"its filter-size table, 30x30 in filter, on the gross face"}
+      ],
+      "most": 1.81,
+      "about": "A filter grille with a clean standard (G2-class) filter: the air on its gross face. most is the publishers' high."
+    },
+    "quiet_bedroom": {
+      "no_filter_free_area": {
+        "value": 2.16,
+        "mean": 2.16,
+        "low": 2.16,
+        "high": 2.16,
+        "n": 1,
+        "unit": "m/s",
+        "from": [{"source":"ashrae-a23-ch49","value":2.16,"basis":"the most at a return opening for RC 25, through the free area"}],
+        "about": "An open return in or beside a bedroom: the figure a noise rating quieter (RC 25)."
+      },
+      "filtered_gross": {
+        "value": 1.13,
+        "mean": 1.13,
+        "low": 1.13,
+        "high": 1.13,
+        "n": 1,
+        "unit": "m/s",
+        "from": [
+          {
+            "source": "aa-purtech",
+            "value": 1.014,
+            "basis": "Purtech 1200x600 at NR 20, clean filter: 1.37 m/s through the free area × its own 74% free"
+          },
+          {
+            "source": "aa-purtech",
+            "value": 1.156,
+            "basis": "Purtech 900x400 at NR 20, clean filter: 1.7 m/s through the free area × its own 68% free"
+          },
+          {"source":"aa-slimline","value":1.13,"basis":"Slimline 560x360 at NR 20, clean filter, on the gross face"}
+        ],
+        "about": "A filter grille in or beside a bedroom: the figure a noise rating quieter (NR 20)."
+      }
+    },
+    "pleated_high_merv_gross": {
+      "value": 1.02,
+      "mean": 1.02,
+      "low": 0.76,
+      "high": 1.27,
+      "n": 2,
+      "unit": "m/s",
+      "from": [
+        {"source":"cec-2018-filters","value":0.76,"basis":"Title 24's MERV 13 option, its filter ≤ 0.1 in.wc clean, on the gross face"},
+        {"source":"camfil-3030","value":1.27,"basis":"its rated 'medium' velocity, 2 and 4 in pleated, on the gross face"}
+      ],
+      "about": "A deep pleated or high-MERV filter, run slow for its pressure."
+    }
+  },
+  "free_area_pct": {
+    "eggcrate": {
+      "value": 90,
+      "mean": 91,
+      "low": 90,
+      "high": 92,
+      "n": 3,
+      "unit": "%",
+      "from": [
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 200x200, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 300x300, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 400x400, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 450x450, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 550x550, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 600x300, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 600x400, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 700x400, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 750x400, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 750x550, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 800x400, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 800x450, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 900x400, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 900x450, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 900x500, the core"},
+        {"source":"airflow-nz","value":90,"basis":"its filtered eggcrate 1150x550, the core"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 600x300"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 600x300"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 600x300"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 600x600"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 600x600"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 600x600"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 1200x600"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 1200x600"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 1200x600"},
+        {"source":"airfoil-hr5f","value":90,"basis":"its hinged eggcrate 1200x600"},
+        {"source":"price-80","value":90,"basis":"its 80 eggcrate 24x12 in, core ÷ nominal"},
+        {"source":"price-80","value":92,"basis":"its 80 eggcrate 24x16 in, core ÷ nominal"},
+        {"source":"price-80","value":93,"basis":"its 80 eggcrate 30x16 in, core ÷ nominal"},
+        {"source":"price-80","value":90,"basis":"its 80 eggcrate 24x24 in, core ÷ nominal"},
+        {"source":"price-80","value":90,"basis":"its 80 eggcrate 24x24 in, core ÷ nominal"},
+        {"source":"price-80","value":95,"basis":"its 80 eggcrate 36x18 in, core ÷ nominal"},
+        {"source":"price-80","value":95,"basis":"its 80 eggcrate 36x18 in, core ÷ nominal"}
+      ]
+    },
+    "filter_grille": {
+      "value": 71,
+      "mean": 71,
+      "low": 71,
+      "high": 71,
+      "n": 1,
+      "unit": "%",
+      "from": [
+        {"source":"aa-purtech","value":74,"basis":"its Purtech 1200x600, effective face area"},
+        {"source":"aa-purtech","value":68,"basis":"its Purtech 900x400, effective face area"},
+        {"source":"aa-purtech","value":71,"basis":"its Purtech 750x550, effective face area"}
+      ]
+    },
+    "stamped_or_bar": {
+      "value": 84,
+      "mean": 84,
+      "low": 84,
+      "high": 84,
+      "n": 1,
+      "unit": "%",
+      "from": [
+        {"source":"bsc-rr0005","value":84,"basis":"a stamped return 12x12 in (Ameri-Flow/Grainger)"},
+        {"source":"bsc-rr0005","value":83,"basis":"a stamped return 14x14 in (Ameri-Flow/Grainger)"},
+        {"source":"bsc-rr0005","value":84,"basis":"a stamped return 20x20 in (Ameri-Flow/Grainger)"},
+        {"source":"bsc-rr0005","value":85,"basis":"a stamped return 30x6 in (Ameri-Flow/Grainger)"}
+      ]
+    },
+    "door_grille_v_blade": {
+      "value": 50,
+      "mean": 50,
+      "low": 50,
+      "high": 50,
+      "n": 1,
+      "unit": "%",
+      "from": [
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 300x150"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 300x150"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 600x150"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 600x150"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 600x150"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 450x300"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 450x300"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 450x300"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 600x300"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 600x300"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 600x300"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 600x450"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 600x450"},
+        {"source":"airfoil-dg","value":50,"basis":"its inverted-V door grille 600x450"}
+      ]
+    },
+    "default_when_unknown": {
+      "value": 71,
+      "unit": "%",
+      "derived": "The lowest of the return grille kinds, so a grille nobody knows is never sized too small."
+    }
+  },
+  "filter_pa": {
+    "clean": {
+      "value": 50.4,
+      "mean": 49.5,
+      "low": 30,
+      "high": 67.2,
+      "n": 4,
+      "unit": "Pa",
+      "from": [
+        {"source":"aa-purtech","value":50,"basis":"G2 electrostatic, initial at 2.02 m/s"},
+        {"source":"aa-slimline","value":10,"basis":"honeycomb, initial at 1.02 m/s"},
+        {"source":"camfil-3030","value":57.3,"basis":"MERV 8 pleated, its most initial at 1.78 m/s"},
+        {"source":"camfil-3030","value":77.2,"basis":"MERV 8 pleated, its most initial at 2.54 m/s"},
+        {"source":"camfil-3030","value":67.2,"basis":"MERV 8 pleated, its most initial at 2.54 m/s"},
+        {"source":"cec-2018-filters","value":64.7,"basis":"lab-tested clean at 1.5 m/s, the middle of its range"},
+        {"source":"cec-2018-filters","value":47.3,"basis":"lab-tested clean at 1.5 m/s, the middle of its range"},
+        {"source":"acca-manual-d","value":44.8,"basis":"its worked example's filter"}
+      ]
+    },
+    "change": {
+      "value": 218,
+      "mean": 218,
+      "low": 188,
+      "high": 249,
+      "n": 2,
+      "unit": "Pa",
+      "from": [
+        {"source":"aa-purtech","value":125,"basis":"G2 electrostatic, its final (dirty) resistance"},
+        {"source":"aa-slimline","value":250,"basis":"honeycomb, its final resistance"},
+        {"source":"camfil-3030","value":249,"basis":"MERV 8 pleated, its recommended final resistance"}
+      ],
+      "about": "When the filter's due: its final (dirty) resistance, by the kind of filter."
+    },
+    "ncc_clean_caps": {
+      "rows": [{"class":"MERV 9","most_pa":55},{"class":"MERV 11","most_pa":65}],
+      "sources": ["ncc-2022-j6d5"],
+      "about": "The NCC's most for a clean filter on an index run (J6D5, Class 2–9 buildings)."
+    }
+  },
+  "return_duct": {
+    "design_ms": {
+      "value": 3.33,
+      "mean": 3.54,
+      "low": 3.05,
+      "high": 4.25,
+      "n": 3,
+      "unit": "m/s",
+      "from": [
+        {
+          "source": "actronair-0520-026",
+          "value": 3.27,
+          "basis": "a model's own return: Model nominal 630 L/s on 2 x 350 mm return ducts (L/s is per duct)."
+        },
+        {
+          "source": "actronair-0520-026",
+          "value": 2.98,
+          "basis": "a model's own return: Model nominal 750 L/s on 2 x 400 mm return ducts (L/s is per duct)."
+        },
+        {
+          "source": "actronair-0520-026",
+          "value": 3.38,
+          "basis": "a model's own return: Model nominal 850 L/s on 2 x 400 mm return ducts (L/s is per duct)."
+        },
+        {
+          "source": "actronair-0520-026",
+          "value": 3.21,
+          "basis": "a model's own return: Model nominal 1020 L/s on 2 x 450 mm return ducts (L/s is per duct)."
+        },
+        {
+          "source": "actronair-0520-026",
+          "value": 3.55,
+          "basis": "a model's own return: Model nominal 1130 L/s on 2 x 450 mm return ducts (L/s is per duct)."
+        },
+        {
+          "source": "actronair-db0817",
+          "value": 3.38,
+          "basis": "a model's own return: Model nominal 650 L/s on 2 x 350 mm return ducts (per duct)."
+        },
+        {
+          "source": "actronair-db0817",
+          "value": 3.06,
+          "basis": "a model's own return: Model nominal 770 L/s on 2 x 400 mm return ducts (per duct)."
+        },
+        {
+          "source": "actronair-db0817",
+          "value": 3.54,
+          "basis": "a model's own return: Model nominal 890 L/s on 2 x 400 mm return ducts (per duct)."
+        },
+        {"source":"acca-manual-d","value":3.05,"basis":"a return trunk, recommended 600 fpm"},
+        {"source":"ccc-memo","value":4.25,"basis":"ducted returns 3.5–5.0 m/s, the middle"}
+      ]
+    },
+    "most_ms": {
+      "value": 4,
+      "mean": 4.19,
+      "low": 3.56,
+      "high": 5,
+      "n": 3,
+      "unit": "m/s",
+      "from": [
+        {"source":"actronair-0520-026","value":4,"basis":"the most in a return duct"},
+        {"source":"acca-manual-d","value":3.56,"basis":"a return trunk, maximum 700 fpm"},
+        {"source":"ccc-memo","value":5,"basis":"ducted returns 3.5–5.0 m/s, the top"}
+      ]
+    },
+    "by_dia": {
+      "derived": "The design and most velocities × each diameter's area.",
+      "rows": [
+        {"dia_mm":250,"design_ls":163,"most_ls":196},
+        {"dia_mm":300,"design_ls":235,"most_ls":283},
+        {"dia_mm":350,"design_ls":320,"most_ls":385},
+        {"dia_mm":400,"design_ls":418,"most_ls":503},
+        {"dia_mm":450,"design_ls":530,"most_ls":636},
+        {"dia_mm":500,"design_ls":654,"most_ls":785},
+        {"dia_mm":550,"design_ls":791,"most_ls":950},
+        {"dia_mm":600,"design_ls":942,"most_ls":1131}
+      ]
+    }
+  },
+  "transfer": {
+    "room_pressure_limit_pa": {
+      "value": 3,
+      "mean": 3,
+      "low": 3,
+      "high": 3,
+      "n": 3,
+      "unit": "Pa",
+      "from": [
+        {"source":"energystar-rfc14","value":3,"basis":"a bedroom, doors shut, every air handler on"},
+        {"source":"bsc-rr0005","value":3,"basis":"transfer air sized at it"},
+        {"source":"ccc-memo","value":3,"basis":"room to corridor"}
+      ],
+      "about": "A room with its door shut, against the return."
+    },
+    "large_room": {
+      "pressure_pa": 5,
+      "from_ls": 71,
+      "sources": ["energystar-rfc14"],
+      "about": "A bedroom whose design airflow is at least from_ls may run to pressure_pa."
+    },
+    "door_undercut_ls": {
+      "value": 29,
+      "mean": 29,
+      "low": 28,
+      "high": 30,
+      "n": 2,
+      "unit": "L/s",
+      "from": [
+        {"source":"ccc-memo","value":30,"basis":"a 25 mm undercut on an 820 mm door, at 3 Pa"},
+        {"source":"bsc-rr0005","value":27.88,"basis":"its 1.36 m/s at 3 Pa through 25 × 820 mm (derived)"}
+      ],
+      "about": "A 25 mm undercut on an 820 mm door, at the room limit."
+    },
+    "open_grille_free_area_ms": {
+      "value": 1.36,
+      "unit": "m/s",
+      "n": 1,
+      "sources": ["bsc-rr0005"],
+      "about": "A straight-through transfer grille, through its free area, at the room limit."
+    },
+    "jump_duct_free_area_ms": {"value":0.95,"unit":"m/s","n":1,"sources":["bsc-rr0005"]},
+    "high_low_wall_free_area_ms": {"value":0.81,"unit":"m/s","n":1,"sources":["bsc-rr0005"]},
+    "sightproof_grille_gross_ms": {
+      "value": 0.53,
+      "unit": "m/s",
+      "n": 1,
+      "sources": ["price-stg"],
+      "derived": "Its tested velocity at 3 Pa, between 0.51 m/s at 2.7 Pa and 0.76 m/s at 6.5 Pa."
+    },
+    "door_louvre_gross_ms": {
+      "value": 1.27,
+      "mean": 1.27,
+      "low": 1.27,
+      "high": 1.27,
+      "n": 1,
+      "unit": "m/s",
+      "from": [{"source":"ashrae-f01-via-krueger","value":1.27,"basis":"door or wall louvres, 200–300 fpm, the middle"}],
+      "about": "A door or wall louvre, held to it for noise and draught rather than pressure."
+    }
+  },
+  "grille_ls_by_size": {
+    "derived": "Worked, not published: each return grille size AU and NZ makers name, its face × the guide's velocities (open: the eggcrate's gross figure; filtered: the filter grille's; pleated: the high-MERV figure).",
+    "rows": [
+      {"size":"200x200","w_mm":200,"h_mm":200,"face_m2":0.04,"no_filter_ls":92,"filtered_ls":58,"pleated_ls":41,"sources":["airflow-nz"]},
+      {"size":"300x300","w_mm":300,"h_mm":300,"face_m2":0.09,"no_filter_ls":206,"filtered_ls":131,"pleated_ls":92,"sources":["airflow-nz"]},
+      {"size":"400x400","w_mm":400,"h_mm":400,"face_m2":0.16,"no_filter_ls":366,"filtered_ls":234,"pleated_ls":163,"sources":["airflow-nz"]},
+      {
+        "size": "600x300",
+        "w_mm": 600,
+        "h_mm": 300,
+        "face_m2": 0.18,
+        "no_filter_ls": 412,
+        "filtered_ls": 263,
+        "pleated_ls": 184,
+        "sources": ["airflow-nz","airfoil-hr5f"]
+      },
+      {
+        "size": "560x360",
+        "w_mm": 560,
+        "h_mm": 360,
+        "face_m2": 0.2016,
+        "no_filter_ls": 462,
+        "filtered_ls": 294,
+        "pleated_ls": 206,
+        "sources": ["aa-slimline"]
+      },
+      {
+        "size": "450x450",
+        "w_mm": 450,
+        "h_mm": 450,
+        "face_m2": 0.2025,
+        "no_filter_ls": 464,
+        "filtered_ls": 296,
+        "pleated_ls": 207,
+        "sources": ["airflow-nz"]
+      },
+      {
+        "size": "700x300",
+        "w_mm": 700,
+        "h_mm": 300,
+        "face_m2": 0.21,
+        "no_filter_ls": 481,
+        "filtered_ls": 307,
+        "pleated_ls": 214,
+        "sources": ["holyoake-amg"]
+      },
+      {"size":"600x400","w_mm":600,"h_mm":400,"face_m2":0.24,"no_filter_ls":550,"filtered_ls":350,"pleated_ls":245,"sources":["airflow-nz"]},
+      {"size":"700x400","w_mm":700,"h_mm":400,"face_m2":0.28,"no_filter_ls":641,"filtered_ls":409,"pleated_ls":286,"sources":["airflow-nz"]},
+      {"size":"750x400","w_mm":750,"h_mm":400,"face_m2":0.3,"no_filter_ls":687,"filtered_ls":438,"pleated_ls":306,"sources":["airflow-nz"]},
+      {
+        "size": "550x550",
+        "w_mm": 550,
+        "h_mm": 550,
+        "face_m2": 0.3025,
+        "no_filter_ls": 693,
+        "filtered_ls": 442,
+        "pleated_ls": 309,
+        "sources": ["airflow-nz"]
+      },
+      {"size":"800x400","w_mm":800,"h_mm":400,"face_m2":0.32,"no_filter_ls":733,"filtered_ls":467,"pleated_ls":326,"sources":["airflow-nz"]},
+      {
+        "size": "750x450",
+        "w_mm": 750,
+        "h_mm": 450,
+        "face_m2": 0.3375,
+        "no_filter_ls": 773,
+        "filtered_ls": 493,
+        "pleated_ls": 344,
+        "sources": ["polyaire-ragx"]
+      },
+      {
+        "size": "890x400",
+        "w_mm": 890,
+        "h_mm": 400,
+        "face_m2": 0.356,
+        "no_filter_ls": 815,
+        "filtered_ls": 520,
+        "pleated_ls": 363,
+        "sources": ["holyoake-rl"]
+      },
+      {
+        "size": "600x600",
+        "w_mm": 600,
+        "h_mm": 600,
+        "face_m2": 0.36,
+        "no_filter_ls": 824,
+        "filtered_ls": 526,
+        "pleated_ls": 367,
+        "sources": ["airfoil-hr5f"]
+      },
+      {"size":"800x450","w_mm":800,"h_mm":450,"face_m2":0.36,"no_filter_ls":824,"filtered_ls":526,"pleated_ls":367,"sources":["airflow-nz"]},
+      {
+        "size": "900x400",
+        "w_mm": 900,
+        "h_mm": 400,
+        "face_m2": 0.36,
+        "no_filter_ls": 824,
+        "filtered_ls": 526,
+        "pleated_ls": 367,
+        "sources": ["aa-purtech","airflow-nz"]
+      },
+      {
+        "size": "900x450",
+        "w_mm": 900,
+        "h_mm": 450,
+        "face_m2": 0.405,
+        "no_filter_ls": 927,
+        "filtered_ls": 591,
+        "pleated_ls": 413,
+        "sources": ["airflow-nz","airfoil-hr5f"]
+      },
+      {
+        "size": "750x550",
+        "w_mm": 750,
+        "h_mm": 550,
+        "face_m2": 0.4125,
+        "no_filter_ls": 945,
+        "filtered_ls": 602,
+        "pleated_ls": 421,
+        "sources": ["aa-purtech","airflow-nz"]
+      },
+      {
+        "size": "940x450",
+        "w_mm": 940,
+        "h_mm": 450,
+        "face_m2": 0.423,
+        "no_filter_ls": 969,
+        "filtered_ls": 618,
+        "pleated_ls": 431,
+        "sources": ["holyoake-rl"]
+      },
+      {
+        "size": "900x500",
+        "w_mm": 900,
+        "h_mm": 500,
+        "face_m2": 0.45,
+        "no_filter_ls": 1031,
+        "filtered_ls": 657,
+        "pleated_ls": 459,
+        "sources": ["airflow-nz","polyaire-ragx"]
+      },
+      {
+        "size": "1139x539",
+        "w_mm": 1139,
+        "h_mm": 539,
+        "face_m2": 0.6139,
+        "no_filter_ls": 1406,
+        "filtered_ls": 896,
+        "pleated_ls": 626,
+        "sources": ["polyaire-ragx"]
+      },
+      {
+        "size": "1150x550",
+        "w_mm": 1150,
+        "h_mm": 550,
+        "face_m2": 0.6325,
+        "no_filter_ls": 1448,
+        "filtered_ls": 923,
+        "pleated_ls": 645,
+        "sources": ["airflow-nz"]
+      },
+      {
+        "size": "1200x600",
+        "w_mm": 1200,
+        "h_mm": 600,
+        "face_m2": 0.72,
+        "no_filter_ls": 1649,
+        "filtered_ls": 1051,
+        "pleated_ls": 734,
+        "sources": ["aa-purtech","airfoil-hr5f"]
+      }
+    ]
+  }
+}

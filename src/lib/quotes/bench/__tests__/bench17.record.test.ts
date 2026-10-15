@@ -84,6 +84,7 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
         taskHours: FRESH ? undefined : settings.taskHours,
         lookup: lookupUnit,
         zoning: zoningFor,
+        airflowGuide: await (await import("@/lib/guides/airflow-server")).loadAirflowGuide(),
         kitPrefs: FRESH ? null : { ranges, components: settings.preferred },
       });
       const events: EventDraft[] = [];

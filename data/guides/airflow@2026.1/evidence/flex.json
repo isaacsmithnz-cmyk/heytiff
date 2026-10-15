@@ -1,0 +1,2450 @@
+{
+ "topic": "flex_duct",
+ "compiled": "2026-10-15",
+ "units": "L/s, m/s, Pa/m. Conversions: CFM x 0.4719 = L/s; fpm x 0.00508 = m/s; in.wc/100 ft x 8.172 = Pa/m (0.1 in/100 ft = 0.817 Pa/m); inch sizes are nominal (dia_mm = in x 25.4).",
+ "schema_notes": "kind: 'max' = published maximum or velocity ceiling; 'recommended' = published design or recommended figure; 'at_friction' = capacity at the stated friction rate (read from a chart, equation or measurement). basis_type: published_table | velocity_rule (L/s calculated by us from the stated velocity) | digitised_chart | digitised_chart_rescaled | equation | measured_power_law | derived_from_roughness | published_example. Source status: used | basis_only | context | rejected. Sources marked 'independent_of' repeat another source's numbers; count them once.",
+ "sources": [
+  {
+   "id": "advantage-air-tech-specs",
+   "publisher": "Advantage Air",
+   "title": "Knowledge Hub - Technical Specifications: Flexible Duct Sizing Guide",
+   "year": 2026,
+   "page": "web page, 'Flexible Duct Sizing Guide' table (same figures repeated in its Streemline/Silhouette/Linear diffuser sizing tables)",
+   "url": "https://support.advantageair.com.au/resources/technical-specifications",
+   "region": "AU",
+   "basis": "maximum recommended air quantity (L/s) per flexible duct diameter; basis not stated",
+   "notes": "Values 150:44, 200:92, 250:170, 300:275, 350:385, 400:503, 450:636, 500:785, 550:950. Back-calculated: 150-300 mm sit at about 1 Pa/m (matches the Manrose chart and an ASHRAE-roughness calculation within 1-4%); from 350 mm up every value is exactly 4.0 m/s, so the table is a 1 Pa/m line capped at 4.0 m/s. The SA.CAT 2014 technical catalogue PDF could not be found online; this page carries the same table (page stamped 8 Oct 2026). Baby Linear grille on 250 mm is cut to 150 L/s (outlet-limited).",
+   "confidence": "high",
+   "status": "used",
+   "independent_of": []
+  },
+  {
+   "id": "actronair-db0817-v1.7",
+   "publisher": "ActronAir",
+   "title": "Installation Best Practice Guidelines - Ducted Type Systems (DB0817 builders' booklet) v1.7",
+   "year": 2025,
+   "page": "p.11, Outlets - 'Maximum Recommended Air Quantity' vs flexible duct diameter",
+   "url": "https://docs.actronair.com.au/wp-content/uploads/DB0817-Builders-Installation-Guidelines-Booklet_v1.7_WEB.pdf",
+   "region": "AU",
+   "basis": "maximum recommended L/s per flexible duct diameter",
+   "notes": "Identical to the Advantage Air table from 150 mm up, and adds 100:22, 125:30, 175:65. Not independent of Advantage Air (same numbers). Also says use the duct maker's specs for outlet maximums, add outlets if outlet noise occurs, return grilles at 2-2.5 m/s, and 125 Pa total external static for variable-fan systems.",
+   "confidence": "high",
+   "status": "used",
+   "independent_of": [
+    "advantage-air-tech-specs (duplicate figures)"
+   ]
+  },
+  {
+   "id": "actronair-0520-026-v1",
+   "publisher": "ActronAir",
+   "title": "Split Ducted Units - Airflow Application Guidelines, Doc 0520-026 Ver.1",
+   "year": 2021,
+   "page": "p.1, Final and Return Air Duct Sizes",
+   "url": "https://docs.actronair.com.au/wp-content/uploads/2021/04/0520-026-Airflow-Application-Guidelines-Ver.1.pdf",
+   "region": "AU",
+   "basis": "velocity rule: final duct (last take-off to outlet) max 3 m/s; return 4 m/s; branch 4-6 m/s; main 6-7 m/s",
+   "notes": "The sizing table follows from these rules (e.g. 220 L/s minimum zone = 1x300 or 2x200). Values here are L/s at 3.0 m/s per diameter, calculated by us. Written for the Advance/VAF range at 125 Pa design static, to keep outlet noise down.",
+   "confidence": "high",
+   "status": "used"
+  },
+  {
+   "id": "airah-skills-workshop-22-2009",
+   "publisher": "AIRAH (HVAC&R Nation)",
+   "title": "Skills Workshop Module 22 - Basics of Duct Design (J.J.W. Siganto)",
+   "year": 2009,
+   "page": "p.15-16",
+   "url": "https://airah.org.au/Common/Uploaded%20files/Resources/SkillsWorkshop/sw022.pdf",
+   "region": "AU",
+   "basis": "velocity rule: long flexible runouts limited to 3.5 m/s; count twice the measured length when working out friction loss",
+   "notes": "Same article gives Ahern's rigid-duct rules: under 180 L/s size at 4.5 m/s; 180-4500 L/s at 1.2 Pa/m; over 4500 L/s at 10 m/s. Module 23 (flexible ductwork installation, sw023.pdf) covers supports and sag only; it has no flow figures. Values are L/s at 3.5 m/s, calculated by us.",
+   "confidence": "med",
+   "status": "used"
+  },
+  {
+   "id": "acca-manual-d-table-3-1",
+   "publisher": "ACCA (Air Conditioning Contractors of America)",
+   "title": "Manual D Table 3-1 'Recommended Velocity (FPM)', reproduced in ACCA's 'Verifying ACCA Manual D Procedures' checklist (AHRI-hosted)",
+   "year": 2022,
+   "page": "checklist p.3 (Manual D Table 3-1, rigid vs flex columns)",
+   "url": "https://www.ahrinet.org/sites/default/files/2022-10/manual%20D%20calculation.pdf",
+   "region": "US",
+   "basis": "velocity rule. Flex supply trunk and branch: recommended 600 fpm (3.05 m/s), max 700 fpm (3.56 m/s). Flex return branch: recommended 400 fpm (2.03 m/s), max 700 fpm. Rigid supply max 900 fpm.",
+   "notes": "This is the older (2nd edition) Table 3-1. The 2016 3rd edition (Table N3-1) is paywalled and was not checked. Values are L/s at 3.05 and 3.56 m/s, calculated by us. Hart & Cooley's 2004 duct calculator gives the same 600 fpm residential branch figure (900 fpm main); that duplicate is not added to the values.",
+   "confidence": "high",
+   "status": "used"
+  },
+  {
+   "id": "hart-cooley-flex-ed6-2014",
+   "publisher": "Hart & Cooley",
+   "title": "Flexible Duct Systems, Residential & Commercial, Edition 6 (Form 010054, 02/2014) - Air Friction Chart for Flexible Duct only",
+   "year": 2014,
+   "page": "PDF p.11 (catalogue p.9)",
+   "url": "https://wizard.youngsupply.com/files/368-15758.pdf",
+   "region": "US",
+   "basis": "friction chart (in.wc/100 ft vs CFM, lines for 2-20 in); read at 0.1 in/100 ft = 0.817 Pa/m",
+   "notes": "Raster chart digitised by pixel analysis: 13 diameter lines found, common log-slope Q ~ f^0.515. CFM at 0.1 in/100 ft: 4:32, 5:52, 6:86, 7:130, 8:186, 9:267, 10:339, 12:582, 14:800, 16:1095, 18:1488, 20:1951. Checks against Thermaflex's worked example (8 in at 600 cfm = 1.0 in/100 ft; this chart gives 609 cfm). Diameters are nominal inches (dia_mm = in x 25.4). The 1 Pa/m rows are rescaled by us.",
+   "confidence": "med",
+   "status": "used"
+  },
+  {
+   "id": "atco-friction-calculator-2022",
+   "publisher": "Atco Rubber Products",
+   "title": "Friction Loss Calculator (Excel) / Pressure Drop Calculator",
+   "year": 2022,
+   "page": "workbook formula cells G11-G24",
+   "url": "https://atcoflex.com/wp-content/uploads/2022/06/website_excel_sheet_rk.xlsx",
+   "region": "US",
+   "basis": "manufacturer equation for flexible duct: CFM = 2.912 x D(in)^2.635 x f(in.wc/100ft)^0.522",
+   "notes": "Calculated by us at 0.817 and 1.0 Pa/m for metric diameters. Runs about 10-15% above Manrose, Advantage Air and ASHRAE at the same friction (Atco core is smoother or the test is fully stretched). Linked from https://atcoflex.com/calculator/",
+   "confidence": "high",
+   "status": "used"
+  },
+  {
+   "id": "lbnl-abushakra-2002",
+   "publisher": "Lawrence Berkeley National Laboratory (Abushakra, Walker, Sherman)",
+   "title": "Compression Effects on Pressure Loss in Flexible HVAC Ducts",
+   "year": 2002,
+   "page": "Table 2, p.6 (power-law coefficients)",
+   "url": "https://www.osti.gov/servlets/purl/836654",
+   "region": "US",
+   "basis": "measured to ASHRAE Std 120; fully stretched power law dp = C x Q^n",
+   "notes": "6 in: C=1.20e-5, n=1.98. 8 in: C=3.33e-6, n=1.90. 10 in: C=7.31e-7, n=1.99 (in.wc/100ft, cfm). About 15% compression raised the pressure drop by roughly 2-5x; 6 in at 13.8% compression carries only ~21 L/s at 0.817 Pa/m against ~45 fully stretched. The ACCA Manual D flex chart over-predicted fully stretched loss by about 21% on average. ASHRAE gives fully extended flex an absolute roughness of 1.0-4.6 mm. Values are L/s at 0.817 and 1.0 Pa/m, calculated by us.",
+   "confidence": "high",
+   "status": "used"
+  },
+  {
+   "id": "nci-via-cee-duct-retrofit-guide-2024",
+   "publisher": "National Comfort Institute (published by CEE / TRC, hosted by US DOE BSESC)",
+   "title": "CEE Duct Retrofit Decision Guide - 'NCI Standardized Duct Sizing' table",
+   "year": 2024,
+   "page": "p.5",
+   "url": "https://bsesc.energy.gov/sites/default/files/2024-09/CEE_Duct_Retrofit_Decision_Guide_TRC_01.16.24.pdf",
+   "region": "US",
+   "basis": "expected average CFM per flexible duct size (runs up to 25 ft); friction and velocity basis not stated",
+   "notes": "Flex CFM: 5:50, 6:75, 7:110, 8:160, 9:225, 10:300, 12:480, 14:700, 16:1000, 18:1300, 20:1700. Round metal pipe is listed about 10-20% higher. The same page says flex compressed 15% can raise pressure loss 400-800%.",
+   "confidence": "med",
+   "status": "used"
+  },
+  {
+   "id": "manrose-securimax-duct-catalogue-2016",
+   "publisher": "Manrose (catalogue distributed via Securimax NZ / MMEM AU)",
+   "title": "Ducting & Fittings catalogue - Flexible Ducting Friction Loss Graph",
+   "year": 2016,
+   "page": "catalogue p.70 (PDF p.8)",
+   "url": "https://media.mmem.com.au/Datasheets/Manrose/Manrose_Duct.pdf",
+   "region": "AU/NZ (UK brand)",
+   "basis": "friction chart Pa/m vs m3/h, lines for 100-500 mm; read at 1.0 and 0.817 Pa/m",
+   "notes": "Digitised from the embedded JPEG (clean log-log axes, common slope Q ~ dp^0.51). The 75 mm line is labelled but not drawn. The 300 mm line reads 216 L/s at 1 Pa/m, only just above 250 mm, which cannot be right physically, so it is left out of the values. The catalogue cites AS 4254/AS 4508 and gives bend-radius rules: R/D 0.6 up to 5 m/s, 1.0 at 5-8 m/s, 1.5 above 8 m/s. It is aimed at ventilation flex but covers HVAC sizes.",
+   "confidence": "med",
+   "status": "used"
+  },
+  {
+   "id": "polyaire-fd-1.1-1999",
+   "publisher": "Polyaire",
+   "title": "Product sheet F.D. 1.1 Metallized Core Fire Rated flexible duct - 'Performance Data - Metallized Core Duct' (Issue 2, 9/99)",
+   "year": 1999,
+   "page": "p.1 performance chart + worked example",
+   "url": "https://web.archive.org/web/20040512134705/http://www.polyaire.com.au:80/images/fin_pdf/flexible_duct/fd_1_1.pdf",
+   "region": "AU",
+   "basis": "friction chart Pa/m vs L/s for 100-600 mm, with 2-7 m/s velocity lines; worked example 200 mm at 100 L/s = 1.4 Pa/m",
+   "notes": "Wayback copy (live site catalogue is behind a login; the 2016 catalogue pages have no airflow data). The vector chart was digitised. Its axis ticks are not truly logarithmic, so each axis was interpolated piecewise between labelled ticks. The worked example reads back exactly (200 mm @ 1.4 Pa/m = 100.6 L/s). Lines from 450 mm up are irregular (velocity at fixed friction falls then jumps), so only 100-400 mm are given. Reads about 10% below Advantage Air and Manrose at 1 Pa/m for 200-300 mm.",
+   "confidence": "low",
+   "status": "used"
+  },
+  {
+   "id": "ashrae-fundamentals-flex-roughness-derived",
+   "publisher": "ASHRAE (method) - values calculated by us",
+   "title": "ASHRAE Handbook - Fundamentals, Duct Design: Darcy + Altshul-Tsal friction with flexible duct (fully extended) absolute roughness",
+   "year": 2001,
+   "page": "Duct Design chapter (roughness 1.0-4.6 mm for fabric-and-wire flex, fully extended; quoted in the LBNL paper p.1-2)",
+   "url": "https://www.osti.gov/servlets/purl/836654",
+   "region": "US/intl",
+   "basis": "calculated: epsilon = 3.0 mm, air 1.204 kg/m3, at 0.817 and 1.0 Pa/m",
+   "notes": "A physics cross-check, not a published table. At 1 Pa/m it lands within 1-4% of Advantage Air for 150-300 mm. Using 1.0 mm roughness gives about +12%; 4.6 mm gives about -5%. Weight it lower, or leave it out of averages.",
+   "confidence": "med",
+   "status": "used"
+  },
+  {
+   "id": "ncc-2022-j6d5",
+   "publisher": "ABCB (National Construction Code)",
+   "title": "NCC 2022 Volume One, Part J6, J6D5 Fans and duct systems",
+   "year": 2022,
+   "page": "J6D5(3)(a),(b); J6D5(4) item 12",
+   "url": "https://watermark.abcb.gov.au/editions/ncc-2022/adopted/volume-one/j-energy-efficiency/part-j6-air-conditioning-and-ventilation",
+   "region": "AU",
+   "basis": "friction rule: average pressure drop along the index run of straight rigid plus flexible duct no more than 1 Pa/m (flex counted as laid straight); no more than 6 m of flex in any duct run; transfer ducts 12 Pa max",
+   "notes": "No per-diameter values. It sets the 1 Pa/m friction basis used to read the friction-chart sources. Volume One covers Class 2-9 buildings (light commercial), not Class 1 houses.",
+   "confidence": "high",
+   "status": "basis_only"
+  },
+  {
+   "id": "holyoake-spiroflex-bpir-2024",
+   "publisher": "Holyoake (Price Holyoake NZ)",
+   "title": "Spiroflex Building Product Information Sheet v1.1",
+   "year": 2024,
+   "page": "p.1, H1 contributions",
+   "url": "https://holyoake.com/wp-content/uploads/2023/04/Spiroflex-BPIR.pdf",
+   "region": "NZ",
+   "basis": "restates 1 Pa/m index-run average, 6 m flex per run, 12 Pa transfer ducts (attributed to NZBC H1, commercial)",
+   "notes": "No per-diameter airflow data. The wording mirrors NCC J6D5; the attribution to NZBC H1 is Holyoake's own and was not checked.",
+   "confidence": "low",
+   "status": "basis_only"
+  },
+  {
+   "id": "thermaflex-airflow-friction-2005",
+   "publisher": "Thermaflex",
+   "title": "Flexible Duct Application Information - Air Flow and Air Friction (ADC FD-72 R1 test data)",
+   "year": 2005,
+   "page": "p.1-3 worked examples; charts are images",
+   "url": "https://www.thermaflex.net/wp-content/uploads/2016/03/Thermaflex-Air-Flow-and-Air-Friction-Brochure.pdf",
+   "region": "US",
+   "basis": "friction charts per product (not digitised); two worked points: 8 in M-KC at 600 cfm = 1.0 in/100 ft; 6 in M-KE at 1000 fpm = 0.8 in/100 ft",
+   "notes": "Used only to check the Hart & Cooley digitisation (8 in point agrees within 2%). Bend loss coefficients Co about 0.82-0.87 for 90-degree bends at R/D 1-4.",
+   "confidence": "med",
+   "status": "context"
+  },
+  {
+   "id": "brivis-starpro-install-2016",
+   "publisher": "Brivis (Rinnai)",
+   "title": "Gas Ducted Heating installation manual SP4/SP5/SP6/BX5 - Outlet Register Chart (Table 3)",
+   "year": 2016,
+   "page": "Table 3",
+   "url": "https://www.plumheatcool.com.au/wp-content/uploads/2017/07/BRIVIS-Installation-Manual-Gas-Ducted-Heating-SP4-SP5-SP6-BX5-May-2016.pdf",
+   "region": "AU",
+   "basis": "maximum number of open ceiling outlets per heater airflow, to keep outlet velocity up",
+   "notes": "Implies about 57-67 L/s per 150 mm ceiling outlet in gas heating (e.g. 850 L/s / 15 outlets). That is a minimum flow for throw in heating, not a duct capacity, so it is not in the values.",
+   "confidence": "low",
+   "status": "context"
+  },
+  {
+   "id": "coolcats-acr-flex-sizing",
+   "publisher": "Cool Cats ACR (wholesaler)",
+   "title": "Flexible Duct sizing guide Litres Per Second",
+   "year": null,
+   "page": "web page",
+   "url": "https://coolcatsacr.com.au/flexible-duct-litres-per-second-sizing-guide/",
+   "region": "AU",
+   "basis": "maximum recommended L/s",
+   "notes": "Copies the Advantage Air table exactly, so it is a duplicate, not an independent source.",
+   "confidence": "low",
+   "status": "rejected"
+  },
+  {
+   "id": "generic-seo-flex-charts",
+   "publisher": "various unattributed (mirror domains, blogs)",
+   "title": "'Flex Duct Sizing Chart' PDFs on unrelated domains; flexibleducting.com blog; learnmetrics; portlandiaelectric; acdirect (403)",
+   "year": null,
+   "page": "",
+   "url": "https://linode.nexstar.tv/ProductPdf/mL2FA9/601463/Flex%20Duct%20Sizing%20Chart.pdf",
+   "region": "various",
+   "basis": "unstated",
+   "notes": "Rejected: no publisher, no test basis, and copied across spam domains. Several conflict badly with the rest (e.g. 150 mm at 150-250 CFM, which is 71-118 L/s).",
+   "confidence": "low",
+   "status": "rejected"
+  },
+  {
+   "id": "checked-no-flex-data",
+   "publisher": "Flexmaster; Westaflex; Hydro-Temp; Hamilton; Southwark; Advantage Air Dynaflex/Whispaflex sheets; Polyaire 2016 catalogue",
+   "title": "Checked, no usable flexible-duct capacity table",
+   "year": null,
+   "page": "",
+   "url": "https://www.flexmaster.com/",
+   "region": "various",
+   "basis": "",
+   "notes": "Flexmaster and Advantage Air product sheets give only rated maximum velocity (20 m/s, 4000-5500 fpm), which is a structural rating, not a design figure. The Westaflex 2015 catalogue, the Polyaire 2016 R-value sheets and the AA Dynaflex/Whispaflex sheets have no sizing data. The Hydro-Temp, Hamilton and Southwark tables are for round sheet metal, not flex. Not found online: Advantage Air SA.CAT 2014 PDF, the ActronAir Aires guide, Daikin/Mitsubishi/Fujitsu/Temperzone flex tables, the ADC Flexible Duct Performance & Installation Standards (paid), ACCA Manual D 3rd edition (paid), and the TAFE NSW 'Sizing flexible ductwork' toolbox page (host gone, not archived).",
+   "confidence": "low",
+   "status": "rejected"
+  }
+ ],
+ "values": [
+  {
+   "source": "advantage-air-tech-specs",
+   "dia_mm": 150,
+   "max_ls": 44,
+   "velocity_ms": 2.49,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "advantage-air-tech-specs",
+   "dia_mm": 200,
+   "max_ls": 92,
+   "velocity_ms": 2.93,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "advantage-air-tech-specs",
+   "dia_mm": 250,
+   "max_ls": 170,
+   "velocity_ms": 3.46,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "advantage-air-tech-specs",
+   "dia_mm": 300,
+   "max_ls": 275,
+   "velocity_ms": 3.89,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "advantage-air-tech-specs",
+   "dia_mm": 350,
+   "max_ls": 385,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "advantage-air-tech-specs",
+   "dia_mm": 400,
+   "max_ls": 503,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "advantage-air-tech-specs",
+   "dia_mm": 450,
+   "max_ls": 636,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "advantage-air-tech-specs",
+   "dia_mm": 500,
+   "max_ls": 785,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "advantage-air-tech-specs",
+   "dia_mm": 550,
+   "max_ls": 950,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 100,
+   "max_ls": 22,
+   "velocity_ms": 2.8,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 125,
+   "max_ls": 30,
+   "velocity_ms": 2.44,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 150,
+   "max_ls": 44,
+   "velocity_ms": 2.49,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 175,
+   "max_ls": 65,
+   "velocity_ms": 2.7,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 200,
+   "max_ls": 92,
+   "velocity_ms": 2.93,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 250,
+   "max_ls": 170,
+   "velocity_ms": 3.46,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 300,
+   "max_ls": 275,
+   "velocity_ms": 3.89,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 350,
+   "max_ls": 385,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 400,
+   "max_ls": 503,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 450,
+   "max_ls": 636,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 500,
+   "max_ls": 785,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-db0817-v1.7",
+   "dia_mm": 550,
+   "max_ls": 950,
+   "velocity_ms": 4.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "published_table"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 100,
+   "max_ls": 23.6,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 125,
+   "max_ls": 36.8,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 150,
+   "max_ls": 53.0,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 175,
+   "max_ls": 72.2,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 200,
+   "max_ls": 94.2,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 250,
+   "max_ls": 147.3,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 300,
+   "max_ls": 212.1,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 350,
+   "max_ls": 288.6,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 400,
+   "max_ls": 377.0,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 450,
+   "max_ls": 477.1,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 500,
+   "max_ls": 589.0,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "actronair-0520-026-v1",
+   "dia_mm": 550,
+   "max_ls": 712.7,
+   "velocity_ms": 3.0,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.0 m/s max final-duct velocity (outlet noise)"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 100,
+   "max_ls": 27.5,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 125,
+   "max_ls": 43.0,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 150,
+   "max_ls": 61.9,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 175,
+   "max_ls": 84.2,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 200,
+   "max_ls": 110.0,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 250,
+   "max_ls": 171.8,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 300,
+   "max_ls": 247.4,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 350,
+   "max_ls": 336.7,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 400,
+   "max_ls": 439.8,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 450,
+   "max_ls": 556.7,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 500,
+   "max_ls": 687.2,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "airah-skills-workshop-22-2009",
+   "dia_mm": 550,
+   "max_ls": 831.5,
+   "velocity_ms": 3.5,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "3.5 m/s limit for long flexible runouts"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 100,
+   "max_ls": 23.9,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 100,
+   "max_ls": 27.9,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 125,
+   "max_ls": 37.4,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 125,
+   "max_ls": 43.6,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 150,
+   "max_ls": 53.9,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 150,
+   "max_ls": 62.8,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 175,
+   "max_ls": 73.3,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 175,
+   "max_ls": 85.5,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 200,
+   "max_ls": 95.8,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 200,
+   "max_ls": 111.7,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 250,
+   "max_ls": 149.6,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 250,
+   "max_ls": 174.6,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 300,
+   "max_ls": 215.5,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 300,
+   "max_ls": 251.4,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 350,
+   "max_ls": 293.3,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 350,
+   "max_ls": 342.1,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 400,
+   "max_ls": 383.0,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 400,
+   "max_ls": 446.9,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 450,
+   "max_ls": 484.8,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 450,
+   "max_ls": 565.6,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 500,
+   "max_ls": 598.5,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 500,
+   "max_ls": 698.2,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 550,
+   "max_ls": 724.2,
+   "velocity_ms": 3.05,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk recommended 600 fpm (3.05 m/s)"
+  },
+  {
+   "source": "acca-manual-d-table-3-1",
+   "dia_mm": 550,
+   "max_ls": 844.8,
+   "velocity_ms": 3.56,
+   "friction_pa_m": null,
+   "kind": "max",
+   "basis_type": "velocity_rule",
+   "note": "flex supply branch/trunk maximum 700 fpm (3.56 m/s)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 101.6,
+   "max_ls": 15.1,
+   "velocity_ms": 1.86,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 4
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 101.6,
+   "max_ls": 16.8,
+   "velocity_ms": 2.07,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 4,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 127.0,
+   "max_ls": 24.5,
+   "velocity_ms": 1.94,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 5
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 127.0,
+   "max_ls": 27.2,
+   "velocity_ms": 2.15,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 5,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 152.4,
+   "max_ls": 40.6,
+   "velocity_ms": 2.23,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 6
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 152.4,
+   "max_ls": 45.0,
+   "velocity_ms": 2.47,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 6,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 177.8,
+   "max_ls": 61.4,
+   "velocity_ms": 2.47,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 7
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 177.8,
+   "max_ls": 68.1,
+   "velocity_ms": 2.74,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 7,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 203.2,
+   "max_ls": 87.8,
+   "velocity_ms": 2.71,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 8
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 203.2,
+   "max_ls": 97.4,
+   "velocity_ms": 3.0,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 8,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 228.6,
+   "max_ls": 126.0,
+   "velocity_ms": 3.07,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 9
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 228.6,
+   "max_ls": 139.8,
+   "velocity_ms": 3.41,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 9,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 254.0,
+   "max_ls": 160.0,
+   "velocity_ms": 3.16,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 10
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 254.0,
+   "max_ls": 177.5,
+   "velocity_ms": 3.5,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 10,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 304.8,
+   "max_ls": 274.7,
+   "velocity_ms": 3.76,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 12
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 304.8,
+   "max_ls": 304.8,
+   "velocity_ms": 4.18,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 12,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 355.6,
+   "max_ls": 377.6,
+   "velocity_ms": 3.8,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 14
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 355.6,
+   "max_ls": 419.0,
+   "velocity_ms": 4.22,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 14,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 406.4,
+   "max_ls": 516.8,
+   "velocity_ms": 3.98,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 16
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 406.4,
+   "max_ls": 573.5,
+   "velocity_ms": 4.42,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 16,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 457.2,
+   "max_ls": 702.3,
+   "velocity_ms": 4.28,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 18
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 457.2,
+   "max_ls": 779.3,
+   "velocity_ms": 4.75,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 18,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 508.0,
+   "max_ls": 920.8,
+   "velocity_ms": 4.54,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart",
+   "dia_in": 20
+  },
+  {
+   "source": "hart-cooley-flex-ed6-2014",
+   "dia_mm": 508.0,
+   "max_ls": 1021.8,
+   "velocity_ms": 5.04,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart_rescaled",
+   "dia_in": 20,
+   "note": "rescaled from 0.1 in/100ft with the chart's own slope (Q~f^0.515)"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 100,
+   "max_ls": 15.3,
+   "velocity_ms": 1.95,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 100,
+   "max_ls": 17.0,
+   "velocity_ms": 2.16,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 125,
+   "max_ls": 27.5,
+   "velocity_ms": 2.24,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 125,
+   "max_ls": 30.6,
+   "velocity_ms": 2.49,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 150,
+   "max_ls": 44.5,
+   "velocity_ms": 2.52,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 150,
+   "max_ls": 49.4,
+   "velocity_ms": 2.8,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 175,
+   "max_ls": 66.8,
+   "velocity_ms": 2.78,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 175,
+   "max_ls": 74.2,
+   "velocity_ms": 3.09,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 200,
+   "max_ls": 95.0,
+   "velocity_ms": 3.02,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 200,
+   "max_ls": 105.5,
+   "velocity_ms": 3.36,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 250,
+   "max_ls": 170.9,
+   "velocity_ms": 3.48,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 250,
+   "max_ls": 190.0,
+   "velocity_ms": 3.87,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 300,
+   "max_ls": 276.4,
+   "velocity_ms": 3.91,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 300,
+   "max_ls": 307.1,
+   "velocity_ms": 4.34,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 350,
+   "max_ls": 414.9,
+   "velocity_ms": 4.31,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 350,
+   "max_ls": 461.0,
+   "velocity_ms": 4.79,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 400,
+   "max_ls": 589.8,
+   "velocity_ms": 4.69,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 400,
+   "max_ls": 655.4,
+   "velocity_ms": 5.22,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 450,
+   "max_ls": 804.5,
+   "velocity_ms": 5.06,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 450,
+   "max_ls": 894.0,
+   "velocity_ms": 5.62,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 500,
+   "max_ls": 1061.9,
+   "velocity_ms": 5.41,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 500,
+   "max_ls": 1180.0,
+   "velocity_ms": 6.01,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 550,
+   "max_ls": 1365.0,
+   "velocity_ms": 5.75,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "atco-friction-calculator-2022",
+   "dia_mm": 550,
+   "max_ls": 1516.9,
+   "velocity_ms": 6.38,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "equation"
+  },
+  {
+   "source": "lbnl-abushakra-2002",
+   "dia_mm": 152.4,
+   "max_ls": 45.1,
+   "velocity_ms": 2.47,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "measured_power_law",
+   "dia_in": 6
+  },
+  {
+   "source": "lbnl-abushakra-2002",
+   "dia_mm": 152.4,
+   "max_ls": 49.9,
+   "velocity_ms": 2.74,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "measured_power_law",
+   "dia_in": 6
+  },
+  {
+   "source": "lbnl-abushakra-2002",
+   "dia_mm": 203.2,
+   "max_ls": 107.3,
+   "velocity_ms": 3.31,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "measured_power_law",
+   "dia_in": 8,
+   "note": "8-inch fully-stretched fit has a very wide 95% CI (C 0.93e-6..1.19e-5); authors note a first 8-inch run was found 4% compressed"
+  },
+  {
+   "source": "lbnl-abushakra-2002",
+   "dia_mm": 203.2,
+   "max_ls": 119.3,
+   "velocity_ms": 3.68,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "measured_power_law",
+   "dia_in": 8,
+   "note": "8-inch fully-stretched fit has a very wide 95% CI (C 0.93e-6..1.19e-5); authors note a first 8-inch run was found 4% compressed"
+  },
+  {
+   "source": "lbnl-abushakra-2002",
+   "dia_mm": 254.0,
+   "max_ls": 179.8,
+   "velocity_ms": 3.55,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "measured_power_law",
+   "dia_in": 10
+  },
+  {
+   "source": "lbnl-abushakra-2002",
+   "dia_mm": 254.0,
+   "max_ls": 199.0,
+   "velocity_ms": 3.93,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "measured_power_law",
+   "dia_in": 10
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 127.0,
+   "max_ls": 23.6,
+   "velocity_ms": 1.86,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 5,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 152.4,
+   "max_ls": 35.4,
+   "velocity_ms": 1.94,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 6,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 177.8,
+   "max_ls": 51.9,
+   "velocity_ms": 2.09,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 7,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 203.2,
+   "max_ls": 75.5,
+   "velocity_ms": 2.33,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 8,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 228.6,
+   "max_ls": 106.2,
+   "velocity_ms": 2.59,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 9,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 254.0,
+   "max_ls": 141.6,
+   "velocity_ms": 2.79,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 10,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 304.8,
+   "max_ls": 226.5,
+   "velocity_ms": 3.1,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 12,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 355.6,
+   "max_ls": 330.4,
+   "velocity_ms": 3.33,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 14,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 406.4,
+   "max_ls": 471.9,
+   "velocity_ms": 3.64,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 16,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 457.2,
+   "max_ls": 613.5,
+   "velocity_ms": 3.74,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 18,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "nci-via-cee-duct-retrofit-guide-2024",
+   "dia_mm": 508.0,
+   "max_ls": 802.3,
+   "velocity_ms": 3.96,
+   "friction_pa_m": null,
+   "kind": "recommended",
+   "basis_type": "published_table",
+   "dia_in": 20,
+   "note": "expected average capacity; runs over 25 ft carry less"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 100,
+   "max_ls": 15,
+   "velocity_ms": 1.91,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 100,
+   "max_ls": 14,
+   "velocity_ms": 1.78,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 125,
+   "max_ls": 26,
+   "velocity_ms": 2.12,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 125,
+   "max_ls": 24,
+   "velocity_ms": 1.96,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 150,
+   "max_ls": 43,
+   "velocity_ms": 2.43,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 150,
+   "max_ls": 39,
+   "velocity_ms": 2.21,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 160,
+   "max_ls": 50,
+   "velocity_ms": 2.49,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 160,
+   "max_ls": 45,
+   "velocity_ms": 2.24,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 175,
+   "max_ls": 71,
+   "velocity_ms": 2.95,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 175,
+   "max_ls": 64,
+   "velocity_ms": 2.66,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 200,
+   "max_ls": 91,
+   "velocity_ms": 2.9,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 200,
+   "max_ls": 82,
+   "velocity_ms": 2.61,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 225,
+   "max_ls": 121,
+   "velocity_ms": 3.04,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 225,
+   "max_ls": 110,
+   "velocity_ms": 2.77,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 250,
+   "max_ls": 167,
+   "velocity_ms": 3.4,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 250,
+   "max_ls": 150,
+   "velocity_ms": 3.06,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 315,
+   "max_ls": 299,
+   "velocity_ms": 3.84,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 315,
+   "max_ls": 270,
+   "velocity_ms": 3.46,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 350,
+   "max_ls": 413,
+   "velocity_ms": 4.29,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 350,
+   "max_ls": 373,
+   "velocity_ms": 3.88,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 400,
+   "max_ls": 547,
+   "velocity_ms": 4.35,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 400,
+   "max_ls": 494,
+   "velocity_ms": 3.93,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 450,
+   "max_ls": 797,
+   "velocity_ms": 5.01,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 450,
+   "max_ls": 721,
+   "velocity_ms": 4.53,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 500,
+   "max_ls": 1122,
+   "velocity_ms": 5.71,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "manrose-securimax-duct-catalogue-2016",
+   "dia_mm": 500,
+   "max_ls": 1014,
+   "velocity_ms": 5.16,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 100,
+   "max_ls": 15.0,
+   "velocity_ms": 1.91,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 100,
+   "max_ls": 13.6,
+   "velocity_ms": 1.73,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 150,
+   "max_ls": 40.2,
+   "velocity_ms": 2.27,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 150,
+   "max_ls": 36.4,
+   "velocity_ms": 2.06,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 200,
+   "max_ls": 84.4,
+   "velocity_ms": 2.69,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 200,
+   "max_ls": 76.5,
+   "velocity_ms": 2.44,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 250,
+   "max_ls": 145.8,
+   "velocity_ms": 2.97,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 250,
+   "max_ls": 134.6,
+   "velocity_ms": 2.74,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 300,
+   "max_ls": 208.1,
+   "velocity_ms": 2.94,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 300,
+   "max_ls": 192.3,
+   "velocity_ms": 2.72,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 350,
+   "max_ls": 285.4,
+   "velocity_ms": 2.97,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 350,
+   "max_ls": 263.2,
+   "velocity_ms": 2.74,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 400,
+   "max_ls": 366.4,
+   "velocity_ms": 2.92,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 400,
+   "max_ls": 328.3,
+   "velocity_ms": 2.61,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "digitised_chart"
+  },
+  {
+   "source": "polyaire-fd-1.1-1999",
+   "dia_mm": 200,
+   "max_ls": 100,
+   "velocity_ms": 3.18,
+   "friction_pa_m": 1.4,
+   "kind": "at_friction",
+   "basis_type": "published_example",
+   "note": "sheet's worked example: 200 mm core at 100 L/s = 1.4 Pa/m"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 100,
+   "max_ls": 13.2,
+   "velocity_ms": 1.68,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 100,
+   "max_ls": 14.6,
+   "velocity_ms": 1.87,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 125,
+   "max_ls": 23.8,
+   "velocity_ms": 1.94,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 125,
+   "max_ls": 26.4,
+   "velocity_ms": 2.15,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 150,
+   "max_ls": 38.5,
+   "velocity_ms": 2.18,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 150,
+   "max_ls": 42.7,
+   "velocity_ms": 2.41,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 175,
+   "max_ls": 57.8,
+   "velocity_ms": 2.4,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 175,
+   "max_ls": 64.0,
+   "velocity_ms": 2.66,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 200,
+   "max_ls": 82.1,
+   "velocity_ms": 2.61,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 200,
+   "max_ls": 91.0,
+   "velocity_ms": 2.9,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 250,
+   "max_ls": 147.8,
+   "velocity_ms": 3.01,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 250,
+   "max_ls": 163.8,
+   "velocity_ms": 3.34,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 300,
+   "max_ls": 238.9,
+   "velocity_ms": 3.38,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 300,
+   "max_ls": 264.6,
+   "velocity_ms": 3.74,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 350,
+   "max_ls": 358.5,
+   "velocity_ms": 3.73,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 350,
+   "max_ls": 397.0,
+   "velocity_ms": 4.13,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 400,
+   "max_ls": 509.4,
+   "velocity_ms": 4.05,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 400,
+   "max_ls": 564.1,
+   "velocity_ms": 4.49,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 450,
+   "max_ls": 694.4,
+   "velocity_ms": 4.37,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 450,
+   "max_ls": 769.0,
+   "velocity_ms": 4.83,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 500,
+   "max_ls": 916.2,
+   "velocity_ms": 4.67,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 500,
+   "max_ls": 1014.5,
+   "velocity_ms": 5.17,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 550,
+   "max_ls": 1177.3,
+   "velocity_ms": 4.96,
+   "friction_pa_m": 0.817,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  },
+  {
+   "source": "ashrae-fundamentals-flex-roughness-derived",
+   "dia_mm": 550,
+   "max_ls": 1303.5,
+   "velocity_ms": 5.49,
+   "friction_pa_m": 1.0,
+   "kind": "at_friction",
+   "basis_type": "derived_from_roughness"
+  }
+ ],
+ "analysis_summary_by_au_size": [
+  {
+   "dia_mm": 150,
+   "at_1.0_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 43,
+     "polyaire-fd-1.1-1999": 40.2,
+     "atco-friction-calculator-2022": 49.4,
+     "hart-cooley-flex-ed6-2014": 43.1,
+     "ashrae-fundamentals-flex-roughness-derived": 42.7
+    },
+    "median_published": 43.0,
+    "mean_published": 43.9,
+    "n": 4
+   },
+   "at_0.817_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 39,
+     "polyaire-fd-1.1-1999": 36.4,
+     "atco-friction-calculator-2022": 44.5,
+     "hart-cooley-flex-ed6-2014": 38.9,
+     "ashrae-fundamentals-flex-roughness-derived": 38.5
+    },
+    "median_published": 39.0,
+    "mean_published": 39.7,
+    "n": 4
+   },
+   "advantage_air_actron_max": 44,
+   "velocity_rules_ls": {
+    "3.0_m_s_actron": 53.0,
+    "3.05_m_s_acca_rec": 53.9,
+    "3.5_m_s_airah": 61.9,
+    "3.56_m_s_acca_max": 62.8,
+    "4.0_m_s_aa_cap": 70.7
+   }
+  },
+  {
+   "dia_mm": 200,
+   "at_1.0_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 91,
+     "polyaire-fd-1.1-1999": 84.4,
+     "atco-friction-calculator-2022": 105.5,
+     "hart-cooley-flex-ed6-2014": 93.3,
+     "lbnl-abushakra-2002": 113.7,
+     "ashrae-fundamentals-flex-roughness-derived": 91.0
+    },
+    "median_published": 93.3,
+    "mean_published": 97.6,
+    "n": 5
+   },
+   "at_0.817_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 82,
+     "polyaire-fd-1.1-1999": 76.5,
+     "atco-friction-calculator-2022": 95.0,
+     "hart-cooley-flex-ed6-2014": 84.1,
+     "lbnl-abushakra-2002": 102.3,
+     "ashrae-fundamentals-flex-roughness-derived": 82.1
+    },
+    "median_published": 84.1,
+    "mean_published": 88.0,
+    "n": 5
+   },
+   "advantage_air_actron_max": 92,
+   "velocity_rules_ls": {
+    "3.0_m_s_actron": 94.2,
+    "3.05_m_s_acca_rec": 95.8,
+    "3.5_m_s_airah": 110.0,
+    "3.56_m_s_acca_max": 111.7,
+    "4.0_m_s_aa_cap": 125.7
+   }
+  },
+  {
+   "dia_mm": 250,
+   "at_1.0_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 167,
+     "polyaire-fd-1.1-1999": 145.8,
+     "atco-friction-calculator-2022": 190.0,
+     "hart-cooley-flex-ed6-2014": 171.2,
+     "lbnl-abushakra-2002": 191.9,
+     "ashrae-fundamentals-flex-roughness-derived": 163.8
+    },
+    "median_published": 171.2,
+    "mean_published": 173.2,
+    "n": 5
+   },
+   "at_0.817_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 150,
+     "polyaire-fd-1.1-1999": 134.6,
+     "atco-friction-calculator-2022": 170.9,
+     "hart-cooley-flex-ed6-2014": 154.3,
+     "lbnl-abushakra-2002": 173.3,
+     "ashrae-fundamentals-flex-roughness-derived": 147.8
+    },
+    "median_published": 154.3,
+    "mean_published": 156.6,
+    "n": 5
+   },
+   "advantage_air_actron_max": 170,
+   "velocity_rules_ls": {
+    "3.0_m_s_actron": 147.3,
+    "3.05_m_s_acca_rec": 149.6,
+    "3.5_m_s_airah": 171.8,
+    "3.56_m_s_acca_max": 174.6,
+    "4.0_m_s_aa_cap": 196.3
+   }
+  },
+  {
+   "dia_mm": 300,
+   "at_1.0_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 264.4,
+     "polyaire-fd-1.1-1999": 208.1,
+     "atco-friction-calculator-2022": 307.1,
+     "hart-cooley-flex-ed6-2014": 290.8,
+     "ashrae-fundamentals-flex-roughness-derived": 264.6
+    },
+    "median_published": 277.6,
+    "mean_published": 267.6,
+    "n": 4
+   },
+   "at_0.817_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 238.5,
+     "polyaire-fd-1.1-1999": 192.3,
+     "atco-friction-calculator-2022": 276.4,
+     "hart-cooley-flex-ed6-2014": 262.1,
+     "ashrae-fundamentals-flex-roughness-derived": 238.9
+    },
+    "median_published": 250.3,
+    "mean_published": 242.3,
+    "n": 4
+   },
+   "advantage_air_actron_max": 275,
+   "velocity_rules_ls": {
+    "3.0_m_s_actron": 212.1,
+    "3.05_m_s_acca_rec": 215.5,
+    "3.5_m_s_airah": 247.4,
+    "3.56_m_s_acca_max": 251.4,
+    "4.0_m_s_aa_cap": 282.7
+   }
+  },
+  {
+   "dia_mm": 350,
+   "at_1.0_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 413,
+     "polyaire-fd-1.1-1999": 285.4,
+     "atco-friction-calculator-2022": 461.0,
+     "hart-cooley-flex-ed6-2014": 405.5,
+     "ashrae-fundamentals-flex-roughness-derived": 397.0
+    },
+    "median_published": 409.2,
+    "mean_published": 391.2,
+    "n": 4
+   },
+   "at_0.817_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 373,
+     "polyaire-fd-1.1-1999": 263.2,
+     "atco-friction-calculator-2022": 414.9,
+     "hart-cooley-flex-ed6-2014": 365.4,
+     "ashrae-fundamentals-flex-roughness-derived": 358.5
+    },
+    "median_published": 369.2,
+    "mean_published": 354.1,
+    "n": 4
+   },
+   "advantage_air_actron_max": 385,
+   "velocity_rules_ls": {
+    "3.0_m_s_actron": 288.6,
+    "3.05_m_s_acca_rec": 293.3,
+    "3.5_m_s_airah": 336.7,
+    "3.56_m_s_acca_max": 342.1,
+    "4.0_m_s_aa_cap": 384.8
+   }
+  },
+  {
+   "dia_mm": 400,
+   "at_1.0_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 547,
+     "polyaire-fd-1.1-1999": 366.4,
+     "atco-friction-calculator-2022": 655.4,
+     "hart-cooley-flex-ed6-2014": 552.5,
+     "ashrae-fundamentals-flex-roughness-derived": 564.1
+    },
+    "median_published": 549.8,
+    "mean_published": 530.3,
+    "n": 4
+   },
+   "at_0.817_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 494,
+     "polyaire-fd-1.1-1999": 328.3,
+     "atco-friction-calculator-2022": 589.8,
+     "hart-cooley-flex-ed6-2014": 497.9,
+     "ashrae-fundamentals-flex-roughness-derived": 509.4
+    },
+    "median_published": 495.9,
+    "mean_published": 477.5,
+    "n": 4
+   },
+   "advantage_air_actron_max": 503,
+   "velocity_rules_ls": {
+    "3.0_m_s_actron": 377.0,
+    "3.05_m_s_acca_rec": 383.0,
+    "3.5_m_s_airah": 439.8,
+    "3.56_m_s_acca_max": 446.9,
+    "4.0_m_s_aa_cap": 502.7
+   }
+  },
+  {
+   "dia_mm": 450,
+   "at_1.0_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 797,
+     "atco-friction-calculator-2022": 894.0,
+     "hart-cooley-flex-ed6-2014": 747.8,
+     "ashrae-fundamentals-flex-roughness-derived": 769.0
+    },
+    "median_published": 797,
+    "mean_published": 812.9,
+    "n": 3
+   },
+   "at_0.817_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 721,
+     "atco-friction-calculator-2022": 804.5,
+     "hart-cooley-flex-ed6-2014": 673.9,
+     "ashrae-fundamentals-flex-roughness-derived": 694.4
+    },
+    "median_published": 721,
+    "mean_published": 733.1,
+    "n": 3
+   },
+   "advantage_air_actron_max": 636,
+   "velocity_rules_ls": {
+    "3.0_m_s_actron": 477.1,
+    "3.05_m_s_acca_rec": 484.8,
+    "3.5_m_s_airah": 556.7,
+    "3.56_m_s_acca_max": 565.6,
+    "4.0_m_s_aa_cap": 636.2
+   }
+  },
+  {
+   "dia_mm": 500,
+   "at_1.0_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 1122,
+     "atco-friction-calculator-2022": 1180.0,
+     "hart-cooley-flex-ed6-2014": 980.9,
+     "ashrae-fundamentals-flex-roughness-derived": 1014.5
+    },
+    "median_published": 1122,
+    "mean_published": 1094.3,
+    "n": 3
+   },
+   "at_0.817_pa_m": {
+    "by_source": {
+     "manrose-securimax-duct-catalogue-2016": 1014,
+     "atco-friction-calculator-2022": 1061.9,
+     "hart-cooley-flex-ed6-2014": 884.0,
+     "ashrae-fundamentals-flex-roughness-derived": 916.2
+    },
+    "median_published": 1014,
+    "mean_published": 986.6,
+    "n": 3
+   },
+   "advantage_air_actron_max": 785,
+   "velocity_rules_ls": {
+    "3.0_m_s_actron": 589.0,
+    "3.05_m_s_acca_rec": 598.5,
+    "3.5_m_s_airah": 687.2,
+    "3.56_m_s_acca_max": 698.2,
+    "4.0_m_s_aa_cap": 785.4
+   }
+  }
+ ],
+ "analysis_notes": "Our analysis, not published figures. Inch-based sources are log-interpolated to metric sizes. The medians leave out the ASHRAE-derived row."
+}

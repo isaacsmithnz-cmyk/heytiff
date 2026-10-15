@@ -5,6 +5,7 @@ import type { Product } from "../families";
 import type { Offer } from "../price-book";
 import { supplierOffer } from "../lookups";
 import { DEFAULT_CLIMATE_ZONE, ORIENTATIONS, roomHeatLoadKw } from "@/lib/studio/loads";
+import { OUTLET_KINDS, type AirflowAsk, type OutletKind } from "@/lib/guides/airflow";
 import type { ToolDef } from "./model";
 
 /* TIFF'S HANDS ON A QUOTE (slice 4.2) — the quote by hand's own actions as
@@ -314,6 +315,85 @@ export const SESSION_TOOLS: ToolDef[] = [
       additionalProperties: false,
     },
   },
+  /* Isaac, 2026-10-15: "build a section in the data pack that recommended
+     airflow numbers go through. So she has something to compare it with" */
+  {
+    name: "airflow_check",
+    description:
+      "Check a ducted system's air against HeyTiff's ducted airflow guide, the median of what makers, codes and industry bodies publish: each outlet and the flex feeding it, the runs off the plenum, the return grille and duct, whether the zones that can be left running carry the unit's least airflow, and whether the index run fits in the unit's static. Give the unit's airflow and rated static from unit_specs, and the outlets, their sizes and zones as the brief, a plan or the person gives them. Each check comes back with the guide's figure and the reason: a recommendation, never a size to settle without saying so.",
+    input_schema: {
+      type: "object",
+      properties: {
+        unit: {
+          type: "object",
+          properties: {
+            airflow_ls: { type: "number", description: "Its rated airflow, L/s, from unit_specs." },
+            static_pa: { type: "number", description: "The external static it's rated for, Pa, from unit_specs." },
+            low_airflow_ls: { type: "number", description: "Its own low-fan airflow, L/s, only where its data gives it." },
+            capacity_kw: { type: "number" },
+          },
+          required: ["airflow_ls"],
+          additionalProperties: false,
+        },
+        outlets: {
+          type: "array",
+          maxItems: 40,
+          items: {
+            type: "object",
+            properties: {
+              count: { type: "integer" },
+              kind: { type: "string", enum: [...OUTLET_KINDS] },
+              size: { type: "string", description: "As the maker names it: \"250\" for a round diffuser's neck, \"300x300\", \"round neck 250\" for a square face on a round spigot, \"300x100\" for a floor grille, \"2-slot\" for a linear slot." },
+              zone: { type: "string", description: "The zone it's in, as zones names it." },
+              room: { type: "string" },
+              ls_each: { type: "number", description: "Its airflow, L/s, where the design gives one; otherwise the unit's is shared evenly." },
+              duct_mm: { type: "number", description: "The flex run feeding it, mm, as given. A round neck's own size when left out." },
+              length_m: { type: "number", description: "A linear slot's length." },
+              slots: { type: "integer", description: "A linear slot's slots." },
+            },
+            required: ["count", "kind", "size"],
+            additionalProperties: false,
+          },
+        },
+        takeoffs: {
+          type: "array",
+          description: "The runs off the supply plenum, as given.",
+          items: { type: "object", properties: { count: { type: "integer" }, dia_mm: { type: "number" }, ls_each: { type: "number" }, rigid: { type: "boolean" } }, required: ["count", "dia_mm"], additionalProperties: false },
+        },
+        zones: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { name: { type: "string" }, stays_open: { type: "boolean", description: "A common, constant or spill zone: open whenever the unit runs." } },
+            required: ["name"],
+            additionalProperties: false,
+          },
+        },
+        return: {
+          type: "object",
+          properties: {
+            filtered: { type: "boolean" },
+            pleated: { type: "boolean", description: "A deep pleated or high-MERV filter." },
+            w_mm: { type: "number" },
+            h_mm: { type: "number" },
+            count: { type: "integer", description: "How many return grilles share the airflow." },
+            duct_mm: { type: "number", description: "The return duct's diameter, mm: the unit's return spigots where nothing else gives it." },
+            ducts: { type: "integer" },
+          },
+          required: ["filtered"],
+          additionalProperties: false,
+        },
+        run: {
+          type: "object",
+          description: "The index run, the longest from the unit to an outlet, as given.",
+          properties: { rigid_m: { type: "number" }, flex_m: { type: "number" }, flex_mm: { type: "number" }, flex_ls: { type: "number" }, bends: { type: "integer" }, balancing_damper: { type: "boolean" } },
+          additionalProperties: false,
+        },
+      },
+      required: ["unit", "outlets"],
+      additionalProperties: false,
+    },
+  },
   {
     name: "compare_with",
     description: "Add a unit from the book to the compare on a unit line, when the person asked to compare it with something: the indoor's code as search_book gave it; its outdoor is paired from the book.",
@@ -533,6 +613,7 @@ export const TOOL_LABELS: Record<string, string> = {
   job_files: "Listed the job's files",
   look_at: "Looked at",
   compare_with: "Added to the compare",
+  airflow_check: "Checked the air",
   ask: "Asked",
   settle: "Ticked off",
 };
@@ -577,6 +658,49 @@ export function kitAskOf(raw: unknown): {
       zoneControl: r.zone_control,
       wifi: r.wifi === true,
     },
+  };
+}
+
+/** An airflow check's facts, made safe: a figure that isn't a sensible
+    number is left out, never guessed (lib/guides/airflow.ts says what's
+    needed for each check). */
+export function airflowAskOf(raw: unknown): AirflowAsk | Err {
+  const r = obj(raw);
+  const u = obj(r.unit);
+  const pos = (v: unknown, max: number) => {
+    const n = num(v);
+    return n != null && n > 0 && n <= max ? n : null;
+  };
+  const count = (v: unknown) => Math.max(1, Math.min(100, Math.round(num(v) ?? 1)));
+  const airflow = pos(u.airflow_ls, 20_000);
+  if (airflow == null) return { error: "Give the unit's airflow in L/s, from unit_specs." };
+  const outlets = (Array.isArray(r.outlets) ? r.outlets : []).slice(0, 40).flatMap((x) => {
+    const o = obj(x);
+    const kind = (OUTLET_KINDS as readonly unknown[]).includes(o.kind) ? (o.kind as OutletKind) : null;
+    const size = str(o.size, 40);
+    if (!kind || !size) return [];
+    return [{ count: count(o.count), kind, size, zone: str(o.zone, 60), room: str(o.room, 60), ls_each: pos(o.ls_each, 5_000), duct_mm: pos(o.duct_mm, 1_000), length_m: pos(o.length_m, 50), slots: pos(o.slots, 12) }];
+  });
+  if (outlets.length === 0) return { error: "Give the outlets: how many, their kind and size, as the brief, a plan or the person gives them." };
+  const takeoffs = (Array.isArray(r.takeoffs) ? r.takeoffs : []).slice(0, 20).flatMap((x) => {
+    const t = obj(x);
+    const dia = pos(t.dia_mm, 1_500);
+    return dia == null ? [] : [{ count: count(t.count), dia_mm: dia, ls_each: pos(t.ls_each, 10_000), rigid: t.rigid === true }];
+  });
+  const zones = (Array.isArray(r.zones) ? r.zones : []).slice(0, 20).flatMap((x) => {
+    const z = obj(x);
+    const name = str(z.name, 60);
+    return name ? [{ name, stays_open: z.stays_open === true }] : [];
+  });
+  const back = r.return && typeof r.return === "object" ? obj(r.return) : null;
+  const run = r.run && typeof r.run === "object" ? obj(r.run) : null;
+  return {
+    unit: { airflow_ls: airflow, static_pa: pos(u.static_pa, 2_000), low_airflow_ls: pos(u.low_airflow_ls, airflow), capacity_kw: pos(u.capacity_kw, 200) },
+    outlets,
+    takeoffs,
+    zones,
+    ret: back ? { filtered: back.filtered !== false, pleated: back.pleated === true, w_mm: pos(back.w_mm, 3_000), h_mm: pos(back.h_mm, 3_000), count: pos(back.count, 10), duct_mm: pos(back.duct_mm, 1_500), ducts: pos(back.ducts, 10) } : null,
+    run: run ? { rigid_m: pos(run.rigid_m, 200), flex_m: pos(run.flex_m, 50), flex_mm: pos(run.flex_mm, 1_000), flex_ls: pos(run.flex_ls, 5_000), bends: pos(run.bends, 20), balancing: run.balancing_damper === true } : null,
   };
 }
 

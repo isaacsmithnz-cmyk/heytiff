@@ -72,6 +72,7 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
       taskHours: FRESH ? undefined : settings.taskHours,
       lookup: lookupUnit,
       zoning: zoningFor,
+      airflowGuide: await (await import("@/lib/guides/airflow-server")).loadAirflowGuide(),
       kitPrefs: FRESH ? null : { ranges, components: settings.preferred },
       seed: talk?.lines ?? [],
       openQuestions: (talk?.asked ?? []).filter((q) => !q.settled),

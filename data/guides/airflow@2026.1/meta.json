@@ -1,0 +1,20 @@
+{
+  "name": "Ducted airflow guide",
+  "version": "2026.1",
+  "built": "2026-10-15",
+  "scope": "Residential and light-commercial ducted, Australia",
+  "method": "For each figure, one value per independent publisher (copies counted once), the median as the recommendation, with the mean, low, high and how many publishers.",
+  "recommendation": "Every figure is a recommendation a person can change on a quote. The brief, a plan or the person's word overrides it.",
+  "files": {
+    "flex_duct.json": "Flexible duct, by diameter: the L/s a run should carry, the most, and the velocity.",
+    "supply_outlets.json": "Supply outlets, by kind and size: the L/s at about NC/NR 25 and the most at about NC/NR 30.",
+    "return_air.json": "The return: grille velocities, free area, filters, the return duct, transfer air, and L/s by grille size.",
+    "ducts.json": "Mains and branches, friction, rigid duct by diameter, the external static and what uses it, and the flex and takeoff rules.",
+    "zoning.json": "Zoning: a unit's least airflow, what stays open for it, and the spill rule.",
+    "sources.json": "Every source read, what it was used in, and what was left out and why.",
+    "evidence/": "The research as gathered, every source and value the figures come from.",
+    "AGENTS.md": "The guide's rules, and how to add a source and rebuild."
+  },
+  "units": "L/s, m/s, Pa, Pa/m, mm, %",
+  "build": "node scripts/build-airflow-guide.mts (npm run guide:airflow) rewrites every file but this one and evidence/ from evidence/"
+}

@@ -85,6 +85,11 @@ const nextConfig: NextConfig = {
     /* a quote's Add a kit lists every installed pack and reads its unit
        off one: untraced, the list would be just None, and no error */
     "/api/workboard/quote-lines": ["./data/packs/**/*"],
+    /* Tiff's turns on a quote read a unit off its pack (unit_specs, her
+       kits) and check the air against the ducted airflow guide
+       (data/guides): untraced, she'd find no pack and no guide, and say so */
+    "/api/workboard/quote-session": ["./data/packs/**/*", "./data/guides/**/*"],
+    "/api/workboard/quote-compare": ["./data/packs/**/*", "./data/guides/**/*"],
     /* Chromium's brotli archives are read off disk at run time, so the
        tracer never sees them: name them, or the first PDF dies looking */
     "/api/studio/design-pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],

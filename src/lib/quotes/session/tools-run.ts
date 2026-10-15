@@ -15,7 +15,8 @@ import { taskCheck } from "../task-hours";
 import { namedUnit, unitRoleOf, type UnitRole } from "../unit-name";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
-import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
+import { airflowCheck, airflowSaid, type AirflowGuide } from "@/lib/guides/airflow";
+import { airflowAskOf, bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
 
 /* TIFF'S TOOLS, RUN (tools.ts says what each is and what holds her to the
    book), over a QUOTE STORE: the quote's own lines in the database in the
@@ -67,6 +68,8 @@ export type QuoteStore = {
   taskHours: () => Promise<{ hours: Record<TaskKey, number | null>; dayHours: number | null }>;
   /** her questions still open, by their numbers: what a person's own words can settle */
   openQuestions: () => Promise<{ id: number; question: string }[]>;
+  /** the ducted airflow guide every business shares (lib/guides); null when none is installed */
+  airflowGuide: () => Promise<AirflowGuide | null>;
 };
 
 const SEARCH_LIMIT = 12;
@@ -253,6 +256,17 @@ export function makeTools(store: QuoteStore) {
           said: `${k.kit === "split" ? "Split" : "Ducted"}, ${res.added} parts${still.length ? `, ${still.length} to settle` : ""}`,
           value: still.length ? { added: res.added, still_to_settle: still } : { added: res.added },
         };
+      }
+      /* the guide's figure and its reason for each check: hers to say, the
+         brief's or the person's to override (Isaac, 2026-10-15: "which we
+         can change during the conversation") */
+      case "airflow_check": {
+        const ask = airflowAskOf(input);
+        if (isErr(ask)) return fail(ask.error);
+        const guide = await store.airflowGuide();
+        if (!guide) return fail("The ducted airflow guide isn't installed here.");
+        const res = airflowCheck(guide, ask);
+        return { ok: true, label, said: airflowSaid(res), value: res };
       }
       case "copy_option": {
         const n = (v: unknown) => (typeof v === "number" ? Math.max(0, Math.min(19, Math.round(v))) : -1);

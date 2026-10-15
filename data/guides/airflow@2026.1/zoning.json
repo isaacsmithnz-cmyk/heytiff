@@ -1,0 +1,116 @@
+{
+  "about": "Zoned ducted systems: how little air a unit can move, what has to stay open for it, and what to do when too little can.",
+  "min_fan_airflow_pct": {
+    "value": 28.6,
+    "mean": 28.6,
+    "low": 22.5,
+    "high": 34.6,
+    "n": 2,
+    "unit": "% of the rated airflow",
+    "from": [
+      {"source":"actronair-0520-026","value":34.9,"basis":"EVV140S: minimum 220 / nominal 630 L/s (VAF fan turndown)."},
+      {"source":"actronair-0520-026","value":33.3,"basis":"EVV160S: minimum 250 / nominal 750 L/s (VAF fan turndown)."},
+      {"source":"actronair-0520-026","value":35.3,"basis":"EVV180S: minimum 300 / nominal 850 L/s (VAF fan turndown)."},
+      {"source":"actronair-0520-026","value":34.3,"basis":"EVV210S: minimum 350 / nominal 1020 L/s (VAF fan turndown)."},
+      {"source":"actronair-0520-026","value":35.4,"basis":"EVV240S: minimum 400 / nominal 1130 L/s (VAF fan turndown)."},
+      {"source":"actronair-db0817","value":35.4,"basis":"EVV13AS: minimum 230 / nominal 650 L/s."},
+      {"source":"actronair-db0817","value":33.8,"basis":"EVV15AS: minimum 260 / nominal 770 L/s."},
+      {"source":"actronair-db0817","value":33.7,"basis":"EVV17AS: minimum 300 / nominal 890 L/s."},
+      {
+        "source": "lennox-h3",
+        "value": 20.8,
+        "basis": "3-ton EL296V/CBX25UHV-036: VS blower zoning minimum 250 CFM vs ~400 CFM/ton nominal 1200 CFM."
+      },
+      {
+        "source": "lennox-h3",
+        "value": 23.8,
+        "basis": "4-ton EL296V/CB31MV-41: VS blower zoning minimum 380 CFM vs ~400 CFM/ton nominal 1600 CFM."
+      },
+      {
+        "source": "lennox-h3",
+        "value": 22.5,
+        "basis": "5-ton EL296V/CBX40UHV-060: VS blower zoning minimum 450 CFM vs ~400 CFM/ton nominal 2000 CFM."
+      }
+    ],
+    "about": "An inverter (variable-airflow) unit's least airflow, a share of its rated: for when its own low fan isn't known."
+  },
+  "fixed_speed_open_pct": {
+    "value": 60,
+    "mean": 59,
+    "low": 50,
+    "high": 67,
+    "n": 3,
+    "unit": "% of the rated airflow",
+    "from": [
+      {
+        "source": "carrier-cz2",
+        "value": 60,
+        "basis": "Smallest zone plus controlled leakage must take at least 60% of nominal CFM, else a bypass is needed (fixed-speed equipment)."
+      },
+      {
+        "source": "zonefirst-guide",
+        "value": 67,
+        "basis": "Each zone duct sized for ~2/3 of system CFM (2-3 equal zones, no bypass). Commercial 2-zone: 60-70%."
+      },
+      {"source":"nrcan-zoning","value":50,"basis":"Each zone trunk must carry 50% of system airflow at <=4.57 m/s ('noise test')."}
+    ],
+    "about": "A fan that can't slow: the zones left open on their own must carry this share of its airflow, or it needs a bypass."
+  },
+  "smallest_zone_pct": {
+    "value": 25,
+    "mean": 25,
+    "low": 25,
+    "high": 25,
+    "n": 1,
+    "unit": "% of the rated airflow",
+    "from": [{"source":"honeywell-zoning","value":25,"basis":"Rule of thumb: no zone under about 25% of system CFM."}],
+    "about": "No zone smaller than about this share of the airflow."
+  },
+  "min_open_outlets": {
+    "value": 2,
+    "mean": 2,
+    "low": 2,
+    "high": 3,
+    "n": 3,
+    "unit": "outlets",
+    "from": [
+      {
+        "source": "actronair-0520-026",
+        "value": 2,
+        "basis": "Systems >13 kW: 2 or more outlets in the minimum zone. Consider two outlets on any minimum-zone selection."
+      },
+      {
+        "source": "brivis-starpro",
+        "value": 2,
+        "basis": "With adaptive zoning (fan slows): 1.5-3 x 150 mm outlets fully open by model; typical 2."
+      },
+      {"source":"aussieair-myair4","value":2.5,"basis":"Up to 14 kW: min 2-3 outlets open (midpoint)."},
+      {"source":"aussieair-myair4","value":3.5,"basis":"14-25 kW: min 3-4 outlets open (midpoint)."}
+    ],
+    "about": "The fewest outlets open at once: the smallest zone that runs on its own, with any zone that stays open."
+  },
+  "constant_zones": {
+    "least": 1,
+    "most": 3,
+    "most_share_of_zones": 0.5,
+    "never": "a bedroom",
+    "sources": ["polyaire-at5","aa-myair5","polyaire-at4","aa-zs2","me-paczc","reece-myzone"],
+    "about": "A zone that stays open whenever the unit runs (common, constant or spill): at least one unless another zone is always open, one to three by the system's size, no more than half the zones, never a bedroom."
+  },
+  "spill_rule": {
+    "rule": "The zones that can be left open on their own must pass the unit's least airflow, through outlets sized for it. Where they can't: a common zone that's always open, then spill zones that open as others close, and a bypass last. A bypass costs capacity and efficiency, and some codes don't allow one.",
+    "sources": [
+      "actronair-db0817",
+      "polyaire-at4",
+      "polyaire-zm2014",
+      "me-paczc",
+      "daikin-fdyqn",
+      "nrcan-zoning",
+      "ca-title24",
+      "proctor-h114",
+      "honeywell-zoning",
+      "ewc-bypass",
+      "carrier-cz2"
+    ]
+  }
+}

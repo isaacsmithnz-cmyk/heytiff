@@ -66,6 +66,10 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
        is 10 inch or 250 mil, but I don't want you to take my word for it. It
        needs to be decided by the brief." */
     "- Every duct and outlet size, the main duct's, each takeoff's and each outlet's, comes from the brief, a plan you've looked at or the person's answer, never from what's usual. Where none gives it, ask, and give the kit none, so those parts go on as not known yet.",
+    /* Isaac, 2026-10-15: "So she has something to compare it with… Anyone
+       using it should get the same recommendations, which we can change
+       during the conversation." */
+    "- For a ducted system, check the air (airflow_check) once the unit and its outlets are known. What the guide says is a recommendation: say it with its figure and its reason, and never settle a size on it without saying so. The brief, a plan or the person's word overrides it.",
     "- A kit hands back the parts it couldn't size or price (still_to_settle). Settle every one: where the brief, the unit's data or the business's usual settles it, put the item from the book on the line (search_book, change_line), saying why (the return grille sized to the unit's airflow, from the sizes the book has); where nothing settles it, ask, the book's sizes as the answers. A duct's size is never the usual one: only the brief, a plan or an answer settles it. Never leave one unpriced and unasked.",
     "- Each option is a whole job. Copy option 1 to start another and change what differs.",
     "- When the customer names an item that isn't the business's usual (a grille, a controller, a brand), keep the usual in option 1 and put theirs on a copy of it, so the difference is the upgrade.",

@@ -12,6 +12,7 @@
     "prepare": "sh .githooks/install.sh",
     "test:watch": "jest --watch",
     "validate:packs": "PACK_REPORT=1 jest installed-packs",
+    "guide:airflow": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-airflow-guide.mts",
     "bakeoff": "BAKEOFF=1 jest src/lib/voice/bakeoff/__tests__/bakeoff.test.ts --verbose --silent=false",
     "probe:tiff": "node --env-file-if-exists=.env.local node_modules/jest/bin/jest.js src/lib/tiff/probes/__tests__/probe.test.ts --verbose --silent=false",
     "evals:tiff": "TIFF_EVALS=1 node --env-file-if-exists=.env.local node_modules/jest/bin/jest.js src/lib/tiff/evals/__tests__/run.test.ts --verbose --silent=false",

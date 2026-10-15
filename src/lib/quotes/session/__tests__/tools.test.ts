@@ -318,6 +318,47 @@ describe("her tools, run", () => {
   it("says so for a tool that doesn't exist", async () => {
     expect(await run("drop_table", {})).toMatchObject({ ok: false, error: "There's no tool called drop_table." });
   });
+
+  /* Isaac, 2026-10-15: "build a section in the data pack that recommended
+     airflow numbers go through. So she has something to compare it with" */
+  it("checks a ducted job's air against the guide, each check with its figure and reason", async () => {
+    const out = await run("airflow_check", {
+      unit: { airflow_ls: 1000, static_pa: 150 },
+      outlets: [
+        { count: 1, kind: "round_ceiling_diffuser", size: "250", zone: "Master" },
+        { count: 1, kind: "round_ceiling_diffuser", size: "250", zone: "Bed 1" },
+        { count: 1, kind: "round_ceiling_diffuser", size: "250", zone: "Bed 2" },
+        { count: 1, kind: "round_ceiling_diffuser", size: "250", zone: "Bed 3" },
+        { count: 3, kind: "round_ceiling_diffuser", size: "250", zone: "Living" },
+        { count: 2, kind: "a hole in the ceiling", size: "250" },
+      ],
+      zones: [{ name: "Master" }, { name: "Bed 1" }, { name: "Bed 2" }, { name: "Bed 3" }, { name: "Living", stays_open: true }],
+      return: { filtered: true, duct_mm: 400, ducts: 2 },
+    });
+    expect(out).toMatchObject({ ok: true, label: "Checked the air" });
+    if (!out.ok) return;
+    expect(out.said).toBe("12 of 14 within the guide, 1 to look at, 1 not known");
+    const value = out.value as { guide: string; air: string; checks: { check: string; fit: string; reason: string }[] };
+    expect(value.guide).toBe("Ducted airflow guide 2026.1");
+    /* the outlet nobody can name isn't one */
+    expect(value.air).toBe("1000 L/s over 7 outlets: 143 L/s each, shared evenly at full airflow.");
+    expect(value.checks.find((c) => c.check === "1 × Ø250 flex run, Bed 1")!.reason).toBe("143 L/s through Ø250 flex runs at 2.9 m/s: within the 169 L/s the guide recommends.");
+    expect(value.checks.find((c) => c.check === "External static")).toMatchObject({ fit: "unknown", reason: expect.stringMatching(/leaving 51 Pa for the duct: the index run's lengths are needed/) });
+    expect(JSON.stringify(out.value).length).toBeLessThan(20_000);
+  });
+
+  it("asks for the unit's airflow and the outlets before it checks anything", async () => {
+    expect(await run("airflow_check", { outlets: [{ count: 2, kind: "round_ceiling_diffuser", size: "250" }] })).toMatchObject({ ok: false, error: "Give the unit's airflow in L/s, from unit_specs.", label: "Checked the air" });
+    expect(await run("airflow_check", { unit: { airflow_ls: 700 }, outlets: [] })).toMatchObject({ ok: false, error: expect.stringMatching(/^Give the outlets/) });
+  });
+});
+
+describe("what she's told of the air check", () => {
+  it("is a tool, with the guide's figures as recommendations the brief overrides", () => {
+    const t = SESSION_TOOLS.find((x) => x.name === "airflow_check")!;
+    expect(t.description).toMatch(/Each check comes back with the guide's figure and the reason: a recommendation, never a size to settle without saying so/);
+    expect((t.input_schema as { required: string[] }).required).toEqual(["unit", "outlets"]);
+  });
 });
 
 /* sized from the rooms (slice 4.7): Studio's own load method */

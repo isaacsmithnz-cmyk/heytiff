@@ -131,6 +131,16 @@ describe("a unit, from its maker's data pack", () => {
     if (r.found) expect(r.specs.coolKw).toBe(7.8);
   });
 
+  /* 2026-10-15: the pack had a ducted unit's airflow and static pressure,
+     and she was never given them */
+  it("reads a ducted indoor's airflow and the static pressure it's rated for", () => {
+    const r = unitSpecs(packs, "mitsubishi-electric", "PEA-M100HAA");
+    expect(r).toMatchObject({ found: true, specs: { role: "indoor", airflowLs: 700, staticPa: 150 } });
+    /* a wall split has neither in its data book: nothing said rather than a guess */
+    const wall = unitSpecs(packs, "mitsubishi-electric", "MSZ-AP80VGD2");
+    if (wall.found) expect(wall.specs.staticPa ?? null).toBeNull();
+  });
+
   it("says a brand has no data pack, rather than guessing", () => {
     expect(unitSpecs(packs, "daikin", "FTXV71WVMA")).toEqual({ found: false, reason: "no data pack" });
   });

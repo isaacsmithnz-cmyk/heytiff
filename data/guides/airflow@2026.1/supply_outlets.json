@@ -1,0 +1,1439 @@
+{
+  "about": "Supply outlets, each: what one should carry. recommended_ls is the median of the makers' tested airflow where the outlet reaches about NC/NR 25 (quiet living rooms and bedrooms), most_ls the same at about NC/NR 30; one figure a maker. Ratings differ between makers (a US NC table allows 10 dB for the room, NR is a few points stricter), which is why the spread is wide. A linear slot is L/s a metre a slot. The neck velocity is on the nominal neck, at the recommendation.",
+  "rows": [
+    {
+      "kind": "round_ceiling_diffuser",
+      "size": "150",
+      "size_mm": [150],
+      "recommended_ls": 72,
+      "most_ls": 88,
+      "neck_velocity_ms": 3.94,
+      "at_nc25": {
+        "value": 72,
+        "mean": 65,
+        "low": 42,
+        "high": 79,
+        "n": 6,
+        "unit": "L/s",
+        "from": [
+          {"source":"polyaire-uk-round","value":50,"basis":"NR25, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":75,"basis":"NC25, between its table's rows"},
+          {"source":"price-rcd","value":78.6,"basis":"NC25, between its table's rows"},
+          {"source":"titus-tmr","value":73.1,"basis":"NC25, between its table's rows"},
+          {"source":"krueger-rm1","value":71.8,"basis":"NC25, between its table's rows"},
+          {"source":"trox-adlr","value":41.9,"basis":"LWA35dBA(~NR25), between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.94,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 88,
+        "mean": 82,
+        "low": 54,
+        "high": 92,
+        "n": 5,
+        "unit": "L/s",
+        "from": [
+          {"source":"polyaire-uk-round","value":54.2,"basis":"NR30, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":90,"basis":"NC30, between its table's rows"},
+          {"source":"price-rcd","value":92,"basis":"NC30, between its table's rows"},
+          {"source":"titus-tmr","value":88.1,"basis":"NC30, between its table's rows"},
+          {"source":"krueger-rm1","value":86.7,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.74,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "round_ceiling_diffuser",
+      "size": "200",
+      "size_mm": [200],
+      "recommended_ls": 120,
+      "most_ls": 143,
+      "neck_velocity_ms": 3.73,
+      "at_nc25": {
+        "value": 120,
+        "mean": 121,
+        "low": 64,
+        "high": 181,
+        "n": 8,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":100,"basis":"NC25, between its table's rows"},
+          {"source":"polyaire-uk-round","value":64.4,"basis":"NR25, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":146.4,"basis":"NC25, between its table's rows"},
+          {"source":"advantage-air-sunline","value":180.5,"basis":"NR25, read off its chart"},
+          {"source":"price-rcd","value":125.5,"basis":"NC25, between its table's rows"},
+          {"source":"titus-tmr","value":119.7,"basis":"NC25, between its table's rows"},
+          {"source":"krueger-rm1","value":121,"basis":"NC25, between its table's rows"},
+          {"source":"trox-adlr","value":109.4,"basis":"LWA35dBA(~NR25), between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.73,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 143,
+        "mean": 140,
+        "low": 70,
+        "high": 200,
+        "n": 7,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":125,"basis":"NC30, between its table's rows"},
+          {"source":"polyaire-uk-round","value":70,"basis":"NR30, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":150,"basis":"NC30, between its table's rows","bound":"lower"},
+          {"source":"advantage-air-sunline","value":200,"basis":"NR30, read off its chart"},
+          {"source":"price-rcd","value":148.6,"basis":"NC30, between its table's rows"},
+          {"source":"titus-tmr","value":143.1,"basis":"NC30, between its table's rows"},
+          {"source":"krueger-rm1","value":143,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.57,
+        "lower_bounds": 1
+      }
+    },
+    {
+      "kind": "round_ceiling_diffuser",
+      "size": "250",
+      "size_mm": [250],
+      "recommended_ls": 182,
+      "most_ls": 215,
+      "neck_velocity_ms": 3.59,
+      "at_nc25": {
+        "value": 182,
+        "mean": 177,
+        "low": 78,
+        "high": 240,
+        "n": 8,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":150,"basis":"NC25, between its table's rows"},
+          {"source":"polyaire-uk-round","value":77.5,"basis":"NR25, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":240,"basis":"NC25, between its table's rows","bound":"lower"},
+          {"source":"advantage-air-sunline","value":231.2,"basis":"NR25, read off its chart"},
+          {"source":"price-rcd","value":194.9,"basis":"NC25, between its table's rows"},
+          {"source":"titus-tmr","value":180.3,"basis":"NC25, between its table's rows"},
+          {"source":"krueger-rm1","value":182.9,"basis":"NC25, between its table's rows"},
+          {"source":"trox-adlr","value":159.5,"basis":"LWA35dBA(~NR25), between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.59,
+        "lower_bounds": 1
+      },
+      "at_nc30": {
+        "value": 215,
+        "mean": 207,
+        "low": 91,
+        "high": 275,
+        "n": 7,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":183.3,"basis":"NC30, between its table's rows"},
+          {"source":"polyaire-uk-round","value":91,"basis":"NR30, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":240,"basis":"NC30, between its table's rows","bound":"lower"},
+          {"source":"advantage-air-sunline","value":275,"basis":"NR30, read off its chart"},
+          {"source":"price-rcd","value":231.2,"basis":"NC30, between its table's rows"},
+          {"source":"titus-tmr","value":214.4,"basis":"NC30, between its table's rows"},
+          {"source":"krueger-rm1","value":214.5,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.23,
+        "lower_bounds": 1
+      }
+    },
+    {
+      "kind": "round_ceiling_diffuser",
+      "size": "300",
+      "size_mm": [300],
+      "recommended_ls": 255,
+      "most_ls": 297,
+      "neck_velocity_ms": 3.49,
+      "at_nc25": {
+        "value": 255,
+        "mean": 244,
+        "low": 114,
+        "high": 360,
+        "n": 8,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":175,"basis":"NC25, between its table's rows"},
+          {"source":"polyaire-uk-round","value":114,"basis":"NR25, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":360,"basis":"NC25, between its table's rows","bound":"lower"},
+          {"source":"advantage-air-sunline","value":300,"basis":"NR25, read off its chart"},
+          {"source":"price-rcd","value":278.4,"basis":"NC25, between its table's rows"},
+          {"source":"titus-tmr","value":252,"basis":"NC25, between its table's rows"},
+          {"source":"krueger-rm1","value":257,"basis":"NC25, between its table's rows"},
+          {"source":"trox-adlr","value":213.3,"basis":"LWA35dBA(~NR25), between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.49,
+        "lower_bounds": 1
+      },
+      "at_nc30": {
+        "value": 297,
+        "mean": 284,
+        "low": 134,
+        "high": 360,
+        "n": 7,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":225,"basis":"NC30, between its table's rows"},
+          {"source":"polyaire-uk-round","value":134,"basis":"NR30, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":360,"basis":"NC30, between its table's rows","bound":"lower"},
+          {"source":"advantage-air-sunline","value":350,"basis":"NR30, read off its chart"},
+          {"source":"price-rcd","value":323.8,"basis":"NC30, between its table's rows"},
+          {"source":"titus-tmr","value":297.3,"basis":"NC30, between its table's rows"},
+          {"source":"krueger-rm1","value":297,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.06,
+        "lower_bounds": 1
+      }
+    },
+    {
+      "kind": "round_ceiling_diffuser",
+      "size": "350",
+      "size_mm": [350],
+      "recommended_ls": 331,
+      "most_ls": 391,
+      "neck_velocity_ms": 3.35,
+      "at_nc25": {
+        "value": 331,
+        "mean": 312,
+        "low": 254,
+        "high": 364,
+        "n": 5,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":275,"basis":"NC25, between its table's rows"},
+          {"source":"price-rcd","value":364,"basis":"NC25, between its table's rows"},
+          {"source":"titus-tmr","value":330.8,"basis":"NC25, between its table's rows"},
+          {"source":"krueger-rm1","value":336.7,"basis":"NC25, between its table's rows"},
+          {"source":"trox-adlr","value":253.8,"basis":"LWA35dBA(~NR25), between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.35,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 391,
+        "mean": 383,
+        "low": 325,
+        "high": 426,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":325,"basis":"NC30, between its table's rows"},
+          {"source":"price-rcd","value":425.9,"basis":"NC30, between its table's rows"},
+          {"source":"titus-tmr","value":388.7,"basis":"NC30, between its table's rows"},
+          {"source":"krueger-rm1","value":392.8,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.95,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "round_ceiling_diffuser",
+      "size": "400",
+      "size_mm": [400],
+      "recommended_ls": 423,
+      "most_ls": 507,
+      "neck_velocity_ms": 3.25,
+      "at_nc25": {
+        "value": 423,
+        "mean": 370,
+        "low": 200,
+        "high": 463,
+        "n": 5,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":337.5,"basis":"NC25, between its table's rows"},
+          {"source":"polyaire-uk-round","value":200,"basis":"NR25, between its table's rows"},
+          {"source":"price-rcd","value":462.5,"basis":"NC25, between its table's rows"},
+          {"source":"titus-tmr","value":422.8,"basis":"NC25, between its table's rows"},
+          {"source":"krueger-rm1","value":428,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.25,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 507,
+        "mean": 450,
+        "low": 230,
+        "high": 551,
+        "n": 5,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":450,"basis":"NC30, between its table's rows"},
+          {"source":"polyaire-uk-round","value":230,"basis":"NR30, between its table's rows"},
+          {"source":"price-rcd","value":550.5,"basis":"NC30, between its table's rows"},
+          {"source":"titus-tmr","value":506.5,"basis":"NC30, between its table's rows"},
+          {"source":"krueger-rm1","value":510.5,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.89,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "150x150",
+      "size_mm": [150,150],
+      "recommended_ls": 79,
+      "most_ls": 89,
+      "neck_velocity_ms": 3.51,
+      "at_nc25": {
+        "value": 79,
+        "mean": 79,
+        "low": 72,
+        "high": 86,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":85.8,"basis":"NC25, between its table's rows"},
+          {"source":"airfoil-pcd","value":71.7,"basis":"NR25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.51,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 89,
+        "mean": 89,
+        "low": 78,
+        "high": 100,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":100,"basis":"NC30, between its table's rows"},
+          {"source":"airfoil-pcd","value":78,"basis":"NR30, between its table's rows","bound":"lower"}
+        ],
+        "neck_velocity_ms": 3.98,
+        "lower_bounds": 1
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "225x225",
+      "size_mm": [225,225],
+      "recommended_ls": 134,
+      "most_ls": 164,
+      "neck_velocity_ms": 2.65,
+      "at_nc25": {
+        "value": 134,
+        "mean": 140,
+        "low": 125,
+        "high": 167,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":166.5,"basis":"NC25, between its table's rows"},
+          {"source":"polyaire-au-lfd","value":125,"basis":"NR25, between its table's rows"},
+          {"source":"airfoil-pcd","value":142,"basis":"NR25, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":125,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 2.65,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 164,
+        "mean": 169,
+        "low": 150,
+        "high": 199,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":199,"basis":"NC30, between its table's rows"},
+          {"source":"polyaire-au-lfd","value":150,"basis":"NR30, between its table's rows","bound":"lower"},
+          {"source":"airfoil-pcd","value":164.5,"basis":"NR30, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":162.5,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.25,
+        "lower_bounds": 1
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "280x280",
+      "size_mm": [280,280],
+      "recommended_ls": 226,
+      "most_ls": 254,
+      "neck_velocity_ms": 2.89,
+      "at_nc25": {
+        "value": 226,
+        "mean": 226,
+        "low": 226,
+        "high": 226,
+        "n": 1,
+        "unit": "L/s",
+        "from": [{"source":"advantage-air-silhouette","value":225.5,"basis":"NC25, read off its chart"}],
+        "neck_velocity_ms": 2.89,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 254,
+        "mean": 254,
+        "low": 254,
+        "high": 254,
+        "n": 1,
+        "unit": "L/s",
+        "from": [{"source":"advantage-air-silhouette","value":254,"basis":"NC30, read off its chart"}],
+        "neck_velocity_ms": 3.26,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "300x300",
+      "size_mm": [300,300],
+      "recommended_ls": 233,
+      "most_ls": 283,
+      "neck_velocity_ms": 2.6,
+      "at_nc25": {
+        "value": 233,
+        "mean": 240,
+        "low": 225,
+        "high": 267,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":267.3,"basis":"NC25, between its table's rows"},
+          {"source":"polyaire-au-lfd","value":233.3,"basis":"NR25, between its table's rows"},
+          {"source":"airfoil-pcd","value":225,"basis":"NR25, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":233.3,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 2.6,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 283,
+        "mean": 288,
+        "low": 270,
+        "high": 318,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":318.2,"basis":"NC30, between its table's rows"},
+          {"source":"polyaire-au-lfd","value":290,"basis":"NR30, between its table's rows"},
+          {"source":"airfoil-pcd","value":270,"basis":"NR30, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":275,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.13,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "360x360",
+      "size_mm": [360,360],
+      "recommended_ls": 326,
+      "most_ls": 365,
+      "neck_velocity_ms": 2.5,
+      "at_nc25": {
+        "value": 326,
+        "mean": 326,
+        "low": 326,
+        "high": 326,
+        "n": 1,
+        "unit": "L/s",
+        "from": [{"source":"advantage-air-silhouette","value":325.5,"basis":"NC25, read off its chart"}],
+        "neck_velocity_ms": 2.5,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 365,
+        "mean": 365,
+        "low": 365,
+        "high": 365,
+        "n": 1,
+        "unit": "L/s",
+        "from": [{"source":"advantage-air-silhouette","value":365,"basis":"NC30, read off its chart"}],
+        "neck_velocity_ms": 2.81,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "375x375",
+      "size_mm": [375,375],
+      "recommended_ls": 338,
+      "most_ls": 383,
+      "neck_velocity_ms": 2.4,
+      "at_nc25": {
+        "value": 338,
+        "mean": 342,
+        "low": 303,
+        "high": 392,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":392.3,"basis":"NC25, between its table's rows"},
+          {"source":"polyaire-au-lfd","value":325,"basis":"NR25, between its table's rows"},
+          {"source":"airfoil-pcd","value":302.5,"basis":"NR25, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":350,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 2.4,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 383,
+        "mean": 394,
+        "low": 350,
+        "high": 460,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":459.5,"basis":"NC30, between its table's rows"},
+          {"source":"polyaire-au-lfd","value":383.3,"basis":"NR30, between its table's rows"},
+          {"source":"airfoil-pcd","value":383,"basis":"NR30, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":350,"basis":"NC30, between its table's rows","bound":"lower"}
+        ],
+        "neck_velocity_ms": 2.76,
+        "lower_bounds": 1
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "450x450",
+      "size_mm": [450,450],
+      "recommended_ls": 388,
+      "most_ls": 496,
+      "neck_velocity_ms": 1.9,
+      "at_nc25": {
+        "value": 388,
+        "mean": 414,
+        "low": 350,
+        "high": 531,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":531,"basis":"NC25, between its table's rows"},
+          {"source":"polyaire-au-lfd","value":350,"basis":"NR25, between its table's rows"},
+          {"source":"airfoil-pcd","value":425.2,"basis":"NR25, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":350,"basis":"NC25, between its table's rows","bound":"lower"}
+        ],
+        "neck_velocity_ms": 1.9,
+        "lower_bounds": 1
+      },
+      "at_nc30": {
+        "value": 496,
+        "mean": 491,
+        "low": 350,
+        "high": 619,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"holyoake-section-d","value":619.3,"basis":"NC30, between its table's rows"},
+          {"source":"polyaire-au-lfd","value":466.7,"basis":"NR30, between its table's rows"},
+          {"source":"airfoil-pcd","value":526.2,"basis":"NR30, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":350,"basis":"NC30, between its table's rows","bound":"lower"}
+        ],
+        "neck_velocity_ms": 2.45,
+        "lower_bounds": 1
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "round neck 150",
+      "size_mm": [150],
+      "recommended_ls": 102,
+      "most_ls": 119,
+      "neck_velocity_ms": 5.59,
+      "at_nc25": {
+        "value": 102,
+        "mean": 102,
+        "low": 102,
+        "high": 102,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":101.9,"basis":"NC25, between its table's rows"},
+          {"source":"price-scd","value":101.7,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 5.59,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 119,
+        "mean": 119,
+        "low": 118,
+        "high": 121,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":120.6,"basis":"NC30, between its table's rows"},
+          {"source":"price-scd","value":118.3,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 6.55,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "round neck 200",
+      "size_mm": [200],
+      "recommended_ls": 160,
+      "most_ls": 191,
+      "neck_velocity_ms": 4.94,
+      "at_nc25": {
+        "value": 160,
+        "mean": 160,
+        "low": 160,
+        "high": 161,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":160,"basis":"NC25, between its table's rows"},
+          {"source":"price-scd","value":160.6,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.94,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 191,
+        "mean": 191,
+        "low": 191,
+        "high": 191,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":191.1,"basis":"NC30, between its table's rows"},
+          {"source":"price-scd","value":191.1,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 5.89,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "round neck 250",
+      "size_mm": [250],
+      "recommended_ls": 230,
+      "most_ls": 271,
+      "neck_velocity_ms": 4.54,
+      "at_nc25": {
+        "value": 230,
+        "mean": 230,
+        "low": 228,
+        "high": 232,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":227.8,"basis":"NC25, between its table's rows"},
+          {"source":"price-scd","value":231.7,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.54,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 271,
+        "mean": 271,
+        "low": 268,
+        "high": 274,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":267.5,"basis":"NC30, between its table's rows"},
+          {"source":"price-scd","value":274.3,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 5.35,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "round neck 300",
+      "size_mm": [300],
+      "recommended_ls": 308,
+      "most_ls": 365,
+      "neck_velocity_ms": 4.22,
+      "at_nc25": {
+        "value": 308,
+        "mean": 308,
+        "low": 307,
+        "high": 309,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":306.9,"basis":"NC25, between its table's rows"},
+          {"source":"price-scd","value":308.8,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.22,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 365,
+        "mean": 365,
+        "low": 360,
+        "high": 370,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":359.9,"basis":"NC30, between its table's rows"},
+          {"source":"price-scd","value":370.4,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 5.01,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "square_ceiling_diffuser",
+      "size": "round neck 350",
+      "size_mm": [350],
+      "recommended_ls": 397,
+      "most_ls": 466,
+      "neck_velocity_ms": 4,
+      "at_nc25": {
+        "value": 397,
+        "mean": 397,
+        "low": 391,
+        "high": 404,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":390.9,"basis":"NC25, between its table's rows"},
+          {"source":"price-scd","value":403.5,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 466,
+        "mean": 466,
+        "low": 461,
+        "high": 471,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"titus-tms","value":461.2,"basis":"NC30, between its table's rows"},
+          {"source":"price-scd","value":470.8,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.69,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "floor_grille",
+      "size": "300x50",
+      "size_mm": [300,50],
+      "recommended_ls": 24,
+      "most_ls": 35,
+      "neck_velocity_ms": 1.52,
+      "at_nc25": {
+        "value": 24,
+        "mean": 24,
+        "low": 24,
+        "high": 24,
+        "n": 1,
+        "unit": "L/s",
+        "from": [
+          {"source":"hart-cooley-421","value":23.6,"basis":"HC_residence_500fpm(quiet end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 1.52,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 35,
+        "mean": 35,
+        "low": 35,
+        "high": 35,
+        "n": 1,
+        "unit": "L/s",
+        "from": [
+          {"source":"hart-cooley-421","value":35.4,"basis":"HC_residence_750fpm(upper end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 2.28,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "floor_grille",
+      "size": "250x100",
+      "size_mm": [250,100],
+      "recommended_ls": 52,
+      "most_ls": 68,
+      "neck_velocity_ms": 2.06,
+      "at_nc25": {
+        "value": 52,
+        "mean": 52,
+        "low": 40,
+        "high": 64,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"airfoil-bgf","value":64,"basis":"NR25, between its rows, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":40.1,"basis":"HC_residence_500fpm(quiet end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 2.06,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 68,
+        "mean": 68,
+        "low": 60,
+        "high": 75,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"airfoil-bgf","value":75,"basis":"NR30, between its rows, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":60.2,"basis":"HC_residence_750fpm(upper end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 2.66,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "floor_grille",
+      "size": "300x100",
+      "size_mm": [300,100],
+      "recommended_ls": 82,
+      "most_ls": 90,
+      "neck_velocity_ms": 2.74,
+      "at_nc25": {
+        "value": 82,
+        "mean": 75,
+        "low": 47,
+        "high": 90,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"qae-fg","value":87.4,"basis":"NC25, between its table's rows"},
+          {"source":"airfoil-bgf","value":76.8,"basis":"NR25, between its rows, corrected for the grille's length"},
+          {"source":"bradflo-asgf","value":90.1,"basis":"NR25, read off its chart, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":47.2,"basis":"HC_residence_500fpm(quiet end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 2.74,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 90,
+        "mean": 88,
+        "low": 71,
+        "high": 102,
+        "n": 3,
+        "unit": "L/s",
+        "from": [
+          {"source":"qae-fg","value":101.9,"basis":"NC30, between its table's rows"},
+          {"source":"airfoil-bgf","value":90,"basis":"NR30, between its rows, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":70.8,"basis":"HC_residence_750fpm(upper end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 3,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "floor_grille",
+      "size": "350x100",
+      "size_mm": [350,100],
+      "recommended_ls": 54,
+      "most_ls": 81,
+      "neck_velocity_ms": 1.49,
+      "at_nc25": {
+        "value": 54,
+        "mean": 54,
+        "low": 54,
+        "high": 54,
+        "n": 1,
+        "unit": "L/s",
+        "from": [
+          {"source":"hart-cooley-421","value":54.3,"basis":"HC_residence_500fpm(quiet end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 1.49,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 81,
+        "mean": 81,
+        "low": 81,
+        "high": 81,
+        "n": 1,
+        "unit": "L/s",
+        "from": [
+          {"source":"hart-cooley-421","value":81.4,"basis":"HC_residence_750fpm(upper end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 2.24,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "floor_grille",
+      "size": "250x150",
+      "size_mm": [250,150],
+      "recommended_ls": 81,
+      "most_ls": 104,
+      "neck_velocity_ms": 2.15,
+      "at_nc25": {
+        "value": 81,
+        "mean": 81,
+        "low": 57,
+        "high": 106,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"airfoil-bgf","value":106,"basis":"NR25, between its rows, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":56.6,"basis":"HC_residence_500fpm(quiet end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 2.15,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 104,
+        "mean": 104,
+        "low": 85,
+        "high": 123,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"airfoil-bgf","value":122.5,"basis":"NR30, between its rows, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":84.9,"basis":"HC_residence_750fpm(upper end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 2.74,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "floor_grille",
+      "size": "400x100",
+      "size_mm": [400,100],
+      "recommended_ls": 107,
+      "most_ls": 130,
+      "neck_velocity_ms": 2.67,
+      "at_nc25": {
+        "value": 107,
+        "mean": 107,
+        "low": 100,
+        "high": 113,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"airfoil-bgf","value":100.3,"basis":"NR25, between its rows, corrected for the grille's length"},
+          {"source":"bradflo-asgf","value":113.3,"basis":"NR25, read off its chart, corrected for the grille's length"}
+        ],
+        "neck_velocity_ms": 2.67,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 130,
+        "mean": 130,
+        "low": 117,
+        "high": 143,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"airfoil-bgf","value":117.3,"basis":"NR30, between its rows, corrected for the grille's length"},
+          {"source":"bradflo-asgf","value":143.3,"basis":"NR30, read off its chart, corrected for the grille's length"}
+        ],
+        "neck_velocity_ms": 3.26,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "floor_grille",
+      "size": "300x150",
+      "size_mm": [300,150],
+      "recommended_ls": 129,
+      "most_ls": 147,
+      "neck_velocity_ms": 2.87,
+      "at_nc25": {
+        "value": 129,
+        "mean": 117,
+        "low": 66,
+        "high": 142,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"qae-fg","value":142,"basis":"NC25, between its table's rows"},
+          {"source":"airfoil-bgf","value":127.2,"basis":"NR25, between its rows, corrected for the grille's length"},
+          {"source":"bradflo-asgf","value":130.9,"basis":"NR25, read off its chart, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":66.1,"basis":"HC_residence_500fpm(quiet end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 2.87,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 147,
+        "mean": 137,
+        "low": 102,
+        "high": 163,
+        "n": 3,
+        "unit": "L/s",
+        "from": [
+          {"source":"qae-fg","value":162.7,"basis":"NC30, between its table's rows"},
+          {"source":"airfoil-bgf","value":147,"basis":"NR30, between its rows, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":101.5,"basis":"HC_residence_750fpm(upper end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 3.27,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "floor_grille",
+      "size": "350x150",
+      "size_mm": [350,150],
+      "recommended_ls": 148,
+      "most_ls": 170,
+      "neck_velocity_ms": 2.83,
+      "at_nc25": {
+        "value": 148,
+        "mean": 137,
+        "low": 78,
+        "high": 172,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"qae-fg","value":171.7,"basis":"NC25, between its table's rows"},
+          {"source":"airfoil-bgf","value":147,"basis":"NR25, between its rows, corrected for the grille's length"},
+          {"source":"bradflo-asgf","value":149.5,"basis":"NR25, read off its chart, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":77.9,"basis":"HC_residence_500fpm(quiet end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 2.83,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 170,
+        "mean": 163,
+        "low": 117,
+        "high": 195,
+        "n": 4,
+        "unit": "L/s",
+        "from": [
+          {"source":"qae-fg","value":195.3,"basis":"NC30, between its table's rows"},
+          {"source":"airfoil-bgf","value":169.7,"basis":"NR30, between its rows, corrected for the grille's length"},
+          {"source":"bradflo-asgf","value":169.4,"basis":"NR30, read off its chart, corrected for the grille's length"},
+          {"source":"hart-cooley-421","value":116.8,"basis":"HC_residence_750fpm(upper end), its table at its own guideline face velocity"}
+        ],
+        "neck_velocity_ms": 3.23,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "floor_grille",
+      "size": "400x150",
+      "size_mm": [400,150],
+      "recommended_ls": 167,
+      "most_ls": 192,
+      "neck_velocity_ms": 2.79,
+      "at_nc25": {
+        "value": 167,
+        "mean": 179,
+        "low": 166,
+        "high": 202,
+        "n": 3,
+        "unit": "L/s",
+        "from": [
+          {"source":"qae-fg","value":201.9,"basis":"NC25, between its table's rows"},
+          {"source":"airfoil-bgf","value":166.4,"basis":"NR25, between its rows, corrected for the grille's length"},
+          {"source":"bradflo-asgf","value":167.4,"basis":"NR25, read off its chart, corrected for the grille's length"}
+        ],
+        "neck_velocity_ms": 2.79,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 192,
+        "mean": 204,
+        "low": 191,
+        "high": 229,
+        "n": 3,
+        "unit": "L/s",
+        "from": [
+          {"source":"qae-fg","value":229,"basis":"NC30, between its table's rows"},
+          {"source":"airfoil-bgf","value":192,"basis":"NR30, between its rows, corrected for the grille's length"},
+          {"source":"bradflo-asgf","value":190.9,"basis":"NR30, read off its chart, corrected for the grille's length"}
+        ],
+        "neck_velocity_ms": 3.2,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "wall_register",
+      "size": "300x100",
+      "size_mm": [300,100],
+      "recommended_ls": 100,
+      "most_ls": 116,
+      "neck_velocity_ms": 3.33,
+      "at_nc25": {
+        "value": 100,
+        "mean": 100,
+        "low": 80,
+        "high": 119,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":80.3,"basis":"NC25, between its table's rows"},
+          {"source":"holyoake-dd","value":119,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.33,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 116,
+        "mean": 116,
+        "low": 93,
+        "high": 138,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":93.3,"basis":"NC30, between its table's rows"},
+          {"source":"holyoake-dd","value":138.3,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.86,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "wall_register",
+      "size": "400x100",
+      "size_mm": [400,100],
+      "recommended_ls": 133,
+      "most_ls": 155,
+      "neck_velocity_ms": 3.33,
+      "at_nc25": {
+        "value": 133,
+        "mean": 133,
+        "low": 117,
+        "high": 150,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":117,"basis":"NC25, between its table's rows"},
+          {"source":"holyoake-dd","value":149.7,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.33,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 155,
+        "mean": 155,
+        "low": 133,
+        "high": 178,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":133.4,"basis":"NC30, between its table's rows"},
+          {"source":"holyoake-dd","value":177.5,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.89,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "wall_register",
+      "size": "300x150",
+      "size_mm": [300,150],
+      "recommended_ls": 156,
+      "most_ls": 181,
+      "neck_velocity_ms": 3.46,
+      "at_nc25": {
+        "value": 156,
+        "mean": 156,
+        "low": 146,
+        "high": 165,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":146,"basis":"NC25, between its table's rows"},
+          {"source":"holyoake-dd","value":165,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.46,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 181,
+        "mean": 181,
+        "low": 166,
+        "high": 197,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":166,"basis":"NC30, between its table's rows"},
+          {"source":"holyoake-dd","value":196.7,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.03,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "wall_register",
+      "size": "350x150",
+      "size_mm": [350,150],
+      "recommended_ls": 186,
+      "most_ls": 216,
+      "neck_velocity_ms": 3.55,
+      "at_nc25": {
+        "value": 186,
+        "mean": 186,
+        "low": 177,
+        "high": 196,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":176.7,"basis":"NC25, between its table's rows"},
+          {"source":"holyoake-dd","value":196,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.55,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 216,
+        "mean": 216,
+        "low": 201,
+        "high": 231,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":201,"basis":"NC30, between its table's rows"},
+          {"source":"holyoake-dd","value":231.3,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.12,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "wall_register",
+      "size": "400x150",
+      "size_mm": [400,150],
+      "recommended_ls": 209,
+      "most_ls": 238,
+      "neck_velocity_ms": 3.49,
+      "at_nc25": {
+        "value": 209,
+        "mean": 209,
+        "low": 209,
+        "high": 209,
+        "n": 1,
+        "unit": "L/s",
+        "from": [{"source":"daikin-accessories-2026","value":209.3,"basis":"NC25, between its table's rows"}],
+        "neck_velocity_ms": 3.49,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 238,
+        "mean": 238,
+        "low": 238,
+        "high": 238,
+        "n": 1,
+        "unit": "L/s",
+        "from": [{"source":"daikin-accessories-2026","value":237.5,"basis":"NC30, between its table's rows"}],
+        "neck_velocity_ms": 3.96,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "wall_register",
+      "size": "450x150",
+      "size_mm": [450,150],
+      "recommended_ls": 240,
+      "most_ls": 280,
+      "neck_velocity_ms": 3.55,
+      "at_nc25": {
+        "value": 240,
+        "mean": 240,
+        "low": 236,
+        "high": 243,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":243.1,"basis":"NC25, between its table's rows"},
+          {"source":"holyoake-dd","value":236.3,"basis":"NC25, between its table's rows"}
+        ],
+        "neck_velocity_ms": 3.55,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 280,
+        "mean": 280,
+        "low": 276,
+        "high": 283,
+        "n": 2,
+        "unit": "L/s",
+        "from": [
+          {"source":"daikin-accessories-2026","value":276.3,"basis":"NC30, between its table's rows"},
+          {"source":"holyoake-dd","value":283,"basis":"NC30, between its table's rows"}
+        ],
+        "neck_velocity_ms": 4.14,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "linear_slot",
+      "size": "1-slot",
+      "size_mm": null,
+      "slots": 1,
+      "recommended_ls": 47,
+      "most_ls": 56,
+      "neck_velocity_ms": null,
+      "at_nc25": {
+        "value": 47,
+        "mean": 46,
+        "low": 44,
+        "high": 47,
+        "n": 3,
+        "unit": "L/s a metre a slot",
+        "from": [
+          {"source":"polyaire-au-lsd","value":47,"basis":"NC25, 1-slot one-way, the first step of its table to reach it"},
+          {"source":"airfoil-lsd","value":50,"basis":"NR25, 1-slot 25 mm, between its table's rows"},
+          {"source":"airfoil-lsd","value":43.7,"basis":"NR25, 1-slot 20 mm, between its table's rows"},
+          {"source":"price-sds","value":40,"basis":"NC25, 1-slot 12.7 mm, between its table's rows"},
+          {"source":"price-sds","value":47.1,"basis":"NC25, 1-slot 19 mm, between its table's rows"}
+        ],
+        "neck_velocity_ms": null,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 56,
+        "mean": 56,
+        "low": 51,
+        "high": 62,
+        "n": 3,
+        "unit": "L/s a metre a slot",
+        "from": [
+          {"source":"polyaire-au-lsd","value":62,"basis":"NC30, 1-slot one-way, the first step of its table to reach it"},
+          {"source":"airfoil-lsd","value":60.7,"basis":"NR30, 1-slot 25 mm, between its table's rows"},
+          {"source":"airfoil-lsd","value":51,"basis":"NR30, 1-slot 20 mm, between its table's rows"},
+          {"source":"price-sds","value":45,"basis":"NC30, 1-slot 12.7 mm, between its table's rows","bound":"lower"},
+          {"source":"price-sds","value":56,"basis":"NC30, 1-slot 19 mm, between its table's rows"}
+        ],
+        "neck_velocity_ms": null,
+        "lower_bounds": 1
+      }
+    },
+    {
+      "kind": "linear_slot",
+      "size": "2-slot",
+      "size_mm": null,
+      "slots": 2,
+      "recommended_ls": 40,
+      "most_ls": 51,
+      "neck_velocity_ms": null,
+      "at_nc25": {
+        "value": 40,
+        "mean": 41,
+        "low": 37,
+        "high": 47,
+        "n": 4,
+        "unit": "L/s a metre a slot",
+        "from": [
+          {"source":"polyaire-au-lsd","value":46.5,"basis":"NC25, 2-slot one-way, the first step of its table to reach it"},
+          {"source":"airfoil-lsd","value":43.1,"basis":"NR25, 2-slot 25 mm, between its table's rows"},
+          {"source":"airfoil-lsd","value":36.5,"basis":"NR25, 2-slot 20 mm, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":45.8,"basis":"NC25, RCLS600 2-slot one-way, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":33.9,"basis":"NC25, RCLS1200 2-slot one-way, between its table's rows"},
+          {"source":"price-sds","value":34.3,"basis":"NC25, 2-slot 12.7 mm, between its table's rows"},
+          {"source":"price-sds","value":40.4,"basis":"NC25, 2-slot 19 mm, between its table's rows"}
+        ],
+        "neck_velocity_ms": null,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 51,
+        "mean": 50,
+        "low": 44,
+        "high": 55,
+        "n": 4,
+        "unit": "L/s a metre a slot",
+        "from": [
+          {"source":"polyaire-au-lsd","value":54,"basis":"NC30, 2-slot one-way, the first step of its table to reach it"},
+          {"source":"airfoil-lsd","value":50,"basis":"NR30, 2-slot 25 mm, between its table's rows"},
+          {"source":"airfoil-lsd","value":44.2,"basis":"NR30, 2-slot 20 mm, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":64.8,"basis":"NC30, RCLS600 2-slot one-way, between its table's rows"},
+          {"source":"daikin-accessories-2026","value":45.8,"basis":"NC30, RCLS1200 2-slot one-way, between its table's rows"},
+          {"source":"price-sds","value":40.5,"basis":"NC30, 2-slot 12.7 mm, between its table's rows"},
+          {"source":"price-sds","value":47.5,"basis":"NC30, 2-slot 19 mm, between its table's rows"}
+        ],
+        "neck_velocity_ms": null,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "linear_slot",
+      "size": "3-slot",
+      "size_mm": null,
+      "slots": 3,
+      "recommended_ls": 40,
+      "most_ls": 46,
+      "neck_velocity_ms": null,
+      "at_nc25": {
+        "value": 40,
+        "mean": 39,
+        "low": 35,
+        "high": 41,
+        "n": 3,
+        "unit": "L/s a metre a slot",
+        "from": [
+          {"source":"polyaire-au-lsd","value":41.3,"basis":"NC25, 3-slot one-way, the first step of its table to reach it"},
+          {"source":"airfoil-lsd","value":39.6,"basis":"NR25, 3-slot 25 mm, between its table's rows"},
+          {"source":"price-sds","value":31.7,"basis":"NC25, 3-slot 12.7 mm, between its table's rows"},
+          {"source":"price-sds","value":38.3,"basis":"NC25, 3-slot 19 mm, between its table's rows"}
+        ],
+        "neck_velocity_ms": null,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 46,
+        "mean": 45,
+        "low": 42,
+        "high": 46,
+        "n": 3,
+        "unit": "L/s a metre a slot",
+        "from": [
+          {"source":"polyaire-au-lsd","value":46.3,"basis":"NC30, 3-slot one-way, the first step of its table to reach it"},
+          {"source":"airfoil-lsd","value":46.1,"basis":"NR30, 3-slot 25 mm, between its table's rows"},
+          {"source":"price-sds","value":37.6,"basis":"NC30, 3-slot 12.7 mm, between its table's rows"},
+          {"source":"price-sds","value":45.5,"basis":"NC30, 3-slot 19 mm, between its table's rows"}
+        ],
+        "neck_velocity_ms": null,
+        "lower_bounds": 0
+      }
+    },
+    {
+      "kind": "linear_slot",
+      "size": "4-slot",
+      "size_mm": null,
+      "slots": 4,
+      "recommended_ls": 35,
+      "most_ls": 41,
+      "neck_velocity_ms": null,
+      "at_nc25": {
+        "value": 35,
+        "mean": 35,
+        "low": 33,
+        "high": 37,
+        "n": 2,
+        "unit": "L/s a metre a slot",
+        "from": [
+          {"source":"airfoil-lsd","value":36.5,"basis":"NR25, 4-slot 25 mm, between its table's rows"},
+          {"source":"price-sds","value":30,"basis":"NC25, 4-slot 12.7 mm, between its table's rows"},
+          {"source":"price-sds","value":35.2,"basis":"NC25, 4-slot 19 mm, between its table's rows"}
+        ],
+        "neck_velocity_ms": null,
+        "lower_bounds": 0
+      },
+      "at_nc30": {
+        "value": 41,
+        "mean": 41,
+        "low": 38,
+        "high": 43,
+        "n": 2,
+        "unit": "L/s a metre a slot",
+        "from": [
+          {"source":"airfoil-lsd","value":43.1,"basis":"NR30, 4-slot 25 mm, between its table's rows"},
+          {"source":"price-sds","value":35.4,"basis":"NC30, 4-slot 12.7 mm, between its table's rows"},
+          {"source":"price-sds","value":41.2,"basis":"NC30, 4-slot 19 mm, between its table's rows"}
+        ],
+        "neck_velocity_ms": null,
+        "lower_bounds": 0
+      }
+    }
+  ],
+  "rules": [
+    {
+      "rule": "With no maker's sound data, the neck at no more than 1.78 m/s for RC 25 and 2.16 m/s for RC 30, and lower where several outlets serve one room.",
+      "sources": ["ashrae-a23-ch49"]
+    },
+    {
+      "rule": "The flex run feeding an outlet carries no more than the flexible duct table's most for its size.",
+      "sources": ["actronair-db0817"]
+    },
+    {
+      "rule": "On a variable-airflow system, the final run to an outlet at no more than 3 m/s, to keep its noise down; the outlet maker's own data where it has it.",
+      "sources": ["actronair-0520-026"]
+    },
+    {"rule":"An outlet is sized for its throw, its face no faster than 700 fpm (3.56 m/s).","sources":["acca-manual-d"]},
+    {
+      "rule": "Floor grille boots: 300x100 on a 150, 300x100 on a 200, 350x150 on a 250, 300x150 on a 200 mm spigot; a 300x100 mainly for gas heating, its airflow being lower.",
+      "sources": ["polyaire-au-catalogue"]
+    }
+  ]
+}

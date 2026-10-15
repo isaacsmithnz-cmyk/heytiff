@@ -1,0 +1,6617 @@
+{
+ "topic": "supply_outlets",
+ "generated": "2026-10-15",
+ "conventions": {
+  "units": "L/s; neck velocity m/s on nominal neck area unless velocity was published (then the published value); pressure Pa (total unless pressure_kind says static)",
+  "conversions": "CFM x0.4719 = L/s; fpm x0.00508 = m/s; in.wc x249 = Pa; inch necks 6/8/10/12/14/16 -> nominal 150/200/250/300/350/400",
+  "noise": "NC25/NC30 and NR25/NR30 are where the published table reaches that rating (linear interpolation). NR is roughly 2-5 points stricter than NC for the same diffuser. US makers rate NC with 10 dB room absorption; Holyoake/Airfoil/Advantage Air use 8 dB; Trox gives sound power LWA. Ratings below the table floor ('-' or '<15') are treated as the floor value (conservative).",
+  "bound": "bound='lower' means the outlet was still quieter than the target at the last tabulated row; the ls given is the last row, i.e. a lower bound.",
+  "primary": "primary=false marks a variant (e.g. cone 20% open, branch-duct rule) that should not enter a plain average.",
+  "linear_slot": "ls for linear_slot is L/s per metre per slot."
+ },
+ "sources": [
+  {
+   "id": "holyoake_cra",
+   "publisher": "Holyoake by Price",
+   "region": "NZ",
+   "title": "Section D Diffusers - CRA Ceiling Round Adjustable, performance data",
+   "year": 2023,
+   "page": "81D",
+   "url": "https://holyoake.com/wp-content/uploads/Section-D-Diffusers.pdf",
+   "basis": "airflow at NC25/NC30 (8 dB room absorption re 1e-12 W), cones down, no damper",
+   "notes": "Nominal duct 200-400 mm; neck velocities as published (they imply a ~186 mm actual neck for the 200). Plaque version CRP (p.84D) is ~3-5 NC louder at the same flow; not counted separately. Dampering adds noise (their p.12A).",
+   "confidence": "high"
+  },
+  {
+   "id": "polyaire_uk_round",
+   "publisher": "Polyaire UK Ltd (Polyaire Group)",
+   "region": "EU",
+   "title": "Round Ceiling Diffusers (fixed, aluminium multi-cone) data sheet - selection table",
+   "year": null,
+   "page": "1",
+   "url": "https://assets.ctfassets.net/tfk6if7zxtjv/4BgYeqRPG6o7RejvAknd6M/0a07742ec2e6f77657d11bd6c17baf74/round-ceiling-diffuser-fixed.pdf",
+   "basis": "airflow at NR25/NR30 (room correction not stated)",
+   "notes": "UK arm of the Polyaire group. 150 mm row prints '378' for NR at 60 L/s (typo, read as 37). No 350 mm row. Low capacities vs US NC tables: NR is stricter than NC and the room basis is unstated.",
+   "confidence": "med"
+  },
+  {
+   "id": "daikin_au_round",
+   "publisher": "Daikin Australia (accessories range, QAE-made)",
+   "region": "AU",
+   "title": "Accessories Catalogue Aug 2026 (PCIAAU0726), Appendix - Round Diffusers RND/IRND",
+   "year": 2026,
+   "page": "57",
+   "url": "https://ea7b3db9-c81d-438f-bfd1-8fef43375b97.usrfiles.com/ugd/ea7b3d_329a1d14cbf841dcb85638573d2ff3b0.pdf",
+   "basis": "airflow at NC25/NC30 (10 dB room absorption), centre cone 100% open; 20% open rows kept as a variant",
+   "notes": "Residential plastic round outlets RND6/8/10/12 = 150/200/250/300 neck. Catalogue says data 'extrapolated from tests on a sample set'. Fully open they barely reach NC25 inside the table for 250/300 (lower bounds). At 20% open (a balanced outlet) NC25 comes at roughly 60% of the open-cone airflow and the pressure drop is ~60-80 Pa.",
+   "confidence": "med"
+  },
+  {
+   "id": "advantage_air_sunline",
+   "publisher": "Advantage Air",
+   "region": "AU",
+   "title": "Plastic Diffusers and Grilles - Sunline Diffusers performance data (C-SUN2)",
+   "year": 2002,
+   "page": "C-SUN2",
+   "url": "https://web.archive.org/web/2010/http://www.advantageair.com.au/assets/pdf/catalogue/c_sun.pdf",
+   "basis": "airflow at NR25/NR30 read from the published NR-vs-airflow curve (room basis not stated)",
+   "notes": "Residential ABS round outlet (200/250/300). Values read off a chart (+/-5%). Implies very high neck velocities (4-6 m/s) and 50-70 Pa at NR25; old (2002) rating.",
+   "confidence": "low"
+  },
+  {
+   "id": "price_rcd",
+   "publisher": "Price Industries",
+   "region": "US",
+   "title": "RCD Round Cone Diffuser performance data (four cone, horizontal)",
+   "year": 2023,
+   "page": "4",
+   "url": "https://legacy.priceindustries.com/content/uploads/assets/literature/catalogs/performance-data/section%20c/rcd-round-cone-diffuser-performance-data.pdf",
+   "basis": "airflow at NC25/NC30 (10 dB room absorption, one diffuser), ASHRAE 70-2023",
+   "notes": "Imperial necks 6/8/10/12/14/16 in = 152/203/254/305/356/406 mm. US NC ratings use 10 dB room attenuation, so they read quieter than NR or 8 dB data at the same airflow.",
+   "confidence": "high"
+  },
+  {
+   "id": "titus_tmr",
+   "publisher": "Titus",
+   "region": "US",
+   "title": "TMR / TMR-AA round ceiling diffuser performance data (2017 catalogue)",
+   "year": 2017,
+   "page": "F-section TMR",
+   "url": "https://www.titus-hvac.com/file/823/TMRperf_diffusers_2017.pdf",
+   "basis": "airflow at NC25/NC30, cones in position 2 (cones down, as shipped); 10 dB room absorption, ASHRAE 70",
+   "notes": "Position 1 is ~4-6 NC quieter at the same airflow.",
+   "confidence": "high"
+  },
+  {
+   "id": "krueger_rm1",
+   "publisher": "Krueger",
+   "region": "US",
+   "title": "RM1/5RM1 round three-cone diffuser, IP/metric performance data (no damper)",
+   "year": 2012,
+   "page": "G1 RM1 performance",
+   "url": "https://www.hts.com/wp-content/uploads/2019/03/RM1_5RM1_MiniCatalog-1.pdf",
+   "basis": "airflow at NC25/NC30, position 2 (more induction); 10 dB room absorption, ASHRAE 70 / ISO 5219",
+   "notes": "Metric columns as published. Position 1 (max capacity) is ~5-7 NC quieter.",
+   "confidence": "high"
+  },
+  {
+   "id": "trox_adlr",
+   "publisher": "TROX (datasheet distributed by Airfoil, AU)",
+   "region": "EU",
+   "title": "ADLR circular ceiling diffuser, quick sizing ADLR-A/AR supply (PD-ADLR 02/2017)",
+   "year": 2017,
+   "page": "PD-ADLR-6",
+   "url": "https://airfoil.com.au/content/uploads/2024/08/ADLR-Data-Sheet.pdf",
+   "basis": "airflow at sound POWER LWA 35 dB(A) (treated as ~NR25) and LWA 30 dB(A); not a room NR/NC",
+   "notes": "Nominal sizes 1-5 have spigot \u00d8D 137/193/249/305/361 mm. LWA->NR assumes ~4-8 dB room attenuation and NR ~ LpA-6; treat as indicative only.",
+   "confidence": "med"
+  },
+  {
+   "id": "ashrae_a23_ch49_t9",
+   "publisher": "ASHRAE",
+   "region": "US",
+   "title": "2023 ASHRAE Handbook - HVAC Applications, Ch.49 Noise and Vibration Control, Table 9: Maximum recommended air velocities at neck of supply diffusers or return registers",
+   "year": 2023,
+   "page": "Ch.49 Table 9",
+   "url": "https://handbook.ashrae.org/Handbooks/A23/IP/A23_Ch49/a23_ch49_ip.aspx",
+   "basis": "neck ('free opening') velocity rule: RC(N)25 = 350 fpm (1.78 m/s), RC(N)30 = 425 fpm (2.16 m/s); L/s derived = velocity x nominal neck area",
+   "notes": "For use when no manufacturer sound data exists; handbook says reduce further where several outlets serve one room. Return openings: 425/500 fpm. Values below are derived, not tabulated.",
+   "confidence": "high"
+  },
+  {
+   "id": "actronair_builders",
+   "publisher": "ActronAir",
+   "region": "AU",
+   "title": "Installation Best Practice Guidelines - Ducted Type Systems (DB0817 v1.7), Outlets",
+   "year": null,
+   "page": "Outlets section (p.~5)",
+   "url": "https://docs.actronair.com.au/wp-content/uploads/DB0817-Builders-Installation-Guidelines-Booklet_v1.7_WEB.pdf",
+   "basis": "maximum recommended airflow per flexible duct (outlet branch) diameter; noise-minimising guidance, no NC stated",
+   "notes": "Column headings in the PDF are swapped; values pair diameter->max L/s. Implied velocities 2.5 m/s (150) rising to 4 m/s (350-400). Companion doc 0520-026 (2021) caps the final duct to an outlet at 3 m/s for variable-airflow systems and says to use the outlet maker's data.",
+   "confidence": "med"
+  },
+  {
+   "id": "actronair_vaf_3ms",
+   "publisher": "ActronAir",
+   "region": "AU",
+   "title": "Airflow Application Guidelines, split ducted (Doc 0520-026 v1)",
+   "year": 2021,
+   "page": "1",
+   "url": "https://docs.actronair.com.au/wp-content/uploads/2021/04/0520-026-Airflow-Application-Guidelines-Ver.1.pdf",
+   "basis": "final duct to outlet max 3 m/s (derived L/s = 3 m/s x duct area)",
+   "notes": "Stated 'to minimize noise generation at supply air outlet'; branch 4-6 m/s, main 6-7 m/s. Derived values.",
+   "confidence": "med"
+  },
+  {
+   "id": "acca_manual_d_t31",
+   "publisher": "ACCA (Manual D, via AHRI reproduction)",
+   "region": "US",
+   "title": "Manual D Table 3-1 recommended velocities (reproduced in AHRI 'Manual D calculation' sheet)",
+   "year": 2016,
+   "page": "Table 3-1",
+   "url": "https://www.ahrinet.org/sites/default/files/2022-10/manual%20D%20calculation.pdf",
+   "basis": "flex supply branch recommended 600 fpm (3.05 m/s), max 700 fpm; supply outlet face velocity 'size for throw', max 700 fpm (3.56 m/s)",
+   "notes": "Branch-duct velocity, not an outlet noise rating; derived L/s per round branch at 600 fpm. Return grille 500 fpm, filter grille 300 fpm.",
+   "confidence": "low"
+  },
+  {
+   "id": "holyoake_cmp",
+   "publisher": "Holyoake by Price",
+   "region": "NZ",
+   "title": "Section D Diffusers - CMP Ceiling Multi Pattern (4-way louvred, square neck)",
+   "year": 2023,
+   "page": "148D",
+   "url": "https://holyoake.com/wp-content/uploads/Section-D-Diffusers.pdf",
+   "basis": "airflow at NC25/NC30 (8 dB room attenuation, steel diffuser); aluminium = listed NC +3",
+   "notes": "Square neck 150-450. Recommended max per side vs ceiling height also given (p.147D): 2.4 m ceiling 0.095 m3/s per side.",
+   "confidence": "high"
+  },
+  {
+   "id": "polyaire_au_lfd",
+   "publisher": "Polyaire (Polyaire Commercial)",
+   "region": "AU",
+   "title": "Square Ceiling Diffusers LFD (4-way louvre face) - selection data",
+   "year": 2018,
+   "page": "web page",
+   "url": "https://web.archive.org/web/20180319093316/https://www.polyairecommercial.com.au/products/diffusers/square-ceiling-diffusers/",
+   "basis": "airflow at NR25/NR30, 4-way throw (3-way x0.75, 2-way x0.5)",
+   "notes": "Opposed-blade damper adds +1 NR fully open, +5-6 NR at 50% closed. '<22' rows treated as NR22 (conservative). Archived page; current Polyaire site has no data.",
+   "confidence": "med"
+  },
+  {
+   "id": "airfoil_pcd",
+   "publisher": "Airfoil Manufacturing",
+   "region": "AU",
+   "title": "Plaque Ceiling Diffuser PCD - performance data (tested by Louis A. Challis & Associates)",
+   "year": 2024,
+   "page": "5",
+   "url": "https://airfoil.com.au/content/uploads/2024/09/Plaque-Ceiling-Diffuser-PCD.pdf",
+   "basis": "airflow at NR25/NR30 (NC also listed, ~1 lower)",
+   "notes": "Square plaque, square neck. Throw for plaque range to be reduced 50% (their note).",
+   "confidence": "high"
+  },
+  {
+   "id": "daikin_au_bevelled",
+   "publisher": "Daikin Australia (accessories range, QAE-made)",
+   "region": "AU",
+   "title": "Accessories Catalogue Aug 2026, Appendix - Bevelled Edge Diffusers (square 4-way)",
+   "year": 2026,
+   "page": "56",
+   "url": "https://ea7b3db9-c81d-438f-bfd1-8fef43375b97.usrfiles.com/ugd/ea7b3d_329a1d14cbf841dcb85638573d2ff3b0.pdf",
+   "basis": "airflow at NC25/NC30 (2.7 m ceiling, isothermal); NC basis not stated on this table (round table on same page says 10 dB)",
+   "notes": "Residential plastic 4-way. Plenum/cushion box adds +2 NC at 1-2 m/s spigot, +3 at 2.5, +4 at 3, +6 at 3.5, +8 at 4 m/s (their adder table). 450x450 stays <NC15 to 350 L/s (lower bound).",
+   "confidence": "med"
+  },
+  {
+   "id": "advantage_air_silhouette",
+   "publisher": "Advantage Air",
+   "region": "AU",
+   "title": "Plastic Diffusers and Grilles - Silhouette diffusers performance chart (C-ST2)",
+   "year": 2002,
+   "page": "C-ST2",
+   "url": "https://web.archive.org/web/2010/http://www.advantageair.com.au/assets/pdf/catalogue/c_st.pdf",
+   "basis": "airflow at NC20/NC30 read from log-log chart (8 dB room absorption); NC25 interpolated",
+   "notes": "Residential plastic square 4-way; 280x280 (core 0.078 m2) and 360x360 tee-bar (core 0.130 m2). Chart-read (+/-8%).",
+   "confidence": "low"
+  },
+  {
+   "id": "titus_tms",
+   "publisher": "Titus",
+   "region": "US",
+   "title": "TMS square ceiling diffuser, round neck, high performance (2017)",
+   "year": 2017,
+   "page": "TMS perf",
+   "url": "https://www.titus-hvac.com/file/871/TMSperf_diffusers_2017.pdf",
+   "basis": "airflow at NC25/NC30, 24x24 in module (10 dB room absorption)",
+   "notes": "Round neck in square face; 12x12 module rows (6/8 in necks) are ~1-3 NC louder.",
+   "confidence": "high"
+  },
+  {
+   "id": "price_scd",
+   "publisher": "Price Industries",
+   "region": "US",
+   "title": "SCD Square Cone Diffuser performance data, 24x24 in face",
+   "year": 2023,
+   "page": "5-6",
+   "url": "https://legacy.priceindustries.com/content/uploads/assets/literature/catalogs/performance-data/section%20c/scd-square-cone-diffuser-performance-data.pdf",
+   "basis": "airflow at NC25/NC30 (10 dB room absorption, one diffuser), ASHRAE 70-2023",
+   "notes": "Round neck, square face.",
+   "confidence": "high"
+  },
+  {
+   "id": "qae_fg",
+   "publisher": "Quality Air Equipment (QAE); same table reprinted in Daikin AU accessories catalogue 2026 p.58",
+   "region": "AU",
+   "title": "Stocked Range Grilles - Floor Grilles FG/HDFG performance data",
+   "year": 2020,
+   "page": "327",
+   "url": "https://qualityairequipment.com.au/wp-content/uploads/2018/02/STOCKED_RANGE_Floor_Grilles_FG_HDFG-1.pdf",
+   "basis": "airflow at NC25/NC30 (basis not stated; Daikin reprint of sister tables says 10 dB)",
+   "notes": "Extruded aluminium fixed-bar floor grille, 0 deg, no damper. 'Face velocity' in the table is on effective area (~0.6 of nominal neck); neck_velocity_ms below is on nominal neck. Daikin's floor-grille table is the same data, so count once.",
+   "confidence": "med"
+  },
+  {
+   "id": "airfoil_bgf",
+   "publisher": "Airfoil Manufacturing",
+   "region": "AU",
+   "title": "Floor Grilles (BGF) performance data, 15 deg kick blades",
+   "year": 2016,
+   "page": "2",
+   "url": "https://airfoil.com.au/content/uploads/2016/08/AIRFOIL-Floor-Grille-FG.pdf",
+   "basis": "airflow at NR25/NR30 for the given grille length: table is L/s per metre at NR for 3 m active length, corrected by their length table (0.3 m -9 NR, 0.6 m -7, 1.2 m -4)",
+   "notes": "Aluminium linear bar floor grille (8 dB room absorption). Short residential grilles are much quieter per metre than the 3 m table, so the length correction matters. 0 deg blades are 5-8 NR quieter at the same flow.",
+   "confidence": "med"
+  },
+  {
+   "id": "bradflo_asgf",
+   "publisher": "Bradflo (Metalflex)",
+   "region": "AU",
+   "title": "Air Handling Reference Catalogue - 1.3 Slimline Floor Grille ASGF, sound selection chart",
+   "year": 2019,
+   "page": "15",
+   "url": "https://www.metalflex.com.au/resources/themes/metalflex-main/build/assets/img/bradflo/Grilles-and-Louvres-291019.pdf",
+   "basis": "airflow at NR25/NR30 read from the per-metre NR bar chart, length-corrected (their table: 0.5 m -3, 1 m 0, 1.5 m +2 -> ~10log10 L)",
+   "notes": "Chart is per 1 m length, 'max recommended at dT 4 C'. Chart-read on a log axis (+/-10%).",
+   "confidence": "low"
+  },
+  {
+   "id": "hart_cooley_421",
+   "publisher": "Hart & Cooley",
+   "region": "US",
+   "title": "Grilles, Registers & Diffusers - Residential (HC-GRD-RES CT-001E 09-23): 420/421 floor diffuser engineering data + recommended face velocities",
+   "year": 2023,
+   "page": "33 and 36",
+   "url": "https://hartandcooley.com/literature/hc_grd-res_ct-001e_09-23_web.pdf",
+   "basis": "H&C recommended face velocity for residences 500-750 fpm (on Ak); value at 500 fpm recorded as the quiet end, 750 fpm as the upper end",
+   "notes": "No NC tabulated for these floor registers; H&C says use the face-velocity guideline. Their general supply guidance is 500-800 fpm with 700 typical. Inch sizes: 4x10 ~ 250x100, 4x12 ~ 300x100, 4x14 ~ 350x100, 6x10 ~ 250x150, 6x12 ~ 300x150, 6x14 ~ 350x150.",
+   "confidence": "med"
+  },
+  {
+   "id": "polyaire_au_catalogue",
+   "publisher": "Polyaire",
+   "region": "AU",
+   "title": "Product Catalogue Edition 1 - Grilles: floor grilles, floor boots",
+   "year": 2018,
+   "page": "86-87",
+   "url": "https://web.archive.org/web/20200310032321/https://www.polyairecommercial.com.au/assets/Uploads/PolyaireProductCatalogue1.pdf",
+   "basis": "qualitative: 350x150 for air conditioning / dual systems; 300x100 'mainly gas heating only due to lower airflow'. Boots: 300x100 fed by 150 or 200 spigot, 300x150 by 200/250, 350x150 by 250",
+   "notes": "No airflow table. Implied capacity = the spigot that feeds it (see ActronAir per-duct maxima: 150=44, 200=92, 250=170 L/s). Same guidance repeated by Eventus and other AU resellers.",
+   "confidence": "low"
+  },
+  {
+   "id": "daikin_au_rcddr",
+   "publisher": "Daikin Australia (accessories range, QAE-made)",
+   "region": "AU",
+   "title": "Accessories Catalogue Aug 2026, Appendix - Removable Core Double Deflection Register",
+   "year": 2026,
+   "page": "59",
+   "url": "https://ea7b3db9-c81d-438f-bfd1-8fef43375b97.usrfiles.com/ugd/ea7b3d_329a1d14cbf841dcb85638573d2ff3b0.pdf",
+   "basis": "airflow at NC25/NC30, blades 0 deg, no damper (NC basis not stated on page)",
+   "notes": "Sidewall within 600 mm of ceiling. 40 deg blade pitch adds ~50% pressure.",
+   "confidence": "med"
+  },
+  {
+   "id": "holyoake_dd",
+   "publisher": "Holyoake by Price",
+   "region": "NZ",
+   "title": "Section E Supply/Return Grilles - DDL/DDS-20 double deflection, performance data",
+   "year": 2022,
+   "page": "206E-207E",
+   "url": "https://holyoake.com/wp-content/uploads/2023/08/Section-E-Supply-Return-Grilles.pdf",
+   "basis": "airflow at NC25/NC30, 0 deg deflection; velocities are on effective core area Ac",
+   "notes": "Rows list equivalent sizes (e.g. 305x100 = 240x125 = 195x150). Matched to nearest AU size.",
+   "confidence": "high"
+  },
+  {
+   "id": "polyaire_au_lsd",
+   "publisher": "Polyaire (Polyaire Commercial)",
+   "region": "AU",
+   "title": "Linear Slot Diffusers LSD - selection data (one-way and two-way blow)",
+   "year": 2018,
+   "page": "web page",
+   "url": "https://web.archive.org/web/20180319093844/https://www.polyairecommercial.com.au/products/diffusers/linear-slot-diffusers/",
+   "basis": "L/s per metre at the first row reaching 'NC 25' / 'NC 30' (table steps are coarse; '<25' below)",
+   "notes": "Imperial-derived steps (15.5 L/s/m = 10 cfm/ft). Slot width not stated (product drawings ~20-22 mm).",
+   "confidence": "med"
+  },
+  {
+   "id": "airfoil_lsd",
+   "publisher": "Airfoil Manufacturing",
+   "region": "AU",
+   "title": "Linear Slot Diffuser LSD - performance data, 25 mm and 20 mm slots, supply",
+   "year": 2016,
+   "page": "3-4",
+   "url": "https://airfoil.com.au/content/uploads/2016/05/Linear-Slot-Diffuser-LSD.pdf",
+   "basis": "L/s per metre at NR25/NR30 (room basis and active length not stated on sheet)",
+   "notes": "Values per slot = table L/s/m / number of slots.",
+   "confidence": "med"
+  },
+  {
+   "id": "daikin_au_rcls",
+   "publisher": "Daikin Australia (accessories range, QAE-made)",
+   "region": "AU",
+   "title": "Accessories Catalogue Aug 2026, Appendix - Removable Core Linear Slot Diffuser RCLS (2-slot)",
+   "year": 2026,
+   "page": "56",
+   "url": "https://ea7b3db9-c81d-438f-bfd1-8fef43375b97.usrfiles.com/ugd/ea7b3d_329a1d14cbf841dcb85638573d2ff3b0.pdf",
+   "basis": "airflow per module at NC25/NC30, one-way blow, 2.7 m ceiling; converted to L/s per m per slot",
+   "notes": "RCLS600 = 0.6 m, RCLS1200 = 1.2 m, both 2 slots (catalogue p.27). RCLS900 NC row missing in source.",
+   "confidence": "med"
+  },
+  {
+   "id": "price_sds",
+   "publisher": "Price Industries",
+   "region": "US",
+   "title": "SDS Linear Slot Diffuser performance data - metric, pressurised plenum (SDS50 12.7 mm, SDS75 19 mm)",
+   "year": 2016,
+   "page": "1-2",
+   "url": "https://www.priceindustries.com/content/uploads/assets/literature/catalogs/performance-data/section%20a/sds-linear-slot-diffuser-performance-data-metric.pdf",
+   "basis": "L/s per m at NC25/NC30 for a 3 m active length (10 dB); per-slot = /slots",
+   "notes": "Length correction: 1.2 m active is 6 NC quieter, 0.6 m 11 NC quieter, so short residential slots carry ~25-35% more per metre at the same NC. ASHRAE 70-2006.",
+   "confidence": "high"
+  }
+ ],
+ "values": [
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 100.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.68,
+   "pressure_pa": 24.0,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 125.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.6,
+   "pressure_pa": 30.0,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 150.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.43,
+   "pressure_pa": 28.0,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 183.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.19,
+   "pressure_pa": 43.3,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 175.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.73,
+   "pressure_pa": 18.0,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 225.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.5,
+   "pressure_pa": 30.0,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    350
+   ],
+   "ls": 275.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.1,
+   "pressure_pa": 25.0,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    350
+   ],
+   "ls": 325.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.67,
+   "pressure_pa": 32.0,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    400
+   ],
+   "ls": 337.5,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.88,
+   "pressure_pa": 22.0,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "holyoake_cra",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    400
+   ],
+   "ls": 450.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.85,
+   "pressure_pa": 32.0,
+   "method": "interpolated",
+   "pressure_kind": "total"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 50.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.8,
+   "pressure_pa": 16.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 54.2,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.05,
+   "pressure_pa": 16.8,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 64.4,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.03,
+   "pressure_pa": 9.8,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 70.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 2.2,
+   "pressure_pa": 12.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 77.5,
+   "noise": "NR25",
+   "neck_velocity_ms": 1.58,
+   "pressure_pa": 6.5,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 91.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 1.85,
+   "pressure_pa": 9.6,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 114.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 1.61,
+   "pressure_pa": 7.4,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 134.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 1.9,
+   "pressure_pa": 9.6,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    400
+   ],
+   "ls": 200.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 1.6,
+   "pressure_pa": 7.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_uk_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    400
+   ],
+   "ls": 230.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 1.84,
+   "pressure_pa": 9.4,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 75.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.24,
+   "pressure_pa": 49.0,
+   "method": "interpolated",
+   "variant": "cone 100% open"
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 90.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 5.09,
+   "pressure_pa": 70.0,
+   "method": "interpolated",
+   "variant": "cone 100% open"
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 78.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.41,
+   "pressure_pa": 257.8,
+   "method": "interpolated",
+   "variant": "cone 20% open (balanced)",
+   "primary": false
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 90,
+   "noise": "NC30",
+   "neck_velocity_ms": 5.09,
+   "pressure_pa": 341,
+   "method": "interpolated",
+   "bound": "lower",
+   "variant": "cone 20% open (balanced)",
+   "primary": false
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 146.4,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.66,
+   "pressure_pa": 44.0,
+   "method": "interpolated",
+   "variant": "cone 100% open"
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 150,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.77,
+   "pressure_pa": 46,
+   "method": "interpolated",
+   "bound": "lower",
+   "variant": "cone 100% open"
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 83.3,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.65,
+   "pressure_pa": 70.7,
+   "method": "interpolated",
+   "variant": "cone 20% open (balanced)",
+   "primary": false
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 93.8,
+   "noise": "NC30",
+   "neck_velocity_ms": 2.98,
+   "pressure_pa": 89.0,
+   "method": "interpolated",
+   "variant": "cone 20% open (balanced)",
+   "primary": false
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 240,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.89,
+   "pressure_pa": 39,
+   "method": "interpolated",
+   "bound": "lower",
+   "variant": "cone 100% open"
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 240,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.89,
+   "pressure_pa": 39,
+   "method": "interpolated",
+   "bound": "lower",
+   "variant": "cone 100% open"
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 140.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.85,
+   "pressure_pa": 65.5,
+   "method": "interpolated",
+   "variant": "cone 20% open (balanced)",
+   "primary": false
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 156.7,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.19,
+   "pressure_pa": 80.9,
+   "method": "interpolated",
+   "variant": "cone 20% open (balanced)",
+   "primary": false
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 360,
+   "noise": "NC25",
+   "neck_velocity_ms": 5.09,
+   "pressure_pa": 35,
+   "method": "interpolated",
+   "bound": "lower",
+   "variant": "cone 100% open"
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 360,
+   "noise": "NC30",
+   "neck_velocity_ms": 5.09,
+   "pressure_pa": 35,
+   "method": "interpolated",
+   "bound": "lower",
+   "variant": "cone 100% open"
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 234.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.31,
+   "pressure_pa": 72.7,
+   "method": "interpolated",
+   "variant": "cone 20% open (balanced)",
+   "primary": false
+  },
+  {
+   "source": "daikin_au_round",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 274.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.88,
+   "pressure_pa": 100.6,
+   "method": "interpolated",
+   "variant": "cone 20% open (balanced)",
+   "primary": false
+  },
+  {
+   "source": "advantage_air_sunline",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 180.5,
+   "noise": "NR25",
+   "neck_velocity_ms": 5.75,
+   "pressure_pa": 65.0,
+   "method": "chart_read"
+  },
+  {
+   "source": "advantage_air_sunline",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 200.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 6.37,
+   "pressure_pa": 80.0,
+   "method": "chart_read"
+  },
+  {
+   "source": "advantage_air_sunline",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 231.2,
+   "noise": "NR25",
+   "neck_velocity_ms": 4.71,
+   "pressure_pa": 52.5,
+   "method": "chart_read"
+  },
+  {
+   "source": "advantage_air_sunline",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 275.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 5.6,
+   "pressure_pa": 70.0,
+   "method": "chart_read"
+  },
+  {
+   "source": "advantage_air_sunline",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 300.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 4.24,
+   "pressure_pa": 55.0,
+   "method": "chart_read"
+  },
+  {
+   "source": "advantage_air_sunline",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 350.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 4.95,
+   "pressure_pa": 67.5,
+   "method": "chart_read"
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    152
+   ],
+   "ls": 78.6,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.23,
+   "pressure_pa": 22.8,
+   "method": "interpolated",
+   "nominal_inch": 6
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    152
+   ],
+   "ls": 92.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.95,
+   "pressure_pa": 31.3,
+   "method": "interpolated",
+   "nominal_inch": 6
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    203
+   ],
+   "ls": 125.5,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.86,
+   "pressure_pa": 19.0,
+   "method": "interpolated",
+   "nominal_inch": 8
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    203
+   ],
+   "ls": 148.6,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.57,
+   "pressure_pa": 26.6,
+   "method": "interpolated",
+   "nominal_inch": 8
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    254
+   ],
+   "ls": 194.9,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.86,
+   "pressure_pa": 19.0,
+   "method": "interpolated",
+   "nominal_inch": 10
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    254
+   ],
+   "ls": 231.2,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.57,
+   "pressure_pa": 26.6,
+   "method": "interpolated",
+   "nominal_inch": 10
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    305
+   ],
+   "ls": 278.4,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.81,
+   "pressure_pa": 18.6,
+   "method": "interpolated",
+   "nominal_inch": 12
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    305
+   ],
+   "ls": 323.8,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.45,
+   "pressure_pa": 25.2,
+   "method": "interpolated",
+   "nominal_inch": 12
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    356
+   ],
+   "ls": 364.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.68,
+   "pressure_pa": 17.4,
+   "method": "interpolated",
+   "nominal_inch": 14
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    356
+   ],
+   "ls": 425.9,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.32,
+   "pressure_pa": 23.8,
+   "method": "interpolated",
+   "nominal_inch": 14
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    406
+   ],
+   "ls": 462.5,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.56,
+   "pressure_pa": 16.2,
+   "method": "interpolated",
+   "nominal_inch": 16
+  },
+  {
+   "source": "price_rcd",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    406
+   ],
+   "ls": 550.5,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.23,
+   "pressure_pa": 22.8,
+   "method": "interpolated",
+   "nominal_inch": 16
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    152
+   ],
+   "ls": 73.1,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.94,
+   "pressure_pa": 44.3,
+   "method": "interpolated",
+   "nominal_inch": 6
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    152
+   ],
+   "ls": 88.1,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.74,
+   "pressure_pa": 64.2,
+   "method": "interpolated",
+   "nominal_inch": 6
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    203
+   ],
+   "ls": 119.7,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.68,
+   "pressure_pa": 38.8,
+   "method": "interpolated",
+   "nominal_inch": 8
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    203
+   ],
+   "ls": 143.1,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.4,
+   "pressure_pa": 55.4,
+   "method": "interpolated",
+   "nominal_inch": 8
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    254
+   ],
+   "ls": 180.3,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.56,
+   "pressure_pa": 36.1,
+   "method": "interpolated",
+   "nominal_inch": 10
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    254
+   ],
+   "ls": 214.4,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.23,
+   "pressure_pa": 51.2,
+   "method": "interpolated",
+   "nominal_inch": 10
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    305
+   ],
+   "ls": 252.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.45,
+   "pressure_pa": 34.2,
+   "method": "interpolated",
+   "nominal_inch": 12
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    305
+   ],
+   "ls": 297.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.06,
+   "pressure_pa": 47.1,
+   "method": "interpolated",
+   "nominal_inch": 12
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    356
+   ],
+   "ls": 330.8,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.35,
+   "pressure_pa": 32.2,
+   "method": "interpolated",
+   "nominal_inch": 14
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    356
+   ],
+   "ls": 388.7,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.94,
+   "pressure_pa": 44.3,
+   "method": "interpolated",
+   "nominal_inch": 14
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    406
+   ],
+   "ls": 422.8,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.25,
+   "pressure_pa": 30.3,
+   "method": "interpolated",
+   "nominal_inch": 16
+  },
+  {
+   "source": "titus_tmr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    406
+   ],
+   "ls": 506.5,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.89,
+   "pressure_pa": 43.4,
+   "method": "interpolated",
+   "nominal_inch": 16
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    152
+   ],
+   "ls": 71.8,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.93,
+   "pressure_pa": 44.4,
+   "method": "interpolated",
+   "nominal_inch": 6
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    152
+   ],
+   "ls": 86.7,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.74,
+   "pressure_pa": 64.6,
+   "method": "interpolated",
+   "nominal_inch": 6
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    203
+   ],
+   "ls": 121.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.72,
+   "pressure_pa": 40.1,
+   "method": "interpolated",
+   "nominal_inch": 8
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    203
+   ],
+   "ls": 143.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.4,
+   "pressure_pa": 55.8,
+   "method": "interpolated",
+   "nominal_inch": 8
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    254
+   ],
+   "ls": 182.9,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.61,
+   "pressure_pa": 37.8,
+   "method": "interpolated",
+   "nominal_inch": 10
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    254
+   ],
+   "ls": 214.5,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.23,
+   "pressure_pa": 51.4,
+   "method": "interpolated",
+   "nominal_inch": 10
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    305
+   ],
+   "ls": 257.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.52,
+   "pressure_pa": 36.8,
+   "method": "interpolated",
+   "nominal_inch": 12
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    305
+   ],
+   "ls": 297.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.06,
+   "pressure_pa": 47.0,
+   "method": "interpolated",
+   "nominal_inch": 12
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    356
+   ],
+   "ls": 336.7,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.39,
+   "pressure_pa": 33.3,
+   "method": "interpolated",
+   "nominal_inch": 14
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    356
+   ],
+   "ls": 392.8,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.95,
+   "pressure_pa": 44.7,
+   "method": "interpolated",
+   "nominal_inch": 14
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    406
+   ],
+   "ls": 428.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.3,
+   "pressure_pa": 31.5,
+   "method": "interpolated",
+   "nominal_inch": 16
+  },
+  {
+   "source": "krueger_rm1",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    406
+   ],
+   "ls": 510.5,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.93,
+   "pressure_pa": 44.4,
+   "method": "interpolated",
+   "nominal_inch": 16
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    137
+   ],
+   "ls": 41.9,
+   "noise": "LWA35dBA(~NR25)",
+   "neck_velocity_ms": 2.84,
+   "pressure_pa": 22.4,
+   "method": "interpolated"
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    137
+   ],
+   "ls": 34.7,
+   "noise": "LWA30dBA(~NR20)",
+   "neck_velocity_ms": 2.35,
+   "pressure_pa": 16.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    193
+   ],
+   "ls": 109.4,
+   "noise": "LWA35dBA(~NR25)",
+   "neck_velocity_ms": 3.74,
+   "pressure_pa": 28.5,
+   "method": "interpolated"
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    193
+   ],
+   "ls": 89.4,
+   "noise": "LWA30dBA(~NR20)",
+   "neck_velocity_ms": 3.06,
+   "pressure_pa": 19.3,
+   "method": "interpolated"
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    249
+   ],
+   "ls": 159.5,
+   "noise": "LWA35dBA(~NR25)",
+   "neck_velocity_ms": 3.28,
+   "pressure_pa": 25.5,
+   "method": "interpolated"
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    249
+   ],
+   "ls": 132.0,
+   "noise": "LWA30dBA(~NR20)",
+   "neck_velocity_ms": 2.71,
+   "pressure_pa": 18.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    305
+   ],
+   "ls": 213.3,
+   "noise": "LWA35dBA(~NR25)",
+   "neck_velocity_ms": 2.92,
+   "pressure_pa": 23.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    305
+   ],
+   "ls": 168.9,
+   "noise": "LWA30dBA(~NR20)",
+   "neck_velocity_ms": 2.31,
+   "pressure_pa": 14.7,
+   "method": "interpolated"
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    361
+   ],
+   "ls": 253.8,
+   "noise": "LWA35dBA(~NR25)",
+   "neck_velocity_ms": 2.48,
+   "pressure_pa": 17.9,
+   "method": "interpolated"
+  },
+  {
+   "source": "trox_adlr",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    361
+   ],
+   "ls": 209.0,
+   "noise": "LWA30dBA(~NR20)",
+   "neck_velocity_ms": 2.04,
+   "pressure_pa": 12.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 31.4,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 55.9,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 87.3,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 125.7,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    350
+   ],
+   "ls": 171.1,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    400
+   ],
+   "ls": 223.4,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "150x150",
+   "size_mm": [
+    150,
+    150
+   ],
+   "ls": 40.0,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 90.0,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 160.0,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 250.0,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 360.0,
+   "noise": "RC25",
+   "neck_velocity_ms": 1.78,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 38.2,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 67.8,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 106.0,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 152.6,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    350
+   ],
+   "ls": 207.7,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    400
+   ],
+   "ls": 271.3,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "150x150",
+   "size_mm": [
+    150,
+    150
+   ],
+   "ls": 48.6,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 109.3,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 194.3,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 303.6,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "ashrae_a23_ch49_t9",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 437.2,
+   "noise": "RC30",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": null,
+   "method": "derived_rule"
+  },
+  {
+   "source": "actronair_builders",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 44,
+   "noise": "max_recommended",
+   "neck_velocity_ms": 2.49,
+   "pressure_pa": null,
+   "method": "tabulated",
+   "applies_to": "flex branch feeding one outlet"
+  },
+  {
+   "source": "actronair_builders",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 92,
+   "noise": "max_recommended",
+   "neck_velocity_ms": 2.93,
+   "pressure_pa": null,
+   "method": "tabulated",
+   "applies_to": "flex branch feeding one outlet"
+  },
+  {
+   "source": "actronair_builders",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 170,
+   "noise": "max_recommended",
+   "neck_velocity_ms": 3.46,
+   "pressure_pa": null,
+   "method": "tabulated",
+   "applies_to": "flex branch feeding one outlet"
+  },
+  {
+   "source": "actronair_builders",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 275,
+   "noise": "max_recommended",
+   "neck_velocity_ms": 3.89,
+   "pressure_pa": null,
+   "method": "tabulated",
+   "applies_to": "flex branch feeding one outlet"
+  },
+  {
+   "source": "actronair_builders",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    350
+   ],
+   "ls": 385,
+   "noise": "max_recommended",
+   "neck_velocity_ms": 4.0,
+   "pressure_pa": null,
+   "method": "tabulated",
+   "applies_to": "flex branch feeding one outlet"
+  },
+  {
+   "source": "actronair_builders",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    400
+   ],
+   "ls": 503,
+   "noise": "max_recommended",
+   "neck_velocity_ms": 4.0,
+   "pressure_pa": null,
+   "method": "tabulated",
+   "applies_to": "flex branch feeding one outlet"
+  },
+  {
+   "source": "actronair_vaf_3ms",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 53.0,
+   "noise": "max_final_duct_3ms",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "final duct feeding one outlet"
+  },
+  {
+   "source": "actronair_vaf_3ms",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 94.2,
+   "noise": "max_final_duct_3ms",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "final duct feeding one outlet"
+  },
+  {
+   "source": "actronair_vaf_3ms",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 147.3,
+   "noise": "max_final_duct_3ms",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "final duct feeding one outlet"
+  },
+  {
+   "source": "actronair_vaf_3ms",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 212.1,
+   "noise": "max_final_duct_3ms",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "final duct feeding one outlet"
+  },
+  {
+   "source": "actronair_vaf_3ms",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    350
+   ],
+   "ls": 288.6,
+   "noise": "max_final_duct_3ms",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "final duct feeding one outlet"
+  },
+  {
+   "source": "actronair_vaf_3ms",
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "size_mm": [
+    400
+   ],
+   "ls": 377.0,
+   "noise": "max_final_duct_3ms",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "final duct feeding one outlet"
+  },
+  {
+   "source": "acca_manual_d_t31",
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "size_mm": [
+    150
+   ],
+   "ls": 53.9,
+   "noise": "branch_600fpm",
+   "neck_velocity_ms": 3.05,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "round branch duct feeding the outlet",
+   "primary": false
+  },
+  {
+   "source": "acca_manual_d_t31",
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "size_mm": [
+    200
+   ],
+   "ls": 95.8,
+   "noise": "branch_600fpm",
+   "neck_velocity_ms": 3.05,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "round branch duct feeding the outlet",
+   "primary": false
+  },
+  {
+   "source": "acca_manual_d_t31",
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "size_mm": [
+    250
+   ],
+   "ls": 149.6,
+   "noise": "branch_600fpm",
+   "neck_velocity_ms": 3.05,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "round branch duct feeding the outlet",
+   "primary": false
+  },
+  {
+   "source": "acca_manual_d_t31",
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "size_mm": [
+    300
+   ],
+   "ls": 215.5,
+   "noise": "branch_600fpm",
+   "neck_velocity_ms": 3.05,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "round branch duct feeding the outlet",
+   "primary": false
+  },
+  {
+   "source": "acca_manual_d_t31",
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "size_mm": [
+    350
+   ],
+   "ls": 293.3,
+   "noise": "branch_600fpm",
+   "neck_velocity_ms": 3.05,
+   "pressure_pa": null,
+   "method": "derived_rule",
+   "applies_to": "round branch duct feeding the outlet",
+   "primary": false
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "150x150",
+   "size_mm": [
+    150,
+    150
+   ],
+   "ls": 85.8,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.8,
+   "pressure_pa": 37.5,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "150x150",
+   "size_mm": [
+    150,
+    150
+   ],
+   "ls": 100.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.46,
+   "pressure_pa": 51.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 166.5,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.28,
+   "pressure_pa": 27.5,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 199.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.93,
+   "pressure_pa": 40.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 267.3,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.97,
+   "pressure_pa": 22.7,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 318.2,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.54,
+   "pressure_pa": 32.5,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 392.3,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.8,
+   "pressure_pa": 20.3,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 459.5,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.28,
+   "pressure_pa": 27.5,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 531.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.62,
+   "pressure_pa": 18.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_cmp",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 619.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.06,
+   "pressure_pa": 23.8,
+   "method": "interpolated"
+  },
+  {
+   "source": "polyaire_au_lfd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 125.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.5,
+   "pressure_pa": 25.0,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "polyaire_au_lfd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 150,
+   "noise": "NR30",
+   "neck_velocity_ms": 3,
+   "pressure_pa": 35,
+   "method": "interpolated",
+   "bound": "lower",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "polyaire_au_lfd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 233.3,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.6,
+   "pressure_pa": 27.0,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "polyaire_au_lfd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 290.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.2,
+   "pressure_pa": 39.8,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "polyaire_au_lfd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 325.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.3,
+   "pressure_pa": 22.0,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "polyaire_au_lfd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 383.3,
+   "noise": "NR30",
+   "neck_velocity_ms": 2.77,
+   "pressure_pa": 30.0,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "polyaire_au_lfd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 350.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 1.7,
+   "pressure_pa": 12.0,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "polyaire_au_lfd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 466.7,
+   "noise": "NR30",
+   "neck_velocity_ms": 2.3,
+   "pressure_pa": 21.7,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "150x150",
+   "size_mm": [
+    150,
+    150
+   ],
+   "ls": 71.7,
+   "noise": "NR25",
+   "neck_velocity_ms": 3.21,
+   "pressure_pa": 37.7,
+   "method": "interpolated"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "150x150",
+   "size_mm": [
+    150,
+    150
+   ],
+   "ls": 78,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.5,
+   "pressure_pa": 44,
+   "method": "interpolated",
+   "bound": "lower"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 142.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.8,
+   "pressure_pa": 29.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 164.5,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.25,
+   "pressure_pa": 38.5,
+   "method": "interpolated"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 225.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.5,
+   "pressure_pa": 23.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 270.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": 33.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 302.5,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.25,
+   "pressure_pa": 19.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 383.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 2.75,
+   "pressure_pa": 28.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 425.2,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.1,
+   "pressure_pa": 16.6,
+   "method": "interpolated"
+  },
+  {
+   "source": "airfoil_pcd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 526.2,
+   "noise": "NR30",
+   "neck_velocity_ms": 2.6,
+   "pressure_pa": 25.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_bevelled",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 125.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.5,
+   "pressure_pa": 18.0,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "daikin_au_bevelled",
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "size_mm": [
+    225,
+    225
+   ],
+   "ls": 162.5,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.25,
+   "pressure_pa": 28.5,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "daikin_au_bevelled",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 233.3,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.6,
+   "pressure_pa": 18.7,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "daikin_au_bevelled",
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 275.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.05,
+   "pressure_pa": 24.5,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "daikin_au_bevelled",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 350.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.5,
+   "pressure_pa": 18.0,
+   "method": "interpolated",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "daikin_au_bevelled",
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "size_mm": [
+    375,
+    375
+   ],
+   "ls": 350,
+   "noise": "NC30",
+   "neck_velocity_ms": 2.5,
+   "pressure_pa": 18,
+   "method": "interpolated",
+   "bound": "lower",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "daikin_au_bevelled",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 350,
+   "noise": "NC25",
+   "neck_velocity_ms": 1.7,
+   "pressure_pa": 8,
+   "method": "interpolated",
+   "bound": "lower",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "daikin_au_bevelled",
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 350,
+   "noise": "NC30",
+   "neck_velocity_ms": 1.7,
+   "pressure_pa": 8,
+   "method": "interpolated",
+   "bound": "lower",
+   "pressure_kind": "static"
+  },
+  {
+   "source": "advantage_air_silhouette",
+   "outlet": "square_ceiling_diffuser",
+   "size": "280x280",
+   "size_mm": [
+    280,
+    280
+   ],
+   "ls": 225.5,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.89,
+   "pressure_pa": 27.9,
+   "method": "chart_read",
+   "velocity_basis": "core area"
+  },
+  {
+   "source": "advantage_air_silhouette",
+   "outlet": "square_ceiling_diffuser",
+   "size": "280x280",
+   "size_mm": [
+    280,
+    280
+   ],
+   "ls": 254,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.26,
+   "pressure_pa": 35.0,
+   "method": "chart_read",
+   "velocity_basis": "core area"
+  },
+  {
+   "source": "advantage_air_silhouette",
+   "outlet": "square_ceiling_diffuser",
+   "size": "360x360",
+   "size_mm": [
+    360,
+    360
+   ],
+   "ls": 325.5,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.5,
+   "pressure_pa": 22.2,
+   "method": "chart_read",
+   "velocity_basis": "core area"
+  },
+  {
+   "source": "advantage_air_silhouette",
+   "outlet": "square_ceiling_diffuser",
+   "size": "360x360",
+   "size_mm": [
+    360,
+    360
+   ],
+   "ls": 365,
+   "noise": "NC30",
+   "neck_velocity_ms": 2.81,
+   "pressure_pa": 27.7,
+   "method": "chart_read",
+   "velocity_basis": "core area"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 150",
+   "size_mm": [
+    152
+   ],
+   "ls": 101.9,
+   "noise": "NC25",
+   "neck_velocity_ms": 5.59,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 6,
+   "neck": "round"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 150",
+   "size_mm": [
+    152
+   ],
+   "ls": 120.6,
+   "noise": "NC30",
+   "neck_velocity_ms": 6.6,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 6,
+   "neck": "round"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 200",
+   "size_mm": [
+    203
+   ],
+   "ls": 160.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.93,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 8,
+   "neck": "round"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 200",
+   "size_mm": [
+    203
+   ],
+   "ls": 191.1,
+   "noise": "NC30",
+   "neck_velocity_ms": 5.89,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 8,
+   "neck": "round"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 250",
+   "size_mm": [
+    254
+   ],
+   "ls": 227.8,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.5,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 10,
+   "neck": "round"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 250",
+   "size_mm": [
+    254
+   ],
+   "ls": 267.5,
+   "noise": "NC30",
+   "neck_velocity_ms": 5.28,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 10,
+   "neck": "round"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 300",
+   "size_mm": [
+    305
+   ],
+   "ls": 306.9,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.21,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 12,
+   "neck": "round"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 300",
+   "size_mm": [
+    305
+   ],
+   "ls": 359.9,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.93,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 12,
+   "neck": "round"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 350",
+   "size_mm": [
+    356
+   ],
+   "ls": 390.9,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.94,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 14,
+   "neck": "round"
+  },
+  {
+   "source": "titus_tms",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 350",
+   "size_mm": [
+    356
+   ],
+   "ls": 461.2,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.64,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 14,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 150",
+   "size_mm": [
+    152
+   ],
+   "ls": 101.7,
+   "noise": "NC25",
+   "neck_velocity_ms": 5.59,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 6,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 150",
+   "size_mm": [
+    152
+   ],
+   "ls": 118.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 6.5,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 6,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 200",
+   "size_mm": [
+    203
+   ],
+   "ls": 160.6,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.95,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 8,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 200",
+   "size_mm": [
+    203
+   ],
+   "ls": 191.1,
+   "noise": "NC30",
+   "neck_velocity_ms": 5.89,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 8,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 250",
+   "size_mm": [
+    254
+   ],
+   "ls": 231.7,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.57,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 10,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 250",
+   "size_mm": [
+    254
+   ],
+   "ls": 274.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 5.42,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 10,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 300",
+   "size_mm": [
+    305
+   ],
+   "ls": 308.8,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.23,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 12,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 300",
+   "size_mm": [
+    305
+   ],
+   "ls": 370.4,
+   "noise": "NC30",
+   "neck_velocity_ms": 5.08,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 12,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 350",
+   "size_mm": [
+    356
+   ],
+   "ls": 403.5,
+   "noise": "NC25",
+   "neck_velocity_ms": 4.06,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 14,
+   "neck": "round"
+  },
+  {
+   "source": "price_scd",
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 350",
+   "size_mm": [
+    356
+   ],
+   "ls": 470.8,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.74,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "nominal_inch": 14,
+   "neck": "round"
+  },
+  {
+   "source": "qae_fg",
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": 87.4,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.91,
+   "pressure_pa": 20.4,
+   "method": "interpolated"
+  },
+  {
+   "source": "qae_fg",
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": 101.9,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.4,
+   "pressure_pa": 27.1,
+   "method": "interpolated"
+  },
+  {
+   "source": "qae_fg",
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 142.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.16,
+   "pressure_pa": 17.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "qae_fg",
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 162.7,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.62,
+   "pressure_pa": 22.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "qae_fg",
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 171.7,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.27,
+   "pressure_pa": 19.1,
+   "method": "interpolated"
+  },
+  {
+   "source": "qae_fg",
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 195.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.72,
+   "pressure_pa": 24.9,
+   "method": "interpolated"
+  },
+  {
+   "source": "qae_fg",
+   "outlet": "floor_grille",
+   "size": "400x150",
+   "size_mm": [
+    400,
+    150
+   ],
+   "ls": 201.9,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.36,
+   "pressure_pa": 11.4,
+   "method": "interpolated"
+  },
+  {
+   "source": "qae_fg",
+   "outlet": "floor_grille",
+   "size": "400x150",
+   "size_mm": [
+    400,
+    150
+   ],
+   "ls": 229.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.82,
+   "pressure_pa": 15.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "250x100",
+   "size_mm": [
+    250,
+    100
+   ],
+   "ls": 64.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.56,
+   "pressure_pa": 22.8,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -9
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "250x100",
+   "size_mm": [
+    250,
+    100
+   ],
+   "ls": 75.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": 31.5,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -9
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": 76.8,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.56,
+   "pressure_pa": 22.8,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -9
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": 90.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": 31.5,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -9
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "400x100",
+   "size_mm": [
+    400,
+    100
+   ],
+   "ls": 100.3,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.51,
+   "pressure_pa": 21.9,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -8.3
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "400x100",
+   "size_mm": [
+    400,
+    100
+   ],
+   "ls": 117.3,
+   "noise": "NR30",
+   "neck_velocity_ms": 2.93,
+   "pressure_pa": 30.0,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -8.3
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "250x150",
+   "size_mm": [
+    250,
+    150
+   ],
+   "ls": 106.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.83,
+   "pressure_pa": 22.8,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -9
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "250x150",
+   "size_mm": [
+    250,
+    150
+   ],
+   "ls": 122.5,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.27,
+   "pressure_pa": 31.5,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -9
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 127.2,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.83,
+   "pressure_pa": 22.8,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -9
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 147.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.27,
+   "pressure_pa": 31.5,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -9
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 147.0,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.8,
+   "pressure_pa": 22.3,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -8.7
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 169.7,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.23,
+   "pressure_pa": 30.7,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -8.7
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "400x150",
+   "size_mm": [
+    400,
+    150
+   ],
+   "ls": 166.4,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.77,
+   "pressure_pa": 21.9,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -8.3
+  },
+  {
+   "source": "airfoil_bgf",
+   "outlet": "floor_grille",
+   "size": "400x150",
+   "size_mm": [
+    400,
+    150
+   ],
+   "ls": 192.0,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.2,
+   "pressure_pa": 30.0,
+   "method": "interpolated_length_corrected",
+   "length_correction_nr": -8.3
+  },
+  {
+   "source": "bradflo_asgf",
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": 90.1,
+   "noise": "NR25",
+   "neck_velocity_ms": 3.0,
+   "pressure_pa": null,
+   "method": "chart_read_length_corrected",
+   "length_correction_nr": -5.2
+  },
+  {
+   "source": "bradflo_asgf",
+   "outlet": "floor_grille",
+   "size": "400x100",
+   "size_mm": [
+    400,
+    100
+   ],
+   "ls": 113.3,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.83,
+   "pressure_pa": null,
+   "method": "chart_read_length_corrected",
+   "length_correction_nr": -4.0
+  },
+  {
+   "source": "bradflo_asgf",
+   "outlet": "floor_grille",
+   "size": "400x100",
+   "size_mm": [
+    400,
+    100
+   ],
+   "ls": 143.3,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.58,
+   "pressure_pa": null,
+   "method": "chart_read_length_corrected",
+   "length_correction_nr": -4.0
+  },
+  {
+   "source": "bradflo_asgf",
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 130.9,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.91,
+   "pressure_pa": null,
+   "method": "chart_read_length_corrected",
+   "length_correction_nr": -5.2
+  },
+  {
+   "source": "bradflo_asgf",
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 149.5,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.85,
+   "pressure_pa": null,
+   "method": "chart_read_length_corrected",
+   "length_correction_nr": -4.6
+  },
+  {
+   "source": "bradflo_asgf",
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 169.4,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.23,
+   "pressure_pa": null,
+   "method": "chart_read_length_corrected",
+   "length_correction_nr": -4.6
+  },
+  {
+   "source": "bradflo_asgf",
+   "outlet": "floor_grille",
+   "size": "400x150",
+   "size_mm": [
+    400,
+    150
+   ],
+   "ls": 167.4,
+   "noise": "NR25",
+   "neck_velocity_ms": 2.79,
+   "pressure_pa": null,
+   "method": "chart_read_length_corrected",
+   "length_correction_nr": -4.0
+  },
+  {
+   "source": "bradflo_asgf",
+   "outlet": "floor_grille",
+   "size": "400x150",
+   "size_mm": [
+    400,
+    150
+   ],
+   "ls": 190.9,
+   "noise": "NR30",
+   "neck_velocity_ms": 3.18,
+   "pressure_pa": null,
+   "method": "chart_read_length_corrected",
+   "length_correction_nr": -4.0
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "300x50",
+   "size_mm": [
+    305,
+    51
+   ],
+   "ls": 23.6,
+   "noise": "HC_residence_500fpm(quiet end)",
+   "neck_velocity_ms": 1.52,
+   "pressure_pa": 4.0,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "2x12",
+   "face_velocity_ms": 2.54
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "300x50",
+   "size_mm": [
+    305,
+    51
+   ],
+   "ls": 35.4,
+   "noise": "HC_residence_750fpm(upper end)",
+   "neck_velocity_ms": 2.28,
+   "pressure_pa": 8.8,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "2x12",
+   "face_velocity_ms": 3.81
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "250x100",
+   "size_mm": [
+    254,
+    102
+   ],
+   "ls": 40.1,
+   "noise": "HC_residence_500fpm(quiet end)",
+   "neck_velocity_ms": 1.55,
+   "pressure_pa": 4.0,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "4x10",
+   "face_velocity_ms": 2.54
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "250x100",
+   "size_mm": [
+    254,
+    102
+   ],
+   "ls": 60.2,
+   "noise": "HC_residence_750fpm(upper end)",
+   "neck_velocity_ms": 2.32,
+   "pressure_pa": 8.8,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "4x10",
+   "face_velocity_ms": 3.81
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "size_mm": [
+    305,
+    102
+   ],
+   "ls": 47.2,
+   "noise": "HC_residence_500fpm(quiet end)",
+   "neck_velocity_ms": 1.52,
+   "pressure_pa": 4.0,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "4x12",
+   "face_velocity_ms": 2.54
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "size_mm": [
+    305,
+    102
+   ],
+   "ls": 70.8,
+   "noise": "HC_residence_750fpm(upper end)",
+   "neck_velocity_ms": 2.28,
+   "pressure_pa": 8.8,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "4x12",
+   "face_velocity_ms": 3.81
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "350x100",
+   "size_mm": [
+    356,
+    102
+   ],
+   "ls": 54.3,
+   "noise": "HC_residence_500fpm(quiet end)",
+   "neck_velocity_ms": 1.49,
+   "pressure_pa": 4.0,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "4x14",
+   "face_velocity_ms": 2.54
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "350x100",
+   "size_mm": [
+    356,
+    102
+   ],
+   "ls": 81.4,
+   "noise": "HC_residence_750fpm(upper end)",
+   "neck_velocity_ms": 2.24,
+   "pressure_pa": 8.8,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "4x14",
+   "face_velocity_ms": 3.81
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "250x150",
+   "size_mm": [
+    254,
+    152
+   ],
+   "ls": 56.6,
+   "noise": "HC_residence_500fpm(quiet end)",
+   "neck_velocity_ms": 1.47,
+   "pressure_pa": 4.0,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "6x10",
+   "face_velocity_ms": 2.54
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "250x150",
+   "size_mm": [
+    254,
+    152
+   ],
+   "ls": 84.9,
+   "noise": "HC_residence_750fpm(upper end)",
+   "neck_velocity_ms": 2.2,
+   "pressure_pa": 8.8,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "6x10",
+   "face_velocity_ms": 3.81
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "size_mm": [
+    305,
+    152
+   ],
+   "ls": 66.1,
+   "noise": "HC_residence_500fpm(quiet end)",
+   "neck_velocity_ms": 1.43,
+   "pressure_pa": 4.0,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "6x12",
+   "face_velocity_ms": 2.54
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "size_mm": [
+    305,
+    152
+   ],
+   "ls": 101.5,
+   "noise": "HC_residence_750fpm(upper end)",
+   "neck_velocity_ms": 2.19,
+   "pressure_pa": 8.8,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "6x12",
+   "face_velocity_ms": 3.81
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "size_mm": [
+    356,
+    152
+   ],
+   "ls": 77.9,
+   "noise": "HC_residence_500fpm(quiet end)",
+   "neck_velocity_ms": 1.44,
+   "pressure_pa": 4.0,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "6x14",
+   "face_velocity_ms": 2.54
+  },
+  {
+   "source": "hart_cooley_421",
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "size_mm": [
+    356,
+    152
+   ],
+   "ls": 116.8,
+   "noise": "HC_residence_750fpm(upper end)",
+   "neck_velocity_ms": 2.16,
+   "pressure_pa": 8.8,
+   "method": "tabulated_at_guideline_velocity",
+   "nominal_inch": "6x14",
+   "face_velocity_ms": 3.81
+  },
+  {
+   "source": "polyaire_au_catalogue",
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": null,
+   "noise": "implied_by_boot_spigot",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "qualitative",
+   "boot_spigot_mm": 150
+  },
+  {
+   "source": "polyaire_au_catalogue",
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": null,
+   "noise": "implied_by_boot_spigot",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "qualitative",
+   "boot_spigot_mm": 200
+  },
+  {
+   "source": "polyaire_au_catalogue",
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": null,
+   "noise": "implied_by_boot_spigot",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "qualitative",
+   "boot_spigot_mm": 250
+  },
+  {
+   "source": "polyaire_au_catalogue",
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": null,
+   "noise": "implied_by_boot_spigot",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "qualitative",
+   "boot_spigot_mm": 200
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": 80.3,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.68,
+   "pressure_pa": 15.7,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": 93.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.11,
+   "pressure_pa": 21.4,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "400x100",
+   "size_mm": [
+    400,
+    100
+   ],
+   "ls": 117.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 2.92,
+   "pressure_pa": 18.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "400x100",
+   "size_mm": [
+    400,
+    100
+   ],
+   "ls": 133.4,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.34,
+   "pressure_pa": 23.7,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 146.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.24,
+   "pressure_pa": 19.1,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 166.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.69,
+   "pressure_pa": 24.9,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 176.7,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.37,
+   "pressure_pa": 20.3,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 201.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.83,
+   "pressure_pa": 26.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "400x150",
+   "size_mm": [
+    400,
+    150
+   ],
+   "ls": 209.3,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.49,
+   "pressure_pa": 21.4,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "400x150",
+   "size_mm": [
+    400,
+    150
+   ],
+   "ls": 237.5,
+   "noise": "NC30",
+   "neck_velocity_ms": 3.96,
+   "pressure_pa": 27.5,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "450x150",
+   "size_mm": [
+    450,
+    150
+   ],
+   "ls": 243.1,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.6,
+   "pressure_pa": 22.6,
+   "method": "interpolated"
+  },
+  {
+   "source": "daikin_au_rcddr",
+   "outlet": "wall_register",
+   "size": "450x150",
+   "size_mm": [
+    450,
+    150
+   ],
+   "ls": 276.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.09,
+   "pressure_pa": 29.0,
+   "method": "interpolated"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": 119.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.97,
+   "pressure_pa": 25.3,
+   "method": "interpolated",
+   "listed_size": "305x100",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "300x100",
+   "size_mm": [
+    300,
+    100
+   ],
+   "ls": 138.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.61,
+   "pressure_pa": 35.0,
+   "method": "interpolated",
+   "listed_size": "305x100",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "400x100",
+   "size_mm": [
+    400,
+    100
+   ],
+   "ls": 149.7,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.74,
+   "pressure_pa": 23.7,
+   "method": "interpolated",
+   "listed_size": "380x100",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "400x100",
+   "size_mm": [
+    400,
+    100
+   ],
+   "ls": 177.5,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.44,
+   "pressure_pa": 33.0,
+   "method": "interpolated",
+   "listed_size": "380x100",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 165.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.67,
+   "pressure_pa": 22.0,
+   "method": "interpolated",
+   "listed_size": "285x150 (=450x100)",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 196.7,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.37,
+   "pressure_pa": 31.0,
+   "method": "interpolated",
+   "listed_size": "285x150 (=450x100)",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 196.0,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.73,
+   "pressure_pa": 22.0,
+   "method": "interpolated",
+   "listed_size": "340x150 (=535x100)",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "350x150",
+   "size_mm": [
+    350,
+    150
+   ],
+   "ls": 231.3,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.41,
+   "pressure_pa": 31.0,
+   "method": "interpolated",
+   "listed_size": "340x150 (=535x100)",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "450x150",
+   "size_mm": [
+    450,
+    150
+   ],
+   "ls": 236.3,
+   "noise": "NC25",
+   "neck_velocity_ms": 3.5,
+   "pressure_pa": 18.7,
+   "method": "interpolated",
+   "listed_size": "440x150 (=535x125)",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "holyoake_dd",
+   "outlet": "wall_register",
+   "size": "450x150",
+   "size_mm": [
+    450,
+    150
+   ],
+   "ls": 283.0,
+   "noise": "NC30",
+   "neck_velocity_ms": 4.19,
+   "pressure_pa": 27.0,
+   "method": "interpolated",
+   "listed_size": "440x150 (=535x125)",
+   "core_velocity_ms_range": "see source"
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "1-slot one-way",
+   "size_mm": null,
+   "ls": 47.0,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "blow": "one-way",
+   "ls_per_m_total": 47
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "1-slot one-way",
+   "size_mm": null,
+   "ls": 62.0,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "blow": "one-way",
+   "ls_per_m_total": 62
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "2-slot one-way",
+   "size_mm": null,
+   "ls": 46.5,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "blow": "one-way",
+   "ls_per_m_total": 93
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "2-slot one-way",
+   "size_mm": null,
+   "ls": 54.0,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "blow": "one-way",
+   "ls_per_m_total": 108
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "3-slot one-way",
+   "size_mm": null,
+   "ls": 41.3,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 3,
+   "blow": "one-way",
+   "ls_per_m_total": 124
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "3-slot one-way",
+   "size_mm": null,
+   "ls": 46.3,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 3,
+   "blow": "one-way",
+   "ls_per_m_total": 139
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "2-slot two-way",
+   "size_mm": null,
+   "ls": 31.0,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "blow": "two-way",
+   "ls_per_m_total": 62
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "2-slot two-way",
+   "size_mm": null,
+   "ls": 39.0,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "blow": "two-way",
+   "ls_per_m_total": 78
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "4-slot two-way",
+   "size_mm": null,
+   "ls": 38.8,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 4,
+   "blow": "two-way",
+   "ls_per_m_total": 155
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "4-slot two-way",
+   "size_mm": null,
+   "ls": 42.5,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 4,
+   "blow": "two-way",
+   "ls_per_m_total": 170
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "6-slot two-way",
+   "size_mm": null,
+   "ls": 28.3,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 6,
+   "blow": "two-way",
+   "ls_per_m_total": 170
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "6-slot two-way",
+   "size_mm": null,
+   "ls": 36.2,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 6,
+   "blow": "two-way",
+   "ls_per_m_total": 217
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "8-slot two-way",
+   "size_mm": null,
+   "ls": 23.2,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 8,
+   "blow": "two-way",
+   "ls_per_m_total": 186
+  },
+  {
+   "source": "polyaire_au_lsd",
+   "outlet": "linear_slot",
+   "size": "8-slot two-way",
+   "size_mm": null,
+   "ls": 34.9,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "tabulated_step",
+   "units": "L/s per m per slot",
+   "slots": 8,
+   "blow": "two-way",
+   "ls_per_m_total": 279
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "1-slot 25 mm",
+   "size_mm": null,
+   "ls": 50.0,
+   "noise": "NR25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "slot_width_mm": 25,
+   "ls_per_m_total": 50.0
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "1-slot 25 mm",
+   "size_mm": null,
+   "ls": 60.7,
+   "noise": "NR30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "slot_width_mm": 25,
+   "ls_per_m_total": 60.7
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "2-slot 25 mm",
+   "size_mm": null,
+   "ls": 43.1,
+   "noise": "NR25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "slot_width_mm": 25,
+   "ls_per_m_total": 86.1
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "2-slot 25 mm",
+   "size_mm": null,
+   "ls": 50.0,
+   "noise": "NR30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "slot_width_mm": 25,
+   "ls_per_m_total": 100.0
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "3-slot 25 mm",
+   "size_mm": null,
+   "ls": 39.6,
+   "noise": "NR25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 3,
+   "slot_width_mm": 25,
+   "ls_per_m_total": 118.9
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "3-slot 25 mm",
+   "size_mm": null,
+   "ls": 46.1,
+   "noise": "NR30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 3,
+   "slot_width_mm": 25,
+   "ls_per_m_total": 138.3
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "4-slot 25 mm",
+   "size_mm": null,
+   "ls": 36.5,
+   "noise": "NR25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 4,
+   "slot_width_mm": 25,
+   "ls_per_m_total": 146.2
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "4-slot 25 mm",
+   "size_mm": null,
+   "ls": 43.1,
+   "noise": "NR30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 4,
+   "slot_width_mm": 25,
+   "ls_per_m_total": 172.2
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "1-slot 20 mm",
+   "size_mm": null,
+   "ls": 43.7,
+   "noise": "NR25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "slot_width_mm": 20,
+   "ls_per_m_total": 43.7
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "1-slot 20 mm",
+   "size_mm": null,
+   "ls": 51.0,
+   "noise": "NR30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "slot_width_mm": 20,
+   "ls_per_m_total": 51.0
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "2-slot 20 mm",
+   "size_mm": null,
+   "ls": 36.5,
+   "noise": "NR25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "slot_width_mm": 20,
+   "ls_per_m_total": 73.0
+  },
+  {
+   "source": "airfoil_lsd",
+   "outlet": "linear_slot",
+   "size": "2-slot 20 mm",
+   "size_mm": null,
+   "ls": 44.2,
+   "noise": "NR30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "slot_width_mm": 20,
+   "ls_per_m_total": 88.3
+  },
+  {
+   "source": "daikin_au_rcls",
+   "outlet": "linear_slot",
+   "size": "RCLS600 2-slot one-way",
+   "size_mm": [
+    600
+   ],
+   "ls": 45.8,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": 20.7,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "module_ls": 55.0
+  },
+  {
+   "source": "daikin_au_rcls",
+   "outlet": "linear_slot",
+   "size": "RCLS600 2-slot one-way",
+   "size_mm": [
+    600
+   ],
+   "ls": 64.8,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": 41.2,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "module_ls": 77.8
+  },
+  {
+   "source": "daikin_au_rcls",
+   "outlet": "linear_slot",
+   "size": "RCLS1200 2-slot one-way",
+   "size_mm": [
+    1200
+   ],
+   "ls": 33.9,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": 22.5,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "module_ls": 81.2
+  },
+  {
+   "source": "daikin_au_rcls",
+   "outlet": "linear_slot",
+   "size": "RCLS1200 2-slot one-way",
+   "size_mm": [
+    1200
+   ],
+   "ls": 45.8,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": 40.6,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "module_ls": 110.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "1-slot 12.7 mm",
+   "size_mm": null,
+   "ls": 40.0,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "slot_width_mm": 12.7,
+   "ls_per_m_total": 40.0,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "1-slot 12.7 mm",
+   "size_mm": null,
+   "ls": 45.0,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "bound": "lower",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "slot_width_mm": 12.7,
+   "ls_per_m_total": 45,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "2-slot 12.7 mm",
+   "size_mm": null,
+   "ls": 34.3,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "slot_width_mm": 12.7,
+   "ls_per_m_total": 68.6,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "2-slot 12.7 mm",
+   "size_mm": null,
+   "ls": 40.5,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "slot_width_mm": 12.7,
+   "ls_per_m_total": 81.0,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "3-slot 12.7 mm",
+   "size_mm": null,
+   "ls": 31.7,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 3,
+   "slot_width_mm": 12.7,
+   "ls_per_m_total": 95.0,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "3-slot 12.7 mm",
+   "size_mm": null,
+   "ls": 37.6,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 3,
+   "slot_width_mm": 12.7,
+   "ls_per_m_total": 112.9,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "4-slot 12.7 mm",
+   "size_mm": null,
+   "ls": 30.0,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 4,
+   "slot_width_mm": 12.7,
+   "ls_per_m_total": 120.0,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "4-slot 12.7 mm",
+   "size_mm": null,
+   "ls": 35.4,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 4,
+   "slot_width_mm": 12.7,
+   "ls_per_m_total": 141.4,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "1-slot 19 mm",
+   "size_mm": null,
+   "ls": 47.1,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "slot_width_mm": 19,
+   "ls_per_m_total": 47.1,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "1-slot 19 mm",
+   "size_mm": null,
+   "ls": 56.0,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 1,
+   "slot_width_mm": 19,
+   "ls_per_m_total": 56.0,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "2-slot 19 mm",
+   "size_mm": null,
+   "ls": 40.4,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "slot_width_mm": 19,
+   "ls_per_m_total": 80.7,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "2-slot 19 mm",
+   "size_mm": null,
+   "ls": 47.5,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 2,
+   "slot_width_mm": 19,
+   "ls_per_m_total": 95.0,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "3-slot 19 mm",
+   "size_mm": null,
+   "ls": 38.3,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 3,
+   "slot_width_mm": 19,
+   "ls_per_m_total": 115.0,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "3-slot 19 mm",
+   "size_mm": null,
+   "ls": 45.5,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 3,
+   "slot_width_mm": 19,
+   "ls_per_m_total": 136.4,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "4-slot 19 mm",
+   "size_mm": null,
+   "ls": 35.2,
+   "noise": "NC25",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 4,
+   "slot_width_mm": 19,
+   "ls_per_m_total": 140.6,
+   "active_length_basis_m": 3.0
+  },
+  {
+   "source": "price_sds",
+   "outlet": "linear_slot",
+   "size": "4-slot 19 mm",
+   "size_mm": null,
+   "ls": 41.2,
+   "noise": "NC30",
+   "neck_velocity_ms": null,
+   "pressure_pa": null,
+   "method": "interpolated",
+   "units": "L/s per m per slot",
+   "slots": 4,
+   "slot_width_mm": 19,
+   "ls_per_m_total": 165.0,
+   "active_length_basis_m": 3.0
+  }
+ ],
+ "rejected": [
+  "Airfoil CBD4 curved-blade 4-way (face-velocity table only, no noise rating)",
+  "Holyoake CRP plaque (same publisher as CRA; ~3-5 NC louder) and CRS/CSS/CFP swirl, DS displacement (commercial VAV, not residential)",
+  "Daikin AU floor-grille table (identical to QAE; counted once as qae_fg)",
+  "Titus TMS 12x12 module rows (variant of the 24x24 rows kept)",
+  "Krueger 1190 (perforated return, not a supply outlet)",
+  "Bradflo AUR/ASG wall grilles (nomogram only; not read)",
+  "Advantage Air current site (403) and Linear/Swivel-jet/SG sheets (no residential outlet capacity); used archived 2002 Sunline/Silhouette sheets",
+  "Polyaire AU current web shop (no data); polyairecommercial.com.au live site (404) - archived 2018 pages used instead",
+  "Air Design AU (AHU maker, no outlets); Ductmaster, Ezi-Air, bradflow.com.au (unreachable); Airmaster (no data found)",
+  "ACCA Manual T (paywalled); AHRI Manual D worked example register picks (internally inconsistent velocities)",
+  "Secondary study-guide claims of 400-500 fpm for NC25-30 (unverified, no primary source)",
+  "Price SMD/RCD metric PDFs (links now return HTML); imperial versions used where available",
+  "Ultimair PRN round (NL) min/max m3/h only via a search summary, PDF not fetched"
+ ],
+ "summary_excluding_rules": [
+  {
+   "outlet": "floor_grille",
+   "size": "250x100",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 52.0,
+   "median_ls": 52.0,
+   "min_ls": 40.1,
+   "max_ls": 64.0,
+   "median_neck_velocity_ms": 2.06,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "hart_cooley_421"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "250x100",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 67.6,
+   "median_ls": 67.6,
+   "min_ls": 60.2,
+   "max_ls": 75.0,
+   "median_neck_velocity_ms": 2.66,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "hart_cooley_421"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "250x150",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 81.3,
+   "median_ls": 81.3,
+   "min_ls": 56.6,
+   "max_ls": 106.0,
+   "median_neck_velocity_ms": 2.15,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "hart_cooley_421"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "250x150",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 103.7,
+   "median_ls": 103.7,
+   "min_ls": 84.9,
+   "max_ls": 122.5,
+   "median_neck_velocity_ms": 2.74,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "hart_cooley_421"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "level": "~NC/NR25",
+   "n": 4,
+   "mean_ls": 75.4,
+   "median_ls": 82.1,
+   "min_ls": 47.2,
+   "max_ls": 90.1,
+   "median_neck_velocity_ms": 2.74,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "bradflo_asgf",
+    "hart_cooley_421",
+    "qae_fg"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "300x100",
+   "level": "~NC/NR30",
+   "n": 3,
+   "mean_ls": 87.6,
+   "median_ls": 90.0,
+   "min_ls": 70.8,
+   "max_ls": 101.9,
+   "median_neck_velocity_ms": 3.0,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "hart_cooley_421",
+    "qae_fg"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "level": "~NC/NR25",
+   "n": 4,
+   "mean_ls": 116.5,
+   "median_ls": 129.1,
+   "min_ls": 66.1,
+   "max_ls": 142.0,
+   "median_neck_velocity_ms": 2.87,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "bradflo_asgf",
+    "hart_cooley_421",
+    "qae_fg"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "300x150",
+   "level": "~NC/NR30",
+   "n": 3,
+   "mean_ls": 137.1,
+   "median_ls": 147.0,
+   "min_ls": 101.5,
+   "max_ls": 162.7,
+   "median_neck_velocity_ms": 3.27,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "hart_cooley_421",
+    "qae_fg"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "300x50",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 23.6,
+   "median_ls": 23.6,
+   "min_ls": 23.6,
+   "max_ls": 23.6,
+   "median_neck_velocity_ms": 1.52,
+   "lower_bounds_included": 0,
+   "sources": [
+    "hart_cooley_421"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "300x50",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 35.4,
+   "median_ls": 35.4,
+   "min_ls": 35.4,
+   "max_ls": 35.4,
+   "median_neck_velocity_ms": 2.28,
+   "lower_bounds_included": 0,
+   "sources": [
+    "hart_cooley_421"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "350x100",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 54.3,
+   "median_ls": 54.3,
+   "min_ls": 54.3,
+   "max_ls": 54.3,
+   "median_neck_velocity_ms": 1.49,
+   "lower_bounds_included": 0,
+   "sources": [
+    "hart_cooley_421"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "350x100",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 81.4,
+   "median_ls": 81.4,
+   "min_ls": 81.4,
+   "max_ls": 81.4,
+   "median_neck_velocity_ms": 2.24,
+   "lower_bounds_included": 0,
+   "sources": [
+    "hart_cooley_421"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "level": "~NC/NR25",
+   "n": 4,
+   "mean_ls": 136.5,
+   "median_ls": 148.2,
+   "min_ls": 77.9,
+   "max_ls": 171.7,
+   "median_neck_velocity_ms": 2.83,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "bradflo_asgf",
+    "hart_cooley_421",
+    "qae_fg"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "350x150",
+   "level": "~NC/NR30",
+   "n": 4,
+   "mean_ls": 162.8,
+   "median_ls": 169.6,
+   "min_ls": 116.8,
+   "max_ls": 195.3,
+   "median_neck_velocity_ms": 3.23,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "bradflo_asgf",
+    "hart_cooley_421",
+    "qae_fg"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "400x100",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 106.8,
+   "median_ls": 106.8,
+   "min_ls": 100.3,
+   "max_ls": 113.3,
+   "median_neck_velocity_ms": 2.67,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "bradflo_asgf"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "400x100",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 130.3,
+   "median_ls": 130.3,
+   "min_ls": 117.3,
+   "max_ls": 143.3,
+   "median_neck_velocity_ms": 3.25,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "bradflo_asgf"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "400x150",
+   "level": "~NC/NR25",
+   "n": 3,
+   "mean_ls": 178.6,
+   "median_ls": 167.4,
+   "min_ls": 166.4,
+   "max_ls": 201.9,
+   "median_neck_velocity_ms": 2.79,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "bradflo_asgf",
+    "qae_fg"
+   ]
+  },
+  {
+   "outlet": "floor_grille",
+   "size": "400x150",
+   "level": "~NC/NR30",
+   "n": 3,
+   "mean_ls": 204.0,
+   "median_ls": 192.0,
+   "min_ls": 190.9,
+   "max_ls": 229.0,
+   "median_neck_velocity_ms": 3.2,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_bgf",
+    "bradflo_asgf",
+    "qae_fg"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot 12.7 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 40.0,
+   "median_ls": 40.0,
+   "min_ls": 40.0,
+   "max_ls": 40.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot 12.7 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 45.0,
+   "median_ls": 45.0,
+   "min_ls": 45.0,
+   "max_ls": 45.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 1,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot 19 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 47.1,
+   "median_ls": 47.1,
+   "min_ls": 47.1,
+   "max_ls": 47.1,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot 19 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 56.0,
+   "median_ls": 56.0,
+   "min_ls": 56.0,
+   "max_ls": 56.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot 20 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 43.7,
+   "median_ls": 43.7,
+   "min_ls": 43.7,
+   "max_ls": 43.7,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot 20 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 51.0,
+   "median_ls": 51.0,
+   "min_ls": 51.0,
+   "max_ls": 51.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot 25 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 50.0,
+   "median_ls": 50.0,
+   "min_ls": 50.0,
+   "max_ls": 50.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot 25 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 60.7,
+   "median_ls": 60.7,
+   "min_ls": 60.7,
+   "max_ls": 60.7,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot one-way",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 47.0,
+   "median_ls": 47.0,
+   "min_ls": 47.0,
+   "max_ls": 47.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "1-slot one-way",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 62.0,
+   "median_ls": 62.0,
+   "min_ls": 62.0,
+   "max_ls": 62.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot 12.7 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 34.3,
+   "median_ls": 34.3,
+   "min_ls": 34.3,
+   "max_ls": 34.3,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot 12.7 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 40.5,
+   "median_ls": 40.5,
+   "min_ls": 40.5,
+   "max_ls": 40.5,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot 19 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 40.4,
+   "median_ls": 40.4,
+   "min_ls": 40.4,
+   "max_ls": 40.4,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot 19 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 47.5,
+   "median_ls": 47.5,
+   "min_ls": 47.5,
+   "max_ls": 47.5,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot 20 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 36.5,
+   "median_ls": 36.5,
+   "min_ls": 36.5,
+   "max_ls": 36.5,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot 20 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 44.2,
+   "median_ls": 44.2,
+   "min_ls": 44.2,
+   "max_ls": 44.2,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot 25 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 43.1,
+   "median_ls": 43.1,
+   "min_ls": 43.1,
+   "max_ls": 43.1,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot 25 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 50.0,
+   "median_ls": 50.0,
+   "min_ls": 50.0,
+   "max_ls": 50.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot one-way",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 46.5,
+   "median_ls": 46.5,
+   "min_ls": 46.5,
+   "max_ls": 46.5,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot one-way",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 54.0,
+   "median_ls": 54.0,
+   "min_ls": 54.0,
+   "max_ls": 54.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot two-way",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 31.0,
+   "median_ls": 31.0,
+   "min_ls": 31.0,
+   "max_ls": 31.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "2-slot two-way",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 39.0,
+   "median_ls": 39.0,
+   "min_ls": 39.0,
+   "max_ls": 39.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "3-slot 12.7 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 31.7,
+   "median_ls": 31.7,
+   "min_ls": 31.7,
+   "max_ls": 31.7,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "3-slot 12.7 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 37.6,
+   "median_ls": 37.6,
+   "min_ls": 37.6,
+   "max_ls": 37.6,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "3-slot 19 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 38.3,
+   "median_ls": 38.3,
+   "min_ls": 38.3,
+   "max_ls": 38.3,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "3-slot 19 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 45.5,
+   "median_ls": 45.5,
+   "min_ls": 45.5,
+   "max_ls": 45.5,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "3-slot 25 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 39.6,
+   "median_ls": 39.6,
+   "min_ls": 39.6,
+   "max_ls": 39.6,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "3-slot 25 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 46.1,
+   "median_ls": 46.1,
+   "min_ls": 46.1,
+   "max_ls": 46.1,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "3-slot one-way",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 41.3,
+   "median_ls": 41.3,
+   "min_ls": 41.3,
+   "max_ls": 41.3,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "3-slot one-way",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 46.3,
+   "median_ls": 46.3,
+   "min_ls": 46.3,
+   "max_ls": 46.3,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "4-slot 12.7 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 30.0,
+   "median_ls": 30.0,
+   "min_ls": 30.0,
+   "max_ls": 30.0,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "4-slot 12.7 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 35.4,
+   "median_ls": 35.4,
+   "min_ls": 35.4,
+   "max_ls": 35.4,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "4-slot 19 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 35.2,
+   "median_ls": 35.2,
+   "min_ls": 35.2,
+   "max_ls": 35.2,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "4-slot 19 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 41.2,
+   "median_ls": 41.2,
+   "min_ls": 41.2,
+   "max_ls": 41.2,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_sds"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "4-slot 25 mm",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 36.5,
+   "median_ls": 36.5,
+   "min_ls": 36.5,
+   "max_ls": 36.5,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "4-slot 25 mm",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 43.1,
+   "median_ls": 43.1,
+   "min_ls": 43.1,
+   "max_ls": 43.1,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "4-slot two-way",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 38.8,
+   "median_ls": 38.8,
+   "min_ls": 38.8,
+   "max_ls": 38.8,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "4-slot two-way",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 42.5,
+   "median_ls": 42.5,
+   "min_ls": 42.5,
+   "max_ls": 42.5,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "6-slot two-way",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 28.3,
+   "median_ls": 28.3,
+   "min_ls": 28.3,
+   "max_ls": 28.3,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "6-slot two-way",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 36.2,
+   "median_ls": 36.2,
+   "min_ls": 36.2,
+   "max_ls": 36.2,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "8-slot two-way",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 23.2,
+   "median_ls": 23.2,
+   "min_ls": 23.2,
+   "max_ls": 23.2,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "8-slot two-way",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 34.9,
+   "median_ls": 34.9,
+   "min_ls": 34.9,
+   "max_ls": 34.9,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "polyaire_au_lsd"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "RCLS1200 2-slot one-way",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 33.9,
+   "median_ls": 33.9,
+   "min_ls": 33.9,
+   "max_ls": 33.9,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcls"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "RCLS1200 2-slot one-way",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 45.8,
+   "median_ls": 45.8,
+   "min_ls": 45.8,
+   "max_ls": 45.8,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcls"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "RCLS600 2-slot one-way",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 45.8,
+   "median_ls": 45.8,
+   "min_ls": 45.8,
+   "max_ls": 45.8,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcls"
+   ]
+  },
+  {
+   "outlet": "linear_slot",
+   "size": "RCLS600 2-slot one-way",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 64.8,
+   "median_ls": 64.8,
+   "min_ls": 64.8,
+   "max_ls": 64.8,
+   "median_neck_velocity_ms": null,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcls"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "level": "~NC/NR25",
+   "n": 6,
+   "mean_ls": 65.1,
+   "median_ls": 72.4,
+   "min_ls": 41.9,
+   "max_ls": 78.6,
+   "median_neck_velocity_ms": 3.94,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_round",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr",
+    "trox_adlr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "150",
+   "level": "~NC/NR30",
+   "n": 5,
+   "mean_ls": 82.2,
+   "median_ls": 88.1,
+   "min_ls": 54.2,
+   "max_ls": 92.0,
+   "median_neck_velocity_ms": 4.74,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_round",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "level": "~NC/NR25",
+   "n": 8,
+   "mean_ls": 120.9,
+   "median_ls": 120.3,
+   "min_ls": 64.4,
+   "max_ls": 180.5,
+   "median_neck_velocity_ms": 3.73,
+   "lower_bounds_included": 0,
+   "sources": [
+    "advantage_air_sunline",
+    "daikin_au_round",
+    "holyoake_cra",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr",
+    "trox_adlr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "200",
+   "level": "~NC/NR30",
+   "n": 7,
+   "mean_ls": 140.0,
+   "median_ls": 143.1,
+   "min_ls": 70.0,
+   "max_ls": 200.0,
+   "median_neck_velocity_ms": 4.57,
+   "lower_bounds_included": 1,
+   "sources": [
+    "advantage_air_sunline",
+    "daikin_au_round",
+    "holyoake_cra",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "level": "~NC/NR25",
+   "n": 8,
+   "mean_ls": 177.0,
+   "median_ls": 181.6,
+   "min_ls": 77.5,
+   "max_ls": 240,
+   "median_neck_velocity_ms": 3.58,
+   "lower_bounds_included": 1,
+   "sources": [
+    "advantage_air_sunline",
+    "daikin_au_round",
+    "holyoake_cra",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr",
+    "trox_adlr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "250",
+   "level": "~NC/NR30",
+   "n": 7,
+   "mean_ls": 207.1,
+   "median_ls": 214.5,
+   "min_ls": 91.0,
+   "max_ls": 275.0,
+   "median_neck_velocity_ms": 4.23,
+   "lower_bounds_included": 1,
+   "sources": [
+    "advantage_air_sunline",
+    "daikin_au_round",
+    "holyoake_cra",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "level": "~NC/NR25",
+   "n": 8,
+   "mean_ls": 243.7,
+   "median_ls": 254.5,
+   "min_ls": 114.0,
+   "max_ls": 360,
+   "median_neck_velocity_ms": 3.49,
+   "lower_bounds_included": 1,
+   "sources": [
+    "advantage_air_sunline",
+    "daikin_au_round",
+    "holyoake_cra",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr",
+    "trox_adlr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "300",
+   "level": "~NC/NR30",
+   "n": 7,
+   "mean_ls": 283.9,
+   "median_ls": 297.3,
+   "min_ls": 134.0,
+   "max_ls": 360,
+   "median_neck_velocity_ms": 4.06,
+   "lower_bounds_included": 1,
+   "sources": [
+    "advantage_air_sunline",
+    "daikin_au_round",
+    "holyoake_cra",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "level": "~NC/NR25",
+   "n": 5,
+   "mean_ls": 312.1,
+   "median_ls": 330.8,
+   "min_ls": 253.8,
+   "max_ls": 364.0,
+   "median_neck_velocity_ms": 3.35,
+   "lower_bounds_included": 0,
+   "sources": [
+    "holyoake_cra",
+    "krueger_rm1",
+    "price_rcd",
+    "titus_tmr",
+    "trox_adlr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "350",
+   "level": "~NC/NR30",
+   "n": 4,
+   "mean_ls": 383.1,
+   "median_ls": 390.8,
+   "min_ls": 325.0,
+   "max_ls": 425.9,
+   "median_neck_velocity_ms": 3.95,
+   "lower_bounds_included": 0,
+   "sources": [
+    "holyoake_cra",
+    "krueger_rm1",
+    "price_rcd",
+    "titus_tmr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "level": "~NC/NR25",
+   "n": 5,
+   "mean_ls": 370.2,
+   "median_ls": 422.8,
+   "min_ls": 200.0,
+   "max_ls": 462.5,
+   "median_neck_velocity_ms": 3.25,
+   "lower_bounds_included": 0,
+   "sources": [
+    "holyoake_cra",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr"
+   ]
+  },
+  {
+   "outlet": "round_ceiling_diffuser",
+   "size": "400",
+   "level": "~NC/NR30",
+   "n": 5,
+   "mean_ls": 449.5,
+   "median_ls": 506.5,
+   "min_ls": 230.0,
+   "max_ls": 550.5,
+   "median_neck_velocity_ms": 3.89,
+   "lower_bounds_included": 0,
+   "sources": [
+    "holyoake_cra",
+    "krueger_rm1",
+    "polyaire_uk_round",
+    "price_rcd",
+    "titus_tmr"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "150x150",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 78.8,
+   "median_ls": 78.8,
+   "min_ls": 71.7,
+   "max_ls": 85.8,
+   "median_neck_velocity_ms": 3.5,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_pcd",
+    "holyoake_cmp"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "150x150",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 89.0,
+   "median_ls": 89.0,
+   "min_ls": 78,
+   "max_ls": 100.0,
+   "median_neck_velocity_ms": 3.98,
+   "lower_bounds_included": 1,
+   "sources": [
+    "airfoil_pcd",
+    "holyoake_cmp"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "level": "~NC/NR25",
+   "n": 4,
+   "mean_ls": 139.6,
+   "median_ls": 133.5,
+   "min_ls": 125.0,
+   "max_ls": 166.5,
+   "median_neck_velocity_ms": 2.65,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_pcd",
+    "daikin_au_bevelled",
+    "holyoake_cmp",
+    "polyaire_au_lfd"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "225x225",
+   "level": "~NC/NR30",
+   "n": 4,
+   "mean_ls": 169.0,
+   "median_ls": 163.5,
+   "min_ls": 150,
+   "max_ls": 199.0,
+   "median_neck_velocity_ms": 3.25,
+   "lower_bounds_included": 1,
+   "sources": [
+    "airfoil_pcd",
+    "daikin_au_bevelled",
+    "holyoake_cmp",
+    "polyaire_au_lfd"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "280x280",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 225.5,
+   "median_ls": 225.5,
+   "min_ls": 225.5,
+   "max_ls": 225.5,
+   "median_neck_velocity_ms": 2.89,
+   "lower_bounds_included": 0,
+   "sources": [
+    "advantage_air_silhouette"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "280x280",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 254,
+   "median_ls": 254,
+   "min_ls": 254,
+   "max_ls": 254,
+   "median_neck_velocity_ms": 3.26,
+   "lower_bounds_included": 0,
+   "sources": [
+    "advantage_air_silhouette"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "level": "~NC/NR25",
+   "n": 4,
+   "mean_ls": 239.7,
+   "median_ls": 233.3,
+   "min_ls": 225.0,
+   "max_ls": 267.3,
+   "median_neck_velocity_ms": 2.6,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_pcd",
+    "daikin_au_bevelled",
+    "holyoake_cmp",
+    "polyaire_au_lfd"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "300x300",
+   "level": "~NC/NR30",
+   "n": 4,
+   "mean_ls": 288.3,
+   "median_ls": 282.5,
+   "min_ls": 270.0,
+   "max_ls": 318.2,
+   "median_neck_velocity_ms": 3.12,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_pcd",
+    "daikin_au_bevelled",
+    "holyoake_cmp",
+    "polyaire_au_lfd"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "360x360",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 325.5,
+   "median_ls": 325.5,
+   "min_ls": 325.5,
+   "max_ls": 325.5,
+   "median_neck_velocity_ms": 2.5,
+   "lower_bounds_included": 0,
+   "sources": [
+    "advantage_air_silhouette"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "360x360",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 365,
+   "median_ls": 365,
+   "min_ls": 365,
+   "max_ls": 365,
+   "median_neck_velocity_ms": 2.81,
+   "lower_bounds_included": 0,
+   "sources": [
+    "advantage_air_silhouette"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "level": "~NC/NR25",
+   "n": 4,
+   "mean_ls": 342.4,
+   "median_ls": 337.5,
+   "min_ls": 302.5,
+   "max_ls": 392.3,
+   "median_neck_velocity_ms": 2.4,
+   "lower_bounds_included": 0,
+   "sources": [
+    "airfoil_pcd",
+    "daikin_au_bevelled",
+    "holyoake_cmp",
+    "polyaire_au_lfd"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "375x375",
+   "level": "~NC/NR30",
+   "n": 4,
+   "mean_ls": 393.9,
+   "median_ls": 383.1,
+   "min_ls": 350,
+   "max_ls": 459.5,
+   "median_neck_velocity_ms": 2.76,
+   "lower_bounds_included": 1,
+   "sources": [
+    "airfoil_pcd",
+    "daikin_au_bevelled",
+    "holyoake_cmp",
+    "polyaire_au_lfd"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "level": "~NC/NR25",
+   "n": 4,
+   "mean_ls": 414.1,
+   "median_ls": 387.6,
+   "min_ls": 350.0,
+   "max_ls": 531.0,
+   "median_neck_velocity_ms": 1.9,
+   "lower_bounds_included": 1,
+   "sources": [
+    "airfoil_pcd",
+    "daikin_au_bevelled",
+    "holyoake_cmp",
+    "polyaire_au_lfd"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "450x450",
+   "level": "~NC/NR30",
+   "n": 4,
+   "mean_ls": 490.6,
+   "median_ls": 496.5,
+   "min_ls": 350,
+   "max_ls": 619.3,
+   "median_neck_velocity_ms": 2.45,
+   "lower_bounds_included": 1,
+   "sources": [
+    "airfoil_pcd",
+    "daikin_au_bevelled",
+    "holyoake_cmp",
+    "polyaire_au_lfd"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 150",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 101.8,
+   "median_ls": 101.8,
+   "min_ls": 101.7,
+   "max_ls": 101.9,
+   "median_neck_velocity_ms": 5.59,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 150",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 119.4,
+   "median_ls": 119.4,
+   "min_ls": 118.3,
+   "max_ls": 120.6,
+   "median_neck_velocity_ms": 6.55,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 200",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 160.3,
+   "median_ls": 160.3,
+   "min_ls": 160.0,
+   "max_ls": 160.6,
+   "median_neck_velocity_ms": 4.94,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 200",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 191.1,
+   "median_ls": 191.1,
+   "min_ls": 191.1,
+   "max_ls": 191.1,
+   "median_neck_velocity_ms": 5.89,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 250",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 229.8,
+   "median_ls": 229.8,
+   "min_ls": 227.8,
+   "max_ls": 231.7,
+   "median_neck_velocity_ms": 4.54,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 250",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 270.9,
+   "median_ls": 270.9,
+   "min_ls": 267.5,
+   "max_ls": 274.3,
+   "median_neck_velocity_ms": 5.35,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 300",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 307.9,
+   "median_ls": 307.9,
+   "min_ls": 306.9,
+   "max_ls": 308.8,
+   "median_neck_velocity_ms": 4.22,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 300",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 365.1,
+   "median_ls": 365.1,
+   "min_ls": 359.9,
+   "max_ls": 370.4,
+   "median_neck_velocity_ms": 5.0,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 350",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 397.2,
+   "median_ls": 397.2,
+   "min_ls": 390.9,
+   "max_ls": 403.5,
+   "median_neck_velocity_ms": 4.0,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "square_ceiling_diffuser",
+   "size": "round neck 350",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 466.0,
+   "median_ls": 466.0,
+   "min_ls": 461.2,
+   "max_ls": 470.8,
+   "median_neck_velocity_ms": 4.69,
+   "lower_bounds_included": 0,
+   "sources": [
+    "price_scd",
+    "titus_tms"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "300x100",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 99.7,
+   "median_ls": 99.7,
+   "min_ls": 80.3,
+   "max_ls": 119.0,
+   "median_neck_velocity_ms": 3.33,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "300x100",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 115.8,
+   "median_ls": 115.8,
+   "min_ls": 93.3,
+   "max_ls": 138.3,
+   "median_neck_velocity_ms": 3.86,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "300x150",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 155.5,
+   "median_ls": 155.5,
+   "min_ls": 146.0,
+   "max_ls": 165.0,
+   "median_neck_velocity_ms": 3.46,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "300x150",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 181.3,
+   "median_ls": 181.3,
+   "min_ls": 166.0,
+   "max_ls": 196.7,
+   "median_neck_velocity_ms": 4.03,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "350x150",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 186.3,
+   "median_ls": 186.3,
+   "min_ls": 176.7,
+   "max_ls": 196.0,
+   "median_neck_velocity_ms": 3.55,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "350x150",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 216.2,
+   "median_ls": 216.2,
+   "min_ls": 201.0,
+   "max_ls": 231.3,
+   "median_neck_velocity_ms": 4.12,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "400x100",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 133.3,
+   "median_ls": 133.3,
+   "min_ls": 117.0,
+   "max_ls": 149.7,
+   "median_neck_velocity_ms": 3.33,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "400x100",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 155.4,
+   "median_ls": 155.4,
+   "min_ls": 133.4,
+   "max_ls": 177.5,
+   "median_neck_velocity_ms": 3.89,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "400x150",
+   "level": "~NC/NR25",
+   "n": 1,
+   "mean_ls": 209.3,
+   "median_ls": 209.3,
+   "min_ls": 209.3,
+   "max_ls": 209.3,
+   "median_neck_velocity_ms": 3.49,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "400x150",
+   "level": "~NC/NR30",
+   "n": 1,
+   "mean_ls": 237.5,
+   "median_ls": 237.5,
+   "min_ls": 237.5,
+   "max_ls": 237.5,
+   "median_neck_velocity_ms": 3.96,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "450x150",
+   "level": "~NC/NR25",
+   "n": 2,
+   "mean_ls": 239.7,
+   "median_ls": 239.7,
+   "min_ls": 236.3,
+   "max_ls": 243.1,
+   "median_neck_velocity_ms": 3.55,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  },
+  {
+   "outlet": "wall_register",
+   "size": "450x150",
+   "level": "~NC/NR30",
+   "n": 2,
+   "mean_ls": 279.6,
+   "median_ls": 279.6,
+   "min_ls": 276.3,
+   "max_ls": 283.0,
+   "median_neck_velocity_ms": 4.14,
+   "lower_bounds_included": 0,
+   "sources": [
+    "daikin_au_rcddr",
+    "holyoake_dd"
+   ]
+  }
+ ]
+}

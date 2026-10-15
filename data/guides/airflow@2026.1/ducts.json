@@ -1,0 +1,429 @@
+{
+  "about": "Mains, branches and the static the duct run has to fit in. A branch is the run to the outlets (ACCA's and ASHRAE's sense); ActronAir's 4–6 m/s branch sits between its main and that final run. Each publisher's own figure; design and most kept apart.",
+  "velocity_ms": {
+    "main_rigid": {
+      "design": {
+        "value": 4.53,
+        "mean": 4.78,
+        "low": 3.56,
+        "high": 6.5,
+        "n": 4,
+        "unit": "m/s",
+        "from": [
+          {
+            "source": "actronair-0520-026",
+            "value": 6.5,
+            "basis": "a main 6–7 m/s, the middle (its flex table stops at 4 m/s, so a rigid main's)"
+          },
+          {"source":"acca-manual-d","value":3.56,"basis":"a rigid supply trunk, recommended 700 fpm"},
+          {"source":"ashrae1972-amca","value":4.06,"basis":"residences' main ducts 700–900 fpm, the middle"},
+          {"source":"airah-eco2020","value":5,"basis":"what straight duct designed to 1 Pa/m gives"}
+        ]
+      },
+      "most": {
+        "value": 4.57,
+        "mean": 4.93,
+        "low": 4.57,
+        "high": 6,
+        "n": 4,
+        "unit": "m/s",
+        "from": [
+          {"source":"natspec-0741","value":6,"basis":"rigid ductwork at most 6 m/s"},
+          {"source":"acca-manual-d","value":4.57,"basis":"a rigid supply trunk, maximum 900 fpm"},
+          {"source":"carrier-cz2","value":4.57,"basis":"sheet-metal zone mains at most 900 fpm"},
+          {"source":"nrcan-zoning","value":4.57,"basis":"a supply trunk at most 900 fpm at design"}
+        ]
+      }
+    },
+    "main_flex": {
+      "design": {
+        "value": 3.05,
+        "mean": 3.05,
+        "low": 3.05,
+        "high": 3.05,
+        "n": 1,
+        "unit": "m/s",
+        "from": [{"source":"acca-manual-d","value":3.05,"basis":"a flex supply trunk, recommended 600 fpm"}]
+      },
+      "most": {
+        "value": 3.83,
+        "mean": 3.95,
+        "low": 3.56,
+        "high": 4.57,
+        "n": 4,
+        "unit": "m/s",
+        "from": [
+          {"source":"natspec-0741","value":4,"basis":"flexible duct at most 4 m/s"},
+          {"source":"acca-manual-d","value":3.56,"basis":"a flex supply trunk, maximum 700 fpm"},
+          {"source":"carrier-cz2","value":3.66,"basis":"its 900 fpm main with flex at 1.25 × the area"},
+          {"source":"nrcan-zoning","value":4.57,"basis":"a supply trunk at most 900 fpm at design"}
+        ]
+      }
+    },
+    "branch_rigid": {
+      "design": {
+        "value": 3.05,
+        "mean": 3.53,
+        "low": 3.05,
+        "high": 4.5,
+        "n": 3,
+        "unit": "m/s",
+        "from": [
+          {"source":"acca-manual-d","value":3.05,"basis":"a rigid supply branch, recommended 600 fpm"},
+          {"source":"ashrae1972-amca","value":3.05,"basis":"residences' branch ducts 600 fpm"},
+          {"source":"airah-sw022","value":4.5,"basis":"a duct carrying under 180 L/s, sized at 4.5 m/s"}
+        ]
+      },
+      "most": {
+        "value": 3.56,
+        "mean": 3.71,
+        "low": 3,
+        "high": 4.57,
+        "n": 3,
+        "unit": "m/s",
+        "from": [
+          {"source":"acca-manual-d","value":4.57,"basis":"a rigid supply branch, maximum 900 fpm"},
+          {"source":"carrier-cz2","value":3.56,"basis":"sheet-metal branch ducts at most 700 fpm"},
+          {"source":"actronair-0520-026","value":3,"basis":"the final duct to an outlet at most 3 m/s"}
+        ]
+      }
+    },
+    "branch_flex": {
+      "design": {
+        "value": 3.05,
+        "mean": 3.05,
+        "low": 3.05,
+        "high": 3.05,
+        "n": 1,
+        "unit": "m/s",
+        "from": [{"source":"acca-manual-d","value":3.05,"basis":"a flex supply branch, recommended 600 fpm"}]
+      },
+      "most": {
+        "value": 3.53,
+        "mean": 3.52,
+        "low": 3,
+        "high": 4,
+        "n": 4,
+        "unit": "m/s",
+        "from": [
+          {"source":"acca-manual-d","value":3.56,"basis":"a flex supply branch, maximum 700 fpm"},
+          {"source":"airah-sw022","value":3.5,"basis":"long flex runouts limited to 3.5 m/s"},
+          {"source":"actronair-0520-026","value":3,"basis":"the final duct to an outlet at most 3 m/s"},
+          {"source":"natspec-0741","value":4,"basis":"flexible duct at most 4 m/s"}
+        ]
+      }
+    },
+    "actronair_intermediate_branch": {
+      "value": 5,
+      "unit": "m/s",
+      "sources": ["actronair-0520-026"],
+      "about": "Between the main and the final run to the outlets, recommended 4–6 m/s."
+    }
+  },
+  "friction_pa_m": {
+    "design": {
+      "value": 0.82,
+      "mean": 0.84,
+      "low": 0.74,
+      "high": 1,
+      "n": 6,
+      "unit": "Pa/m",
+      "from": [
+        {"source":"airah-sw022","value":1.2,"basis":"Ahern's rule for 180–4500 L/s"},
+        {"source":"airah-ncc2025-resp","value":0.8,"basis":"the most designers were taught"},
+        {"source":"acca-manual-d","value":0.82,"basis":"its worked example's design friction, 0.10 in.wc/100 ft"},
+        {"source":"smacna-dd4","value":0.9,"basis":"commonly 0.8–1.0 Pa/m, the middle"},
+        {"source":"carrier-cz2","value":0.82,"basis":"supply design 0.1 in.wc/100 ft"},
+        {"source":"honeywell-zoning","value":0.74,"basis":"typically 0.08–0.10 in.wc/100 ft, the middle"},
+        {"source":"southwark-ductschool","value":0.78,"basis":"its size table's basis"}
+      ]
+    },
+    "cap": {
+      "value": 1,
+      "mean": 1,
+      "low": 1,
+      "high": 1,
+      "n": 2,
+      "unit": "Pa/m",
+      "from": [
+        {"source":"ncc-2022-j6d5","value":1,"basis":"the most an index run averages, Class 2–9 buildings"},
+        {"source":"natspec-0741","value":1,"basis":"rigid ductwork at most 1 Pa/m"}
+      ],
+      "about": "The NCC's most for an index run's average (Class 2–9 buildings, not houses), flex counted as laid straight."
+    }
+  },
+  "rigid_round_ls": {
+    "about": "Round sheet-metal duct, L/s by diameter. at_design_friction_ls is the median of the tables published at about the design friction; recommended_ls is that or the rigid main's design velocity × the area, whichever is lower (limited_by says which), most_ls the rigid main's most velocity × the area.",
+    "rows": [
+      {
+        "dia_mm": 200,
+        "recommended_ls": 111,
+        "velocity_ms": 3.53,
+        "limited_by": "friction",
+        "most_ls": 144,
+        "at_design_friction_ls": 111,
+        "low_ls": 108,
+        "high_ls": 114,
+        "n": 2,
+        "from": [
+          {"source":"carrier-cz2","value":108.308,"basis":"its pipe capacity at 0.1 in.wc/100 ft, log-interpolated to 200 mm"},
+          {
+            "source": "southwark-ductschool",
+            "value": 113.865,
+            "basis": "its size table at 0.09–0.10 in.wc/100 ft (it reads high), log-interpolated to 200 mm"
+          }
+        ]
+      },
+      {
+        "dia_mm": 250,
+        "recommended_ls": 212,
+        "velocity_ms": 4.32,
+        "limited_by": "friction",
+        "most_ls": 224,
+        "at_design_friction_ls": 212,
+        "low_ls": 200,
+        "high_ls": 225,
+        "n": 2,
+        "from": [
+          {
+            "source": "southwark-ductschool",
+            "value": 224.694,
+            "basis": "its size table at 0.09–0.10 in.wc/100 ft (it reads high), log-interpolated to 250 mm"
+          },
+          {"source":"smacna-dd4","value":200,"basis":"its worked example at about 0.9 Pa/m"}
+        ]
+      },
+      {
+        "dia_mm": 300,
+        "recommended_ls": 320,
+        "velocity_ms": 4.53,
+        "limited_by": "velocity",
+        "most_ls": 323,
+        "at_design_friction_ls": 362,
+        "low_ls": 362,
+        "high_ls": 362,
+        "n": 1,
+        "from": [
+          {
+            "source": "southwark-ductschool",
+            "value": 362.252,
+            "basis": "its size table at 0.09–0.10 in.wc/100 ft (it reads high), log-interpolated to 300 mm"
+          }
+        ]
+      },
+      {
+        "dia_mm": 350,
+        "recommended_ls": 436,
+        "velocity_ms": 4.53,
+        "limited_by": "velocity",
+        "most_ls": 440,
+        "at_design_friction_ls": 541,
+        "low_ls": 541,
+        "high_ls": 541,
+        "n": 1,
+        "from": [
+          {
+            "source": "southwark-ductschool",
+            "value": 541.43,
+            "basis": "its size table at 0.09–0.10 in.wc/100 ft (it reads high), log-interpolated to 350 mm"
+          }
+        ]
+      },
+      {
+        "dia_mm": 400,
+        "recommended_ls": 569,
+        "velocity_ms": 4.53,
+        "limited_by": "velocity",
+        "most_ls": 574,
+        "at_design_friction_ls": 811,
+        "low_ls": 811,
+        "high_ls": 811,
+        "n": 1,
+        "from": [
+          {
+            "source": "southwark-ductschool",
+            "value": 810.884,
+            "basis": "its size table at 0.09–0.10 in.wc/100 ft (it reads high), log-interpolated to 400 mm"
+          }
+        ]
+      },
+      {
+        "dia_mm": 450,
+        "recommended_ls": 720,
+        "velocity_ms": 4.53,
+        "limited_by": "velocity",
+        "most_ls": 727,
+        "at_design_friction_ls": 1130,
+        "low_ls": 1130,
+        "high_ls": 1130,
+        "n": 1,
+        "from": [
+          {
+            "source": "southwark-ductschool",
+            "value": 1130.398,
+            "basis": "its size table at 0.09–0.10 in.wc/100 ft (it reads high), log-interpolated to 450 mm"
+          }
+        ]
+      }
+    ]
+  },
+  "external_static_pa": {
+    "design": {
+      "value": 125,
+      "mean": 135,
+      "low": 124,
+      "high": 174,
+      "n": 5,
+      "unit": "Pa",
+      "from": [
+        {"source":"actronair-0520-026","value":125,"basis":"the ideal for a variable-airflow system"},
+        {"source":"nrcan-zoning","value":125,"basis":"low-velocity duct, at most 0.5 in.wc"},
+        {"source":"zonefirst-guide","value":124,"basis":"a blower's usual rating, 0.5 in.wc"},
+        {"source":"brivis-starpro","value":125,"basis":"its heaters rated at it"},
+        {"source":"acca-manual-d","value":174,"basis":"its worked example's external static"}
+      ]
+    },
+    "most": {
+      "value": 250,
+      "mean": 250,
+      "low": 250,
+      "high": 250,
+      "n": 1,
+      "unit": "Pa",
+      "from": [{"source":"actronair-db0817","value":250,"basis":"at commissioning, the total external static never over it"}]
+    }
+  },
+  "drops_pa": {
+    "zone_damper_open": {
+      "value": 25,
+      "mean": 25,
+      "low": 25,
+      "high": 25,
+      "n": 1,
+      "unit": "Pa",
+      "from": [
+        {
+          "source": "acca-zr-draft",
+          "value": 25,
+          "basis": "an open modulating zone damper about 20% of the path's drop, of the guide's 125 Pa (derived)"
+        }
+      ],
+      "most": 25,
+      "most_from": "ncc-2022-j6d5"
+    },
+    "balancing_damper_open": {
+      "value": 7.5,
+      "mean": 7.5,
+      "low": 7.5,
+      "high": 7.5,
+      "n": 1,
+      "unit": "Pa",
+      "from": [{"source":"acca-manual-d","value":7.5,"basis":"the standard 0.03 in.wc for a balancing damper"}],
+      "most": 25,
+      "most_from": "ncc-2022-j6d5"
+    },
+    "diffuser_and_boot": {
+      "value": 16.5,
+      "mean": 17.8,
+      "low": 7.5,
+      "high": 31,
+      "n": 4,
+      "unit": "Pa",
+      "from": [
+        {"source":"acca-manual-d","value":7.5,"basis":"the standard 0.03 in.wc for a supply outlet"},
+        {"source":"temperzone-flex","value":16,"basis":"a side-entry diffuser box, measured at 4.5 m/s"},
+        {"source":"temperzone-flex","value":21,"basis":"a top-entry diffuser on supported flex, measured at 4.5 m/s"},
+        {"source":"smacna-dd4","value":29.9,"basis":"a 10 in. diffuser at its rated 208 L/s"},
+        {"source":"smacna-dd4","value":32,"basis":"a 400x250 mm grille, its worked example"},
+        {"source":"airah-sw022","value":14.4,"basis":"a cushion-head box, 1.5 velocity heads at 4 m/s"}
+      ],
+      "most": 40,
+      "most_from": "ncc-2022-j6d5"
+    },
+    "filter_clean": {
+      "value": 50.4,
+      "mean": 49.5,
+      "low": 30,
+      "high": 67.2,
+      "n": 4,
+      "unit": "Pa",
+      "from": [
+        {"source":"aa-purtech","value":50,"basis":"G2 electrostatic, initial at 2.02 m/s"},
+        {"source":"aa-slimline","value":10,"basis":"honeycomb, initial at 1.02 m/s"},
+        {"source":"camfil-3030","value":57.3,"basis":"MERV 8 pleated, its most initial at 1.78 m/s"},
+        {"source":"camfil-3030","value":77.2,"basis":"MERV 8 pleated, its most initial at 2.54 m/s"},
+        {"source":"camfil-3030","value":67.2,"basis":"MERV 8 pleated, its most initial at 2.54 m/s"},
+        {"source":"cec-2018-filters","value":64.7,"basis":"lab-tested clean at 1.5 m/s, the middle of its range"},
+        {"source":"cec-2018-filters","value":47.3,"basis":"lab-tested clean at 1.5 m/s, the middle of its range"},
+        {"source":"acca-manual-d","value":44.8,"basis":"its worked example's filter"}
+      ],
+      "about": "The return's clean filter: the same figure as return_air.json."
+    },
+    "eggcrate_return_grille": {
+      "value": 7.5,
+      "mean": 7.8,
+      "low": 7.5,
+      "high": 8.5,
+      "n": 3,
+      "unit": "Pa",
+      "from": [
+        {"source":"acca-manual-d","value":7.5,"basis":"its worked example's return grille, 0.03 in.wc"},
+        {"source":"airfoil-hr5f","value":7.5,"basis":"its hinged eggcrate at 2.22 m/s on the neck"},
+        {"source":"airfoil-hr5f","value":7.5,"basis":"its hinged eggcrate at 2.47 m/s on the neck"},
+        {"source":"price-80","value":8.5,"basis":"its 80 eggcrate 24x12 in at 2.54 m/s on the core"},
+        {"source":"price-80","value":8.5,"basis":"its 80 eggcrate 24x16 in at 2.54 m/s on the core"},
+        {"source":"price-80","value":8.5,"basis":"its 80 eggcrate 30x16 in at 2.54 m/s on the core"},
+        {"source":"price-80","value":8.5,"basis":"its 80 eggcrate 24x24 in at 2.54 m/s on the core"},
+        {"source":"price-80","value":8.5,"basis":"its 80 eggcrate 36x18 in at 2.54 m/s on the core"}
+      ]
+    }
+  },
+  "flex_bend_90": {
+    "r_1_5d": {
+      "value": 0.82,
+      "mean": 0.82,
+      "low": 0.82,
+      "high": 0.82,
+      "n": 1,
+      "unit": "velocity heads",
+      "from": [{"source":"temperzone-flex","value":0.823,"basis":"10 Pa at 4.5 m/s ÷ its velocity head of 12.15 Pa"}]
+    },
+    "r_0_5d": {
+      "value": 1.48,
+      "mean": 1.48,
+      "low": 1.48,
+      "high": 1.48,
+      "n": 1,
+      "unit": "velocity heads",
+      "from": [{"source":"temperzone-flex","value":1.481,"basis":"18 Pa at 4.5 m/s ÷ its velocity head of 12.15 Pa"}]
+    },
+    "velocity_head": "Pv = 0.6 v² Pa"
+  },
+  "flex_rules": [
+    {"rule":"No more than 6 m of flex in any duct run.","value":6,"unit":"m","sources":["ncc-2022-j6d5","as4254-ccc","natspec-0741"]},
+    {
+      "rule": "Fully stretched, with no joints in a run: at 90% extension a flex loses about 3 times as much, at 70% about 10 times.",
+      "value": 90,
+      "unit": "% extension",
+      "sources": ["natspec-0741","as4254-ccc","lbnl-abushakra-2002"]
+    },
+    {"rule":"No more than 5% excess length.","value":5,"unit":"%","sources":["airah-sw023"]},
+    {
+      "rule": "A bend's centreline radius at least 1 duct diameter; Temperzone asks 1.5.",
+      "value": 1,
+      "unit": "D",
+      "sources": ["airah-sw023","temperzone-flex"]
+    },
+    {"rule":"Straight at least 300 mm out of a plenum, junction or boot before any bend.","value":300,"unit":"mm","sources":["airah-sw023"]},
+    {"rule":"Supported at most every 1.5 m.","value":1.5,"unit":"m","sources":["airah-sw023","actronair-db0817"]},
+    {"rule":"A flex run's friction taken at twice its measured length.","value":2,"unit":"× its length","sources":["airah-sw022"]}
+  ],
+  "takeoff_rules": [
+    {"rule":"Never a duct smaller than the unit's spigot.","sources":["temperzone-flex"]},
+    {"rule":"The outlets' total area at least the spigot's.","sources":["temperzone-flex"]},
+    {"rule":"A run over 3 m stepped up one size.","value":3,"unit":"m","sources":["temperzone-flex"]},
+    {"rule":"Straight at least 300 mm out of the plenum before a bend.","value":300,"unit":"mm","sources":["airah-sw023"]},
+    {"rule":"A zone damper at least 0.9 m from the plenum and 1.8 m from any outlet.","value":0.9,"unit":"m","sources":["honeywell-zoning"]},
+    {"rule":"Balanced at the takeoffs, not the outlets: less noise and less static.","sources":["actronair-0520-026"]}
+  ]
+}

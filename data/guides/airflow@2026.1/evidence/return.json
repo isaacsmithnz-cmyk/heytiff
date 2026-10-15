@@ -1,0 +1,3365 @@
+{
+ "topic": "return_air",
+ "sources": [
+  {
+   "id": "actron_0520_026",
+   "publisher": "ActronAir (Actron Engineering)",
+   "title": "Airflow Application Guidelines - Split Ducted Units, Doc 0520-026 Ver 1",
+   "year": 2021,
+   "page": "1-2",
+   "url": "https://docs.actronair.com.au/wp-content/uploads/2021/04/0520-026-Airflow-Application-Guidelines-Ver.1.pdf",
+   "region": "AU",
+   "basis": "manufacturer design guideline: return grilles sized at 2.5 m/s on FREE area; return duct max 4 m/s; tables per model",
+   "notes": "Min/max/recommended return grille free areas per EVV/EFV model; says upsize one size for max airflow; identify a return path per zone (undercut doors or extra return duct); master bedroom/theatre may need a dedicated return/transfer duct.",
+   "confidence": "high"
+  },
+  {
+   "id": "actron_db0817",
+   "publisher": "ActronAir (Actron Engineering)",
+   "title": "Installation Best Practice Guidelines - Ducted Type Systems, DB0817 v1.7",
+   "year": 2025,
+   "page": "10-11, 15",
+   "url": "https://docs.actronair.com.au/wp-content/uploads/DB0817-Builders-Installation-Guidelines-Booklet_v1.7_WEB.pdf",
+   "region": "AU",
+   "basis": "installer guideline: 2-2.5 m/s for return grille selection; flex duct max L/s table (= 4.0 m/s for 350-550 mm); ESP 125 Pa (VFT), <=250 Pa total",
+   "notes": "Flex duct table columns are mislabelled in the PDF (diameter vs L/s swapped); read as diameter -> max L/s. Checklist: return grille size considers noise and static.",
+   "confidence": "high"
+  },
+  {
+   "id": "aa_purtech",
+   "publisher": "Advantage Air (Aust) Pty Ltd",
+   "title": "Purtech Return Air Grille - catalogue sheets C-PT 1 to C-PT 5",
+   "year": 2008,
+   "page": "C-PT 1 (dims, effective face area), C-PT 3 (performance chart)",
+   "url": "https://www.advantageair.com.au/wp-content/uploads/2024/09/c_pt1-purtech-return-ag.pdf",
+   "region": "AU",
+   "basis": "lab chart: clean-filter pressure drop vs L/s for 3 grille sizes with 3-layer electrostatic filter, NR20-35 contours; filter test AS1324 G2 at 2.02 m/s",
+   "notes": "Values digitised from a log-log chart (about +/-10%). Velocities computed on the published 'effective face area' (0.529/0.309/0.337 m2). Neck connections 200-400 mm (200-550 on 750x550).",
+   "confidence": "med"
+  },
+  {
+   "id": "aa_slimline",
+   "publisher": "Advantage Air (Aust) Pty Ltd",
+   "title": "Slimline Heating Return Air Grille - catalogue sheets C-SG 1 to C-SG 3",
+   "year": 2008,
+   "page": "C-SG 2",
+   "url": "https://www.advantageair.com.au/wp-content/uploads/2024/09/c_sg1-slimline-heating-return-airgrille.pdf",
+   "region": "AU",
+   "basis": "lab chart grille+filter clean pressure vs L/s with NR contours; honeycomb filter ASHRAE 52.1 at 1.02 m/s",
+   "notes": "Wall grille, hole 562x382. Digitised from chart (+/-10%).",
+   "confidence": "med"
+  },
+  {
+   "id": "airflow_nz",
+   "publisher": "Airflow Engineering (SI) Ltd, Christchurch",
+   "title": "Filtered Eggcrate Grille Hinged - product data pages (FE series)",
+   "year": 2026,
+   "page": "per-size product pages",
+   "url": "https://airflowengineering.b2bwave.com/products/grid?category=126",
+   "region": "NZ",
+   "basis": "L/s published at 1.5 m/s core velocity, core area listed; G2 polyester filter; free area >90%",
+   "notes": "Gives the only complete published L/s-per-size table for filter grilles found in AU/NZ. The '600x300' page lists neck 600x350 but core 0.167 m2 (fits 600x300).",
+   "confidence": "high"
+  },
+  {
+   "id": "airfoil_hr5f",
+   "publisher": "Airfoil Manufacturing Pty Ltd (Moorebank NSW)",
+   "title": "Hinged Eggcrate Grille H-R5-F data sheet",
+   "year": 2024,
+   "page": "5-7",
+   "url": "https://airfoil.com.au/content/uploads/2024/05/Hinged-Eggcrate-Grille-H-R5-F.pdf",
+   "region": "AU",
+   "basis": "lab tested (Louis A. Challis & Assoc., Sydney): L/s and NR vs neck velocity per size; static pressure vs L/s per neck area; ~90% free area",
+   "notes": "12 mm filter standard on this model but the test sheet does not say whether the filter was fitted; pressures (7.5 Pa at ~2.3 m/s) look grille-only.",
+   "confidence": "high"
+  },
+  {
+   "id": "airfoil_dg",
+   "publisher": "Airfoil Manufacturing Pty Ltd (Moorebank NSW)",
+   "title": "Door Grille DG data sheet (inverted-V blade, ~50% free area)",
+   "year": 2024,
+   "page": "5-6",
+   "url": "https://airfoil.com.au/content/uploads/2024/05/Door-Grille-DG.pdf",
+   "region": "AU",
+   "basis": "lab tested static pressure (Pa) vs L/s per neck area",
+   "notes": "Transfer/door grille.",
+   "confidence": "high"
+  },
+  {
+   "id": "holyoake_rl",
+   "publisher": "Holyoake by Price",
+   "title": "RL - Exhaust & Return Grilles, performance data (RL25)",
+   "year": 2022,
+   "page": "220E-221E",
+   "url": "https://holyoake.com/wp-content/uploads/2023/04/RL-Series.pdf",
+   "region": "NZ/AU",
+   "basis": "core velocity (core area ~94% of nominal) vs m3/s, neg. SP and NC (10 dB room absorption)",
+   "notes": "30 deg curved fixed-blade commercial return louvre. Text extraction interleaves rows; read block by block. Also: 45 deg passive-ventilation models 'do not exceed 2.5 m/s core'.",
+   "confidence": "med"
+  },
+  {
+   "id": "holyoake_amg",
+   "publisher": "Holyoake by Price",
+   "title": "RLW & AMG - Return Louvers & Grilles, AMG performance data",
+   "year": 2022,
+   "page": "224E-225E",
+   "url": "https://holyoake.com/wp-content/uploads/2023/04/AMG.pdf",
+   "region": "NZ/AU",
+   "basis": "aluminium diamond-mesh return grille: core velocity vs m3/s, neg. SP, NC",
+   "notes": "Filtered hinged option AMGFR exists but no filter pressure data published.",
+   "confidence": "med"
+  },
+  {
+   "id": "holyoake_dg",
+   "publisher": "Holyoake by Price",
+   "title": "DG door grille, performance data (DG-52)",
+   "year": 2022,
+   "page": "215E",
+   "url": "https://holyoake.com/wp-content/uploads/2023/04/DG.pdf",
+   "region": "NZ/AU",
+   "basis": "core velocity vs neg. SP and NC",
+   "notes": "Sight-proof door/transfer grille.",
+   "confidence": "med"
+  },
+  {
+   "id": "brivis_classic",
+   "publisher": "Brivis (Rinnai Australia/NZ)",
+   "title": "Brivis Classic Installer's Manual - BX3, 2PWN, UF3, DF3 series, Issue E",
+   "year": 2018,
+   "page": "13-14 (Table 4), Table 6",
+   "url": "https://rinnai.co.nz/media/yr4dzyi5/im-bx3-2pwn-uf3-df3-issue-e-jun-2018.pdf",
+   "region": "AU/NZ",
+   "basis": "minimum return grille opening area (egg-crate) WITHOUT and WITH filter per heater, against published fan airflow at 50/125 Pa",
+   "notes": "Velocities computed = rated airflow / listed grille area. Area is the free ventilation opening (e.g. 400x650 = 0.26 m2), i.e. nominal opening. With-filter area is ~1.45x the no-filter area.",
+   "confidence": "high"
+  },
+  {
+   "id": "polyaire_ragx",
+   "publisher": "Polyaire",
+   "title": "RAG-X return air grille kits - product pages",
+   "year": 2026,
+   "page": "product listing",
+   "url": "https://www.polyaire.com.au/return-air/return-air-grilles",
+   "region": "AU",
+   "basis": "kit pairing of grille neck size with spigot count/diameter only",
+   "notes": "No airflow, free area or pressure data published (catalogue behind login).",
+   "confidence": "low"
+  },
+  {
+   "id": "ccc_memo",
+   "publisher": "CCC Engineering",
+   "title": "Design memo CCC-DM-2025-062: Return air pathways and transfer air design",
+   "year": 2025,
+   "page": "web memo",
+   "url": "https://cccengineering.com.au/design-memos/return-air-pathways-transfer-air/",
+   "region": "AU",
+   "basis": "consulting-engineer rules of thumb (cites AS 1668.2, AIRAH DA03, NCC J6)",
+   "notes": "Commercial-leaning; transfer velocity 1.5-2.5 m/s conflicts with its own 3 Pa limit, so treat transfer velocity as noise-based. Author unnamed.",
+   "confidence": "low"
+  },
+  {
+   "id": "ashrae_a23_ch49",
+   "publisher": "ASHRAE",
+   "title": "2023 ASHRAE Handbook - HVAC Applications, Ch. 49 Noise and Vibration Control, Tables 8 and 9",
+   "year": 2023,
+   "page": "Table 8 (duct velocities), Table 9 (neck/free-opening velocities)",
+   "url": "https://handbook.ashrae.org/Handbooks/A23/IP/A23_Ch49/a23_ch49_ip.aspx",
+   "region": "INTL",
+   "basis": "acoustic limits by RC(N); Table 9 = 'free' opening velocity at return registers; Table 8 main duct velocities, branches ~80%, final runouts <=50%",
+   "notes": "For use when no grille sound data exist; reduce for multiple grilles.",
+   "confidence": "high"
+  },
+  {
+   "id": "ashrae_f01_via_krueger",
+   "publisher": "Krueger (reproducing ASHRAE 2001 Fundamentals Ch. 32 Table 5)",
+   "title": "Air Distribution Engineering guide - 'Recommended Return Inlet Face Velocities'",
+   "year": 2012,
+   "page": "A1 section, ref a1-15",
+   "url": "https://www.krueger-hvac.com/file/9261/GRD_Engineering.pdf",
+   "region": "US",
+   "basis": "gross-area face velocity by inlet location; door louvres and undercuts 200-300 fpm",
+   "notes": "Commercial noise/draft guidance, not pressure-balance based.",
+   "confidence": "med"
+  },
+  {
+   "id": "acca_manual_d",
+   "publisher": "ACCA (Manual D Table 3-1, via ACCA verification brochure)",
+   "title": "Verifying ACCA Manual D Procedures - Recommended Velocity (FPM) (Manual D, Table 3-1)",
+   "year": 2012,
+   "page": "p.1-2",
+   "url": "https://eepartnership.org/wp-content/uploads/2012/08/Manual-D-Brochure.pdf",
+   "region": "US",
+   "basis": "residential duct design velocity table (recommended/maximum; rigid/flex) plus example device pressure losses",
+   "notes": "Brochure undated (hosted 2012). Table A1-1 300 fpm filter-grille limit confirmed separately via CEC staff paper. Section 4-10 / Table A1-1 originals not accessed (paywalled).",
+   "confidence": "med"
+  },
+  {
+   "id": "cec_2018_filters",
+   "publisher": "California Energy Commission (staff)",
+   "title": "Staff Analysis of Air Filter Pressure Drop and Air Filter Sizing (Title 24 2019 rulemaking)",
+   "year": 2018,
+   "page": "2-9",
+   "url": "https://images.greenbuildingadvisor.com/app/uploads/2021/03/11104556/Filtrete.pdf",
+   "region": "US",
+   "basis": "cites ANSI/ACCA Manual D 3rd ed. (2009) Table A1-1 = 300 fpm max filter-grille face velocity; Title 24 option 150 fpm with <=0.1 in.wc filter; lab test of 15 filters at 295 fpm",
+   "notes": "Lab dP values read from Table 1 (24x24 filters at 295 fpm).",
+   "confidence": "high"
+  },
+  {
+   "id": "hart_cooley",
+   "publisher": "Hart & Cooley",
+   "title": "Using the Engineering Data (residential grilles/registers catalogue intro)",
+   "year": null,
+   "page": "33-34",
+   "url": "https://hartandcooley.com/literature/Using_the_Engineering_Data.pdf",
+   "region": "US",
+   "basis": "face velocity on Ak (lab-measured effective area); returns 400-600 fpm max; filter returns 450 fpm max; quotes ACCA 300 filter / 500 non-filter; 2 cfm per in2 of filter",
+   "notes": "Undated; current catalogue pages are 01-2026.",
+   "confidence": "med"
+  },
+  {
+   "id": "price_80",
+   "publisher": "Price Industries",
+   "title": "80 Egg Crate Return Grille - catalogue performance data (0 deg, 1/2 in core)",
+   "year": 2023,
+   "page": "5",
+   "url": "https://legacy.priceindustries.com/content/uploads/assets/literature/catalogs/catalog-pages/section%20d/80-egg-crate-return-grille-catalog.pdf",
+   "region": "US",
+   "basis": "ASHRAE 70-2023 test; core velocity (core ~90-95% of nominal) vs cfm, neg. SP, NC; filter dP NOT included on FF/FH models",
+   "notes": "Converted to metric.",
+   "confidence": "high"
+  },
+  {
+   "id": "price_stg",
+   "publisher": "Price Industries",
+   "title": "STG/ATG Transfer Grille - catalogue performance data",
+   "year": 2023,
+   "page": "performance table",
+   "url": "https://legacy.priceindustries.com/content/uploads/assets/literature/catalogs/catalog-pages/section%20d/stgatg-transfer-grille-catalog.pdf",
+   "region": "US",
+   "basis": "core velocity vs neg. static pressure and NC for sight-proof transfer grille",
+   "notes": "Converted to metric.",
+   "confidence": "med"
+  },
+  {
+   "id": "camfil_3030",
+   "publisher": "Camfil",
+   "title": "30/30 High-Capacity Pleated Panel Filter (MERV 8) product sheet #1002-0416",
+   "year": 2016,
+   "page": "1-2",
+   "url": "https://shop.actiontarget.com/images/3030%20High%20Capacity%20MERV%208%20Pleated%20Panel%205-Star%20Filter%20Product%20Sheet.pdf",
+   "region": "US/INTL",
+   "basis": "spec limits: initial resistance <=0.23/0.31/0.27 in.wg at 350/500/500 fpm for 1/2/4 in deep; final 1.0 in.wg; rated 250 fpm medium / 500 high (2 & 4 in), 175/350 (1 in)",
+   "notes": "A commercial-grade pleated reference for clean/dirty filter dP.",
+   "confidence": "high"
+  },
+  {
+   "id": "ev_filterbox",
+   "publisher": "Energy Vanguard / Green Building Advisor (Allison Bailes)",
+   "title": "Designing Return Filter Grille Boxes",
+   "year": 2020,
+   "page": "web article",
+   "url": "https://www.greenbuildingadvisor.com/article/designing-return-filter-grille-boxes",
+   "region": "US",
+   "basis": "design rule 2 ft2 filter per 400 cfm (~200 fpm) plus measured MERV-13 dP",
+   "notes": "Low-velocity high-MERV practice.",
+   "confidence": "med"
+  },
+  {
+   "id": "gba_undercut",
+   "publisher": "Green Building Advisor (Allison Bailes)",
+   "title": "Door Undercuts for Return Air",
+   "year": 2017,
+   "page": "web article",
+   "url": "https://www.greenbuildingadvisor.com/article/door-undercuts-for-return-air",
+   "region": "US",
+   "basis": "cites FSEC study (1 in undercut ~60 cfm, ~2 cfm/in2) and Semmelhack field tests (1/2 in undercut <3 Pa to ~80 cfm)",
+   "notes": "",
+   "confidence": "med"
+  },
+  {
+   "id": "bsc_rr0005",
+   "publisher": "Building Science Corporation (Armin Rudd)",
+   "title": "RR-0005 Transfer Grille Sizing / BA-0006 Use of Transfer Grilles in Central Return Systems",
+   "year": 2000,
+   "page": "RR-0005 p.1-2; BA-0006 sizing notes",
+   "url": "https://buildingscience.com/documents/reports/rr-0005-transfer-grille-sizing/view",
+   "region": "US",
+   "basis": "orifice equation Q[cfm]=1.07 A[in2] sqrt(dP[Pa]) at 3 Pa; grille net free 70-75%; free area to be increased (x1/0.6 hi-lo wall, x1/0.7 through-wall/jump duct); 32x1/2 in undercut credited",
+   "notes": "Re-published by BSC Press 2008. Typical grille free areas (Ameri-Flow, Grainger 2001) also listed. Hi-low transfer max ~125 cfm; door undercut >=1 in still required.",
+   "confidence": "high"
+  },
+  {
+   "id": "energystar_rfc14",
+   "publisher": "US EPA ENERGY STAR",
+   "title": "National Rater Field Checklist Rev. 14, item 6.2 and footnote 25",
+   "year": 2025,
+   "page": "item 6.2, fn 25",
+   "url": "https://www.energystar.gov/sites/default/files/2025-04/National%20Rater%20Field%20Checklist_Rev%2014.pdf",
+   "region": "US",
+   "basis": "bedroom pressure balance limit with doors closed, all air handlers on",
+   "notes": "",
+   "confidence": "high"
+  },
+  {
+   "id": "hvacrschool_paths",
+   "publisher": "HVAC School",
+   "title": "What Airflow Goes Around Has to Come Around (return paths; cites ACCA Manual D Table N3-2 and Section N4)",
+   "year": null,
+   "page": "web article",
+   "url": "https://hvacrschool.com/what-airflow-goes-around-has-to-come-around/",
+   "region": "US",
+   "basis": "secondary summary of Manual D undercut table and jumper/transfer pressure limits; Raymer rule",
+   "notes": "Secondary; table itself shown as image.",
+   "confidence": "low"
+  },
+  {
+   "id": "hvacrschool_bruner",
+   "publisher": "HVAC School (Matthew Bruner)",
+   "title": "Sizing Return Grilles",
+   "year": 2023,
+   "page": "web article",
+   "url": "https://www.hvacrschool.com/sizing-return-grilles/",
+   "region": "US",
+   "basis": "400 fpm target; Richardson rule 2 cfm per in2 of filter grille",
+   "notes": "Secondary/practitioner.",
+   "confidence": "low"
+  },
+  {
+   "id": "koolair",
+   "publisher": "Koolair (Spain)",
+   "title": "Return grilles series 20 catalogue (door grille type 24)",
+   "year": null,
+   "page": "n/a",
+   "url": "https://pdf.archiexpo.com/pdf/koolair-sa/return-grilles-series-202/67596-292311.html",
+   "region": "EU",
+   "basis": "recommended door-grille transfer velocity 0.75-1.25 m/s",
+   "notes": "Read from search-index snippet only (page returned 403); treat as unverified.",
+   "confidence": "low"
+  }
+ ],
+ "values": [
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.5,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Design basis for the min/max return grille free-area tables."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": null,
+   "size_mm": null,
+   "ls": 630,
+   "velocity_ms": 2.42,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.26,
+   "note": "Minimum return grille free area at nominal supply airflow."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": null,
+   "size_mm": null,
+   "ls": 750,
+   "velocity_ms": 2.5,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.3,
+   "note": "Minimum return grille free area at nominal supply airflow."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": null,
+   "size_mm": null,
+   "ls": 850,
+   "velocity_ms": 2.36,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.36,
+   "note": "Minimum return grille free area at nominal supply airflow."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": null,
+   "size_mm": null,
+   "ls": 1020,
+   "velocity_ms": 2.55,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.4,
+   "note": "Minimum return grille free area at nominal supply airflow."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": null,
+   "size_mm": null,
+   "ls": 1130,
+   "velocity_ms": 2.57,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.44,
+   "note": "Minimum return grille free area at nominal supply airflow."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": null,
+   "size_mm": null,
+   "ls": 900,
+   "velocity_ms": 2.5,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.36,
+   "note": "Return grille free area at the model's maximum supply airflow."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": null,
+   "size_mm": null,
+   "ls": 1020,
+   "velocity_ms": 2.49,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.41,
+   "note": "Return grille free area at the model's maximum supply airflow."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": null,
+   "size_mm": null,
+   "ls": 1200,
+   "velocity_ms": 2.5,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.48,
+   "note": "Return grille free area at the model's maximum supply airflow."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": null,
+   "size_mm": null,
+   "ls": 1320,
+   "velocity_ms": 2.49,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.53,
+   "note": "Return grille free area at the model's maximum supply airflow."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": "640x540",
+   "size_mm": [
+    640,
+    540
+   ],
+   "ls": 630,
+   "velocity_ms": 1.8,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.35,
+   "note": "'Recommended Return Air Grilles (for nominal air flow)'; sizes stated as free area."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": "740x540",
+   "size_mm": [
+    740,
+    540
+   ],
+   "ls": 750,
+   "velocity_ms": 1.88,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.4,
+   "note": "'Recommended Return Air Grilles (for nominal air flow)'; sizes stated as free area."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": "890x540",
+   "size_mm": [
+    890,
+    540
+   ],
+   "ls": 850,
+   "velocity_ms": 1.77,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.48,
+   "note": "'Recommended Return Air Grilles (for nominal air flow)'; sizes stated as free area."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": "890x540",
+   "size_mm": [
+    890,
+    540
+   ],
+   "ls": 1020,
+   "velocity_ms": 2.12,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.48,
+   "note": "'Recommended Return Air Grilles (for nominal air flow)'; sizes stated as free area."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_grille_size_ls",
+   "size": "890x540",
+   "size_mm": [
+    890,
+    540
+   ],
+   "ls": 1130,
+   "velocity_ms": 2.35,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "free_area_m2": 0.48,
+   "note": "'Recommended Return Air Grilles (for nominal air flow)'; sizes stated as free area."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_duct",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 4.0,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Maximum return air duct velocity used to size the return duct table."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_duct",
+   "size": "2x350 dia",
+   "size_mm": [
+    350
+   ],
+   "ls": 315.0,
+   "velocity_ms": 3.27,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Model nominal 630 L/s on 2 x 350 mm return ducts (L/s is per duct)."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_duct",
+   "size": "2x400 dia",
+   "size_mm": [
+    400
+   ],
+   "ls": 375.0,
+   "velocity_ms": 2.98,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Model nominal 750 L/s on 2 x 400 mm return ducts (L/s is per duct)."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_duct",
+   "size": "2x400 dia",
+   "size_mm": [
+    400
+   ],
+   "ls": 425.0,
+   "velocity_ms": 3.38,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Model nominal 850 L/s on 2 x 400 mm return ducts (L/s is per duct)."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_duct",
+   "size": "2x450 dia",
+   "size_mm": [
+    450
+   ],
+   "ls": 510.0,
+   "velocity_ms": 3.21,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Model nominal 1020 L/s on 2 x 450 mm return ducts (L/s is per duct)."
+  },
+  {
+   "source": "actron_0520_026",
+   "item": "return_duct",
+   "size": "2x450 dia",
+   "size_mm": [
+    450
+   ],
+   "ls": 565.0,
+   "velocity_ms": 3.55,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Model nominal 1130 L/s on 2 x 450 mm return ducts (L/s is per duct)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.25,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    2.0,
+    2.5
+   ],
+   "note": "'Recommend 2-2.5 m/s for return air grill selection'; velocity_ms is the mid-point."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "250 dia flex",
+   "size_mm": [
+    250
+   ],
+   "ls": 170,
+   "velocity_ms": 3.46,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Maximum recommended L/s per flexible duct diameter (general flex table)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "300 dia flex",
+   "size_mm": [
+    300
+   ],
+   "ls": 275,
+   "velocity_ms": 3.89,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Maximum recommended L/s per flexible duct diameter (general flex table)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "350 dia flex",
+   "size_mm": [
+    350
+   ],
+   "ls": 385,
+   "velocity_ms": 4.0,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Maximum recommended L/s per flexible duct diameter (general flex table)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "400 dia flex",
+   "size_mm": [
+    400
+   ],
+   "ls": 503,
+   "velocity_ms": 4.0,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Maximum recommended L/s per flexible duct diameter (general flex table)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "450 dia flex",
+   "size_mm": [
+    450
+   ],
+   "ls": 636,
+   "velocity_ms": 4.0,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Maximum recommended L/s per flexible duct diameter (general flex table)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "500 dia flex",
+   "size_mm": [
+    500
+   ],
+   "ls": 785,
+   "velocity_ms": 4.0,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Maximum recommended L/s per flexible duct diameter (general flex table)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "550 dia flex",
+   "size_mm": [
+    550
+   ],
+   "ls": 950,
+   "velocity_ms": 4.0,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Maximum recommended L/s per flexible duct diameter (general flex table)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "2x350 dia",
+   "size_mm": [
+    350
+   ],
+   "ls": 325.0,
+   "velocity_ms": 3.38,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Model nominal 650 L/s on 2 x 350 mm return ducts (per duct)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "2x400 dia",
+   "size_mm": [
+    400
+   ],
+   "ls": 385.0,
+   "velocity_ms": 3.06,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Model nominal 770 L/s on 2 x 400 mm return ducts (per duct)."
+  },
+  {
+   "source": "actron_db0817",
+   "item": "return_duct",
+   "size": "2x400 dia",
+   "size_mm": [
+    400
+   ],
+   "ls": 445.0,
+   "velocity_ms": 3.54,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Model nominal 890 L/s on 2 x 400 mm return ducts (per duct)."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.02,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 50,
+   "note": "Electrostatic filter AS1324 G2 (class B, arrestance 78%): INITIAL resistance at 2.02 m/s test velocity."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.02,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 125,
+   "note": "Same filter: FINAL (dirty) resistance at 2.02 m/s."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "1200x600",
+   "size_mm": [
+    1200,
+    600
+   ],
+   "ls": 726,
+   "velocity_ms": 1.37,
+   "area_basis": "free",
+   "free_area_pct": 74,
+   "pressure_pa": 27,
+   "nr": 20,
+   "note": "Filter grille at NR20 (clean filter); velocity on published effective face area 0.529 m2; digitised."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "1200x600",
+   "size_mm": [
+    1200,
+    600
+   ],
+   "ls": 865,
+   "velocity_ms": 1.64,
+   "area_basis": "free",
+   "free_area_pct": 74,
+   "pressure_pa": 36,
+   "nr": 25,
+   "note": "Filter grille at NR25 (clean filter); velocity on published effective face area 0.529 m2; digitised."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "1200x600",
+   "size_mm": [
+    1200,
+    600
+   ],
+   "ls": 988,
+   "velocity_ms": 1.87,
+   "area_basis": "free",
+   "free_area_pct": 74,
+   "pressure_pa": 44,
+   "nr": 30,
+   "note": "Filter grille at NR30 (clean filter); velocity on published effective face area 0.529 m2; digitised."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "1200x600",
+   "size_mm": [
+    1200,
+    600
+   ],
+   "ls": 1140,
+   "velocity_ms": 2.16,
+   "area_basis": "free",
+   "free_area_pct": 74,
+   "pressure_pa": 54,
+   "nr": 35,
+   "note": "Filter grille at NR35 (clean filter); velocity on published effective face area 0.529 m2; digitised."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "900x400",
+   "size_mm": [
+    900,
+    400
+   ],
+   "ls": 525,
+   "velocity_ms": 1.7,
+   "area_basis": "free",
+   "free_area_pct": 68,
+   "pressure_pa": 39,
+   "nr": 20,
+   "note": "Filter grille at NR20 (clean filter); velocity on published effective face area 0.309 m2; digitised."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "900x400",
+   "size_mm": [
+    900,
+    400
+   ],
+   "ls": 593,
+   "velocity_ms": 1.92,
+   "area_basis": "free",
+   "free_area_pct": 68,
+   "pressure_pa": 47,
+   "nr": 25,
+   "note": "Filter grille at NR25 (clean filter); velocity on published effective face area 0.309 m2; digitised."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "900x400",
+   "size_mm": [
+    900,
+    400
+   ],
+   "ls": 729,
+   "velocity_ms": 2.36,
+   "area_basis": "free",
+   "free_area_pct": 68,
+   "pressure_pa": 65,
+   "nr": 30,
+   "note": "Filter grille at NR30 (clean filter); velocity on published effective face area 0.309 m2; digitised."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "900x400",
+   "size_mm": [
+    900,
+    400
+   ],
+   "ls": 807,
+   "velocity_ms": 2.61,
+   "area_basis": "free",
+   "free_area_pct": 68,
+   "pressure_pa": 78,
+   "nr": 35,
+   "note": "Filter grille at NR35 (clean filter); velocity on published effective face area 0.309 m2; digitised."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "750x550",
+   "size_mm": [
+    750,
+    550
+   ],
+   "ls": 620,
+   "velocity_ms": 1.84,
+   "area_basis": "free",
+   "free_area_pct": 71,
+   "pressure_pa": 45,
+   "nr": 25,
+   "note": "Filter grille at NR25 (clean filter); velocity on published effective face area 0.337 m2; digitised."
+  },
+  {
+   "source": "aa_purtech",
+   "item": "return_grille_size_ls",
+   "size": "750x550",
+   "size_mm": [
+    750,
+    550
+   ],
+   "ls": 757,
+   "velocity_ms": 2.25,
+   "area_basis": "free",
+   "free_area_pct": 71,
+   "pressure_pa": 62,
+   "nr": 30,
+   "note": "Filter grille at NR30 (clean filter); velocity on published effective face area 0.337 m2; digitised."
+  },
+  {
+   "source": "aa_slimline",
+   "item": "return_grille_size_ls",
+   "size": "560x360",
+   "size_mm": [
+    560,
+    360
+   ],
+   "ls": 243,
+   "velocity_ms": 1.13,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 22,
+   "nr": 20,
+   "note": "Wall filter grille at NR20, grille+clean honeycomb filter; velocity on 562x382 hole; digitised."
+  },
+  {
+   "source": "aa_slimline",
+   "item": "return_grille_size_ls",
+   "size": "560x360",
+   "size_mm": [
+    560,
+    360
+   ],
+   "ls": 292,
+   "velocity_ms": 1.36,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 30,
+   "nr": 25,
+   "note": "Wall filter grille at NR25, grille+clean honeycomb filter; velocity on 562x382 hole; digitised."
+  },
+  {
+   "source": "aa_slimline",
+   "item": "return_grille_size_ls",
+   "size": "560x360",
+   "size_mm": [
+    560,
+    360
+   ],
+   "ls": 342,
+   "velocity_ms": 1.59,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 40,
+   "nr": 30,
+   "note": "Wall filter grille at NR30, grille+clean honeycomb filter; velocity on 562x382 hole; digitised."
+  },
+  {
+   "source": "aa_slimline",
+   "item": "return_grille_size_ls",
+   "size": "560x360",
+   "size_mm": [
+    560,
+    360
+   ],
+   "ls": 402,
+   "velocity_ms": 1.87,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 52,
+   "nr": 35,
+   "note": "Wall filter grille at NR35, grille+clean honeycomb filter; velocity on 562x382 hole; digitised."
+  },
+  {
+   "source": "aa_slimline",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.02,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 10,
+   "note": "Honeycomb filter (ASHRAE 52.1, arrestance 54%) initial resistance at 1.02 m/s."
+  },
+  {
+   "source": "aa_slimline",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.02,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 250,
+   "note": "Same filter final resistance at 1.02 m/s."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "200x200",
+   "size_mm": [
+    200,
+    200
+   ],
+   "ls": 54,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.036,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "300x300",
+   "size_mm": [
+    300,
+    300
+   ],
+   "ls": 127,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.084,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "400x400",
+   "size_mm": [
+    400,
+    400
+   ],
+   "ls": 227,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.149,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "450x450",
+   "size_mm": [
+    450,
+    450
+   ],
+   "ls": 295,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.193,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "550x550",
+   "size_mm": [
+    550,
+    550
+   ],
+   "ls": 441,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.289,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "600x300",
+   "size_mm": [
+    600,
+    300
+   ],
+   "ls": 255,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.167,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "600x400",
+   "size_mm": [
+    600,
+    400
+   ],
+   "ls": 347,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.228,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "700x400",
+   "size_mm": [
+    700,
+    400
+   ],
+   "ls": 420,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.28,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "750x400",
+   "size_mm": [
+    750,
+    400
+   ],
+   "ls": 450,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.3,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "750x550",
+   "size_mm": [
+    750,
+    550
+   ],
+   "ls": 618,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.4,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "800x400",
+   "size_mm": [
+    800,
+    400
+   ],
+   "ls": 488,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.32,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "800x450",
+   "size_mm": [
+    800,
+    450
+   ],
+   "ls": 540,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.36,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "900x400",
+   "size_mm": [
+    900,
+    400
+   ],
+   "ls": 540,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.36,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "900x450",
+   "size_mm": [
+    900,
+    450
+   ],
+   "ls": 600,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.4,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "900x500",
+   "size_mm": [
+    900,
+    500
+   ],
+   "ls": 675,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.405,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "return_grille_size_ls",
+   "size": "1150x550",
+   "size_mm": [
+    1150,
+    550
+   ],
+   "ls": 950,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "core_area_m2": 0.63,
+   "note": "Filter grille (G2) rated L/s at 1.5 m/s core velocity; core area ~= neck area; free area >90%. 1150x550 neck = 1200x600 T-bar face."
+  },
+  {
+   "source": "airflow_nz",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "note": "Rating basis for G2 polyester filter grilles."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "600x300",
+   "size_mm": [
+    600,
+    300
+   ],
+   "ls": 300,
+   "velocity_ms": 2.0,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": null,
+   "note": "NR below 15; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "600x300",
+   "size_mm": [
+    600,
+    300
+   ],
+   "ls": 380,
+   "velocity_ms": 2.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": 18,
+   "note": "NR18; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "600x300",
+   "size_mm": [
+    600,
+    300
+   ],
+   "ls": 450,
+   "velocity_ms": 3.0,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": 24,
+   "note": "NR24; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "600x600",
+   "size_mm": [
+    600,
+    600
+   ],
+   "ls": 680,
+   "velocity_ms": 2.0,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": 16,
+   "note": "NR16; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "600x600",
+   "size_mm": [
+    600,
+    600
+   ],
+   "ls": 850,
+   "velocity_ms": 2.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": 22,
+   "note": "NR22; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "600x600",
+   "size_mm": [
+    600,
+    600
+   ],
+   "ls": 1020,
+   "velocity_ms": 3.0,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": 28,
+   "note": "NR28; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "1200x600",
+   "size_mm": [
+    1200,
+    600
+   ],
+   "ls": 890,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": 13,
+   "note": "NR13; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "1200x600",
+   "size_mm": [
+    1200,
+    600
+   ],
+   "ls": 1180,
+   "velocity_ms": 2.0,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": 20,
+   "note": "NR20; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "1200x600",
+   "size_mm": [
+    1200,
+    600
+   ],
+   "ls": 1470,
+   "velocity_ms": 2.5,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": 26,
+   "note": "NR26; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_size_ls",
+   "size": "1200x600",
+   "size_mm": [
+    1200,
+    600
+   ],
+   "ls": 1770,
+   "velocity_ms": 3.0,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": null,
+   "nr": 32,
+   "note": "NR32; velocity is neck velocity as published."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_face_velocity",
+   "size": "600x300",
+   "size_mm": [
+    600,
+    300
+   ],
+   "ls": 400,
+   "velocity_ms": 2.22,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": 7.5,
+   "note": "Static pressure 7.5 Pa at 400 L/s (neck area 0.18 m2)."
+  },
+  {
+   "source": "airfoil_hr5f",
+   "item": "return_grille_face_velocity",
+   "size": "900x450",
+   "size_mm": [
+    900,
+    450
+   ],
+   "ls": 1000,
+   "velocity_ms": 2.47,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": 7.5,
+   "note": "Static pressure 7.5 Pa at 1000 L/s (neck area 0.405 m2)."
+  },
+  {
+   "source": "holyoake_rl",
+   "item": "return_grille_size_ls",
+   "size": "890x400",
+   "size_mm": [
+    890,
+    400
+   ],
+   "ls": 596,
+   "velocity_ms": 1.79,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 15,
+   "nc": 21,
+   "core_area_m2": 0.335,
+   "note": "RL25 30-deg fixed-blade louvre, NC21; neg. SP; core velocity (core ~94% of nominal)."
+  },
+  {
+   "source": "holyoake_rl",
+   "item": "return_grille_size_ls",
+   "size": "890x400",
+   "size_mm": [
+    890,
+    400
+   ],
+   "ls": 681,
+   "velocity_ms": 2.04,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 19,
+   "nc": 28,
+   "core_area_m2": 0.335,
+   "note": "RL25 30-deg fixed-blade louvre, NC28; neg. SP; core velocity (core ~94% of nominal)."
+  },
+  {
+   "source": "holyoake_rl",
+   "item": "return_grille_size_ls",
+   "size": "890x400",
+   "size_mm": [
+    890,
+    400
+   ],
+   "ls": 852,
+   "velocity_ms": 2.55,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 29,
+   "nc": 36,
+   "core_area_m2": 0.335,
+   "note": "RL25 30-deg fixed-blade louvre, NC36; neg. SP; core velocity (core ~94% of nominal)."
+  },
+  {
+   "source": "holyoake_rl",
+   "item": "return_grille_size_ls",
+   "size": "940x450",
+   "size_mm": [
+    940,
+    450
+   ],
+   "ls": 708,
+   "velocity_ms": 1.79,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 15,
+   "nc": 23,
+   "core_area_m2": 0.399,
+   "note": "RL25 30-deg fixed-blade louvre, NC23; neg. SP; core velocity (core ~94% of nominal)."
+  },
+  {
+   "source": "holyoake_rl",
+   "item": "return_grille_size_ls",
+   "size": "940x450",
+   "size_mm": [
+    940,
+    450
+   ],
+   "ls": 810,
+   "velocity_ms": 2.04,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 19,
+   "nc": 29,
+   "core_area_m2": 0.399,
+   "note": "RL25 30-deg fixed-blade louvre, NC29; neg. SP; core velocity (core ~94% of nominal)."
+  },
+  {
+   "source": "holyoake_rl",
+   "item": "return_grille_size_ls",
+   "size": "940x450",
+   "size_mm": [
+    940,
+    450
+   ],
+   "ls": 1010,
+   "velocity_ms": 2.55,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 29,
+   "nc": 38,
+   "core_area_m2": 0.399,
+   "note": "RL25 30-deg fixed-blade louvre, NC38; neg. SP; core velocity (core ~94% of nominal)."
+  },
+  {
+   "source": "holyoake_amg",
+   "item": "return_grille_face_velocity",
+   "size": "700x300",
+   "size_mm": [
+    700,
+    300
+   ],
+   "ls": 397,
+   "velocity_ms": 2.02,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 8,
+   "nc": null,
+   "core_area_m2": 0.193,
+   "note": "Aluminium diamond-mesh return grille (no filter); core 0.193 m2 block (also 595x350, 465x450); NC<15."
+  },
+  {
+   "source": "holyoake_amg",
+   "item": "return_grille_face_velocity",
+   "size": "700x300",
+   "size_mm": [
+    700,
+    300
+   ],
+   "ls": 484,
+   "velocity_ms": 2.49,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 12,
+   "nc": 16,
+   "core_area_m2": 0.193,
+   "note": "Aluminium diamond-mesh return grille (no filter); core 0.193 m2 block (also 595x350, 465x450); NC16."
+  },
+  {
+   "source": "holyoake_amg",
+   "item": "return_grille_face_velocity",
+   "size": "700x300",
+   "size_mm": [
+    700,
+    300
+   ],
+   "ls": 569,
+   "velocity_ms": 2.83,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 16,
+   "nc": 20,
+   "core_area_m2": 0.193,
+   "note": "Aluminium diamond-mesh return grille (no filter); core 0.193 m2 block (also 595x350, 465x450); NC20."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 498,
+   "velocity_ms": 2.62,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.19,
+   "note": "BX315 (300): egg-crate return WITHOUT filter, 0.19 m2 opening, fan 498 L/s @ 50 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 498,
+   "velocity_ms": 1.78,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.28,
+   "note": "BX315 (300): egg-crate return WITH filter, 0.28 m2 opening, fan 498 L/s @ 50 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 581,
+   "velocity_ms": 2.64,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.22,
+   "note": "BX320 (300): egg-crate return WITHOUT filter, 0.22 m2 opening, fan 581 L/s @ 50 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 581,
+   "velocity_ms": 1.82,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.32,
+   "note": "BX320 (300): egg-crate return WITH filter, 0.32 m2 opening, fan 581 L/s @ 50 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 622,
+   "velocity_ms": 2.59,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.24,
+   "note": "BX320 (350): egg-crate return WITHOUT filter, 0.24 m2 opening, fan 622 L/s @ 50 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 622,
+   "velocity_ms": 1.78,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.35,
+   "note": "BX320 (350): egg-crate return WITH filter, 0.35 m2 opening, fan 622 L/s @ 50 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 819,
+   "velocity_ms": 2.56,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.32,
+   "note": "BX326 (350): egg-crate return WITHOUT filter, 0.32 m2 opening, fan 819 L/s @ 125 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 819,
+   "velocity_ms": 1.78,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.46,
+   "note": "BX326 (350): egg-crate return WITH filter, 0.46 m2 opening, fan 819 L/s @ 125 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 921,
+   "velocity_ms": 2.63,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.35,
+   "note": "BX326 (400): egg-crate return WITHOUT filter, 0.35 m2 opening, fan 921 L/s @ 125 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 921,
+   "velocity_ms": 1.81,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.51,
+   "note": "BX326 (400): egg-crate return WITH filter, 0.51 m2 opening, fan 921 L/s @ 125 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 452,
+   "velocity_ms": 2.66,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.17,
+   "note": "2PWN15: egg-crate return WITHOUT filter, 0.17 m2 opening, fan 452 L/s @ 50 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 452,
+   "velocity_ms": 1.81,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.25,
+   "note": "2PWN15: egg-crate return WITH filter, 0.25 m2 opening, fan 452 L/s @ 50 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 944,
+   "velocity_ms": 2.62,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.36,
+   "note": "2PWN26 XA: egg-crate return WITHOUT filter, 0.36 m2 opening, fan 944 L/s @ 125 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 944,
+   "velocity_ms": 1.82,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.52,
+   "note": "2PWN26 XA: egg-crate return WITH filter, 0.52 m2 opening, fan 944 L/s @ 125 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 800,
+   "velocity_ms": 2.22,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.36,
+   "note": "UF326 XA: egg-crate return WITHOUT filter, 0.36 m2 opening, fan 800 L/s @ 125 Pa."
+  },
+  {
+   "source": "brivis_classic",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": 800,
+   "velocity_ms": 1.82,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "grille_area_m2": 0.44,
+   "note": "UF326 XA: egg-crate return WITH filter, 0.44 m2 opening, fan 800 L/s @ 125 Pa."
+  },
+  {
+   "source": "polyaire_ragx",
+   "item": "return_duct",
+   "size": "750x450",
+   "size_mm": [
+    750,
+    450
+   ],
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Kit pairs this grille neck with 1x350 or 1x400 mm spigots; no airflow published."
+  },
+  {
+   "source": "polyaire_ragx",
+   "item": "return_duct",
+   "size": "900x500",
+   "size_mm": [
+    900,
+    500
+   ],
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Kit pairs this grille neck with 2x350 or 2x400 mm spigots; no airflow published."
+  },
+  {
+   "source": "polyaire_ragx",
+   "item": "return_duct",
+   "size": "1139x539",
+   "size_mm": [
+    1139,
+    539
+   ],
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Kit pairs this grille neck with 2x350 or 2x400 mm spigots; no airflow published."
+  },
+  {
+   "source": "ccc_memo",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.5,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Ceiling-plenum return: keep grille face below 2.5 m/s."
+  },
+  {
+   "source": "ccc_memo",
+   "item": "return_duct",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 4.25,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    3.5,
+    5.0
+   ],
+   "note": "Ducted returns 3.5-5.0 m/s (branches low end, mains high end); mid-point given."
+  },
+  {
+   "source": "ccc_memo",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.0,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    1.5,
+    2.5
+   ],
+   "free_area_pct_range": [
+    60,
+    75
+   ],
+   "note": "Transfer grille 1.5-2.5 m/s (lower end for occupied rooms); worked example 100 L/s at 2.0 m/s, 0.70 free -> 0.071 m2 gross. Noise-based; exceeds 3 Pa."
+  },
+  {
+   "source": "ccc_memo",
+   "item": "transfer_grille",
+   "size": "25 mm undercut x 820 door",
+   "size_mm": [
+    820,
+    25
+   ],
+   "ls": 30,
+   "velocity_ms": null,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "note": "~205 cm2 free -> ~30 L/s at <=3 Pa; undercut alone for rooms <40 L/s; keep room-to-corridor <=3 Pa."
+  },
+  {
+   "source": "ashrae_a23_ch49",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 3.81,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "rc": 45,
+   "note": "Table 9 max free-opening velocity at return register for RC(N) 45 (750 fpm)."
+  },
+  {
+   "source": "ashrae_a23_ch49",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 3.43,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "rc": 40,
+   "note": "Table 9 max free-opening velocity at return register for RC(N) 40 (675 fpm)."
+  },
+  {
+   "source": "ashrae_a23_ch49",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 3.05,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "rc": 35,
+   "note": "Table 9 max free-opening velocity at return register for RC(N) 35 (600 fpm)."
+  },
+  {
+   "source": "ashrae_a23_ch49",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.54,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "rc": 30,
+   "note": "Table 9 max free-opening velocity at return register for RC(N) 30 (500 fpm)."
+  },
+  {
+   "source": "ashrae_a23_ch49",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.16,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "rc": 25,
+   "note": "Table 9 max free-opening velocity at return register for RC(N) 25 (425 fpm)."
+  },
+  {
+   "source": "ashrae_a23_ch49",
+   "item": "return_duct",
+   "size": "circular runout",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 6.35,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "rc": 25,
+   "note": "Table 8 RC25 circular MAIN duct above drywall ceiling / in shaft = 2500 fpm; final runouts <=50% -> this value (branches ~80%)."
+  },
+  {
+   "source": "ashrae_a23_ch49",
+   "item": "return_duct",
+   "size": "circular runout",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 5.08,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "rc": 25,
+   "note": "Table 8 RC25 circular MAIN duct above suspended acoustic ceiling = 2000 fpm; final runouts <=50% -> this value (branches ~80%)."
+  },
+  {
+   "source": "ashrae_a23_ch49",
+   "item": "return_duct",
+   "size": "circular runout",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 4.32,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "rc": 25,
+   "note": "Table 8 RC25 circular MAIN duct within occupied space = 1700 fpm; final runouts <=50% -> this value (branches ~80%)."
+  },
+  {
+   "source": "ashrae_f01_via_krueger",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 4.06,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    4.06,
+    null
+   ],
+   "note": "Recommended return inlet face velocity, above occupied zone (>800 fpm)."
+  },
+  {
+   "source": "ashrae_f01_via_krueger",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 3.56,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    3.05,
+    4.06
+   ],
+   "note": "Recommended return inlet face velocity, within occupied zone, not near seats."
+  },
+  {
+   "source": "ashrae_f01_via_krueger",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.54,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    2.03,
+    3.05
+   ],
+   "note": "Recommended return inlet face velocity, within occupied zone, near seats."
+  },
+  {
+   "source": "ashrae_f01_via_krueger",
+   "item": "transfer_grille",
+   "size": "door or wall louvre",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.27,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    1.02,
+    1.52
+   ],
+   "note": "Door or wall louvres 200-300 fpm (noise/draft basis)."
+  },
+  {
+   "source": "ashrae_f01_via_krueger",
+   "item": "transfer_grille",
+   "size": "door undercut",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.27,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    1.02,
+    1.52
+   ],
+   "note": "Through undercut area of doors 200-300 fpm."
+  },
+  {
+   "source": "acca_manual_d",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.54,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Return grille face velocity 500 fpm (Table 3-1)."
+  },
+  {
+   "source": "acca_manual_d",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.52,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Filter grille face velocity 300 fpm (Table 3-1; same as Table A1-1)."
+  },
+  {
+   "source": "acca_manual_d",
+   "item": "return_duct",
+   "size": "return trunk",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 3.05,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    3.05,
+    3.56
+   ],
+   "note": "Return trunk: recommended 600 fpm (rigid & flex), maximum 700 fpm."
+  },
+  {
+   "source": "acca_manual_d",
+   "item": "return_duct",
+   "size": "return branch",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.03,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    2.03,
+    3.56
+   ],
+   "note": "Return branch: recommended 400 fpm (rigid & flex), maximum 700 fpm."
+  },
+  {
+   "source": "acca_manual_d",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 44.8,
+   "note": "Worked-example device loss for the filter: 0.18 in.wc."
+  },
+  {
+   "source": "acca_manual_d",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 7.5,
+   "note": "Worked-example device loss for a return grille: 0.03 in.wc."
+  },
+  {
+   "source": "cec_2018_filters",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.52,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "ACCA Manual D (2009) Table A1-1: 300 fpm max filter-grille face velocity (as cited by CEC staff)."
+  },
+  {
+   "source": "cec_2018_filters",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 0.76,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 24.9,
+   "note": "Title 24 2019 option: size filter face area at <=150 fpm with clean dP <=0.1 in.wc (MERV 13)."
+  },
+  {
+   "source": "cec_2018_filters",
+   "item": "filter_face_velocity",
+   "size": "24x24 in",
+   "size_mm": [
+    610,
+    610
+   ],
+   "ls": null,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 64.7,
+   "pressure_range_pa": [
+    37.0,
+    92.0
+   ],
+   "note": "Lab-tested clean dP at 295 fpm, 1 in MERV 5-14 (11 filters, 24x24); mid-point of range."
+  },
+  {
+   "source": "cec_2018_filters",
+   "item": "filter_face_velocity",
+   "size": "24x24 in",
+   "size_mm": [
+    610,
+    610
+   ],
+   "ls": null,
+   "velocity_ms": 1.5,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 47.3,
+   "pressure_range_pa": [
+    32.0,
+    62.0
+   ],
+   "note": "Lab-tested clean dP at 295 fpm, 2 in MERV 13 (3 filters, 24x24); mid-point of range."
+  },
+  {
+   "source": "hart_cooley",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.54,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    2.03,
+    3.05
+   ],
+   "note": "'Returns should be at 400-600 fpm maximum' on Ak (effective area); mid-point. Also quotes ACCA 500 fpm non-filter."
+  },
+  {
+   "source": "hart_cooley",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.29,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "'Filter returns should be at 450 fpm maximum'. Also quotes ACCA 300 fpm."
+  },
+  {
+   "source": "hart_cooley",
+   "item": "return_grille_size_ls",
+   "size": "20x20 in filter",
+   "size_mm": [
+    508,
+    508
+   ],
+   "ls": 378.0,
+   "velocity_ms": 1.46,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Filter-size table: 20x20 in -> 800 cfm (rule 2 cfm per in2 of filter, rounded to tonnage)."
+  },
+  {
+   "source": "hart_cooley",
+   "item": "return_grille_size_ls",
+   "size": "20x25 in filter",
+   "size_mm": [
+    508,
+    635
+   ],
+   "ls": 472.0,
+   "velocity_ms": 1.46,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Filter-size table: 20x25 in -> 1000 cfm (rule 2 cfm per in2 of filter, rounded to tonnage)."
+  },
+  {
+   "source": "hart_cooley",
+   "item": "return_grille_size_ls",
+   "size": "20x30 in filter",
+   "size_mm": [
+    508,
+    762
+   ],
+   "ls": 566.0,
+   "velocity_ms": 1.46,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Filter-size table: 20x30 in -> 1200 cfm (rule 2 cfm per in2 of filter, rounded to tonnage)."
+  },
+  {
+   "source": "hart_cooley",
+   "item": "return_grille_size_ls",
+   "size": "24x24 in filter",
+   "size_mm": [
+    610,
+    610
+   ],
+   "ls": 566.0,
+   "velocity_ms": 1.52,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Filter-size table: 24x24 in -> 1200 cfm (rule 2 cfm per in2 of filter, rounded to tonnage)."
+  },
+  {
+   "source": "hart_cooley",
+   "item": "return_grille_size_ls",
+   "size": "30x30 in filter",
+   "size_mm": [
+    762,
+    762
+   ],
+   "ls": 755.0,
+   "velocity_ms": 1.3,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Filter-size table: 30x30 in -> 1600 cfm (rule 2 cfm per in2 of filter, rounded to tonnage)."
+  },
+  {
+   "source": "price_80",
+   "item": "return_grille_size_ls",
+   "size": "24x12 in",
+   "size_mm": [
+    610,
+    305
+   ],
+   "ls": 425.0,
+   "velocity_ms": 2.54,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": 8.5,
+   "nc": null,
+   "note": "Egg crate, no filter; core 1.8 ft2; NC<15; neg. SP 0.034 in.wg. Free% here = core/nominal."
+  },
+  {
+   "source": "price_80",
+   "item": "return_grille_size_ls",
+   "size": "24x16 in",
+   "size_mm": [
+    610,
+    406
+   ],
+   "ls": 578.0,
+   "velocity_ms": 2.54,
+   "area_basis": "gross",
+   "free_area_pct": 92,
+   "pressure_pa": 8.5,
+   "nc": null,
+   "note": "Egg crate, no filter; core 2.45 ft2; NC<15; neg. SP 0.034 in.wg. Free% here = core/nominal."
+  },
+  {
+   "source": "price_80",
+   "item": "return_grille_size_ls",
+   "size": "30x16 in",
+   "size_mm": [
+    762,
+    406
+   ],
+   "ls": 734.0,
+   "velocity_ms": 2.54,
+   "area_basis": "gross",
+   "free_area_pct": 93,
+   "pressure_pa": 8.5,
+   "nc": null,
+   "note": "Egg crate, no filter; core 3.11 ft2; NC<15; neg. SP 0.034 in.wg. Free% here = core/nominal."
+  },
+  {
+   "source": "price_80",
+   "item": "return_grille_size_ls",
+   "size": "24x24 in",
+   "size_mm": [
+    610,
+    610
+   ],
+   "ls": 852.0,
+   "velocity_ms": 2.54,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": 8.5,
+   "nc": null,
+   "note": "Egg crate, no filter; core 3.61 ft2; NC<15; neg. SP 0.034 in.wg. Free% here = core/nominal."
+  },
+  {
+   "source": "price_80",
+   "item": "return_grille_size_ls",
+   "size": "24x24 in",
+   "size_mm": [
+    610,
+    610
+   ],
+   "ls": 1022.0,
+   "velocity_ms": 3.05,
+   "area_basis": "gross",
+   "free_area_pct": 90,
+   "pressure_pa": 11.7,
+   "nc": null,
+   "note": "Egg crate, no filter; core 3.61 ft2; NC<15; neg. SP 0.047 in.wg. Free% here = core/nominal."
+  },
+  {
+   "source": "price_80",
+   "item": "return_grille_size_ls",
+   "size": "36x18 in",
+   "size_mm": [
+    914,
+    457
+   ],
+   "ls": 1012.0,
+   "velocity_ms": 2.54,
+   "area_basis": "gross",
+   "free_area_pct": 95,
+   "pressure_pa": 8.5,
+   "nc": null,
+   "note": "Egg crate, no filter; core 4.29 ft2; NC<15; neg. SP 0.034 in.wg. Free% here = core/nominal."
+  },
+  {
+   "source": "price_80",
+   "item": "return_grille_size_ls",
+   "size": "36x18 in",
+   "size_mm": [
+    914,
+    457
+   ],
+   "ls": 1215.0,
+   "velocity_ms": 3.05,
+   "area_basis": "gross",
+   "free_area_pct": 95,
+   "pressure_pa": 11.7,
+   "nc": 15,
+   "note": "Egg crate, no filter; core 4.29 ft2; NC15; neg. SP 0.047 in.wg. Free% here = core/nominal."
+  },
+  {
+   "source": "camfil_3030",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.78,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 57.3,
+   "note": "MERV 8 pleated 1 in: max INITIAL resistance at 350 fpm."
+  },
+  {
+   "source": "camfil_3030",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.54,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 77.2,
+   "note": "MERV 8 pleated 2 in: max INITIAL resistance at 500 fpm."
+  },
+  {
+   "source": "camfil_3030",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.54,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 67.2,
+   "note": "MERV 8 pleated 4 in: max INITIAL resistance at 500 fpm."
+  },
+  {
+   "source": "camfil_3030",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.54,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 249.0,
+   "note": "Recommended FINAL resistance (all depths)."
+  },
+  {
+   "source": "camfil_3030",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.27,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "'Medium' rated velocity for 2 in and 4 in (1 in: 175 fpm)."
+  },
+  {
+   "source": "ev_filterbox",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.02,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Design rule: 2 ft2 of filter per 400 cfm."
+  },
+  {
+   "source": "ev_filterbox",
+   "item": "filter_face_velocity",
+   "size": "16x25x2 in x3",
+   "size_mm": [
+    406,
+    635
+   ],
+   "ls": null,
+   "velocity_ms": 0.51,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 14.2,
+   "pressure_range_pa": [
+    13.0,
+    15.0
+   ],
+   "note": "Measured MERV 13, 2 in deep, at ~100 fpm; grille itself <=0.006 in.wc."
+  },
+  {
+   "source": "gba_undercut",
+   "item": "transfer_grille",
+   "size": "25 mm undercut x 813 door",
+   "size_mm": [
+    813,
+    25
+   ],
+   "ls": 28.0,
+   "velocity_ms": 1.37,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "note": "FSEC: 1 in undercut passes ~60 cfm (~2 cfm per in2) at about 3 Pa; door width assumed 32 in for velocity."
+  },
+  {
+   "source": "gba_undercut",
+   "item": "transfer_grille",
+   "size": "13 mm undercut",
+   "size_mm": [
+    null,
+    13
+   ],
+   "ls": 38.0,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "note": "Semmelhack field tests: 1/2 in undercut kept bedroom <3 Pa up to ~80 cfm supply (includes door-edge leakage)."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.36,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "note": "Orifice equation at 3 Pa -> 0.54 in2 free per cfm (~7.4 cm2 per L/s), before friction allowance."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "transfer_grille",
+   "size": "through-wall / jump duct",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 0.95,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "note": "Free area increased by 1/0.7 for through-wall transfer and jump ducts."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "transfer_grille",
+   "size": "high-low wall transfer",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 0.81,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "note": "Free area increased by 1/0.6 for high/low wall transfer."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "transfer_grille",
+   "size": "jump duct 178 mm",
+   "size_mm": [
+    178
+   ],
+   "ls": 47.0,
+   "velocity_ms": null,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "free_area_m2": 0.0348,
+   "note": "100 cfm room: 54.0 in2 net free total; jump duct dia 7.0 in after a 32x1/2 in undercut credit (16 in2)."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "transfer_grille",
+   "size": "jump duct 274 mm",
+   "size_mm": [
+    274
+   ],
+   "ls": 94.0,
+   "velocity_ms": null,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "free_area_m2": 0.0696,
+   "note": "200 cfm room: 107.9 in2 net free total; jump duct dia 10.8 in after a 32x1/2 in undercut credit (16 in2)."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "transfer_grille",
+   "size": "jump duct 345 mm",
+   "size_mm": [
+    345
+   ],
+   "ls": 142.0,
+   "velocity_ms": null,
+   "area_basis": "free",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "free_area_m2": 0.1045,
+   "note": "300 cfm room: 161.9 in2 net free total; jump duct dia 13.6 in after a 32x1/2 in undercut credit (16 in2)."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "return_grille_size_ls",
+   "size": "12x12 in",
+   "size_mm": [
+    305,
+    305
+   ],
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "free",
+   "free_area_pct": 84,
+   "pressure_pa": null,
+   "note": "Typical stamped return grille free area 121 in2 (Ameri-Flow/Grainger 2001)."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "return_grille_size_ls",
+   "size": "14x14 in",
+   "size_mm": [
+    356,
+    356
+   ],
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "free",
+   "free_area_pct": 83,
+   "pressure_pa": null,
+   "note": "Typical stamped return grille free area 163 in2 (Ameri-Flow/Grainger 2001)."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "return_grille_size_ls",
+   "size": "20x20 in",
+   "size_mm": [
+    508,
+    508
+   ],
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "free",
+   "free_area_pct": 84,
+   "pressure_pa": null,
+   "note": "Typical stamped return grille free area 336 in2 (Ameri-Flow/Grainger 2001)."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "return_grille_size_ls",
+   "size": "30x6 in",
+   "size_mm": [
+    762,
+    152
+   ],
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "free",
+   "free_area_pct": 85,
+   "pressure_pa": null,
+   "note": "Typical stamped return grille free area 153 in2 (Ameri-Flow/Grainger 2001)."
+  },
+  {
+   "source": "bsc_rr0005",
+   "item": "transfer_grille",
+   "size": "hi-low wall transfer max",
+   "size_mm": null,
+   "ls": 59.0,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "note": "Maximum practical through-wall hi-low transfer ~125 cfm; 1 in undercut still required."
+  },
+  {
+   "source": "energystar_rfc14",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 3,
+   "note": "Bedroom pressure differential limit +/-3 Pa (doors closed, all air handlers on)."
+  },
+  {
+   "source": "energystar_rfc14",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": 71.0,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 5,
+   "note": "Alternative +/-5 Pa permitted for bedrooms with design airflow >=150 cfm."
+  },
+  {
+   "source": "hvacrschool_paths",
+   "item": "transfer_grille",
+   "size": "25 mm undercut, 760-813 door",
+   "size_mm": [
+    813,
+    25
+   ],
+   "ls": 31.0,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ls": [
+    28.0,
+    33.0
+   ],
+   "note": "Manual D Table N3-2 (as summarised): 1 in undercut on 30-32 in door ~60-70 cfm; ENERGY STAR allows about half."
+  },
+  {
+   "source": "hvacrschool_paths",
+   "item": "transfer_grille",
+   "size": "transfer grille assembly",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 12.5,
+   "note": "Manual D: transfer assembly max 0.05 in.wc; each grille <=0.025 in.wc."
+  },
+  {
+   "source": "hvacrschool_paths",
+   "item": "transfer_grille",
+   "size": "jumper duct assembly",
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": null,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": 12.5,
+   "note": "Manual D Section N4: jumper assembly max 0.05 in.wc; each grille <=0.02 in.wc."
+  },
+  {
+   "source": "hvacrschool_bruner",
+   "item": "return_grille_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 2.03,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Target 400 fpm to keep noise down."
+  },
+  {
+   "source": "hvacrschool_bruner",
+   "item": "filter_face_velocity",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.46,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "note": "Richardson rule: 2 cfm per in2 of filter grille (~288 fpm)."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 50,
+   "velocity_ms": 1.11,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 13,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "300x150",
+   "size_mm": [
+    300,
+    150
+   ],
+   "ls": 75,
+   "velocity_ms": 1.67,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 35,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "600x150",
+   "size_mm": [
+    600,
+    150
+   ],
+   "ls": 75,
+   "velocity_ms": 0.83,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 9,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "600x150",
+   "size_mm": [
+    600,
+    150
+   ],
+   "ls": 100,
+   "velocity_ms": 1.11,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 22,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "600x150",
+   "size_mm": [
+    600,
+    150
+   ],
+   "ls": 150,
+   "velocity_ms": 1.67,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 35,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "450x300",
+   "size_mm": [
+    450,
+    300
+   ],
+   "ls": 100,
+   "velocity_ms": 0.74,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 8,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "450x300",
+   "size_mm": [
+    450,
+    300
+   ],
+   "ls": 150,
+   "velocity_ms": 1.11,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 14,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "450x300",
+   "size_mm": [
+    450,
+    300
+   ],
+   "ls": 200,
+   "velocity_ms": 1.48,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 30,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "600x300",
+   "size_mm": [
+    600,
+    300
+   ],
+   "ls": 150,
+   "velocity_ms": 0.83,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 8,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "600x300",
+   "size_mm": [
+    600,
+    300
+   ],
+   "ls": 200,
+   "velocity_ms": 1.11,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 17,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "600x300",
+   "size_mm": [
+    600,
+    300
+   ],
+   "ls": 250,
+   "velocity_ms": 1.39,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 30,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "600x450",
+   "size_mm": [
+    600,
+    450
+   ],
+   "ls": 250,
+   "velocity_ms": 0.93,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 13,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "600x450",
+   "size_mm": [
+    600,
+    450
+   ],
+   "ls": 300,
+   "velocity_ms": 1.11,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 20,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "airfoil_dg",
+   "item": "transfer_grille",
+   "size": "600x450",
+   "size_mm": [
+    600,
+    450
+   ],
+   "ls": 400,
+   "velocity_ms": 1.48,
+   "area_basis": "gross",
+   "free_area_pct": 50,
+   "pressure_pa": 28,
+   "note": "Door grille static pressure; velocity on neck area."
+  },
+  {
+   "source": "holyoake_dg",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 0.73,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 8,
+   "nc": null,
+   "note": "DG-52 door grille: core velocity vs neg. SP (NC for ~0.02 m2 core sizes)."
+  },
+  {
+   "source": "holyoake_dg",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 0.87,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 12,
+   "nc": 10,
+   "note": "DG-52 door grille: core velocity vs neg. SP (NC for ~0.02 m2 core sizes)."
+  },
+  {
+   "source": "holyoake_dg",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.02,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 15,
+   "nc": 14,
+   "note": "DG-52 door grille: core velocity vs neg. SP (NC for ~0.02 m2 core sizes)."
+  },
+  {
+   "source": "holyoake_dg",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.28,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 24,
+   "nc": 20,
+   "note": "DG-52 door grille: core velocity vs neg. SP (NC for ~0.02 m2 core sizes)."
+  },
+  {
+   "source": "price_stg",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 0.51,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 2.7,
+   "note": "STG sight-proof transfer grille: 100 fpm core -> 0.011 in.wg neg. SP."
+  },
+  {
+   "source": "price_stg",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 0.76,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 6.5,
+   "note": "STG sight-proof transfer grille: 150 fpm core -> 0.026 in.wg neg. SP."
+  },
+  {
+   "source": "price_stg",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.02,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 11.5,
+   "note": "STG sight-proof transfer grille: 200 fpm core -> 0.046 in.wg neg. SP."
+  },
+  {
+   "source": "price_stg",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.27,
+   "area_basis": "gross",
+   "free_area_pct": null,
+   "pressure_pa": 18.2,
+   "note": "STG sight-proof transfer grille: 250 fpm core -> 0.073 in.wg neg. SP."
+  },
+  {
+   "source": "koolair",
+   "item": "transfer_grille",
+   "size": null,
+   "size_mm": null,
+   "ls": null,
+   "velocity_ms": 1.0,
+   "area_basis": "unstated",
+   "free_area_pct": null,
+   "pressure_pa": null,
+   "range_ms": [
+    0.75,
+    1.25
+   ],
+   "note": "Door grille type 24 recommended transfer velocity (unverified snippet)."
+  }
+ ],
+ "rejected": [
+  {
+   "source": "ActronAir 0525-057 Commercial indoor install guide",
+   "reason": "Its '2.5 m/s face velocity point' marks the indoor unit/coil on the fan curve, not a grille or filter limit."
+  },
+  {
+   "source": "ActronAir Aires install guide 0525-134",
+   "reason": "Not found online (searches and docs.actronair.com.au)."
+  },
+  {
+   "source": "Mitsubishi Electric PEA/PEAD install manuals",
+   "reason": "Only qualitative: when the inlet is ducted, remove the unit filter and fit a field-supplied filter at the suction side; no velocity or dP figure."
+  },
+  {
+   "source": "Temperzone, Daikin Australia, Fujitsu, Air Design, Airmaster",
+   "reason": "No public return-grille/filter velocity or L/s data found."
+  },
+  {
+   "source": "AIRAH DA03 / technical handbook",
+   "reason": "Paywalled; not accessed. An unattributed training copy of the ASHRAE 2001 table was ignored in favour of the Krueger reproduction."
+  },
+  {
+   "source": "Titus GRD engineering guidelines 2018",
+   "reason": "Reviewed; gives no return velocity limit (only that return neg. SP is conservative)."
+  },
+  {
+   "source": "Rinnai ducted RAC owner's manual",
+   "reason": "No numeric return-air guidance."
+  },
+  {
+   "source": "Generic 'return grille calculator' sites, Selkirk retailer snippet (300-450 fpm)",
+   "reason": "SEO/AI-rewritten or unverified retail copy."
+  },
+  {
+   "source": "ASHRAE Table 8 duct velocities (as a return-duct design limit)",
+   "reason": "Kept for reference but they are acoustic limits for commercial ducts (6+ m/s runouts), far above the 3-4 m/s every residential source uses."
+  }
+ ],
+ "proposed_average": {
+  "return_grille_no_filter": {
+   "velocity_ms_free": 2.5,
+   "velocity_ms_gross_eggcrate": 2.3,
+   "design_range_ms": [
+    2.0,
+    2.5
+   ],
+   "basis": "mean of 10 limits = 2.42 m/s (ActronAir 2.5, DB0817 2.25, Brivis 2.6, ASHRAE RC30 2.54/RC25 2.16, ASHRAE-2001 2.54, ACCA 2.54, H&C 2.54, HVACS 2.03, CCC 2.5)"
+  },
+  "filter_grille": {
+   "velocity_ms_gross": 1.6,
+   "max_ms_free": 2.0,
+   "quiet_bedroom_ms_gross": 1.5,
+   "high_merv_pleated_ms_gross": 1.0,
+   "basis": "gross-face values: Brivis 1.8, AA Purtech NR25 1.2-1.65, Airflow NZ 1.5, ACCA 1.52, H&C rule 1.46, ActronAir recommended ~2.0 free (~1.8 gross)"
+  },
+  "free_area_pct": {
+   "eggcrate": 90,
+   "filter_grille_effective": 72,
+   "stamped_or_bar_return": 80,
+   "door_V_blade": 50,
+   "design_default_if_unknown": 75
+  },
+  "filter_pressure_pa": {
+   "clean_at_design": 50,
+   "change_washable_G2": 125,
+   "change_pleated": 250,
+   "grille_only_eggcrate_at_2_5ms": 8
+  },
+  "return_duct": {
+   "max_ms": 4.0,
+   "design_ms": [
+    3.0,
+    3.5
+   ],
+   "ls_at_4ms_by_dia_mm": {
+    "250": 196,
+    "300": 283,
+    "350": 385,
+    "400": 503,
+    "450": 636,
+    "500": 785,
+    "550": 950,
+    "600": 1131
+   }
+  },
+  "transfer": {
+   "room_dp_limit_pa": 3,
+   "room_dp_limit_pa_if_room_ge_71ls": 5,
+   "transfer_grille_gross_ms_open_75pct": 0.7,
+   "door_grille_sightproof_gross_ms": 0.5,
+   "free_area_cm2_per_ls": 10.6,
+   "undercut_25mm_x_820mm_ls_at_3pa": 28,
+   "commercial_noise_based_ms_gross": [
+    1.0,
+    1.5
+   ]
+  },
+  "grille_ls_by_size": {
+   "600x300": {
+    "no_filter_at_2_3_gross": 414,
+    "filter_at_1_6_gross": 288
+   },
+   "600x400": {
+    "no_filter_at_2_3_gross": 552,
+    "filter_at_1_6_gross": 384
+   },
+   "600x600": {
+    "no_filter_at_2_3_gross": 828,
+    "filter_at_1_6_gross": 576
+   },
+   "750x450": {
+    "no_filter_at_2_3_gross": 776,
+    "filter_at_1_6_gross": 540
+   },
+   "750x550": {
+    "no_filter_at_2_3_gross": 949,
+    "filter_at_1_6_gross": 660
+   },
+   "800x400": {
+    "no_filter_at_2_3_gross": 736,
+    "filter_at_1_6_gross": 512
+   },
+   "900x400": {
+    "no_filter_at_2_3_gross": 828,
+    "filter_at_1_6_gross": 576
+   },
+   "900x450": {
+    "no_filter_at_2_3_gross": 932,
+    "filter_at_1_6_gross": 648
+   },
+   "900x500": {
+    "no_filter_at_2_3_gross": 1035,
+    "filter_at_1_6_gross": 720
+   },
+   "1200x450": {
+    "no_filter_at_2_3_gross": 1242,
+    "filter_at_1_6_gross": 864
+   },
+   "1150x550": {
+    "no_filter_at_2_3_gross": 1455,
+    "filter_at_1_6_gross": 1012
+   }
+  }
+ }
+}

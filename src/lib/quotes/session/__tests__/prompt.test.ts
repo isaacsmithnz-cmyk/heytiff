@@ -38,6 +38,17 @@ it("writes the proposal plainly for the client: no hedge, no working, an open ch
   expect(p).toMatch(/A choice still open is said the way a contractor writes it, "Floor grille style to be confirmed with you", and the business's own notes never go in it/);
 });
 
+/* Isaac, 2026-10-15: "build a section in the data pack that recommended
+   airflow numbers go through. So she has something to compare it with…
+   Anyone using it should get the same recommendations, which we can change
+   during the conversation." */
+it("checks a ducted system's air once its unit and outlets are known, saying the guide's figure and reason, the brief over it", () => {
+  const p = sessionSystemPrompt();
+  expect(p).toMatch(/For a ducted system, check the air \(airflow_check\) once the unit and its outlets are known\. What the guide says is a recommendation: say it with its figure and its reason, and never settle a size on it without saying so\. The brief, a plan or the person's word overrides it\./);
+  /* cached for every business: none of one business's facts */
+  expect(p).not.toMatch(/Diamond Air|PEA-M/);
+});
+
 /* Isaac, 2026-10-15, on 3231's "4 × Ø250 takeoffs… 8 × Ø200 flex": "most
    air conditioning duct work is 10 inch or 250 mil, but I don't want you to
    take my word for it. It needs to be decided by the brief." */

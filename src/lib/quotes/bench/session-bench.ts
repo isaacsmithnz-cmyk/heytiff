@@ -1,3 +1,4 @@
+import type { AirflowGuide } from "@/lib/guides/airflow";
 import type { BuildSettings } from "../buildup";
 import type { Product } from "../families";
 import { expandKit, kitFactsFrom, stillToSize, type KitAllowances, type KitPreferences } from "../kits";
@@ -41,6 +42,8 @@ export function memoryStore(opts: {
   seed?: QuoteLine[];
   /** her questions a conversation left open, by number */
   openQuestions?: { id: number; question: string }[];
+  /** the ducted airflow guide, as the app reads it; none, and her check says so */
+  airflowGuide?: AirflowGuide | null;
 }): QuoteStore & { lines: () => QuoteLine[] } {
   let lines: QuoteLine[] = [...(opts.seed ?? [])];
   const names: string[] = [];
@@ -113,6 +116,7 @@ export function memoryStore(opts: {
     totals: async () => ({ ok: true, options: priceLines(lines, [], opts.settings, { pct: null, labourCostCents: null }).map((o) => o.build.exGstCents) }),
     taskHours: async () => ({ hours: opts.taskHours ?? { zone: null, grille: null, metre: null, visit: null }, dayHours: opts.settings.dayHours }),
     openQuestions: async () => opts.openQuestions ?? [],
+    airflowGuide: async () => opts.airflowGuide ?? null,
   };
 }
 

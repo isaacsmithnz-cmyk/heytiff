@@ -212,6 +212,13 @@ export type UnitSpecs = {
       return plenums are made for; `returnSpigots` when its return takes
       duct straight on (no return plenum) */
   air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean };
+  /** a ducted indoor's air, from its data book: its rated (high) airflow,
+      L/s, and the external static pressure it's rated to push against, Pa.
+      What the return, the outlets and the duct run are sized from (Isaac,
+      2026-10-15: "Does she look at the liters per second of a ducted
+      unit?" — the pack had it; she was never given it) */
+  airflowLs?: number | null;
+  staticPa?: number | null;
 };
 
 /** A data book's opening as a face, mm, when it gives one. */
@@ -277,6 +284,7 @@ export function unitSpecs(packs: Record<string, DataPack | null | undefined>, br
             },
           }
         : {}),
+      ...(ind.airflow_ls != null || ind.static_pressure_pa != null ? { airflowLs: n(ind.airflow_ls), staticPa: n(ind.static_pressure_pa) } : {}),
     },
   };
 }

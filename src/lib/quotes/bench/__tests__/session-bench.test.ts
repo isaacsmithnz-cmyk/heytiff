@@ -8,6 +8,8 @@ import { BRIEF_CASES } from "../cases";
 import { benchReport, scoreOption, type BenchRow } from "../score";
 import { benchSession, caseBook, memoryStore } from "../session-bench";
 import { replaying, scripted, type Recording } from "../../session/model";
+import { normaliseKitFacts } from "../../kits";
+import type { ZoningController } from "@/lib/studio/packs/schema";
 
 const book = caseBook(BRIEF_CASES);
 const c75 = BRIEF_CASES.find((c) => c.job === "3375")!;
@@ -84,4 +86,20 @@ describe("Tiff's recorded runs", () => {
       if (process.env.BENCH_REPORT) console.log(benchReport(rows));
     });
   }
+});
+
+/* 2026-10-15: the bench had its own copy of the kit's facts step and missed
+   the maker's zone system (#1137), so a zoned ducted case tested a kit the
+   app no longer builds. Both now run kits.ts kitFactsFrom. */
+describe("the bench's kit", () => {
+  it("puts on the maker's zone system for a zoned ducted kit, as the app does", async () => {
+    const zoning = JSON.parse(fs.readFileSync(path.join(process.cwd(), "data/packs/mitsubishi-electric@2026.1/zoning_controllers.json"), "utf8"));
+    const z = (Array.isArray(zoning) ? zoning : Object.values(zoning)[0]) as ZoningController[];
+    const s = memoryStore({ products: book, settings: c75.settings, hourCostCents: 11200, zoning: async () => z[0]! });
+    const r = await s.addKit("ducted", normaliseKitFacts({ outlets: 7, outletMm: 250, zones: 4 }), { optionIndex: 0, system: "" }, null, { brand: "mitsubishi-electric", model: "PEA-M125HAA" });
+    expect(r.ok).toBe(true);
+    /* the zone system's parts go on (not in this case's small book, so as lines not known yet) */
+    const names = s.lines().map((l) => l.name);
+    expect(names).toEqual(expect.arrayContaining(["Zone interface", "Zone sensor"]));
+  });
 });

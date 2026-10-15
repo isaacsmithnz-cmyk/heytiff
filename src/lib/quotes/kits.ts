@@ -738,6 +738,33 @@ export function pipeFromMm(liquid: number, gas: number): PipeSize | null {
 
 /** What a ducted indoor's data pack gives a kit: its model, the faces its
     plenums are made for, and whether its return takes duct straight on. */
+/** A kit's facts, filled from what was looked up: the outdoor's pipe and
+    current where the person left them blank, the ducted indoor's faces, and
+    the maker's zone system when zones were asked for. One step, used by the
+    app (kits-server.ts) and the bench (session-bench.ts), so the bench can't
+    test a kit the app no longer builds (2026-10-15: the bench's own copy
+    missed the zone system of #1137). Pure. */
+export function kitFactsFrom(
+  kit: KitKey,
+  facts: KitFacts,
+  looked: readonly ({ found: true; specs: { role: "indoor" | "outdoor"; model: string; pipeMm: { liquid: number; gas: number } | null; mcaAmps: number | null; maxAmps: number | null; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } } } | { found: false })[],
+  zoning: ZoningController | null
+): KitFacts {
+  const f = { ...facts };
+  for (const u of looked) {
+    if (!u.found) continue;
+    if (u.specs.role === "outdoor") {
+      if (!f.pipe && u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
+      if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
+    }
+    /* a ducted indoor: its plenums are made for its faces (kits, round 2) */
+    if (u.specs.role === "indoor") Object.assign(f, indoorFacts(u.specs), f.supplyFace ? { supplyFace: f.supplyFace } : {});
+  }
+  /* zoned: the maker's zone system, from the pack of the brand it's for */
+  if (kit === "ducted" && f.zones && zoning) f.zoning = zoneKitOf(zoning, f.zones, f.zoneControl ?? "temperature", !!f.wifi);
+  return f;
+}
+
 export function indoorFacts(u: { model: string; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } }): Partial<KitFacts> {
   if (!u.air) return { indoorModel: u.model };
   return { indoorModel: u.model, supplyFace: u.air.supply, returnFace: u.air.returnSpigots ? null : u.air.ret, returnSpigots: u.air.returnSpigots };

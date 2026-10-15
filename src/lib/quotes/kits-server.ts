@@ -1,6 +1,6 @@
 import "server-only";
 import { bookProducts } from "./book-view-server";
-import { expandKit, indoorFacts, pipeFromMm, stillToSize, zoneKitOf, type KitFacts, type KitKey } from "./kits";
+import { expandKit, kitFactsFrom, stillToSize, type KitFacts, type KitKey } from "./kits";
 import { addLine } from "./lines-server";
 import { lookupUnit, zoningFor } from "./lookups-server";
 import { readQuoteSettings } from "./settings-query";
@@ -32,23 +32,11 @@ export async function addKit(
   /** ducted: the indoor, whose faces its plenums are made for */
   indoor: { brand: string; model: string } | null = null
 ): Promise<{ ok: true; added: number; still: { name: string; why: string }[] } | { ok: false; reason: string }> {
-  const f = { ...facts };
-  for (const which of [unit, indoor]) {
-    if (!which) continue;
-    const u = await lookupUnit(which.brand, which.model);
-    if (u.found && u.specs.role === "outdoor") {
-      if (!f.pipe && u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
-      if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
-    }
-    /* a ducted indoor: its plenums are made for its faces (kits, round 2) */
-    if (u.found && u.specs.role === "indoor") Object.assign(f, indoorFacts(u.specs), f.supplyFace ? { supplyFace: f.supplyFace } : {});
-  }
+  const looked = await Promise.all([unit, indoor].filter((w): w is { brand: string; model: string } => !!w).map((w) => lookupUnit(w.brand, w.model)));
   /* zoned: the maker's zone system, from the pack of the brand it's for */
   const brand = (indoor ?? unit)?.brand ?? null;
-  if (kit === "ducted" && f.zones && brand) {
-    const z = await zoningFor(brand);
-    if (z) f.zoning = zoneKitOf(z, f.zones, f.zoneControl ?? "temperature", !!f.wifi);
-  }
+  const zoning = kit === "ducted" && facts.zones && brand ? await zoningFor(brand) : null;
+  const f = kitFactsFrom(kit, facts, looked, zoning);
   const [products, settings, byHand, ranges] = await Promise.all([bookProducts(orgId), readQuoteSettings(orgId), readByHand(orgId, jobUuid), readRangeOffers(orgId)]);
   const a = settings.allowances;
   const lines = expandKit(kit, f, products, at, { consumables: a.consumables, flush: a.flush, recovery: a.recovery }, byHand.supplier, {

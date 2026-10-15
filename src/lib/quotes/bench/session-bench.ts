@@ -7,6 +7,7 @@ import { applyPatch, lineFromRow, lineRow, normaliseLine, sortLines, type QuoteL
 import { priceLines } from "../lines-price";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
 import type { UnitLookup } from "../lookups";
+import type { Pairing } from "../pairing";
 import type { TaskKey } from "../settings";
 import type { ModelCall } from "../session/model";
 import { openingMessage, sessionSystemPrompt } from "../session/prompt";
@@ -34,6 +35,8 @@ export function memoryStore(opts: {
   supplier?: string | null;
   /** the makers' data packs, as the app reads them; else the case's units */
   lookup?: (brand: string, model: string) => Promise<UnitLookup>;
+  /** the pairing check as the app reads it; none, and it says there's no data pack */
+  pairing?: (brand: string, outdoor: string, indoors: string[]) => Promise<Pairing>;
   /** the maker's zone system, as the app reads it (lookups-server zoningFor) */
   zoning?: (brand: string) => Promise<ZoningController | null>;
   /** the business's ranges and preferred parts, for a kit to pick from */
@@ -113,6 +116,7 @@ export function memoryStore(opts: {
     book: async () => opts.products,
     hourCost: async () => opts.hourCostCents,
     lookupUnit: async (brand, model) => (opts.lookup ? opts.lookup(brand, model) : (opts.units?.[model.toUpperCase()] ?? { found: false, reason: "no data pack" })),
+    pairing: async (brand, outdoor, indoors) => (opts.pairing ? opts.pairing(brand, outdoor, indoors) : { found: false, reason: "no data pack" }),
     totals: async () => ({ ok: true, options: priceLines(lines, [], opts.settings, { pct: null, labourCostCents: null }).map((o) => o.build.exGstCents) }),
     taskHours: async () => ({ hours: opts.taskHours ?? { zone: null, grille: null, metre: null, visit: null }, dayHours: opts.settings.dayHours }),
     openQuestions: async () => opts.openQuestions ?? [],

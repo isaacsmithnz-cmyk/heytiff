@@ -33,7 +33,7 @@ jest.mock("../../lines-job-server", () => ({
   readByHand: jest.fn(async () => ({ supplier: null, proposal: { options: [{ summary: "Kept", areas: [], included: ["Commissioning"] }] } })),
   saveProposal: (...a: unknown[]) => saveProposal(...a),
 }));
-jest.mock("../../lookups-server", () => ({ lookupUnit: jest.fn() }));
+jest.mock("../../lookups-server", () => ({ lookupUnit: jest.fn(), lookupPairing: jest.fn() }));
 const runResearch = jest.fn();
 jest.mock("../../research-server", () => ({ runResearch: (...a: unknown[]) => runResearch(...a) }));
 jest.mock("../model-server", () => ({ sessionModelFor: () => "claude-opus-5-5" }));
@@ -66,7 +66,7 @@ jest.mock("../../book-view-server", () => ({ bookProducts: jest.fn(async () => B
 import { bookPrice, isErr, newLineOf, patchOf, questionOf, SESSION_TOOLS } from "../tools";
 import { sessionTools } from "../tools-server";
 import { readLines } from "../../lines-server";
-import { lookupUnit } from "../../lookups-server";
+import { lookupPairing, lookupUnit } from "../../lookups-server";
 
 beforeEach(() => {
   lines.length = 0;
@@ -313,6 +313,15 @@ describe("her tools, run", () => {
     addKit.mockResolvedValueOnce({ ok: true, added: 18, still: [{ name: "Return air grille, filtered", why: "Needs its size: pick it from your range" }, { name: "Y branches", why: "Needs the layout: where the main duct splits" }] });
     const out = await run("add_kit", { kit: "ducted", option: 0, system: "Upstairs" });
     expect(out).toMatchObject({ ok: true, said: "Ducted, 18 parts, 2 to settle", value: { added: 18, still_to_settle: [{ name: "Return air grille, filtered" }, { name: "Y branches" }] } });
+  });
+
+  /* the bench, 15 October: a VRF ducted head went on a multi outdoor, "pairing not checked" */
+  it("checks an outdoor takes its indoors, by the maker's book, and asks for every indoor", async () => {
+    (lookupPairing as jest.Mock).mockResolvedValueOnce({ found: true, system: "multi", connects: false, said: ["PEFY-P63VMA-E4 is not in MXZ-6F120VGD's list"] });
+    const out = await run("pairing_check", { brand: "mitsubishi-electric", outdoor: "MXZ-6F120VGD", indoors: ["PEFY-P63VMA-E4", "PEFY-P63VMA-E4"] });
+    expect(out).toMatchObject({ ok: true, label: "Checked the pairing", said: "MXZ-6F120VGD: doesn't connect", value: { connects: false } });
+    expect(lookupPairing).toHaveBeenLastCalledWith("mitsubishi-electric", "MXZ-6F120VGD", ["PEFY-P63VMA-E4", "PEFY-P63VMA-E4"]);
+    expect(await run("pairing_check", { brand: "mitsubishi-electric", outdoor: "MXZ-6F120VGD", indoors: [] })).toMatchObject({ ok: false, error: "Name the brand's pack, the outdoor and every indoor on it." });
   });
 
   it("says so for a tool that doesn't exist", async () => {

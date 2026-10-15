@@ -4,6 +4,7 @@ import type { DataPack, ZoningController } from "@/lib/studio/packs/schema";
 import { brandNames } from "@/lib/hq/packs";
 import { bookProducts } from "./book-view-server";
 import { findInBook, unitSpecs, type BookHit, type BookQuery, type UnitLookup } from "./lookups";
+import { pairingOf, type Pairing } from "./pairing";
 
 /* The lookups (lookups.ts), read for one business: its own book, and the
    installed data packs, which every business shares. The callers gate on
@@ -40,4 +41,9 @@ export async function packMakers(baseDir?: string): Promise<{ key: string; name:
 export async function lookupUnit(brand: string, model: string): Promise<UnitLookup> {
   const key = brand.toLowerCase();
   return unitSpecs({ [key]: await packFor(key) }, key, model);
+}
+
+/** Whether an outdoor takes the indoors given, by its maker's book (pairing.ts). */
+export async function lookupPairing(brand: string, outdoor: string, indoors: string[]): Promise<Pairing> {
+  return pairingOf(await packFor(brand.toLowerCase()).catch(() => null), outdoor, indoors);
 }

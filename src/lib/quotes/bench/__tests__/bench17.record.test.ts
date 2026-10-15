@@ -43,7 +43,7 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
 (ON ? describe : describe.skip)("the seventeen, live (spends money)", () => {
   jest.setTimeout(170 * 60_000);
   it("runs each case's brief, then its corrections, and keeps everything", async () => {
-    const [{ anthropicModel }, { bookProducts }, { lookupUnit, zoningFor }, { readQuoteSettings }, { readOrgDay }, { readRangeOffers }, { buildSettingsOf }, { hourCostOf }] = await Promise.all([
+    const [{ anthropicModel }, { bookProducts }, { lookupPairing, lookupUnit, zoningFor }, { readQuoteSettings }, { readOrgDay }, { readRangeOffers }, { buildSettingsOf }, { hourCostOf }] = await Promise.all([
       import("../../session/model-server"),
       import("../../book-view-server"),
       import("../../lookups-server"),
@@ -83,6 +83,7 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
         allowances: { consumables: settings.allowances.consumables, flush: settings.allowances.flush, recovery: settings.allowances.recovery },
         taskHours: FRESH ? undefined : settings.taskHours,
         lookup: lookupUnit,
+        pairing: lookupPairing,
         zoning: zoningFor,
         airflowGuide: await (await import("@/lib/guides/airflow-server")).loadAirflowGuide(),
         kitPrefs: FRESH ? null : { ranges, components: settings.preferred },

@@ -33,6 +33,24 @@ describe("the bench's own quote", () => {
     expect(out.ok && (out.value as Record<string, unknown>[])[0]).toMatchObject({ your_task_hours: { grille: 1.5 }, by_your_task_hours: { hours: 4.5, words: "3 outlets", quoted: 0 } });
   });
 
+  it("hands her a long quote she can read whole, a part at a time, never cut mid-line", async () => {
+    const { makeTools } = await import("../../session/tools-run");
+    const s = memoryStore({ products: book, settings: c75.settings, hourCostCents: 11200 });
+    for (let i = 0; i < 200; i++) await s.addLine({ optionIndex: i % 2, system: "VRF", group: "Pipe", name: `Branch joint ${i}`, qty: 1, costCents: 1000, source: "assumed", why: "a branch joint at each head, sized to the indoor it feeds and the pipe it sits on" }, "w");
+    const read = (input: Record<string, unknown>) => makeTools(s)("read_quote", input).then((o) => (o.ok ? (o.value as Record<string, unknown>[]) : []));
+    const first = await read({});
+    expect(JSON.stringify(first).length).toBeLessThan(20_000);
+    expect(first[1]).toMatchObject({ lines_not_shown: 100, read_with: { option: 1 } });
+    const names: string[] = [];
+    for (let from: number | undefined = 0, n = 0; from != null && n < 20; n++) {
+      const page = await read({ option: 1, from });
+      names.push(...(page[1]!.lines as { name: string }[]).map((l) => l.name));
+      from = page[1]!.read_more_from as number | undefined;
+    }
+    expect(names).toHaveLength(100);
+    expect(names[0]).toBe("Branch joint 1");
+  });
+
   it("books every part a person built a case with, allowances aside", () => {
     expect(book.some((p) => p.name === "Rubber feet")).toBe(true);
     expect(book.some((p) => p.name === "TPS 2.5 mm²")).toBe(true);

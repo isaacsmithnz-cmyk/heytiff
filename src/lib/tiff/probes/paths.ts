@@ -33,6 +33,7 @@ import {
 import { englishProposal } from "@/lib/workboard/note-english";
 import { askSystemPrompt } from "@/lib/brain/ask";
 import { TIFF_TOOLS, runTool, toolDefs, type Viewer } from "@/lib/tiff/registry";
+import { todayInAu } from "@/lib/au-dates";
 
 /* The probes read as the workspace, not as a person: every read in the
    registry, no gate, the reads' own org scoping still applied. */
@@ -43,7 +44,7 @@ const probeViewer = (orgId: string): Viewer => ({
   role: null,
   caps: new Set(),
   tz: null,
-  today: new Date().toISOString().slice(0, 10),
+  today: todayInAu(),
 });
 
 async function runRead(orgId: string, name: string, input: Record<string, unknown>) {

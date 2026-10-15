@@ -25,7 +25,7 @@ import {
   type ChipState,
   type VehicleWithFacts,
 } from "@/components/fleet/logic";
-import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
+import { auDayOf, daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
 import { dateFromDays } from "@/lib/fleet/map";
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
 import { isNoVisa, isNotCleared } from "@/lib/staff/work-rights";
@@ -622,7 +622,8 @@ export function swmsSignonChip(
   p: { versionId: string; again: boolean; jobNumber: string | null; site: string | null; issuedAt: string },
   ctx: { today: string },
 ): ActionChip {
-  const age = Math.max(0, -daysUntil(p.issuedAt.slice(0, 10), ctx.today));
+  // issued_at is a timestamptz: its AU day, not its UTC one (a morning issue read as yesterday)
+  const age = Math.max(0, -daysUntil(auDayOf(p.issuedAt), ctx.today));
   const site = p.site?.split(",")[0]?.trim() || null;
   return {
     key: `swms:${p.versionId}`,
@@ -722,8 +723,8 @@ export function declinedClaimChip(
   ctx: { today: string },
 ): ActionChip | null {
   if (!claim.decidedOn) return null;
-  // reviewed_at is a timestamp; the chip only cares which DAY it landed
-  const days = daysUntil(claim.decidedOn.slice(0, 10), ctx.today);
+  // reviewed_at is a timestamp; the chip only cares which AU DAY it landed
+  const days = daysUntil(auDayOf(claim.decidedOn), ctx.today);
   const age = -days; // 0 = decided today
   if (age > CLAIM_NUDGE_DAYS) return null;
   return {
@@ -790,7 +791,8 @@ export function declinedLeaveChip(
   ctx: { today: string },
 ): ActionChip | null {
   if (!request.decidedOn) return null;
-  const age = -daysUntil(request.decidedOn.slice(0, 10), ctx.today);
+  // reviewed_at again: its AU day, the same reading as the claim chip's
+  const age = -daysUntil(auDayOf(request.decidedOn), ctx.today);
   if (age > CLAIM_NUDGE_DAYS) return null;
   const span =
     request.startDate === request.endDate

@@ -25,6 +25,7 @@ import {
 } from "./board-status";
 import type { ReadinessKey } from "./visit-schedule";
 import { stageIndex } from "./stages";
+import { auDayOf } from "@/lib/au-dates";
 
 /** Gate/crew gaps become today's business inside this window — same number
     as the maintenance side, because it's the same kind of news. */
@@ -142,7 +143,7 @@ export function projectStateRow(p: ProjectRuleInput, today: string): ProjectUrge
 
   if (p.status === "blocked") {
     const who = p.blockedOn ? ` on ${p.blockedOn}` : "";
-    const since = p.blockedAt ? daysBetween(p.blockedAt.slice(0, 10), today) : 0;
+    const since = p.blockedAt ? daysBetween(auDayOf(p.blockedAt), today) : 0;
     findings.push({
       reason: "blocked",
       severity: "danger",
@@ -183,7 +184,7 @@ export function projectStateRow(p: ProjectRuleInput, today: string): ProjectUrge
   }
 
   if (p.status === "active" && p.updatedAt) {
-    const quiet = daysBetween(p.updatedAt.slice(0, 10), today);
+    const quiet = daysBetween(auDayOf(p.updatedAt), today);
     if (quiet >= PROJECT_STALE_DAYS) {
       findings.push({
         reason: "stale",

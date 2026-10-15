@@ -6,7 +6,7 @@ import { Icon } from "@/components/shell/icon";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { markFieldNoteReviewed, removeFieldNote } from "@/app/actions/kb-review";
 import type { FieldNoteRow } from "@/lib/tiff/field-notes";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 
 /* The curation queue. Entries are ALREADY LIVE — the copy says so, because a
    queue that looks like an approval gate teaches admins the wrong model of
@@ -70,7 +70,9 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
                   <div className="wb2-kbqhead">
                     <b>{e.title}</b>
                     <span className="wb2-chip">
-                      {e.authorName ?? "someone"}, {fmtAuWeekdayDayMonth(e.createdAt.slice(0, 10))}
+                      {/* created_at is an instant: its UTC date is yesterday
+                          in the yard until mid-morning */}
+                      {e.authorName ?? "someone"}, {fmtAuWeekdayDayMonth(auDayOf(e.createdAt))}
                     </span>
                   </div>
                   {e.heading && <em className="wb2-capsaid">{e.heading}</em>}

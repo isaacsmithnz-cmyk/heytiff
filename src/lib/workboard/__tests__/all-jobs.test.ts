@@ -274,6 +274,16 @@ describe("what each row says", () => {
     expect(v.work.unbooked[0]).toMatchObject({ dateLabel: "no day booked", booked: false });
   });
 
+  /* updated_at is a timestamptz. 21:30 UTC on the 12th is 8:30am on the 13th
+     in Sydney, so a project closed at breakfast is dated the 13th — not the
+     UTC day its first ten characters spell. */
+  it("dates a closed project by the AU day it was closed", () => {
+    const v = view({
+      projects: [project({ id: "p-1", status: "done", updatedAt: "2026-10-12T21:30:00+00:00" })],
+    });
+    expect(v.completed[0]).toMatchObject({ date: "2026-10-13", dateLabel: "closed" });
+  });
+
   it("carries a project's own trouble into its status", () => {
     const v = view({
       projects: [project({ id: "p-1", status: "blocked" }), project({ id: "p-2", status: "on_hold" })],

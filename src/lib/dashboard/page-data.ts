@@ -501,12 +501,16 @@ async function loadChips(
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
     viewerStaffId ? loadOwnSheet(orgId, viewerStaffId) : Promise.resolve(null),
+    // a day wider than the chip's window: a bare date against reviewed_at is
+    // midnight UTC, mid-morning here, so a decision made first thing on the
+    // window's last day would be dropped before the chip (which ages it by
+    // the Sydney day) had its say
     viewerStaffId
-      ? ownDeclinedClaims(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS))
+      ? ownDeclinedClaims(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS - 1))
       : Promise.resolve([]),
     // the same window, because it is the same kind of news — see chips.ts
     viewerStaffId
-      ? ownDeclinedLeave(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS))
+      ? ownDeclinedLeave(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS - 1))
       : Promise.resolve([]),
     // your own card's required gaps — the reminder after a skipped first run
     viewerStaffId ? ownDetailsGap(orgId, viewerStaffId) : Promise.resolve(null),

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
-import { fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
 import { ALLOWED_TYPES } from "@/lib/documents/files";
 import { documentGroupOf, opensInCard, type JobMediaItem } from "@/lib/workboard/job-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
@@ -76,13 +76,9 @@ import "@/components/swms/swms.css";
    file HeyTiff sent off the job's files (lib/integrations/sm8-echo), so a
    file sent is still one row. */
 
-const editedOn = (iso: string): string => {
-  const d = new Date(iso);
-  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
-  return fmtAuWeekdayDayMonth(local);
-};
+/* An instant's AU day. The browser's own getters read the UTC date on the
+   server's render, and the yard's day on the client's. */
+const editedOn = (iso: string): string => fmtAuWeekdayDayMonth(auDayOf(iso));
 
 /** What the file picker offers — the bucket's own list, so it never offers
     a file the upload would then refuse. */

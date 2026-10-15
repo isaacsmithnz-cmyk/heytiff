@@ -22,7 +22,7 @@
    the exact failure the flag exists to prevent. So the window decides WHETHER
    to look, and looking always means looking at everyone linked. */
 
-import { fmtAuDayMonth } from "@/lib/au-dates";
+import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 import type { WageDrift } from "./wage";
 
 /** How long a sweep result is trusted before it is worth looking again, even
@@ -90,6 +90,7 @@ export function driftNote(flag: DriftFlag): string | null {
     flag.count === 1
       ? "One person's pay rate differs from Xero"
       : `${flag.count} people's pay rates differ from Xero`;
-  const looked = flag.checkedAt ? ` (last looked ${fmtAuDayMonth(flag.checkedAt)})` : "";
+  // checkedAt is a timestamptz: its UTC date is yesterday on an AU morning
+  const looked = flag.checkedAt ? ` (last looked ${fmtAuDayMonth(auDayOf(flag.checkedAt))})` : "";
   return `${base}${looked}.`;
 }

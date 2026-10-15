@@ -355,7 +355,7 @@ export function TiffPanel({
               {used.has(e.id) ? (
                 <span className="qt-used">{`On the line at ${fmtAud(research.priceCents)} ${research.per}`}</span>
               ) : (
-                <button type="button" className="pbtn primary sm" disabled={busy || working} onClick={() => void putOn(e.id)}>
+                <button type="button" className="pbtn ghost sm qp-go" disabled={busy || working} onClick={() => void putOn(e.id)}>
                   {`Use ${fmtAud(research.priceCents)}`}
                 </button>
               )}
@@ -429,7 +429,7 @@ export function TiffPanel({
               </ul>
               {sources.left > 0 && <p className="qt-did">{`${sources.left} older ${sources.left === 1 ? "note" : "notes"} left out: the job's notes are longer than she reads.`}</p>}
               <div className="wb2-jqacts">
-                <button type="button" className="pbtn primary sm" disabled={busy || ticked.size === 0} onClick={() => void send(true)}>
+                <button type="button" className="pbtn ghost sm qp-go" disabled={busy || ticked.size === 0} onClick={() => void send(true)}>
                   Read it
                 </button>
               </div>

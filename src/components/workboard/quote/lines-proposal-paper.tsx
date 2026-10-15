@@ -68,7 +68,7 @@ function WordsBox({ label, value, rows, onSave, onCancel, busy }: { label: strin
         <button type="button" className="pbtn ghost sm" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="pbtn primary sm" disabled={busy} onClick={() => onSave(typed)}>
+        <button type="button" className="pbtn ghost sm qp-go" disabled={busy} onClick={() => onSave(typed)}>
           Save
         </button>
       </div>
@@ -422,7 +422,7 @@ function IntroBox({ title, intro, busy, onSave, onCancel }: { title: string; int
         <button type="button" className="pbtn ghost sm" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="pbtn primary sm" disabled={busy} onClick={() => onSave(t.trim(), words)}>
+        <button type="button" className="pbtn ghost sm qp-go" disabled={busy} onClick={() => onSave(t.trim(), words)}>
           Save
         </button>
       </div>
@@ -460,7 +460,7 @@ function NotesBox({ library, picked, busy, onSave, onCancel }: { library: QuoteN
         <button type="button" className="pbtn ghost sm" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="pbtn primary sm" disabled={busy} onClick={() => onSave([...on])}>
+        <button type="button" className="pbtn ghost sm qp-go" disabled={busy} onClick={() => onSave([...on])}>
           Save
         </button>
       </div>

@@ -169,7 +169,7 @@ export function CompareCard({ job, lineId, onClose, onChanged }: { job: string; 
             if (e.key === "Enter" && ask.trim()) void compare();
           }}
         />
-        <button type="button" className="pbtn primary sm" disabled={busy || !ask.trim()} onClick={() => void compare()}>
+        <button type="button" className="pbtn ghost sm qp-go" disabled={busy || !ask.trim()} onClick={() => void compare()}>
           Compare
         </button>
         <button type="button" className="pbtn ghost sm" onClick={onClose}>

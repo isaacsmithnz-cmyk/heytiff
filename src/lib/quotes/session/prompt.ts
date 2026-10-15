@@ -48,6 +48,9 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     "- Pick each unit from the book in that brand by what the brief asks for, the business's preferred first. Check it against its data pack.",
     /* the bench, 15 October: a VRF ducted head on a multi outdoor, "pairing not checked" */
     "- Check every system's outdoor takes its indoors (pairing_check) before its units go on. One that doesn't connect never goes on as it is: say why, in the book's words, and put on one that does.",
+    /* the bench, 16 October: told a code wasn't in the pack, she swapped the
+       AP35 she'd picked for the dearer EF35 the pack has (3311, +50%) */
+    "- A model the pack hasn't got isn't refused: keep the one the brief or the book gives, and say its pairing isn't checked. Never swap a unit only to get one the pack has.",
     /* Isaac, 2026-10-15, on 3231: "[MITSUBISHI ELEC. DUCT OUT 10KW 1P R32].
        That's like a line code from a supplier… simplified to indoor unit,
        outdoor unit… indoor unit study, then model" */

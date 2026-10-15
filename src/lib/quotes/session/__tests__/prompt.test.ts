@@ -64,3 +64,8 @@ it("takes every duct and outlet size from the brief, a plan or an answer, and as
 it("checks every system's outdoor takes its indoors before its units go on", () => {
   expect(sessionSystemPrompt()).toMatch(/Check every system's outdoor takes its indoors \(pairing_check\) before its units go on\. One that doesn't connect never goes on as it is: say why, in the book's words, and put on one that does\./);
 });
+
+/* the bench, 15 October: "please confirm" in her words, never asked, though the crew and days moved every quote they were given for */
+it("asks the crew and days she worked out as a question, not in passing", () => {
+  expect(sessionSystemPrompt()).toMatch(/Then ask the crew and days as a question \(ask\), every visit's in it and what you worked out its put: nothing moves a quote more\./);
+});

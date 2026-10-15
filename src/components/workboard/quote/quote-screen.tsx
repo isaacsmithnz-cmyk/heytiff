@@ -163,6 +163,7 @@ export function QuoteScreen({
               sendQuote={(onSent) => <JobQuoteSend job={job} visible as="quote" version={`lines-${linesRev}`} onSent={onSent} />}
               sm8={sm8}
               onOpenPaper={(item) => setPaper(item)}
+              money={financials}
             />
           ) : onLines === false ? (
             <div className="hd-body qp-face">

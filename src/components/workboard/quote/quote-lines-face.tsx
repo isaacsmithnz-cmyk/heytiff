@@ -311,6 +311,7 @@ export function QuoteLinesFace({
   meta,
   sm8 = null,
   onOpenPaper,
+  money: moneyGrant = true,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
@@ -328,6 +329,10 @@ export function QuoteLinesFace({
       show on our quote page") */
   sm8?: Sm8Quote | null;
   onOpenPaper?: (item: JobMediaItem) => void;
+  /** the money grant, from the server: until the lines are read the page
+      knows no better, and a tech saw the money columns, the book search and
+      the corner's buttons flash up on every load */
+  money?: boolean;
   /** read the price again: a line changed */
   onPriced: () => void;
 }) {
@@ -363,7 +368,7 @@ export function QuoteLinesFace({
   const all = view?.lines ?? [];
   /* a tech quotes too, its money hidden (Isaac, 2026-10-12): no prices,
      no pricing, no approving; the conversation and the work are theirs */
-  const money = view?.money !== false;
+  const money = moneyGrant && view?.money !== false;
   const accepted = view?.accepted ?? [];
   const versions = view?.versions ?? [];
   /* the version the quote is at: one more than the last kept */
@@ -1092,7 +1097,9 @@ export function QuoteLinesFace({
                 </button>
               </span>
             )}
-            {c.confirm && (
+            {/* confirming an estimate confirms its price: the route takes
+                it out of a change from someone who doesn't see money */}
+            {c.confirm && money && (
               <span className="ql-chkacts">
                 <button
                   type="button"

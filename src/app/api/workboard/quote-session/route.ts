@@ -11,7 +11,7 @@ import { researchDetailOf } from "@/lib/quotes/research";
 import { putResearchedOn } from "@/lib/quotes/lines-job-server";
 import { briefOf } from "@/lib/quotes/session/job-sources";
 import { readJobSources } from "@/lib/quotes/session/job-sources-server";
-import { threadWithoutMoney } from "@/lib/quotes/money-hidden";
+import { maskMoney, threadWithoutMoney } from "@/lib/quotes/money-hidden";
 
 /* Tiff's session on a quote (slice 4.1): GET reads the thread as a person
    reads it, after an event id, with whether she's working and what the
@@ -48,7 +48,12 @@ export async function GET(req: Request) {
   const since = Math.max(0, Number(url.searchParams.get("since")) || 0);
   const target = await resolveJobCard(g.orgId, job);
   /* Read the job: what she'd be given, each source to untick */
-  if (url.searchParams.get("sources") === "1") return Response.json({ ok: true, ...(await readJobSources(g.orgId, target.parentRemoteId)) });
+  if (url.searchParams.get("sources") === "1") {
+    const read = await readJobSources(g.orgId, target.parentRemoteId);
+    /* ServiceM8's quote and a note can carry prices: a source's words come
+       without them to someone who doesn't see money */
+    return Response.json({ ok: true, ...read, sources: g.money ? read.sources : read.sources.map((s) => ({ ...s, text: maskMoney(s.text) })) });
+  }
   const { session, events } = await readThread(g.orgId, target.parentRemoteId, since);
   /* her questions' answers priced, asked for once she's done rather than
      every poll: it reads the book */
@@ -63,7 +68,8 @@ export async function GET(req: Request) {
     ok: true,
     on: sessionModelFor(g.orgId) != null,
     working: session ? holding(session, Date.now()) : false,
-    spentUsd: session?.spentUsd ?? 0,
+    /* what she's cost is money too */
+    ...(g.money ? { spentUsd: session?.spentUsd ?? 0 } : {}),
     money: g.money,
     events: g.money ? events : threadWithoutMoney(events),
     names,

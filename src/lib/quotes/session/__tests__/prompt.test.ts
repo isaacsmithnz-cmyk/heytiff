@@ -69,3 +69,8 @@ it("checks every system's outdoor takes its indoors before its units go on", () 
 it("asks the crew and days she worked out as a question, not in passing", () => {
   expect(sessionSystemPrompt()).toMatch(/Then ask the crew and days as a question \(ask\), every visit's in it and what you worked out its put: nothing moves a quote more\./);
 });
+
+/* the bench, 16 October: a code the pack hasn't got, and she swapped the AP35 for the dearer EF35 the pack has */
+it("keeps a unit the pack hasn't got, saying its pairing isn't checked, never swapping it for one the pack has", () => {
+  expect(sessionSystemPrompt()).toMatch(/A model the pack hasn't got isn't refused: keep the one the brief or the book gives, and say its pairing isn't checked\. Never swap a unit only to get one the pack has\./);
+});

@@ -164,7 +164,7 @@ export function questionOf(raw: unknown): Question | Err {
 /* ── the definitions she's handed ── */
 
 const lineFields = {
-  option: { type: "integer", description: "The option it's on, counted from 0." },
+  option: { type: "integer", description: "The option it's on, counted from 0: what a person calls option 1 is 0, option 2 is 1." },
   system: { type: "string", description: "The system it's part of, as the quote names it: \"Downstairs\", \"Living\". Empty for labour and anything shared." },
   group: { type: "string", description: "Its group: Units, Ductwork and grilles, Pipe, power and controls, Mounting and drain, Labour, or one the job needs." },
   name: { type: "string", description: "What it is. A book item goes on under the book's own name; a unit by what it is, \"Indoor unit\", \"Outdoor unit\", a head \"Indoor unit, Study\"." },

@@ -556,6 +556,22 @@ export function removePageFromRows(rows: BuilderRow[], pageIdx: number): Builder
   );
 }
 
+/** Each new floor named by its plans as they are named NOW (6 Bishops Ave,
+    2026-10-15: the upper floor was committed "Ground Floor" while its card on
+    the stack read "First Floor"). A row took its name from the page dropped
+    to make it, at the moment of the drop, so a page renamed after placing,
+    or a row left holding another page once its first was pulled off, kept a
+    name its card no longer showed. The card shows its page's name, so the
+    floor is the first of its pages' typed names; none typed, its stack
+    position. Existing floors keep theirs: they are renamed on the floor. */
+export function nameNewRows(rows: BuilderRow[], names: Record<number, string>): BuilderRow[] {
+  return rows.map((r) => {
+    if (r.floorId !== null) return r;
+    const typed = r.pageIdxs.map((i) => (names[i] ?? "").trim()).find((n) => n !== "");
+    return { ...r, name: typed ?? "" };
+  });
+}
+
 /** Commit the stack: prune empty new rows, derive levels from the final
     order (existing floors renumber too — mezzanines/basements included),
     create/extend floors bottom-up. */

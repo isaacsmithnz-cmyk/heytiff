@@ -503,6 +503,32 @@ describe("installer scenarios: upload → floors", () => {
     );
   });
 
+  it("a page renamed after it is stacked commits under the name its card shows (6 Bishops Ave, 2026-10-15)", async () => {
+    pdfToPages.mockResolvedValue([page("Page 1", 1), page("Page 2", 2)]);
+    const user = await openPlanJob(new CountingPlanImages());
+
+    uploadPdf();
+    await user.click(await screen.findByRole("button", { name: "Page 1" }));
+    await user.click(screen.getByRole("button", { name: "Page 2" }));
+    await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
+    // the upper page named the same as the lower by mistake, and both stacked
+    await nameFloors(user, ["Ground Floor", "Ground Floor"]);
+    dropPage(yardFirst(), 0);
+    dropPage(gapAbove("Ground Floor"), 1);
+
+    // back to step ②, on through naming, and the upper page renamed
+    await user.click(screen.getByRole("button", { name: /Select pages/ }));
+    await user.click(screen.getByRole("button", { name: /Continue with 2 pages/ }));
+    await nameFloors(user, [null, "First Floor"]);
+    // its card on the stack already reads the new name
+    expect(screen.getByText("First Floor")).toBeInTheDocument();
+
+    await startDesignThenReviewPlans(user);
+    // committed under it: one Ground Floor at GF, the First Floor at L1
+    expect(document.querySelectorAll('[data-floor="Ground Floor"]')).toHaveLength(1);
+    expect(floorCard("First Floor").querySelector(".ds-floor-lvl")!.textContent).toBe("L1");
+  });
+
   it("junk file: clear error, flow resets, floor management returns", async () => {
     const user = await openPlanJob(new CountingPlanImages());
     const input = document.querySelector('input[type="file"]')!;

@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { allocationsOf } from "@/lib/studio/allocations";
-import { blockingFindings, combinationWord, strayFittingIds, systemFindings } from "@/lib/studio/verdict";
+import { blockingFindings, combinationWord, headsInWords, strayFittingIds, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studio/vrf-tree";
 import { TUBE_SIZES_MM, pairSize, setRunSizes, sizeTone, tubeSize, type PipeUnits } from "@/lib/studio/pipe-sizes";
 import { attachOf, buildSystemGraph, manualRiserM, mountOf, setMount } from "@/lib/studio/graph";
@@ -114,12 +114,12 @@ export function VrfSchematic({
     tree && !tree.drawn && doc.objects.some((o) => o.type === "pipe-run" && o.systemId === sys.id)
       ? tree.unjoined
       : [];
-  /* a failing system says why under its name, in the rail's words; the
-     outdoor's own finding is the line above, which names the heads */
+  /* a failing system says why under its name, in the rail's words; a head
+     the drawing misses is the line above, which names the heads */
   const reds =
     word === "Fails"
       ? blockingFindings(systemFindings(doc, pack, sys)).filter(
-          (f) => !(f.code === "outdoor-unpiped" && unpiped.length > 0)
+          (f) => !((f.code === "outdoor-unpiped" || f.code === "head-unpiped") && unpiped.length > 0)
         )
       : [];
 
@@ -414,7 +414,7 @@ export function VrfSchematic({
           here are the zones' order, dashed, and the heads it misses are named */}
       {unpiped.length > 0 && (
         <p className="ds-schem-unpiped">
-          {`Not piped to the outdoor yet: ${unpiped.map((id) => zoneName(id) || headModel(id)).join(", ")}`}
+          {`Not piped to the outdoor yet: ${headsInWords(doc, sys, unpiped).join(", ")}`}
         </p>
       )}
       {reds.length > 0 && (

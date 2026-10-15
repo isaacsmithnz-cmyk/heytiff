@@ -21,6 +21,7 @@ import {
   formatLevel,
   insertPageRow,
   labelPagesSequentially,
+  nameNewRows,
   orphanedRefs,
   previewInsertLevel,
   removePageFromRows,
@@ -158,6 +159,53 @@ describe("sheet placement + allocation", () => {
     expect(floors).toHaveLength(1);
     expect(floors[0].name).toBe("Ground floor"); // stack position, NOT "Page 6"
     expect(floors[0].level).toBe(0);
+  });
+
+  describe("a new floor is named by its plan as it is named at commit (6 Bishops Ave, 2026-10-15)", () => {
+    const two = uploadsFor([sheet("Page 4", 4), sheet("Page 5", 5)], [3, 4]);
+
+    it("a page renamed after it was placed commits under its new name", () => {
+      // both pages first named Ground Floor and stacked, the upper one renamed after
+      let rows = insertPageRow([], 3, "Ground Floor", null, "above");
+      rows = insertPageRow(rows, 4, "Ground Floor", rows[0].key, "above");
+      const names = { 3: "Ground Floor", 4: "First Floor" };
+      const floors = applyBuilderRows(nameNewRows(rows, names), two, []);
+      expect(floors.map((f) => [f.name, f.level])).toEqual([
+        ["Ground Floor", 0],
+        ["First Floor", 1],
+      ]);
+    });
+
+    it("a floor left holding the second page, once its first is pulled off, takes that page's name", () => {
+      // First Floor dropped onto Ground Floor as a split, then Ground Floor pulled off below it
+      let rows = insertPageRow([], 3, "Ground Floor", null, "above");
+      const key = rows[0].key;
+      rows = dropPageOnRow(rows, 4, key);
+      rows = insertPageRow(rows, 3, "Ground Floor", key, "below");
+      rows = setAnchorLevel(rows, key, 1);
+      const names = { 3: "Ground Floor", 4: "First Floor" };
+      expect(rows.find((r) => r.key === key)!.name).toBe("Ground Floor"); // the stale name
+      const floors = applyBuilderRows(nameNewRows(rows, names), two, []);
+      expect(floors.map((f) => [f.name, f.level])).toEqual([
+        ["Ground Floor", 0],
+        ["First Floor", 1],
+      ]);
+    });
+
+    it("a name cleared since the drop falls back to the stack position; an existing floor keeps its own", () => {
+      const doc = createDesign({ name: "x", mode: "blank" });
+      let rows = builderStackFromFloors([{ ...doc.floors[0], name: "Downstairs" }]);
+      rows = insertPageRow(rows, 4, "Upper", rows[0].key, "above");
+      const named = nameNewRows(rows, { 4: "  " });
+      expect(named.map((r) => r.name)).toEqual(["Downstairs", ""]);
+      const floors = applyBuilderRows(named, uploadsFor([sheet("Page 5", 5)], [4]), [
+        { ...doc.floors[0], name: "Downstairs" },
+      ]);
+      expect(floors.map((f) => [f.name, f.level])).toEqual([
+        ["Downstairs", 0],
+        ["Level 1", 1],
+      ]);
+    });
   });
 
   it("defaultFloorName maps stack position → floor name", () => {

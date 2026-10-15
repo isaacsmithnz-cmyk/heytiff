@@ -17,7 +17,13 @@ import { QuoteScreen } from "@/components/workboard/quote/quote-screen";
    read here, as the card reads it, so the page lands with its title and
    ServiceM8's quote already known. */
 
-export default async function WorkboardQuotePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WorkboardQuotePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   if (!(await can("workboard"))) redirect("/dashboard");
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
@@ -35,6 +41,9 @@ export default async function WorkboardQuotePage({ params }: { params: Promise<{
     can("financials"),
   ]);
   if (!detail) notFound();
+  /* the job card's Create a quote links ?start=1: the reply box is ready
+     for the brief (the chat-first page, 2026-10-13) */
+  const start = (await searchParams).start === "1";
 
-  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} />;
+  return <QuoteScreen job={target.parentRemoteId} detail={detail} moneyVisible={moneyVisible} financials={financials} start={start} />;
 }

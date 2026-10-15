@@ -572,6 +572,30 @@ Every decision below is made once, here, and a guard test holds each number.
   opened it. The page underneath is not made inert: the scrim already takes
   the pointer, and an inert page would silence the toasts a board raises
   while its card is open.
+- **The quote page is the conversation first** (decided 2026-10-13, from
+  the chat-first mock-ups he ruled on that day). Under the progress line,
+  Tiff's conversation is the main column, a column no wider than reading
+  wants, and the line items are a tab beside it; the rail on the right, 360
+  wide, is the quote's card, what goes to ServiceM8 and the quote ServiceM8
+  already holds. Four things on it break what this file says, on his word:
+  *"Dark green outline white body and green approved text. Uh, the chat
+  reply button can just be gray similar to what it looks like in Claude."*
+  - **The primary is a green outline**, where ink does the primary action:
+    `.qp-go`, a 1.5px edge and words in `--go`, a white body, the OK green
+    by value but named for what it does, so a button is never read as a
+    state; its hover is one change, the OK tint. Approve wears it, on the
+    main view and on the paper.
+  - **Your words are a light bubble**: the ink tint, ink words, its tail at
+    the foot on your side (16, 16, 6, 16). Hers are her words under her name
+    and mark, with no bubble.
+  - **Profit is a bar with an outline**, in green over the target or amber
+    under it, its words beside the figures: "over your 20%", or how far
+    under and the price that would meet it. With no target it is the figures
+    alone, in no state's colour. It retired the red sentence under the old
+    head, so the one red left on the page means something went wrong.
+  - **The send is Enter in a grey square**, the glyph alone, as the note
+    composer's commit is (named under Guards); Enter sends and Shift+Enter
+    is a new line.
 
 ## Scales
 
@@ -897,6 +921,7 @@ this list the way it holds the loops: both ways, by name.
 | `square` | `wb2-striprnd`, `wb2-micgo`, `wb2-dictmic` | stop, in the same controls: it takes the microphone's seat while it listens |
 | `x` | `wb2-striprnd`, `wb2-dictx` ×2, `wb2-ico` | the recording's cross beside stop, and the recording card's own cross in Tiff's ask bar (the capture card had a second, and went with the old capture UI, 2026-09-27): each closes a recording, and its label says what closing costs ("Discard") |
 | `plus` | `wb2-striprnd`, `wb2-addgo` | a note composer's commit at the end of its one-line field: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
+| `cornerDL` | `qt-send` | a composer's send, as the note composer's plus is: Tiff's reply box on the quote, Enter drawn in a grey square (Isaac, 2026-10-13: "the chat reply button can just be gray similar to what it looks like in Claude"). Its label is "Send", and Enter is the same press |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `chevR` | `railtg` | the rail's handle, a chevron riding the seam between rail and content; the shell stands as it is |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |

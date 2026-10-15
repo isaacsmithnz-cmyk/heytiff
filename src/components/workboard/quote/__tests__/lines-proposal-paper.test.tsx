@@ -43,7 +43,7 @@ const option = (name: string, l: QuoteLine) => {
   const build = priceBuildUp([buildLineOf(l)], [], settings);
   return { name, build, unpriced: [], rows: 1, labourFrom: "none" as const, profit: { costCents: 0, profitCents: 0, pct: 0, targetPct: 20, hourCostCents: 0, short: null } };
 };
-const price: QuotePrice = { ok: true, options: [option("Option 1", one), option("Option 2", two)] };
+const price: QuotePrice = { ok: true, options: [option("Option 1", one), option("Option 2", two)], chargeOutCents: 14000 };
 
 const paper = (over: Partial<Parameters<typeof LinesProposalPaper>[0]> = {}) => {
   const onSave = jest.fn();

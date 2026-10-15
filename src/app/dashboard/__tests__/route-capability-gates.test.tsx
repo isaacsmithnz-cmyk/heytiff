@@ -159,11 +159,12 @@ describe("held → the page renders", () => {
 });
 
 describe("the dynamic leaves check the same door", () => {
-  const DYNAMIC: [string, (p: { params: Promise<{ id: string }> }) => Promise<unknown>][] = [
+  type Leaf = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
+  const DYNAMIC: [string, (p: Leaf) => Promise<unknown>][] = [
     ["workboard/projects/[id]", WorkboardProjectPage],
     ["workboard/quotes/[id]", WorkboardQuotePage],
   ];
-  const props = { params: Promise.resolve({ id: "x-1" }) };
+  const props = { params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) };
 
   it.each(DYNAMIC)("%s — revoked → straight back to /dashboard", async (_route, Page) => {
     allowed = false;
@@ -263,12 +264,19 @@ describe("the Data Library is admin+, by role and not by capability", () => {
 describe("the quote page", () => {
   it("lets a tech in without Workboard manage, without the money", async () => {
     (can as jest.Mock).mockImplementation(async (cap: string) => cap === "workboard");
-    const page = (await WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }) })) as { props: { moneyVisible: boolean; financials: boolean } };
-    expect(page.props).toMatchObject({ moneyVisible: false, financials: false });
+    const page = (await WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) })) as { props: { moneyVisible: boolean; financials: boolean; start: boolean } };
+    expect(page.props).toMatchObject({ moneyVisible: false, financials: false, start: false });
+  });
+
+  /* the job card's Create a quote links ?start=1 (the chat-first page, 2026-10-13) */
+  it("starts at the reply box from the job card's Create a quote", async () => {
+    (can as jest.Mock).mockImplementation(async () => true);
+    const page = (await WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({ start: "1" }) })) as { props: { start: boolean } };
+    expect(page.props.start).toBe(true);
   });
 
   it("sends someone without the Workboard away", async () => {
     (can as jest.Mock).mockImplementation(async () => false);
-    await expect(WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }) })).rejects.toThrow("REDIRECT:/dashboard");
+    await expect(WorkboardQuotePage({ params: Promise.resolve({ id: "x-1" }), searchParams: Promise.resolve({}) })).rejects.toThrow("REDIRECT:/dashboard");
   });
 });

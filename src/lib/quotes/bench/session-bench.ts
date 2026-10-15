@@ -90,7 +90,7 @@ export function memoryStore(opts: {
       const looked = lookup ? await Promise.all([unit, indoor].filter((w): w is { brand: string; model: string } => !!w).map((w) => lookup(w.brand, w.model))) : [];
       const brand = (indoor ?? unit)?.brand ?? null;
       const zoning = kit === "ducted" && facts.zones && brand && opts.zoning ? await opts.zoning(brand) : null;
-      const f = kitFactsFrom(kit, facts, looked, zoning);
+      const f = kitFactsFrom(kit, facts, looked, zoning, brand);
       const made = expandKit(kit, f, opts.products, at, opts.allowances ?? null, opts.supplier ?? null, opts.kitPrefs ?? null);
       for (const l of made) add(l as Record<string, unknown>);
       return { ok: true, added: made.length, still: stillToSize(made) };

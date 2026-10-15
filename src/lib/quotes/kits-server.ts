@@ -36,7 +36,7 @@ export async function addKit(
   /* zoned: the maker's zone system, from the pack of the brand it's for */
   const brand = (indoor ?? unit)?.brand ?? null;
   const zoning = kit === "ducted" && facts.zones && brand ? await zoningFor(brand) : null;
-  const f = kitFactsFrom(kit, facts, looked, zoning);
+  const f = kitFactsFrom(kit, facts, looked, zoning, brand);
   const [products, settings, byHand, ranges] = await Promise.all([bookProducts(orgId), readQuoteSettings(orgId), readByHand(orgId, jobUuid), readRangeOffers(orgId)]);
   const a = settings.allowances;
   const lines = expandKit(kit, f, products, at, { consumables: a.consumables, flush: a.flush, recovery: a.recovery }, byHand.supplier, {

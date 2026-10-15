@@ -411,3 +411,28 @@ describe("a zoned ducted system", () => {
     expect(none).not.toHaveProperty("wifi");
   });
 });
+
+/* the bench, 15 October: the business's preferred PAR-41MAAM went on a
+   Daikin and on a Fujitsu ducted unit as their wall controller */
+describe("a ducted kit's wall controller", () => {
+  const me = product("PAR-41MAAM WIRED REMOTE CONTROLLER", 9800, { brand: "Mitsubishi Electric" });
+  const dai = product("DAIKIN MADOKA WIRED CONTROLLER BRC1H63W", 14500, { brand: "Daikin" });
+  const prefs = { ranges: new Map(), components: { wall_controller: { supplierKey: "s1", code: me.offers[0]!.code, rollM: null } } };
+  const controllerOf = (brand: string | null, books: Product[]) => {
+    const f = brand ? { ...facts, brand } : facts;
+    return expandKit("ducted", f, [...book, ...books], { optionIndex: 0, system: "Ducted" }, null, null, prefs).find((l) => l.group === "Pipe, power and controls" && /controller/i.test(String(l.why) + l.name));
+  };
+
+  it("is the unit's own maker's: the business's preferred only when it's that maker's", () => {
+    expect(controllerOf("daikin", [me, dai])).toMatchObject({ name: dai.name, source: "assumed" });
+    expect(controllerOf("mitsubishi-electric", [me, dai])).toMatchObject({ name: me.name, why: expect.stringMatching(/your preferred/i) });
+  });
+
+  it("goes on as not known yet when the book has none of that maker's", () => {
+    expect(controllerOf("fujitsu", [me, dai])).toMatchObject({ name: "Wall controller", source: "unknown", costCents: 0 });
+  });
+
+  it("is the business's preferred when the unit's maker isn't known, as before", () => {
+    expect(controllerOf(null, [me, dai])).toMatchObject({ name: me.name });
+  });
+});

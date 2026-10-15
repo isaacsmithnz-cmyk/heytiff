@@ -379,6 +379,19 @@ describe("a zoned ducted system", () => {
     expect(plain.some((n) => /PAR-ZM01A-A|PAC-ZC10L/.test(n ?? ""))).toBe(false);
   });
 
+  /* 2026-10-15: "5 zones" with the kit form's pack left on None added a kit
+     with no zone parts, and nothing to settle said so */
+  it("zones asked for and no zone system read: the interface is a line not known yet, saying why, for Tiff to settle", () => {
+    const lines = expandKit("ducted", { ...facts, zones: 5, zoneControl: "temperature", wifi: true }, book, at);
+    expect(lines.find((l) => l.name === "Zone interface")).toMatchObject({ qty: 1, costCents: 0, source: "unknown", why: "Needs the maker's zone system: none read off the unit's data pack" });
+    expect(stillToSize(lines).map((x) => x.name)).toContain("Zone interface");
+    /* read, and none of its interfaces takes that many: said as before */
+    const many = expandKit("ducted", { ...facts, zones: 12, zoning: zoneKitOf(me, 12, "temperature", false) }, book, at);
+    expect(many.find((l) => l.name === "Zone interface")).toMatchObject({ source: "unknown", why: "None of the maker's zone interfaces takes this many zones" });
+    /* not zoned: no zone line at all */
+    expect(expandKit("ducted", facts, book, at).some((l) => l.name === "Zone interface")).toBe(false);
+  });
+
   it("reads the zones, the control and WiFi from what Tiff or a person gave", () => {
     expect(normaliseKitFacts({ zones: 5, zoneControl: "temperature", wifi: true })).toMatchObject({ zones: 5, zoneControl: "temperature", wifi: true });
     const none = normaliseKitFacts({ zones: "lots", zoneControl: "fast" });

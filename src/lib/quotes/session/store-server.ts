@@ -116,6 +116,22 @@ export async function readThread(orgId: string, jobUuid: string, since = 0): Pro
   return { session, events };
 }
 
+/** A thread from one event on, all of it, oldest first: what a tapped
+    answer or a used price acts on, with everything said since (any answer
+    to it among them). The panel holds the newest THREAD_READ it opened on
+    and every poll after, so what it shows can sit further back than one
+    read of the newest by the time it's tapped. */
+export async function readThreadFrom(orgId: string, jobUuid: string, id: number): Promise<ThreadEvent[]> {
+  if (!(id >= 1)) return [];
+  const out: ThreadEvent[] = [];
+  for (let since = id - 1; ; ) {
+    const { events } = await readThread(orgId, jobUuid, since);
+    out.push(...events);
+    if (events.length < THREAD_READ) return out;
+    since = events.at(-1)!.id;
+  }
+}
+
 /** Her questions still open in a session, oldest first (answers.ts). */
 export async function readOpenQuestions(orgId: string, sessionId: string): Promise<{ id: number; question: string; put: string }[]> {
   const { data } = await supabaseAdmin

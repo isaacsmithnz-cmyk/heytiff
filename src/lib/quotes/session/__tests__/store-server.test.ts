@@ -36,7 +36,7 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { readThread } from "../store-server";
+import { readThread, readThreadFrom } from "../store-server";
 
 const ORG = "org-a";
 const JOB = "job-3384";
@@ -76,4 +76,15 @@ it("a short thread is all of it, and nothing of another business's", async () =>
   TABLES.quote_session_events = TABLES.quote_session_events!.filter((e) => (e.id as number) <= 3 || e.id === 9001);
   expect(ids((await readThread(ORG, JOB)).events)).toEqual([1, 2, 3]);
   expect(await readThread(ORG, "another-job")).toEqual({ session: null, events: [] });
+});
+
+/* a tapped answer or a used price, read from its own event on: found
+   whatever its age, with every answer since it, past one read of them */
+it("reads a thread from one event on, all of it, oldest first", async () => {
+  expect(ids(await readThreadFrom(ORG, JOB, 50))).toEqual(run(50, 620));
+  expect(ids(await readThreadFrom(ORG, JOB, 620))).toEqual([620]);
+  /* no event named: nothing, never the newest of the thread */
+  expect(await readThreadFrom(ORG, JOB, -1)).toEqual([]);
+  expect(await readThreadFrom(ORG, JOB, 0)).toEqual([]);
+  expect(await readThreadFrom(ORG, "another-job", 50)).toEqual([]);
 });

@@ -151,7 +151,7 @@ export type KitPart = {
   /** what to say when nothing in the book fits its size */
   none?: (f: KitFacts) => string;
   /** what to say when what sizes it isn't known */
-  needs?: string;
+  needs?: string | ((f: KitFacts) => string);
   /** the part as Quoting names its preferred item (components.ts) */
   component?: (f: KitFacts) => ComponentKey | null;
   /** ductwork: the air side, from the plenums to the grilles, which the
@@ -451,10 +451,17 @@ const DUCTED: KitPart[] = [
     rule: "One for the zones",
     group: "Pipe, power and controls",
     name: "Zone interface",
-    skip: (f) => !f.zoning,
-    needs: "None of the maker's zone interfaces takes this many zones",
+    /* zones asked for and no zone system read (no data pack named, or one
+       without a zone system): a line not known yet, saying so. Skipped, "5
+       zones" with the pack left on None added a kit with no zone parts and
+       no word of it (2026-10-15) */
+    skip: (f) => !f.zoning && !f.zones,
+    needs: (f) => (f.zoning ? "None of the maker's zone interfaces takes this many zones" : "Needs the maker's zone system: none read off the unit's data pack"),
     search: (f) => (f.zoning?.interface ? { text: f.zoning.interface } : null),
-    qty: (f) => ({ qty: 1, unit: "", why: `${f.zoning!.zones} zones, ${f.zoning!.control === "temperature" ? "by temperature" : "on and off"}: ${f.zoning!.from}` }),
+    qty: (f) =>
+      f.zoning
+        ? { qty: 1, unit: "", why: `${f.zoning.zones} zones, ${f.zoning.control === "temperature" ? "by temperature" : "on and off"}: ${f.zoning.from}` }
+        : { qty: 1, unit: "", why: `${f.zones} zones` },
   },
   {
     key: "zone-receiver",
@@ -632,7 +639,8 @@ export function expandKit(
     const s = part.search(f);
     const base = { optionIndex: at.optionIndex, system: at.system, group: part.group, kind: "material" as const, ...ductOf(part) };
     if (!q || !s) {
-      const why = !s ? (part.needs ?? (part.key === "pair-coil" && f.keptPipe ? "Needs the unit's details to check the old pipe" : "Needs the unit's details")) : "Needs the run";
+      const needs = typeof part.needs === "function" ? part.needs(f) : part.needs;
+      const why = !s ? (needs ?? (part.key === "pair-coil" && f.keptPipe ? "Needs the unit's details to check the old pipe" : "Needs the unit's details")) : "Needs the run";
       out.push({ ...base, name: part.name, qty: q?.qty ?? 0, unit: q?.unit ?? "", costCents: 0, source: "unknown", why });
       continue;
     }

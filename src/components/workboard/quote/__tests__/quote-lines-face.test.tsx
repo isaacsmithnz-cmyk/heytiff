@@ -185,6 +185,11 @@ it("adds a zoned ducted kit with its zones, their control and WiFi, as Tiff's to
   await screen.findByText("Ducted indoor, under the floor");
   fireEvent.click(screen.getByRole("button", { name: "Add a kit" }));
   fireEvent.change(screen.getByLabelText("Kit"), { target: { value: "ducted" } });
+  /* the zone system is read off the unit's pack: named, as a zoned kit needs */
+  fireEvent.change(screen.getByLabelText("The outdoor's data pack"), { target: { value: "mitsubishi-electric" } });
+  fireEvent.change(screen.getByLabelText("Outdoor model"), { target: { value: "PUZ-ZM100YKA" } });
+  /* a whole number: the keypad without a point */
+  expect(screen.getByLabelText("Zones")).toHaveAttribute("inputmode", "numeric");
   fireEvent.change(screen.getByLabelText("Zones"), { target: { value: "5" } });
   fireEvent.change(screen.getByLabelText("Zone control"), { target: { value: "on_off" } });
   fireEvent.change(screen.getByLabelText("WiFi"), { target: { value: "yes" } });
@@ -192,7 +197,7 @@ it("adds a zoned ducted kit with its zones, their control and WiFi, as Tiff's to
     fireEvent.click(screen.getByRole("button", { name: "Add the kit" }));
   });
   const sent = posted.find((p) => p.op === "kit")!;
-  expect(sent).toMatchObject({ kit: "ducted", brand: "", facts: { zones: 5, zoneControl: "on_off", wifi: true } });
+  expect(sent).toMatchObject({ kit: "ducted", brand: "mitsubishi-electric", model: "PUZ-ZM100YKA", facts: { zones: 5, zoneControl: "on_off", wifi: true } });
   /* none said: none sent, and WiFi no */
   posted = [];
   fireEvent.click(screen.getByRole("button", { name: "Add a kit" }));

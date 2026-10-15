@@ -1497,11 +1497,11 @@ function KitForm({ busy, system, packs, onAdd }: { busy: boolean; system: string
     return { ...runs, ...(zones.trim() && Number.isFinite(n) && n >= 1 ? { zones: Math.round(n) } : {}), zoneControl, wifi: wifi === "yes" };
   };
   const set = (k: string) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
-  const num = (k: string, label: string, unit: string) => (
+  const num = (k: string, label: string, unit: string, mode: "decimal" | "numeric" = "decimal") => (
     <label className="ql-kf">
       <span>{label}</span>
       <span className="ql-kin">
-        <input className="wb2-fi" inputMode="decimal" value={f[k]} onChange={set(k)} aria-label={label} />
+        <input className="wb2-fi" inputMode={mode} value={f[k]} onChange={set(k)} aria-label={label} />
         <em>{unit}</em>
       </span>
     </label>
@@ -1590,7 +1590,7 @@ function KitForm({ busy, system, packs, onAdd }: { busy: boolean; system: string
         )}
         {kit === "ducted" && num("outlets", "Outlets", "")}
         {kit === "ducted" && num("outletMm", "Outlet size", "mm")}
-        {kit === "ducted" && num("zones", "Zones", "")}
+        {kit === "ducted" && num("zones", "Zones", "", "numeric")}
         {kit === "ducted" && (
           <label className="ql-kf">
             <span>Zone control</span>

@@ -5,7 +5,7 @@ import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { namesBySignIn } from "@/lib/quotes/lines-server";
 import { sessionModelFor } from "@/lib/quotes/session/model-server";
 import { startTurn } from "@/lib/quotes/session/session-server";
-import { holding, readThread } from "@/lib/quotes/session/store-server";
+import { holding, readThread, readThreadFrom } from "@/lib/quotes/session/store-server";
 import { answerQuestion, priceQuestions } from "@/lib/quotes/session/answers-server";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { putResearchedOn } from "@/lib/quotes/lines-job-server";
@@ -89,7 +89,8 @@ export async function POST(req: Request) {
   if (body.op === "answer") {
     const event = typeof body.event === "number" ? body.event : -1;
     const index = typeof body.answer === "number" ? body.answer : -1;
-    const { events } = await readThread(g.orgId, target.parentRemoteId);
+    /* the question on, whatever its age, with every answer since */
+    const events = await readThreadFrom(g.orgId, target.parentRemoteId, event);
     const r = await answerQuestion(g.orgId, target.parentRemoteId, g.userId, event, index, events);
     if (!r.ok) return Response.json(r, { status: 409 });
     /* an answer that leaves her work starts her, with it */
@@ -103,7 +104,7 @@ export async function POST(req: Request) {
   if (body.op === "use") {
     if (!g.money) return Response.json({ ok: false, reason: "Using a price needs money access." }, { status: 403 });
     const event = typeof body.event === "number" ? body.event : -1;
-    const { events } = await readThread(g.orgId, target.parentRemoteId);
+    const events = await readThreadFrom(g.orgId, target.parentRemoteId, event);
     const ev = events.find((e) => e.id === event && e.kind === "tool" && e.body.name === "research_price");
     const r = researchDetailOf((ev?.body.detail as { research?: unknown } | undefined)?.research);
     if (!r) return Response.json({ ok: false, reason: "That price has gone." }, { status: 409 });

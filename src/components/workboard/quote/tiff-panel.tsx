@@ -70,7 +70,8 @@ export function TiffPanel({
 }) {
   const [on, setOn] = useState(false);
   const [working, setWorking] = useState(false);
-  const [spent, setSpent] = useState(0);
+  /* what she's cost: sent only to someone who sees money */
+  const [spent, setSpent] = useState<number | null>(null);
   const [events, setEvents] = useState<Ev[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [me, setMe] = useState("");
@@ -92,7 +93,7 @@ export function TiffPanel({
     const v = r ? ((await r.json().catch(() => null)) as View | null) : null;
     if (!v?.ok) return;
     setOn(!!v.on);
-    setSpent(v.spentUsd ?? 0);
+    setSpent(typeof v.spentUsd === "number" ? v.spentUsd : null);
     setMe(v.me ?? "");
     if (v.names) setNames((n) => ({ ...n, ...v.names }));
     const fresh = v.events ?? [];
@@ -242,7 +243,7 @@ export function TiffPanel({
         <TiffGlyph quiet size={32} />
         <div className="qt-t">
           <b>Tiff</b>
-          <span>{`${fmtAud(Math.round(spent * 100))} on this quote`}</span>
+          {spent != null && <span>{`${fmtAud(Math.round(spent * 100))} on this quote`}</span>}
         </div>
         <span className={working ? "qt-state work" : "qt-state"}>
           <i aria-hidden="true" />

@@ -18,8 +18,10 @@ const DOLLARS = /[+\-−]?\$\s?\d[\d,]*(?:\.\d+)?(?:\s?[kKmM]\b)?/g;
 /** Words with every dollar figure taken out. */
 export const maskMoney = (text: string) => text.replace(DOLLARS, "$…");
 
-/** A line as a person without money access sees it: its work, never its price. */
-export const lineWithoutMoney = (l: QuoteLine): QuoteLine => ({ ...l, costCents: 0, sellCents: null });
+/** A line as a person without money access sees it: its work, never its
+    price, nor a price in why it's there ("$50 plus GST a grille" rode the
+    grille line's dot to a tech on 3231). */
+export const lineWithoutMoney = (l: QuoteLine): QuoteLine => ({ ...l, costCents: 0, sellCents: null, why: maskMoney(l.why) });
 
 const MONEY_FIELDS: (keyof LineFields)[] = ["costCents", "sellCents"];
 const withoutPrices = (f: Partial<LineFields> | null) => (f ? (Object.fromEntries(Object.entries(f).filter(([k]) => !MONEY_FIELDS.includes(k as keyof LineFields))) as Partial<LineFields>) : f);
@@ -36,15 +38,24 @@ export function changesWithoutMoney(changes: readonly LineChange[]): LineChange[
 
 type Ev = { kind: string; body: Record<string, unknown> };
 
-/** Tiff's thread without money: her words and the person's with every
-    dollar figure taken out, a tool's line too, and a price from the web
-    gone from its event. */
+/** Every string in a value with its dollar figures taken out, however deep:
+    an event's words, a tool's detail (her write-up, her plan's parts), a
+    question's answer and what she put. */
+function maskDeep(v: unknown): unknown {
+  if (typeof v === "string") return maskMoney(v);
+  if (Array.isArray(v)) return v.map(maskDeep);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, maskDeep(x)]));
+  return v;
+}
+
+/** Tiff's thread without money: every dollar figure in every event taken
+    out, the person's words and hers, a tool's line and its detail, a
+    question and what she put, an error; and a price from the web gone from
+    its event. */
 export function threadWithoutMoney<T extends Ev>(events: readonly T[]): T[] {
   return events.map((e) => {
-    const body = { ...e.body };
-    for (const k of ["text", "said", "question", "why"] as const) if (typeof body[k] === "string") body[k] = maskMoney(body[k] as string);
+    const body = maskDeep(e.body) as Record<string, unknown>;
     if (e.kind === "tool" && body.name === "research_price") delete body.detail;
-    if (e.kind === "question" && Array.isArray(body.answers)) body.answers = body.answers.map((a) => (a && typeof a === "object" ? { ...a, label: maskMoney(String((a as { label?: unknown }).label ?? "")) } : a));
     return { ...e, body };
   });
 }
@@ -59,3 +70,7 @@ export function patchWithoutMoney(patch: unknown): Record<string, unknown> {
 /** What Tiff is told before a person without money access speaks. */
 export const NO_MONEY_WORDS =
   "(The person you're talking with doesn't see prices: in what you say to them, give no price, cost, total or difference in dollars; talk about the work. A person with money access reviews the pricing.)";
+
+/** And when someone who sees money speaks after them: the thread keeps the
+    words above, and without these she'd keep prices from the office too. */
+export const MONEY_WORDS = "(The person you're talking with now sees prices: give them as you normally would.)";

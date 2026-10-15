@@ -61,6 +61,20 @@ it("puts what's to confirm first, the page's own next, and the conversation last
   expect(before(said, box)).toBe(true);
 });
 
+/* 2026-10-14: what she's cost went to a tech too; the route now sends it only
+   to someone who sees money, and without it there's no line */
+it("says nothing of what she cost when the route doesn't send it", async () => {
+  const { spentUsd: _, ...noSpend } = thread;
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(noSpend));
+  render(
+    <TiffPanel job="j" onChanged={jest.fn()}>
+      {null}
+    </TiffPanel>
+  );
+  expect(await screen.findByText("A 12.5 kW ducted, priced from your book.")).toBeInTheDocument();
+  expect(screen.queryByText(/on this quote/)).toBeNull();
+});
+
 it("shows her thread, who said what, what she did and what it cost", async () => {
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
   const onOpen = jest.fn();

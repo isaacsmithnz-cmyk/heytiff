@@ -45,6 +45,25 @@ it("takes the money out of Tiff's thread: her words, a tool's line, an answer, a
   expect((out[2]!.body.answers as { label: string }[])[0]!.label).toBe("Yes, $…");
 });
 
+/* found mapping the chat-first page, 2026-10-14: a tech saw the owner's $50
+   in the grille line's dot, and her write-up's and plan's detail unmasked */
+it("takes a price out of why a line is there", () => {
+  expect(lineWithoutMoney(line({ why: '"$50 plus GST a grille"; 8 grilles' })).why).toBe('"$… plus GST a grille"; 8 grilles');
+});
+
+it("takes the money out of a tool's detail, what she put, and an error", () => {
+  const out = threadWithoutMoney([
+    { id: 1, kind: "tool", body: { name: "write_up", said: "the job, written out", detail: { writeUp: { work: ["Floor grilles: $50 each ex GST allowance × 8."] } } } },
+    { id: 2, kind: "tool", body: { name: "plan_parts", detail: { option: 0, parts: [{ group: "Units", detail: "PEA-M100HAA at $936.60" }] } } },
+    { id: 3, kind: "question", body: { question: "Allowance per grille?", put: "8 at the book's $38.93" } },
+    { id: 4, kind: "error", body: { message: "Stopped at $1,965.87 of the pipe group." } },
+  ]);
+  expect(JSON.stringify(out)).not.toMatch(/\$\d/);
+  expect((out[0]!.body.detail as { writeUp: { work: string[] } }).writeUp.work[0]).toBe("Floor grilles: $… each ex GST allowance × 8.");
+  expect(out[2]!.body.put).toBe("8 at the book's $…");
+  expect((out[1]!.body.detail as { option: number }).option).toBe(0);
+});
+
 it("lets a change through without its price", () => {
   expect(patchWithoutMoney({ qty: 3, costCents: 1, sellCents: 2, estimate: false })).toEqual({ qty: 3 });
   expect(patchWithoutMoney(null)).toEqual({});

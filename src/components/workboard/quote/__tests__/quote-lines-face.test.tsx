@@ -741,3 +741,17 @@ it("shows no ServiceM8 quote on a job ServiceM8 never quoted", async () => {
   expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
   expect(screen.queryByText("Quote from ServiceM8")).toBeNull();
 });
+
+/* 2026-10-14: the page knew a tech had no money only once the lines came
+   back, so the money columns, the book search and an estimate's Confirm
+   (whose change the route strips) showed until then, and the Confirm after */
+it("shows no money and no estimate to confirm to someone the server says doesn't see it", async () => {
+  const est = line({ id: "l3", system: "Downstairs", group: "Allowances", name: "Consumables", code: null, supplierKey: null, kind: "material", costCents: 6850, source: "assumed", why: "An estimate from your book", estimate: true });
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => view([indoor, est]) }));
+  render(<QuoteLinesFace job="job-3377" price={null} actionsEl={null} onPriced={jest.fn()} money={false} />);
+  expect(screen.queryByPlaceholderText("Add a line from your book")).toBeNull();
+  expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
+  expect(screen.queryByRole("columnheader", { name: "Cost each" })).toBeNull();
+  expect(screen.queryByPlaceholderText("Add a line from your book")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
+});

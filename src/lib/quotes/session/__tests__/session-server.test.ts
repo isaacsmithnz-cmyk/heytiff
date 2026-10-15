@@ -118,6 +118,26 @@ it("tells her the person doesn't see prices, before their words", async () => {
   expect(text.endsWith("Pipe run is 14 m")).toBe(true);
 });
 
+/* a tech's no-prices rule stays in the thread: the office, speaking next,
+   is told it sees prices again, once */
+it("tells her when someone who sees prices speaks after a tech", async () => {
+  const tech = [{ role: "user", content: [{ type: "text", text: `(The person you're talking with doesn't see prices: in what you say to them, give no price, cost, total or difference in dollars; talk about the work. A person with money access reviews the pricing.)\n\nPipe run is 14 m` }] }, { role: "assistant", content: [{ type: "text", text: "Done." }] }];
+  beginTurn.mockResolvedValueOnce({ ok: true, session: { ...session, messages: tech }, turnId: "t5" });
+  const model = scripted([{ content: [{ type: "text", text: "Done." }], stopReason: "end_turn" }]);
+  const started = await startTurn("org", "job", "u1", "What does it come to?", { modelName: "m", model });
+  await (started as Extract<typeof started, { ok: true }>).run();
+  const text = (model.calls[0]!.messages.at(-1)!.content as { text: string }[])[0]!.text;
+  expect(text).toBe("(The person you're talking with now sees prices: give them as you normally would.)\n\nWhat does it come to?");
+
+  /* said once: after it, nothing more */
+  const said = [...tech, { role: "user", content: [{ type: "text", text }] }, { role: "assistant", content: [{ type: "text", text: "$14,199.35 ex GST." }] }];
+  beginTurn.mockResolvedValueOnce({ ok: true, session: { ...session, messages: said }, turnId: "t6" });
+  const again = scripted([{ content: [{ type: "text", text: "Done." }], stopReason: "end_turn" }]);
+  const next = await startTurn("org", "job", "u1", "And inc GST?", { modelName: "m", model: again });
+  await (next as Extract<typeof next, { ok: true }>).run();
+  expect((again.calls[0]!.messages.at(-1)!.content as { text: string }[])[0]!.text).toBe("And inc GST?");
+});
+
 /* Isaac's production test, 2026-10-12: a tapped "Research them on the web"
    sat until he typed; an answer that leaves her work starts her with it */
 it("starts her on a tapped answer that leaves her work, with no words of the person's", async () => {

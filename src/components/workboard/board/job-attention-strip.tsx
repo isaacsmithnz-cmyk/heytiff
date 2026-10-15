@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { NoteWords } from "@/components/notes/note-words";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { DateField } from "@/components/ui/date-field";
 import {
   attentionCountLabel,
@@ -361,6 +361,11 @@ type Face = {
 const dayOf = (at: string | null): string | null =>
   at && at.length >= 10 ? fmtAuWeekdayDayMonth(at.slice(0, 10)) : null;
 
+/** The day of one of OUR stamps — an instant from a timestamptz column,
+    whose first ten characters are the UTC date: yesterday, all morning. */
+const instantDayOf = (at: string | null): string | null =>
+  at ? fmtAuWeekdayDayMonth(auDayOf(at)) : null;
+
 /* Quoted, because the row is REPEATING somebody: a note's words in a strip
    that also carries our own sentences needs to say which is which, and a
    quote mark does it without a label. Clipped so one rambling note can't
@@ -377,7 +382,7 @@ function faceOf(item: AttentionItem): Face {
         icon: "alert",
         tone: item.severity === "urgent" ? "dan" : item.severity === "warn" ? "warn" : "plain",
         title: item.message,
-        meta: item.raised ? `Flagged ${fmtAuWeekdayDayMonth(item.raised.slice(0, 10))}` : "Flagged",
+        meta: item.raised ? `Flagged ${fmtAuWeekdayDayMonth(auDayOf(item.raised))}` : "Flagged",
       };
     case "sm8flag":
       /* AMBER, NEVER RED — slice 4's law, and the reason is measured: 74
@@ -419,7 +424,10 @@ function faceOf(item: AttentionItem): Face {
            `Lyle Irving — "@LyleIrving Bill 90%"` names him twice in one
            line. */
         title: `${item.named.map((n) => n.name).join(" and ")} — ${quoted(withoutHandles(item.text), 90)}`,
-        meta: [item.author, dayOf(item.at), "Mentioned in ServiceM8"].filter(Boolean).join(", "),
+        /* one of ours carries workboard_notes' instant, not SM8's naive stamp */
+        meta: [item.author, item.origin === "heytiff" ? instantDayOf(item.at) : dayOf(item.at), "Mentioned in ServiceM8"]
+          .filter(Boolean)
+          .join(", "),
       };
   }
 }

@@ -41,6 +41,7 @@ import {
   type JobMoney,
 } from "./job-money";
 import type { QuoteSummary } from "./quote-worklist";
+import { auDayOf } from "@/lib/au-dates";
 
 /** How far ahead a NOT-YET-RAISED maintenance visit is worth listing. Matches
     the board's own history window so the tab's two directions are symmetrical. */
@@ -345,7 +346,9 @@ function visitRow(v: AllJobsVisit, today: string): AllJobRow {
 function projectRow(p: AllJobsProject): AllJobRow {
   const done = p.status === "done";
   const booked = !done && p.nextBookedDate !== null;
-  const date = done ? p.updatedAt.slice(0, 10) : p.nextBookedDate;
+  /* updated_at is a timestamptz: its first ten characters are the UTC day,
+     which is yesterday for a project closed before about 10am in the yard. */
+  const date = done ? auDayOf(p.updatedAt) || null : p.nextBookedDate;
   return {
     key: `project:${p.id}`,
     kind: "project",

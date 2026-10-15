@@ -7,7 +7,7 @@ import { Icon } from "@/components/shell/icon";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { NoteToken } from "@/components/notes/note-token";
 import { WbModal } from "./wb-modal";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
   PROJECT_STAGES,
   checklistProgress,
@@ -198,7 +198,7 @@ export function ProjectDetailScreen({
             <div className="int-note bad">
               <b>Blocked{project.blockedOn ? ` on ${project.blockedOn}` : ""}</b>
               {project.blockedReason ? ` — ${project.blockedReason}` : ""}
-              {project.blockedAt ? `, since ${fmtAuWeekdayDayMonth(project.blockedAt.slice(0, 10))}` : ""}
+              {project.blockedAt ? `, since ${fmtAuWeekdayDayMonth(auDayOf(project.blockedAt))}` : ""}
               {manage && (
                 <button
                   className="pbtn ghost"
@@ -858,7 +858,7 @@ function DocumentsCard({
               <b>{d.fileName}</b>
               <em>
                 {" "}
-               , {fmtBytes(d.sizeBytes)}, {agoLabel(d.uploadedAt.slice(0, 10), today)}
+               , {fmtBytes(d.sizeBytes)}, {agoLabel(auDayOf(d.uploadedAt), today)}
               </em>
             </span>
             {d.url && (

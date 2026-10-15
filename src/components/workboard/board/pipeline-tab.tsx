@@ -8,6 +8,7 @@ import { PROJECT_STAGES, stageIndex } from "@/lib/workboard/stages";
 import { claimedLine, fmtAud } from "@/lib/workboard/project-money";
 import { projectStateRow } from "@/lib/workboard/project-rules";
 import type { BoardProject } from "@/lib/workboard/projects-board-query";
+import { auDayOf } from "@/lib/au-dates";
 import { agoLabel } from "./derive";
 import { Toolbar, ToolbarEnd } from "./toolbar";
 
@@ -216,7 +217,7 @@ function ProjectRow({
           </span>
         )}
         {!state && p.status === "active" && (
-          <span className="wb2-chip ok">Moving, {agoLabel(p.updatedAt.slice(0, 10), today)}</span>
+          <span className="wb2-chip ok">Moving, {agoLabel(auDayOf(p.updatedAt), today)}</span>
         )}
       </div>
     </>

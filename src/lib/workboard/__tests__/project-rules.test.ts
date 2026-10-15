@@ -133,6 +133,12 @@ describe("stale", () => {
     expect(rows[0].headline).toBe("No movement for 14 days");
   });
 
+  it("counts from the AU day it moved, not the UTC one (8am Sydney is the night before in UTC)", () => {
+    // 2026-07-16T22:00Z is 8am on the 17th in Sydney: 13 days before today, not 14
+    expect(run([project({ updatedAt: "2026-07-16T22:00:00Z" })])).toHaveLength(0);
+    expect(run([project({ updatedAt: "2026-07-15T22:00:00Z" })])[0]?.headline).toBe("No movement for 14 days");
+  });
+
   it("a blocked project doesn't ALSO nag about being quiet as its lead", () => {
     const rows = run([
       project({

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { WbModal } from "./wb-modal";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { daysBetween } from "@/lib/workboard/board-status";
 import {
   claimedLine,
@@ -382,10 +382,12 @@ export function VariationsCard({
             <div className="wb2-trt">
               <b>{v.title}</b>
               <em>
+                {/* decided_at is a timestamp: its first ten characters are the
+                    UTC day, yesterday for a call made on an AU morning */}
                 {v.status === "pending"
                   ? "pending a decision"
                   : `${v.status}${v.decidedBy ? ` by ${v.decidedBy}` : ""}${
-                      v.decidedAt ? `, ${fmtAuWeekdayDayMonth(v.decidedAt.slice(0, 10))}` : ""
+                      v.decidedAt ? `, ${fmtAuWeekdayDayMonth(auDayOf(v.decidedAt))}` : ""
                     }`}
                 {v.detail ? `, ${v.detail}` : ""}
               </em>

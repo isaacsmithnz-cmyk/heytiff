@@ -28,6 +28,7 @@
 import type { BoardVisit, BoardAgreement } from "./board-query";
 import type { BoardProject, ProjectBoardVisit } from "./projects-board-query";
 import type { AllJobsMirrorJob } from "./all-jobs";
+import { auDayOf } from "@/lib/au-dates";
 
 /** Below this a query is a keystroke on the way to one, not a question. The
     same floor the mirror search uses, so the local and remote halves of one
@@ -224,7 +225,9 @@ function projectHit(p: BoardProject): WorkHit {
     title: p.name,
     sub: p.clientName,
     where: p.siteLabel ?? p.siteAddress,
-    date: done ? day(p.updatedAt) : p.promisedFinish,
+    // updatedAt is a timestamptz, not a naive mirror stamp: its first ten
+    // characters are the UTC day, yesterday for an AU morning's close
+    date: done ? auDayOf(p.updatedAt) || null : p.promisedFinish,
     dateLabel: done ? "closed" : p.promisedFinish ? "promised" : "no date promised",
     statusLabel: done
       ? "Project done"

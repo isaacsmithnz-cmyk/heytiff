@@ -6,7 +6,7 @@ import { FaceSwitch } from "@/components/me/face-switch";
 import { NoteToken } from "./note-token";
 import { addMyNote, archiveMyNote, deleteMyNote, editMyNote } from "@/app/actions/my-notes";
 import type { MyNote } from "@/lib/notes/my-notes-query";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 
 /* MY NOTES — your own notebook.
 
@@ -123,7 +123,7 @@ export function MyNotesFace({
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block" }}>{n.body}</span>
                     <em className="wb2-capsaid" style={{ display: "block", marginTop: 3 }}>
-                      {fmtAuWeekdayDayMonth(n.createdAt.slice(0, 10))}
+                      {fmtAuWeekdayDayMonth(auDayOf(n.createdAt))}
                       {n.source === "routed" && ", came off a note you sorted"}
                       {n.source === "voice" && ", dictated"}
                     </em>

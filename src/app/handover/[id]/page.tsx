@@ -3,7 +3,7 @@ import { can } from "@/lib/permissions-server";
 import { auth0 } from "@/lib/auth0";
 import { getProjectDetail } from "@/lib/workboard/projects-query";
 import { listProjectEntries } from "@/lib/workboard/notes-query";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { deriveProjectMoney, fmtAud } from "@/lib/workboard/project-money";
 import { orgBrand } from "@/lib/org/query";
 import { hasBrand } from "@/lib/org/brand";
@@ -189,7 +189,8 @@ export default async function HandoverSheetPage({
           <li key={i.id}>
             <span className={i.done ? "ho-check" : "ho-cross"}>{i.done ? "✓" : "✗"}</span>{" "}
             {i.label}
-            {i.done && i.doneAt ? ` — ${fmtAuWeekdayDayMonth(i.doneAt.slice(0, 10))}` : ""}
+            {/* done_at is an instant: its UTC date is yesterday for a tick before 10am */}
+            {i.done && i.doneAt ? ` — ${fmtAuWeekdayDayMonth(auDayOf(i.doneAt))}` : ""}
           </li>
         ))}
         {handoverItems.length === 0 && <li className="ho-note">No handover checklist on this project.</li>}

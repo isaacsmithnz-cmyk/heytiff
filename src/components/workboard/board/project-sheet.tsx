@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs, type ViewTab } from "@/components/shell/view-tabs";
-import { fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { PROJECT_STAGES, stageIndex } from "@/lib/workboard/stages";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { fmtMinutesAsHours, sm8TimeOf } from "@/lib/workboard/all-jobs";
@@ -317,7 +317,8 @@ export function ProjectSheet({
               {project.status === "blocked" && project.blockedReason && (
                 <p className="wb2-hint dan">
                   {project.blockedReason}
-                  {project.blockedAt ? ` — since ${fmtAuWeekdayDayMonth(project.blockedAt.slice(0, 10))}` : ""}
+                  {/* blocked_at is a timestamptz: sliced, a morning block read as yesterday */}
+                  {project.blockedAt ? ` — since ${fmtAuWeekdayDayMonth(auDayOf(project.blockedAt))}` : ""}
                 </p>
               )}
 

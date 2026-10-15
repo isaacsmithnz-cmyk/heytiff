@@ -8,6 +8,7 @@ import { Icon } from "@/components/shell/icon";
 import { setProjectStatus } from "@/app/actions/workboard";
 import { claimedLine, fmtAud } from "@/lib/workboard/project-money";
 import type { BoardProject } from "@/lib/workboard/projects-board-query";
+import { auDayOf } from "@/lib/au-dates";
 import { agoLabel } from "./derive";
 import { FilterChips, Toolbar, type FilterOption } from "./toolbar";
 
@@ -80,7 +81,7 @@ export function ProjectCompletedTab({
         <em>{[p.clientName, p.siteLabel].filter(Boolean).join(", ") || "—"}</em>
       </div>
       <div className="wb2-dnw">
-        <b>{closing ? "At Complete" : `Closed ${agoLabel(p.updatedAt.slice(0, 10), today)}`}</b>
+        <b>{closing ? "At Complete" : `Closed ${agoLabel(auDayOf(p.updatedAt), today)}`}</b>
         {p.money && <em className="wb2-money">{claimedLine(p.money) ?? "no budget tracked"}</em>}
       </div>
       <span className="wb2-dnact">

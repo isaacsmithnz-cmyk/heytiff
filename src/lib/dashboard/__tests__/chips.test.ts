@@ -643,6 +643,14 @@ describe("declinedClaimChip", () => {
     expect(declinedClaimChip({ ...claim, decidedOn: null }, ctx)).toBeNull();
   });
 
+  /* 2026-10-15: reviewed_at is an instant, and its first ten characters are
+     the UTC day: a claim declined at 8am in the yard read as the day before,
+     and left the board a day early */
+  it("ages a decision by the day it was made here, not in UTC", () => {
+    const morning = { ...claim, decidedOn: "2026-07-04T22:00:00Z" }; // 8am Sun 5 Jul in Sydney: 14 days
+    expect(declinedClaimChip(morning, ctx)).not.toBeNull();
+  });
+
   it("ranks the freshest decision first", () => {
     // the newest is the one you can still most likely do something about
     const fresh = declinedClaimChip({ ...claim, id: "new", decidedOn: "2026-07-19T00:00:00Z" }, ctx)!;

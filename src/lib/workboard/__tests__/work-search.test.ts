@@ -357,6 +357,20 @@ describe("order and cap", () => {
   });
 });
 
+/* A project's close is a timestamptz, not a mirror's naive stamp: 21:30 UTC
+   on the 11th is 8:30 on the 12th in the yard, and the row says the 12th. */
+describe("a closed project's day", () => {
+  it("is the AU day it closed on, not the UTC day", () => {
+    const r = searchWorkboard(
+      input({ projects: [project({ id: "p-done", name: "Kingsford fitout", status: "done", updatedAt: "2026-08-11T21:30:00+00:00" })] }),
+      "kingsford"
+    );
+    const hit = groupOf(r, "projects")?.hits[0];
+    expect(hit?.dateLabel).toBe("closed");
+    expect(hit?.date).toBe("2026-08-12");
+  });
+});
+
 /* The palette's ask of the mirror. Isaac typed "job 288" into ⌘K; the mirror
    stores the number bare, so the word in front of it has to go before the
    question is asked — and only that word, only as a word. */

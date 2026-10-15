@@ -20,3 +20,31 @@ it("always gives old equipment a removal line, asks for disposal labour and the 
   expect(p).toMatch(/Recovering its refrigerant is the business's own cost: ask what they allow, never research it/);
   expect(p).toMatch(/write it up again, whole, before you reply/);
 });
+
+/* Isaac, 2026-10-15, on 3231's quote: "[MITSUBISHI ELEC. DUCT OUT 10KW 1P
+   R32]. That's like a line code from a supplier… simplified to indoor unit,
+   outdoor unit… indoor unit study, then model" */
+it("names a unit's line by what it is, a head by its room, its model the code", () => {
+  const p = sessionSystemPrompt();
+  expect(p).toMatch(/Name a unit's line by what it is, "Indoor unit" or "Outdoor unit", and a multi's or VRF's head by the room it serves, "Indoor unit, Study"; its model is its code\. The supplier's words for it are never its name/);
+});
+
+/* Isaac, 2026-10-15, on 3231's "with about 5 zones": "the client doesn't
+   want to hear about five zones. They need something a bit more…
+   professional." */
+it("writes the proposal plainly for the client: no hedge, no working, an open choice as a contractor says it, none of the business's notes", () => {
+  const p = sessionSystemPrompt();
+  expect(p).toMatch(/The proposal is the client's: say what's included plainly and with confidence, never your working: no "about", "approximately" or "assumed", no allowance worked out per item, no count that isn't settled/);
+  expect(p).toMatch(/A choice still open is said the way a contractor writes it, "Floor grille style to be confirmed with you", and the business's own notes never go in it/);
+});
+
+/* Isaac, 2026-10-15, on 3231's "4 × Ø250 takeoffs… 8 × Ø200 flex": "most
+   air conditioning duct work is 10 inch or 250 mil, but I don't want you to
+   take my word for it. It needs to be decided by the brief." */
+it("takes every duct and outlet size from the brief, a plan or an answer, and asks where none gives it", () => {
+  const p = sessionSystemPrompt();
+  expect(p).toMatch(/Every duct and outlet size, the main duct's, each takeoff's and each outlet's, comes from the brief, a plan you've looked at or the person's answer, never from what's usual\. Where none gives it, ask, and give the kit none, so those parts go on as not known yet/);
+  expect(p).toMatch(/A duct's size is never the usual one: only the brief, a plan or an answer settles it/);
+  /* the Ys were once settled "from the outlets and the usual layout" */
+  expect(p).not.toMatch(/usual layout/);
+});

@@ -58,11 +58,15 @@ const BOOK = [
   product("ISOLATOR 20A", [offer("ISO20", 2279, "reece", "ISOLATOR 20A"), offer("ISO20", 2400, "aad", "ISOLATOR 20A")]),
   product("MSZ-AP35VGKD2 indoor", [offer("MSZ-AP35VGKD2", 28376)], { category: "units" }),
   product("FEET", [offer("CMADJ", 1372, "aad"), offer("CMADJ", 1290, "go")], { preferred: offer("CMADJ", 1372, "aad") }),
+  product("MITSUBISHI ELEC. DUCT OUT 10KW 1P R32", [offer("PUZ-ZM100VKA2", 310000)], { category: "units", brand: "Mitsubishi Electric" }),
+  product("DAI DUCTED 10KW R32", [offer("FDYAN100A", 250000)], { category: "units", brand: "Daikin" }),
 ];
 jest.mock("../../book-view-server", () => ({ bookProducts: jest.fn(async () => BOOK) }));
 
-import { bookPrice, isErr, newLineOf, patchOf, questionOf } from "../tools";
+import { bookPrice, isErr, newLineOf, patchOf, questionOf, SESSION_TOOLS } from "../tools";
 import { sessionTools } from "../tools-server";
+import { readLines } from "../../lines-server";
+import { lookupUnit } from "../../lookups-server";
 
 beforeEach(() => {
   lines.length = 0;
@@ -99,6 +103,23 @@ describe("what she gives, made safe", () => {
     const q = questionOf({ question: "Web or allowances?", answers: [{ label: "Research them on the web", changes: [], go_on: true }, { label: "Allowances", changes: [], go_on: false }] });
     expect(isErr(q) ? null : q.answers).toEqual([{ label: "Research them on the web", changes: [], goOn: true }, { label: "Allowances", changes: [] }]);
     expect(isErr(q) ? null : (questionOf(q) as typeof q).answers[0]).toEqual({ label: "Research them on the web", changes: [], goOn: true });
+  });
+});
+
+/* Isaac, 2026-10-15, on 3231's sizes no brief gave: "It needs to be decided by the brief" */
+describe("what her tools tell her", () => {
+  const tool = (name: string) => SESSION_TOOLS.find((t) => t.name === name)!;
+  const prop = (name: string, key: string) => (tool(name).input_schema as { properties: Record<string, { description?: string }> }).properties[key]!.description ?? "";
+
+  it("takes a ducted kit's sizes only as given, never a usual one", () => {
+    expect(tool("add_kit").description).toMatch(/Every duct size \(takeoffs, fittings, reducers, outlet_mm\) is the brief's, a plan's or the person's, never a usual one: leave out a size nothing gives/);
+    expect(prop("add_kit", "takeoffs")).toMatch(/as the brief, a plan or the person gives them.*Leave out when nothing gives them/);
+    expect(prop("add_kit", "outlet_mm")).toMatch(/as the brief, a plan or the person gives it\. Leave out when nothing gives it, never a usual size/);
+  });
+
+  it("names a unit by what it is, and writes the proposal plainly for the client", () => {
+    expect(tool("add_lines").description).toMatch(/A unit is named by what it is, "Indoor unit" or "Outdoor unit", a multi's or VRF's head by the room it serves, "Indoor unit, Study"; its model is its code/);
+    expect(tool("write_proposal").description).toMatch(/no hedge or working \(about, approximately, assumed, an allowance per item, a count not settled\), a choice still open as "Floor grille style to be confirmed with you", and never the business's own notes/);
   });
 });
 
@@ -183,6 +204,51 @@ describe("her tools, run", () => {
     ]);
     expect(addLine.mock.calls.every((c) => c[3] === "tiff")).toBe(true);
     expect(out.ok && (out.value as { refused: string[] }).refused).toEqual(["Made up: FAKE-1 isn't in the business's book. Search the book for what it buys, or add it with no code as not known yet."]);
+  });
+
+  /* Isaac, 2026-10-15, on 3231: "[MITSUBISHI ELEC. DUCT OUT 10KW 1P R32].
+     That's like a line code from a supplier… simplified to indoor unit,
+     outdoor unit… indoor unit study, then model" */
+  it("names a unit by what it is, its maker's pack first, its model the code, never the supplier's words", async () => {
+    (lookupUnit as jest.Mock).mockImplementation(async (brand: string) => (brand === "daikin" ? { found: true, pack: "daikin", specs: { role: "indoor" } } : { found: false, reason: "no data pack" }));
+    const out = await run("add_lines", {
+      lines: [
+        { option: 0, system: "Downstairs", group: "Units", name: "Two piece ducted unit", code: "PUZ-ZM100VKA2", kind: "unit", qty: 1, source: "assumed", why: "10 kW" },
+        { option: 0, system: "Upstairs", group: "Units", name: "Indoor unit, Study", code: "MSZ-AP35VGKD2", kind: "unit", qty: 1, source: "said", why: "“a 3.5 in the study”" },
+        { option: 0, system: "Living", group: "Units", name: "Outdoor unit", code: "FDYAN100A", kind: "unit", qty: 1, source: "assumed", why: "10 kW" },
+        { option: 0, system: "Living", group: "Units", name: "High wall 3.5 kW indoor, brand to choose", kind: "unit", qty: 1, source: "unknown", why: "Which brand" },
+      ],
+    });
+    expect(out.ok).toBe(true);
+    expect(lines.map((l) => [l.name, l.code ?? null, l.kind])).toEqual([
+      ["Outdoor unit", "PUZ-ZM100VKA2", "unit"],
+      ["Indoor unit, Study", "MSZ-AP35VGKD2", "unit"],
+      /* the pack says what it is, over her words */
+      ["Indoor unit", "FDYAN100A", "unit"],
+      /* no model yet: her words, saying what's to choose */
+      ["High wall 3.5 kW indoor, brand to choose", null, "unit"],
+    ]);
+    expect(lookupUnit).toHaveBeenCalledWith("mitsubishi-electric", "PUZ-ZM100VKA2");
+    expect(lookupUnit).toHaveBeenCalledWith("daikin", "FDYAN100A");
+    (lookupUnit as jest.Mock).mockReset();
+  });
+
+  it("keeps a unit named by what it is when she swaps its model or renames it, in the room it's for", async () => {
+    const was = (readLines as jest.Mock).getMockImplementation();
+    let unit = { id: "u1", version: 1, kind: "unit", unit: "", optionIndex: 0, code: "MSZ-AP25VGKD2", name: "Indoor unit, Bed 1" };
+    (readLines as jest.Mock).mockImplementation(async () => [unit]);
+    try {
+      await run("change_line", { id: "u1", version: 1, code: "MSZ-AP35VGKD2", source: "said", why: "“make it a 3.5”" });
+      expect(changeLine).toHaveBeenLastCalledWith("org-1", "job-1", "u1", 1, expect.objectContaining({ code: "MSZ-AP35VGKD2", name: "Indoor unit, Bed 1" }), "tiff", "“make it a 3.5”");
+      await run("change_line", { id: "u1", version: 1, name: "MSZ-AP25 high wall for the study", source: "assumed", why: "the room" });
+      expect(changeLine).toHaveBeenLastCalledWith("org-1", "job-1", "u1", 1, expect.objectContaining({ name: "Indoor unit" }), "tiff", "the room");
+      /* one kept before, by the supplier's words, is named by what it is once she changes it */
+      unit = { ...unit, name: "MITSUBISHI ELEC. HWS IND 2.5KW" };
+      await run("change_line", { id: "u1", version: 1, code: "MSZ-AP35VGKD2", source: "said", why: "“make it a 3.5”" });
+      expect(changeLine).toHaveBeenLastCalledWith("org-1", "job-1", "u1", 1, expect.objectContaining({ name: "Indoor unit" }), "tiff", "“make it a 3.5”");
+    } finally {
+      (readLines as jest.Mock).mockImplementation(was);
+    }
   });
 
   it("swaps a line's item at the book's price, never one she names", async () => {

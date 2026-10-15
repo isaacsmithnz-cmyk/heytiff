@@ -9,6 +9,7 @@ import type { OptionPrice, QuotePrice } from "@/lib/quotes/quote-price-server";
 import { OLD_PIPES, PIPE_SIZES } from "@/lib/quotes/kits";
 import { cents2 } from "@/lib/quotes/quote-sum";
 import { unitPartOf } from "@/lib/quotes/brands";
+import { namedUnit, unitRoleOf } from "@/lib/quotes/unit-name";
 import { visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
 import type { Variation } from "@/lib/quotes/lines-job";
 import { Icon } from "@/components/shell/icon";
@@ -312,7 +313,8 @@ export function QuoteLineItems({
         optionIndex: at,
         system,
         group: unit ? "Units" : "Materials",
-        name: h.product.name,
+        /* a unit by what it is where its words say, its model the code (unit-name.ts) */
+        name: unit ? namedUnit(unitRoleOf(null, { name: h.product.name, code: offer?.code }), "", h.product.name) : h.product.name,
         code: offer?.code ?? null,
         supplierKey: offer?.supplierKey ?? null,
         kind: unit ? "unit" : "material",
@@ -624,7 +626,14 @@ export function QuoteLineItems({
                                       op: "change",
                                       id: l.id,
                                       version: l.version,
-                                      patch: { name: h.product.name, code: offer.code, supplierKey: offer.supplierKey, costCents: offer.netCents, sellCents: null },
+                                      patch: {
+                                        /* a unit for a unit stays named by what it is, in the room it was */
+                                        name: l.kind === "unit" && h.product.category === "units" ? namedUnit(unitRoleOf(null, { name: h.product.name, code: offer.code }, { name: l.name }), l.name, h.product.name) : h.product.name,
+                                        code: offer.code,
+                                        supplierKey: offer.supplierKey,
+                                        costCents: offer.netCents,
+                                        sellCents: null,
+                                      },
                                       why: "Select preferred item",
                                     }).then(() => {
                                       if (prefer)

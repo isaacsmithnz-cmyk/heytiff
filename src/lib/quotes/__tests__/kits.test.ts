@@ -106,6 +106,17 @@ it("a ducted kit under the floor takes floor grilles on boots and hangs the indo
   expect(lines.some((l) => /DIFFUSER/i.test(l.name ?? ""))).toBe(false);
 });
 
+/* Isaac, 2026-10-15, on 3231's "8 × Ø200 flex, 8 boots", sizes no brief
+   gave: "It needs to be decided by the brief" */
+it("puts a floor boot on only at the outlets' size given, and none at a size nobody said", () => {
+  const boots = [product("UNI BOOT 350X150 150MM", 2500), product("UNI BOOT 350X150 200MM", 2800)];
+  const sized = expandKit("ducted", { ...facts, outlets: 6, outletMm: 200, underfloor: true }, [...book, ...boots], at);
+  expect(sized.find((l) => /BOOT/.test(l.name ?? ""))).toMatchObject({ name: "UNI BOOT 350X150 200MM", qty: 6 });
+  const unsized = expandKit("ducted", { ...facts, outlets: 6, underfloor: true }, [...book, ...boots], at);
+  expect(unsized.find((l) => /boot/i.test(l.name ?? ""))).toMatchObject({ name: "Floor boot", qty: 6, costCents: 0, source: "unknown", why: "Needs the outlets' size" });
+  expect(unsized.find((l) => l.name === "Flex duct")).toMatchObject({ source: "unknown" });
+});
+
 it("reads a unit's pipe off its data pack's connections, and makes a person's facts safe", async () => {
   const { pipeFromMm, normaliseKitFacts } = await import("../kits");
   expect(pipeFromMm(9.52, 15.88)).toBe("3/8+5/8");

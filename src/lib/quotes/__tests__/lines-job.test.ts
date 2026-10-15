@@ -103,6 +103,25 @@ describe("the units as equipment", () => {
       ["fan", "", 0, "Bathroom"],
     ]);
   });
+
+  /* Isaac, 2026-10-15: on a multi, "indoor unit study, then model" */
+  it("takes a multi's head's room from its name, the system's where it gives none", () => {
+    const units = linesUnits(
+      [
+        line({ id: "o", system: "Upstairs", kind: "unit", code: "MXZ-3F68VF", name: "Outdoor unit" }),
+        line({ id: "s", system: "Upstairs", kind: "unit", code: "MSZ-AP25VGD2", name: "Indoor unit, Study" }),
+        line({ id: "b", system: "Upstairs", kind: "unit", code: "MSZ-AP35VGD2", name: "Indoor unit, Bed 1" }),
+        line({ id: "l", system: "Upstairs", kind: "unit", code: "MSZ-AP50VGD2", name: "Indoor unit" }),
+      ],
+      new Map()
+    );
+    expect(units.map((u) => [u.role, u.room, u.model])).toEqual([
+      ["outdoor", "", "MXZ-3F68VF"],
+      ["indoor", "Study", "MSZ-AP25VGD2"],
+      ["indoor", "Bed 1", "MSZ-AP35VGD2"],
+      ["indoor", "Upstairs", "MSZ-AP50VGD2"],
+    ]);
+  });
 });
 
 describe("the labour", () => {

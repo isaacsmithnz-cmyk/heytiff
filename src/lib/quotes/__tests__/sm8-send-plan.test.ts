@@ -90,6 +90,20 @@ it("says what a unit's order code gives it on the customer's line", () => {
   expect(optionLines(draft, 0, withWifi, true)[0]!.name).toBe("MSZ-AP25VGD2, Wi-Fi built in, Demand response (DRED) ready");
 });
 
+/* Isaac, 2026-10-15: a unit line is named by what it is, "indoor unit
+   study, then model"; ServiceM8's line is all there is of it there */
+it("gives a unit named by what it is its model on ServiceM8's line", () => {
+  const named = priceBuildUp(
+    [
+      { key: "o", group: "Units", name: "Outdoor unit", code: "MXZ-3F68VF", supplierKey: "aad", qty: 1, unitBuyCents: 300000, kind: "unit" },
+      { key: "i", group: "Units", name: "Indoor unit, Study", code: "MSZ-AP25VGKD2-A2", supplierKey: "aad", qty: 1, unitBuyCents: 40000, kind: "unit", features: ["Wi-Fi built in"] },
+    ],
+    [{ stage: "Install", people: 1, days: 1 }],
+    settings
+  );
+  expect(optionLines(draft, 0, named, true).slice(0, 2).map((l) => l.name)).toEqual(["Outdoor unit: MXZ-3F68VF", "Indoor unit, Study: MSZ-AP25VGKD2-A2, Wi-Fi built in"]);
+});
+
 /* a send goes only as it was shown */
 describe("planKey", () => {
   it("is the same for the same plan, and changes with any line", () => {

@@ -14,7 +14,7 @@ import { hourCostOf } from "../profit";
 import { readQuotePrice } from "../quote-price-server";
 import { readQuoteSettings } from "../settings-query";
 import type { NewLine } from "./tools";
-import { lineFor, makeTools, type QuoteStore } from "./tools-run";
+import { lineFor, makeTools, unitNameOf, type QuoteStore } from "./tools-run";
 import { readOpenQuestions, readSession } from "./store-server";
 
 /* Tiff's tools in the app (tools-run.ts runs them): the quote store is the
@@ -75,11 +75,17 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
 }
 
 /** How a new line goes on for this business (a person's tapped answer
-    uses it too): the store's book, hour and the job's supplier, and the
-    line priced from them. */
+    uses it too): the store's book, hour and the job's supplier, the line
+    priced from them, and a unit named by what it is. */
 export function linePricer(orgId: string, jobUuid = "") {
   const store = dbStore(orgId, jobUuid);
-  return { book: store.book, hourCost: store.hourCost, supplier: store.supplier, lineFor: (l: NewLine) => lineFor(store, l) };
+  return {
+    book: store.book,
+    hourCost: store.hourCost,
+    supplier: store.supplier,
+    lineFor: (l: NewLine) => lineFor(store, l),
+    unitName: (item: { name: string; code: string; brand: string | null }, words: string) => unitNameOf(store, item, words),
+  };
 }
 
 export function sessionTools(orgId: string, jobUuid: string) {

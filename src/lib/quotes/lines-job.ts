@@ -3,6 +3,7 @@ import { MAX_OPTIONS as MAX_LINE_OPTIONS, type QuoteLine } from "./lines";
 import { proposalOf, type LinesProposal } from "./lines-proposal";
 import type { UnitSpecs } from "./lookups";
 import { normaliseDraft, type ProposalDraft, type UnitLine, type UnitRole } from "./proposal";
+import { roomIn } from "./unit-name";
 
 /* A QUOTE BUILT ON ITS KEPT LINES, AS THE JOB READS IT (slice 3.3) — the
    ServiceM8 send, the accepted option's materials, the Installation hours
@@ -264,7 +265,8 @@ export function linesUnits(lines: readonly QuoteLine[], specs: ReadonlyMap<strin
     for (const u of mine) {
       const row: UnitLine = {
         role: u.role,
-        room: u.role === "outdoor" ? "" : system,
+        /* a multi's head says the room it serves in its name, "Indoor unit, Study" (unit-name.ts) */
+        room: u.role === "outdoor" ? "" : roomIn(u.l.name) || system,
         capacity: u.role === "fan" ? "" : capacityOf(u.l, u.s),
         type: /\bducted\b/i.test(u.l.name) || u.l.duct ? "Ducted" : "",
         model: (u.l.code ?? "").trim(),

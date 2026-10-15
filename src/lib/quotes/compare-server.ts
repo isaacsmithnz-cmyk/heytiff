@@ -9,6 +9,7 @@ import { readByHand } from "./lines-job-server";
 import { changeLine, readLines } from "./lines-server";
 import type { UnitSpecs } from "./lookups";
 import { readQuoteSettings } from "./settings-query";
+import { namedUnit, unitRoleOf } from "./unit-name";
 
 /* Compare, read and used (compare.ts says what's offered and how it pairs):
    each column's price as the quote would sell it, what it is off its
@@ -115,7 +116,9 @@ export async function putComparedOn(orgId: string, jobUuid: string, lineId: stri
   const pair = pairOf(products, product, byHand.supplier);
   const indoor = pair.indoor;
   const why = `Compared, chose ${indoor.code}`;
-  const swap = (l: QuoteLine, u: BookUnit) => changeLine(orgId, jobUuid, l.id, l.version, { name: u.name, code: u.code, supplierKey: u.supplierKey, costCents: u.costCents, sellCents: null }, by, why);
+  /* each still named by what it is, in the room it was (unit-name.ts) */
+  const swap = (l: QuoteLine, u: BookUnit) =>
+    changeLine(orgId, jobUuid, l.id, l.version, { name: namedUnit(unitRoleOf(null, u, { name: l.name }), l.name, u.name), code: u.code, supplierKey: u.supplierKey, costCents: u.costCents, sellCents: null }, by, why);
   const r = await swap(line, indoor);
   if (!r.ok) return r;
   const outLine = outdoorLineOf(lines, line);
@@ -132,5 +135,7 @@ export async function askCompare(orgId: string, jobUuid: string, lineId: string,
   const [lines, products, byHand] = await Promise.all([readLines(orgId, jobUuid), bookProducts(orgId), readByHand(orgId, jobUuid)]);
   const line = lines.find((l) => l.id === lineId) ?? null;
   if (!line) return { found: null, line: null };
-  return { found: askedPair(products, ask, unitTypeOf(line.name, line.code ?? ""), byHand.supplier), line };
+  /* its type by the book's words for its item: a unit line is named by what it is, "Indoor unit" */
+  const own = line.code ? byCode(products, line.code) : null;
+  return { found: askedPair(products, ask, unitTypeOf(own?.name ?? line.name, line.code ?? ""), byHand.supplier), line };
 }

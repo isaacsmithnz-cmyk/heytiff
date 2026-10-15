@@ -52,7 +52,7 @@ export async function answerQuestion(orgId: string, jobUuid: string, by: string,
   if (!answer) return { ok: false, reason: "That isn't one of its answers." };
 
   const why = `“${answer.label}”, to “${q.question}”`;
-  const { book, lineFor, supplier } = linePricer(orgId, jobUuid);
+  const { book, lineFor, supplier, unitName } = linePricer(orgId, jobUuid);
   for (const c of answer.changes) {
     const now = await readLines(orgId, jobUuid);
     if (c.op === "add") {
@@ -73,7 +73,9 @@ export async function answerQuestion(orgId: string, jobUuid: string, by: string,
     } else {
       const p = bookPrice(await book(), c.code, line.unit, await supplier());
       if (!p) return { ok: false, reason: `${c.code} isn't in your book any more.` };
-      const r = await changeLine(orgId, jobUuid, line.id, line.version, { name: p.name, code: p.code, supplierKey: p.supplierKey, costCents: p.costCents, sellCents: null, source: "said" }, by, why);
+      /* a unit swapped is still named by what it is, in the room it was */
+      const name = line.kind === "unit" || p.kind === "unit" ? await unitName(p, line.name) : p.name;
+      const r = await changeLine(orgId, jobUuid, line.id, line.version, { name, code: p.code, supplierKey: p.supplierKey, costCents: p.costCents, sellCents: null, source: "said" }, by, why);
       if (!r.ok) return r;
     }
   }

@@ -1,6 +1,7 @@
 import type { BuildSettings } from "../buildup";
 import type { Product } from "../families";
-import { expandKit, indoorFacts, pipeFromMm, stillToSize, type KitAllowances, type KitPreferences } from "../kits";
+import { expandKit, kitFactsFrom, stillToSize, type KitAllowances, type KitPreferences } from "../kits";
+import type { ZoningController } from "@/lib/studio/packs/schema";
 import { applyPatch, lineFromRow, lineRow, normaliseLine, sortLines, type QuoteLine } from "../lines";
 import { priceLines } from "../lines-price";
 import { proposalOf, type LinesProposal } from "../lines-proposal";
@@ -32,6 +33,8 @@ export function memoryStore(opts: {
   supplier?: string | null;
   /** the makers' data packs, as the app reads them; else the case's units */
   lookup?: (brand: string, model: string) => Promise<UnitLookup>;
+  /** the maker's zone system, as the app reads it (lookups-server zoningFor) */
+  zoning?: (brand: string) => Promise<ZoningController | null>;
   /** the business's ranges and preferred parts, for a kit to pick from */
   kitPrefs?: KitPreferences | null;
   /** the quote as a conversation left it, to carry on from */
@@ -78,17 +81,13 @@ export function memoryStore(opts: {
       return { ok: true, line: null };
     },
     addKit: async (kit, facts, at, unit, indoor) => {
-      /* the units' packs fill what wasn't said, as kits-server.ts does */
-      const f = { ...facts };
-      for (const which of [unit, indoor]) {
-        if (!which || !opts.lookup) continue;
-        const u = await opts.lookup(which.brand, which.model);
-        if (u.found && u.specs.role === "outdoor") {
-          if (!f.pipe && u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
-          if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
-        }
-        if (u.found && u.specs.role === "indoor") Object.assign(f, indoorFacts(u.specs), f.supplyFace ? { supplyFace: f.supplyFace } : {});
-      }
+      /* the units' packs fill what wasn't said, and the zone system goes on,
+         by the app's own step (kits.ts kitFactsFrom) */
+      const lookup = opts.lookup;
+      const looked = lookup ? await Promise.all([unit, indoor].filter((w): w is { brand: string; model: string } => !!w).map((w) => lookup(w.brand, w.model))) : [];
+      const brand = (indoor ?? unit)?.brand ?? null;
+      const zoning = kit === "ducted" && facts.zones && brand && opts.zoning ? await opts.zoning(brand) : null;
+      const f = kitFactsFrom(kit, facts, looked, zoning);
       const made = expandKit(kit, f, opts.products, at, opts.allowances ?? null, opts.supplier ?? null, opts.kitPrefs ?? null);
       for (const l of made) add(l as Record<string, unknown>);
       return { ok: true, added: made.length, still: stillToSize(made) };

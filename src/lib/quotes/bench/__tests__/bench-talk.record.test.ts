@@ -42,7 +42,7 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
 (ON ? describe : describe.skip)("talking Tiff through a job (spends money)", () => {
   jest.setTimeout(30 * 60_000);
   it("takes one turn of the conversation", async () => {
-    const [{ anthropicModel }, { bookProducts }, { lookupUnit }, { readQuoteSettings }, { readOrgDay }, { readRangeOffers }, { buildSettingsOf }, { hourCostOf }] = await Promise.all([
+    const [{ anthropicModel }, { bookProducts }, { lookupUnit, zoningFor }, { readQuoteSettings }, { readOrgDay }, { readRangeOffers }, { buildSettingsOf }, { hourCostOf }] = await Promise.all([
       import("../../session/model-server"),
       import("../../book-view-server"),
       import("../../lookups-server"),
@@ -71,6 +71,7 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
       allowances: { consumables: settings.allowances.consumables, flush: settings.allowances.flush, recovery: settings.allowances.recovery },
       taskHours: FRESH ? undefined : settings.taskHours,
       lookup: lookupUnit,
+      zoning: zoningFor,
       kitPrefs: FRESH ? null : { ranges, components: settings.preferred },
       seed: talk?.lines ?? [],
       openQuestions: (talk?.asked ?? []).filter((q) => !q.settled),

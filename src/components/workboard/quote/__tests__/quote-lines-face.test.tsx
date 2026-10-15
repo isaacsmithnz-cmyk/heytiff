@@ -68,10 +68,17 @@ beforeEach(() => {
 });
 
 const face = (onPriced = jest.fn()) => render(<QuoteLinesFace job="job-3377" price={price} actionsEl={null} onPriced={onPriced} />);
+/* every group starts shut (Isaac, 2026-10-15): a test that reads a line
+   opens its group first, as a person would; one that only needs the lines
+   read waits for a group's band */
+const openGroup = async (name: string) => fireEvent.click(await screen.findByRole("button", { name, expanded: false }));
+const linesRead = () => screen.findByRole("button", { name: "Units" });
 
 it("shows the total in its card, each system with its total, and every line's qty, cost and sell", async () => {
   face();
-  expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
+  await openGroup("Units");
+  await openGroup("Core holes");
+  expect(screen.getByText("Ducted indoor, under the floor")).toBeInTheDocument();
   /* the rail's card: the total, and the profit as a bar; with the core hole
      and the labour still to price, both are so far, and the profit claims
      no state against the target */
@@ -94,10 +101,75 @@ it("shows the total in its card, each system with its total, and every line's qt
   expect(screen.getByText("2 to price")).toBeInTheDocument();
 });
 
+/* Isaac, 2026-10-15: "when you hit view line items, I think have everything
+   collapsed first… so it doesn't take up so much space. Collapsed with the
+   total next to it" */
+describe("every group starts shut", () => {
+  const band = (name: string) => screen.getByRole("button", { name }).closest("tr")!;
+
+  it("shows each group as its name and its total on one band, and none of its lines", async () => {
+    face();
+    const units = await screen.findByRole("button", { name: "Units" });
+    expect(units).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Core holes" })).toHaveAttribute("aria-expanded", "false");
+    expect(band("Units")).toHaveTextContent(/^Units\$1,334\.38$/);
+    expect(band("Core holes")).toHaveTextContent(/^Core holes\$0\.00$/);
+    /* the rows it opens are named, and hold nothing while it's shut */
+    expect(document.getElementById(units.getAttribute("aria-controls")!)).toBeEmptyDOMElement();
+    expect(screen.queryByLabelText("Quantity of Ducted indoor, under the floor")).toBeNull();
+    expect(screen.queryByLabelText("Quantity of Core hole 200 mm")).toBeNull();
+    /* the system's own total stands as it was */
+    expect(within(screen.getByRole("region", { name: "Downstairs" })).getByRole("heading", { name: "Downstairs" }).nextElementSibling).toHaveTextContent("$1,334.38");
+  });
+
+  it("opens a group on a press, its lines in the rows it names, and shuts it from anywhere on its band", async () => {
+    face();
+    const units = await screen.findByRole("button", { name: "Units" });
+    fireEvent.click(units);
+    expect(units).toHaveAttribute("aria-expanded", "true");
+    const rows = document.getElementById(units.getAttribute("aria-controls")!)!;
+    expect(within(rows).getByLabelText("Quantity of Ducted indoor, under the floor")).toHaveValue("1");
+    /* the others stay shut */
+    expect(screen.getByRole("button", { name: "Core holes" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Quantity of Core hole 200 mm")).toBeNull();
+    /* its total is the band's too */
+    fireEvent.click(within(band("Units")).getByText("$1,334.38"));
+    expect(units).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Quantity of Ducted indoor, under the floor")).toBeNull();
+  });
+
+  it("opens the group a line just added lands in, and leaves the others shut", async () => {
+    const byHand = line({ id: "l5", system: "", group: "Materials", name: "A line by hand", code: null, supplierKey: null, kind: "material", costCents: 0, source: "by_hand", why: "" });
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+      if (init?.body) posted.push(JSON.parse(init.body));
+      return { json: async () => view(init?.body ? [indoor, core, byHand] : [indoor, core]) };
+    });
+    face();
+    await linesRead();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add a line by hand" }));
+    });
+    expect(posted).toContainEqual(expect.objectContaining({ op: "add", line: expect.objectContaining({ group: "Materials" }) }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Materials" })).toHaveAttribute("aria-expanded", "true"));
+    expect(screen.getByLabelText("Quantity of A line by hand")).toHaveValue("1");
+    expect(screen.getByRole("button", { name: "Units" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("shows a tech how many lines a group holds where its total would stand", async () => {
+    const outdoor = line({ id: "od", name: "Outdoor, single phase", code: "PUZ-M125VKA2", costCents: 0 });
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view([{ ...indoor, costCents: 0 }, outdoor, core]), money: false }) }));
+    render(<QuoteLinesFace job="job-3377" price={null} actionsEl={null} onPriced={jest.fn()} money={false} />);
+    await linesRead();
+    expect(band("Units")).toHaveTextContent(/^Units2 lines$/);
+    expect(band("Core holes")).toHaveTextContent(/^Core holes1 line$/);
+  });
+});
+
 it("changes a line against the version it was read at, and reads the price again", async () => {
   const onPriced = jest.fn();
   face(onPriced);
-  const qty = await screen.findByLabelText("Quantity of Ducted indoor, under the floor");
+  await openGroup("Units");
+  const qty = screen.getByLabelText("Quantity of Ducted indoor, under the floor");
   fireEvent.change(qty, { target: { value: "2" } });
   await act(async () => {
     fireEvent.blur(qty);
@@ -108,7 +180,8 @@ it("changes a line against the version it was read at, and reads the price again
 
 it("a sell price cleared goes back to the markup", async () => {
   face();
-  const sell = await screen.findByLabelText("What one Ducted indoor, under the floor sells for");
+  await openGroup("Units");
+  const sell = screen.getByLabelText("What one Ducted indoor, under the floor sells for");
   fireEvent.change(sell, { target: { value: "" } });
   await act(async () => {
     fireEvent.blur(sell);
@@ -118,7 +191,7 @@ it("a sell price cleared goes back to the markup", async () => {
 
 it("adds a line from the book, searched as the business buys", async () => {
   face();
-  await screen.findByText("Ducted indoor, under the floor");
+  await linesRead();
   await act(async () => {
     fireEvent.change(screen.getByLabelText("Search your book for a line to add"), { target: { value: "feet" } });
   });
@@ -144,7 +217,7 @@ it("lists every change with who made it, and undoes one", async () => {
 
 it("takes a line off with its version", async () => {
   face();
-  await screen.findByText("Ducted indoor, under the floor");
+  await openGroup("Units");
   await act(async () => {
     fireEvent.click(screen.getByLabelText("Take Ducted indoor, under the floor off"));
   });
@@ -154,7 +227,7 @@ it("takes a line off with its version", async () => {
 /* kits as data, slice 1.3: a whole install kit in one press */
 it("adds a kit for a system: the outdoor named, the runs given, the rest read off its data pack", async () => {
   face();
-  await screen.findByText("Ducted indoor, under the floor");
+  await linesRead();
   fireEvent.click(screen.getByRole("button", { name: "Add a kit" }));
   /* every installed pack, and none of them anyone's default (2026-10-15) */
   const pack = screen.getByLabelText("The outdoor's data pack");
@@ -188,7 +261,7 @@ it("adds a kit for a system: the outdoor named, the runs given, the rest read of
    whole number, the control by its word, WiFi yes or no */
 it("adds a zoned ducted kit with its zones, their control and WiFi, as Tiff's tool gives them", async () => {
   face();
-  await screen.findByText("Ducted indoor, under the floor");
+  await linesRead();
   fireEvent.click(screen.getByRole("button", { name: "Add a kit" }));
   fireEvent.change(screen.getByLabelText("Kit"), { target: { value: "ducted" } });
   /* the zone system is read off the unit's pack: named, as a zoned kit needs */
@@ -227,12 +300,13 @@ it("copies option 1 to a new option, and says what an option changed from it", a
     },
   }));
   face();
-  await screen.findByText("Ducted indoor, under the floor");
+  await linesRead();
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy option 1 to a new option" }));
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "copy", from: 0, to: 2 });
   fireEvent.click(screen.getByRole("tab", { name: /Option 2/ }));
+  await openGroup("Units");
   expect(screen.getByText("Added")).toBeInTheDocument();
   expect(screen.getByText("Not in this option: Ducted indoor, under the floor")).toBeInTheDocument();
 });
@@ -240,7 +314,7 @@ it("copies option 1 to a new option, and says what an option changed from it", a
 /* Select preferred item, slice 2.4 */
 it("swaps a line for another item of its kind from the book, and makes it preferred from the next quote", async () => {
   face();
-  await screen.findByText("Ducted indoor, under the floor");
+  await openGroup("Units");
   fireEvent.click(screen.getByRole("button", { name: "Ducted indoor, under the floor" }));
   expect(screen.getByLabelText("Search your book for another Ducted indoor, under the floor")).toHaveValue("Ducted indoor");
   const pick = await screen.findByRole("button", { name: /ANTI VIBRATION FEET/ }, { timeout: 2000 });
@@ -268,12 +342,13 @@ it("adds a provisional sum, and its price is its cost: nothing on top", async ()
     return { json: async () => view([indoor, ps]) };
   });
   face();
-  await screen.findByText("Core hole 200 mm");
+  await linesRead();
   fireEvent.change(screen.getByLabelText("Search your book for a line to add"), { target: { value: "Ergovent round grille" } });
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Add a provisional sum" }));
   });
   expect(posted).toContainEqual(expect.objectContaining({ op: "add", line: expect.objectContaining({ group: "Provisional sums", name: "Ergovent round grille", sellCents: null }) }));
+  await openGroup("Provisional sums");
   const sell = screen.getByLabelText("What one Core hole 200 mm sells for");
   fireEvent.change(sell, { target: { value: "1300" } });
   await act(async () => {
@@ -289,7 +364,12 @@ it("says under a part why it doesn't fit its system's outdoor unit", async () =>
     json: async () => ({ ...view([indoor, iso]), fits: [{ key: "iso", state: "misfit", why: "20 A is under the PUZ-ZM125VKA2-A's 28 A" }] }),
   }));
   face();
-  expect(await screen.findByText("20 A is under the PUZ-ZM125VKA2-A's 28 A")).toBeInTheDocument();
+  /* it doesn't open its group: To confirm lists it */
+  await linesRead();
+  expect(screen.queryByText("20 A is under the PUZ-ZM125VKA2-A's 28 A")).toBeNull();
+  expect(screen.getByText("Isolator 20 A: 20 A is under the PUZ-ZM125VKA2-A's 28 A")).toBeInTheDocument();
+  await openGroup("Pipe, power and controls");
+  expect(screen.getByText("20 A is under the PUZ-ZM125VKA2-A's 28 A")).toBeInTheDocument();
 });
 
 /* the review's own half, slice 11.1 */
@@ -341,7 +421,7 @@ it("offers the same item from each supplier, and takes the one picked over the c
     };
   });
   face();
-  await screen.findByText("Ducted indoor, under the floor");
+  await openGroup("Units");
   fireEvent.click(screen.getByRole("button", { name: "Ducted indoor, under the floor" }));
   const fromReece = await screen.findByRole("button", { name: /From Reece/ }, { timeout: 2000 });
   expect(fromReece).toHaveTextContent("$14.90 each");
@@ -385,11 +465,14 @@ it("adds a loading to the labour, keeps it with its reason, and takes it off", a
     fireEvent.click(add);
   });
   expect(posted).toContainEqual({ job: "job-3377", op: "loading", option: 0, pct: 10, reason: "" });
+  /* its reason is typed on its row, under the labour: Labour opens to show it */
+  expect(screen.getByRole("button", { name: "Labour" })).toHaveAttribute("aria-expanded", "true");
   unmount();
 
   loading = { 0: { pct: 12, reason: "Parapet access" } };
   face();
-  expect(await screen.findByText("Hidden from the customer")).toBeInTheDocument();
+  await openGroup("Labour");
+  expect(screen.getByText("Hidden from the customer")).toBeInTheDocument();
   expect(screen.getByLabelText("Why the loading")).toHaveValue("Parapet access");
   expect(screen.queryByRole("button", { name: "Add a loading" })).toBeNull();
   await act(async () => {
@@ -405,7 +488,7 @@ it("opens compare from an indoor unit's line", async () => {
     json: async () => (String(url).startsWith("/api/workboard/quote-compare") ? { ok: false, reason: "Compare works from a unit on the quote." } : view([indoor, outdoor])),
   }));
   face();
-  await screen.findByText("Ducted indoor, under the floor");
+  await openGroup("Units");
   const buttons = screen.getAllByRole("button", { name: "Compare" });
   expect(buttons).toHaveLength(1);
   await act(async () => {
@@ -430,7 +513,8 @@ it("picks the supplier the job buys from, and says where a line it doesn't sell 
     };
   });
   face();
-  expect(await screen.findByText("Not at AAD: Rexel")).toBeInTheDocument();
+  await openGroup("Pipe, power and controls");
+  expect(screen.getByText("Not at AAD: Rexel")).toBeInTheDocument();
   const pick = screen.getByLabelText("Buy from, for this job");
   expect(pick).toHaveValue("aad");
   await act(async () => {
@@ -464,7 +548,7 @@ describe("the proposal (7.1)", () => {
   /* Isaac, 2026-10-13: "Dark green outline white body and green approved text" */
   it("puts Approve in the corner beside View quote too, in the green outline, and not with no lines", async () => {
     const el = corner();
-    await screen.findByText("Ducted indoor, under the floor");
+    await linesRead();
     const approve = within(el).getByRole("button", { name: "Approve" });
     expect(approve).toHaveClass("pbtn", "ghost", "qp-go");
     expect(approve).toBeEnabled();
@@ -536,7 +620,8 @@ describe("a labour line's tasks under it (slice 8.2)", () => {
   it("shows each task with its hours, says what a person changed, and the line's hours are its tasks'", async () => {
     labourOnly();
     face();
-    const list = await screen.findByRole("list", { name: "The tasks in Rough-in: 2 people, 1 day" });
+    await openGroup("Labour");
+    const list = screen.getByRole("list", { name: "The tasks in Rough-in: 2 people, 1 day" });
     expect(within(list).getByLabelText("Hours for Travel and setup")).toHaveValue("5 h");
     expect(within(list).getByText("Changed, was 4 h")).toBeInTheDocument();
     expect(screen.getByText("11 h, 2 people for half a day")).toBeInTheDocument();
@@ -547,7 +632,8 @@ describe("a labour line's tasks under it (slice 8.2)", () => {
   it("an hour typed changes the line's tasks, keeping what Tiff had", async () => {
     labourOnly();
     face();
-    const hours = await screen.findByLabelText("Hours for Travel and setup");
+    await openGroup("Labour");
+    const hours = screen.getByLabelText("Hours for Travel and setup");
     fireEvent.change(hours, { target: { value: "7" } });
     await act(async () => {
       fireEvent.blur(hours);
@@ -564,7 +650,8 @@ describe("a labour line's tasks under it (slice 8.2)", () => {
   it("adds a task with its hours, and takes one off", async () => {
     labourOnly();
     face();
-    fireEvent.click(await screen.findByRole("button", { name: "Add a task" }));
+    await openGroup("Labour");
+    fireEvent.click(screen.getByRole("button", { name: "Add a task" }));
     fireEvent.change(screen.getByLabelText("The task"), { target: { value: "Scaffold" } });
     const h = screen.getByLabelText("Its hours");
     fireEvent.change(h, { target: { value: "3" } });
@@ -601,7 +688,7 @@ describe("the quote card", () => {
   it("says the profit stands, in green, at or over the target", async () => {
     only([indoor]);
     pricedAt({});
-    await screen.findByText("Ducted indoor, under the floor");
+    await linesRead();
     expect(cardIn().getByText("at your 20%").closest(".qp-profit")).toHaveClass("ok");
     expect(within(cardIn().getByRole("list", { name: "Its parts" })).getByText("Units").parentElement).toHaveTextContent("$1,334.38");
   });
@@ -610,7 +697,7 @@ describe("the quote card", () => {
   it("says how far under the target it is, in amber, and the price that would meet it", async () => {
     only([indoor]);
     pricedAt({ targetPct: 30, short: { cents: 18062, priceCents: 152500 } });
-    await screen.findByText("Ducted indoor, under the floor");
+    await linesRead();
     const bar = cardIn().getByText("under your 30% target by $180.62. $1,525.00 ex GST would meet it").closest(".qp-profit");
     expect(bar).toHaveClass("warn");
     expect(bar).toHaveTextContent("20%$266.88");
@@ -622,7 +709,7 @@ describe("the quote card", () => {
     only([indoor, core]);
     const short = { ...(price as Extract<QuotePrice, { ok: true }>).options[0]!, profit: { costCents: 106750, profitCents: 26688, pct: 20, targetPct: 30, hourCostCents: 11200, short: { cents: 18062, priceCents: 152500 } } };
     render(<QuoteLinesFace job="job-3377" price={{ ok: true, options: [short], chargeOutCents: 14000 }} actionsEl={null} onPriced={jest.fn()} />);
-    await screen.findByText("Ducted indoor, under the floor");
+    await linesRead();
     const bar = cardIn().getByText("$266.88").closest(".qp-profit")!;
     expect(bar.className).toBe("qp-profit");
     expect(bar).toHaveTextContent("20%$266.88so far");
@@ -637,7 +724,7 @@ describe("the quote card", () => {
     const b = priceBuildUp([buildLineOf(indoor), pipe, damper], [{ stage: "Install", people: 1, days: 2 }], { ...settings, contingency: { pct: 15, hours: 3 } });
     const profit = { costCents: 0, profitCents: 50000, pct: 12.3, targetPct: null, hourCostCents: 11200, short: null };
     render(<QuoteLinesFace job="job-3377" price={{ ok: true, options: [{ name: "Option 1", build: b, unpriced: [], rows: 3, labourFrom: "you", profit }], chargeOutCents: 14000 }} actionsEl={null} onPriced={jest.fn()} />);
-    await screen.findByText("Ducted indoor, under the floor");
+    await linesRead();
     const rows = within(cardIn().getByRole("list", { name: "By group" })).getAllByRole("listitem");
     expect(rows.map((r) => r.firstChild!.textContent)).toEqual(["Units", "Ductwork and grilles", "Pipe, power and controls", "Labour", "Duct contingency"]);
     /* 15% of the dampers' $226.05 at 40% on, and 3 h at $140 */
@@ -666,7 +753,7 @@ describe("the quote card", () => {
   it("keeps today's words while Quoting isn't set", async () => {
     only([indoor]);
     render(<QuoteLinesFace job="job-3377" price={{ ok: false, unset: ["rate", "hours"] }} actionsEl={null} onPriced={jest.fn()} />);
-    await screen.findByText("Ducted indoor, under the floor");
+    await linesRead();
     expect(cardIn().getByText("Not set")).toBeInTheDocument();
     expect(cardIn().getByText("Set a charge-out rate and a working day in Quoting to price this quote.")).toBeInTheDocument();
   });
@@ -679,7 +766,8 @@ it("shows an estimate on its line and in To confirm, and confirms it from there"
     return { json: async () => view([indoor, cons]) };
   });
   face();
-  expect(await screen.findByText("Estimate")).toBeInTheDocument();
+  await openGroup("Allowances");
+  expect(screen.getByText("Estimate")).toBeInTheDocument();
   expect(screen.getByText("Consumables: An estimate from your book: duct tape, cable ties, silicone")).toBeInTheDocument();
   /* the progress line counts it to confirm */
   expect(within(screen.getByRole("list", { name: "Where the quote is" })).getByText(/1 to confirm/)).toBeInTheDocument();
@@ -737,6 +825,8 @@ describe("a variation to the accepted quote", () => {
     expect(screen.getByRole("tab", { name: /Variation 1/ })).toHaveTextContent("+$18.04");
     expect(screen.getByText("Variation 1, ex GST")).toBeInTheDocument();
     expect(screen.getByText(/^New total /)).toBeInTheDocument();
+    await openGroup("Units");
+    await openGroup("Ductwork and grilles");
     expect(document.querySelectorAll(".ql-vs")).toHaveLength(1);
     expect(document.querySelector(".ql-vs")).toHaveTextContent("Changed");
     expect(within(corner).queryByRole("button", { name: "Update quote" })).toBeNull();
@@ -835,7 +925,8 @@ it("shows a tech the work without its money: no price head, no cost or sell, no 
   const corner = document.createElement("div");
   document.body.appendChild(corner);
   render(<QuoteLinesFace job="job-3377" price={null} actionsEl={corner} onPriced={jest.fn()} />);
-  expect(await screen.findByLabelText("Quantity of Ducted indoor, under the floor")).toHaveValue("1");
+  await openGroup("Units");
+  expect(screen.getByLabelText("Quantity of Ducted indoor, under the floor")).toHaveValue("1");
   expect(screen.queryByLabelText("What one Ducted indoor, under the floor costs you")).toBeNull();
   expect(screen.queryByLabelText("What one Ducted indoor, under the floor sells for")).toBeNull();
   expect(screen.queryByRole("columnheader", { name: "Sell each" })).toBeNull();
@@ -900,7 +991,7 @@ it("keeps a ServiceM8 PDF not brought across yet on the page, with nothing to op
 
 it("shows no ServiceM8 quote on a job ServiceM8 never quoted", async () => {
   render(<QuoteLinesFace job="job-3377" price={price} actionsEl={null} onPriced={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
-  expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
+  expect(await linesRead()).toBeInTheDocument();
   expect(screen.queryByText("Already quoted")).toBeNull();
 });
 
@@ -912,7 +1003,8 @@ it("shows no money and no estimate to confirm to someone the server says doesn't
   (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => view([indoor, est]) }));
   render(<QuoteLinesFace job="job-3377" price={null} actionsEl={null} onPriced={jest.fn()} money={false} />);
   expect(screen.queryByPlaceholderText("Add a line from your book")).toBeNull();
-  expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
+  await openGroup("Units");
+  expect(screen.getByText("Ducted indoor, under the floor")).toBeInTheDocument();
   expect(screen.queryByRole("columnheader", { name: "Cost each" })).toBeNull();
   expect(screen.queryByPlaceholderText("Add a line from your book")).toBeNull();
   expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
@@ -936,7 +1028,7 @@ describe("the page turned round", () => {
     face();
     expect(await screen.findByRole("tab", { name: "Conversation" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Priced from your book.")).toBeVisible();
-    expect(screen.queryByText("Ducted indoor, under the floor")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Units" })).toBeNull();
     /* what's to confirm is the conversation's, at its foot: the rail has none */
     const rail = within(screen.getByRole("complementary", { name: "On this quote" }));
     expect(rail.queryByRole("region", { name: "To confirm" })).toBeNull();
@@ -944,7 +1036,7 @@ describe("the page turned round", () => {
 
     fireEvent.click(rail.getByRole("button", { name: "View line items" }));
     expect(screen.getByRole("tab", { name: "Line items" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("Ducted indoor, under the floor")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Units" })).toBeInTheDocument();
     /* the history is the line items' foot now */
     expect(before(screen.getByRole("region", { name: "Add a line" }), screen.getByRole("heading", { name: "Changes" }))).toBe(true);
     /* her column stays mounted under them, so her work still lands */
@@ -952,8 +1044,21 @@ describe("the page turned round", () => {
 
     fireEvent.click(rail.getByRole("button", { name: "Back to the conversation" }));
     expect(screen.getByRole("tab", { name: "Conversation" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByText("Ducted indoor, under the floor")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Units" })).toBeNull();
     expect(screen.getByText("Priced from your book.")).toBeVisible();
+  });
+
+  /* "open groups stay open while you're on the page" (2026-10-15) */
+  it("keeps a group open while the page is up, to the conversation and back", async () => {
+    tiffOn();
+    face();
+    fireEvent.click(await screen.findByRole("tab", { name: "Line items" }));
+    await openGroup("Units");
+    fireEvent.click(screen.getByRole("tab", { name: "Conversation" }));
+    expect(screen.queryByRole("button", { name: "Units" })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Line items" }));
+    expect(screen.getByRole("button", { name: "Units" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("Quantity of Ducted indoor, under the floor")).toHaveValue("1");
   });
 
   it("names the panel each tab shows, and the arrow keys walk them", async () => {
@@ -1023,7 +1128,7 @@ describe("the page turned round", () => {
 
   it("lays the line items out as the column, with no tabs, where Tiff isn't on, and To confirm heads the rail", async () => {
     face();
-    expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
+    expect(await linesRead()).toBeInTheDocument();
     expect(screen.queryByRole("tablist", { name: "Conversation and line items" })).toBeNull();
     const rail = within(screen.getByRole("complementary", { name: "On this quote" }));
     expect(before(rail.getByRole("region", { name: "To confirm" }), rail.getByRole("region", { name: "The quote" }))).toBe(true);

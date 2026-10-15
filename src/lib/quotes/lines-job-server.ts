@@ -51,7 +51,7 @@ export async function readJobQuote(orgId: string, cardId: string): Promise<JobQu
   ]);
   const raw = (row.data as { draft: unknown } | null)?.draft ?? null;
   const byHand = byHandOf(raw);
-  const draft = linesDraft(lines, optionNames(raw, byHand), byHand, await unitSpecsOf(lines), day.hours?.hours ?? null);
+  const draft = linesDraft(lines, optionNames(raw, byHand), byHand, await unitSpecsOf(lines, orgId), day.hours?.hours ?? null);
   return draft ? { draft, lines } : null;
 }
 

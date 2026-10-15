@@ -2,7 +2,7 @@ import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import { indexNotation } from "@/lib/studio/packs/schema";
 import { checkMultiCompatibility, UNDER_MINIMUM } from "@/lib/studio/multi";
 import { checkVrfSet } from "@/lib/studio/vrf";
-import { sameUnit } from "./lookups";
+import { linkedModel, sameUnit, type ConfirmedLink } from "./lookups";
 
 /* Whether an outdoor takes the indoors on a quote, by its maker's own book:
    a split's pair from the pack's pair table, a multi's set by its
@@ -26,17 +26,32 @@ export type Pairing =
       pairsWith?: string[];
     };
 
-/** The outdoor's verdict on the indoors given, every model read off `pack`. */
-export function pairingOf(pack: DataPack | null, outdoor: string, indoors: string[]): Pairing {
+/** The outdoor's verdict on the indoors given, every model read off `pack`,
+    an order code it doesn't name through the business's confirmed links. */
+export function pairingOf(pack: DataPack | null, outdoor: string, indoors: string[], links: readonly ConfirmedLink[] = []): Pairing {
   if (!pack) return { found: false, reason: "no data pack" };
-  const odu = pack.outdoor_units.find((u) => sameUnit(outdoor, u.model));
+  const read: string[] = [];
+  const find = <U extends { model: string }>(units: readonly U[], code: string): U | null => {
+    const direct = units.find((u) => sameUnit(code, u.model));
+    if (direct) return direct;
+    const linked = linkedModel(links, code);
+    const via = linked ? units.find((u) => sameUnit(linked, u.model)) : undefined;
+    if (via && !read.some((r) => r.startsWith(`${code} `))) read.push(`${code} read as ${via.model}, your confirmed link`);
+    return via ?? null;
+  };
+  const odu = find(pack.outdoor_units, outdoor);
   if (!odu) return { found: false, reason: "not in the pack", model: outdoor };
   const heads: IndoorUnit[] = [];
   for (const m of indoors) {
-    const u = pack.indoor_units.find((x) => sameUnit(m, x.model));
+    const u = find(pack.indoor_units, m);
     if (!u) return { found: false, reason: "not in the pack", model: m };
     heads.push(u);
   }
+  const verdict = judged(pack, odu, heads);
+  return verdict.found && read.length ? { ...verdict, said: [...read, ...verdict.said] } : verdict;
+}
+
+function judged(pack: DataPack, odu: DataPack["outdoor_units"][number], heads: IndoorUnit[]): Pairing {
 
   if (odu.system_type === "multi") {
     const rule = pack.multi_rules.find((r) => r.odu_model_ref === odu.model);

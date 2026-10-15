@@ -41,7 +41,7 @@ export async function GET(req: Request) {
   };
   let unit: { model: string; role: "indoor" | "outdoor"; coolKw: number | null } | null = null;
   if (brand && model) {
-    const u = await lookupUnit(brand, model);
+    const u = await lookupUnit(brand, model, orgId);
     if (u.found) {
       unit = { model: u.specs.model, role: u.specs.role, coolKw: u.specs.coolKw };
       if (u.specs.role === "outdoor") {

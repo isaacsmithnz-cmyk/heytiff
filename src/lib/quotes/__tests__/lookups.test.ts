@@ -3,7 +3,7 @@ import { join } from "path";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import type { Product } from "../families";
-import { findInBook, pickItem, unitSpecs } from "../lookups";
+import { findInBook, linkedModel, pickItem, unitSpecs } from "../lookups";
 
 /* What a quote looks things up in (slice 1.1): the business's book, ranked
    the way it buys, and the maker's data pack for what a unit is. */
@@ -114,6 +114,21 @@ describe("which item, which supplier", () => {
 
 describe("a unit, from its maker's data pack", () => {
   const packs = { "mitsubishi-electric": shipped() };
+
+  /* Isaac, 2026-10-16: the book's order codes for the AP range aren't the
+     pack's names, and Diamond Air had linked them on the Quoting page */
+  const links = [
+    { model: "MSZ-AP35VGD2", code: "MSZ-AP35VGKD2-A2" },
+    { model: "MUZ-AP35VG2", code: "MUZ-AP35VGD2-A2" },
+  ];
+  it("reads an order code the pack doesn't name through the business's confirmed link, saying so", () => {
+    expect(unitSpecs(packs, "mitsubishi-electric", "MSZ-AP35VGKD2-A2")).toEqual({ found: false, reason: "not in the pack" });
+    expect(unitSpecs(packs, "mitsubishi-electric", "MSZ-AP35VGKD2-A2", links)).toMatchObject({ found: true, linkedFrom: "MSZ-AP35VGKD2-A2", specs: { role: "indoor", model: "MSZ-AP35VGD2" } });
+    expect(unitSpecs(packs, "mitsubishi-electric", "MUZ-AP35VGD2-A2", links)).toMatchObject({ found: true, specs: { role: "outdoor", model: "MUZ-AP35VG2" } });
+    /* the link holds whatever revision tag the code is written with */
+    expect(linkedModel(links, "MSZ-AP35VGKD2")).toBe("MSZ-AP35VGD2");
+    expect(linkedModel(links, "MSZ-AP50VGKD2-A2")).toBeNull();
+  });
 
   it("reads an outdoor unit's size, weight, sound, phase and current, and its pipe", () => {
     const r = unitSpecs(packs, "mitsubishi-electric", "PUZ-ZM125VKA2");

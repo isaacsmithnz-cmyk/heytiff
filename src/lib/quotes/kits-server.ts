@@ -32,7 +32,7 @@ export async function addKit(
   /** ducted: the indoor, whose faces its plenums are made for */
   indoor: { brand: string; model: string } | null = null
 ): Promise<{ ok: true; added: number; still: { name: string; why: string }[] } | { ok: false; reason: string }> {
-  const looked = await Promise.all([unit, indoor].filter((w): w is { brand: string; model: string } => !!w).map((w) => lookupUnit(w.brand, w.model)));
+  const looked = await Promise.all([unit, indoor].filter((w): w is { brand: string; model: string } => !!w).map((w) => lookupUnit(w.brand, w.model, orgId)));
   /* zoned: the maker's zone system, from the pack of the brand it's for */
   const brand = (indoor ?? unit)?.brand ?? null;
   const zoning = kit === "ducted" && facts.zones && brand ? await zoningFor(brand) : null;

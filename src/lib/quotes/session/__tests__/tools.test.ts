@@ -228,8 +228,8 @@ describe("her tools, run", () => {
       /* no model yet: her words, saying what's to choose */
       ["High wall 3.5 kW indoor, brand to choose", null, "unit"],
     ]);
-    expect(lookupUnit).toHaveBeenCalledWith("mitsubishi-electric", "PUZ-ZM100VKA2");
-    expect(lookupUnit).toHaveBeenCalledWith("daikin", "FDYAN100A");
+    expect(lookupUnit).toHaveBeenCalledWith("mitsubishi-electric", "PUZ-ZM100VKA2", "org-1");
+    expect(lookupUnit).toHaveBeenCalledWith("daikin", "FDYAN100A", "org-1");
     (lookupUnit as jest.Mock).mockReset();
   });
 
@@ -320,7 +320,7 @@ describe("her tools, run", () => {
     (lookupPairing as jest.Mock).mockResolvedValueOnce({ found: true, system: "multi", connects: false, said: ["PEFY-P63VMA-E4 is not in MXZ-6F120VGD's list"] });
     const out = await run("pairing_check", { brand: "mitsubishi-electric", outdoor: "MXZ-6F120VGD", indoors: ["PEFY-P63VMA-E4", "PEFY-P63VMA-E4"] });
     expect(out).toMatchObject({ ok: true, label: "Checked the pairing", said: "MXZ-6F120VGD: doesn't connect", value: { connects: false } });
-    expect(lookupPairing).toHaveBeenLastCalledWith("mitsubishi-electric", "MXZ-6F120VGD", ["PEFY-P63VMA-E4", "PEFY-P63VMA-E4"]);
+    expect(lookupPairing).toHaveBeenLastCalledWith("mitsubishi-electric", "MXZ-6F120VGD", ["PEFY-P63VMA-E4", "PEFY-P63VMA-E4"], "org-1");
     expect(await run("pairing_check", { brand: "mitsubishi-electric", outdoor: "MXZ-6F120VGD", indoors: [] })).toMatchObject({ ok: false, error: "Name the brand's pack, the outdoor and every indoor on it." });
   });
 

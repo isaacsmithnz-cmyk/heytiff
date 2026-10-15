@@ -15,6 +15,7 @@ import { taskCheck } from "../task-hours";
 import { namedUnit, unitRoleOf, type UnitRole } from "../unit-name";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
+import { fitRead } from "./read-fit";
 import { airflowCheck, airflowSaid, type AirflowGuide } from "@/lib/guides/airflow";
 import { airflowAskOf, bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
 
@@ -132,31 +133,35 @@ export function makeTools(store: QuoteStore) {
         return {
           ok: true,
           label,
-          value: Array.from({ length: options }, (_, i) => ({
-            option: i,
-            total_ex_gst_cents: price.ok ? (price.options[i] ?? 0) : null,
-            /* the business's own hours for a task, and what they make this
-               option's labour: what assumed labour rests on */
-            ...(Object.keys(set).length ? { your_task_hours: set, by_your_task_hours: taskCheck(lines.filter((l) => l.optionIndex === i), tasks.hours, tasks.dayHours) } : {}),
-            still_to_price: lines.filter((l) => l.optionIndex === i && stillUnknown(l)).map((l) => l.name),
-            lines: lines
-              .filter((l) => l.optionIndex === i)
-              .map((l) => ({
-                id: l.id,
-                version: l.version,
-                system: l.system,
-                group: l.group,
-                name: l.name,
-                code: l.code,
-                kind: l.kind,
-                qty: l.qty,
-                unit: l.unit,
-                cost_each_cents: l.costCents,
-                source: l.source,
-                ...(l.estimate ? { estimate: true } : {}),
-                ...(l.visit ? { visit: visitRead(l.visit) } : { why: l.why }),
-              })),
-          })),
+          /* a long quote narrowed to fit, saying what it left out (read-fit) */
+          value: fitRead(
+            Array.from({ length: options }, (_, i) => ({
+              option: i,
+              total_ex_gst_cents: price.ok ? (price.options[i] ?? 0) : null,
+              /* the business's own hours for a task, and what they make this
+                 option's labour: what assumed labour rests on */
+              ...(Object.keys(set).length ? { your_task_hours: set, by_your_task_hours: taskCheck(lines.filter((l) => l.optionIndex === i), tasks.hours, tasks.dayHours) } : {}),
+              still_to_price: lines.filter((l) => l.optionIndex === i && stillUnknown(l)).map((l) => l.name),
+              lines: lines
+                .filter((l) => l.optionIndex === i)
+                .map((l) => ({
+                  id: l.id,
+                  version: l.version,
+                  system: l.system,
+                  group: l.group,
+                  name: l.name,
+                  code: l.code,
+                  kind: l.kind,
+                  qty: l.qty,
+                  unit: l.unit,
+                  cost_each_cents: l.costCents,
+                  source: l.source,
+                  ...(l.estimate ? { estimate: true } : {}),
+                  ...(l.visit ? { visit: visitRead(l.visit) } : { why: l.why }),
+                })),
+            })),
+            { option: typeof input.option === "number" ? input.option : null, from: typeof input.from === "number" ? input.from : null }
+          ),
           ...(price.ok ? {} : { said: "Quoting isn't set up to price it yet" }),
         };
       }

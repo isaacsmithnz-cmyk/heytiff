@@ -181,8 +181,16 @@ const lineFields = {
 export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "read_quote",
-    description: "The quote as it stands: every option's lines (with each line's id and version, needed to change it), each option's total ex GST and what's still to price.",
-    input_schema: { type: "object", properties: {}, additionalProperties: false },
+    description:
+      "The quote as it stands: every option's lines (with each line's id and version, needed to change it), each option's total ex GST and what's still to price. A long quote comes back narrowed, saying so: one option's lines (the others' totals and what's still to price stay, with lines_not_shown), shortened whys, or a page of lines (read_more_from). Read the rest by option and from.",
+    input_schema: {
+      type: "object",
+      properties: {
+        option: { type: "integer", description: "One option's lines, by its number (0 is the first); every option's total still comes back" },
+        from: { type: "integer", description: "Where a long option's lines carry on from, as the last read said (read_more_from)" },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: "search_book",

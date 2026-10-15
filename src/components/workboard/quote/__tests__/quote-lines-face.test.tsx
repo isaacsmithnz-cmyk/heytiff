@@ -214,6 +214,7 @@ it("adds a unit from the book named by what it is, its model the code", async ()
       : shown(url, init)
   );
   face();
+  await openGroup("Units");
   await screen.findByText("Ducted indoor, under the floor");
   await act(async () => {
     fireEvent.change(screen.getByLabelText("Search your book for a line to add"), { target: { value: "duct out" } });
@@ -371,6 +372,7 @@ it("keeps a unit named by what it is, in its room, when another unit is picked f
     };
   });
   face();
+  await openGroup("Units");
   await screen.findByText("Indoor unit, Bed 1");
   fireEvent.click(screen.getByRole("button", { name: "Indoor unit, Bed 1" }));
   const pick = await screen.findByRole("button", { name: /HWS IND 3.5KW/ }, { timeout: 2000 });

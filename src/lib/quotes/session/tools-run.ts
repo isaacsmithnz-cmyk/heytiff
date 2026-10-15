@@ -13,6 +13,7 @@ import { labourVisitsOf, visitLine } from "../labour-build";
 import { keepPeoplesTasks, visitHours, visitName, type LineVisit } from "../line-visit";
 import { taskCheck } from "../task-hours";
 import { namedUnit, unitRoleOf, type UnitRole } from "../unit-name";
+import type { Pairing } from "../pairing";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
 import { airflowCheck, airflowSaid, type AirflowGuide } from "@/lib/guides/airflow";
@@ -54,6 +55,8 @@ export type QuoteStore = {
   /** an hour of labour's cost to the business; null when it isn't set */
   hourCost: () => Promise<number | null>;
   lookupUnit: (brand: string, model: string) => Promise<UnitLookup>;
+  /** whether an outdoor takes the indoors given, by its maker's book */
+  pairing: (brand: string, outdoor: string, indoors: string[]) => Promise<Pairing>;
   /** each option's total ex GST, cents; not ok when pricing isn't set up */
   totals: () => Promise<{ ok: true; options: number[] } | { ok: false }>;
   /** the supplier the job buys from, where it sells the item; null: any */
@@ -184,6 +187,14 @@ export function makeTools(store: QuoteStore) {
         const model = typeof input.model === "string" ? input.model.trim() : "";
         if (!brand || !model) return fail("Name the brand's pack and the model.");
         return { ok: true, label, said: model, value: await store.lookupUnit(brand, model) };
+      }
+      case "pairing_check": {
+        const brand = typeof input.brand === "string" ? input.brand.trim() : "";
+        const outdoor = typeof input.outdoor === "string" ? input.outdoor.trim() : "";
+        const indoors = Array.isArray(input.indoors) ? input.indoors.filter((m): m is string => typeof m === "string" && m.trim() !== "").map((m) => m.trim()).slice(0, 40) : [];
+        if (!brand || !outdoor || !indoors.length) return fail("Name the brand's pack, the outdoor and every indoor on it.");
+        const p = await store.pairing(brand, outdoor, indoors);
+        return { ok: true, label, said: `${outdoor}: ${!p.found ? p.reason : p.connects === true ? "connects" : p.connects === false ? "doesn't connect" : "not checked"}`, value: p };
       }
       case "room_load": {
         const v = roomLoads(input);

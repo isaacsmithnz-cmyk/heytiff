@@ -201,6 +201,22 @@ export const SESSION_TOOLS: ToolDef[] = [
       "A unit's specs from its maker's data pack: indoor or outdoor, capacity, size, weight, sound, phase, current and pipe. Says \"no data pack\" for a brand HeyTiff has none for: then its figures are assumed and marked not checked.",
     input_schema: { type: "object", properties: { brand: { type: "string", description: "e.g. mitsubishi-electric" }, model: { type: "string" } }, required: ["brand", "model"], additionalProperties: false },
   },
+  /* the bench, 15 October: a VRF ducted head went on a multi outdoor, "pairing not checked" */
+  {
+    name: "pairing_check",
+    description:
+      "Whether an outdoor takes its indoors, by its maker's book: a split's pair from the pair table (and the pair's rated capacity), a multi's set by its combination rules, a VRF's by its own. Says why not in the book's words, and for a split what the outdoor does pair with. Check every system's units before they go on.",
+    input_schema: {
+      type: "object",
+      properties: {
+        brand: { type: "string", description: "The maker's data pack, e.g. mitsubishi-electric" },
+        outdoor: { type: "string", description: "The outdoor's model" },
+        indoors: { type: "array", items: { type: "string" }, description: "Every indoor on that outdoor, one entry a head (a model twice for two of it)" },
+      },
+      required: ["brand", "outdoor", "indoors"],
+      additionalProperties: false,
+    },
+  },
   {
     name: "room_load",
     description:
@@ -597,6 +613,7 @@ export const TOOL_LABELS: Record<string, string> = {
   read_quote: "Read the quote",
   search_book: "Searched your book",
   unit_specs: "Read the data pack",
+  pairing_check: "Checked the pairing",
   room_load: "Sized the rooms",
   add_lines: "Added lines",
   change_line: "Changed a line",

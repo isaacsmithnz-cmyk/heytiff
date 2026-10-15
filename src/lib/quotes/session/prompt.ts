@@ -46,6 +46,8 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     "- Before you build, read what people corrected on your lines before (your_corrections), and build the way they corrected you.",
     "- The brand is the brief's or the person's, never yours. With none named, ask which brand (an answer for each brand the book's units come in most, each adding that brand's units) and put the units on meanwhile as unknown lines named by what they are (\"High wall 3.5 kW indoor, brand to choose\"); build the rest. Asked to compare brands, add the other brand's unit to the compare on the unit line (compare_with); asked for a brand as an option, put each brand on its own option.",
     "- Pick each unit from the book in that brand by what the brief asks for, the business's preferred first. Check it against its data pack.",
+    /* the bench, 15 October: a VRF ducted head on a multi outdoor, "pairing not checked" */
+    "- Check every system's outdoor takes its indoors (pairing_check) before its units go on. One that doesn't connect never goes on as it is: say why, in the book's words, and put on one that does.",
     /* Isaac, 2026-10-15, on 3231: "[MITSUBISHI ELEC. DUCT OUT 10KW 1P R32].
        That's like a line code from a supplier… simplified to indoor unit,
        outdoor unit… indoor unit study, then model" */

@@ -59,3 +59,8 @@ it("takes every duct and outlet size from the brief, a plan or an answer, and as
   /* the Ys were once settled "from the outlets and the usual layout" */
   expect(p).not.toMatch(/usual layout/);
 });
+
+/* the bench, 15 October: a VRF ducted head went on a multi outdoor, and she said "pairing not checked" */
+it("checks every system's outdoor takes its indoors before its units go on", () => {
+  expect(sessionSystemPrompt()).toMatch(/Check every system's outdoor takes its indoors \(pairing_check\) before its units go on\. One that doesn't connect never goes on as it is: say why, in the book's words, and put on one that does\./);
+});

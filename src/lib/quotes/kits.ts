@@ -390,8 +390,12 @@ const DUCTED: KitPart[] = [
     group: "Ductwork and grilles",
     duct: true,
     name: "Floor boot",
+    needs: "Needs the outlets' size",
     skip: (f) => !f.underfloor,
-    search: () => ({ text: "boot" }),
+    /* its spigot is the outlet's size, so only at the size given: any boot
+       the book had was a size nobody said (Isaac, 2026-10-15, on 3231's "8
+       boots": "It needs to be decided by the brief") */
+    search: (f) => (f.outletMm ? { text: "boot", sizeMm: f.outletMm } : null),
     qty: (f) => (f.outlets ? { qty: f.outlets, unit: "", why: `one under each floor grille` } : null),
   },
   {

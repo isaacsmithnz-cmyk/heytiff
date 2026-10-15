@@ -203,6 +203,30 @@ it("adds a line from the book, searched as the business buys", async () => {
   );
 });
 
+/* Isaac, 2026-10-15: "[MITSUBISHI ELEC. DUCT OUT 10KW 1P R32]. That's like
+   a line code from a supplier… simplified to indoor unit, outdoor unit" */
+it("adds a unit from the book named by what it is, its model the code", async () => {
+  const shown = (global as unknown as { fetch: jest.Mock }).fetch.getMockImplementation()!;
+  const outdoor = { supplierKey: "aad", supplierName: "AAD", code: "PUZ-ZM100VKA2", name: "MITSUBISHI ELEC. DUCT OUT 10KW 1P R32", netCents: 310000 };
+  (global as unknown as { fetch: jest.Mock }).fetch.mockImplementation(async (url: string, init?: { body?: string }) =>
+    String(url).startsWith("/api/workboard/quote-lookup")
+      ? { json: async () => ({ ok: true, hits: [{ product: { key: "aad|PUZ-ZM100VKA2", name: outdoor.name, category: "units", offers: [outdoor], cheapest: outdoor, preferred: null, brand: "Mitsubishi Electric", quotes: 0 }, why: "In your book", buyCents: 310000 }] }) }
+      : shown(url, init)
+  );
+  face();
+  await openGroup("Units");
+  await screen.findByText("Ducted indoor, under the floor");
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText("Search your book for a line to add"), { target: { value: "duct out" } });
+  });
+  await act(async () => {
+    fireEvent.click(await screen.findByRole("button", { name: /DUCT OUT 10KW/ }));
+  });
+  await waitFor(() =>
+    expect(posted).toContainEqual(expect.objectContaining({ op: "add", line: expect.objectContaining({ name: "Outdoor unit", code: "PUZ-ZM100VKA2", kind: "unit", group: "Units" }) }))
+  );
+});
+
 it("lists every change with who made it, and undoes one", async () => {
   face();
   expect(await screen.findByText("Luke Bennett")).toBeInTheDocument();
@@ -332,6 +356,30 @@ it("swaps a line for another item of its kind from the book, and makes it prefer
     })
   );
   await waitFor(() => expect(posted.map((b) => b.ref ?? b.op)).toContain("aad|CMADJ"));
+});
+
+/* Isaac, 2026-10-15: a multi's head, "indoor unit study, then model" */
+it("keeps a unit named by what it is, in its room, when another unit is picked for it", async () => {
+  const head = line({ id: "h1", name: "Indoor unit, Bed 1", code: "MSZ-AP25VGD2", kind: "unit" });
+  const bigger = { supplierKey: "aad", supplierName: "AAD", code: "MSZ-AP35VGD2", name: "MITSUBISHI ELEC. HWS IND 3.5KW", netCents: 120000 };
+  (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (url: string, init?: { body?: string }) => {
+    if (init?.body) posted.push(JSON.parse(init.body));
+    return {
+      json: async () =>
+        String(url).startsWith("/api/workboard/quote-lookup")
+          ? { ok: true, hits: [{ product: { key: "aad|MSZ-AP35VGD2", name: bigger.name, category: "units", offers: [bigger], cheapest: bigger, preferred: null, brand: "Mitsubishi Electric", quotes: 0 }, why: "In your book", buyCents: 120000 }] }
+          : view([head]),
+    };
+  });
+  face();
+  await openGroup("Units");
+  await screen.findByText("Indoor unit, Bed 1");
+  fireEvent.click(screen.getByRole("button", { name: "Indoor unit, Bed 1" }));
+  const pick = await screen.findByRole("button", { name: /HWS IND 3.5KW/ }, { timeout: 2000 });
+  await act(async () => {
+    fireEvent.click(pick);
+  });
+  await waitFor(() => expect(posted).toContainEqual(expect.objectContaining({ op: "change", id: "h1", patch: expect.objectContaining({ name: "Indoor unit, Bed 1", code: "MSZ-AP35VGD2" }) })));
 });
 
 /* provisional sums, slice 12.1 */

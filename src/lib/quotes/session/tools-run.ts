@@ -12,6 +12,7 @@ import type { Research } from "../research";
 import { labourVisitsOf, visitLine } from "../labour-build";
 import { keepPeoplesTasks, visitHours, visitName, type LineVisit } from "../line-visit";
 import { taskCheck } from "../task-hours";
+import { namedUnit, unitRoleOf, type UnitRole } from "../unit-name";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
 import { bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
@@ -70,15 +71,38 @@ export type QuoteStore = {
 
 const SEARCH_LIMIT = 12;
 
+/** A unit's role off its maker's data pack, where the book names its maker
+    and HeyTiff holds the maker's pack ("Mitsubishi Electric" is
+    mitsubishi-electric); null otherwise, and the words say. */
+async function packRole(store: Pick<QuoteStore, "lookupUnit">, item: { code: string; brand: string | null }): Promise<UnitRole | null> {
+  if (!item.brand) return null;
+  try {
+    const u = await store.lookupUnit(item.brand.toLowerCase().replace(/[^a-z0-9]+/g, "-"), item.code);
+    return u?.found ? u.specs.role : null;
+  } catch {
+    return null;
+  }
+}
+
+/** What a unit line from the book is called (unit-name.ts): "Indoor unit",
+    "Outdoor unit", a head with the room `words` give it, by the role its
+    pack, the book's words or `words` say; `words` as given when none says,
+    never the supplier's description. */
+export async function unitNameOf(store: Pick<QuoteStore, "lookupUnit">, item: { name: string; code: string; brand: string | null }, words: string): Promise<string> {
+  return namedUnit(unitRoleOf(await packRole(store, item), item, { name: words }), words);
+}
+
 /** A new line as it goes on: a book item priced from the book, labour at
     the business's hour, anything else not known yet. */
-export async function lineFor(store: Pick<QuoteStore, "book" | "hourCost" | "supplier">, l: NewLine): Promise<Record<string, unknown> | string> {
+export async function lineFor(store: Pick<QuoteStore, "book" | "hourCost" | "supplier" | "lookupUnit">, l: NewLine): Promise<Record<string, unknown> | string> {
   const base = { optionIndex: l.optionIndex, system: l.system, group: l.group, kind: l.kind, qty: l.qty, unit: l.unit, source: l.source, why: l.why, sellCents: l.sellCents ?? null, duct: l.duct ?? false };
   if (l.kind === "labour") return { ...base, name: l.name, costCents: (await store.hourCost()) ?? 0 };
   if (l.code) {
     const p = bookPrice(await store.book(), l.code, l.unit, await store.supplier());
     if (!p) return `${l.name}: ${l.code} isn't in the business's book. Search the book for what it buys, or add it with no code as not known yet.`;
-    return { ...base, name: p.name, code: p.code, supplierKey: p.supplierKey, kind: l.kind === "unit" || p.kind === "unit" ? "unit" : "material", costCents: p.costCents };
+    const kind = l.kind === "unit" || p.kind === "unit" ? "unit" : "material";
+    /* a unit by what it is, its model the code; any other item by the book's own name */
+    return { ...base, name: kind === "unit" ? await unitNameOf(store, p, l.name) : p.name, code: p.code, supplierKey: p.supplierKey, kind, costCents: p.costCents };
   }
   /* no code and a price the person gave: theirs, as they said it */
   if (l.sellCents) return { ...base, name: l.name, code: null, supplierKey: null, costCents: 0 };
@@ -191,11 +215,19 @@ export function makeTools(store: QuoteStore) {
         if (isErr(p)) return fail(p.error);
         /* the line's reason is the change's: an old one never stays behind it */
         const patch: Record<string, unknown> = { ...p.patch };
+        const line = p.patch.code || p.patch.name ? (await store.readLines()).find((l) => l.id === p.id) : undefined;
+        /* a unit keeps the room it's named for, unless she names another */
+        const words = p.patch.name ?? line?.name ?? "";
         if (p.patch.code) {
-          const unit = p.patch.unit ?? (await store.readLines()).find((l) => l.id === p.id)?.unit ?? "";
+          const unit = p.patch.unit ?? line?.unit ?? "";
           const priced = bookPrice(await store.book(), p.patch.code, unit, await store.supplier());
           if (!priced) return fail(`${p.patch.code} isn't in the business's book. Search the book for what it buys.`);
-          Object.assign(patch, { code: priced.code, name: priced.name, supplierKey: priced.supplierKey, costCents: priced.costCents, sellCents: p.patch.sellCents ?? null });
+          const name = line?.kind === "unit" || priced.kind === "unit" ? await unitNameOf(store, priced, words) : priced.name;
+          Object.assign(patch, { code: priced.code, name, supplierKey: priced.supplierKey, costCents: priced.costCents, sellCents: p.patch.sellCents ?? null });
+        } else if (p.patch.name && line?.kind === "unit" && line.code) {
+          /* a unit she renames is still named by what it is */
+          const item = bookPrice(await store.book(), line.code, line.unit, await store.supplier());
+          patch.name = await unitNameOf(store, item ?? { name: line.name, code: line.code, brand: null }, words);
         }
         const res = await store.changeLine(p.id, p.version, patch, p.patch.why);
         if (!res.ok) return fail(res.reason);

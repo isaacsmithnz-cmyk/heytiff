@@ -34,6 +34,11 @@ jest.mock("../tools-server", () => ({
     hourCost: async () => 11200,
     supplier: async () => null,
     lineFor: async (l: { name: string }) => ({ ...l, costCents: 0 }),
+    /* the words alone, as with no data pack */
+    unitName: async (item: { name: string; code: string }, words: string) => {
+      const { namedUnit, unitRoleOf } = jest.requireActual("../../unit-name");
+      return namedUnit(unitRoleOf(null, item, { name: words }), words);
+    },
   }),
 }));
 
@@ -87,7 +92,8 @@ describe("a tapped answer", () => {
   it("makes its changes as the person, saying what they answered, and goes in the thread", async () => {
     expect(await answerQuestion("org", "job", "u-isaac", 5, 1, events)).toEqual({ ok: true, goOn: false });
     const why = "“Three phase”, to “Single or three phase at the board?”";
-    expect(changeLine).toHaveBeenCalledWith("org", "job", "od", 1, expect.objectContaining({ code: "PUZ-ZM125YKA2", costCents: 340000, source: "said" }), "u-isaac", why);
+    /* a unit swapped is named by what it is (Isaac, 2026-10-15) */
+    expect(changeLine).toHaveBeenCalledWith("org", "job", "od", 1, expect.objectContaining({ name: "Outdoor unit", code: "PUZ-ZM125YKA2", costCents: 340000, source: "said" }), "u-isaac", why);
     expect(removeLine).toHaveBeenCalledWith("org", "job", "iso", 1, "u-isaac", why);
     expect(addEvents).toHaveBeenCalledWith("org", "s1", null, [{ kind: "message", author: "u-isaac", body: { text: "Three phase", answered: 5, index: 1, question: phase.question } }]);
   });

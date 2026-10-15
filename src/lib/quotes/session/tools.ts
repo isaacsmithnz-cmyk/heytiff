@@ -166,7 +166,7 @@ const lineFields = {
   option: { type: "integer", description: "The option it's on, counted from 0." },
   system: { type: "string", description: "The system it's part of, as the quote names it: \"Downstairs\", \"Living\". Empty for labour and anything shared." },
   group: { type: "string", description: "Its group: Units, Ductwork and grilles, Pipe, power and controls, Mounting and drain, Labour, or one the job needs." },
-  name: { type: "string", description: "What it is. For a book item, the book's own name." },
+  name: { type: "string", description: "What it is. A book item goes on under the book's own name; a unit by what it is, \"Indoor unit\", \"Outdoor unit\", a head \"Indoor unit, Study\"." },
   code: { type: "string", description: "The book item's code, exactly as search_book gave it. Leave out for an allowance nobody has priced yet." },
   kind: { type: "string", enum: [...KINDS] },
   qty: { type: "number", description: "How many; metres for a length; hours for labour." },
@@ -235,7 +235,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   },
   {
     name: "add_lines",
-    description: `Add up to ${MAX_ADD} lines. A line with a code is priced from the book; a code the book hasn't got is refused. Labour is hours (unit h, no code), named by its stage and crew: \"Rough-in: 2 people\".`,
+    description: `Add up to ${MAX_ADD} lines. A line with a code is priced from the book; a code the book hasn't got is refused. A unit is named by what it is, \"Indoor unit\" or \"Outdoor unit\", a multi's or VRF's head by the room it serves, \"Indoor unit, Study\"; its model is its code. Labour is hours (unit h, no code), named by its stage and crew: \"Rough-in: 2 people\".`,
     input_schema: {
       type: "object",
       properties: { lines: { type: "array", maxItems: MAX_ADD, items: { type: "object", properties: lineFields, required: ["option", "group", "name", "kind", "qty", "source", "why"], additionalProperties: false } } },
@@ -272,7 +272,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "add_kit",
     description:
-      "Add the parts a split or ducted system takes to install, each picked from the book: pipe, interconnect, power, breaker, isolator, mount, drain, trunking; for ducted the supply plenum made for the indoor's face and a return plenum where its return has one, the Ys and reducers of the layout, the flex, outlets, and the return grille and box at their size. Name the outdoor and its pipe and current are read off its pack; name the indoor and its faces are. A fact left out leaves its part on the quote as not known yet. Change any part after, saying why.",
+      "Add the parts a split or ducted system takes to install, each picked from the book: pipe, interconnect, power, breaker, isolator, mount, drain, trunking; for ducted the supply plenum made for the indoor's face and a return plenum where its return has one, the Ys and reducers of the layout, the flex, outlets, and the return grille and box at their size. Name the outdoor and its pipe and current are read off its pack; name the indoor and its faces are. A fact left out leaves its part on the quote as not known yet. Every duct size (takeoffs, fittings, reducers, outlet_mm) is the brief's, a plan's or the person's, never a usual one: leave out a size nothing gives. Change any part after, saying why.",
     input_schema: {
       type: "object",
       properties: {
@@ -282,7 +282,7 @@ export const SESSION_TOOLS: ToolDef[] = [
         brand: { type: "string", description: "The outdoor's data pack, e.g. mitsubishi-electric" },
         model: { type: "string", description: "The outdoor's model" },
         indoor_model: { type: "string", description: "Ducted: the indoor's model, from the same pack: its plenums are made for its faces" },
-        takeoffs: { type: "array", items: { type: "number" }, description: "Ducted: the spigots the ductwork takes off the supply plenum, mm: [400, 400]" },
+        takeoffs: { type: "array", items: { type: "number" }, description: "Ducted: the spigots the ductwork takes off the supply plenum, mm, as the brief, a plan or the person gives them: [400, 400]. Leave out when nothing gives them" },
         fittings: {
           type: "array",
           description: "Ducted: where the main duct splits, each Y's size in and outs, mm, and how many",
@@ -302,7 +302,7 @@ export const SESSION_TOOLS: ToolDef[] = [
         trunking_m: { type: "number" },
         drain_m: { type: "number" },
         outlets: { type: "integer" },
-        outlet_mm: { type: "number" },
+        outlet_mm: { type: "number", description: "Ducted: the outlets' size, mm, as the brief, a plan or the person gives it. Leave out when nothing gives it, never a usual size" },
         replacing: { type: "string", enum: ["no", "yes", "keep"], description: "An old system comes out; keep: and its pipe is kept" },
         underfloor: { type: "boolean", description: "Ducted: the indoor goes under the floor, its outlets floor grilles on boots" },
         kept_pipe: { type: "string", enum: [...OLD_PIPES] },
@@ -420,7 +420,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "write_proposal",
     description:
-      "Write the proposal's words, the way the client reads them: the title and an introduction of two or three sentences, and for an option its summary (what it is and why, in plain words), the work by area and what's included. What isn't included and how the client chooses (one option, or any they tick) are the whole proposal's. Give only what you're writing; the rest stays. Never a price or a figure: those come from the lines. A person approves it before it goes.",
+      "Write the proposal's words, the way the client reads them: the title and an introduction of two or three sentences, and for an option its summary (what it is and why, in plain words), the work by area and what's included. What isn't included and how the client chooses (one option, or any they tick) are the whole proposal's. Give only what you're writing; the rest stays. Never a price or a figure: those come from the lines. Plainly and with confidence, as the business puts it to its client: no hedge or working (about, approximately, assumed, an allowance per item, a count not settled), a choice still open as \"Floor grille style to be confirmed with you\", and never the business's own notes. A person approves it before it goes.",
     input_schema: {
       type: "object",
       properties: {
@@ -589,7 +589,7 @@ export function bookPrice(
   unit: LineUnit,
   /** the job's supplier: its offer of the same item, where it sells it */
   supplier: string | null = null
-): { name: string; code: string; supplierKey: string; costCents: number; kind: "unit" | "material" } | null {
+): { name: string; code: string; supplierKey: string; costCents: number; kind: "unit" | "material"; brand: string | null } | null {
   const want = code.trim().toUpperCase();
   if (supplier) {
     const p = products.find((x) => x.offers.some((o) => o.code.toUpperCase() === want));
@@ -616,6 +616,8 @@ function priced(p: Product, o: Offer, unit: LineUnit) {
     supplierKey: o.supplierKey,
     costCents: roll && roll > 1 ? Math.round((o.netCents / roll) * 10) / 10 : o.netCents,
     kind: p.category === "units" ? ("unit" as const) : ("material" as const),
+    /* its maker, for a unit's pack (unit-name.ts) */
+    brand: p.brand ?? null,
   };
 }
 

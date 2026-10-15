@@ -6729,7 +6729,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    underline on the band's rule; where Tiff isn't on for the business the
    line items are the column, with no tabs. */
 .fg .qc-day { flex:none; padding:16px 24px; border-bottom:1px solid var(--hd-rule); }
-.fg .qc-body { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0, 1fr) 360px; }
+.fg .qc-body { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0, 1fr) 360px; grid-template-rows:minmax(0, 1fr); }
 .fg .qc-main { min-width:0; min-height:0; display:flex; flex-direction:column; border-right:1px solid var(--hd-rule); }
 .fg .qc-rail { min-height:0; overflow:auto; display:flex; flex-direction:column; gap:24px; padding:16px 24px 24px; }
 .fg .qc-rs { display:flex; flex-direction:column; gap:12px; }
@@ -6747,7 +6747,10 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt[hidden] { display:none; }
 .fg .qc-thread { flex:1; min-height:0; overflow:auto; padding:24px 48px 16px; }
 .fg .qc-col { max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:24px; }
-.fg .qc-col .qt-bub { max-width:620px; white-space:normal; }
+.fg .qc-col .qt-bub { max-width:620px; }
+/* yours and a person's words are paragraphs of their own; a web search's
+   summary keeps its line breaks */
+.fg .qc-col .qt-bub.me, .fg .qc-col .qt-bub.them { white-space:normal; }
 .fg .qc-col .qt-bub p { margin:0; line-height:1.6; white-space:pre-line; }
 .fg .qc-col .qt-bub p + p { margin-top:8px; }
 .fg .qc-her { align-items:stretch; gap:8px; }

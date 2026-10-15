@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { LineChange } from "@/lib/quotes/lines-server";
 import { againstFirst, missingFromFirst, type QuoteLine } from "@/lib/quotes/lines";
@@ -207,6 +207,16 @@ export function QuoteLinesFace({
   /* the column: the conversation and the line items, or the line items alone */
   const chat = tiff?.on === true;
   const linesUp = tiff !== null && (!chat || tab === "lines");
+  /* its tabs, a tablist as the app's are (view-tabs.tsx): each names the
+     panel it shows, and the arrow keys walk them */
+  const tabsId = useId();
+  const tabKeys = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    const next = e.key === "Home" ? "chat" : e.key === "End" ? "lines" : tab === "chat" ? "lines" : "chat";
+    setTab(next);
+    document.getElementById(`${tabsId}-${next}`)?.focus();
+  };
 
   const act = async (body: Record<string, unknown>) => {
     setBusy(true);
@@ -357,10 +367,16 @@ export function QuoteLinesFace({
   /* on the proposal, every option is reviewed before it's approved; on the
      lines, the option open */
   const quoteOptions = Array.from({ length: options }, (_, i) => i).filter((i) => !(view?.variations ?? []).some((v) => v.option === i));
-  const checks: Check[] =
-    paper && !variation
+  /* her questions are the conversation's, and the paper stands in its
+     place: the review says how many she's still waiting on */
+  const hersOpen: Check[] =
+    paper && chat && asked > 0 ? [{ tone: "due", text: asked === 1 ? "Tiff's question: not answered yet" : `Tiff's ${asked} questions: not answered yet` }] : [];
+  const checks: Check[] = [
+    ...hersOpen,
+    ...(paper && !variation
       ? quoteOptions.map((i) => checksFor(i).map((c) => (quoteOptions.length > 1 ? { ...c, text: `Option ${i + 1}: ${c.text}` } : c))).flat()
-      : checksFor(at);
+      : checksFor(at)),
+  ];
   const confirmTitle = paper ? "Before you approve" : "To confirm";
 
   /* what the page has to confirm: under Tiff's questions at the foot of the
@@ -405,6 +421,7 @@ export function QuoteLinesFace({
       price={price}
       option={priced ?? undefined}
       label={`${options > 1 ? `Option ${at + 1}, total` : "Total"} ex GST${left ? ", so far" : ""}`}
+      left={left}
       hours={hoursIn(all, at, contingencyHours(o?.build))}
       variation={variation && baseOpt ? { n: variation.n, of: baseOpt, hours: hoursIn(all, base, contingencyHours(baseOpt.build)) } : null}
       building={building}
@@ -474,13 +491,23 @@ export function QuoteLinesFace({
       <div className="qc-body">
         <div className="qc-main">
           {chat && !paper && (
-            <div className="qc-tabs" role="tablist" aria-label="The quote">
-              <button type="button" role="tab" aria-selected={tab === "chat"} className={tab === "chat" ? "qc-tab on" : "qc-tab"} onClick={() => setTab("chat")}>
-                Conversation
-              </button>
-              <button type="button" role="tab" aria-selected={tab === "lines"} className={tab === "lines" ? "qc-tab on" : "qc-tab"} onClick={() => setTab("lines")}>
-                Line items
-              </button>
+            <div className="qc-tabs" role="tablist" aria-label="Conversation and line items">
+              {(["chat", "lines"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  id={`${tabsId}-${k}`}
+                  aria-controls={`${tabsId}-${k}-panel`}
+                  aria-selected={tab === k}
+                  tabIndex={tab === k ? 0 : -1}
+                  className={tab === k ? "qc-tab on" : "qc-tab"}
+                  onClick={() => setTab(k)}
+                  onKeyDown={tabKeys}
+                >
+                  {k === "chat" ? "Conversation" : "Line items"}
+                </button>
+              ))}
             </div>
           )}
           {note && <p className="wb2-sherr qc-note">{note}</p>}
@@ -489,11 +516,13 @@ export function QuoteLinesFace({
           <TiffPanel
             job={job}
             hidden={paper || tab !== "chat"}
+            panel={chat && !paper ? { id: `${tabsId}-chat-panel`, tab: `${tabsId}-chat` } : undefined}
             start={start}
             onStatus={setTiff}
             onOpen={setAsked}
             onPlan={setPlan}
-            confirm={confirm}
+            /* behind the paper, the review is the rail's */
+            confirm={paper ? null : confirm}
             confirmTitle={confirmTitle}
             onChanged={() => {
               reload();
@@ -543,7 +572,7 @@ export function QuoteLinesFace({
             </div>
           ) : (
             linesUp && (
-              <div className="qc-lines" role={chat ? "tabpanel" : undefined} aria-label={chat ? "Line items" : undefined}>
+              <div className="qc-lines" role={chat ? "tabpanel" : undefined} id={chat ? `${tabsId}-lines-panel` : undefined} aria-labelledby={chat ? `${tabsId}-lines` : undefined}>
                 <div className="hd-face qp-face ql-face">{lineItems}</div>
               </div>
             )
@@ -581,7 +610,10 @@ export function QuoteLinesFace({
           </>
         )}
         <QuoteRail
-          confirm={tiff !== null && !chat ? confirm : null}
+          /* the conversation holds what's to confirm, except where there is
+             none, or the paper is up in its place: before approving, the
+             review stands beside the paper (11.1) */
+          confirm={tiff !== null && (!chat || paper) ? confirm : null}
           confirmTitle={confirmTitle}
           card={card}
           building={building}

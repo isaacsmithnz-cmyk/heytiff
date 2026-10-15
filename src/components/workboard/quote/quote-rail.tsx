@@ -14,7 +14,8 @@ import type { Sm8Quote } from "../board/job-quote-card";
 /* THE RAIL: what the quote comes to, beside the conversation (the
    chat-first quote page, Isaac, 2026-10-13). Its own scroll, 360 wide: what's
    To confirm when Tiff isn't on for the business (with her on, it's the
-   conversation's), the quote's card, what goes to ServiceM8 once it's
+   conversation's, till the paper stands in its place: then Before you
+   approve is here), the quote's card, what goes to ServiceM8 once it's
    approved or accepted, the quote ServiceM8 already holds, and what Tiff
    has cost, to someone who sees money. */
 
@@ -33,6 +34,7 @@ export function QuoteCard({
   price,
   option,
   label,
+  left,
   hours,
   variation,
   building,
@@ -44,6 +46,9 @@ export function QuoteCard({
   option: OptionPrice | undefined;
   /** "Total ex GST", with the option and ", so far" as they apply */
   label: string;
+  /** something is still to price: every figure is so far, and the profit
+      claims no state against the target until nothing is */
+  left: boolean;
   /** the option's labour hours, the contingency's included */
   hours: number;
   /** a variation open: the accepted option it changes, and that one's hours */
@@ -94,7 +99,7 @@ export function QuoteCard({
           <div className="qp-profit">
             <span>Profit</span>
             <b>{signed(profit)}</b>
-            {ex !== 0 && <small>{`${Math.round((profit / ex) * 1000) / 10}% of it`}</small>}
+            {left ? <small>so far</small> : ex !== 0 && <small>{`${Math.round((profit / ex) * 1000) / 10}% of it`}</small>}
           </div>
         )}
         {button}
@@ -107,13 +112,21 @@ export function QuoteCard({
   const whole = parts.reduce((n, p) => n + Math.max(0, p.cents), 0);
   const profit = option?.profit ?? null;
   /* the state in its colour, in words: over the target, or how far under
-     and what would meet it; with no target, the figures alone */
-  const tone = !profit || profit.targetPct == null ? "" : profit.short ? "warn" : "ok";
-  const words = !profit || profit.targetPct == null
+     and what would meet it; with no target, the figures alone. While
+     anything is still to price the figures are so far, and so is the
+     profit: no state, and no price to meet the target worked out from part
+     of the quote (the head said what was left to confirm there, and its red
+     sentence waited until nothing was) */
+  const tone = !profit || profit.targetPct == null || left ? "" : profit.short ? "warn" : "ok";
+  const words = !profit
     ? null
-    : profit.short
-      ? `under your ${profit.targetPct}% target by ${cents2(profit.short.cents)}. ${cents2(profit.short.priceCents)} ex GST would meet it`
-      : `${profit.pct > profit.targetPct ? "over" : "at"} your ${profit.targetPct}%`;
+    : left
+      ? "so far"
+      : profit.targetPct == null
+        ? null
+        : profit.short
+          ? `under your ${profit.targetPct}% target by ${cents2(profit.short.cents)}. ${cents2(profit.short.priceCents)} ex GST would meet it`
+          : `${profit.pct > profit.targetPct ? "over" : "at"} your ${profit.targetPct}%`;
   return (
     <div className="qp-card">
       <div className="qp-tot">
@@ -173,6 +186,10 @@ export function QuoteCard({
 export function AlreadyQuoted({ sm8, onOpenPaper }: { sm8: Sm8Quote | null; onOpenPaper?: (item: JobMediaItem) => void }) {
   if (!sm8 || (sm8.papers.length === 0 && !sm8.sentOn)) return null;
   const [first, ...more] = sm8.papers;
+  /* a PDF not brought across yet has nothing to open: the row is words, and
+     every PDF keeps its own row, so none drops off the page with its "not
+     brought across yet" */
+  const rows = first?.url ? more : sm8.papers;
   const row = (
     <>
       <Icon name="servicem8" size={18} />
@@ -194,7 +211,7 @@ export function AlreadyQuoted({ sm8, onOpenPaper }: { sm8: Sm8Quote | null; onOp
       ) : (
         <div className="qc-row">{row}</div>
       )}
-      {more.map((p) => (
+      {rows.map((p) => (
         <DocRow key={p.remoteId} item={p} onOpen={(item) => onOpenPaper?.(item)} />
       ))}
     </section>
@@ -211,7 +228,8 @@ export function QuoteRail({
   onOpenPaper,
   spentUsd,
 }: {
-  /** what's To confirm, when the conversation isn't there to hold it */
+  /** what's To confirm, or Before you approve on the paper, when the
+      conversation isn't there to hold it */
   confirm: ReactNode;
   confirmTitle: string;
   /** the quote's card, to someone who sees money; null to anyone else */

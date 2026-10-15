@@ -72,11 +72,16 @@ const face = (onPriced = jest.fn()) => render(<QuoteLinesFace job="job-3377" pri
 it("shows the total in its card, each system with its total, and every line's qty, cost and sell", async () => {
   face();
   expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
-  /* the rail's card: the total, the profit as a bar with its state in words */
+  /* the rail's card: the total, and the profit as a bar; with the core hole
+     and the labour still to price, both are so far, and the profit claims
+     no state against the target */
   const card = within(screen.getByRole("region", { name: "The quote" }));
   expect(card.getByText("Total ex GST, so far").nextElementSibling).toHaveTextContent("$1,334.38");
   expect(card.getByText("$1,467.82 inc GST")).toBeInTheDocument();
-  expect(card.getByText("$266.88").closest(".qp-profit")).toHaveClass("ok");
+  const profit = card.getByText("$266.88").closest(".qp-profit")!;
+  expect(profit.className).toBe("qp-profit");
+  expect(profit).toHaveTextContent(/so far$/);
+  expect(card.queryByText(/your 20%/)).toBeNull();
   expect(screen.getByRole("heading", { name: "Downstairs" })).toBeInTheDocument();
   expect(screen.getByLabelText("Quantity of Ducted indoor, under the floor")).toHaveValue("1");
   expect(screen.getByLabelText("What one Ducted indoor, under the floor costs you")).toHaveValue("1067.50");
@@ -581,10 +586,21 @@ describe("the quote card", () => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => ({ json: async () => ({ ...view(lines), ...extra }) }));
   };
   const cardIn = () => within(screen.getByRole("region", { name: "The quote" }));
+  /* the indoor unit and a day's labour, every line priced: nothing left */
+  const whole = priceBuildUp([buildLineOf(indoor)], [{ stage: "Install", people: 1, days: 1 }], settings);
+  const pricedAt = (profit: Record<string, unknown>) =>
+    render(
+      <QuoteLinesFace
+        job="job-3377"
+        price={{ ok: true, options: [{ name: "Option 1", build: whole, unpriced: [], rows: 2, labourFrom: "you", profit: { costCents: 106750, profitCents: 26688, pct: 20, targetPct: 20, hourCostCents: 11200, short: null, ...profit } }], chargeOutCents: 14000 }}
+        actionsEl={null}
+        onPriced={jest.fn()}
+      />
+    );
 
   it("says the profit stands, in green, at or over the target", async () => {
     only([indoor]);
-    face();
+    pricedAt({});
     await screen.findByText("Ducted indoor, under the floor");
     expect(cardIn().getByText("at your 20%").closest(".qp-profit")).toHaveClass("ok");
     expect(within(cardIn().getByRole("list", { name: "Its parts" })).getByText("Units").parentElement).toHaveTextContent("$1,334.38");
@@ -593,12 +609,25 @@ describe("the quote card", () => {
   /* it was a red sentence under the head (.qp-short) */
   it("says how far under the target it is, in amber, and the price that would meet it", async () => {
     only([indoor]);
-    const short = { ...(price as Extract<QuotePrice, { ok: true }>).options[0]!, unpriced: [], labourFrom: "you" as const, profit:{ costCents: 106750, profitCents: 26688, pct: 20, targetPct: 30, hourCostCents: 11200, short: { cents: 18062, priceCents: 152500 } } };
-    render(<QuoteLinesFace job="job-3377" price={{ ok: true, options: [short], chargeOutCents: 14000 }} actionsEl={null} onPriced={jest.fn()} />);
+    pricedAt({ targetPct: 30, short: { cents: 18062, priceCents: 152500 } });
     await screen.findByText("Ducted indoor, under the floor");
     const bar = cardIn().getByText("under your 30% target by $180.62. $1,525.00 ex GST would meet it").closest(".qp-profit");
     expect(bar).toHaveClass("warn");
     expect(bar).toHaveTextContent("20%$266.88");
+  });
+
+  /* the red sentence waited until nothing was left to price: a price to
+     meet the target, worked out from part of the quote, is a wrong price */
+  it("claims no state, and no price to meet the target, while anything is still to price", async () => {
+    only([indoor, core]);
+    const short = { ...(price as Extract<QuotePrice, { ok: true }>).options[0]!, profit: { costCents: 106750, profitCents: 26688, pct: 20, targetPct: 30, hourCostCents: 11200, short: { cents: 18062, priceCents: 152500 } } };
+    render(<QuoteLinesFace job="job-3377" price={{ ok: true, options: [short], chargeOutCents: 14000 }} actionsEl={null} onPriced={jest.fn()} />);
+    await screen.findByText("Ducted indoor, under the floor");
+    const bar = cardIn().getByText("$266.88").closest(".qp-profit")!;
+    expect(bar.className).toBe("qp-profit");
+    expect(bar).toHaveTextContent("20%$266.88so far");
+    expect(cardIn().queryByText(/would meet it/)).toBeNull();
+    expect(cardIn().queryByText(/under your/)).toBeNull();
   });
 
   it("lists every group in the one order, the duct contingency's hours at the rate, adding up to the total", async () => {
@@ -857,6 +886,18 @@ it("shows ServiceM8's quote in the rail as Already quoted, its PDF opening there
   expect(onOpenPaper).toHaveBeenCalledWith(paper);
 });
 
+/* the row opens its PDF only once it's brought across: until then the PDF
+   is a row of its own, with its name and its "not brought across yet" */
+it("keeps a ServiceM8 PDF not brought across yet on the page, with nothing to open", async () => {
+  const paper = { remoteId: "att-q", name: "Quote #3377", fileType: ".pdf", kind: "document" as const, origin: "Quote", takenAt: "2026-10-01 14:25:35", url: null, width: null, height: null, fromClaim: null };
+  render(<QuoteLinesFace job="job-3377" price={price} actionsEl={null} onPriced={jest.fn()} sm8={{ papers: [paper], sentOn: "2026-10-01", value: null }} />);
+  const group = within(await screen.findByRole("region", { name: "Already quoted" }));
+  expect(group.getByText("Their quote to the client, Thu 1 Oct")).toBeInTheDocument();
+  expect(group.getByText("Quote #3377")).toBeInTheDocument();
+  expect(group.getByText(/not brought across yet/)).toBeInTheDocument();
+  expect(group.queryByRole("button")).toBeNull();
+});
+
 it("shows no ServiceM8 quote on a job ServiceM8 never quoted", async () => {
   render(<QuoteLinesFace job="job-3377" price={price} actionsEl={null} onPriced={jest.fn()} sm8={{ papers: [], sentOn: null, value: null }} />);
   expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
@@ -915,6 +956,49 @@ describe("the page turned round", () => {
     expect(screen.getByText("Priced from your book.")).toBeVisible();
   });
 
+  it("names the panel each tab shows, and the arrow keys walk them", async () => {
+    tiffOn();
+    face();
+    const chat = await screen.findByRole("tab", { name: "Conversation" });
+    expect(screen.getByRole("tablist", { name: "Conversation and line items" })).toContainElement(chat);
+    expect(screen.getByRole("tabpanel", { name: "Conversation" })).toHaveAttribute("id", chat.getAttribute("aria-controls"));
+    expect(chat).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: "Line items" })).toHaveAttribute("tabindex", "-1");
+    fireEvent.keyDown(chat, { key: "ArrowRight" });
+    const lines = screen.getByRole("tab", { name: "Line items" });
+    expect(lines).toHaveAttribute("aria-selected", "true");
+    expect(lines).toHaveFocus();
+    expect(screen.getByRole("tabpanel", { name: "Line items" })).toHaveAttribute("id", lines.getAttribute("aria-controls"));
+  });
+
+  /* 11.1 with her on: the paper stands where the conversation was, so the
+     review that was the conversation's foot stands beside it in the rail,
+     her open questions counted in it */
+  it("reviews every option beside the paper while Tiff is on, her open questions with them (11.1)", async () => {
+    const second = { ...core, id: "l3", optionIndex: 1, name: "Core hole 100 mm" };
+    const asking = {
+      ...session,
+      events: [...session.events, { id: 2, turnId: "t1", kind: "question", author: "tiff", at: "", body: { question: "Single or three phase?", answers: [] } }],
+      questions: { 2: { deltas: [], answered: null } },
+    };
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(async (url: string) => ({
+      json: async () => (String(url).startsWith("/api/workboard/quote-session") ? asking : view([indoor, core, second])),
+    }));
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    render(<QuoteLinesFace job="job-3377" price={price} actionsEl={el} onPriced={jest.fn()} />);
+    expect(await screen.findByText("Single or three phase?")).toBeVisible();
+    fireEvent.click(await within(el).findByRole("button", { name: "View quote" }));
+    const rail = within(screen.getByRole("complementary", { name: "On this quote" }));
+    const review = within(rail.getByRole("region", { name: "Before you approve" }));
+    expect(review.getByText("Tiff's question: not answered yet")).toBeVisible();
+    expect(review.getByText("Option 1: Core hole 200 mm: not known yet")).toBeVisible();
+    expect(review.getByText("Option 2: Core hole 100 mm: not known yet")).toBeVisible();
+    /* once, beside the paper: the conversation behind it holds no copy */
+    expect(screen.getAllByText("Option 1: Core hole 200 mm: not known yet")).toHaveLength(1);
+    el.remove();
+  });
+
   it("says what Tiff has cost at the rail's foot, to someone who sees money", async () => {
     tiffOn();
     face();
@@ -940,7 +1024,7 @@ describe("the page turned round", () => {
   it("lays the line items out as the column, with no tabs, where Tiff isn't on, and To confirm heads the rail", async () => {
     face();
     expect(await screen.findByText("Ducted indoor, under the floor")).toBeInTheDocument();
-    expect(screen.queryByRole("tablist", { name: "The quote" })).toBeNull();
+    expect(screen.queryByRole("tablist", { name: "Conversation and line items" })).toBeNull();
     const rail = within(screen.getByRole("complementary", { name: "On this quote" }));
     expect(before(rail.getByRole("region", { name: "To confirm" }), rail.getByRole("region", { name: "The quote" }))).toBe(true);
     /* the lines are already the page: nothing to switch to */
@@ -950,7 +1034,7 @@ describe("the page turned round", () => {
   it("lays out nothing of the column until it knows whether Tiff is on", () => {
     (global as unknown as { fetch: unknown }).fetch = jest.fn(() => new Promise(() => undefined));
     face();
-    expect(screen.queryByRole("tablist", { name: "The quote" })).toBeNull();
+    expect(screen.queryByRole("tablist", { name: "Conversation and line items" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Add a line" })).toBeNull();
   });
 });

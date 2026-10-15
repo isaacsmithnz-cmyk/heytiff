@@ -69,6 +69,31 @@ it("runs the conversation down the column, what's to confirm at its foot, then t
   expect(before(confirm, box)).toBe(true);
 });
 
+/* the first read lays the page out, and pricing her questions reads the
+   book: the whole column, the line items too, waited on it. Her questions
+   follow it, priced; until then whether one is answered isn't known, so none
+   shows open */
+it("tells the page she's on before her questions are priced, and shows none open until they are", async () => {
+  let priced: (v: unknown) => void = () => undefined;
+  (global as unknown as { fetch: unknown }).fetch = jest.fn((url: string) =>
+    String(url).includes("questions=1")
+      ? new Promise((done) => {
+          priced = (v) => done(respond(v));
+        })
+      : Promise.resolve(respond({ ...thread, questions: undefined }))
+  );
+  const onStatus = jest.fn();
+  const onOpen = jest.fn();
+  render(<TiffPanel job="j" onChanged={jest.fn()} onStatus={onStatus} onOpen={onOpen} />);
+  expect(await screen.findByText("A 12.5 kW ducted, priced from your book.")).toBeInTheDocument();
+  expect(onStatus).toHaveBeenLastCalledWith({ on: true, spentUsd: 0.71 });
+  expect(screen.queryByText("Single or three phase?")).toBeNull();
+  expect(onOpen).toHaveBeenLastCalledWith(0);
+  await act(async () => priced({ ...thread, events: [] }));
+  expect(screen.getByRole("button", { name: /Three phase/ })).toHaveTextContent("+$519.96");
+  expect(onOpen).toHaveBeenLastCalledWith(1);
+});
+
 /* 2026-10-14: what she's cost went to a tech too; the route now sends it only
    to someone who sees money. Since 2026-10-13 the rail says it, so the page
    is told it, and the column never says it */

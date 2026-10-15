@@ -14,7 +14,7 @@ import { addHead, chooseOutdoor } from "@/lib/studio/builder";
 import { newSystem } from "@/lib/studio/zones";
 import { setRiserHeight } from "@/lib/studio/graph";
 import { riserOnRun } from "@/lib/studio/joints";
-import { systemFindings } from "@/lib/studio/verdict";
+import { combinationWord, doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree } from "@/lib/studio/vrf-tree";
 import { VrfSchematic } from "../vrf-schematic";
 
@@ -271,5 +271,119 @@ describe("pipework that never reaches the outdoor (48 Thorne St, 2026-10-13)", (
     expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("outdoor-unpiped");
     render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
     expect(screen.queryByText(/Not piped to the outdoor yet/)).toBeNull();
+  });
+});
+
+describe("a head the drawing leaves off (6 Bishops Ave, 2026-10-15)", () => {
+  /* the ground floor: a PUMY-P200 piped through two joints to Kids Play,
+     Guest Bed and one of Living / Dining's two P63s; the other P63 placed
+     with no pipe on it */
+  function bishops(opts: { pipeSecond?: boolean; placeSecond?: boolean } = {}) {
+    const placeSecond = opts.placeSecond ?? true;
+    let doc = createDesign({ name: "6 Bishops Ave", mode: "blank" });
+    const g = doc.floors[0];
+    for (const id of ["Kids Play", "Guest Bed", "Living / Dining"])
+      doc.objects.push({
+        id,
+        type: "room",
+        systemId: null,
+        floorId: g.id,
+        plane: "room",
+        geometry: { kind: "polygon", points: [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 400 }, { x: 0, y: 400 }] },
+        props: { name: id },
+      } as RoomObj as DesignObject);
+    const made = newSystem(doc, pack.meta.version);
+    const systemId = made.systemId;
+    doc = made.doc;
+    doc = addHead(doc, pack, { systemId, zoneId: "Kids Play", iduModel: "PEFY-P20VMX-E" });
+    doc = addHead(doc, pack, { systemId, zoneId: "Guest Bed", iduModel: "PEFY-P20VMX-E" });
+    doc = addHead(doc, pack, { systemId, zoneId: "Living / Dining", iduModel: "PEFY-P63VMX-E" });
+    doc = addHead(doc, pack, { systemId, zoneId: "Living / Dining", iduModel: "PEFY-P63VMX-E" });
+    doc = chooseOutdoor(doc, pack, "worst-of-both", systemId, "PUMY-P200YKMD2-A");
+    const allocs = allocationsOf(doc.systems.find((s) => s.id === systemId)!);
+    const odu = allocs.find((a) => a.role === "odu")!;
+    const [kids, guest, living1, living2] = allocs.filter((a) => a.role === "idu");
+    const pt = (id: string, type: string, x: number, props: Record<string, unknown>): DesignObject =>
+      ({ id, type, systemId, floorId: g.id, geometry: { kind: "point", at: { x, y: 0 } }, plane: "room", props }) as DesignObject;
+    const run = (id: string, x0: number, x1: number, a: [string, string], b: [string, string]): DesignObject =>
+      ({
+        id,
+        type: "pipe-run",
+        systemId,
+        floorId: g.id,
+        geometry: { kind: "polyline", points: [{ x: x0, y: 0 }, { x: x1, y: 0 }] },
+        plane: "room",
+        props: { startAttach: { kind: a[0], id: a[1] }, endAttach: { kind: b[0], id: b[1] } },
+      }) as DesignObject;
+    const head = (a: (typeof allocs)[number], x: number) => pt(a.id, "unit", x, { role: "idu", model: a.model });
+    doc = {
+      ...doc,
+      objects: [
+        ...doc.objects,
+        pt(odu.id, "unit", 0, { role: "odu", model: odu.model }),
+        head(kids, 300),
+        head(guest, 500),
+        head(living1, 700),
+        ...(placeSecond ? [head(living2, 900)] : []),
+        pt("j1", "joint", 200, {}),
+        pt("j2", "joint", 400, {}),
+        run("trunk", 0, 200, ["unit", odu.id], ["joint", "j1"]),
+        run("toKids", 200, 300, ["joint", "j1"], ["unit", kids.id]),
+        run("on", 200, 400, ["joint", "j1"], ["joint", "j2"]),
+        run("toGuest", 400, 500, ["joint", "j2"], ["unit", guest.id]),
+        ...(opts.pipeSecond
+          ? [
+              // the second P63's pipe landed on the first's, which cuts it at a joint
+              pt("j3", "joint", 600, {}),
+              run("toJ3", 400, 600, ["joint", "j2"], ["joint", "j3"]),
+              run("toLiving", 600, 700, ["joint", "j3"], ["unit", living1.id]),
+              run("toLiving2", 600, 900, ["joint", "j3"], ["unit", living2.id]),
+            ]
+          : [run("toLiving", 400, 700, ["joint", "j2"], ["unit", living1.id])]),
+      ],
+    };
+    return { doc, sys: doc.systems.find((s) => s.id === systemId)! };
+  }
+
+  it("fails, names the head by the zone it is one of two in, and says it once on the schematic", () => {
+    const { doc, sys } = bishops();
+    const tree = systemVrfTree(pack, sys, doc)!;
+    expect(tree.joined).toBe(3);
+    const findings = systemFindings(doc, pack, sys);
+    expect(findings.map((f) => f.code)).not.toContain("outdoor-unpiped");
+    expect(findings.find((f) => f.code === "head-unpiped")).toEqual({
+      severity: "red",
+      code: "head-unpiped",
+      drawing: true,
+      message: "One of Living / Dining's heads isn't piped to the outdoor yet",
+      fix: "Draw a pipe to it",
+    });
+    // about the drawing: it never keeps the builder's Done off
+    expect(doneBlockers(findings).map((f) => f.code)).not.toContain("head-unpiped");
+    expect(combinationWord(doc, pack, sys)).toBe("Fails");
+    render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
+    expect(screen.getByText("Not piped to the outdoor yet: one of Living / Dining's heads")).toBeTruthy();
+    expect(screen.getByText("Fails")).toBeTruthy();
+    expect(screen.queryByText(/isn't piped to the outdoor yet/)).toBeNull();
+  });
+
+  it("piped to the last head, it says nothing and the drawing is counted", () => {
+    const { doc, sys } = bishops({ pipeSecond: true });
+    expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("head-unpiped");
+    expect(systemVrfTree(pack, sys, doc)!.drawn).toBe(true);
+    expect(combinationWord(doc, pack, sys)).toBe("Valid");
+  });
+
+  it("a head not on the plan yet is still to place, not unpiped", () => {
+    const { doc, sys } = bishops({ placeSecond: false });
+    expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("head-unpiped");
+  });
+
+  it("more than one left off: counted, and a zone with none of its heads piped named whole", () => {
+    const { doc, sys } = bishops();
+    const cut = { ...doc, objects: doc.objects.filter((o) => o.id !== "toGuest" && o.id !== "toLiving") };
+    const finding = systemFindings(cut, pack, sys).find((f) => f.code === "head-unpiped");
+    expect(finding?.message).toBe("3 heads aren't piped to the outdoor yet: Guest Bed, Living / Dining");
+    expect(finding?.fix).toBe("Draw a pipe to each");
   });
 });

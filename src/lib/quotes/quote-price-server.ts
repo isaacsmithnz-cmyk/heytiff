@@ -20,9 +20,11 @@ import { supabaseAdmin } from "@/lib/supabase-server";
     no hour's cost to reckon one by (profit.ts). */
 export type OptionPrice = { name: string; build: BuildUp; unpriced: Unpriced[]; rows: number; labourFrom: LabourFrom; profit?: Profit | null };
 
+/** `chargeOutCents`: the business's rate, so the quote card can say what
+    the duct contingency's hours come to (quote-sum.ts). */
 export type QuotePrice =
   | { ok: false; unset: BuildUnset[] }
-  | { ok: true; options: OptionPrice[] };
+  | { ok: true; options: OptionPrice[]; chargeOutCents: number };
 
 export async function readQuotePrice(orgId: string, jobUuid: string): Promise<QuotePrice> {
   const [settings, day] = await Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]);
@@ -38,5 +40,5 @@ export async function readQuotePrice(orgId: string, jobUuid: string): Promise<Qu
   /* what this quote pulled from the price book, for the price book's Most used */
   const parts = lines.filter((l) => l.kind !== "labour" && !stillUnknown(l)).map(buildLineOf);
   if (parts.length > 0) await recordQuoteItems(orgId, jobUuid, parts);
-  return { ok: true, options };
+  return { ok: true, options, chargeOutCents: built.settings.chargeOutCents };
 }

@@ -77,6 +77,12 @@
      over an inactive row it is 4.14. Same hue, taken down until every ground
      clears. */
   --ok-t:#196B2D; /* a plain green, 6.6:1 on white and 5.6:1 on the well's dot grid; #00735f, the readable teal, retired 2026-09-10 with the accent */ --warn-t:#a44b08; --bad-t:#c81a41; --info-t:#2554d8;
+  /* THE GO GREEN: the quote page's primary, a dark green outline with a
+     white body and green words (Isaac, 2026-10-13: "Dark green outline white
+     body and green approved text"; docs/design.md). The OK green by value,
+     named for what it does so a button never reads as a state; an alias,
+     which the OK colour's count reads as a definition, not a use. */
+  --go:var(--ok-t);
 
   /* QUIET TEXT ON THE DARK CHROME — the shell's own floor, and the mirror of
      `--q` above.

@@ -20,15 +20,18 @@ jest.mock("../quote-lines-face", () => ({
     send,
     actionsEl,
     onOpenPaper,
+    start,
   }: {
     price: { ok: boolean } | null | undefined;
     sm8: { value: string | null; papers: { remoteId: string; name: string }[] };
     send: React.ReactNode;
     actionsEl: HTMLElement | null;
     onOpenPaper: (p: unknown) => void;
+    start?: boolean;
   }) => (
     <div>
       <p>{`Lines, ${sm8.value ?? "no value"}`}</p>
+      {start && <p>Starts at the reply box</p>}
       <p>{price === undefined ? "No price" : price ? "Priced" : "Price refused"}</p>
       <p>{actionsEl ? "Corner ready" : "No corner"}</p>
       {sm8.papers.map((p) => (
@@ -142,4 +145,14 @@ it("says when the quote couldn't be opened, and Try again opens it", async () =>
   switches = true;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("Lines, $64,790 inc GST")).toBeInTheDocument();
+});
+
+/* the job card's Create a quote links ?start=1 (the chat-first page, 2026-10-13) */
+it("hands the lines the start from the job card, and nothing without it", async () => {
+  const { unmount } = render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials start />);
+  expect(await screen.findByText("Starts at the reply box")).toBeInTheDocument();
+  unmount();
+  render(<QuoteScreen job={JOB} detail={detail} moneyVisible financials />);
+  expect(await screen.findByText("Lines, $64,790 inc GST")).toBeInTheDocument();
+  expect(screen.queryByText("Starts at the reply box")).toBeNull();
 });

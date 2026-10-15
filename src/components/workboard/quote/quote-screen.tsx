@@ -23,9 +23,10 @@ import { sm8QuoteOf } from "./sm8-quote-of";
    2026-10-05: "it should have opened up the proper quote screen not a
    section below"), in Home's frame (2026-10-06, the mock-up he called "much
    cleaner"): the way back to the job card, the title with the quote's next
-   step in its corner, then the quote on its lines (quote-lines-face.tsx) —
-   the progress line, the lines and Tiff, and the list on the right with
-   ServiceM8's own quote and what goes to ServiceM8, its price read afresh
+   step in its corner, then the quote (quote-lines-face.tsx) — the progress
+   line, the conversation with Tiff and the line items, and the rail on the
+   right with the quote's card, what goes to ServiceM8 and ServiceM8's own
+   quote (turned round 2026-10-13, chat first), its price read afresh
    whenever the quote changes.
 
    EVERY QUOTE IS BUILT ON ITS LINES (retiring the old builder, Isaac,
@@ -46,11 +47,14 @@ export function QuoteScreen({
   detail,
   moneyVisible,
   financials,
+  start = false,
 }: {
   job: string;
   detail: Detail;
   moneyVisible: boolean;
   financials: boolean;
+  /** from the job card's Create a quote (?start=1): straight into the reply box */
+  start?: boolean;
 }) {
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [family, setFamily] = useState<FamilyMoney | null>(null);
@@ -164,6 +168,7 @@ export function QuoteScreen({
               sm8={sm8}
               onOpenPaper={(item) => setPaper(item)}
               money={financials}
+              start={start}
             />
           ) : onLines === false ? (
             <div className="hd-body qp-face">

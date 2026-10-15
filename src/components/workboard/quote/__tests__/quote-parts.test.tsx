@@ -9,7 +9,7 @@ import { QuoteStepsLine, priceState, useQuotePrice } from "../quote-parts";
 const settings = { unitMarkupPct: 25, materialMarkupPct: 40, chargeOutCents: 14000, dayHours: 8, contingency: null };
 const ap71 = { key: "row-0", group: "Units", name: "MSZ-AP71VGD2", code: "MSZ-AP71VGKD2-A2", supplierKey: "aad", qty: 1, unitBuyCents: 40000, kind: "unit" as const };
 const option = (o: Partial<OptionPrice> & Pick<OptionPrice, "build">): OptionPrice => ({ name: "Split", unpriced: [], rows: 1, labourFrom: "brief", ...o });
-const one = (o: OptionPrice): QuotePrice => ({ ok: true, options: [o] });
+const one = (o: OptionPrice): QuotePrice => ({ ok: true, options: [o], chargeOutCents: 14000 });
 
 it("reads the price for each version, and nothing without the money grant", async () => {
   const fetchMock = jest.fn(async () => ({ json: async () => ({ ok: true, price: { ok: true, options: [] } }) }));

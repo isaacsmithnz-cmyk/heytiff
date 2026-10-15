@@ -1,5 +1,5 @@
 import { trunkingLengths } from "./buildup";
-import { rollMetresOf } from "./components";
+import { matchesComponent, rollMetresOf } from "./components";
 import type { Product } from "./families";
 import type { LineFields } from "./lines";
 import { pickItem, supplierOffer, type BookQuery, type Pick } from "./lookups";
@@ -76,6 +76,9 @@ export type KitFacts = {
   reducers?: { fromMm: number; toMm: number; count: number }[] | null;
   /** the return grille's face, mm; its box is the same face */
   returnGrille?: { w: number; h: number } | null;
+  /** the unit's maker, by its pack's key: what a part only its own maker
+      makes (the wall controller) is picked of */
+  brand?: string | null;
   /** ducted, zoned: how many zones, controlled by temperature or on/off,
       and WiFi when the brief asks for it */
   zones?: number | null;
@@ -141,6 +144,10 @@ export type KitPart = {
   qty: (f: KitFacts) => { qty: number; unit: LineFields["unit"]; why: string } | null;
   /** a part only some jobs take: left off when this says so */
   skip?: (f: KitFacts) => boolean;
+  /** a part only the unit's own maker makes: the business's preferred one
+      counts only when it's that maker's (the bench, 15 October: a
+      Mitsubishi wall controller on a Daikin and on a Fujitsu) */
+  ownMaker?: (f: KitFacts) => boolean;
   /** the business's range it's picked from, at the size the job needs
       (ranges.ts); null when the size isn't known. `only` keeps to the items
       of the kind that are this part (a return box, not its grille) */
@@ -174,6 +181,13 @@ const PIPE_COMPONENT: Record<PipeSize, ComponentKey> = {
   "1/4+5/8": "pair_coil_14_58",
   "3/8+5/8": "pair_coil_38_58",
   "3/8+3/4": "pair_coil_38_34",
+};
+
+/** A product's maker (brands.ts, "Mitsubishi Electric") is a pack's
+    (mitsubishi-electric): unknown is not the same. */
+export const sameMaker = (productBrand: string | null | undefined, packKey: string) => {
+  const flat = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return !!productBrand && flat(productBrand) === flat(packKey);
 };
 
 /* the circuit's parts by what the unit draws: the next standard size up */
@@ -442,8 +456,15 @@ const DUCTED: KitPart[] = [
     rule: "One for the indoor",
     group: "Pipe, power and controls",
     name: "Wall controller",
-    /* zoned: the zone system's own controller, never the unit's */
-    search: (f) => ({ text: f.zoning?.mainController ?? "wired controller" }),
+    /* zoned: the zone system's own controller, never the unit's; else the
+       unit's maker's own, from the book's wall controllers of that maker */
+    ownMaker: (f) => !f.zoning?.mainController && !!f.brand,
+    search: (f) =>
+      f.zoning?.mainController
+        ? { text: f.zoning.mainController }
+        : f.brand
+          ? { text: "control", pool: (all) => all.filter((p) => sameMaker(p.brand, f.brand!) && matchesComponent("wall_controller", p.name)) }
+          : { text: "wired controller" },
     component: (f) => (f.zoning?.mainController ? null : "wall_controller"),
     qty: (f) =>
       f.zoning?.mainController
@@ -557,7 +578,8 @@ export function chosenFor(part: KitPart, f: KitFacts, products: readonly Product
   if (p) {
     const product = products.find((x) => x.offers.some((o) => o.supplierKey === p.supplierKey && o.code === p.code));
     const own = product?.offers.find((o) => o.supplierKey === p.supplierKey && o.code === p.code);
-    if (product && own) return { product, offer: (supplier ? supplierOffer(product, supplier) : null) ?? own, why: "Your preferred" };
+    /* another maker's: not this unit's part, so the book is searched */
+    if (product && own && !(part.ownMaker?.(f) && !sameMaker(product.brand, f.brand!))) return { product, offer: (supplier ? supplierOffer(product, supplier) : null) ?? own, why: "Your preferred" };
   }
   return null;
 }
@@ -748,9 +770,11 @@ export function kitFactsFrom(
   kit: KitKey,
   facts: KitFacts,
   looked: readonly ({ found: true; specs: { role: "indoor" | "outdoor"; model: string; pipeMm: { liquid: number; gas: number } | null; mcaAmps: number | null; maxAmps: number | null; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } } } | { found: false })[],
-  zoning: ZoningController | null
+  zoning: ZoningController | null,
+  /** the unit's maker, its pack's key, whether its pack is installed or not */
+  brand: string | null = null
 ): KitFacts {
-  const f = { ...facts };
+  const f = { ...facts, ...(brand ? { brand: brand.toLowerCase() } : {}) };
   for (const u of looked) {
     if (!u.found) continue;
     if (u.specs.role === "outdoor") {

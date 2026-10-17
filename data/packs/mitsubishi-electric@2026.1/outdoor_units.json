@@ -1098,15 +1098,16 @@
     "conn_liquid_mm": 6.35,
     "conn_gas_mm": 9.52,
     "refrigerant": "R32",
+    "precharged_kg": 0.70,
     "width_mm": 800,
     "depth_mm": 285,
     "height_mm": 550,
     "weight_kg": 34,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
-      "edition": "M-P0922 (2024)",
-      "page": "C-9"
+      "source": "M-P Series (Mr Slim) Data Book; MUZ-AP Series Outdoor Unit Service Manual",
+      "edition": "M-P0922 (2024); OBH825 Revised Edition-D",
+      "page": "C-9; OBH825D p.9 (Refrigerant filling capacity (R32))"
     },
     "max_amps_a": 6.8
   },
@@ -1121,15 +1122,16 @@
     "conn_liquid_mm": 6.35,
     "conn_gas_mm": 9.52,
     "refrigerant": "R32",
+    "precharged_kg": 0.70,
     "width_mm": 800,
     "depth_mm": 285,
     "height_mm": 550,
     "weight_kg": 34,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
-      "edition": "M-P0922 (2024)",
-      "page": "C-9"
+      "source": "M-P Series (Mr Slim) Data Book; MUZ-AP Series Outdoor Unit Service Manual",
+      "edition": "M-P0922 (2024); OBH825 Revised Edition-D",
+      "page": "C-9; OBH825D p.9 (Refrigerant filling capacity (R32))"
     },
     "max_amps_a": 6.8
   },
@@ -1144,15 +1146,16 @@
     "conn_liquid_mm": 6.35,
     "conn_gas_mm": 9.52,
     "refrigerant": "R32",
+    "precharged_kg": 0.70,
     "width_mm": 800,
     "depth_mm": 285,
     "height_mm": 550,
     "weight_kg": 35,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
-      "edition": "M-P0922 (2024)",
-      "page": "C-9"
+      "source": "M-P Series (Mr Slim) Data Book; MUZ-AP Series Outdoor Unit Service Manual",
+      "edition": "M-P0922 (2024); OBH825 Revised Edition-D",
+      "page": "C-9; OBH825D p.9 (Refrigerant filling capacity (R32))"
     },
     "max_amps_a": 9.6
   },
@@ -1167,15 +1170,16 @@
     "conn_liquid_mm": 6.35,
     "conn_gas_mm": 12.7,
     "refrigerant": "R32",
+    "precharged_kg": 1.00,
     "width_mm": 800,
     "depth_mm": 285,
     "height_mm": 714,
     "weight_kg": 40,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
-      "edition": "M-P0922 (2024)",
-      "page": "C-10"
+      "source": "M-P Series (Mr Slim) Data Book; MUZ-AP Series Outdoor Unit Service Manual",
+      "edition": "M-P0922 (2024); OBH825 Revised Edition-D",
+      "page": "C-10; OBH825D p.10 (Refrigerant filling capacity (R32))"
     },
     "max_amps_a": 13.5
   },
@@ -1190,15 +1194,16 @@
     "conn_liquid_mm": 6.35,
     "conn_gas_mm": 12.7,
     "refrigerant": "R32",
+    "precharged_kg": 1.05,
     "width_mm": 800,
     "depth_mm": 285,
     "height_mm": 714,
     "weight_kg": 40,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
-      "edition": "M-P0922 (2024)",
-      "page": "C-10"
+      "source": "M-P Series (Mr Slim) Data Book; MUZ-AP Series Outdoor Unit Service Manual",
+      "edition": "M-P0922 (2024); OBH825 Revised Edition-D",
+      "page": "C-10; OBH825D p.10 (Refrigerant filling capacity (R32))"
     },
     "max_amps_a": 13.5
   },
@@ -1213,15 +1218,16 @@
     "conn_liquid_mm": 6.35,
     "conn_gas_mm": 12.7,
     "refrigerant": "R32",
+    "precharged_kg": 1.50,
     "width_mm": 840,
     "depth_mm": 330,
     "height_mm": 880,
     "weight_kg": 53,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
-      "edition": "M-P0922 (2024)",
-      "page": "C-10"
+      "source": "M-P Series (Mr Slim) Data Book; MUZ-AP Series Outdoor Unit Service Manual",
+      "edition": "M-P0922 (2024); OBH825 Revised Edition-D",
+      "page": "C-10; OBH825D p.10 (Refrigerant filling capacity (R32))"
     },
     "max_amps_a": 16.0
   },
@@ -1236,15 +1242,16 @@
     "conn_liquid_mm": 6.35,
     "conn_gas_mm": 12.7,
     "refrigerant": "R32",
+    "precharged_kg": 1.50,
     "width_mm": 840,
     "depth_mm": 330,
     "height_mm": 880,
     "weight_kg": 53,
     "provenance": {
       "kind": "extracted",
-      "source": "M-P Series (Mr Slim) Data Book",
-      "edition": "M-P0922 (2024)",
-      "page": "C-10"
+      "source": "M-P Series (Mr Slim) Data Book; MUZ-AP Series Outdoor Unit Service Manual",
+      "edition": "M-P0922 (2024); OBH825 Revised Edition-D",
+      "page": "C-10; OBH825D p.10 (Refrigerant filling capacity (R32))"
     },
     "max_amps_a": 16.0
   },

@@ -135,10 +135,13 @@ describe("the failing literals do not come back", () => {
      #d1d5db` and friends. On 2026-09-10 the tokens landed and every Tailwind
      grey became `--line`, `--tint`, `--q` or `--ink`, so no grey literal is
      left to find as a border either — not because the rule grew teeth, but
-     because the greys were never chosen and now are. The accent fills still
-     make the point. */
-  it("still allows them as fills — this is a text rule, not a ban", () => {
-    expect(code).toMatch(/background[^;]*#(00A389|e0264f|2E68FF)/i);
+     because the greys were never chosen and now are. The accent fills made
+     the point until v2's palette (18 October 2026) moved the last of them,
+     the dusk card's teal primary, onto blue, so a fill of each is written
+     here instead and the same scan has to let it through. */
+  it.each(["#00A389", "#e0264f", "#2E68FF"])("still allows %s as a fill — this is a text rule, not a ban", (lit) => {
+    const fill = `.x { background:${lit}; border-color:${lit}; }`;
+    expect(fill.match(new RegExp(`(^|[^-])color: *${lit}\\b`, "gi")) ?? []).toEqual([]);
   });
 });
 

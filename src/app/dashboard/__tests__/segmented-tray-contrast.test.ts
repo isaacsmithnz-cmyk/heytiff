@@ -24,8 +24,10 @@ import path from "node:path";
      bug. Those are tested against the ground they actually sit on, named
      here, and moving one to a darker surface should fail this test.
 
-   PREFER AN ALPHA TINT FOR A NEW TRAY. The fixed values that remain are the
-   house switch and the two controls built on it.
+   PREFER AN ALPHA TINT FOR A NEW TRAY. None is fixed any more: the house
+   switch and the two controls built on it were `#e6eaf1` until v2's palette
+   (18 October 2026), which has no light grey of its own, made them ink at the
+   selected alpha (`--sel`), so they are checked on every ground now too.
 
    The floor is 1.10 and it is deliberately low: these are soft trays, not
    bordered inputs, and the house switch itself sits at 1.207 on white. What a
@@ -102,8 +104,20 @@ const GROUNDS: Record<string, RGBA> = {
   "the vehicle modal's sunk card": ground([colour(token("vm-sunk"))]),
 };
 
+/* ── THE HOUSE TRAY: the switch and the two controls built on it ──
+
+   They were fixed hexes, each checked on the one ground it sat on (the day
+   panel, a white card, the portalled sheet). Since v2's palette they are
+   `--sel`, a tint, so they join the trays checked on every ground below. */
+const HOUSE: [string, string][] = [
+  [".fg .mts2-dsw", "worked / off, in the day's head"],
+  [".fg .seg", "FaceSwitch and the profile Seg"],
+  [".wb2-sheet .seg", "the diary filter in the portalled sheet"],
+];
+
 /* ── ALPHA TRAYS: they hold everywhere, so they are checked everywhere ── */
 const ALPHA: [string, string][] = [
+  ...HOUSE,
   [".fg .nb-kinds", "noticeboard — notice / poll / event"],
   [".vm-seg", "vehicle modal — history filter"],
   [".fg .hd-cal-vs", "the new Home's calendar — 4 weeks / Month / Year"],
@@ -127,57 +141,11 @@ describe("a tint tray survives any ground it is put on", () => {
   });
 });
 
-/* ── FIXED TRAYS: each is checked on the ground it actually sits on ──
-
-   The chains are read off the components that draw them, and are named so a
-   move shows up as a wrong answer here rather than as a control that quietly
-   stops having a shape. */
-const FIXED: [string, string, RGBA[]][] = [
-  // MyTimesheet → the day's head, inside .mts2-panel inside a white card
-  [".fg .mts2-dsw", "worked / off, in the day's head", [bgOf(".fg .mts2-panel")]],
-  // FaceSwitch on .wb2-card, the profile/org Seg on .card2 — both white
-  [".fg .seg", "FaceSwitch and the profile Seg, on a white card", []],
-  // the diary filter, portalled outside .fg into a white sheet
-  [".wb2-sheet .seg", "the diary filter in the portalled sheet", [bgOf(".wb2-sheet")]],
-  /* The Workboard's own tray was the fourth entry. It is gone: the board's
-     title is its switcher now (components/workboard/side-switcher), so there
-     is no tray on that page to hold to a ground. */
-];
-
-/** A tray's edge, when it draws one — the `border-color` composited the same
-    way the fill is. */
-function borderOf(selector: string): RGBA | null {
-  const b = blocks(selector).join(" ");
-  const shorthand = b.match(/(?:^|[\s;])border: *[\d.]+px +\w+ +([^;]+)/);
-  const explicit = b.match(/(?:^|[\s;])border-color: *([^;]+)/);
-  const raw = (explicit ?? shorthand)?.[1];
-  if (!raw || raw.trim() === "transparent") return null;
-  return colour(raw);
-}
-
-/* A TRAY IS DELIMITED BY ITS FILL OR BY ITS EDGE, and either will do — which
-   is WCAG's own shape for a component boundary, and it is the reason
-   `.wb2-seg` passes. The house switch's `#e6eaf1` is only 1.049 against the
-   page it sits on; its hairline is 1.132, and that is what gives it an
-   outline at all. Written as "either" rather than "fill" on purpose: a tray
-   that loses BOTH is the bug, and a tray that trades one for the other is a
-   design choice this test should not have an opinion about. */
-describe("a fixed tray is delimited on the ground it sits on", () => {
-  it.each(FIXED)("%s (%s)", (selector, _what, chain) => {
-    const g = ground(chain);
-    const own = bgOf(selector);
-    expect(own[3]).toBe(1);
-    const edge = borderOf(selector);
-    const best = Math.max(ratio(own, g), edge ? ratio(on(edge, g), g) : 0);
-    expect(best).toBeGreaterThan(FLOOR);
-  });
-});
-
 /* One tray value, so a control cannot look like two different controls
    depending on which screen it was opened from — which is exactly what
    `.fg .tpr .seg` was doing to FaceSwitch before it was deleted. */
-it("keeps the fixed trays on a single value", () => {
-  const values = new Set(FIXED.map(([sel]) => bgOf(sel).slice(0, 3).join(",")));
+it("keeps the house trays on a single value", () => {
+  const values = new Set(HOUSE.map(([sel]) => bgOf(sel).join(",")));
   expect(values.size).toBe(1);
 });
 

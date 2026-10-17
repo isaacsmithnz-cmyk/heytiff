@@ -111,10 +111,10 @@ describe("what her tools tell her", () => {
   const tool = (name: string) => SESSION_TOOLS.find((t) => t.name === name)!;
   const prop = (name: string, key: string) => (tool(name).input_schema as { properties: Record<string, { description?: string }> }).properties[key]!.description ?? "";
 
-  it("takes a ducted kit's sizes only as given, never a usual one", () => {
-    expect(tool("add_kit").description).toMatch(/Every duct size \(takeoffs, fittings, reducers, outlet_mm\) is the brief's, a plan's or the person's, never a usual one: leave out a size nothing gives/);
-    expect(prop("add_kit", "takeoffs")).toMatch(/as the brief, a plan or the person gives them.*Leave out when nothing gives them/);
-    expect(prop("add_kit", "outlet_mm")).toMatch(/as the brief, a plan or the person gives it\. Leave out when nothing gives it, never a usual size/);
+  it("takes a ducted kit's sizes as given, else the airflow guide's, never the business's usual", () => {
+    expect(tool("add_kit").description).toMatch(/Every duct size \(takeoffs, fittings, reducers, outlet_mm\) is the brief's, a plan's or the person's; where none gives one, the airflow guide's \(airflow_check\), as assumed, never the business's usual/);
+    expect(prop("add_kit", "takeoffs")).toMatch(/as the brief, a plan or the person gives them.*Where none gives them, the airflow guide's size/);
+    expect(prop("add_kit", "outlet_mm")).toMatch(/as the brief, a plan or the person gives it\. Where none gives it, the airflow guide's for the air each carries, never the business's usual/);
   });
 
   it("names a unit by what it is, and writes the proposal plainly for the client", () => {

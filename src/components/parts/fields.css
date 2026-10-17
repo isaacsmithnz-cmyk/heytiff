@@ -1,0 +1,116 @@
+/* v2's FIELDS: the field and its label, text, a chooser, a time, and the
+   menu the last two open (docs/design.md, rules 28, 33, 34, 36 and 53).
+
+   Every control's base rule names its class twice. Inside the dashboard,
+   `.fg button` and `.fg input` reset font, colour, fill and border at
+   (0,1,1); a single class loses to them, and two win. The menu and the
+   time panel portal to <body>, outside `.fg`, so they need no such help
+   and carry the font themselves. */
+
+/* ---- the field: label above, control, why it is wrong ---- */
+.pt-field { display:flex; flex-direction:column; gap:4px; min-width:0; font-family:var(--font); }
+.pt-field-label { font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
+.pt-field-error { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+
+/* ---- the control: 36, a 6 corner, the edge, white (rule 33) ---- */
+.pt-input.pt-input,
+.pt-textarea.pt-textarea,
+.pt-chooser.pt-chooser,
+.pt-timefield.pt-timefield {
+  box-sizing:border-box; width:100%; min-width:0; height:36px; margin:0; padding:0 12px;
+  border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white);
+  color:var(--ink); font-family:var(--font); font-size:14px; line-height:20px; font-weight:400;
+}
+.pt-textarea.pt-textarea { display:block; height:auto; min-height:36px; padding:8px 12px; resize:vertical; }
+.pt-input::placeholder, .pt-textarea::placeholder { color:var(--q); opacity:1; }
+.pt-input.pt-input:focus-visible,
+.pt-textarea.pt-textarea:focus-visible,
+.pt-chooser.pt-chooser:focus-visible,
+.pt-timefield.pt-timefield:focus-visible { outline:none; box-shadow:var(--ring); }
+.pt-input.pt-input--invalid,
+.pt-textarea.pt-textarea--invalid,
+.pt-chooser.pt-chooser--invalid,
+.pt-timefield.pt-timefield--invalid { border-color:var(--red); }
+.pt-input.pt-input:disabled,
+.pt-textarea.pt-textarea:disabled,
+.pt-chooser.pt-chooser:disabled,
+.pt-timefield.pt-timefield:disabled { background:var(--soft); color:var(--q); cursor:not-allowed; }
+
+/* the three heights (rule 28); a phone's 44 types at 16, which also keeps
+   a phone from zooming into the field */
+.pt-input.pt-input--32, .pt-chooser.pt-chooser--32, .pt-timefield.pt-timefield--32 { height:32px; }
+.pt-input.pt-input--44, .pt-chooser.pt-chooser--44, .pt-timefield.pt-timefield--44 { height:44px; font-size:16px; line-height:24px; }
+
+/* ---- a chooser and a time: the value, then the chevron (rule 34) ---- */
+.pt-chooser.pt-chooser,
+.pt-timefield.pt-timefield { display:flex; align-items:center; gap:8px; padding:0 8px 0 12px; text-align:left; cursor:pointer; }
+.pt-chooser-value, .pt-timefield-value { flex:1 1 auto; min-width:0; overflow:hidden; white-space:nowrap; }
+.pt-timefield-value { font-variant-numeric:tabular-nums; }
+.pt-chooser-value.pt-chooser-value--empty, .pt-timefield-value.pt-timefield-value--empty { color:var(--q); }
+.pt-chooser-chev, .pt-timefield-chev { flex:none; color:var(--q); }
+
+/* ---- what floats: white, a 16 corner, the one shadow (rule 36) ---- */
+.pt-menu,
+.pt-timefield-panel {
+  box-sizing:border-box; z-index:var(--z-overlay); background:var(--white); border-radius:var(--r-card);
+  box-shadow:var(--shadow-overlay); font-family:var(--font); color:var(--ink);
+}
+/* opened from inside a dialog, it stands on the dialog's layer, later in the page */
+.pt-menu.pt-menu--over-modal,
+.pt-timefield-panel.pt-timefield-panel--over-modal { z-index:var(--z-modal); }
+
+/* ---- the menu ---- */
+.pt-menu { min-width:192px; max-width:320px; padding:4px; overflow-y:auto; overscroll-behavior:contain; }
+.pt-menu-list { margin:0; padding:0; list-style:none; outline:none; }
+.pt-menu-item {
+  box-sizing:border-box; display:flex; align-items:center; gap:8px; min-height:32px; padding:4px 8px;
+  border-radius:var(--r-button); font-size:14px; line-height:20px; font-weight:400; cursor:pointer; user-select:none;
+}
+.pt-menu-item:hover { background:var(--hov); }
+/* the keys' place, its ring drawn inward so the scroller cannot cut it */
+.pt-menu.pt-menu--keys .pt-menu-item--active { background:var(--hov); box-shadow:inset 0 0 0 2px var(--ink), inset 0 0 0 4px var(--white); }
+.pt-menu-item.pt-menu-item--chosen,
+.pt-menu.pt-menu--keys .pt-menu-item.pt-menu-item--chosen { background:var(--sel); }
+.pt-menu-item.pt-menu-item--danger { color:var(--red-w); }
+.pt-menu-item[aria-disabled="true"] { color:var(--q); cursor:default; }
+.pt-menu-item[aria-disabled="true"]:hover { background:none; }
+/* what ends the record stands apart, under a thin line (rules 35 and 53) */
+.pt-menu-item.pt-menu-item--ruled { position:relative; margin-top:8px; }
+.pt-menu-item.pt-menu-item--ruled::before { content:""; position:absolute; left:8px; right:8px; top:-4px; height:1px; background:var(--line); }
+.pt-menu-lead { display:inline-flex; flex:none; align-items:center; justify-content:center; width:16px; height:16px; }
+.pt-menu-words { display:flex; flex:1 1 auto; flex-direction:column; min-width:0; overflow-wrap:anywhere; }
+.pt-menu-hint { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.pt-menu-count { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.pt-menu-empty { padding:8px; font-size:14px; line-height:20px; color:var(--q); }
+.pt-menu-filter { position:sticky; top:0; padding:0 0 4px; background:var(--white); }
+.pt-menu-filter-input.pt-menu-filter-input {
+  box-sizing:border-box; width:100%; height:32px; margin:0; padding:0 8px;
+  border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white);
+  color:var(--ink); font-family:var(--font); font-size:14px; line-height:20px; font-weight:400;
+}
+.pt-menu-filter-input::placeholder { color:var(--q); opacity:1; }
+.pt-menu-filter-input.pt-menu-filter-input:focus-visible { outline:none; box-shadow:var(--ring); }
+
+/* ---- the time panel, and the timesheet's wheel in v2's dress ----
+   Scoped here, so the timesheet's own wheel keeps shell.css's. The
+   geometry is the wheel's and must stay with it: a 132 scroller, 49 of
+   padding and 34 rows put the band on the row the wheel centres. */
+.pt-timefield-panel { width:240px; padding:12px; }
+.pt-timefield-panel .tw-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.pt-timefield-panel .tw-title { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.pt-timefield-panel .tw-val { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.pt-timefield-panel .tw-cols { position:relative; display:flex; gap:4px; margin-top:8px; }
+.pt-timefield-panel .tw-cols::before { content:""; position:absolute; left:0; right:0; bottom:49px; height:34px; border-radius:var(--r-button); background:var(--sel); pointer-events:none; }
+.pt-timefield-panel .tw-col { flex:1 1 0; min-width:0; }
+.pt-timefield-panel .tw-lab { display:block; margin-bottom:4px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); text-align:center; }
+.pt-timefield-panel .tw-scroll { box-sizing:border-box; height:132px; padding:49px 0; overflow-y:auto; scroll-snap-type:y proximity; scrollbar-width:none; }
+.pt-timefield-panel .tw-scroll::-webkit-scrollbar { width:0; }
+.pt-timefield-panel .tw-opt {
+  display:block; width:100%; height:34px; margin:0; padding:0; border:0; border-radius:var(--r-button); background:none;
+  scroll-snap-align:center; cursor:pointer; font-family:var(--font); font-size:14px; line-height:20px; font-weight:500;
+  color:var(--q); font-variant-numeric:tabular-nums;
+}
+.pt-timefield-panel .tw-opt:hover { background:var(--hov); }
+.pt-timefield-panel .tw-opt.on { color:var(--ink); font-size:16px; line-height:24px; font-weight:600; }
+.pt-timefield-panel .tw-opt:focus-visible { outline:none; box-shadow:inset 0 0 0 2px var(--ink), inset 0 0 0 4px var(--white); }
+.pt-timefield-panel .tw-opt:disabled { color:var(--q); cursor:default; }

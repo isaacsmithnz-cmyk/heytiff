@@ -53,6 +53,7 @@ import {
   isolatorDrawOf,
   hardDrawnLengthM,
   type ComponentChoiceOption,
+  type IsolatorOption,
 } from "./components";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemVrfTree } from "./vrf-tree";
@@ -613,7 +614,10 @@ function isolatorHint(context: Context): string | undefined {
   const sizedBy = context.odu ? isolatorDrawOf(context.odu) : null;
   if (!found || !sizedBy) return undefined;
   const rating = found.option.name.replace(/^Isolator, /, "");
-  return `${found.sized ? "From the pack" : "Picked by hand"}: ${rating}, for its ${sizedBy.amps} A${sizedBy.by === "breaker" ? " breaker" : ""}`;
+  const its = `its ${sizedBy.amps} A${sizedBy.by === "breaker" ? " breaker" : ""}`;
+  const rated = "isolator" in found.option ? (found.option as IsolatorOption).isolator.amps : null;
+  const covers = rated != null && rated >= sizedBy.amps;
+  return `${found.sized ? "From the pack" : "Picked by hand"}: ${rating}, ${covers ? `for ${its}` : `under ${its}`}`;
 }
 
 /** the wired controller for each head model and, where the pack lists an

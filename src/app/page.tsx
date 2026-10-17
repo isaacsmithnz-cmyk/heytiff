@@ -31,16 +31,17 @@ export default function Home() {
       </div>
 
       <div className="relative flex flex-col items-center gap-5">
-        {/* the app's primary action: ink, white label, 700 — `.newbtn` */}
+        {/* the main button (v2, rule 22): blue with white words, a 10 corner,
+            and a hover that keeps its colour */}
         <a
           href="/auth/login?screen_hint=signup"
-          className="rounded-2xl bg-ink-2 px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-ink"
+          className="flex h-11 items-center rounded-[10px] bg-brand-blue px-6 text-sm font-semibold text-white"
         >
           Create account
         </a>
         <a
           href="/auth/login"
-          className="text-sm font-semibold text-ink-2 underline decoration-1 underline-offset-4 transition-colors hover:text-brand-teal-dark"
+          className="text-sm font-semibold text-ink-2 underline decoration-1 underline-offset-4"
         >
           Sign in
         </a>
@@ -51,7 +52,7 @@ export default function Home() {
           straight after auth instead of the default /dashboard. */}
       <a
         href="/auth/login?returnTo=/hq"
-        className="absolute bottom-6 text-xs font-semibold text-quiet transition-colors hover:text-brand-teal-dark"
+        className="absolute bottom-6 text-xs font-semibold text-quiet transition-colors hover:text-ink"
       >
         Staff HQ →
       </a>

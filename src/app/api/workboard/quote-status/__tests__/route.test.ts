@@ -25,11 +25,35 @@ jest.mock("@/lib/quotes/session/store-server", () => ({
   readOpenQuestions: async () => [{ id: 1, question: "Which ceiling?", put: "" }],
 }));
 
+const readLanding = jest.fn(async (_org: string, _job: string, read: { money: boolean }) => ({ name: "Ducted", money: read.money, totalCents: read.money ? 520000 : null }));
+jest.mock("@/lib/quotes/quote-landing-server", () => ({ readLanding: (...a: Parameters<typeof readLanding>) => readLanding(...a) }));
+
 import { GET } from "../route";
 
-const get = () => GET(new Request("http://x/api/workboard/quote-status?job=job-1"));
+const get = (q = "") => GET(new Request(`http://x/api/workboard/quote-status?job=job-1${q}`));
 
-beforeEach(() => grants.clear());
+beforeEach(() => {
+  grants.clear();
+  readLanding.mockClear();
+});
+
+it("reads the landing only when the Quote tab asks for it", async () => {
+  grants.add("workboard");
+  const a = (await (await get()).json()) as Record<string, unknown>;
+  expect(a.landing).toBeUndefined();
+  expect(readLanding).not.toHaveBeenCalled();
+});
+
+it("gives the landing its money only for a reader with money access", async () => {
+  grants.add("workboard");
+  const tech = (await (await get("&landing=1")).json()) as { landing: { money: boolean; totalCents: number | null } };
+  expect(readLanding).toHaveBeenLastCalledWith("org-a", "job-1", expect.objectContaining({ money: false, session: expect.objectContaining({ id: "s-1" }) }));
+  expect(tech.landing).toEqual({ name: "Ducted", money: false, totalCents: null });
+  grants.add("financials");
+  const office = (await (await get("&landing=1")).json()) as { landing: { money: boolean; totalCents: number | null } };
+  expect(readLanding).toHaveBeenLastCalledWith("org-a", "job-1", expect.objectContaining({ money: true }));
+  expect(office.landing.totalCents).toBe(520000);
+});
 
 it("tells a tech where the quote stands, with no money in it", async () => {
   grants.add("workboard");

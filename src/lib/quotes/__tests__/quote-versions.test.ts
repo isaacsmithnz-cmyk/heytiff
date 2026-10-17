@@ -35,8 +35,8 @@ describe("the quote kept as a version", () => {
 
   it("is read back from its row, a broken one as nothing", () => {
     const options = versionSnapshot(lines, priced, new Set([1]));
-    const row = { n: 1, what: "Client wants the hallway done too", snapshot: { options }, approved_at: "2026-10-11T01:00:00Z", made_at: "2026-10-11T02:00:00Z" };
-    expect(versionOf(row)).toEqual({ n: 1, what: "Client wants the hallway done too", approvedAt: "2026-10-11T01:00:00Z", madeAt: "2026-10-11T02:00:00Z", options });
-    expect(versionOf({ n: "x", snapshot: "junk" })).toEqual({ n: 1, what: "", approvedAt: null, madeAt: "", options: [] });
+    const row = { n: 1, what: "Client wants the hallway done too", snapshot: { options }, approved_at: "2026-10-11T01:00:00Z", approved_by: "u-owner", made_at: "2026-10-11T02:00:00Z", made_by: "u-office" };
+    expect(versionOf(row)).toEqual({ n: 1, what: "Client wants the hallway done too", approvedAt: "2026-10-11T01:00:00Z", approvedBy: "u-owner", madeAt: "2026-10-11T02:00:00Z", madeBy: "u-office", options });
+    expect(versionOf({ n: "x", snapshot: "junk" })).toEqual({ n: 1, what: "", approvedAt: null, approvedBy: null, madeAt: "", madeBy: null, options: [] });
   });
 });

@@ -12,7 +12,9 @@ import { stillUnknown, type LinesOption } from "./lines-price";
 
 export type VersionLine = { name: string; code: string | null; qty: number; unit: string; totalCents: number | null };
 export type VersionOption = { name: string; exGstCents: number; incGstCents: number; lines: VersionLine[] };
-export type QuoteVersion = { n: number; what: string; approvedAt: string | null; madeAt: string; options: VersionOption[] };
+/** `approvedBy` and `madeBy`: sign-in ids, who approved it and who kept it
+    (the Quote tab's landing names them); null where the row has none. */
+export type QuoteVersion = { n: number; what: string; approvedAt: string | null; approvedBy?: string | null; madeAt: string; madeBy?: string | null; options: VersionOption[] };
 
 /** The quote as it stands, for keeping: every option but a variation, its
     lines with what each comes to, and its totals. */
@@ -63,7 +65,9 @@ export function versionOf(row: Record<string, unknown>): QuoteVersion {
     n: Math.max(1, Math.round(num(row.n))),
     what: text(row.what, 500),
     approvedAt: typeof row.approved_at === "string" ? row.approved_at : null,
+    approvedBy: typeof row.approved_by === "string" && row.approved_by ? row.approved_by : null,
     madeAt: typeof row.made_at === "string" ? row.made_at : "",
+    madeBy: typeof row.made_by === "string" && row.made_by ? row.made_by : null,
     options,
   };
 }

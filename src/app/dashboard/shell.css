@@ -7515,7 +7515,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
    act on is the block's two words at the right (Edit, Copy), not a card
    around it. The blocks follow the ServiceM8 Proposal's own order. */
 .wb2-jqacts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
-.wb2-jq .wb2-sherr { margin-top:8px; }
 /* the payment terms: a segmented choice on a fill tray (law 1) */
 .wb2-jqseg { display:inline-flex; gap:2px; padding:2px; margin-top:8px; border-radius:var(--r-button); background:var(--tint-2); align-self:flex-start; }
 .wb2-jqseg button { padding:4px 12px; border-radius:calc(10px - 2px); font-size:13px; font-weight:500; color:var(--q); }
@@ -12589,3 +12588,38 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* ===== MAKING THINGS (v2, step 4): the one form for each kind ===== */
 /* No `.fg`: the form opens in a dialog, which portals to <body>. */
 .mk-form { display:flex; flex-direction:column; gap:16px; }
+
+/* ===== THE QUOTE TAB'S LANDING, "QUOTES" (v2; job-quote-card.tsx) =====
+   Isaac, 18 October: the Quote tab opens on its quotes. The job's one quote
+   is a card (rule 35, something you act on), in one of three states: nothing
+   yet, in progress, accepted with its versions and variations as rows under
+   it (rule 39). ServiceM8's own quote sits under it as a card of its own,
+   with a caption over it. The parts draw the buttons, the state words, the
+   initials and the rows; these rules only lay them out. No `.fg`: the job
+   card is a dialog, portalled to <body>. */
+.qland { display:flex; flex-direction:column; gap:16px; max-width:1040px; font-family:var(--font); color:var(--ink); }
+.qland .qland-title { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.qland-card { border:1px solid var(--line); border-radius:var(--r-card); background:var(--white); padding:24px; display:flex; flex-direction:column; gap:16px; min-width:0; }
+.qland-card.qland-card--rows { padding:8px 12px; }
+/* nothing yet: what's missing and its two doors, from the card's start (rule 40) */
+.qland-first .pt-empty { align-items:flex-start; text-align:start; min-height:0; padding:0; gap:0; }
+.qland-first .pt-empty-act { justify-content:flex-start; }
+.qland-top { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
+.qland-id { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
+.qland .qland-name { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.qland .qland-line { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.qland .qland-sum { margin:0; display:flex; flex-direction:column; align-items:flex-end; flex:none; text-align:end; }
+.qland-sum b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.qland-sum span { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.qland-foot { display:flex; align-items:center; flex-wrap:wrap; gap:12px 16px; }
+.qland-foot .qland-state { flex:1; min-width:0; }
+.qland-state { display:inline-flex; align-items:baseline; min-width:0; }
+.qland-rest { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.qland-who { display:inline-flex; align-items:center; gap:8px; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
+/* the versions and variations: rows under a hairline, the card's own edge their ends */
+.qland-rows { border-top:1px solid var(--line); margin:0 -12px; }
+.qland-end { display:inline-flex; align-items:center; gap:16px; }
+.qland-fig { font-size:14px; line-height:20px; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
+.qland-acts { display:flex; flex-wrap:wrap; gap:8px; }
+.qland-sm8 { display:flex; flex-direction:column; gap:8px; }
+.qland .qland-label { margin:0; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }

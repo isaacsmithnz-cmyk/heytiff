@@ -10,7 +10,7 @@ const KEPT = 20;
 export async function readVersions(orgId: string, cardId: string): Promise<QuoteVersion[]> {
   const { data } = await supabaseAdmin
     .from("quote_versions")
-    .select("n, what, snapshot, approved_at, made_at")
+    .select("n, what, snapshot, approved_at, approved_by, made_at, made_by")
     .eq("org_id", orgId)
     .eq("sm8_job_uuid", cardId)
     .order("n", { ascending: false })

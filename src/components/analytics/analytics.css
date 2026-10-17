@@ -133,7 +133,7 @@
 .an-qlist { display: flex; flex-direction: column; }
 .an-qrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px; align-items: start; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .an-qjob, .an-qwhat { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 14px; }
-.an-qjob a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-qjob a { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; overflow: hidden; white-space: nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .an-qjob > span { font-size: 13px; color: var(--q); font-variant-numeric: tabular-nums; }
 .an-qact { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
 .an-qact .an-err { flex-basis: 100%; text-align: right; }

@@ -268,7 +268,7 @@
 .fg .tool .hl2-advhead:focus-visible { outline: none;  box-shadow: var(--ring); }
 .fg .tool .hl2-advhead b { font-size: 14px; font-weight: 700; color: var(--ink); flex: 0 0 auto; transition: color var(--t-fast) var(--ease); }
 .fg .tool .hl2-advhead:hover b { color: var(--ink); }
-.fg .tool .hl2-advhead .sum { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--gray400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg .tool .hl2-advhead .sum { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--gray400); white-space: nowrap; overflow: hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .tool .hl2-advhead .chev {
   width: 26px; height: 26px; border-radius: 50%; background: var(--tint); color: var(--gray400);
   display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
@@ -467,7 +467,7 @@
   cursor: pointer; font-family: var(--font); transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .fg .tool .ffg-trail button:hover { background: var(--paper); border-color: var(--line); }
-.fg .tool .ffg-trail .q { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--gray500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg .tool .ffg-trail .q { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--gray500); white-space: nowrap; overflow: hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .tool .ffg-trail .a { font-size: 13px; font-weight: 700; flex: 0 0 auto; }
 .fg .tool .ffg-trail svg { color: var(--q); flex: 0 0 auto; }
 

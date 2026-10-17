@@ -8,6 +8,7 @@
 
 import { useEffect, useRef } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import type { AirComponentKind } from "./canvas";
 
 export interface PaletteEntry {
@@ -67,7 +68,6 @@ export function ComponentPalette({
             role="menuitem"
             className={`ds-pal-item${e.enabled ? "" : " off"}`}
             disabled={!e.enabled}
-            title={e.enabled ? e.label : `${e.label} — ${e.reason}`}
             onClick={() => e.enabled && onPick(e.kind)}
           >
             <span className="ds-pal-ic">
@@ -110,6 +110,16 @@ export function PlenumHud({
   onStream: (s: "supply" | "return") => void;
   returnBuiltIn: boolean;
 }) {
+  const ret = (
+    <button
+      className={`ds-hud-chip${stream === "return" ? " on" : ""}`}
+      aria-pressed={stream === "return"}
+      disabled={returnBuiltIn}
+      onClick={() => onStream("return")}
+    >
+      Return
+    </button>
+  );
   return (
     <OptionsHud label="Plenum">
       <div className="ds-hud-seg">
@@ -120,19 +130,7 @@ export function PlenumHud({
         >
           Supply
         </button>
-        <button
-          className={`ds-hud-chip${stream === "return" ? " on" : ""}`}
-          aria-pressed={stream === "return"}
-          disabled={returnBuiltIn}
-          title={
-            returnBuiltIn
-              ? "Return plenum is built into this air handler"
-              : undefined
-          }
-          onClick={() => onStream("return")}
-        >
-          Return
-        </button>
+        {returnBuiltIn ? <Tooltip label="Return plenum is built into this air handler">{ret}</Tooltip> : ret}
       </div>
     </OptionsHud>
   );

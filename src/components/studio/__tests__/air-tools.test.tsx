@@ -70,7 +70,7 @@ describe("air dock group (studio toolrail)", () => {
     expect(within(fly).getByText("Duct")).toBeInTheDocument();
     const duct = within(fly).getByRole("menuitem", { name: /Coming — Step 4/ });
     expect(duct).toBeDisabled();
-    expect(duct).toHaveAttribute("title", "Ductwork arrives at Step 4");
+    expect(duct).not.toHaveAttribute("title");
   });
 
   it("Component gates on a system, then on a zone it serves", async () => {
@@ -78,11 +78,11 @@ describe("air dock group (studio toolrail)", () => {
 
     const component = screen.getByRole("button", { name: "Component" });
     expect(component).toBeDisabled();
-    expect(component).toHaveAttribute("title", "Component — pick a system first");
+    expect(component).toHaveAccessibleDescription("Pick a system first");
 
     await user.click(screen.getByRole("button", { name: "Add a system" }));
     expect(component).toBeDisabled();
-    expect(component).toHaveAttribute("title", "Component — add a zone first");
+    expect(component).toHaveAccessibleDescription("Add a zone first");
   });
 
   it("with a zone served, Component asks for a ducted indoor unit in plain words", async () => {
@@ -101,15 +101,14 @@ describe("air dock group (studio toolrail)", () => {
 
     const component = screen.getByRole("button", { name: "Component" });
     expect(component).toBeDisabled();
-    expect(component).toHaveAttribute(
-      "title",
-      "Component — needs a ducted indoor unit; wall and cassette units carry no ductwork"
+    expect(component).toHaveAccessibleDescription(
+      "Needs a ducted indoor unit; wall and cassette units carry no ductwork"
     );
     /* the old wording said "air-capable air handler", which read as a
        different SYSTEM type and sent a real user hunting in the wrong place.
        The gate is about the UNIT — keep the word "ducted" in the message. */
-    expect(component.getAttribute("title")).toContain("ducted");
-    expect(component.getAttribute("title")).not.toContain("air-capable");
+    expect(component).toHaveAccessibleDescription(/ducted/);
+    expect(component).not.toHaveAccessibleDescription(/air-capable/);
   });
 });
 
@@ -169,7 +168,7 @@ describe("plenum options HUD", () => {
     render(<PlenumHud stream="supply" onStream={onStream} returnBuiltIn />);
     const ret = screen.getByRole("button", { name: "Return" });
     expect(ret).toBeDisabled();
-    expect(ret).toHaveAttribute("title", "Return plenum is built into this air handler");
+    expect(ret).toHaveAccessibleDescription("Return plenum is built into this air handler");
     fireEvent.click(ret);
     expect(onStream).not.toHaveBeenCalled();
   });

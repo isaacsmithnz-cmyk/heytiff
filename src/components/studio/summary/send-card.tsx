@@ -970,7 +970,7 @@ export function SendCard({
               )}
               {link.kind === "active" && (
                 <>
-                  <span className={`ds-share-url${link.expired ? " dead" : ""}`} title={link.url}>
+                  <span className={`ds-share-url${link.expired ? " dead" : ""}`}>
                     {link.url.replace(/^https?:\/\//, "")}
                   </span>
                   {link.expired ? (

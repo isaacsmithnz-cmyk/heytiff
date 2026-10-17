@@ -139,7 +139,7 @@ describe("Plans stage", () => {
       expect(img!.getAttribute("href")).toBe(DATA_URL);
     });
     // uncalibrated plan floor: the merged Calibrate pill is present and not yet complete
-    const calibPill = screen.getByTitle("Calibrate — set the scale and north");
+    const calibPill = screen.getByRole("button", { name: /^Calibrated?$/ });
     expect(calibPill).toBeInTheDocument();
     expect(calibPill.className).not.toMatch(/\bdone\b/);
   });
@@ -154,7 +154,7 @@ describe("Plans stage", () => {
     expect(screen.queryByText("Calibrate the plan")).not.toBeInTheDocument();
     // the calibrate tool is now armed — the merged Calibrate pill shows it active
     expect(
-      screen.getByTitle("Calibrate — set the scale and north").className
+      screen.getByRole("button", { name: /^Calibrated?$/ }).className
     ).toMatch(/\bon\b/);
   });
 
@@ -197,7 +197,7 @@ describe("Plans stage", () => {
     const svg = canvas.querySelector("svg")!;
 
     // crop now lives in the Calibrate dropdown (plan-prep), not the tool rail
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: /Crop/ }));
     // drag a rect inside the 1200×900 sheet (screen ≈ 80,60 → 720,540)
     fireEvent.pointerDown(svg, ptc(200, 150));
@@ -220,7 +220,7 @@ describe("Plans stage", () => {
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
     const svg = canvas.querySelector("svg")!;
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: label }));
     return { user, canvas, svg };
   }
@@ -417,7 +417,7 @@ describe("Plans stage", () => {
       click(svg, [300, 420]);
       fireEvent.keyDown(window, { key: "Enter" });
       await waitFor(() => expect(canvas.querySelector("clipPath polygon")).not.toBeNull());
-      await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+      await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
       await user.click(screen.getByRole("button", { name: /Crop/ }));
       drag(svg, [200, 150], [400, 300]);
       await waitFor(() => expect(canvas.querySelector("clipPath rect")).not.toBeNull());
@@ -432,7 +432,7 @@ describe("Plans stage", () => {
     await waitFor(() => expect(canvas.querySelector("image.ds-plan")).not.toBeNull());
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
     const svg = canvas.querySelector("svg")!;
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: /Crop/ }));
     fireEvent.pointerDown(svg, ptc(200, 150));
     fireEvent.pointerMove(svg, ptc(400, 300));
@@ -458,7 +458,7 @@ describe("Plans stage", () => {
     const zFull = readZoom();
 
     // crop to a sub-rect (Crop lives in the Calibrate dropdown now), then re-fit
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: /Crop/ }));
     fireEvent.pointerDown(svg, ptc(200, 150));
     fireEvent.pointerMove(svg, ptc(400, 300));
@@ -476,7 +476,7 @@ describe("Plans stage", () => {
     await screen.findByTestId("studio-canvas");
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
 
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     expect(screen.getByRole("button", { name: /Crop/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Move plans/ })).toBeInTheDocument();
   });

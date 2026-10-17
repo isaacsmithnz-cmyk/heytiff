@@ -6246,7 +6246,6 @@ export function StudioCanvas({
                       aria-checked={on}
                       className={`ds-note-ink${on ? " on" : ""}`}
                       style={{ background: ink.hex, color: ink.hex }}
-                      title={ink.label}
                       aria-label={ink.label}
                       onClick={() => {
                         /* BOTH things: recolour this note, and arm the ink for
@@ -6305,7 +6304,6 @@ export function StudioCanvas({
           <span className="ds-tool-hint-t">{toolHint.text}</span>
           <button
             className="ds-tool-hint-x"
-            title="Turn hints off"
             aria-label="Turn tool hints off"
             onClick={() => setHintsOn(false)}
           >

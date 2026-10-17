@@ -272,7 +272,7 @@ describe("installer scenarios: upload → floors", () => {
 
     // split the page: draw what this floor keeps, then the floor above's area
     await user.click(await screen.findByRole("button", { name: "Skip for now" }));
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: /Split to new floor/ }));
     const svg = canvas.querySelector("svg")!;
     const at = (x: number, y: number) => ({ clientX: x, clientY: y, button: 0, pointerId: 1 });

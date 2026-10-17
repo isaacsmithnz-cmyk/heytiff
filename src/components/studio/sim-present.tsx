@@ -88,7 +88,7 @@ export function SimPresentMode({
             onChange={approval.onChange}
           />
         )}
-        <button className="ds-present-exit" onClick={onExit} title="Exit presentation (Esc)">
+        <button className="ds-present-exit" onClick={onExit}>
           Exit
           <span aria-hidden>✕</span>
         </button>

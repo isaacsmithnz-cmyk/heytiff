@@ -175,7 +175,7 @@ describe("Design Studio shell", () => {
     await newDesign(user, "Blank gating", "Blank canvas");
     await screen.findByTestId("studio-canvas");
 
-    const pill = screen.getByTitle("Calibrate — set the scale and north");
+    const pill = screen.getByRole("button", { name: /^Calibrated?$/ });
     await user.click(pill);
     const crop = screen.getByRole("button", { name: /Crop/ });
     const move = screen.getByRole("button", { name: /Move plans/ });

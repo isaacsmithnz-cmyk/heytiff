@@ -81,7 +81,6 @@ function VariationList({
                   setDraft(v.label);
                   setRenaming(true);
                 }}
-                title="Rename this variation"
                 aria-label="Rename this variation"
               >
                 <Icon name="edit" size={11} />
@@ -96,7 +95,6 @@ function VariationList({
           onAddVariant();
           onDone();
         }}
-        title="Branch the whole design into another option — every system comes with it"
       >
         <Icon name="plus" size={12} />
         Add variation

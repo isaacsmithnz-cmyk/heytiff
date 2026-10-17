@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import type { OrgBrand } from "@/lib/org/brand";
 import { DotField } from "@/components/ui/dot-field";
 import { JobSearchField, type JobSearch } from "./job-search";
@@ -1030,7 +1031,6 @@ function Home({
               )}
               <button
                 className="ds-import"
-                title="Restore a design exported from HeyTiff (.heytiff-design.json) — not for floor plans or CAD files"
                 onClick={() => fileRef.current?.click()}
               >
                 <Icon name="arrowUp" size={14} />
@@ -1855,7 +1855,6 @@ function Editor({
               <button
                 className="ds-save local retry"
                 onClick={onSaveNow}
-                title="This design is saved on this device only — click to save it to the server again"
               >
                 <span className="dot" />
                 Saved locally — retry
@@ -1905,11 +1904,6 @@ function Editor({
             onClick={() => (fullscreen ? setFullscreen(false) : toFullscreen())}
             aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
             aria-pressed={fullscreen}
-            title={
-              fullscreen
-                ? "Back to the app — Esc does the same"
-                : "Fill the screen — same studio, no app frame"
-            }
           >
             <Icon name={fullscreen ? "x" : "maximize"} size={16} />
           </button>
@@ -2273,14 +2267,12 @@ function StudioMenu({
   const item = (
     icon: string,
     label: string,
-    action: (() => void) | undefined,
-    title?: string
+    action: (() => void) | undefined
   ) => (
     <button
       className="ds-menu-item"
       role="menuitem"
       disabled={!action}
-      title={title}
       onClick={() => {
         setOpen(false);
         action?.();
@@ -2309,20 +2301,12 @@ function StudioMenu({
           {item("save", "Save", onSave)}
           <div className="ds-menu-sep" />
           {item("edit", "Edit plans", onEditPlans)}
-          {item(
-            "library",
-            "Reference sheets",
-            onReference,
-            onReference
-              ? undefined
-              : "Upload plan pages first"
-          )}
+          {item("library", "Reference sheets", onReference)}
           <div className="ds-menu-sep" />
           <div
             className="ds-menu-set"
             role="group"
             aria-label="Load settings"
-            title="Every room load re-derives from these — the whole design updates live"
           >
             <span className="ds-menu-set-t">Load settings</span>
             <label className="ds-menu-set-row">
@@ -2438,7 +2422,6 @@ function RoomTool({
         aria-label="Zone"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Zone — square or drawn shape"
         onClick={() => setOpen((v) => !v)}
       >
         <Icon name="square" size={15} />
@@ -2508,7 +2491,6 @@ function NoteTool({
         aria-label="Note"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Note — a cloud round something, with its say in the margin"
         onClick={() => {
           /* the FIRST press arms, and arms alone — the flyout would hang over
              the canvas the armed tool is asking you to drag on. Once armed,
@@ -2535,7 +2517,6 @@ function NoteTool({
               aria-checked={ink === k.hex}
               className={`ds-note-ink${ink === k.hex ? " on" : ""}`}
               style={{ background: k.hex, color: k.hex }}
-              title={k.label}
               aria-label={k.label}
               onClick={() => {
                 onInk(k.hex);
@@ -2612,24 +2593,22 @@ function DrawTool({
       {label}
     </button>
   );
+  const drawBtn = (
+    <button
+      className={`ds-tool${on ? " on" : ""}`}
+      aria-label="Draw"
+      aria-haspopup="menu"
+      aria-expanded={open}
+      disabled={disabled}
+      onClick={() => setOpen((v) => !v)}
+    >
+      <Icon name="pipe" size={15} />
+      Draw
+    </button>
+  );
   return (
     <div className="ds-pal-wrap" ref={wrapRef}>
-      <button
-        className={`ds-tool${on ? " on" : ""}`}
-        aria-label="Draw"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        disabled={disabled}
-        title={
-          disabled
-            ? "Draw — pick a system first"
-            : "Draw — pipe, drain, cable, duct, riser, joint or branch box"
-        }
-        onClick={() => setOpen((v) => !v)}
-      >
-        <Icon name="pipe" size={15} />
-        Draw
-      </button>
+      {disabled ? <Tooltip label="Pick a system first">{drawBtn}</Tooltip> : drawBtn}
       {open && !disabled && (
         <div className="ds-roomfly ds-drawfly" role="menu" aria-label="Draw a line">
           <div className="ds-drawrow">
@@ -2676,7 +2655,6 @@ function DrawTool({
                 className="ds-drawchip"
                 role="menuitem"
                 disabled
-                title="Ductwork arrives at Step 4"
               >
                 Coming — Step 4
               </button>
@@ -2850,7 +2828,6 @@ function CanvasControls({
             setLayersOpen(false);
             setFloorMenuOpen((v) => !v);
           }}
-          title={`${floorDisplayName(floor)} — switch floor`}
         >
           <Icon name="layers" size={13} />
           {formatLevel(floor.level)}
@@ -2912,7 +2889,6 @@ function CanvasControls({
                     <button
                       className="ds-floor-x"
                       onClick={() => setArmedDelFloor(f.id)}
-                      title="Delete this floor and everything on it"
                       aria-label={`Delete ${floorDisplayName(f)}`}
                     >
                       <Icon name="x" size={12} />
@@ -2956,7 +2932,6 @@ function CanvasControls({
             setLayersOpen(false);
             setCalibOpen((v) => !v);
           }}
-          title="Calibrate — set the scale and north"
         >
           <Icon name="ruler" size={13} />
           <span className="ds-ctl-word">
@@ -3009,11 +2984,6 @@ function CanvasControls({
             <button
               className={`ds-calib-item${tool === "measure" ? " on" : ""}`}
               disabled={floor.scaleMmPerUnit == null}
-              title={
-                floor.scaleMmPerUnit == null
-                  ? "Tape measure — calibrate the scale first"
-                  : "Tape measure (K) — drag to read a distance"
-              }
               onClick={() => {
                 onTool("measure");
                 setCalibOpen(false);
@@ -3039,11 +3009,6 @@ function CanvasControls({
                 onTool("crop");
                 setCalibOpen(false);
               }}
-              title={
-                floor.plans.length === 0
-                  ? "Crop — this floor is a blank grid, there's no plan to trim"
-                  : "Crop the plan to the area you're working on (X)"
-              }
             >
               <Icon name="maximize" size={13} />
               <span className="k">Crop</span>
@@ -3060,11 +3025,6 @@ function CanvasControls({
                 onTool("split");
                 setCalibOpen(false);
               }}
-              title={
-                floor.plans.length === 0
-                  ? "Split to new floor — this floor is a blank grid, there's no plan to split"
-                  : "Keep an area on this floor and give the rest of the page to a new floor"
-              }
             >
               <Icon name="layers" size={13} />
               <span className="k">Split to new floor</span>
@@ -3077,11 +3037,6 @@ function CanvasControls({
                 onTool("arrange");
                 setCalibOpen(false);
               }}
-              title={
-                floor.plans.length === 0
-                  ? "Move plans — this floor is a blank grid, there are no sheets to move"
-                  : "Reposition the plan sheets on this floor (M)"
-              }
             >
               <Icon name="hand" size={13} />
               <span className="k">Move plans</span>
@@ -3103,7 +3058,6 @@ function CanvasControls({
             setCalibOpen(false);
             setLayersOpen((v) => !v);
           }}
-          title="View — layers, black & white and legend"
         >
           <Icon name="layers" size={14} />
           <span className="ds-ctl-word">View</span>
@@ -3215,11 +3169,6 @@ function CanvasControls({
         <button
           className={`ds-ctl-btn ds-sim-go${simOn ? " on" : ""}`}
           onClick={onToggleSim}
-          title={
-            simOn
-              ? "Exit the simulation"
-              : "Simulate this floor — read-only, nothing in the design changes"
-          }
         >
           <span className="ds-sim-play" aria-hidden>
             {simOn ? "■" : "▶"}
@@ -3228,7 +3177,7 @@ function CanvasControls({
         </button>
       )}
       {next && (
-        <button className="ds-nextchip" onClick={onNext} title="Arm the next move">
+        <button className="ds-nextchip" onClick={onNext}>
           <span className="ds-nextdot" aria-hidden="true" />
           {`Next: ${next.label}`}
         </button>
@@ -3394,23 +3343,40 @@ function DesignPanel({
     );
   }
 
-  const toolButton = (t: (typeof CANVAS_TOOLS)[number]) => (
+  const componentBtn = (
     <button
-      key={t.key}
-      className={`ds-tool${tool === t.key ? " on" : ""}`}
-      title={
-        t.needsSystem && !activeSystemId
-          ? `${t.label} — pick a system first`
-          : t.label
-      }
-      aria-label={t.label}
-      disabled={Boolean(t.needsSystem) && !activeSystemId}
-      onClick={() => onTool(t.key)}
+      className={`ds-tool${tool === "component" ? " on" : ""}`}
+      aria-label="Component"
+      disabled={!airGate.ok}
+      onClick={() => onPalette(!paletteOpen)}
     >
-      <Icon name={t.icon as never} size={15} />
-      {t.short}
+      <Icon name="box" size={15} />
+      Component
     </button>
   );
+
+  const toolButton = (t: (typeof CANVAS_TOOLS)[number]) => {
+    const off = Boolean(t.needsSystem) && !activeSystemId;
+    const b = (
+      <button
+        key={t.key}
+        className={`ds-tool${tool === t.key ? " on" : ""}`}
+        aria-label={t.label}
+        disabled={off}
+        onClick={() => onTool(t.key)}
+      >
+        <Icon name={t.icon as never} size={15} />
+        {t.short}
+      </button>
+    );
+    return off ? (
+      <Tooltip key={t.key} label="Pick a system first">
+        {b}
+      </Tooltip>
+    ) : (
+      b
+    );
+  };
 
   return (
     <div className="ds-design">
@@ -3440,16 +3406,11 @@ function DesignPanel({
               holding a whole verb's width on the bench, and the bar had
               started wrapping on a laptop. */}
           <div className="ds-pal-wrap">
-            <button
-              className={`ds-tool${tool === "component" ? " on" : ""}`}
-              aria-label="Component"
-              disabled={!airGate.ok}
-              title={airGate.ok ? "Component" : `Component — ${airGate.reason}`}
-              onClick={() => onPalette(!paletteOpen)}
-            >
-              <Icon name="box" size={15} />
-              Component
-            </button>
+            {airGate.ok ? (
+              componentBtn
+            ) : (
+              <Tooltip label={`${airGate.reason.charAt(0).toUpperCase()}${airGate.reason.slice(1)}`}>{componentBtn}</Tooltip>
+            )}
             {paletteOpen && airGate.ok && (
               <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
             )}
@@ -3462,24 +3423,16 @@ function DesignPanel({
               you draw the design, then you write on it. */}
           <NoteTool tool={tool} onTool={onTool} ink={noteInk} onInk={setArmedInk} />
           <div className="ds-tb-spring" />
-          <button
-            className="ds-tool"
-            onClick={undo}
-            disabled={!hist.undo}
-            aria-label="Undo"
-            title="Undo (⌘Z)"
-          >
-            <Icon name="rotate" size={15} />
-          </button>
-          <button
-            className="ds-tool flip"
-            onClick={redo}
-            disabled={!hist.redo}
-            aria-label="Redo"
-            title="Redo (⇧⌘Z)"
-          >
-            <Icon name="rotate" size={15} />
-          </button>
+          <Tooltip label="Undo, ⌘Z">
+            <button className="ds-tool" onClick={undo} disabled={!hist.undo} aria-label="Undo">
+              <Icon name="rotate" size={15} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Redo, ⇧⌘Z">
+            <button className="ds-tool flip" onClick={redo} disabled={!hist.redo} aria-label="Redo">
+              <Icon name="rotate" size={15} />
+            </button>
+          </Tooltip>
         </div>
         <div className="ds-canvas-body">
           <StudioCanvas
@@ -3570,7 +3523,7 @@ function DesignPanel({
           <div className="ds-legend" role="dialog" aria-label="Legend">
             <div className="ds-legend-h">
               <span>Legend</span>
-              <button onClick={() => onLegend(false)} title="Close" aria-label="Close legend">
+              <button onClick={() => onLegend(false)} aria-label="Close legend">
                 ×
               </button>
             </div>

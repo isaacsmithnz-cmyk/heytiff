@@ -77,7 +77,7 @@ describe("Design canvas", () => {
 
     // calibrate: 168 screen px = 300 units declared as 5 m → 16.67 mm/unit
     // (recalibrate via the merged Calibrate pill → Scale row)
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: /Scale/ }));
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerUp(svg, pt(400, 300));
@@ -94,9 +94,9 @@ describe("Design canvas", () => {
       expect(screen.getByText("2.1 m²")).toBeInTheDocument()
     );
     // the calibrate pill's Scale row reflects the new scale (5 m / 300 units = 16.7 mm/px)
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     expect(screen.getByRole("button", { name: /Scale/ })).toHaveTextContent("16.7 mm/px");
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
 
     /* undo: calibration, then the wall marking, then the room itself —
        saving the shape and marking the walls are two separate steps now, so
@@ -255,16 +255,16 @@ describe("Design canvas", () => {
   it("set-north places an arrow and dragging its tip rotates the bearing", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     // set-north lives in the merged Calibrate pill → North row
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     await user.click(screen.getByRole("button", { name: /North/ }));
     // drop the arrow at screen (450,300) → world centre (~89,0)
     fireEvent.pointerDown(svg, pt(450, 300));
     fireEvent.pointerUp(svg, pt(450, 300));
     expect(svg.querySelector(".ds-north")).not.toBeNull();
     // the bearing shows in the Calibrate pill's North row (0° at placement)
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     expect(screen.getByRole("button", { name: /North/ })).toHaveTextContent("0°");
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
 
     // in select mode, grab the rotate knob (world-sized: grid 100 → northKnob
     // ≈101.5 world; centre screen (450,300) → knob ≈ (450,243)) and drag a
@@ -273,7 +273,7 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(450, 243));
     fireEvent.pointerMove(svg, pt(476, 300));
     fireEvent.pointerUp(svg, pt(476, 300));
-    await user.click(screen.getByTitle("Calibrate — set the scale and north"));
+    await user.click(screen.getByRole("button", { name: /^Calibrated?$/ }));
     expect(screen.getByRole("button", { name: /North/ })).toHaveTextContent("90°");
   });
 
@@ -320,7 +320,7 @@ describe("Design canvas", () => {
     // moved off it into the systems panel's head
     const bar = document.querySelector(".ds-topbar") as HTMLElement;
     expect(within(bar).queryByRole("button", { name: /variation/i })).toBeNull();
-    expect(within(bar).getByTitle("View — layers, black & white and legend")).toBeInTheDocument();
+    expect(within(bar).getByRole("button", { name: "View" })).toBeInTheDocument();
     // the systems panel hoisted to the editor level → two-column grid layout
     expect(document.querySelector(".ds-editor.two-col")).not.toBeNull();
   });

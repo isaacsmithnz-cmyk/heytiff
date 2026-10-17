@@ -1865,7 +1865,7 @@ function PipingRail({
                           <Fade>{line.alloc.model}</Fade>
                         </button>
                       ) : (
-                        <span className="ds-sb-head-model other" title={`${line.sys.name}, read-only here`}>
+                        <span className="ds-sb-head-model other">
                           <span className="ds-sb-head-dot" style={{ background: line.sys.colour }} aria-hidden="true" />
                           <Fade>{line.alloc.model}</Fade>
                         </span>

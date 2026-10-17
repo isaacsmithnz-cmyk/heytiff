@@ -420,7 +420,6 @@ export function PlansPanel({
             {pages && (
               <button
                 className="ds-rp-del ds-pstep-discard"
-                title="Discard this import"
                 aria-label="Discard this import"
                 onClick={discardImport}
               >
@@ -782,7 +781,6 @@ export function PlansPanel({
               <button
                 className="ds-floor-open"
                 onClick={() => onOpenFloor(f.id)}
-                title="Open on the canvas"
               >
                 <Icon name="arrowR" size={14} />
                 Design
@@ -908,7 +906,6 @@ function PlanCard({
       className="ds-plancard"
       data-planidx={idx}
       draggable
-      title="Drag to a floor"
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >

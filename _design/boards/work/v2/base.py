@@ -86,6 +86,7 @@ body{margin:0;background:#F0F2F5}
 """
 
 ICONS = {
+    "info": '<circle cx="12" cy="12" r="9"></circle><path d="M12 16v-5M12 8h.01"></path>',
     "plus": '<path d="M12 5v14M5 12h14"></path>',
     "search": '<circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path>',
     "home": '<path d="M4 11 12 4l8 7"></path><path d="M6 10v10h12V10"></path>',

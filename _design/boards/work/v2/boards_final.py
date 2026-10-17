@@ -41,6 +41,11 @@ CSS = jc.CSS + MCSS.replace(v3.CSS, "") + """
 .rct.on{border-color:var(--blue);color:var(--blue)}
 .fth{display:flex;gap:8px}
 .fth i{width:120px;height:84px;border-radius:10px;background:var(--soft);border:1px solid var(--line)}
+.cmp{width:100%;border-collapse:collapse}
+.cmp th,.cmp td{text-align:left;padding:6px 12px 6px 0;border-top:1px solid var(--line);vertical-align:top}
+.cmp thead th{border-top:0;font-weight:600;padding-top:10px}
+.cmp thead th span{display:block;font-size:13px;line-height:18px;font-weight:500;color:var(--q)}
+.cmp tbody th{font-weight:500;color:var(--q);width:180px}
 """
 
 STEPS = ["Enquiry", "Quoted", "Accepted", "Booked", "On site", "Done", "Invoiced", "Paid"]
@@ -547,6 +552,78 @@ def conversations():
     return frame(sidebar("chat"), header([TAB_HOME, (ico("chat"), "Conversations")], 1), body)
 
 
+
+# ------------------------------------------------------------------ one engine: asking Tiff anything
+ASK_ITEMS = [("Last 10 kW Mitsubishi ducted", "Today 10:42 am"), ("Daikin or Mitsubishi, 5 kW", "Today 10:31 am"), ("Bellevue Hill wrap-up and isolator", "Today 10:20 am"), ("Riverview brief", "Today 8:40 am"), ("Hilux and the head for Lyle", "Today 8:12 am"), ("Clearing an E6 on a Daikin split", "Yesterday"), ("Who's free Thursday", "Friday")]
+
+
+def src(icon, text):
+    return f'<div class="l13 qq" style="display:flex;align-items:center;gap:6px;margin-top:8px">{ico(icon, style="width:14px;height:14px")}{text}</div>'
+
+
+def reading(*lines):
+    return "".join(f'<div class="l13 qq" style="display:flex;align-items:center;gap:6px">{ico("check", style="width:14px;height:14px")}{t}</div>' for t in lines)
+
+
+def ask_page(on, thread):
+    li = "".join(f'<a class="{"on" if t == on else ""}" href="#"><span class="m"><span class="t">{t}</span><span class="s">{d}</span></span></a>' for t, d in ASK_ITEMS)
+    vw = "".join(f'<a class="{"on" if i == 0 else ""}" href="#">{n}{f" <span class=c>{c}</span>" if c else ""}</a>' for i, (n, c) in enumerate([("All", ""), ("Mentions", "1"), ("Team", ""), ("Only me", "")]))
+    bar = f'''<div class="jbar"><div class="r16 qq" style="min-height:32px">Ask Tiff anything</div><div class="row"><span class="b sm sec">{ico("camera")}Add photo</span><span class="ib">{ico("mic")}</span><span style="flex:1"></span><span class="b sm go">Send</span></div></div>'''
+    body = f'''<div style="display:flex;height:calc(900px - 56px)">
+  <div style="width:340px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column">
+    <div style="padding:8px 20px 12px 28px"><h1 class="t24">Conversations</h1><div style="margin-top:12px"><span class="vws">{vw}</span></div></div>
+    <div class="lst" style="padding:0 12px 0 16px">{li}</div>
+  </div>
+  <section class="jc" style="padding:0 48px;max-width:960px">
+    <div class="jt">{thread}</div>{bar}
+  </section>
+</div>'''
+    return frame(sidebar("chat"), header([TAB_HOME, (ico("chat"), "Conversations")], 1), body)
+
+
+def ask_jobs():
+    def job(dotc, title, sub):
+        return f'<div class="act">{dot(dotc)}<div class="m2"><b>{title}</b><span>{sub}</span></div><a class="lk l13" href="#">Open</a></div>'
+    thread = f'''<div class="dd2">Today</div>
+<div class="msg">{jc.av("IS")}<div class="bd">{jc.who("Isaac Smith", "10:42 am")}<p>When did we last put in a 10 kW Mitsubishi Electric ducted?</p></div></div>
+<div class="msg">{jc.tiff_av()}<div class="bd">{jc.who("Tiff", "10:42 am")}
+  {reading("Read the Mitsubishi Electric data pack: three 10 kW ducted heads", "Searched the materials on 1,240 ServiceM8 jobs, your quotes and the plates photographed on site")}
+  <p style="margin-top:8px">3318 Hartley in Lane Cove, finished Thursday 2 October by Lyle and Kai: a PEAD-M100JAA on a PUZ-ZM100VKA2. Before that, 3271 Osei in Ryde in August.</p>
+  {job("Green", "3318 Hartley, Lane Cove", "PEAD-M100JAA, PUZ-ZM100VKA2. Finished 2 October, Lyle and Kai")}
+  {job("Blue", "3271 Osei, Ryde", "PEAD-M100JAA, PUZ-M100VKA. Finished 14 August, Dan")}
+  {src("doc", "From ServiceM8 job materials, matched to the data pack’s 10 kW ducted models")}
+</div></div>
+<div class="msg">{jc.av("IS")}<div class="bd">{jc.who("Isaac Smith", "10:44 am")}<p>Why would the coil on one of those ice up in cooling?</p></div></div>
+<div class="msg">{jc.tiff_av()}<div class="bd">{jc.who("Tiff", "10:44 am")}
+  <p>Nothing in your library covers this; the PEAD-M100JAA installation manual would. From general HVAC knowledge:</p>
+  <p style="margin-top:8px">Usually too little air over the coil: a blocked filter or return grille, a crushed or disconnected duct, or too many zones shut. After that, a low refrigerant charge. Check the filter and the return first.</p>
+  {src("info", "General HVAC knowledge, not from your documents")}
+</div></div>'''
+    return ask_page("Last 10 kW Mitsubishi ducted", thread)
+
+
+def ask_compare():
+    rows = [("Cooling and heating", "5.0 and 6.0 kW", "5.0 and 6.0 kW"), ("Sound, low to high", "28 to 45 dB(A)", "28 to 49 dB(A)"), ("Indoor, W × H × D", "990 × 295 × 263 mm", "798 × 299 × 219 mm"), ("Indoor weight", "13 kg", "10.5 kg"), ("Airflow", "267 L/s", "268 L/s"), ("Pipes", "6.35 and 12.7 mm, R32", "6.35 and 12.7 mm, R32"), ("Your price, the pair", "$1,290", "$1,365")]
+    tr = "".join(f'<tr><th>{a}</th><td class="nm">{b}</td><td class="nm">{c}</td></tr>' for a, b, c in rows)
+    table = f'''<div class="cd" style="margin-top:10px;padding:4px 16px 12px">
+  <table class="cmp"><thead><tr><th></th><th>Daikin Cora<span>FTXV50WVMA</span></th><th>Mitsubishi Electric AP<span>MSZ-AP50VGD2</span></th></tr></thead><tbody>{tr}</tbody></table>
+  <div style="display:flex;gap:8px;margin-top:12px"><span class="b sm sec">{ico("plus")}Add Cora to a quote</span><span class="b sm sec">{ico("plus")}Add AP to a quote</span></div>
+</div>'''
+    series = '<div class="chips2" style="flex-wrap:wrap"><span class="b sm sec">Daikin: Zena</span><span class="b sm sec">Alira X</span><span class="b sm sec">Lite</span><span class="b sm sec">Mitsubishi Electric: LN</span><span class="b sm sec">EF</span><span class="b sm sec">GS</span></div>'
+    thread = f'''<div class="dd2">Today</div>
+<div class="msg">{jc.av("IS")}<div class="bd">{jc.who("Isaac Smith", "10:31 am")}<p>What’s the difference between a Daikin 5 kW and a Mitsubishi Electric 5 kW split?</p></div></div>
+<div class="msg">{jc.tiff_av()}<div class="bd">{jc.who("Tiff", "10:31 am")}
+  {reading("Read the Daikin and Mitsubishi Electric data packs, and your price book")}
+  <p style="margin-top:8px">Each makes four at 5 kW, so here are the two you quote most. The same capacity on paper: the Mitsubishi head is 19 cm narrower and 2.5 kg lighter, the Daikin 4 dB quieter on high.</p>
+  {table}
+  {src("doc", "Figures from the makers’ data packs; prices from your price book")}
+  <p style="margin-top:12px">Energy ratings aren’t in the data packs, so check the star rating labels before choosing on running cost.</p>
+  {src("info", "General HVAC knowledge, not from your documents")}
+  <p class="l13 qq" style="margin-top:12px">Compare another series instead</p>{series}
+</div></div>'''
+    return ask_page("Daikin or Mitsubishi, 5 kW", thread)
+
+
 # ------------------------------------------------------------------ phone
 def phone_timesheet():
     rows = "".join(f'<div class="rw" style="gap:12px"><span style="width:56px;font-weight:600">{d}</span>{dot(c) if c else '<span class="dt" style="box-shadow:inset 0 0 0 1.5px var(--edge)"></span>'}<span class="nm" style="font-weight:600;width:36px;text-align:right">{h}</span><span class="nm qq l13" style="flex:1">{t}</span>{s}</div>' for d, c, h, t, s in [("Mon 12", "Green", "8.0", "7:00 to 3:30", ""), ("Tue 13", None, "", "7:00 to now", '<span class="st good l13">On now</span>')])
@@ -613,3 +690,5 @@ def build(out):
     out["S-time.dc.html"] = page("A time, on a wheel", 1440, 900, CSS, time_part())
     out["S-notices.dc.html"] = page("Team, Notices", 1440, 900, CSS, notices())
     out["S-notice-write.dc.html"] = page("Write a notice, an event", 1440, 900, CSS, notice_write())
+    out["S-ask-jobs.dc.html"] = page("Asking Tiff: a job by what went in, then a trade question", 1440, 900, CSS, ask_jobs())
+    out["S-ask-compare.dc.html"] = page("Asking Tiff: two units side by side", 1440, 900, CSS, ask_compare())

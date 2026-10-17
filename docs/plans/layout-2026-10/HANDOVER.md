@@ -88,6 +88,10 @@ Only 84 of the findings were checked: 82 held, 1 was wrong and 1 was not worth f
   - The component already exists: `src/components/ui/time-wheel.tsx`. Restyle it to the rules.
   - Put it in place of the browser's own `type="time"` in the calendar's event form (`home-cal-edit.tsx`) and a notice's event (`notices-board.tsx`).
   - Put it in place of the booking panel's 96-option select.
+- **Tiff is one engine.** The same Tiff answers wherever you ask: the Home box, Search, a job's conversation, a quote.
+  - She reads everything the person asking may see: ServiceM8 jobs and what went into them, quotes, the data packs (specs, pairing, side by side), the Library down to the page, Schedule, and Team by permission.
+  - She works as an HVAC assistant from general knowledge where the records stop, and labels where each part of an answer came from.
+  - See "Tiff: one engine" in `2-build-plan.md`, and canvas page 2, "Asking Tiff".
 - **Version 1 and the data rule.** Until version 2 has settled, migrations only add: new tables and columns, nothing renamed, retyped or removed. That way version 1 can still run on the same data.
 
 ## House rules

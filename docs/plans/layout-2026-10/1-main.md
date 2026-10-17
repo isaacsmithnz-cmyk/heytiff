@@ -170,7 +170,7 @@ Nothing gets built until these are settled. Each has my recommendation; pick Agr
 | --- | --- | --- | --- |
 | 1 | What to call the place with manuals, field notes and the four tools | Keep "Library", with the tools as one shelf in it. The other options: "Toolbox" for all of it, or a separate menu item just for the tools |  |
 | 2 | Which quote builder stays | Settled in the code: the old builder is being retired, and the lines builder with Tiff is on for every business (#1123 to #1127) |  |
-| 3 | One engine for asking Tiff | Keep the box's engine and give it the Library page's sources, down to the page |  |
+| 3 | One engine for asking Tiff | Settled 17 October: one engine, wherever you ask. Tiff reads everything the person may see (ServiceM8 jobs and what went in them, quotes, the data packs, the Library down to the page, Schedule, Team by permission), answers as an HVAC assistant from general knowledge where the records stop, and labels where each part came from. Build plan, Tiff: one engine |  |
 | 4 | The Noticeboard | Settled: notices live in Team, made with its Write a notice. Everyone can open Team: each person's name, role, mobile and email, and Notices. The full record, timesheets, leave, expenses and vehicles stay behind permission, held back on the server so the rest never reaches the browser. A new notice shows in To do until read. Polls and reactions stay, since nothing is dropped |  |
 | 5 | Variations | One kind, on the quote. A project's variations are its job's quote variations |  |
 | 6 | Photos taken in HeyTiff | Send them to the ServiceM8 job automatically, so both apps show one set |  |

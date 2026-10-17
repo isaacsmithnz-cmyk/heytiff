@@ -4,6 +4,8 @@
 
 This tab is for the session that builds HeyTiff's new layout. Read it top to bottom, then Design rules, before touching code. Everything here is decided unless it sits under Still open. The reasons behind each decision are on HeyTiff: every feature, one way in.
 
+**Building from a checkout?** Start with docs/plans/layout-2026-10/HANDOVER.md on the branch ccr-6324701b-7w9oog. It holds these tabs as Markdown, the review's research, and the order to read them in. The scripts that draw every board are in \_design/boards/.
+
 **Where everything lives**
 
 | What | Where |
@@ -158,6 +160,29 @@ Eight phases. Each one ends with the app working and every test green. Phases 3 
 
 Everything else (notes, quote lines, photos, the checklist, billing, licences, a rego, a timesheet day) is changed where it lives, with no form of its own. Every path, press by press, is on canvas page 9.
 
+## Tiff: one engine
+
+One Tiff and one engine, wherever you ask: the box on Home, Search's last row, a job's conversation, a quote. She can read anything in HeyTiff that the person asking is allowed to see, she works as an HVAC assistant, and she answers in the conversation with where each part came from. Decided 17 October; this replaces decision 3's "keep the box's engine and give it the Library's sources".
+
+**What she reads.** Each is a read tool in the one registry (src/lib/tiff/registry), behind the same permission as the screen it comes from, so nothing a screen hides can be reached by asking.
+
+- Jobs from ServiceM8: find one by client, address or number, or by what went in. Job materials, quote lines and the plates photographed on site are matched to the data packs, so "the last job we put a 10 kW Mitsubishi Electric ducted in" has an answer. A job's history, notes, visits, checklist, photos and documents.
+- Quotes and the price book. Money only with Financials.
+- The data packs: a unit's specs, whether units pair, and two or more units side by side. These are today's quote tools (search\_book, unit\_specs, pairing\_check, the compare), moved into the registry.
+- The Library: manuals, SOPs and field notes, down to the page.
+- Schedule, To do and tasks, Documents, and Team: everyone's contact details, and timesheets, leave, expenses and vehicles by permission.
+- General HVAC knowledge, for whatever the records don't cover.
+
+**How she answers.**
+
+- Your records first, then the data packs, then general HVAC knowledge. Every part says where it came from: a job's materials, a data pack, a manual and its page, or "General HVAC knowledge, not from your documents". General knowledge is never written as though a document said it.
+- When the Library has nothing, she says so and names the document that would have answered. A Library only switch under the box keeps an answer to your own documents.
+- A comparison is a table in the conversation, with each pair's price from your book and an Add to a quote button for each. When a request matches several series ("a Daikin 5 kW"), she compares the ones you quote most and offers the rest as buttons.
+- A job or record she names is a row you can open.
+- No web search. General knowledge is what the model already knows, so a model released lately, a price or a rule change may be missing; she says so when it matters.
+
+**Building it.** Today there are four engines: the Tiff window (lib/brain/ask.ts, five reads), the Library's ask (lib/tiff/answer.ts, with its general, research and miss modes), the quote session (lib/quotes/session, about 25 tools) and the note router. Make them one loop over one registry: move the quote session's reads into the registry, bring the Library's three modes and page sources across, and add the reads above. Writes stay gated where they are today: a quote's tools only with that quote open, the router's lanes in phase 6. Searches read the synced copy of ServiceM8. The reads land with Home in phase 5; the boards are on canvas page 2, "Asking Tiff".
+
 ## Tiff's model and what it costs
 
 **Done, in commit a01b18f** (pushed to ccr-6324701b-7w9oog; every test passed on the push)
@@ -198,7 +223,7 @@ Ask Isaac before the phase each one blocks. Where there's a recommendation, the 
 | # | Question | Recommendation | Blocks |
 | --- | --- | --- | --- |
 | 1 | What to call the place with manuals, field notes and the tools | Library, with the tools as one shelf in it | Phase 5, Library |
-| 3 | One engine for asking Tiff | Keep the box's engine and give it the Library's sources, down to the page | Phase 5, Home |
+| 3 | One engine for asking Tiff | Settled 17 October: one engine that reads everything the person may see, and answers as an HVAC assistant (Tiff: one engine, above) | Phase 5, Home |
 | 5 | Variations | One kind, on the quote; a project's variations are its job's quote variations | Phase 4, Add |
 | 6 | Photos taken in HeyTiff | Send them to the ServiceM8 job automatically, so both apps show one set | Phase 5, a job's Photos |
 | 7 | Reading photos now or overnight | Straight away when someone's waiting; overnight at half price for photo search | Nothing in the layout |

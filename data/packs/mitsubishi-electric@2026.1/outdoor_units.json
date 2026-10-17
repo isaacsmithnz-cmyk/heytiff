@@ -461,8 +461,9 @@
       "kind": "extracted",
       "source": "M-P Series (Mr Slim) Data Book; sound/power: Ducted Air Conditioning Brochure 2024 (mitsubishielectric.com.au), pp. 24-26",
       "edition": "M-P0922 (2024)",
-      "page": "A-6, A-227"
-    }
+      "page": "A-6, A-32, A-227"
+    },
+    "max_amps_a": 27.5
   },
   {
     "model": "PUZ-ZM125VKA2-A",

@@ -6,6 +6,8 @@ import { loadShell } from "@/lib/shell/data";
 import { todayInAu } from "@/lib/au-dates";
 import { newJobOffered } from "@/lib/workboard/new-job-offer";
 import { getSm8Timezone } from "@/lib/workboard/query";
+import { readPins } from "@/lib/pins/pins-server";
+import { auth0 } from "@/lib/auth0";
 
 /* The three pieces of chrome that need to know who you are.
 
@@ -29,8 +31,13 @@ export async function ShellSidebar() {
   const { user, orgId } = await loadShell();
   /* New offers a Job where the board would: ServiceM8 takes new jobs from
      this workspace and you may run the board */
-  const newJob = orgId ? await newJobOffered(orgId, user.caps.includes("workboard_manage")) : false;
-  return <Sidebar user={user} newJob={newJob} />;
+  const session = await auth0.getSession();
+  const userSub = (session?.user?.sub as string | undefined) ?? null;
+  const [newJob, pins] = await Promise.all([
+    orgId ? newJobOffered(orgId, user.caps.includes("workboard_manage")) : false,
+    orgId && userSub ? readPins({ orgId, userSub }) : [],
+  ]);
+  return <Sidebar user={user} newJob={newJob} pins={pins} />;
 }
 
 export async function ShellTopbar() {

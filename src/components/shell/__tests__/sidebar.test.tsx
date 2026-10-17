@@ -140,3 +140,15 @@ describe("New", () => {
     expect(screen.getByRole("dialog", { name: "New job" })).toBeInTheDocument();
   });
 });
+
+describe("Pinned (rule 6)", () => {
+  it("lists what you pinned, above Recents, and opens it where you are", () => {
+    render(
+      <CommandPaletteProvider>
+        <Sidebar user={userAs("staff")} pins={[{ ref: { kind: "job", id: "j1" }, title: "Job 3342", sub: "Rifkin, Bellevue Hill" }]} />
+      </CommandPaletteProvider>,
+    );
+    const pinned = screen.getByRole("region", { name: "Pinned" });
+    expect(within(pinned).getByRole("button", { name: "Job 3342, Rifkin, Bellevue Hill" })).toBeInTheDocument();
+  });
+});

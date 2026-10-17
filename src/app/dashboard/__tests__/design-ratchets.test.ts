@@ -571,7 +571,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   // v2, 18 October 2026: each first set wrong on purpose (-1), then to the count the run printed
   { law: "main buttons painted ink — the main button is blue (rule 22)", now: inkButtons, baseline: 0 },
   { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: offPalette, baseline: 150 },
-  { law: "`text-overflow: ellipsis` — text that doesn't fit fades (rule 50)", now: () => count(/text-overflow\s*:\s*ellipsis/g), baseline: 91 },
+  { law: "`text-overflow: ellipsis` — text that doesn't fit fades (rule 50)", now: () => count(/text-overflow\s*:\s*ellipsis/g), baseline: 24 },
   { law: "a typed \"…\" on screen — a wait says what it's doing; text that doesn't fit fades (rule 50)", now: () => countTsx(onScreen("…")), baseline: 2 },
   { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 95 },
   { law: "native time inputs — a clock time opens the wheel (rule 34)", now: () => countTsx(/type="time"/g), baseline: 3 },

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Fade } from "@/components/parts/fade";
 import { Icon } from "@/components/shell/icon";
 
 /* The vehicle modal's vocabulary — the handful of shapes every screen is built
@@ -54,7 +55,13 @@ export function DetailGrid({ items, cols = 3, dense }: { items: DetailItem[]; co
         <div key={it.label} className={`vm-field${it.wide ? " wide" : ""}`}>
           <span className="vm-fl">{it.label}</span>
           <span className="vm-fv">
-            <span className={it.tone ? `vm-fvt ${it.tone}` : "vm-fvt"}>{it.value}</span>
+            {/* dense, a value is one line and fades if it runs long (rule 50);
+                otherwise it wraps */}
+            {dense ? (
+              <Fade className={it.tone ? `vm-fvt ${it.tone}` : "vm-fvt"}>{it.value}</Fade>
+            ) : (
+              <span className={it.tone ? `vm-fvt ${it.tone}` : "vm-fvt"}>{it.value}</span>
+            )}
             {it.action && (
               <button type="button" className="vm-inline" onClick={it.action.onClick}>
                 {it.action.label}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { usePathname } from "next/navigation";
@@ -409,7 +410,7 @@ export function TiffModal({
             <span className="tm-hmark" aria-hidden="true">
               <TiffGlyph ground="ink" quiet size={24} />
             </span>
-            {context && <span className="tm-ctx">{context}</span>}
+            {context && <Fade className="tm-ctx">{context}</Fade>}
             {c.aimed && c.targetLabel && (
               <button
                 type="button"

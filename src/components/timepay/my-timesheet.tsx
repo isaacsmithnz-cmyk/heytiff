@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -1438,7 +1439,7 @@ export function MyTimesheet({
                           >
                             <span className="cw">{w[0]}</span>
                             <span className="cd">{w[1]}</span>
-                            <span className="cs">{daySummary(entry)}</span>
+                            <Fade className="cs">{daySummary(entry)}</Fade>
                             <span className="cbar"></span>
                           </button>
                         );

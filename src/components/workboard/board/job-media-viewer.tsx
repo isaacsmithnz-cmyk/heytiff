@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
@@ -261,7 +262,9 @@ export function JobMediaViewer({
       <div className="wb2-mvscrim" onClick={onClose} />
       <div ref={dialog} className="wb2-mv" role="dialog" aria-modal="true" aria-label={item.name}>
         <div className="wb2-mvtop">
-          <b>{item.name}</b>
+          <b>
+            <Fade>{item.name}</Fade>
+          </b>
           <em>{[when, item.origin].filter(Boolean).join(", ")}</em>
           {item.fromClaim && <i className="wb2-chip">{`#${item.fromClaim}`}</i>}
           <span className="wb2-mvsp" />

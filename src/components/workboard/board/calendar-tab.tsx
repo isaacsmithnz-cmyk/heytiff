@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth } from "@/lib/au-dates";
@@ -125,7 +126,7 @@ export function CalendarTab({
         )}
         {/* It says what it counted: these are the services WITH a day, which
             is all the calendar draws. */}
-        <span className="wb2-tbsum">
+        <Fade className="wb2-tbsum">
           <span>
             {services} {services === 1 ? "service" : "services"} booked in
           </span>
@@ -135,7 +136,7 @@ export function CalendarTab({
               <span className="warn">{toConfirm} to confirm</span>
             </>
           )}
-        </span>
+        </Fade>
       </Toolbar>
 
       <div className="wb2-mckey">

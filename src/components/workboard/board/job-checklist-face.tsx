@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { Waiting } from "@/components/ui/orb";
@@ -80,7 +81,7 @@ function ChecklistRow({
         />
       </label>
       <span className="wb2-pkname">{item.name}</span>
-      {item.sub && <em className="wb2-pksub">{item.sub}</em>}
+      {item.sub && <Fade className="wb2-pksub">{item.sub}</Fade>}
       <span className="wb2-pkend">
         {item.kind === "material" && item.qty && <span className="wb2-pkqty">{item.qty}</span>}
         {stamp && <em className="wb2-pkstamp">{stamp}</em>}
@@ -290,7 +291,7 @@ export function JobChecklistFace({
                 />
               </span>
               <span className="wb2-pkname">{r.hit?.name ?? r.name}</span>
-              <em className="wb2-pksub">{r.hit ? [r.hit.code, r.hit.supplier].filter(Boolean).join(", ") : `"${r.name}", not in your price book`}</em>
+              <Fade className="wb2-pksub">{r.hit ? [r.hit.code, r.hit.supplier].filter(Boolean).join(", ") : `"${r.name}", not in your price book`}</Fade>
               <span className="wb2-pkend">{r.qty && <span className="wb2-pkqty">{r.qty}</span>}</span>
             </label>
           ))}

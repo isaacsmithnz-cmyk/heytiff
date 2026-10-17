@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useMemo, type CSSProperties } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -123,9 +124,9 @@ export function UpcomingTab({
             <span>Due</span>
             <span>Day booked</span>
             <span className="wb2-trhd-ck">
-              <em style={{ "--as": "var(--wb2-eq)" } as CSSProperties}>Equip</em>
-              <em style={{ "--as": "var(--wb2-acc)" } as CSSProperties}>Access</em>
-              <em style={{ "--as": "var(--wb2-crew)" } as CSSProperties}>Crew</em>
+              <em style={{ "--as": "var(--wb2-eq)" } as CSSProperties}><Fade>Equip</Fade></em>
+              <em style={{ "--as": "var(--wb2-acc)" } as CSSProperties}><Fade>Access</Fade></em>
+              <em style={{ "--as": "var(--wb2-crew)" } as CSSProperties}><Fade>Crew</Fade></em>
             </span>
           </div>
           {groups.map((g) => (

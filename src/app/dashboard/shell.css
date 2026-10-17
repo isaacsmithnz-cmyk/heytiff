@@ -185,7 +185,7 @@
 .fg .dash-tile .dt-label { font-size:14px; font-weight:700; }
 .fg .dash-tile.bad .dt-label { color:var(--bad-t); }
 .fg .dash-tile.warn .dt-label { color:var(--warn-t); }
-.fg .dash-tile .dt-sub { font-style:normal; font-size:13px; font-weight:600; color:var(--gray400); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .dash-tile .dt-sub { font-style:normal; font-size:13px; font-weight:600; color:var(--gray400); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .dash-tile .dt-chev { color:var(--q); flex:0 0 auto; display:flex; }
 .fg .dash-tile:hover .dt-chev { color:var(--gray500); }
 
@@ -571,7 +571,7 @@
 .fg .rw-dko { display:flex; align-items:center; gap:8px; min-width:0; height:32px; padding:0 8px 0 12px; border:0; border-radius:var(--r-button);
   background:none; color:var(--ink); font:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
 .fg .rw-dko b { flex:none; white-space:nowrap; }
-.fg .rw-dko span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:var(--q); }
+.fg .rw-dko span { min-width:0; overflow:hidden; white-space:nowrap; font-weight:500; color:var(--q); }
 .fg .rw-dko:hover { background:var(--hov); }
 .fg .rw-dkx { flex:none; display:grid; place-items:center; width:32px; height:32px; border:0; border-radius:var(--r-button);
   background:none; color:var(--q); cursor:pointer; transition:color var(--t-fast) var(--ease); }
@@ -1465,7 +1465,7 @@
   .fg-cmd .crow .ck em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
   /* one line each: a job's description runs to a paragraph, and a row that
      wraps pushes the rest of the answers below the fold */
-  .fg-cmd .crow .ck b, .fg-cmd .crow .ck em { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .fg-cmd .crow .ck b, .fg-cmd .crow .ck em { overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
   .fg-cmd .crow .ck .cno { font-variant-numeric:tabular-nums; }
   .fg-cmd .crow .ci2.find { background:var(--tint); color:var(--ink); }
   /* a person is a face, not a thing: the avatar's circle and their initials */
@@ -1497,7 +1497,7 @@
 .fg .tchathead .tcht { flex:1; min-width:0; }
 /* the title outranks the buttons beside it — it is the name of the thing
    being read, and at 16px it lost to its own "New chat" ghost */
-.fg .tchathead .tcht b { display:block; font-size:16px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tchathead .tcht b { display:block; font-size:16px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .tchathead .tcht em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 .fg .tchat { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:16px; padding:8px 4px 16px; }
 .fg .tmsg { display:flex; align-items:flex-end; gap:12px; max-width:76%; }
@@ -2503,7 +2503,7 @@
    signal; the row needs no second one. */
 .fg .tpr .crow .av { width:40px; height:40px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--paper); }
 .fg .tpr .crow .who { flex:0 1 170px; width:170px; min-width:0; }
-.fg .tpr .crow .who .nm { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tpr .crow .who .nm { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .tpr .crow .who .rl { font-size:12px; font-weight:600; color:var(--gray400); white-space:nowrap; }
 .fg .tpr .crow .mini { display:flex; gap:4px; flex:1 1 auto; min-width:90px; overflow:hidden; }
 /* WHICH DAY IS WHICH. A ready-to-approve row was seven anonymous colour bars —
@@ -3054,7 +3054,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fl-li { width:34px; height:34px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; color:var(--ink); }
 .fl-li.issue { color:var(--warn-t); }
 .fl-lk { min-width:0; }
-.fl-lk b { display:block; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fl-lk b { display:block; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fl-lk em { font-style:normal; display:block; font-size:12px; font-weight:600; color:var(--q); margin-top:1px; }
 /* In the mixed History list a one-line row keeps the log scannable, but the
    service history exists TO say what was done — so there it wraps instead of
@@ -3628,7 +3628,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .mts2-tab .cbar { position:absolute; left:12px; right:12px; top:5px; height:3px; border-radius:999px; background:var(--dc); }
 .fg .mts2-tab .cw { font-size:12px; font-weight:700; color:var(--gray400); }
 .fg .mts2-tab .cd { font-size:16px; font-weight:700; line-height:1; color:var(--ink); }
-.fg .mts2-tab .cs { font-size:12px; font-weight:700; color:var(--gray500); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.fg .mts2-tab .cs { font-size:12px; font-weight:700; color:var(--gray500); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; max-width:100%; }
 /* The tint is composited OVER WHITE, not laid on as a translucent background.
    A translucent fill shows whatever is behind the card, and these cards sit on
    the dark shell frame as often as on the light page — which turned the
@@ -4015,7 +4015,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .datef:hover:not(:disabled) { border-color:rgba(10,11,16,.3); }
 .datef:focus-visible, .datef[aria-expanded="true"] { outline:none; border-color:var(--ink);  box-shadow:var(--ring); }
 .datef:disabled { opacity:.5; cursor:not-allowed; }
-.datef .datef-v { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
+.datef .datef-v { flex:1; min-width:0; overflow:hidden; white-space:nowrap; font-variant-numeric:tabular-nums; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .datef.empty .datef-v { color:var(--q); font-weight:500; }
 .datef .datef-ic { display:flex; flex:0 0 auto; color:var(--q); }
 .datef svg { display:block; }
@@ -4113,7 +4113,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* The row's state, said in a word. Semantic colour, never the page accent —
    ok #00A389 / warn amber / off grey (see the design-system note). */
-.fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; }
 .fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
 .fg .int-pill.on { color:var(--ink); }
 .fg .int-pill.on .int-dot { background:var(--ink); }
@@ -4176,7 +4176,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-tag.bad { color:var(--bad-t); }
 /* SENDING FILES TO SERVICEM8 — the checklist's segmented choice for the
    setting, and each write's file name read as a name, not as code */
-.fg .int-wname { min-width:0; font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fg .int-wname { min-width:0; font-size:14px; font-weight:600; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 
 /* A backfill in progress is NOT a warning. It wears the ok green, because the
    thing it reports is working — the warn amber next to it now means one thing
@@ -4529,7 +4529,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-cert svg { flex:0 0 auto; color:var(--gray400); }
 .fg .lv-cert.on svg { color:var(--ok-t); }
 .fg .lv-cert > span { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.fg .lv-cert b { font-size:13px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fg .lv-cert b { font-size:13px; font-weight:700; color:var(--ink); overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .lv-cert em { font-size:12px; font-weight:600; font-style:normal; color:var(--gray500); line-height:1.45; }
 .fg .lv-cert label { flex:0 0 auto; cursor:pointer; }
 
@@ -4734,7 +4734,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .wb-row { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:var(--r-button); }
 .wb-row:hover { background:var(--tint); }
 .wb-time { font-weight:700; font-size:13px; min-width:64px; }
-.wb-who { flex:1; min-width:0; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wb-who { flex:1; min-width:0; font-size:14px; white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb-who em { font-style:normal; color:var(--gray500); }
 .wb-tech { font-size:13px; color:var(--gray700); font-weight:600; }
 /* a kind, a number or a state, read: the word (law 26). The pressed kind is `button.wb-chip`, below. */
@@ -5178,7 +5178,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-trhd-ck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
 .wb2-trhd-ck em { display:block; font-style:normal; font-size:12px; font-weight:700; color:var(--gray500);
   text-transform:none; text-align:center; padding-bottom:4px; border-bottom:2px solid var(--as, rgba(5,5,5,.2));
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap; }
 .wb2-wkhd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:500; color:var(--gray500); }
 .wb2-wkhd.dan { color:var(--wb2-dan-t); }
 .wb2-wkhd em { font-style:normal; font-size:12px; font-weight:600; text-transform:none; color:var(--q); }
@@ -5197,15 +5197,17 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-trj[data-sev="over"]:before, .wb2-trt { min-width:0; }
 .wb2-trt b { display:block; font-size:14px; font-weight:700; }
 .wb2-trt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:500; margin-top:2px;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wb2-trref { font-size:12px; font-weight:700; color:var(--gray500); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+.wb2-trref { font-size:12px; font-weight:700; color:var(--gray500); overflow:hidden; white-space:nowrap; font-variant-numeric:tabular-nums; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-trcad { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-trw { display:block; min-width:0; }
-.wb2-trw .wb2-chip { overflow:hidden; text-overflow:ellipsis; display:block; }
+.wb2-trw .wb2-chip { overflow:hidden; display:block; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-trd { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .wb2-trd b { font-size:13px; font-weight:700; }
-.wb2-trd em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); display:flex; align-items:center; gap:4px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-trd em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); display:flex; align-items:center; gap:4px; min-width:0; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-trd em.dan, .wb2-facts em.dan, .wb2-sched em.dan { color:var(--wb2-dan-t); }
 .wb2-av { width:18px; height:18px; border-radius:var(--r-control); background:var(--tint-2); color:var(--gray700);
   display:inline-grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
@@ -5268,7 +5270,8 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-urt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
 .wb2-urt b { font-size:14px; font-weight:700; line-height:1.3; text-wrap:pretty; }
 .wb2-urt em { font-style:normal; font-size:12px; color:var(--gray500); font-weight:500;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-urwhy { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
 .wb2-ur .pbtn { flex:none; }
 
@@ -5463,7 +5466,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 /* the figures are a sentence, not three chips: a chip is for something you
    tap (law 26), and nobody taps these */
-.wb2-tbsum { margin-left:auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+.wb2-tbsum { margin-left:auto; min-width:0; overflow:hidden;
   white-space:nowrap; font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q);
   font-variant-numeric:tabular-nums; }
 
@@ -5557,7 +5560,8 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
   padding:8px 0; border-top:1px solid var(--line); }
 .wb2-inspcrew li:last-child { border-bottom:1px solid var(--line); }
 .wb2-inspcrew b { min-width:0; font-size:14px; font-weight:600; color:var(--ink);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-inspcrew span { font-size:14px; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
 .wb2-inspcrew em { grid-column:1 / -1; font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
 /* finished work is neutral on the rail and neutral here */
@@ -5620,7 +5624,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-schn b { display:flex; align-items:center; gap:8px;
   font-size:13px; font-weight:700; color:var(--ink);
   overflow:hidden; white-space:nowrap; }
-.wb2-schnn { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-schnn { min-width:0; overflow:hidden; white-space:nowrap; flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 
 /* ── the presence dot ──
    Who is actually out there, answered in the name column before you look at
@@ -5647,7 +5651,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 /* the load, under the name and on its line: indented past the dot's seat
    (8 + the 8 gap), so the two read as one entry */
 .wb2-schn em { padding-left:16px; font-style:normal; font-size:12px; font-weight:500; color:var(--q);
-  font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-schn.none b { color:var(--gray500); }
 
 /* the scrolling rail. The fade says there is more day to the right — and
@@ -5679,8 +5684,9 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    too near the floor for the one word a dispatcher must not miss. */
 .wb2-schaway { position:absolute; display:flex; align-items:flex-start; padding:4px 8px;
   border-radius:var(--r-control); background:var(--tint-2); overflow:hidden; }
-.wb2-schaway > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  font-size:13px; font-weight:500; line-height:1.2; color:var(--ink); }
+.wb2-schaway > span:first-child { min-width:0; overflow:hidden; white-space:nowrap;
+  font-size:13px; font-weight:500; line-height:1.2; color:var(--ink);
+  flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 /* under a working person's bookings: one line, on the strip's middle */
 .wb2-schaway.strip { align-items:center; padding:0 8px; }
 .wb2-schaway.strip > span:first-child { font-size:12px; }
@@ -5716,7 +5722,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-schb:hover { z-index:3; background-color:color-mix(in srgb, var(--fill, var(--tint)) 94%, var(--ink)); }
 .wb2-schb::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--bar, #7a818c); }
 .wb2-schb:focus-visible { outline:none; box-shadow:var(--ring); z-index:4; }
-.wb2-schb b, .wb2-schb em, .wb2-schb i { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.2; }
+.wb2-schb b, .wb2-schb em, .wb2-schb i { overflow:hidden; white-space:nowrap; line-height:1.2; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-schb b { font-size:13px; font-weight:700; color:var(--btext, var(--ink)); }
 .wb2-schb em, .wb2-schb i { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
 
@@ -6004,7 +6010,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-scdjob:hover { }
 .wb2-scdjob:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-scdjh { display:flex; align-items:center; gap:8px; }
-.wb2-scdjh b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+.wb2-scdjh b { min-width:0; overflow:hidden; white-space:nowrap;
   font-size:14px; font-weight:700; color:var(--btext, var(--ink)); }
 .wb2-scdjh u { flex:none; text-decoration:none; padding:1px 8px; border-radius:var(--r-control);
   background:var(--chip, var(--tint-2)); font-size:12px; font-weight:700; color:var(--ink);
@@ -6021,7 +6027,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-scmrow { display:flex; align-items:center; gap:12px; padding:8px 2px;
   border-bottom:1px solid var(--line); }
 .wb2-scmrow b { flex:1; min-width:0; font-size:13px; font-weight:700;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 /* set aside, not deleted: the name steps back a tier — COLOUR, never
    opacity, which drags text toward whatever is behind it */
 .wb2-scmrow.off b { color:var(--gray500); }
@@ -6067,7 +6074,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-dn.can-open:hover { border-color:rgba(5,5,5,.2); }
 .wb2-dn:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-dnt b { display:block; font-size:14px; font-weight:700; }
-.wb2-dnt em, .wb2-dnw em, .wb2-dnh em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:600; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-dnt em, .wb2-dnw em, .wb2-dnh em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:600; margin-top:2px; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-dnw b, .wb2-dnh b { font-size:13px; font-weight:700; }
 /* The note sits in its own well and SIGNS ITSELF — a close-out note whose
    author you can't see is one nobody can follow up on. */
@@ -6933,8 +6940,8 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .jcl-contacts b { font-size:13px; font-weight:600; }
 .jcl-contacts em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
 .jcl-tel { font-size:13px; color:var(--ink); overflow-wrap:anywhere; }
-/* an address is one token: it ends in an ellipsis, never breaks mid-word */
-.jcl-mail { display:block; font-size:13px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* an address is one token: it fades at its end, never breaks mid-word */
+.jcl-mail { display:block; font-size:13px; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-po { margin:0; display:flex; flex-direction:column; gap:2px; font-size:13px; }
 .jcl-po em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
@@ -7117,7 +7124,7 @@ a.jcl-tel, a.jcl-mail { text-decoration:underline; text-underline-offset:2px; }
 .jcl-terms { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .jcl-terms .wb2-jmbar { margin-top:4px; height:8px; }
 .jcl-termkey { display:flex; gap:2px; }
-.jcl-termkey > span { min-width:0; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.jcl-termkey > span { min-width:0; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .jcl-bill .wb2-jmhead { min-width:180px; }
 .wb2-jmbig.hero { font-size:32px; }
 .jcl-billval { display:flex; gap:8px; align-items:baseline; margin-top:4px; font-size:13px; font-variant-numeric:tabular-nums; }
@@ -7216,7 +7223,8 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 /* ONE LINE EACH. A strip is a glance, and a row that wraps to three lines
    has become the diary entry it is meant to point at. */
 .wb2-jcatttext b { font-size:13px; font-weight:700; color:var(--ink);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 /* A person the note names, where their @handle stood: the note as
    ServiceM8 shows it. Isaac, 2026-09-29. */
 .wb2-jcattpill { display:inline-block; padding:0 8px; border-radius:999px; background:var(--info-tint);
@@ -7226,7 +7234,8 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .wb2-jcattpill[data-tone="2"] { background:var(--warn-tint); }
 .wb2-jcattpill[data-tone="3"] { background:var(--tint-2); }
 .wb2-jcatttext em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-jcattacts { display:flex; align-items:center; gap:4px; flex:none; }
 /* A DISABLED CHIP MUST NOT READ AS AN ENABLED ONE. Scoped to the whole
    strip, not just its action row: the miniature review card's "Save the
@@ -7709,7 +7718,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-mvtop { display:flex; align-items:center; gap:8px; padding:12px 16px;
   border-bottom:1px solid var(--on-ink-line); min-height:48px; }
 .wb2-mvtop b { font-size:13px; font-weight:700; color:var(--paper); overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  white-space:nowrap; min-width:0; }
 .wb2-mvtop em { font-style:normal; font-size:12px; font-weight:600; color:var(--on-ink-q); white-space:nowrap; }
 .wb2-mvtop .wb2-chip { color:var(--paper); }
 .wb2-mvsp { flex:1; }
@@ -7919,7 +7928,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
   flex:1 1 140px; }
 .wb2-pkrow.done .wb2-pkname { color:var(--gray500); text-decoration:line-through; }
 .wb2-pksub { font-style:normal; font-size:12px; font-weight:500; color:var(--gray500);
-  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  min-width:0; overflow:hidden; white-space:nowrap; }
 .wb2-pkqty { flex:none; font-size:13px; font-weight:700;
   font-variant-numeric:tabular-nums; }
 /* ONE right-side cluster with ONE auto margin — qty, tick stamp and the
@@ -7962,9 +7971,10 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-dsgn-ic { display:flex; align-items:center; justify-content:center; flex:none;
   width:30px; height:30px; border-radius:var(--r-button); background:var(--info-tint); color:var(--ink); }
 .wb2-dsgn-b { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
-.wb2-dsgn-b b { font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-dsgn-b b { font-size:13px; font-weight:700; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-dsgn-b em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 /* The chevron says "this goes somewhere" and only leans on hover. It has its
    own wrapper class because <Icon> renders <span><svg/></span> — a
    `.wb2-dsgn > svg` rule is valid CSS that matches nothing, which is the
@@ -8015,9 +8025,11 @@ button.wb2-doc .wb2-doc-ic { background:var(--info-tint); color:var(--ink); }
 a.wb2-doc .wb2-doc-ic { background:var(--info-tint); color:var(--ink); }
 .wb2-doc-b { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
 .wb2-doc-b b { font-size:14px; font-weight:600; min-width:0;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-doc-b em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-doc > .wb2-chip { flex:none; }
 .wb2-doc-go { display:flex; flex:none; color:var(--gray400); transition:transform var(--t-move) var(--ease), color var(--t-fast) var(--ease); }
 a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
@@ -8043,9 +8055,10 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-cprow input:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-cprow.off, .wb2-cprow.off input { cursor:default; }
 .wb2-cpname { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
-.wb2-cpname b { font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-cpname b { font-size:14px; font-weight:600; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-cpname em { font-style:normal; font-size:12px; font-weight:500; color:var(--gray500);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-cprow.off .wb2-cpname b { color:var(--gray500); }
 .wb2-cpbook { flex:none; font-style:normal; font-size:12px; font-weight:500; color:var(--gray500); white-space:nowrap; }
 /* the state is a word (law 26); `.sw-state.<tone>` colours it */
@@ -8079,7 +8092,8 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-mailwho input:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-mailwho b { font-size:14px; font-weight:600; white-space:nowrap; }
 .wb2-mailwho em { min-width:0; font-style:normal; font-size:12px; font-weight:500; color:var(--gray500);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-mailfiles { padding-top:8px; font-size:13px; font-weight:500; overflow-wrap:anywhere; }
 .wb2-mail > .int-hint, .wb2-mail > .wb2-sherr, .wb2-mailnote, .wb2-mailacts { grid-column:1 / -1; margin:0; }
 .wb2-mailnote { font-size:13px; font-weight:500; color:var(--warn-t); }
@@ -8255,10 +8269,13 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 @media (max-width: 1100px) {
   .wb2-trhd { display:none; }
   .wb2-trj { grid-template-columns:minmax(0,1fr) auto; row-gap:8px; }
-  .wb2-trj .wb2-trref { grid-column:2; justify-self:end; }
+  /* an auto column is as wide as what it holds, so nothing in it is cut and
+     the fade would only eat the last letters */
+  .wb2-trj .wb2-trref { grid-column:2; justify-self:end; -webkit-mask-image:none; mask-image:none; }
   /* stacked, cadence and its due chip pair up on one line of their own */
   .wb2-trj .wb2-trcad { grid-column:1; }
   .wb2-trj .wb2-trw { grid-column:2; justify-self:end; }
+  .wb2-trj .wb2-trw .wb2-chip { -webkit-mask-image:none; mask-image:none; }
   .wb2-trj .wb2-trck { grid-column:1/-1; }
   .wb2-trj .wb2-trd { grid-column:1/-1; flex-direction:row; gap:8px; align-items:baseline; }
   .wb2-dn { grid-template-columns:minmax(0,1fr) auto; }
@@ -8343,7 +8360,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-dc.mini:before { background:transparent; }
 .wb2-dc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-dch { display:flex; align-items:center; gap:8px; }
-.wb2-dch b { font-size:14px; font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-dch b { font-size:14px; font-weight:700; min-width:0; overflow:hidden; white-space:nowrap; }
 .wb2-dch em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
 .wb2-dcs { font-size:12px; color:var(--gray500); font-weight:600; text-wrap:pretty; }
 .wb2-dcck { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
@@ -8406,7 +8423,8 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 .wb2-ajnum em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); margin-top:1px; }
 .wb2-ajmeta { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
 .wb2-ajmeta em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+  overflow:hidden; white-space:nowrap; max-width:100%;
+  align-self:stretch; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-ajchips { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-self:start; }
 .wb2-ajmoney { justify-self:end; text-align:right; font-variant-numeric:tabular-nums; }
 .wb2-ajmoney b { font-size:13px; font-weight:700; }
@@ -8526,13 +8544,13 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 /* A title that is DATA — a project's name, a person's — can be any length,
    and the band does not wrap: it would push the buttons past the frame's edge,
    where `overflow:hidden` eats them. So the title shrinks before anything else
-   does and ends in an ellipsis. A title that is a word ("Projects", "Admin")
-   never reaches this.
-   The ellipsis needs `overflow:hidden`, and that clips to the LINE box — at
+   does and fades at its end (the Fade inside it, rule 50). A title that is
+   a word ("Projects", "Admin") never reaches this.
+   The fade needs `overflow:hidden`, and that clips to the LINE box — at
    the base rule's `line-height:1` the line is the em and no taller, so every
    g, p and y lost its tail. The line gets room for descenders here; the band
    centres the h1, so the taller box moves nothing. */
-.fg .page.full .wb2-h1 { white-space:nowrap; flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; line-height:1.3; }
+.fg .page.full .wb2-h1 { white-space:nowrap; flex:0 1 auto; min-width:0; overflow:hidden; line-height:1.3; }
 /* the right-hand group rides the band's middle line and takes the squeeze */
 .fg .page.full .wb2-vtcap {
   margin-left:auto; gap:8px; padding-bottom:0; align-items:center;
@@ -8542,7 +8560,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    because the field in it is built to; a cap of buttons has nothing that
    shrinks, so shrinking it only hangs the last button off the frame's edge,
    where `overflow:hidden` eats it — which is what a long project name did.
-   The title is the one that gives way: it ellipsises (above). */
+   The title is the one that gives way: it fades (above). */
 .fg .page.full .wb2-vtcap:not(:has(.wb2-find)) { flex:none; }
 .fg .page.full .wb2-headtools .pbtn { white-space:nowrap; }
 
@@ -8954,7 +8972,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm-hmark { display:inline-grid; place-items:center; flex:none; width:0; margin-right:0; opacity:0; overflow:hidden;
   transition:width var(--t-move) var(--ease), margin-right var(--t-move) var(--ease), opacity var(--t-move) var(--ease); }
 .fg .tm.speaking .tm-hmark { width:20px; margin-right:4px; opacity:1; }
-.fg .tm-ctx { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tm-ctx { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; overflow:hidden; }
 .fg .tm-aimx, .fg .tm-x, .fg .tm-clear, .fg .tm-rm { display:grid; place-items:center; flex:none; padding:0; color:var(--q);
   transition:background-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease); }
 .fg .tm-aimx { width:24px; height:24px; border-radius:var(--r-control); }
@@ -9456,7 +9474,7 @@ html[data-wb-display] .wb2-mcdots { margin-top:8px; flex-direction:column; align
    inherit italics from the element that used to be nothing but a circle. */
 html[data-wb-display] .wb2-mcdots i { width:auto; height:auto; flex:none; display:block; min-width:0; font-style:normal;
   padding:4px 8px; border-radius:var(--r-button); background:rgba(5,5,5,.045); }
-html[data-wb-display] .wb2-mcdots i > * { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+html[data-wb-display] .wb2-mcdots i > * { display:block; overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 html[data-wb-display] .wb2-mcdots i > b { font-size:13px; font-weight:700; color:var(--ink); }
 html[data-wb-display] .wb2-mcdots i > em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 html[data-wb-display] .wb2-mcdots i[data-tone="go"] { background:var(--tint); }
@@ -9489,7 +9507,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-bar i { display:block; height:100%; border-radius:var(--r-pill); background:var(--wb2-cy); transition:width var(--t-move) var(--ease); }
 .wb2-plmoney { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .wb2-plmoney b { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  overflow:hidden; white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .wb2-plmoney em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
 .wb2-plchips { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
 
@@ -9525,7 +9544,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   padding:12px 4px; border-bottom:1px solid var(--line); }
 .wb2-moneyrow:last-child { border-bottom:0; }
 .wb2-moneyrow.head { background:var(--tint); border-radius:var(--r-button); padding:12px 12px; margin-bottom:4px; border-bottom:0; }
-.wb2-moneyrow .wb2-plmoney b { font-size:14px; }
+/* here the figure stands in an auto column, as wide as it is: nothing to fade */
+.wb2-moneyrow .wb2-plmoney b { font-size:14px; -webkit-mask-image:none; mask-image:none; }
 .wb2-moneystrip { display:flex; gap:8px; align-items:center; margin:4px 0 8px; }
 .wb2-scope { display:grid; grid-template-columns:1fr 1fr; gap:0 24px; }
 .wb2-scopecol { min-width:0; }
@@ -9584,7 +9604,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tx-ic { flex:none; display:inline-flex; align-items:center; justify-content:center; color:var(--ink); }
 .fg .tx-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .fg .tx-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .tx-main em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fg .tx-main em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .tx-flag { flex:none; font-size:12px; font-weight:500; color:var(--warn-t); }
 .fg .tx-amt { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
 .fg .tx-amt b { font-size:14px; font-weight:700; color:var(--ink); }
@@ -9762,7 +9782,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tk-rt:focus-visible { outline:none; border-radius:var(--r-control);  box-shadow:var(--ring); }
 .fg .tk-rt.flat { cursor:default; color:var(--gray700); }
 .fg .tk-rmeta { display:block; margin-top:4px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray400);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  white-space:nowrap; overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .tk-rerr { margin:8px 0 0; font-size:13px; font-weight:700; color:var(--bad-t); }
 .fg .tk-rstate { flex:0 1 auto; min-width:0; }
 .fg .tk-acts { display:flex; align-items:center; gap:4px; flex:none; }
@@ -9875,7 +9896,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .tk-file { padding:12px 16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
 .tk-file.bad { border-color:var(--bad); background:var(--bad-tint); }
 .tk-fhd { display:flex; align-items:center; gap:8px; }
-.tk-fhd b { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tk-fhd b { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .tk-fhd em { flex:none; font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); }
 .tk-frr { margin:8px 0 0; font-size:13px; font-weight:700; color:var(--bad-t); }
 .tk-fform { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
@@ -10053,7 +10074,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   transition:background var(--t-fast) var(--ease); }
 .tk-sheet .tgm-row:hover { background:var(--tint); }
 .tk-sheet .tgm-row b { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  white-space:nowrap; overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .tk-sheet .tgm-row em { flex:none; font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 .tk-sheet .tgm-edit { padding:12px 12px; border:1.5px solid var(--line); border-radius:var(--r-card);
   background:var(--tint); }
@@ -10239,7 +10261,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tk-nd:hover { background:var(--paper); }
 .fg .tk-nd:focus-visible { outline:none; background:var(--paper);  box-shadow:var(--ring); }
 .fg .tk-ndt { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700; color:var(--ink);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  white-space:nowrap; overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .tk-nd em { flex:none; font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 @media (max-width:560px) {
   /* the category and page count drop before the name does */
@@ -10252,7 +10275,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 @media (max-width:760px) { .fg .tk-threads { grid-template-columns:1fr; } }
 .fg .tk-threads .thread { padding:12px 16px; background:var(--paper); border-color:var(--line); }
 .fg .tk-threads .thread .th { margin-bottom:4px; }
-.fg .tk-threads .thread .th b { display:block; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tk-threads .thread .th b { display:block; min-width:0; white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 
 /* a row is three controls, not one: open it, rename it, delete it */
 .fg .tk-thr { display:flex; align-items:center; gap:8px; }
@@ -10439,11 +10462,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* the sheet is full width now, so a manual's real title fits instead of
    ending in an ellipsis two words in */
 .fg .tk-stl { min-width:0; max-width:340px; font-size:13px; font-weight:700; color:var(--ink);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-/* the page list can name several ranges now — it may shrink and ellipsise,
-   but never wrap: the chip is one line or it is not a chip */
+  white-space:nowrap; overflow:hidden; }
+/* the page list can name several ranges now — it may shrink and fade
+   (rule 50), but never wrap: the chip is one line or it is not a chip */
 .fg .tk-src em { flex:0 1 auto; min-width:0; font-style:normal; font-size:12px; font-weight:700;
-  color:var(--gray400); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  color:var(--gray400); white-space:nowrap; overflow:hidden; }
 
 /* ── the rail ── */
 .fg .tk-rail { position:relative; z-index:var(--z-raised); display:flex; flex-direction:column; gap:12px; min-width:0; min-height:0; overflow-y:auto; padding-bottom:4px; }
@@ -10473,7 +10496,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    data and reads in ink. `.quiet` is the empty shelf ("None yet"), a register
    down from a real count. */
 .fg .tk-rtx em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:700; color:var(--gray700);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  white-space:nowrap; overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .tk-rtx em.quiet { color:var(--gray400); font-weight:600; }
 .fg .tk-rbl { grid-column:1 / -1; font-size:12px; font-weight:500; line-height:1.4; color:var(--gray500); }
 
@@ -10977,7 +11001,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    25px left of his 18; the name and time, centred 53px down, 9px right. */
 .fg .hd-lab { position:absolute; inset:0; pointer-events:none; }
 .fg .hd-tag { position:absolute; top:10px; left:-7px; max-width:calc(100% - 60px); overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-weight:600; line-height:18px; }
+  white-space:nowrap; font-size:12px; font-weight:600; line-height:18px; }
 .fg .hd-card[data-end~="first"] .hd-tag { left:63px; }
 /* Open, the place moves to the middle, above the name: his 32px right of
    centre at 14px down, less the 21 that height takes back. The end cards'
@@ -10990,7 +11014,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   transform:translateX(9px); }
 .fg .hd-card[data-end~="first"] .hd-mid { left:80px; }
 .fg .hd-card[data-end~="last"] .hd-mid { right:80px; }
-.fg .hd-name, .fg .hd-time { max-width:calc(100% - 40px); overflow:hidden; text-overflow:ellipsis; }
+.fg .hd-name, .fg .hd-time { max-width:calc(100% - 40px); overflow:hidden; }
 .fg .hd-name { font-size:16px; font-weight:700; }
 .fg .hd-bar[data-compact] .hd-name { font-size:14px; }
 .fg .hd-time { font-size:13px; font-weight:600; }
@@ -11094,7 +11118,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-ls-cb > span, .fg .hd-ls-cb svg { display:block; }
 .fg .hd-ls-t { grid-row:1; grid-column:2; display:block; min-width:0; overflow:hidden; padding:0; border:0;
   border-radius:6px; background:none; font:inherit; font-weight:500; color:var(--hd-ink); text-align:left;
-  text-decoration:none; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+  text-decoration:none; white-space:nowrap; cursor:pointer;
+  justify-self:stretch; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .hd-ls-row.done .hd-ls-t { color:var(--q); text-decoration:line-through; }
 .fg .hd-ls-fig { grid-row:1; grid-column:3; display:flex; align-items:center; justify-content:flex-end; gap:8px;
   font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -11486,7 +11511,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-mc[data-out] .hd-cal-drn { color:var(--q); font-weight:500; }
 .fg .hd-cal-mc[data-holiday] .hd-cal-drn { color:var(--hd-cal-hol-t); }
 .fg .hd-cal-drm { min-width:0; overflow:hidden; font-size:12px; font-weight:600; line-height:22px; color:var(--q);
-  text-overflow:ellipsis; white-space:nowrap; }
+  white-space:nowrap;
+  flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .hd-cal-drm[data-kind="holiday"] { font-weight:700; color:var(--hd-cal-hol-t); }
 .fg .hd-cal-drm[data-kind="today"] { font-weight:700; color:var(--hd-today); }
 /* Too narrow for a name beside the number: a holiday keeps its tint, its
@@ -11502,18 +11528,23 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-mi[aria-pressed="true"][data-late] { background:var(--hd-cal-late-tint); }
 .fg .hd-cal-mi[data-fresh] { background:var(--hd-cal-ev-tint); }
 .fg .hd-cal-mi > .hd-cal-sw { width:8px; height:8px; margin-top:4px; }
-.fg .hd-cal-mit { display:block; min-width:0; line-height:1.35; }
+.fg .hd-cal-mit { display:block; flex:1; min-width:0; line-height:1.35; }
 /* A title wraps between words, never inside one: a word too long for the
-   line ends in an ellipsis. */
+   line ends in an ellipsis. The one cut left (rule 50): a mask cannot find
+   the one word that overflows a wrapped title, and over the whole box it
+   would dim every line that runs near the edge. On one line, in a narrow
+   column, it fades. */
 .fg .hd-cal-mtt { display:block; overflow:hidden; font-size:13px; font-weight:700; text-overflow:ellipsis; text-wrap:pretty;
   overflow-wrap:normal; }
 .fg .hd-cal-mtm { display:block; overflow:hidden; font-size:12px; font-weight:500; color:var(--hd-body);
-  text-overflow:ellipsis; white-space:nowrap; }
+  white-space:nowrap;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 /* A weekend column is narrow: a thing is one line, its swatch and title,
    and the panel carries the rest. */
 .fg .hd-cal-mc[data-narrow] .hd-cal-its { gap:4px; }
 .fg .hd-cal-mc[data-narrow] .hd-cal-mi { gap:4px; }
-.fg .hd-cal-mc[data-narrow] .hd-cal-mtt { white-space:nowrap; }
+.fg .hd-cal-mc[data-narrow] .hd-cal-mtt { white-space:nowrap; text-overflow:clip;
+  -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .fg .hd-cal-mc[data-narrow] .hd-cal-mtm { display:none; }
 /* A BAR across its week: square on a side it carries on from, or into. */
 .fg .hd-cal-bar { position:absolute; display:flex; align-items:center; height:22px; box-sizing:border-box; margin:0;
@@ -11524,7 +11555,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-bar[data-before] { border-top-left-radius:0; border-bottom-left-radius:0; }
 .fg .hd-cal-bar[data-after] { border-top-right-radius:0; border-bottom-right-radius:0; }
 .fg .hd-cal-bar[aria-pressed="true"] { box-shadow:0 0 0 2px var(--hd-ink); }
-.fg .hd-cal-barl { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.fg .hd-cal-barl { min-width:0; overflow:hidden; flex:1; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 
 /* YEAR: twelve months, as many to a row as fit. */
 .fg .hd-cal-yg { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); align-content:start;
@@ -11939,7 +11970,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-fl { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--vm-faint); }
 .vm-fv { display:flex; align-items:baseline; gap:8px; min-width:0; }
 .vm-fvt { font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
-.vm-grid.dense .vm-fvt { font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vm-grid.dense .vm-fvt { font-size:12px; white-space:nowrap; overflow:hidden; }
 .vm-grid.dense .vm-fl { font-size:12px; }
 .vm-fvt.faint { color:var(--vm-faint); }
 .vm-fvt.warn { color:var(--warn-t); }
@@ -11992,8 +12023,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-shimmer { width:110px; height:8px; border-radius:999px; background:linear-gradient(90deg,var(--tint-2) 25%,var(--tint) 50%,var(--tint-2) 75%); background-size:200% 100%; animation:vmShimmer 1.2s linear infinite; }
 @media (prefers-reduced-motion:reduce) { .vm-shimmer { animation:none; background:var(--tint-2); } }
 .vm-scanned { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid var(--vm-ok-line); border-radius:var(--r-button); padding:8px 12px; background:var(--vm-ok-bg); }
-.vm-scannedl { display:flex; flex-direction:column; gap:1px; min-width:0; }
-.vm-scannedl b { font-size:13px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vm-scannedl { display:flex; flex-direction:column; gap:1px; flex:1; min-width:0; }
+.vm-scannedl b { font-size:13px; font-weight:700; color:var(--ink); overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .vm-scannedl em { font-style:normal; font-size:12px; color:var(--q); }
 .vm-scannedtag { font-size:12px; font-weight:700; color:var(--ink); flex:none; }
 .vm-warnline { font-size:13px; font-weight:600; color:var(--warn-t); }
@@ -12027,9 +12058,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-doc { display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--paper); border:1px solid var(--vm-border); border-radius:var(--r-button); padding:8px 12px; text-align:left; transition:border-color var(--t-fast) var(--ease); }
 .vm-doc:hover { border-color:var(--vm-faint); }
 .vm-doc.open { border-color:var(--ink); }
-.vm-docl { display:flex; flex-direction:column; gap:1px; min-width:0; text-align:left; }
-.vm-docl b { font-size:13px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.vm-docl em { font-style:normal; font-size:12px; color:var(--vm-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vm-docl { display:flex; flex-direction:column; gap:1px; flex:1; min-width:0; text-align:left; }
+.vm-docl b { font-size:13px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+.vm-docl em { font-style:normal; font-size:12px; color:var(--vm-muted); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
 .vm-docview { font-size:12px; font-weight:700; color:var(--ink); flex:none; }
 .vm-preview { margin-top:8px; background:var(--paper); border:1px solid var(--vm-border); border-radius:var(--r-button); padding:12px 12px; display:flex; flex-direction:column; gap:8px; }
 .vm-previewhead { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -12277,7 +12308,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .qs-preview { margin-top:12px; overflow-x:auto; }
 .qs-preview table { border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
 .qs-preview th { padding:4px 8px; text-align:left; font-weight:600; color:var(--q); }
-.qs-preview td { padding:4px 8px; border-top:1px solid var(--line); white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+.qs-preview td { padding:4px 8px; border-top:1px solid var(--line); white-space:nowrap; max-width:220px; overflow:hidden; }
+/* a cell takes no max-width in an auto table; the Fade inside it does, and
+   fades only a value longer than that (rule 50) */
+.qs-preview td > .pt-fade { max-width:220px; }
 .qs-offers { display:flex; flex-wrap:wrap; gap:16px; }
 .qs-offer { display:flex; flex-direction:column; font-variant-numeric:tabular-nums; font-weight:500; }
 .qs-offer em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }

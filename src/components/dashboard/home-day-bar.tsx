@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties, type Ref } from "react";
 import { Icon } from "@/components/shell/icon";
 import {
@@ -312,10 +313,10 @@ export function HomeDayBar({
               </span>
               {!slot.collapsed && (
                 <span className="hd-lab">
-                  <span className="hd-tag">{slot.tag}</span>
+                  <Fade className="hd-tag">{slot.tag}</Fade>
                   <span className="hd-mid">
-                    <span className="hd-name">{slot.name}</span>
-                    <span className="hd-time">{slot.time}</span>
+                    <Fade className="hd-name">{slot.name}</Fade>
+                    <Fade className="hd-time">{slot.time}</Fade>
                   </span>
                 </span>
               )}

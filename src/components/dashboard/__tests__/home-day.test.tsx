@@ -704,24 +704,27 @@ describe("a crowded bar", () => {
 
 describe("measuring", () => {
   /* The observer is a stand-in that only reports what it was asked to
-     watch, so a bar that never asks is never re-laid. */
+     watch, so a bar that never asks is never re-laid. Each element keeps
+     the callback of the observer that watches it: the words on the cards
+     are Fades (rule 50), and each of those watches itself too. */
   it("lays the bar out again at its own width once it has one", () => {
-    const watched = new Set<Element>();
-    let report: () => void = () => {};
+    const watched = new Map<Element, () => void>();
     const RO = window.ResizeObserver;
     window.ResizeObserver = class {
+      private cb: () => void;
       constructor(cb: () => void) {
-        report = cb;
+        this.cb = cb;
       }
       observe(el: Element) {
-        watched.add(el);
+        watched.set(el, this.cb);
       }
       unobserve() {}
       disconnect() {}
     } as unknown as typeof ResizeObserver;
     const resize = (el: HTMLElement, width: number) => {
       Object.defineProperty(el, "clientWidth", { configurable: true, value: width });
-      if (watched.has(el)) act(() => report());
+      const report = watched.get(el);
+      if (report) act(() => report());
     };
     const r = thursday();
     const compactAt = (barWidth: number) =>

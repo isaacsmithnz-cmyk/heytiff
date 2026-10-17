@@ -1,3 +1,4 @@
+import { Fade } from "@/components/parts/fade";
 import type { ReactNode } from "react";
 
 /* THE BAND ON A SCREEN WITH NO TABS (2026-09-20, the Workboard's frame
@@ -27,7 +28,9 @@ export function ScreenBand({
     <>
       {crumb ? <div className="wb2-crumbline">{crumb}</div> : null}
       <div className="wb2-vtabs">
-        <h1 className="wb2-h1">{title}</h1>
+        <h1 className="wb2-h1">
+          <Fade>{title}</Fade>
+        </h1>
         {tools ? (
           <div className="wb2-vtcap">
             <div className="wb2-headtools">{tools}</div>

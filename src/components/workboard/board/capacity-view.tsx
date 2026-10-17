@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -372,13 +373,13 @@ export function CapacityView({
             This week
           </button>
         )}
-        <span className="wb2-tbsum">
+        <Fade className="wb2-tbsum">
           {scored && total
             ? `${total.fillPct}% full`
             : current && !scored && windowBooked > 0
               ? `${fmtHoursShort(windowBooked)} booked`
               : ""}
-        </span>
+        </Fade>
         {manage && current && (
           <button type="button" className="wb2-scmcrew" onClick={() => setEditing(true)}>
             <Icon name="users" size={14} />
@@ -461,7 +462,9 @@ export function CapacityView({
             }}
           >
             <span className="wb2-scdjh">
-              <b>{row.clientName ?? "Unnamed client"}</b>
+              <b>
+                <Fade>{row.clientName ?? "Unnamed client"}</Fade>
+              </b>
               {row.jobNumber && <u>{row.jobNumber}</u>}
               <em>{fmtHoursShort(row.minutes)}</em>
             </span>

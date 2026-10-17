@@ -2222,8 +2222,10 @@ function SourceChips({
           >
             <span className="tk-sn">{d.n}</span>
             <span className="tk-sdot" style={{ background: colourOf(d.category) }} />
-            <span className="tk-stl">{d.title}</span>
-            <em>{pagesLabel(d)}</em>
+            <Fade className="tk-stl">{d.title}</Fade>
+            <em>
+              <Fade>{pagesLabel(d)}</Fade>
+            </em>
           </button>
         ))}
       </div>

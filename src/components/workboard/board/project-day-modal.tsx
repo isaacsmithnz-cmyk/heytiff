@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
@@ -180,7 +181,9 @@ export function ProjectDayModal({
           }}
         >
           <div className="wb2-dch">
-            <b>{v.projectName}</b>
+            <b>
+              <Fade>{v.projectName}</Fade>
+            </b>
             {chip}
           </div>
           <div className="wb2-dcs">

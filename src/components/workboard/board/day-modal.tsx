@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { createPortal } from "react-dom";
@@ -208,7 +209,9 @@ export function DayModal({
           }}
         >
           <div className="wb2-dch">
-            <b>{v.clientName}</b>
+            <b>
+              <Fade>{v.clientName}</Fade>
+            </b>
             {chip}
           </div>
           <div className="wb2-dcs">
@@ -237,7 +240,9 @@ export function DayModal({
         }}
       >
         <div className="wb2-dch">
-          <b>{v.clientName}</b>
+          <b>
+            <Fade>{v.clientName}</Fade>
+          </b>
           <span className={"wb2-chip " + (vTone === "soon" ? "warn" : "dan")}>
             {missing.length} to confirm
           </span>

@@ -5470,6 +5470,14 @@
   "capacity_code": 160,
   "airflow_ls": 1120,
   "static_pressure_pa": 217,
+  "supply_opening": {
+   "w_mm": 918,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 918,
+   "h_mm": 393
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -5502,6 +5510,14 @@
   "capacity_code": 180,
   "airflow_ls": 1160,
   "static_pressure_pa": 210,
+  "supply_opening": {
+   "w_mm": 918,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 918,
+   "h_mm": 393
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "default_plane": "ceiling-cavity",
@@ -5533,6 +5549,14 @@
   "capacity_code": 200,
   "airflow_ls": 1200,
   "static_pressure_pa": 250,
+  "supply_opening": {
+   "w_mm": 1118,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 1118,
+   "h_mm": 393
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "default_plane": "ceiling-cavity",
@@ -5564,6 +5588,14 @@
   "capacity_code": 250,
   "airflow_ls": 1400,
   "static_pressure_pa": 250,
+  "supply_opening": {
+   "w_mm": 1118,
+   "h_mm": 350
+  },
+  "return_opening": {
+   "w_mm": 1118,
+   "h_mm": 393
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 22.2,
   "default_plane": "ceiling-cavity",
@@ -5596,6 +5628,14 @@
   "capacity_code": 20,
   "airflow_ls": 135,
   "static_pressure_pa": 40,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5614,7 +5654,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "3, 6, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5628,6 +5668,14 @@
   "capacity_code": 25,
   "airflow_ls": 150,
   "static_pressure_pa": 40,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5646,7 +5694,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "3, 6, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5660,6 +5708,14 @@
   "capacity_code": 20,
   "airflow_ls": 135,
   "static_pressure_pa": 40,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5678,7 +5734,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "3, 6, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5692,6 +5748,14 @@
   "capacity_code": 25,
   "airflow_ls": 150,
   "static_pressure_pa": 40,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5710,7 +5774,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "3, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "3, 6, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5724,6 +5788,14 @@
   "capacity_code": 32,
   "airflow_ls": 150,
   "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5742,7 +5814,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "4, 6, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5756,6 +5828,14 @@
   "capacity_code": 40,
   "airflow_ls": 210,
   "static_pressure_pa": 60,
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 775,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5774,7 +5854,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "4, 7, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5788,6 +5868,14 @@
   "capacity_code": 32,
   "airflow_ls": 150,
   "static_pressure_pa": 50,
+  "supply_opening": {
+   "w_mm": 660,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 575,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5806,7 +5894,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "4, 6, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5820,6 +5908,14 @@
   "capacity_code": 40,
   "airflow_ls": 210,
   "static_pressure_pa": 60,
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 775,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5838,7 +5934,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "4, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "4, 7, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5852,6 +5948,14 @@
   "capacity_code": 50,
   "airflow_ls": 250,
   "static_pressure_pa": 45,
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 775,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5870,7 +5974,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "5, 7, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5884,6 +5988,14 @@
   "capacity_code": 63,
   "airflow_ls": 325,
   "static_pressure_pa": 45,
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 975,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -5902,7 +6014,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "5, 8, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5916,6 +6028,14 @@
   "capacity_code": 50,
   "airflow_ls": 250,
   "static_pressure_pa": 45,
+  "supply_opening": {
+   "w_mm": 860,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 775,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "default_plane": "ceiling-cavity",
@@ -5934,7 +6054,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "5, 7, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5948,6 +6068,14 @@
   "capacity_code": 63,
   "airflow_ls": 325,
   "static_pressure_pa": 45,
+  "supply_opening": {
+   "w_mm": 1060,
+   "h_mm": 153
+  },
+  "return_opening": {
+   "w_mm": 975,
+   "h_mm": 163
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -5966,7 +6094,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDQ-TV1C(A)",
    "edition": "EDBFAU392101",
-   "page": "5, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "5, 8, R410A p.32 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -5980,6 +6108,18 @@
   "capacity_code": 80,
   "airflow_ls": 510,
   "static_pressure_pa": 120,
+  "supply_opening": {
+   "w_mm": 751,
+   "h_mm": 243
+  },
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 1,
+     "dia_mm": 400
+    }
+   ]
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -5998,7 +6138,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDYQ-MA",
    "edition": "EDFAU391818",
-   "page": "3, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "3, 5, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6012,6 +6152,18 @@
   "capacity_code": 100,
   "airflow_ls": 778,
   "static_pressure_pa": 120,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 243
+  },
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -6030,7 +6182,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDYQ-MA",
    "edition": "EDFAU391818",
-   "page": "3, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "3, 6, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6044,6 +6196,18 @@
   "capacity_code": 125,
   "airflow_ls": 852,
   "static_pressure_pa": 120,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 243
+  },
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -6062,7 +6226,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDYQ-MA",
    "edition": "EDFAU391818",
-   "page": "4, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "4, 6, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {
@@ -6076,6 +6240,18 @@
   "capacity_code": 145,
   "airflow_ls": 957,
   "static_pressure_pa": 120,
+  "supply_opening": {
+   "w_mm": 1152,
+   "h_mm": 243
+  },
+  "return_opening": {
+   "spigots": [
+    {
+     "count": 2,
+     "dia_mm": 400
+    }
+   ]
+  },
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "default_plane": "ceiling-cavity",
@@ -6094,7 +6270,7 @@
    "kind": "extracted",
    "source": "Engineering Data FXDYQ-MA",
    "edition": "EDFAU391818",
-   "page": "4, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
+   "page": "4, 6, R410A p.16 (also capacity index EDTAU332336A-Ginfo p.5)"
   }
  },
  {

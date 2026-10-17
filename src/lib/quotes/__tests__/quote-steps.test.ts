@@ -22,11 +22,11 @@ describe("a quote built on its kept lines", () => {
   });
   it("says what's unknown and what's left to price, then that every line is priced", () => {
     const due = linesSteps({ lines: 40, unknown: 2, price: { kind: "priced", left: 2 } });
-    expect(due[1]).toMatchObject({ state: "due", words: "2 to confirm" });
-    expect(due[2]).toMatchObject({ state: "due", words: "2 to price" });
+    expect(due[1]).toMatchObject({ label: "Scope", state: "due", words: "2 to settle" });
+    expect(due[2]).toMatchObject({ label: "Priced", state: "due", words: "2 to price" });
     const done = linesSteps({ lines: 40, unknown: 0, price: { kind: "priced", left: 0 } });
-    expect(done[1]).toMatchObject({ state: "done", words: "None" });
-    expect(done[2]).toMatchObject({ state: "done", words: "Every line priced" });
+    expect(done[1]).toMatchObject({ state: "done", words: "Settled" });
+    expect(done[2]).toMatchObject({ state: "done", words: "All priced" });
   });
   it("asks for Quoting when the business hasn't set what pricing needs", () => {
     expect(linesSteps({ lines: 3, unknown: 0, price: { kind: "unset" } })[2]).toMatchObject({ state: "due", words: "Set Quoting to price it" });
@@ -39,6 +39,20 @@ describe("a quote built on its kept lines", () => {
     expect(at(null)).toMatchObject({ key: "sent", state: "todo" });
     expect(at({ trial: false })).toMatchObject({ state: "done", words: "To ServiceM8" });
     expect(at({ trial: true })).toMatchObject({ state: "done", words: "Trial run" });
+  });
+  /* layout C (Isaac, 18 October): each step done says its day, small in the rail */
+  it("names its steps Brief, Scope, Priced, Approved, Sent, Accepted, and dates the approval and the send", () => {
+    const steps = linesSteps({
+      lines: 3,
+      unknown: 0,
+      price: { kind: "priced", left: 0 },
+      approved: true,
+      approvedAt: "2026-10-17T01:00:00Z",
+      sent: { trial: false, at: "2026-10-18T02:00:00Z" },
+    });
+    expect(steps.map((s) => s.label)).toEqual(["Brief", "Scope", "Priced", "Approved", "Sent", "Accepted"]);
+    expect(steps[3]).toMatchObject({ state: "done", words: "17 Oct" });
+    expect(steps[4]).toMatchObject({ state: "done", words: "18 Oct" });
   });
   it("says the version it's at from version 2 on (quote-versions.ts)", () => {
     const at = (version: number, approved: boolean) => linesSteps({ lines: 3, unknown: 0, price: { kind: "priced", left: 0 }, approved, version })[3];

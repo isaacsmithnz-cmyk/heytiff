@@ -6510,131 +6510,122 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-mline > span { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .wb2-mline.total { border-top:1.5px solid rgba(5,5,5,.16); margin-top:2px; }
 .wb2-mline.total > b { font-size:12px; font-weight:500; color:var(--gray500); }
-/* THE QUOTE PAGE (quote/quote-screen.tsx, and board/job-quote-face.tsx on the
-   page; Isaac, 2026-10-06, the mock-up he called "much cleaner"): HOME'S
-   FRAME. The progress line stands where Home has "Your day", then the
-   Build-up and Proposal tabs, one column that reads down the page, and
-   Home's list on the right with the price at its top. Home's own rules do
-   the frame (`hd-day`, `hd-body`, `hd-tabs`, `hd-fx`, `hd-main`, `hd-col`,
-   `hd-face`, `hd-list`, `hd-ls-*`) on Home's tokens (`.hd-page`); these are
-   the parts Home hasn't got. `.fg .qp-*`, two classes deep, for Home's
-   reason: `.fg button` is (0,1,1). */
-.fg .qp-acts { flex:none; display:flex; align-items:center; gap:8px; margin-left:auto; }
-/* THE PROGRESS LINE: a dot and a step, joined, the job card's stepper in
-   colour (Isaac, 2026-10-07: "it matched job card, I just wanted colour in
-   it"): done in Home's teal, due in the warn colour, each dot ringed in its
-   own tint and its line after it a rounded 3px in the same colour; the next
-   one a ring in ink; the steps not reached yet quiet. */
-.fg .qp-steps { margin:0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); }
-.fg .qp-steps > li { position:relative; display:flex; flex-direction:column; gap:2px; min-width:0; padding:24px 16px 0 0; }
-.fg .qp-steps > li > i { position:absolute; top:3px; left:0; box-sizing:border-box; width:14px; height:14px;
-  border-radius:50%; background:var(--hd-dot); }
-.fg .qp-steps > li::after { content:""; position:absolute; top:8.5px; left:24px; right:8px; height:3px;
-  border-radius:var(--r-pill); background:var(--hd-rule); }
+/* THE QUOTE PAGE (quote/quote-screen.tsx), in v2's layout C (Isaac's pick,
+   18 October 2026). It stands in Home's frame for Home's parts (`hd-face`,
+   `hd-ls-grp`) and wears v2's palette: Home's tokens are mapped onto the 19
+   for it, once, under Home's own (`.fg .hd-page.qp`), so every rule here
+   draws in ink, the quiet grey and the line. `.fg .qp-*`, two classes deep:
+   `.fg button` is (0,1,1). */
+/* the head: the job's name, one grey line, the section tabs; nothing else
+   above the conversation */
+.fg .qp-head { flex:none; display:flex; flex-direction:column; gap:4px; padding:16px 24px 0; }
+.fg .qp-name { margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
+.fg .qp-line { display:flex; align-items:center; gap:8px; min-width:0; margin:0 0 12px; font-size:14px; line-height:20px; color:var(--q); }
+.fg .qp-facts { flex:0 1 auto; }
+.fg .qp-stage { flex:none; font-weight:500; color:var(--q); }
+.fg .qp-stage.settle { color:var(--orange-w); }
+.fg .qp-wait { flex:1; display:flex; flex-direction:column; align-items:flex-start; gap:12px; padding:24px; }
+/* THE PROGRESS, small at the top of the rail (layout C): a dot and a step,
+   joined by a hairline; done in ink, what's left to settle in orange, the
+   next a ring in ink, what's not reached a grey ring */
+.fg .qp-steps { margin:0; padding:0; list-style:none; display:flex; gap:4px; }
+.fg .qp-steps > li { position:relative; flex:1 1 auto; display:flex; flex-direction:column; gap:2px; padding:16px 4px 0 0; }
+.fg .qp-steps > li:last-child { flex:0 0 auto; padding-right:0; }
+.fg .qp-steps > li > i { position:absolute; top:0; left:0; box-sizing:border-box; width:10px; height:10px;
+  border-radius:50%; border:1px solid var(--grey); background:var(--white); }
+.fg .qp-steps > li::after { content:""; position:absolute; top:4px; left:16px; right:4px; height:1px; background:var(--edge); }
 .fg .qp-steps > li:last-child::after { display:none; }
-.fg .qp-steps b { font-size:14px; font-weight:600; color:var(--hd-ink); }
-.fg .qp-steps span { display:flex; align-items:baseline; gap:8px; min-width:0; font-size:13px; font-weight:500; color:var(--q); }
-.fg .qp-steps > li:not(.done, .due, .next) b { font-weight:500; color:var(--q); }
-.fg .qp-steps > li.done > i { background:var(--hd-today); box-shadow:0 0 0 4px var(--hd-fresh); }
-.fg .qp-steps > li.done::after { background:var(--hd-today); }
-.fg .qp-steps > li.done span { color:var(--hd-today); }
-.fg .qp-steps > li.due > i { background:var(--warn-t); box-shadow:0 0 0 4px var(--warn-tint); }
-.fg .qp-steps > li.due::after { background:color-mix(in srgb, var(--warn-t) 40%, transparent); }
-.fg .qp-steps > li.due span { color:var(--warn-t); }
-.fg .qp-steps > li.next > i { background:var(--paper); border:2px solid var(--hd-ink); box-shadow:0 0 0 4px var(--tint-2); }
-/* THE PAGE TURNED ROUND (quote-lines-face.tsx; the chat-first quote page,
-   Isaac, 2026-10-13): under the progress line, the conversation is the main
-   column and the rail beside it, 360 wide on its own scroll, says what the
-   quote comes to. The column's tabs, Conversation and Line items, are an
-   underline on the band's rule; where Tiff isn't on for the business the
-   line items are the column, with no tabs. */
-.fg .qc-day { flex:none; padding:16px 24px; border-bottom:1px solid var(--hd-rule); }
-.fg .qc-body { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0, 1fr) 360px; grid-template-rows:minmax(0, 1fr); }
-.fg .qc-main { min-width:0; min-height:0; display:flex; flex-direction:column; border-right:1px solid var(--hd-rule); }
-.fg .qc-rail { min-height:0; overflow:auto; display:flex; flex-direction:column; gap:24px; padding:16px 24px 24px; }
+.fg .qp-steps b { font-size:13px; font-weight:500; line-height:18px; color:var(--q); }
+.fg .qp-steps span { display:flex; align-items:baseline; gap:4px; min-width:0; font-size:12px; font-weight:500; line-height:16px; color:var(--q); }
+.fg .qp-steps > li:is(.done, .due, .next) b { font-weight:600; color:var(--ink); }
+.fg .qp-steps > li.done > i { border-color:var(--ink); background:var(--ink); }
+.fg .qp-steps > li.done::after { background:var(--ink); }
+.fg .qp-steps > li.due > i { border-color:var(--orange); background:var(--orange); }
+.fg .qp-steps > li.due span { color:var(--orange-w); }
+.fg .qp-steps > li.next > i { border:2px solid var(--ink); }
+/* THE BODY: the conversation, or the line items, fills the left; the rail,
+   400 wide on its own scroll, beside it with no rule between */
+.fg .qc-body { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0, 1fr) 400px; grid-template-rows:minmax(0, 1fr); gap:24px; padding:0 24px; }
+.fg .qc-main { min-width:0; min-height:0; display:flex; flex-direction:column; }
+.fg .qc-rail { min-height:0; overflow:auto; display:flex; flex-direction:column; gap:24px; padding:24px 0; }
+.fg .qc-rail > * + * { padding-top:24px; border-top:1px solid var(--line); }
+.fg .qc-rail > .qc-acts { padding-top:0; border-top:0; }
 .fg .qc-rs { display:flex; flex-direction:column; gap:12px; }
-.fg .qc-tabs { flex:none; display:flex; gap:24px; padding:0 48px; border-bottom:1px solid var(--hd-rule); }
-.fg .qc-tab { padding:12px 0; margin-bottom:-1px; border:0; border-bottom:2px solid transparent; background:none; font:inherit;
-  font-size:14px; font-weight:600; color:var(--q); cursor:pointer; transition:color var(--t-fast) var(--ease); }
-.fg .qc-tab:hover { color:var(--hd-ink); }
-.fg .qc-tab.on { color:var(--hd-ink); border-bottom-color:var(--hd-ink); }
-.fg .qc-tab:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .qc-note { flex:none; margin:12px 48px 0; }
+.fg .qc-h { margin:0; font-size:16px; font-weight:600; line-height:24px; color:var(--ink); }
+.fg .qc-note { flex:none; margin:12px 0 0; }
+/* the quote's buttons under its card: two second buttons side by side, then
+   Approve, the main one, as wide as the rail */
+.fg .qc-acts { display:flex; flex-direction:column; align-items:stretch; gap:8px; margin-top:-8px; }
+.fg .qc-pair { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:8px; }
+.fg .qc-pair > .pt-btn, .fg .qc-acts > .pt-btn { min-width:0; }
 /* the conversation: a column no wider than reading wants, her words under
    her name, yours in a light bubble on the right (his "light" bubble,
-   2026-10-13), the reply box at its foot */
+   2026-10-13), the reply box at its foot; reading at 16 (rule 13) */
 .fg .qt { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; }
 .fg .qt[hidden] { display:none; }
-.fg .qc-thread { flex:1; min-height:0; overflow:auto; padding:24px 48px 16px; }
-.fg .qc-col { max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:24px; }
+.fg .qc-thread { flex:1; min-height:0; overflow:auto; padding:24px 0 16px; }
+.fg .qc-col { max-width:820px; display:flex; flex-direction:column; gap:24px; }
 .fg .qc-col .qt-bub { max-width:620px; }
 /* yours and a person's words are paragraphs of their own; a web search's
    summary keeps its line breaks */
 .fg .qc-col .qt-bub.me, .fg .qc-col .qt-bub.them { white-space:normal; }
-.fg .qc-col .qt-bub p { margin:0; line-height:1.6; white-space:pre-line; }
+.fg .qc-col .qt-bub p { margin:0; line-height:24px; white-space:pre-line; }
 .fg .qc-col .qt-bub p + p { margin-top:8px; }
-.fg .qc-her { align-items:stretch; gap:8px; }
+.fg .qc-her { align-items:stretch; gap:4px; }
 .fg .qc-who { display:flex; align-items:center; gap:8px; }
-.fg .qc-who b { font-size:14px; font-weight:600; color:var(--hd-ink); }
-.fg .qc-says { display:flex; flex-direction:column; gap:12px; }
-.fg .qc-says > p { margin:0; font-size:14px; line-height:1.6; color:var(--hd-ink); white-space:pre-line; }
+.fg .qc-who b { font-size:14px; font-weight:600; color:var(--ink); }
+.fg .qc-who time { font-size:13px; font-weight:500; color:var(--q); }
+.fg .qc-says { display:flex; flex-direction:column; gap:12px; padding-left:32px; }
+.fg .qc-says > p { margin:0; font-size:16px; line-height:24px; color:var(--ink); white-space:pre-line; }
 /* a run of what she did, together */
 .fg .qt-dids { display:flex; flex-direction:column; gap:4px; }
 /* her working folded to one line, opened to every step and note (option A, 17 Oct) */
-.fg .qt-fold { padding-left:16px; }
-.fg .qt-foldbtn { display:flex; align-items:baseline; gap:8px; padding:2px 0; border:0; background:none; font-size:13px; color:var(--hd-body); cursor:pointer; text-align:left; }
-.fg .qt-foldbtn b { font-weight:600; }
-.fg .qt-foldbtn em { font-style:normal; color:var(--q); text-decoration:underline; text-underline-offset:3px; }
-.fg .qt-foldbtn:hover em, .fg .qt-foldbtn:focus-visible em { color:var(--hd-ink); }
-.fg .qc-comp { flex:none; padding:8px 48px 24px; }
-.fg .qc-box { padding:8px 8px 8px 16px; }
-.fg .qc-box .qt-in { min-height:48px; }
-/* the send: Enter in a grey square, as Claude draws it (Isaac, 2026-10-13:
-   "the chat reply button can just be gray"); its glyph is named in
-   docs/design.md */
-.fg .qt-send { flex:none; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; padding:0; border:0;
-  border-radius:var(--r-button); background:var(--tint-2); color:var(--hd-ink); cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.fg .qt-send:hover:not(:disabled) { background:var(--hd-rule); }
-.fg .qt-send:disabled { color:var(--q); cursor:default; }
-.fg .qt-send:focus-visible { outline:none; box-shadow:var(--ring); }
-/* THE PRIMARY: a dark green outline, a white body and green words (Isaac,
-   2026-10-13), one change on hover. It has to beat `.wb2 .pbtn.ghost`
-   (0,3,0) and its hover (0,5,0); disabled, it is the ghost's own off. */
+.fg .qt-fold { padding-left:0; }
+.fg .qt-foldbtn { display:flex; align-items:center; gap:8px; padding:2px 0; border:0; background:none; font-size:14px; color:var(--q); cursor:pointer; text-align:left; }
+.fg .qt-foldbtn b { font-weight:600; color:var(--ink); }
+.fg .qt-foldbtn > svg { flex:none; transition:transform var(--t-move) var(--ease); }
+.fg .qt-foldbtn[aria-expanded="true"] > svg { transform:rotate(90deg); }
+.fg .qt-foldbtn:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.fg .qt-fold > .qt-did { padding-left:24px; }
+/* the reply box at the conversation's foot: the words, then the microphone
+   and a blue Send that carries its word (Q6) */
+.fg .qc-comp { flex:none; padding:8px 0 24px; }
+.fg .qc-comp .qc-col { gap:8px; }
+.fg .qt-box.qc-box { flex-direction:column; align-items:stretch; padding:12px 12px 12px 16px; }
+.fg .qc-box .qt-in { flex:none; min-height:48px; padding:0; font-size:16px; line-height:24px; }
+.fg .qc-boxfoot { display:flex; align-items:center; gap:8px; }
+.fg .qc-send { margin-left:auto; }
+/* A SECOND STEP'S GO (the paper's Save, Read it, a kit's Add): the outline
+   in the colour of pressing, one change on hover. It has to beat
+   `.wb2 .pbtn.ghost` (0,3,0) and its hover (0,5,0); disabled, it is the
+   ghost's own off. The quote's own Approve is the main button (qc-acts). */
 .fg .pbtn.ghost.qp-go { border-width:1.5px; }
 .fg .pbtn.ghost.qp-go:not(:disabled) { border-color:var(--go); background:var(--paper); color:var(--go); }
 .fg .pbtn.ghost.qp-go:hover:not(:disabled) { border-color:var(--go); background:var(--ok-tint); }
-/* THE QUOTE'S CARD in the rail (quote-rail.tsx): the total, its parts in the
-   chart's colours and their split, the profit as an outlined bar in its
-   state's colour, then every group, a hairline under each */
+/* THE QUOTE'S CARD in the rail (quote-rail.tsx): the total, the screen's one
+   big figure (32), its parts in the chart's colours and their split, the
+   profit as a figure and a state word with no box (Q4), then every group */
 .fg .qp-card { display:flex; flex-direction:column; gap:12px; }
 .fg .qp-tot { display:flex; flex-direction:column; gap:2px; }
 .fg .qp-tot span { font-size:13px; font-weight:500; color:var(--q); }
-.fg .qp-tot b { font-size:24px; font-weight:700; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
+.fg .qp-tot b { font-size:32px; font-weight:700; line-height:40px; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .qp-tot b.qc-wait { font-size:16px; font-weight:600; color:var(--q); }
 .fg .qp-tot em { font-style:normal; font-size:13px; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .qp-parts { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
 .fg .qp-parts li { display:grid; grid-template-columns:8px minmax(0, 1fr) auto; gap:8px; align-items:center; font-size:14px; color:var(--hd-ink); }
 .fg .qp-parts i { width:8px; height:8px; border-radius:50%; }
 .fg .qp-parts b { font-weight:600; font-variant-numeric:tabular-nums; }
-.fg .qp-profit { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:2px 8px; align-items:baseline; padding:8px 12px;
-  border:1.5px solid var(--hd-edge); border-radius:var(--r-button); }
-.fg .qp-profit.ok { border-color:var(--ok-t); background:var(--ok-tint); }
-.fg .qp-profit.warn { border-color:var(--warn-t); background:var(--warn-tint); }
-.fg .qp-profit > span { font-size:14px; font-weight:600; color:var(--hd-ink); }
-.fg .qp-profit > b { display:flex; gap:12px; align-items:baseline; font-size:14px; font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
-.fg .qp-profit > b em { font-style:normal; }
-.fg .qp-profit.ok > b em, .fg .qp-profit.ok > small { color:var(--ok-t); }
-.fg .qp-profit.warn > b em, .fg .qp-profit.warn > small { color:var(--warn-t); }
-.fg .qp-profit > small { grid-column:1 / -1; font-size:13px; font-weight:500; line-height:1.45; }
-.fg .qp-groups { margin:0; padding:0; list-style:none; border-top:1px solid var(--hd-rule); }
-.fg .qp-groups li { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--hd-rule); font-size:14px; color:var(--hd-body); }
-.fg .qp-groups b { font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
-.fg .qc-wide { align-self:stretch; justify-content:center; }
+.fg .qp-profit { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px 8px; align-items:baseline; }
+.fg .qp-profit > span { display:flex; align-items:baseline; gap:8px; font-size:14px; font-weight:600; color:var(--ink); }
+.fg .qp-profit > span small { font-size:13px; font-weight:500; color:var(--q); }
+.fg .qp-profit > b { font-size:14px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .qp-profit > .qp-pword { grid-column:1 / -1; align-items:baseline; line-height:18px; }
+.fg .qp-groups { margin:4px 0 0; padding:12px 0 0; list-style:none; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--line); }
+.fg .qp-groups li { display:flex; justify-content:space-between; gap:12px; font-size:14px; color:var(--q); }
+.fg .qp-groups b { font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
 /* a row to open in the rail (Already quoted): an icon bare, never in a tinted square */
-.fg .qc-row { display:flex; align-items:center; gap:12px; width:100%; padding:8px 0; border:0; border-bottom:1px solid var(--hd-rule);
-  background:none; font:inherit; text-align:left; color:var(--hd-ink); }
-/* a group is one hairline: the heading's rule is the row's top */
-.fg .qc-rs > h2 + .qc-row { margin-top:-12px; }
+.fg .qc-row { display:flex; align-items:center; gap:12px; width:100%; padding:4px 0; border:0; border-radius:var(--r-control);
+  background:none; font:inherit; text-align:left; color:var(--ink); }
 .fg .qc-row > svg { flex:none; color:var(--q); }
 .fg button.qc-row { cursor:pointer; transition:background var(--t-fast) var(--ease); }
 .fg button.qc-row:hover { background:var(--tint); }
@@ -6643,13 +6634,13 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qc-rt b { font-size:14px; font-weight:600; }
 .fg .qc-rt em { font-style:normal; font-size:13px; color:var(--q); }
 .fg .qc-spent { margin:0; font-size:13px; color:var(--q); }
-/* the line items, the column's other tab: its own scroll, the column heads
-   pinned at its top, the history at its foot; the paper fills the column */
+.fg .qc-rail > .qc-spent { margin-top:-16px; padding-top:0; border-top:0; }
+/* the line items, the left's other view: its own scroll, the option, where
+   it buys from and the Add buttons over the table, the column heads pinned
+   at its top, the history at its foot; the paper fills the left */
 .fg .qc-lines { flex:1; min-height:0; overflow:auto; }
-.fg .qc-lines > .ql-face { padding:16px 48px 32px; overflow:visible; }
+.fg .qc-lines > .ql-face { padding:24px 0 32px; overflow:visible; }
 .fg .qc-lines .ql-opts { margin-bottom:12px; }
-.fg .qc-lines .ql-sumrow { flex-wrap:wrap; row-gap:8px; padding-bottom:8px; }
-.fg .qc-lines .ql-oname { flex:1 1 100%; }
 .fg .qc-main > .qc-fill { flex:1; min-height:0; }
 .fg .ql-hist { display:flex; flex-direction:column; padding-top:8px; }
 /* THE QUOTE BY HAND ON ITS KEPT LINES (quote-line-items.tsx; the mock-ups
@@ -6708,7 +6699,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .ql-x { width:24px; height:24px; border-radius:var(--r-control); font-size:16px; line-height:1; }
 .fg .ql-x:hover { background:var(--tint); color:var(--hd-ink); }
 .fg .ql-x:focus-visible, .fg .ql-undo:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .ql-add { display:flex; flex-direction:column; gap:8px; padding:16px 0 8px; }
+.fg .ql-add { display:flex; flex-direction:column; gap:8px; padding:16px 0; }
+.fg .ql-adds { display:flex; flex-wrap:wrap; gap:8px; }
 .fg .ql-addrow { display:grid; grid-template-columns:minmax(0, 1fr) 200px; gap:8px; }
 .fg .ql-hits { list-style:none; margin:0; padding:4px; display:flex; flex-direction:column; border:1px solid var(--hd-edge); border-radius:var(--r-button); background:var(--paper); }
 .fg .ql-hits li button { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:16px; align-items:baseline; width:100%; padding:8px 12px;
@@ -6760,7 +6752,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt-qa + .qt-qa { border-top:1px solid var(--hd-rule2); }
 .fg .qt-q { margin:0; font-size:14px; font-weight:600; line-height:1.4; color:var(--hd-ink); }
 /* her questions numbered as her message numbers them, with what the quote has now */
-.fg .qt-qn { display:inline-block; min-width:12px; margin-right:4px; font-weight:500; color:var(--hd-body); font-variant-numeric:tabular-nums; }
+.fg .qt-qn { display:inline-flex; align-items:center; gap:8px; min-width:24px; margin-right:8px; font-weight:600; color:var(--orange-w); font-variant-numeric:tabular-nums; }
 .fg .qt-put { margin:0; padding-left:16px; font-size:13px; line-height:1.45; color:var(--hd-body); }
 .fg .qt-qa .qt-ans { padding-left:16px; }
 .fg .qt-done { margin:4px 0 8px; }
@@ -6791,14 +6783,15 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt-box:focus-within { border-color:var(--ink); }
 .fg .qt-in { flex:1; min-width:0; min-height:32px; max-height:160px; padding:4px 0; border:0; background:none; font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:none; }
 .fg .qt-in:focus { outline:none; }
-/* an option's name and the job's supplier, on one row over the ledger */
-.fg .ql-sumrow { display:flex; gap:24px; align-items:center; }
-.fg .ql-oname { display:flex; align-items:center; gap:12px; flex:0 1 400px; min-width:0; font-size:13px; font-weight:600; color:var(--hd-ink); white-space:nowrap; }
+/* an option's name and the job's supplier, side by side over the table,
+   each with its label above it (rule 33) */
+.fg .ql-sumrow { display:flex; gap:24px; align-items:flex-end; }
+.fg .ql-oname { display:flex; flex-direction:column; align-items:stretch; gap:4px; flex:1 1 auto; min-width:0; font-size:13px; font-weight:500; color:var(--q); }
 /* the supplier the whole job buys from (8 Oct) */
-.fg .ql-sup { display:flex; align-items:center; gap:12px; margin-left:auto; font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; }
-.fg .ql-sup select { height:36px; min-width:180px; font-size:14px; font-weight:600; color:var(--hd-ink); }
+.fg .ql-sup { display:flex; flex-direction:column; align-items:stretch; gap:4px; flex:0 0 240px; font-size:13px; font-weight:500; color:var(--q); }
+.fg .ql-sup select { height:36px; font-size:14px; font-weight:500; color:var(--ink); }
 .fg .ql-not { margin-left:8px; font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
-.fg .ql-oname input { flex:1; min-width:0; height:36px; font-size:14px; font-weight:600; color:var(--hd-ink); }
+.fg .ql-oname input { flex:1; min-width:0; height:36px; font-size:14px; font-weight:500; color:var(--ink); }
 /* a hard job's loading: the Labour group's last line, hidden from the customer */
 .fg tr.ql-load td { background:var(--tint); }
 .fg tr.ql-load .ql-n { align-items:baseline; }
@@ -6914,7 +6907,6 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .lp-box textarea { width:100%; min-height:96px; padding:8px 12px; font:inherit; font-size:13px; line-height:1.5; resize:vertical; }
 .fg .lp-notepick { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; font-size:13px; }
 .fg .lp-notepick label { display:flex; align-items:center; gap:8px; }
-.fg .qp-approved { font-size:13px; font-weight:600; color:var(--hd-today); }
 .fg .ql-checks { list-style:none; margin:0 0 16px; padding:0; display:flex; flex-direction:column; }
 .fg .ql-checks li { display:grid; grid-template-columns:16px minmax(0, 1fr); gap:8px; padding:4px 0; font-size:13px; line-height:1.45; color:var(--hd-ink); }
 .fg .ql-checks li > i { width:8px; height:8px; margin-top:4px; border-radius:50%; background:var(--hd-today); }
@@ -7528,9 +7520,6 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .wb2-jqseg { display:inline-flex; gap:2px; padding:2px; margin-top:8px; border-radius:var(--r-button); background:var(--tint-2); align-self:flex-start; }
 .wb2-jqseg button { padding:4px 12px; border-radius:calc(10px - 2px); font-size:13px; font-weight:500; color:var(--q); }
 .wb2-jqseg button.on { background:var(--paper); color:var(--ink); font-weight:600; }
-/* THE EQUIPMENT EDITOR: one unit a row, its fields wrapping on a narrow card;
-   the Accepted mark is the one option the job's equipment comes from */
-.wb2-jqacc.on { background:var(--tint); color:var(--ink); font-weight:600; }
 /* "Where it's up to" — title + right-aligned stamp on one line, a
    reading-size paragraph, on a whisper of the job's own colour */
 .wb2-jcsec.ups { border-radius:var(--r-card); padding:12px 16px 12px;
@@ -11057,6 +11046,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    every text token clears 4.5:1 on it too. */
 .fg .hd-page { --hd-ink:#151a24; --hd-body:#5b6472; --hd-rule:#e6e9ee; --hd-rule2:#eef0f3; --hd-edge:#e2e5ea;
   --hd-late:var(--bad-t); --hd-today:#0f766e; --hd-done:#16a34a; --hd-dot:#c3cad4; --hd-fresh:#e6f7f3; }
+/* the quote page borrows Home's frame and none of his colours: his tokens
+   mapped onto v2's 19 (layout C, 18 October 2026; quote-screen.tsx) */
+.fg .hd-page.qp { --hd-ink:var(--ink); --hd-body:var(--q); --hd-rule:var(--line); --hd-rule2:var(--line); --hd-edge:var(--edge);
+  --hd-today:var(--ink); --hd-done:var(--green); --hd-dot:var(--grey); --hd-fresh:var(--soft); }
 
 /* ── YOUR DAY: across the top of Diary and Tasks ──
    A rule under the band and one under the day, in his grey. The one under

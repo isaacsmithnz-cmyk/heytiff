@@ -12,6 +12,7 @@ import { unitPartOf } from "@/lib/quotes/brands";
 import { namedUnit, unitRoleOf } from "@/lib/quotes/unit-name";
 import { visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
 import type { Variation } from "@/lib/quotes/lines-job";
+import { Button } from "@/components/parts/button";
 import { Icon } from "@/components/shell/icon";
 import { Globe } from "./tiff-panel";
 import { CompareCard } from "./compare-card";
@@ -430,6 +431,102 @@ export function QuoteLineItems({
         )}
       </div>
 
+      <section className="ql-add" aria-label="Add a line">
+        <div className="ql-addrow">
+          {/* the book carries prices: its search is for those who see money */}
+          {money && (
+            <input
+              className="wb2-fi"
+              value={search}
+              placeholder="Add a line from your book"
+              aria-label="Search your book for a line to add"
+              onChange={(e) => void find(e.target.value)}
+            />
+          )}
+          <select className="wb2-fi ql-sysin" value={system} onChange={(e) => setSystem(e.target.value)} aria-label="The system it goes in">
+            <option value="">No system</option>
+            {systems.filter(Boolean).map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        {hits && (
+          <ul className="ql-hits">
+            {hits.length === 0 && <li className="none">Nothing in your book like that.</li>}
+            {hits.map((h) => (
+              <li key={h.product.key}>
+                <button type="button" disabled={busy} onClick={() => addFromBook(h)}>
+                  <span>
+                    {h.product.name}
+                    <small>{`${offerFor(h.product, view?.supplier ?? null)?.code ?? ""}, ${h.why.toLowerCase()}`}</small>
+                  </span>
+                  <b>{offerFor(h.product, view?.supplier ?? null) ? fmtAud(offerFor(h.product, view?.supplier ?? null)!.netCents) : "–"}</b>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="ql-adds">
+          <Button size={32} icon="plus" disabled={busy} onClick={() => addByHand("material")}>
+            Add a line by hand
+          </Button>
+          <Button size={32} icon="plus" disabled={busy} onClick={() => addByHand("labour")}>
+            Add labour
+          </Button>
+          {money && (
+            <Button size={32} icon="plus" disabled={busy} onClick={addProvisional}>
+              Add a provisional sum
+            </Button>
+          )}
+          {money && labourAt && !loading && (
+            /* 10%: the low end of Isaac's own "10 to 15%"; not applied until
+               it says why, typed on its row: Labour opens to show it */
+            <Button
+              size={32}
+              icon="plus"
+              disabled={busy}
+              onClick={() => {
+                onGroups([groupKey(labourAt)], true);
+                setLoad({ pct: 10, reason: "" });
+              }}
+            >
+              Add a loading
+            </Button>
+          )}
+          <Button size={32} icon="plus" disabled={busy} onClick={() => setKitOpen((v) => !v)} aria-expanded={kitOpen}>
+            Add a kit
+          </Button>
+          <Button size={32} icon="plus" disabled={busy} onClick={() => onOption(options)}>
+            Add an option
+          </Button>
+          {all.some((l) => l.optionIndex === 0) && (
+            <Button
+              disabled={busy}
+              size={32}
+              onClick={() => {
+                const to = options;
+                void act({ op: "copy", from: 0, to }).then(() => onOption(to));
+              }}
+            >
+              Copy option 1 to a new option
+            </Button>
+          )}
+        </div>
+        {kitOpen && (
+          <KitForm
+            busy={busy}
+            system={system}
+            packs={view?.packs ?? []}
+            onAdd={(k) => {
+              setKitOpen(false);
+              void adding({ op: "kit", optionIndex: at, ...k });
+            }}
+          />
+        )}
+      </section>
+
       {/* a line's compare is its group's: shut, the group hides it too */}
       {compared && open.has(groupKey(compared)) && (
         <CompareCard key={compared.id} job={job} lineId={compared.id} onClose={() => setComparing(null)} onChanged={onCompared} />
@@ -666,102 +763,6 @@ export function QuoteLineItems({
           .join(", ")}`}</p>
       )}
 
-      <section className="ql-add" aria-label="Add a line">
-        <div className="ql-addrow">
-          {/* the book carries prices: its search is for those who see money */}
-          {money && (
-            <input
-              className="wb2-fi"
-              value={search}
-              placeholder="Add a line from your book"
-              aria-label="Search your book for a line to add"
-              onChange={(e) => void find(e.target.value)}
-            />
-          )}
-          <select className="wb2-fi ql-sysin" value={system} onChange={(e) => setSystem(e.target.value)} aria-label="The system it goes in">
-            <option value="">No system</option>
-            {systems.filter(Boolean).map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
-        {hits && (
-          <ul className="ql-hits">
-            {hits.length === 0 && <li className="none">Nothing in your book like that.</li>}
-            {hits.map((h) => (
-              <li key={h.product.key}>
-                <button type="button" disabled={busy} onClick={() => addFromBook(h)}>
-                  <span>
-                    {h.product.name}
-                    <small>{`${offerFor(h.product, view?.supplier ?? null)?.code ?? ""}, ${h.why.toLowerCase()}`}</small>
-                  </span>
-                  <b>{offerFor(h.product, view?.supplier ?? null) ? fmtAud(offerFor(h.product, view?.supplier ?? null)!.netCents) : "–"}</b>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="wb2-jqacts">
-          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => addByHand("material")}>
-            Add a line by hand
-          </button>
-          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => addByHand("labour")}>
-            Add labour
-          </button>
-          {money && (
-            <button type="button" className="pbtn ghost sm" disabled={busy} onClick={addProvisional}>
-              Add a provisional sum
-            </button>
-          )}
-          {money && labourAt && !loading && (
-            /* 10%: the low end of Isaac's own "10 to 15%"; not applied until
-               it says why, typed on its row: Labour opens to show it */
-            <button
-              type="button"
-              className="pbtn ghost sm"
-              disabled={busy}
-              onClick={() => {
-                onGroups([groupKey(labourAt)], true);
-                setLoad({ pct: 10, reason: "" });
-              }}
-            >
-              Add a loading
-            </button>
-          )}
-          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => setKitOpen((v) => !v)} aria-expanded={kitOpen}>
-            Add a kit
-          </button>
-          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={() => onOption(options)}>
-            Add an option
-          </button>
-          {all.some((l) => l.optionIndex === 0) && (
-            <button
-              type="button"
-              className="pbtn ghost sm"
-              disabled={busy}
-              onClick={() => {
-                const to = options;
-                void act({ op: "copy", from: 0, to }).then(() => onOption(to));
-              }}
-            >
-              Copy option 1 to a new option
-            </button>
-          )}
-        </div>
-        {kitOpen && (
-          <KitForm
-            busy={busy}
-            system={system}
-            packs={view?.packs ?? []}
-            onAdd={(k) => {
-              setKitOpen(false);
-              void adding({ op: "kit", optionIndex: at, ...k });
-            }}
-          />
-        )}
-      </section>
 
       {/* the quote's history, under its lines: it was the rail's, beside Tiff */}
       <div className="ql-hist">

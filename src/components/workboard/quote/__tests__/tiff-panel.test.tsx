@@ -123,11 +123,13 @@ it("shows her thread, who said what and what she did, her words under her name",
   expect(onOpen).toHaveBeenLastCalledWith(1);
   expect(screen.getByText("Ducted for the whole house")).toBeInTheDocument();
   expect(screen.getByText("Luke Bennett")).toBeInTheDocument();
-  /* what she did, folded to one line once she's done; every step on Show all */
+  /* what she did, folded to one line once she's done; every step when it's opened */
   expect(screen.queryByText("Added a kit: Ducted, 12 parts")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: /Worked through it.*1 step.*Show all/ }));
+  const fold = screen.getByRole("button", { name: "Worked through it 1 step" });
+  expect(fold).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(fold);
   expect(screen.getByText("Added a kit: Ducted, 12 parts")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /Hide/ })).toHaveAttribute("aria-expanded", "true");
+  expect(fold).toHaveAttribute("aria-expanded", "true");
   /* the quote's history in her thread */
   expect(screen.getByText("Option 1 accepted by you")).toBeInTheDocument();
   /* law 26: state is a word, not a pill; her working mark already moves */
@@ -146,7 +148,7 @@ it("sends on Enter, never on Shift+Enter or mid-word in an input method", async 
   });
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   const box = await screen.findByLabelText("Message Tiff");
-  expect(box).toHaveAttribute("placeholder", "Reply…");
+  expect(box).toHaveAttribute("placeholder", "Reply");
   fireEvent.change(box, { target: { value: "Three phase" } });
   await act(async () => {
     fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
@@ -258,7 +260,7 @@ it("reads the job: every source listed to untick, and only the ticked ones sent"
   });
   render(<TiffPanel job="j" onChanged={jest.fn()} />);
   expect(await screen.findByText("Hi Isaac")).toBeInTheDocument();
-  expect(screen.getByLabelText("Message Tiff")).toHaveAttribute("placeholder", "Tell Tiff about the job…");
+  expect(screen.getByLabelText("Message Tiff")).toHaveAttribute("placeholder", "Tell Tiff about the job");
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Read the job" }));
   });
@@ -386,11 +388,43 @@ it("folds her working notes in with her steps, open while she works", async () =
   const answer = await screen.findByText("A 10 kW PEA-M100HAA under the floor.");
   /* done: one line, her answer the only message under her name */
   expect(screen.queryByText("PEA-M100HAA is the one. Checking specs and outdoor pairing.")).toBeNull();
-  const fold = screen.getByRole("button", { name: /Worked through it.*2 steps.*Show all/ });
+  const fold = screen.getByRole("button", { name: /Worked through it.*2 steps/ });
   expect(answer.closest(".qt-msg")).toHaveTextContent(/^Tiff/);
   fireEvent.click(fold);
   const note = screen.getByText("PEA-M100HAA is the one. Checking specs and outdoor pairing.");
   expect(note.closest(".qt-msg")).toBeNull();
   expect(note.closest(".qt-fold")).toContainElement(screen.getByText("Searched your book: PEA"));
+  expect(fold).toHaveAttribute("aria-expanded", "true");
+});
+
+/* layout C (Isaac, 18 October), Q6: the reply box at the conversation's
+   foot, the microphone on its own and a blue Send that carries its word */
+it("ends the conversation with the reply box: the microphone, then a blue Send in words", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(thread));
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  const box = await screen.findByLabelText("Message Tiff");
+  const send = screen.getByRole("button", { name: "Send" });
+  expect(send).toHaveTextContent("Send");
+  expect(send).toHaveClass("pt-btn--main");
+  expect(send).toBeDisabled();
+  const mic = screen.getByRole("button", { name: "Say it" });
+  expect(mic).toHaveClass("pt-btn--icon");
+  expect(mic).toHaveTextContent("");
+  const before = (a: Element, b: Element) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  expect(before(box, mic)).toBe(true);
+  expect(before(mic, send)).toBe(true);
+  fireEvent.change(box, { target: { value: "Three phase" } });
+  expect(send).toBeEnabled();
+});
+
+it("names her and when she said it over her words, and marks each open question with an orange dot", async () => {
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () =>
+    respond({ ...thread, events: thread.events.map((e) => (e.id === 4 ? { ...e, at: "2026-10-17T11:24:00Z" } : e)) })
+  );
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  const said = await screen.findByText("A 12.5 kW ducted, priced from your book.");
+  expect(said.closest(".qt-msg")!.querySelector("time")).toHaveAttribute("dateTime", "2026-10-17T11:24:00Z");
+  const q = await screen.findByText("Single or three phase?");
+  expect(q.querySelector(".qt-qn .pt-dot--orange")).not.toBeNull();
 });
 

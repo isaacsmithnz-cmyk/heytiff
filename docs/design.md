@@ -275,7 +275,6 @@ this list the way it holds the loops: both ways, by name.
 | `square` | `wb2-striprnd`, `wb2-micgo`, `wb2-dictmic` | stop, in the same controls: it takes the microphone's seat while it listens |
 | `x` | `wb2-striprnd`, `wb2-dictx` ×2, `wb2-ico` | the recording's cross beside stop, and the recording card's own cross in Tiff's ask bar (the capture card had a second, and went with the old capture UI, 2026-09-27): each closes a recording, and its label says what closing costs ("Discard") |
 | `plus` | `wb2-striprnd`, `wb2-addgo` | a note composer's commit at the end of its one-line field: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
-| `cornerDL` | `qt-send` | a composer's send, as the note composer's plus is: Tiff's reply box on the quote, Enter drawn in a grey square (Isaac, 2026-10-13: "the chat reply button can just be gray similar to what it looks like in Claude"). Its label is "Send", and Enter is the same press |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
 | `chevL` | `hd-cal-nb` | the Home calendar's Earlier, his arrow either side of what is in view ("go with your recommendations", 2026-09-25, which kept his shapes): the range beside it is the word, the button is named Earlier, and it rests at the twelve months' edge |

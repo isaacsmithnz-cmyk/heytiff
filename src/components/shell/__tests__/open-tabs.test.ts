@@ -3,6 +3,9 @@
 
 type Store = typeof import("../open-tabs");
 
+// a module, so its helpers don't share the global scope with other test files
+export {};
+
 async function load(): Promise<Store> {
   let mod!: Store;
   await jest.isolateModulesAsync(async () => {

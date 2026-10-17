@@ -20,7 +20,8 @@ jest.mock("@/lib/quotes/lines-job-server", () => ({
 jest.mock("@/lib/quotes/quote-versions-server", () => ({ readVersions: async () => [] }));
 jest.mock("@/lib/quotes/old-draft-server", () => ({ readStoredProposal: async () => null }));
 jest.mock("@/lib/quotes/session/store-server", () => ({
-  readSession: async () => ({ id: "s-1", messages: [{ role: "user", content: "Ducted, 5 outlets" }] }),
+  readSession: async () => ({ id: "s-1", spentUsd: 0, turnId: null, turnSince: null }),
+  hasTalked: async () => true,
   readOpenQuestions: async () => [{ id: 1, question: "Which ceiling?", put: "" }],
 }));
 

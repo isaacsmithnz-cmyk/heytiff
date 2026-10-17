@@ -144,6 +144,27 @@ export function sentMessages(state: SessionState): Msg[] {
   return first.role === "user" ? [{ role: "user", content: [notes, ...first.content] }, ...rest] : [{ role: "user", content: [notes] }, ...state.messages];
 }
 
+/** What a looked-at file leaves in the conversation once she's seen it. */
+export const FILE_SEEN = "The file itself isn't kept once you've looked at it: what you read of it is in your own words. Look at it again (look_at) to see it.";
+
+/** The conversation without the files she's already seen. A photo or a PDF
+    rides in the one request after she asks to look at it, and is then
+    dropped: kept, a drawing set was sent again every round and stored in
+    the session, 11 MB on 27 Milroy (16 October), and the turn after it
+    never finished. */
+export function withoutFiles(messages: readonly Msg[]): Msg[] {
+  return messages.map((m) => {
+    if (m.role !== "user" || !m.content.some((b) => b.type === "tool_result" && Array.isArray(b.content) && b.content.some((c) => c.type !== "text"))) return m;
+    return {
+      ...m,
+      content: m.content.map((b) => {
+        if (b.type !== "tool_result" || !Array.isArray(b.content) || !b.content.some((c) => c.type !== "text")) return b;
+        return { ...b, content: [...b.content.filter((c) => c.type === "text"), { type: "text" as const, text: FILE_SEEN }] };
+      }),
+    };
+  });
+}
+
 /** The conversation at a point the API takes back: tool calls left with
     no answers (a round that died between the two) come off. */
 export function settled(state: SessionState): SessionState {
@@ -154,8 +175,11 @@ export function settled(state: SessionState): SessionState {
 export type TurnEnd = { state: SessionState; spentUsd: number; ended: "done" | "cap" | "error" | "lost" };
 
 export async function runTurn(start: SessionState, message: string, deps: TurnDeps): Promise<TurnEnd> {
-  /* a session left with calls unanswered (one saved before that was fixed) is settled first */
-  let state: SessionState = { ...start, messages: withMessage(settled(start).messages, message) };
+  /* a session left with calls unanswered (one saved before that was fixed) is
+     settled first, and one saved holding files has them dropped */
+  let state: SessionState = { ...start, messages: withMessage(withoutFiles(settled(start).messages), message) };
+  /* what's kept never holds a file: the request after a look carries it, the session doesn't */
+  const save: TurnDeps["save"] = (s, ev, usd) => deps.save({ ...s, messages: withoutFiles(s.messages) }, ev, usd);
   let spent = 0;
   let priced = true;
   const models = new Set<string>();
@@ -174,7 +198,7 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
       state = f.state;
       add(f.usd, f.model);
     }
-    if (!(await deps.save(state, [], spent))) return { state, spentUsd: spent, ended: "lost" };
+    if (!(await save(state, [], spent))) return { state, spentUsd: spent, ended: "lost" };
 
     for (let round = 0; round <= MAX_ROUNDS; round++) {
       if (deps.signal?.aborted) return { state, spentUsd: spent, ended: "error" };
@@ -185,6 +209,8 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
         deps.signal
       );
       add(replyCost(reply), reply.model);
+      /* she's seen any file this request carried: the rounds after don't send it again */
+      state = { ...state, messages: withoutFiles(state.messages) };
       const events: EventDraft[] = [];
       const said = reply.content.filter(isText).map((b) => b.text).join("").trim();
       if (said) events.push({ kind: "reply", author: "tiff", body: { text: said } });
@@ -197,7 +223,7 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
          9 October: 18 calls cut off at xhigh, the quote left at $1,061) */
       if (calls.length === 0) {
         events.push(usage());
-        await deps.save(state, events, spent);
+        await save(state, events, spent);
         return { state, spentUsd: spent, ended: atCap ? "cap" : "done" };
       }
 
@@ -220,13 +246,13 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
         });
       }
       state = { ...state, messages: [...state.messages, { role: "user", content: results }] };
-      if (!(await deps.save(state, events, spent))) return { state, spentUsd: spent, ended: "lost" };
+      if (!(await save(state, events, spent))) return { state, spentUsd: spent, ended: "lost" };
     }
     return { state, spentUsd: spent, ended: "cap" };
   } catch (err) {
     console.error("[quote-session] turn failed:", err);
     state = settled(state);
-    await deps.save(state, [{ kind: "error", author: "tiff", body: { message: FAILED } }, usage()], spent).catch(() => false);
+    await save(state, [{ kind: "error", author: "tiff", body: { message: FAILED } }, usage()], spent).catch(() => false);
     return { state, spentUsd: spent, ended: "error" };
   }
 }

@@ -3,7 +3,7 @@
    done for the next to carry on from, long sessions folded. Nothing here
    calls the API. */
 import { recording, replaying, requestKey, scripted, withCache, NotRecorded, type Msg, type ModelRequest } from "../model";
-import { foldPoint, runTurn, sentMessages, settled, withMessage, type EventDraft, type SessionState, type ToolOutcome, type TurnDeps } from "../turn";
+import { FILE_SEEN, foldPoint, runTurn, sentMessages, settled, withMessage, type EventDraft, type SessionState, type ToolOutcome, type TurnDeps } from "../turn";
 
 const use = (id: string, name: string, input: Record<string, unknown> = {}) => ({ type: "tool_use" as const, id, name, input });
 const text = (t: string) => ({ type: "text" as const, text: t });
@@ -199,5 +199,47 @@ describe("what she looks at (4.6)", () => {
     const { d } = deps(model, { runTool: async () => ({ ok: true, value: { looking_at: "Plan.pdf" }, label: "Looked at", media: [picture] }) });
     await runTurn({ messages: [], summary: "" }, "What's on the plan?", d);
     expect(model.calls[1]!.messages.at(-1)!.content[0]).toMatchObject({ type: "tool_result", content: [picture, { type: "text", text: '{"looking_at":"Plan.pdf"}' }] });
+  });
+});
+
+/* 16 October: a drawing set she looked at was kept in the session (11 MB on
+   27 Milroy) and sent again every round; the turn after never finished, and
+   every poll that read it slowed the database for everyone */
+describe("a file she looks at", () => {
+  const pdf = { type: "document" as const, source: { type: "base64" as const, media_type: "application/pdf" as const, data: "JVBERi0xLjQ=" } };
+  const holds = (v: unknown) => JSON.stringify(v).includes("JVBERi0xLjQ=");
+
+  it("rides in the one request after she asks for it, never in what's kept or in a later round", async () => {
+    const model = scripted([
+      { content: [use("t1", "look_at", { id: "plan" })], stopReason: "tool_use" },
+      { content: [text("Three bedrooms off the plan."), use("t2", "read_quote")], stopReason: "tool_use" },
+      { content: [text("Read it: three bedrooms and a living room.")], stopReason: "end_turn" },
+    ]);
+    const { d, saves } = deps(model, {
+      runTool: async (name): Promise<ToolOutcome> => (name === "look_at" ? { ok: true, value: { name: "Plans.pdf" }, media: [pdf], label: "Looked at" } : { ok: true, value: { lines: [] }, label: "Read the quote" }),
+    });
+    const end = await runTurn({ messages: [], summary: "" }, "Quote off the plans", d);
+    expect(end.ended).toBe("done");
+    expect(holds(model.calls[1]!.messages)).toBe(true);
+    expect(holds(model.calls[2]!.messages)).toBe(false);
+    expect(saves.some((x) => holds(x.state.messages))).toBe(false);
+    expect(holds(end.state.messages)).toBe(false);
+    /* what she was told of it stays, with why the file itself is gone */
+    expect(JSON.stringify(saves.at(-1)!.state.messages)).toContain(FILE_SEEN);
+    expect(JSON.stringify(saves.at(-1)!.state.messages)).toContain("Plans.pdf");
+  });
+
+  it("is dropped from a session saved holding one, before it's sent again", async () => {
+    const stored: Msg[] = [
+      { role: "user", content: [text("Quote off the plans")] },
+      { role: "assistant", content: [use("t1", "look_at", { id: "plan" })] },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: [pdf, text('{"name":"Plans.pdf"}')] }] },
+      { role: "assistant", content: [text("Three bedrooms.")] },
+    ];
+    const model = scripted([{ content: [text("Pricing it now.")], stopReason: "end_turn" }]);
+    const { d, saves } = deps(model);
+    await runTurn({ messages: stored, summary: "" }, "price this project", d);
+    expect(holds(model.calls[0]!.messages)).toBe(false);
+    expect(saves.some((x) => holds(x.state.messages))).toBe(false);
   });
 });

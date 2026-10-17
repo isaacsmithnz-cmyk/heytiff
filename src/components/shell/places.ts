@@ -7,8 +7,8 @@
    on every route that will move into it. A place with no screen yet is left
    out rather than drawn as a dead row; it joins when its page lands.
 
-   The screens v2 moves somewhere else (Toolbox into the Library, Time & Pay
-   and Assets into Team) keep a row of their own under the places until their
+   The screens v2 moves somewhere else (the Workboard into Schedule, Toolbox
+   into the Library, Time & Pay and Assets into Team) keep a row of their own under the places until their
    step-5 page takes them in, so nothing a person uses today goes missing on
    the way. Each of those rows goes in the change that moves its screen.
 
@@ -32,7 +32,7 @@ export type Place = {
 export const PLACES: readonly Place[] = [
   { key: "home", label: "Home", icon: "home", href: "/dashboard", under: ["/dashboard/action-required", "/dashboard/notices"] },
   /* a job's own page (step 5) lights Jobs before the list has a page */
-  { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/workboard", under: ["/dashboard/jobs"], capability: "workboard" },
+  { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", under: [], capability: "workboard" },
   { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff", under: [], capability: "tiff" },
   { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", under: [], capability: "studio" },
   { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: [], capability: "team" },
@@ -40,6 +40,8 @@ export const PLACES: readonly Place[] = [
 
 /** Today's screens that keep a row until their v2 place takes them in. */
 export const STILL_TO_MOVE: readonly Place[] = [
+  /* the board keeps its row until Schedule (its day, its weeks, its display) is rebuilt */
+  { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", under: [], capability: "workboard" },
   { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", under: [], capability: "toolbox" },
   { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", under: [], capability: "timepay_all" },
   { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", under: [], capability: "assets_all" },

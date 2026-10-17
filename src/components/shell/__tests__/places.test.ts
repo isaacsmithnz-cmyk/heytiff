@@ -64,10 +64,13 @@ describe("the sidebar's places (rules 5 and 7)", () => {
   });
 
   /* a job is a page now (step 5), and Jobs says you're in it */
-  it("lights Jobs on a job's own page as well as on the board", () => {
+  it("lights Jobs on the list and a job's own page, and the board on its own row", () => {
     const jobs = PLACES.find((p) => p.key === "jobs")!;
+    const board = STILL_TO_MOVE.find((p) => p.key === "workboard")!;
+    expect(placeOn(jobs, "/dashboard/jobs")).toBe(true);
     expect(placeOn(jobs, "/dashboard/jobs/a3539c01")).toBe(true);
-    expect(placeOn(jobs, "/dashboard/workboard")).toBe(true);
+    expect(placeOn(jobs, "/dashboard/workboard")).toBe(false);
+    expect(placeOn(board, "/dashboard/workboard")).toBe(true);
     expect(placeOn(jobs, "/dashboard/jobsite")).toBe(false);
   });
 });

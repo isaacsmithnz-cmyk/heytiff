@@ -297,7 +297,7 @@ export const SESSION_TOOLS: ToolDef[] = [
   {
     name: "add_kit",
     description:
-      "Add the parts a split or ducted system takes to install, each picked from the book: pipe, interconnect, power, breaker, isolator, mount, drain, trunking; for ducted the supply plenum made for the indoor's face and a return plenum where its return has one, the Ys and reducers of the layout, the flex, outlets, and the return grille and box at their size. Name the outdoor and its pipe and current are read off its pack; name the indoor and its faces are. A fact left out leaves its part on the quote as not known yet. Every duct size (takeoffs, fittings, reducers, outlet_mm) is the brief's, a plan's or the person's, never a usual one: leave out a size nothing gives. Change any part after, saying why.",
+      "Add the parts a split or ducted system takes to install, each picked from the book: pipe, interconnect, power, breaker, isolator, mount, drain, trunking; for ducted the supply plenum made for the indoor's face and a return plenum where its return has one, the Ys and reducers of the layout, the flex, outlets, and the return grille and box at their size. Name the outdoor and its pipe and current are read off its pack; name the indoor and its faces are. A fact left out leaves its part on the quote as not known yet. Every duct size (takeoffs, fittings, reducers, outlet_mm) is the brief's, a plan's or the person's; where none gives one, the airflow guide's (airflow_check), as assumed, never the business's usual. Change any part after, saying why.",
     input_schema: {
       type: "object",
       properties: {
@@ -307,7 +307,7 @@ export const SESSION_TOOLS: ToolDef[] = [
         brand: { type: "string", description: "The outdoor's data pack, e.g. mitsubishi-electric" },
         model: { type: "string", description: "The outdoor's model" },
         indoor_model: { type: "string", description: "Ducted: the indoor's model, from the same pack: its plenums are made for its faces" },
-        takeoffs: { type: "array", items: { type: "number" }, description: "Ducted: the spigots the ductwork takes off the supply plenum, mm, as the brief, a plan or the person gives them: [400, 400]. Leave out when nothing gives them" },
+        takeoffs: { type: "array", items: { type: "number" }, description: "Ducted: the spigots the ductwork takes off the supply plenum, mm, as the brief, a plan or the person gives them: [400, 400]. Where none gives them, the airflow guide's size for the air they carry" },
         fittings: {
           type: "array",
           description: "Ducted: where the main duct splits, each Y's size in and outs, mm, and how many",
@@ -327,7 +327,7 @@ export const SESSION_TOOLS: ToolDef[] = [
         trunking_m: { type: "number" },
         drain_m: { type: "number" },
         outlets: { type: "integer" },
-        outlet_mm: { type: "number", description: "Ducted: the outlets' size, mm, as the brief, a plan or the person gives it. Leave out when nothing gives it, never a usual size" },
+        outlet_mm: { type: "number", description: "Ducted: the outlets' size, mm, as the brief, a plan or the person gives it. Where none gives it, the airflow guide's for the air each carries, never the business's usual" },
         replacing: { type: "string", enum: ["no", "yes", "keep"], description: "An old system comes out; keep: and its pipe is kept" },
         underfloor: { type: "boolean", description: "Ducted: the indoor goes under the floor, its outlets floor grilles on boots" },
         kept_pipe: { type: "string", enum: [...OLD_PIPES] },

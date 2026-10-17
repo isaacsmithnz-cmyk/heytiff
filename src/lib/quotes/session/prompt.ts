@@ -72,13 +72,15 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     /* Isaac, 2026-10-15, on 3231's "4 × Ø250 takeoffs… 8 × Ø200 flex", which
        no brief gave: "Was that her deciding?… most air conditioning duct work
        is 10 inch or 250 mil, but I don't want you to take my word for it. It
-       needs to be decided by the brief." */
-    "- Every duct and outlet size, the main duct's, each takeoff's and each outlet's, comes from the brief, a plan you've looked at or the person's answer, never from what's usual. Where none gives it, ask, and give the kit none, so those parts go on as not known yet.",
+       needs to be decided by the brief." Then, 17 October, after the bench
+       had the guide size what no brief gave: "Ducts can be sourced from the
+       guide. As assumptions. And she can clearly show you… the reasoning." */
+    "- Every duct and outlet size, the main duct's, each takeoff's and each outlet's, comes from the brief, a plan you've looked at or the person's answer, never from the business's usual. Where none gives it, size it from the airflow guide (airflow_check) on the unit's airflow and the outlets, and put it on at the guide's size as assumed, its why the guide's figure and reason (\"Ø200 flex: 88 L/s an outlet, the guide recommends up to 92\"). Show that reasoning in your reply, size by size, so the person can change it.",
     /* Isaac, 2026-10-15: "So she has something to compare it with… Anyone
        using it should get the same recommendations, which we can change
        during the conversation." */
     "- For a ducted system, check the air (airflow_check) once the unit and its outlets are known. What the guide says is a recommendation: say it with its figure and its reason, and never settle a size on it without saying so. The brief, a plan or the person's word overrides it.",
-    "- A kit hands back the parts it couldn't size or price (still_to_settle). Settle every one: where the brief, the unit's data or the business's usual settles it, put the item from the book on the line (search_book, change_line), saying why (the return grille sized to the unit's airflow, from the sizes the book has); where nothing settles it, ask, the book's sizes as the answers. A duct's size is never the usual one: only the brief, a plan or an answer settles it. Never leave one unpriced and unasked.",
+    "- A kit hands back the parts it couldn't size or price (still_to_settle). Settle every one: where the brief, the unit's data or the business's usual settles it, put the item from the book on the line (search_book, change_line), saying why (the return grille sized to the unit's airflow, from the sizes the book has); where nothing settles it, ask, the book's sizes as the answers. A duct's size is never the business's usual one: the brief, a plan or an answer settles it, else the airflow guide's size, as assumed and said with its reasoning. Never leave one unpriced and unasked.",
     "- Each option is a whole job. Copy option 1 to start another and change what differs.",
     "- When the customer names an item that isn't the business's usual (a grille, a controller, a brand), keep the usual in option 1 and put theirs on a copy of it, so the difference is the upgrade.",
     "- When the quote is built, write the proposal's words (write_proposal) if they aren't written: what each option is and why, the work by area, what's included and what isn't, in the client's plain words. Rewrite what a change to the lines has made wrong; a person's own words stand unless they ask.",

@@ -51,11 +51,14 @@ it("checks a ducted system's air once its unit and outlets are known, saying the
 
 /* Isaac, 2026-10-15, on 3231's "4 × Ø250 takeoffs… 8 × Ø200 flex": "most
    air conditioning duct work is 10 inch or 250 mil, but I don't want you to
-   take my word for it. It needs to be decided by the brief." */
-it("takes every duct and outlet size from the brief, a plan or an answer, and asks where none gives it", () => {
+   take my word for it. It needs to be decided by the brief." 17 October:
+   "Ducts can be sourced from the guide. As assumptions. And she can clearly
+   show you… the reasoning." */
+it("takes every duct and outlet size from the brief, a plan or an answer, else the airflow guide's as assumed, with its reasoning, never the business's usual", () => {
   const p = sessionSystemPrompt();
-  expect(p).toMatch(/Every duct and outlet size, the main duct's, each takeoff's and each outlet's, comes from the brief, a plan you've looked at or the person's answer, never from what's usual\. Where none gives it, ask, and give the kit none, so those parts go on as not known yet/);
-  expect(p).toMatch(/A duct's size is never the usual one: only the brief, a plan or an answer settles it/);
+  expect(p).toMatch(/Every duct and outlet size, the main duct's, each takeoff's and each outlet's, comes from the brief, a plan you've looked at or the person's answer, never from the business's usual\. Where none gives it, size it from the airflow guide \(airflow_check\) on the unit's airflow and the outlets, and put it on at the guide's size as assumed/);
+  expect(p).toMatch(/Show that reasoning in your reply, size by size, so the person can change it\./);
+  expect(p).toMatch(/A duct's size is never the business's usual one: the brief, a plan or an answer settles it, else the airflow guide's size, as assumed and said with its reasoning/);
   /* the Ys were once settled "from the outlets and the usual layout" */
   expect(p).not.toMatch(/usual layout/);
 });

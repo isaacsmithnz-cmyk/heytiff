@@ -10,7 +10,6 @@ import { PLACES, STILL_TO_MOVE, YOURS, placeOn, placesFor, type Place } from "./
 import { useCommandPalette } from "./command-palette-context";
 import { WindowsContext, useRecords } from "@/components/records/records-context";
 import { NewJobModal } from "@/components/workboard/board/new-job-modal";
-import { TaskForm } from "@/components/making/task-form";
 import { pinsServerSnapshot, pinsSnapshot, seedPins, subscribePins } from "./pins-store";
 import { pinKey, type Pin } from "@/lib/pins/pins";
 import type { RecordRef } from "@/lib/records/ref";
@@ -85,19 +84,19 @@ function PlaceRow({ place, on }: { place: Place; on: boolean }) {
   );
 }
 
-/* NEW (rules 3 and 44): a white disc and the word. Job, Quote and Task are
-   made here, the same three on every page, and nothing is filled in. Job is
-   the board's own form, offered where ServiceM8 takes new jobs from this
-   workspace; Task is everyone's. Quote joins when what it makes is settled.
-   The panel is dark and square where it leaves the sidebar. */
+/* NEW (rules 3 and 44): a white disc and the word. What starts work is made
+   here, Job and Quote, the same on every page, and nothing is filled in. A
+   task is words to Tiff, or a job's Add (Isaac, 18 October: "Talking to Tiff
+   seems to be the best way to add one fast"). Job is the board's own form,
+   offered where ServiceM8 takes new jobs from this workspace; Quote joins
+   when what it makes is settled, so until then New shows only where Job
+   does. The panel is dark and square where it leaves the sidebar. */
 function NewButton({ newJob }: { newJob: boolean }) {
   const ref = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
-  const [making, setMaking] = useState<"job" | "task" | null>(null);
-  const items: MenuItem[] = [
-    ...(newJob ? [{ key: "job", label: "Job", lead: <Icon name="folder" size={16} /> }] : []),
-    { key: "task", label: "Task", lead: <Icon name="listCheck" size={16} /> },
-  ];
+  const [making, setMaking] = useState<"job" | null>(null);
+  const items: MenuItem[] = newJob ? [{ key: "job", label: "Job", lead: <Icon name="folder" size={16} /> }] : [];
+  if (items.length === 0) return null;
   return (
     <>
       <button
@@ -119,14 +118,13 @@ function NewButton({ newJob }: { newJob: boolean }) {
         onClose={() => setOpen(false)}
         onSelect={(key) => {
           setOpen(false);
-          if (key === "job" || key === "task") setMaking(key);
+          if (key === "job") setMaking(key);
         }}
         items={items}
         label="New"
         tone="ink"
       />
       {making === "job" && <NewJobModal onClose={() => setMaking(null)} />}
-      {making === "task" && <TaskForm onClose={() => setMaking(null)} />}
     </>
   );
 }

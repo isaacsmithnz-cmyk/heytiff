@@ -78,7 +78,7 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **41. Loading.** Nothing for half a second, then a skeleton shaped like what's coming.
 - **42. When something goes wrong.** A red dot and word, what it means for you, and what to do.
 - **43. Search.** Results by kind; the last row asks Tiff, with Enter.
-- **44. The New menu.** Job, Quote, Task: the same three on every page, and it never fills anything in. The panel reaches out from the New button, dark, square where it leaves the panel.
+- **44. The New menu.** Job and Quote: the same on every page, and it never fills anything in. A task is words to Tiff, or a record's Add. The panel reaches out from the New button, dark, square where it leaves the panel.
 
 ### Motion, shape and the rest
 

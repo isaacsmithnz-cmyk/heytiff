@@ -1229,6 +1229,7 @@
   "capacity_cool_kw": 29.6,
   "capacity_heat_kw": 29.8,
   "airflow_ls": 1500,
+  "static_pressure_pa": 300,
   "supply_opening": {
    "w_mm": 1098,
    "h_mm": 282
@@ -1256,9 +1257,9 @@
   "weight_kg": 122,
   "provenance": {
    "kind": "extracted",
-   "source": "Technical Selection Data, Split Ducted Unit CRV290T / EVA290T",
-   "edition": "9590-0009-01A Ver. 11 241203",
-   "page": "1 (nett rated, indoor airflow nominal, weight), 6 (indoor outline 628 x 1754 x 820, supply duct 282 x 1098 and return 533 x 1451 H x W, swaged connections), 8 (filters by others)"
+   "source": "Technical Selection Data, Split Ducted Unit CRV290T / EVA290T; Variable Capacity Commercial Series, Technical Specifications - Split Light Commercial Variable Unit 29.90-33.00kW",
+   "edition": "9590-0009-01A Ver. 11 241203; Mar 2021 (filed as v3.2; no version printed)",
+   "page": "1 (nett rated, indoor airflow nominal, weight), 6 (indoor outline 628 x 1754 x 820, supply duct 282 x 1098 and return 533 x 1451 H x W, swaged connections), 8 (filters by others), 3 (indoor fan application range: nominal 1500 l/s at 300 Pa, 74% PWM, the table's top column; default fan setting printed 'at 100 Pa'); VCC split pages PDF p.3, no printed folio (External Static Pressure (Pa) @Hi: Nominal Airflow 300)"
   }
  },
  {
@@ -1269,6 +1270,7 @@
   "capacity_cool_kw": 33.0,
   "capacity_heat_kw": 32.5,
   "airflow_ls": 1750,
+  "static_pressure_pa": 300,
   "supply_opening": {
    "w_mm": 1098,
    "h_mm": 282
@@ -1296,9 +1298,9 @@
   "weight_kg": 126,
   "provenance": {
    "kind": "extracted",
-   "source": "Technical Selection Data, Split Ducted Unit CRV330T / EVA330T",
-   "edition": "9590-0009-02A Ver. 8 241203",
-   "page": "1 (nett rated, indoor airflow nominal, weight), 6 (indoor outline 628 x 1754 x 820, supply duct 282 x 1098 and return 533 x 1451 H x W, swaged connections), 8 (filters by others)"
+   "source": "Technical Selection Data, Split Ducted Unit CRV330T / EVA330T; Variable Capacity Commercial Series, Technical Specifications - Split Light Commercial Variable Unit 29.90-33.00kW",
+   "edition": "9590-0009-02A Ver. 8 241203; Mar 2021 (filed as v3.2; no version printed)",
+   "page": "1 (nett rated, indoor airflow nominal, weight), 6 (indoor outline 628 x 1754 x 820, supply duct 282 x 1098 and return 533 x 1451 H x W, swaged connections), 8 (filters by others), 3 (indoor fan application range: nominal 1750 l/s at 300 Pa, 99% PWM, the table's top column; default fan setting printed 'at 100 Pa'); VCC split pages PDF p.3, no printed folio (External Static Pressure (Pa) @Hi: Nominal Airflow 300)"
   }
  }
 ]

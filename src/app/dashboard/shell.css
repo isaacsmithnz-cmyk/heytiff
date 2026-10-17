@@ -12677,3 +12677,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-line.hm-line--info { color:var(--q); }
 /* on the ink a coloured word falls under 4.5:1, so the count is white */
 .fg .side .hm-navcount { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--paper); font-variant-numeric:tabular-nums; }
+
+/* ===== MAKING THINGS (v2, step 4): the one form for each kind =====
+   No `.fg`: the form opens in a dialog, which portals to <body>. */
+.mk-form { display:flex; flex-direction:column; gap:16px; }
+.mk-pair { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; align-items:start; }
+/* the job it is for (rule 51): filled in, with its clear */
+.mk-job { display:flex; align-items:center; gap:8px; min-height:36px; padding:0 4px 0 12px; border:1px solid var(--edge); border-radius:var(--r-control); }
+.mk-job .mk-job-name { flex:1; min-width:0; font-size:14px; line-height:20px; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+.mk-jobfind { display:flex; flex-direction:column; gap:4px; }
+.mk-jobhits { margin:0; padding:4px; list-style:none; border:1px solid var(--edge); border-radius:var(--r-control); }
+.mk-jobhits .mk-jobhit { display:block; width:100%; min-height:32px; padding:4px 8px; border:0; border-radius:var(--r-button); background:none; text-align:left; font:inherit; font-size:14px; line-height:20px; color:var(--ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.mk-jobhits .mk-jobhit:hover { background:var(--hov); }
+.mk-jobhits .mk-jobhit:focus-visible { outline:none; box-shadow:var(--ring); }

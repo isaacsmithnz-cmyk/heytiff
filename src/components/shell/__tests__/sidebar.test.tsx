@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { Sidebar, type ShellUser } from "../sidebar";
 import { CommandPaletteProvider } from "../command-palette-context";
+import { namePage } from "../page-names";
 import { RecordsContext, WindowsContext } from "@/components/records/records-context";
 import { resolve } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
@@ -8,13 +9,21 @@ import type { Role } from "@/lib/roles-shared";
 /* The sidebar, v2 (docs/design.md rules 1, 3 to 7 and 27): the wordmark,
    New, Search, the places, Recents, and your name at the foot. */
 
+let mockPath = "/dashboard/team";
 const push = jest.fn();
 jest.mock("next/navigation", () => ({
-  usePathname: () => "/dashboard/team",
+  usePathname: () => mockPath,
   useRouter: () => ({ push }),
 }));
 /* New's Job opens the board's own form, which reaches server actions;
    stubbed so this suite stays about the sidebar. */
+const taskForm = jest.fn();
+jest.mock("@/components/making/task-form", () => ({
+  TaskForm: (p: { job: unknown }) => {
+    taskForm(p.job);
+    return <div role="dialog" aria-label="New task" />;
+  },
+}));
 jest.mock("@/components/workboard/board/new-job-modal", () => ({
   NewJobModal: () => <div role="dialog" aria-label="New job" />,
 }));
@@ -64,13 +73,16 @@ describe("the sidebar's top", () => {
     expect(screen.getByRole("button", { name: /Search/ })).toHaveTextContent("⌘K");
   });
 
-  it("makes a Job, and shows where ServiceM8 takes new jobs (rules 3 and 44)", () => {
+  it("makes a Job and a Task, Job only where ServiceM8 takes new jobs (rules 3 and 44)", () => {
     draw(userAs("owner"));
-    expect(screen.queryByRole("button", { name: "New" })).toBeNull();
+    act(() => screen.getByRole("button", { name: "New" }).click());
+    expect(within(screen.getByRole("menu", { name: "New" })).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Task"]);
     cleanup();
     draw(userAs("owner"), true);
-    expect(screen.getByRole("button", { name: "New" })).toHaveAttribute("aria-haspopup", "dialog");
-    expect(screen.queryByRole("menu", { name: "New" })).toBeNull();
+    act(() => screen.getByRole("button", { name: "New" }).click());
+    const menu = screen.getByRole("menu", { name: "New" });
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Job", "Task"]);
+    expect(menu.closest(".pt-menu")).toHaveClass("pt-menu--ink");
   });
 });
 
@@ -141,9 +153,28 @@ describe("your name (rule 7)", () => {
 });
 
 describe("New", () => {
+  it("makes a general task away from a job", () => {
+    draw(userAs("staff"));
+    act(() => screen.getByRole("button", { name: "New" }).click());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Task" }));
+    expect(screen.getByRole("dialog", { name: "New task" })).toBeInTheDocument();
+    expect(taskForm).toHaveBeenLastCalledWith(null);
+  });
+
+  it("fills in the job when it opens on a job's page, named as its tab is", () => {
+    mockPath = "/dashboard/jobs/abc-123";
+    namePage("/dashboard/jobs/abc-123", { label: "3209 Richards" });
+    draw(userAs("staff"));
+    act(() => screen.getByRole("button", { name: "New" }).click());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Task" }));
+    expect(taskForm).toHaveBeenLastCalledWith({ uuid: "abc-123", label: "3209 Richards" });
+    mockPath = "/dashboard/team";
+  });
+
   it("makes a Job with the board's own form", () => {
     draw(userAs("owner"), true);
     act(() => screen.getByRole("button", { name: "New" }).click());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Job" }));
     expect(screen.getByRole("dialog", { name: "New job" })).toBeInTheDocument();
   });
 });

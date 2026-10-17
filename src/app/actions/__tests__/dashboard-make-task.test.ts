@@ -1,0 +1,109 @@
+/* New › Task's one action (v2, rules 44 and 51): what needs doing, the job
+   it is for or none, when, and who. Every rule is re-decided here, so every
+   rule is pinned: a job goes on the task, a task with a job is kept without
+   it while the column is missing, a time needs a day, and only someone who
+   may give work hands it to someone else. */
+
+const inserts: Record<string, unknown>[] = [];
+let failWithJob = false;
+let staffRow: Record<string, unknown> | null = { id: "s-lyle" };
+let allowed = new Set<string>();
+
+const table = (name: string) => {
+  const chain: Record<string, unknown> = {};
+  chain.select = () => chain;
+  chain.eq = () => chain;
+  chain.maybeSingle = async () => ({ data: name === "staff_profiles" ? staffRow : null });
+  chain.insert = (row: Record<string, unknown>) => {
+    if (name === "tasks") inserts.push(row);
+    const done: Record<string, unknown> = {};
+    done.select = () => done;
+    done.single = async () =>
+      name === "tasks" && failWithJob && "sm8_job_uuid" in row
+        ? { data: null, error: { code: "PGRST204", message: "column sm8_job_uuid does not exist" } }
+        : { data: { id: "t-new" }, error: null };
+    done.then = (res: (v: { error: unknown }) => unknown) => Promise.resolve({ error: null }).then(res);
+    return done;
+  };
+  return chain;
+};
+
+jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (n: string) => table(n) } }));
+jest.mock("@/lib/auth0", () => ({
+  auth0: { getSession: jest.fn().mockResolvedValue({ user: { sub: "auth0|me" }, orgId: "org-1" }) },
+}));
+jest.mock("@/lib/permissions-server", () => ({ can: jest.fn(async (cap: string) => allowed.has(cap)) }));
+jest.mock("@/lib/fleet/query", () => ({
+  staffProfileIdFor: jest.fn(async () => "s-me"),
+  listFleetStaff: jest.fn(async () => [
+    { id: "s-me", name: "Isaac Smith" },
+    { id: "s-lyle", name: "Lyle Irving" },
+  ]),
+}));
+jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn(async () => "Australia/Sydney") }));
+jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+
+import { makeTask, taskPeople } from "../dashboard";
+
+const last = () => inserts[inserts.length - 1]!;
+
+beforeEach(() => {
+  inserts.length = 0;
+  failWithJob = false;
+  staffRow = { id: "s-lyle" };
+  allowed = new Set();
+});
+
+describe("makeTask", () => {
+  it("makes a general task for you, with no job and no day", async () => {
+    expect(await makeTask({ title: "  Order the grilles " })).toEqual({ ok: true, taskId: "t-new" });
+    expect(last()).toMatchObject({ title: "Order the grilles", assigned_to: "s-me", created_by: "s-me", due_date: null, remind_at: null, remind_kind: null });
+    expect(last()).not.toHaveProperty("sm8_job_uuid");
+  });
+
+  it("puts the task on the job it was made for", async () => {
+    expect(await makeTask({ title: "Order the grilles", jobUuid: "job-3209" })).toEqual({ ok: true, taskId: "t-new", jobKept: true });
+    expect(last()).toMatchObject({ sm8_job_uuid: "job-3209" });
+  });
+
+  it("keeps a task without its job while the job column isn't there, and says so", async () => {
+    failWithJob = true;
+    expect(await makeTask({ title: "Order the grilles", jobUuid: "job-3209" })).toEqual({ ok: true, taskId: "t-new", jobKept: false });
+    expect(inserts).toHaveLength(2);
+    expect(last()).not.toHaveProperty("sm8_job_uuid");
+  });
+
+  it("files a day, and a time on it as the time to have it done by", async () => {
+    await makeTask({ title: "x", dueDate: "2026-10-21", dueTime: "12:30 PM" });
+    expect(last()).toMatchObject({ due_date: "2026-10-21", remind_kind: "by" });
+    expect(last().remind_at).toBe("2026-10-21T01:30:00.000Z");
+  });
+
+  it("drops a time with no day, and refuses a day it can't read", async () => {
+    await makeTask({ title: "x", dueTime: "9:00 AM" });
+    expect(last()).toMatchObject({ due_date: null, remind_at: null });
+    expect(await makeTask({ title: "x", dueDate: "Tuesday" })).toEqual({ ok: false, error: "Check the day." });
+  });
+
+  it("says why it won't save without words", async () => {
+    expect(await makeTask({ title: "   " })).toEqual({ ok: false, error: "Say what needs doing." });
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("gives it to someone else only for a person who may give work, and only to the team", async () => {
+    expect(await makeTask({ title: "x", forStaffId: "s-lyle" })).toEqual({ ok: false, error: "You can't give tasks to other people." });
+    allowed = new Set(["team"]);
+    await makeTask({ title: "x", forStaffId: "s-lyle" });
+    expect(last()).toMatchObject({ assigned_to: "s-lyle", created_by: "s-me" });
+    staffRow = null;
+    expect(await makeTask({ title: "x", forStaffId: "s-nobody" })).toEqual({ ok: false, error: "That person isn't on the team." });
+  });
+});
+
+describe("taskPeople", () => {
+  it("is you alone without the team grant, and the team with it", async () => {
+    expect(await taskPeople()).toEqual({ me: "s-me", people: [] });
+    allowed = new Set(["team"]);
+    expect((await taskPeople()).people.map((p) => p.name)).toEqual(["Isaac Smith", "Lyle Irving"]);
+  });
+});

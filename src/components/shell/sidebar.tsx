@@ -10,6 +10,8 @@ import { PLACES, STILL_TO_MOVE, YOURS, placeOn, placesFor, type Place } from "./
 import { useCommandPalette } from "./command-palette-context";
 import { WindowsContext, useRecords } from "@/components/records/records-context";
 import { NewJobModal } from "@/components/workboard/board/new-job-modal";
+import { TaskForm, type TaskJob } from "@/components/making/task-form";
+import { pageName, pageNamesServerSnapshot, pageNamesSnapshot, subscribePageNames } from "./page-names";
 import { pinsServerSnapshot, pinsSnapshot, seedPins, subscribePins } from "./pins-store";
 import { pinKey, type Pin } from "@/lib/pins/pins";
 import type { RecordRef } from "@/lib/records/ref";
@@ -84,24 +86,56 @@ function PlaceRow({ place, on }: { place: Place; on: boolean }) {
   );
 }
 
-/* NEW (rules 3 and 44): a white disc and the word, and it makes a Job:
-   the board's own form, opened straight from the button, nothing filled in.
-   A quote and a task are made on the job, through its Add (Isaac, 18
-   October: "Quote should just live in the job section, you need a job
-   before a quote"; a task is also words to Tiff). New shows where
-   ServiceM8 takes new jobs from this workspace. */
+/* NEW (rules 3 and 44): a white disc and the word. Job and Task are made
+   here, the same on every page. It fills in only the record you're on:
+   opened on a job's page, a task is for that job, and you can clear it, so
+   from anywhere else it's a general task (Isaac, 18 October). A quote is
+   made on its job, through Add. Job is the board's own form, offered where
+   ServiceM8 takes new jobs from this workspace. The panel is dark and
+   square where it leaves the sidebar. */
 function NewButton({ newJob }: { newJob: boolean }) {
-  const [making, setMaking] = useState(false);
-  if (!newJob) return null;
+  const ref = useRef<HTMLButtonElement>(null);
+  const pathname = usePathname();
+  const names = useSyncExternalStore(subscribePageNames, pageNamesSnapshot, pageNamesServerSnapshot);
+  const [open, setOpen] = useState(false);
+  const [making, setMaking] = useState<"job" | "task" | null>(null);
+  const items: MenuItem[] = [
+    ...(newJob ? [{ key: "job", label: "Job", lead: <Icon name="folder" size={16} /> }] : []),
+    { key: "task", label: "Task", lead: <Icon name="listCheck" size={16} /> },
+  ];
+  const onJob = pathname.match(/^\/dashboard\/jobs\/([^/?#]+)/);
+  const job: TaskJob | null = onJob
+    ? { uuid: decodeURIComponent(onJob[1]), label: pageName(names, pathname)?.label ?? "This job" }
+    : null;
   return (
     <>
-      <button type="button" className="fr-new" aria-haspopup="dialog" onClick={() => setMaking(true)}>
+      <button
+        ref={ref}
+        type="button"
+        className="fr-new"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
         <span className="fr-newdisc" aria-hidden>
           <Icon name="plus" size={14} />
         </span>
         New
       </button>
-      {making && <NewJobModal onClose={() => setMaking(false)} />}
+      <Menu
+        anchor={ref}
+        open={open}
+        onClose={() => setOpen(false)}
+        onSelect={(key) => {
+          setOpen(false);
+          if (key === "job" || key === "task") setMaking(key);
+        }}
+        items={items}
+        label="New"
+        tone="ink"
+      />
+      {making === "job" && <NewJobModal onClose={() => setMaking(null)} />}
+      {making === "task" && <TaskForm job={job} onClose={() => setMaking(null)} />}
     </>
   );
 }

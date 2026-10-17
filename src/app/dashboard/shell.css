@@ -12666,3 +12666,48 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .fg .jp-acts { flex-wrap:wrap; }
   .fg .jp-overgrid { grid-template-columns:minmax(0,1fr); }
 }
+
+/* ===== JOBS, THE LIST (v2, step 5; components/jobs/jobs-list.tsx) =====
+   The board v2-board-jobs: the title with what's open beside it in grey, the
+   search on the right; the views as soft tabs (rule 29) with Who and Sort
+   beside them; then the table, a row per job (rule 39) under hairlines. The
+   parts draw the tabs, the fields, the dots, the state words and the discs;
+   these rules only lay them out. Desktop at 1440 is the target. */
+.fg .jl { display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .jl-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.fg .jl-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.fg .jl-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .jl-open { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .jl-search { position:relative; display:flex; align-items:center; flex:0 1 440px; min-width:0; }
+.fg .jl-search-icon { position:absolute; left:12px; display:inline-flex; color:var(--q); pointer-events:none; }
+.fg .jl-search .pt-input.jl-search-input { padding-left:calc(12px + 16px + 8px); padding-right:calc(32px + 8px); }
+.fg .jl-search .jl-search-clear { position:absolute; right:2px; }
+.fg .jl-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.fg .jl-picks { display:flex; align-items:center; gap:8px; }
+.fg .jl-pick { position:relative; display:inline-flex; align-items:center; }
+/* the chooser's own word, inside its box on the left: "Who Anyone" */
+.fg .jl-pick-word { position:absolute; left:12px; font-size:14px; line-height:20px; font-weight:400; color:var(--q); pointer-events:none; }
+.fg .jl-pick .pt-chooser.jl-pick-ch { width:auto; min-width:176px; padding-left:48px; }
+.fg .jl-note { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+/* the table: a grid per row, so the head and the rows share the columns */
+.fg .jl-table { --jl-cols:80px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr) 112px; min-width:0; }
+.fg .jl-table.jl-table--money { --jl-cols:80px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr) 112px 112px; }
+.fg .jl-rows { margin:0; padding:0; list-style:none; }
+.fg .jl-row { display:grid; grid-template-columns:var(--jl-cols); align-items:center; gap:16px; padding:12px 8px; border-bottom:1px solid var(--line); color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
+.fg .jl-row.jl-row--head { padding-top:8px; padding-bottom:8px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg .jl-rows .jl-row:hover { background:var(--hov); }
+.fg .jl-rows .jl-row:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .jl-cell { display:flex; flex-direction:column; justify-content:center; min-width:0; font-size:14px; line-height:20px; font-weight:400; }
+.fg .jl-row--head .jl-cell { font-size:12px; line-height:16px; font-weight:500; }
+.fg .jl-numv { font-weight:500; font-variant-numeric:tabular-nums; }
+.fg .jl-name { font-weight:600; }
+.fg .jl-sub { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .jl-kind { flex-direction:row; align-items:center; justify-content:flex-start; gap:8px; }
+/* the row's one dot is its kind's: the state is the word alone, as the board draws it */
+.fg .jl-state .pt-state .pt-dot { display:none; }
+.fg .jl-state .pt-state { font-size:14px; line-height:20px; max-width:100%; }
+.fg .jl-next { color:var(--q); }
+.fg .jl-who { flex-direction:row; align-items:center; justify-content:flex-start; }
+.fg .jl-discs { display:inline-flex; align-items:center; }
+.fg .jl-discs .pt-initials + .pt-initials { margin-left:-4px; box-shadow:0 0 0 2px var(--white); }
+.fg .jl-value { align-items:flex-end; text-align:right; font-variant-numeric:tabular-nums; }

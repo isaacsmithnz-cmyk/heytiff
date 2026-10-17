@@ -93,7 +93,7 @@ describe("Row (rule 39)", () => {
     expect(row).toHaveClass("pt-row");
     expect(row).not.toHaveClass("pt-row--click");
     const parts = Array.from(row.children).map((c) => c.className);
-    expect(parts).toEqual(["pt-row-lead", "pt-row-dot", "pt-row-text", "pt-row-end"]);
+    expect(parts).toEqual(["pt-row-lead", "pt-dot pt-dot--blue", "pt-row-text", "pt-row-end"]);
     expect(row.querySelector(".pt-row-name")).toHaveTextContent("Install at Milroy");
     expect(row.querySelector(".pt-row-line")).toHaveTextContent("Sam and Alex");
     expect(row.querySelectorAll(".pt-fade")).toHaveLength(2);
@@ -138,9 +138,9 @@ describe("Row (rule 39)", () => {
 
   it("draws a dot in its hue's bright value, hidden beside its words", () => {
     const { container } = render(<Dot hue="green" />);
-    const dot = container.querySelector(".pt-row-dot")!;
+    const dot = container.querySelector(".pt-dot")!;
     expect(dot).toHaveAttribute("aria-hidden", "true");
-    expect((dot as HTMLElement).style.getPropertyValue("--pt-dot")).toBe("var(--green)");
+    expect(dot).toHaveClass("pt-dot--green");
   });
 });
 
@@ -205,8 +205,8 @@ describe("Wrong (rule 42)", () => {
     expect(Array.from(box.children).map((c) => c.className)).toEqual(["pt-wrong-word", "pt-wrong-means", "pt-wrong-act"]);
     const word = screen.getByText("Didn't send");
     expect(word).toHaveClass("pt-wrong-word");
-    const dot = word.querySelector(".pt-row-dot") as HTMLElement;
-    expect(dot.style.getPropertyValue("--pt-dot")).toBe("var(--red)");
+    const dot = word.querySelector(".pt-dot") as HTMLElement;
+    expect(dot).toHaveClass("pt-dot--red");
     expect(dot).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByRole("button", { name: "Send quote" })).toBeInTheDocument();
   });
@@ -266,15 +266,15 @@ const SHEET = fs
   .replace(/\/\*[\s\S]*?\*\//g, "");
 const RULES = Array.from(SHEET.matchAll(/([^{}]+)\{([^{}]*)\}/g), (m) => [m[1]!.trim(), m[2]!] as const);
 
-/* The tokens a part may name: v2's colours and scales, and three aliases
+/* The tokens a part may name: v2's colours and scales, and two aliases
    that are v2's by definition. `--press` is the blue of pressing (the
-   accent ratchet counts `var(--blue)` in a rule), `--link` is the one link
-   token, and `--pt-dot` is the hue a Dot is handed. */
+   accent ratchet counts `var(--blue)` in a rule), and `--link` is the one
+   link token. */
 const TOKENS = new Set([
   "ink", "white", "q", "blue", "red", "red-w", "orange", "orange-w", "green", "green-w", "yellow", "yellow-w",
   "purple", "purple-w", "pink", "pink-w", "grey", "line", "edge", "sel", "hov", "soft", "scrim", "shadow-overlay", "ring",
   "r-control", "r-button", "r-card", "r-pill", "t-fast", "t-move", "t-slide", "ease", "z-overlay", "z-modal", "z-toast", "z-raised",
-  "font", "press", "link", "pt-dot",
+  "font", "press", "link",
 ]);
 
 describe("patterns.css", () => {
@@ -324,7 +324,7 @@ describe("patterns.css", () => {
   /* `.fg button:where(…)` is (0,1,1) and resets font, colour and fill on
      every button in the frame, so each rule on a control names two classes. */
   it("beats the frame's button reset on every control it styles", () => {
-    const controls = /\.pt-(?:row-hit|row-name|wrong-main|wrong-link)\b/;
+    const controls = /\.pt-(?:row-hit|row-name)\b/;
     let seen = 0;
     for (const [list] of RULES) {
       for (const sel of list.split(",")) {
@@ -334,6 +334,6 @@ describe("patterns.css", () => {
         if (classes < 2) throw new Error(`${sel.trim()} names one class, and .fg button's reset beats it`);
       }
     }
-    expect(seen).toBeGreaterThan(5);
+    expect(seen).toBeGreaterThan(2);
   });
 });

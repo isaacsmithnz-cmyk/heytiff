@@ -1,7 +1,6 @@
 "use client";
 
 import { WrongPage } from "@/components/parts/wrong-page";
-import "@/components/parts/patterns.css";
 
 /* An error on a dashboard screen stops here, under the dashboard layout,
    so the sidebar and the header stay and you can go somewhere else (rule

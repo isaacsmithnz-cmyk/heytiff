@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Dot } from "./row";
+import { Dot } from "./state";
 
 /* NOTHING THERE YET (rule 40, law 12): what is missing, in a few words,
    and the action that fills it. No picture and no caption explaining the

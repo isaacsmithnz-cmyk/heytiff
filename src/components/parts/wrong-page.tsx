@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
 import { Wrong } from "./states";
+import { Button, LinkButton } from "./button";
 
 /* What an error boundary shows (rule 42): the word, that the page didn't
    load, and Try again or Home. The root's error.tsx and the dashboard's
@@ -27,12 +27,10 @@ export function WrongPage({
         means="This page didn't load. Try it again, and if it still won't load, go to Home."
         action={
           <>
-            <button type="button" className="pt-wrong-main" onClick={() => retry()}>
+            <Button kind="main" onClick={() => retry()}>
               Try again
-            </button>
-            <Link href="/dashboard" className="pt-wrong-link">
-              Go to Home
-            </Link>
+            </Button>
+            <LinkButton href="/dashboard">Go to Home</LinkButton>
           </>
         }
       />

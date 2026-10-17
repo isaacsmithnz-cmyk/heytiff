@@ -1,17 +1,9 @@
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Dot, type Hue } from "./state";
 import { Fade } from "./fade";
 
-/** The eight hues (rule 15). A dot takes the bright value. */
-export type Hue = "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "pink" | "grey";
-
-/* A DOT (rules 17 and 18): an 8px disc in a hue's bright value, always
-   beside a word that says what it means, so it is hidden from a screen
-   reader. The hue rides in on a custom property rather than a rule per hue,
-   so the sheet names no hue and a job's colour needs no class of its own. */
-export function Dot({ hue }: { hue: Hue }) {
-  return <span className="pt-row-dot" aria-hidden="true" style={{ "--pt-dot": `var(--${hue})` } as CSSProperties} />;
-}
+export { Dot, type Hue };
 
 /* A ROW (rule 39): a time or a tick, a dot, the name in bold with a grey
    line under it, then a state word or one button on the right. 32 tall in

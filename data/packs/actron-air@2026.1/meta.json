@@ -3,7 +3,7 @@
  "version": "2026.1",
  "packSchemaVersion": 1,
  "name": "Actron Air — split ducted (Advance B, AIRES, Aspire DS, Variable Capacity Commercial 29–33 kW), Cascade DS cassette, Serene DS wall split, MultiElite DS multi",
- "updated": "2026-10-13",
+ "updated": "2026-10-17",
  "sources": [
   {
    "title": "Advance B Series Split Ducted Unit, Technical Selection Data",
@@ -83,6 +83,11 @@
   {
    "title": "Technical Selection Data, Split Ducted Unit CRV330T / EVA330T",
    "edition": "9590-0009-02A Ver. 8 241203",
+   "access": "public"
+  },
+  {
+   "title": "Variable Capacity Commercial Series, Technical Specifications - Split Light Commercial Variable Unit 29.90-33.00kW",
+   "edition": "Mar 2021 (filed as v3.2; no version printed)",
    "access": "public"
   },
   {

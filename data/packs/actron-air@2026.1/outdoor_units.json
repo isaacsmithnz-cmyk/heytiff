@@ -17,12 +17,14 @@
   "width_mm": 1365,
   "depth_mm": 530,
   "height_mm": 1110,
+  "sound_low_dba": 50.9,
+  "sound_high_dba": 58.0,
   "weight_kg": 132,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "4 (nett rated, outdoor full load amps), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "4 (nett rated, outdoor full load amps), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
   }
  },
  {
@@ -43,12 +45,14 @@
   "width_mm": 1365,
   "depth_mm": 530,
   "height_mm": 1110,
+  "sound_low_dba": 52.8,
+  "sound_high_dba": 62.0,
   "weight_kg": 134,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "4 (nett rated, outdoor full load amps), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "4 (nett rated, outdoor full load amps), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
   }
  },
  {
@@ -69,12 +73,14 @@
   "width_mm": 1365,
   "depth_mm": 530,
   "height_mm": 1110,
+  "sound_low_dba": 52.9,
+  "sound_high_dba": 62.0,
   "weight_kg": 138,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "4 (nett rated, outdoor full load amps), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "4 (nett rated, outdoor full load amps), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
   }
  },
  {
@@ -95,12 +101,14 @@
   "width_mm": 1365,
   "depth_mm": 530,
   "height_mm": 1110,
+  "sound_low_dba": 50.5,
+  "sound_high_dba": 57.5,
   "weight_kg": 133,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
   }
  },
  {
@@ -121,12 +129,14 @@
   "width_mm": 1365,
   "depth_mm": 530,
   "height_mm": 1110,
+  "sound_low_dba": 52.7,
+  "sound_high_dba": 61.7,
   "weight_kg": 134,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
   }
  },
  {
@@ -147,12 +157,14 @@
   "width_mm": 1365,
   "depth_mm": 530,
   "height_mm": 1110,
+  "sound_low_dba": 52.9,
+  "sound_high_dba": 61.7,
   "weight_kg": 140,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
   }
  },
  {
@@ -173,12 +185,14 @@
   "width_mm": 1365,
   "depth_mm": 530,
   "height_mm": 1110,
+  "sound_low_dba": 57.0,
+  "sound_high_dba": 65.4,
   "weight_kg": 149,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high, column C (cooling)); ICG 0525-137 p.51 (PDF p.47)"
   }
  },
  {
@@ -199,12 +213,14 @@
   "width_mm": 1641,
   "depth_mm": 530,
   "height_mm": 1343,
+  "sound_low_dba": 58.3,
+  "sound_high_dba": 64.5,
   "weight_kg": 178,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 23 (outdoor dimensions); 26 (weights); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 23 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high, column C (cooling)); ICG 0525-137 p.51 (PDF p.47)"
   }
  },
  {
@@ -225,12 +241,14 @@
   "width_mm": 1641,
   "depth_mm": 530,
   "height_mm": 1343,
+  "sound_low_dba": 59.2,
+  "sound_high_dba": 65.2,
   "weight_kg": 183,
   "provenance": {
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 23 (outdoor dimensions); 26 (weights); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 23 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high, column C (cooling)); ICG 0525-137 p.51 (PDF p.47)"
   }
  },
  {
@@ -251,12 +269,14 @@
   "width_mm": 990,
   "depth_mm": 370,
   "height_mm": 790,
+  "sound_low_dba": 54.9,
+  "sound_high_dba": 55.6,
   "weight_kg": 64,
   "provenance": {
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); ICG 0525-133 p.82-83"
+   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
   }
  },
  {
@@ -277,12 +297,14 @@
   "width_mm": 1020,
   "depth_mm": 340,
   "height_mm": 997,
+  "sound_low_dba": 52.0,
+  "sound_high_dba": 57.9,
   "weight_kg": 85,
   "provenance": {
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); ICG 0525-133 p.82-83"
+   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
   }
  },
  {
@@ -303,12 +325,14 @@
   "width_mm": 1020,
   "depth_mm": 340,
   "height_mm": 1350,
+  "sound_low_dba": 51.0,
+  "sound_high_dba": 57.2,
   "weight_kg": 99,
   "provenance": {
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); ICG 0525-133 p.82-83"
+   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
   }
  },
  {
@@ -329,12 +353,14 @@
   "width_mm": 1020,
   "depth_mm": 340,
   "height_mm": 1350,
+  "sound_low_dba": 55.1,
+  "sound_high_dba": 60.0,
   "weight_kg": 110,
   "provenance": {
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); ICG 0525-133 p.82-83"
+   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high; p.27 prints this row as 'CRV17AS', its @3 m figures 50.1 / 55.0 / 56.8 / 56.9 are p.4's CRS17AS column); ICG 0525-133 p.82-83"
   }
  },
  {
@@ -355,12 +381,14 @@
   "width_mm": 1020,
   "depth_mm": 340,
   "height_mm": 997,
+  "sound_low_dba": 51.7,
+  "sound_high_dba": 58.1,
   "weight_kg": 85,
   "provenance": {
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
   }
  },
  {
@@ -381,12 +409,14 @@
   "width_mm": 1020,
   "depth_mm": 340,
   "height_mm": 1350,
+  "sound_low_dba": 50.8,
+  "sound_high_dba": 58.6,
   "weight_kg": 99,
   "provenance": {
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
   }
  },
  {
@@ -407,12 +437,14 @@
   "width_mm": 1020,
   "depth_mm": 340,
   "height_mm": 1350,
+  "sound_low_dba": 55.0,
+  "sound_high_dba": 60.1,
   "weight_kg": 110,
   "provenance": {
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
   }
  },
  {
@@ -433,12 +465,14 @@
   "width_mm": 1050,
   "depth_mm": 400,
   "height_mm": 1536,
+  "sound_low_dba": 53.8,
+  "sound_high_dba": 62.8,
   "weight_kg": 142,
   "provenance": {
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 23 (outdoor dimensions); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 23 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
   }
  },
  {
@@ -459,12 +493,14 @@
   "width_mm": 1050,
   "depth_mm": 400,
   "height_mm": 1536,
+  "sound_low_dba": 56.5,
+  "sound_high_dba": 63.3,
   "weight_kg": 149,
   "provenance": {
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 23 (outdoor dimensions); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 23 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
   }
  },
  {
@@ -484,12 +520,14 @@
   "width_mm": 890,
   "depth_mm": 342,
   "height_mm": 673,
+  "sound_low_dba": 50.0,
+  "sound_high_dba": 61.0,
   "weight_kg": 44.0,
   "provenance": {
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections); IM 9590-5031 p.58"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58"
   }
  },
  {
@@ -509,12 +547,14 @@
   "width_mm": 946,
   "depth_mm": 410,
   "height_mm": 810,
+  "sound_low_dba": 50.0,
+  "sound_high_dba": 62.0,
   "weight_kg": 75.2,
   "provenance": {
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System; Cascade Cassette DS Series, Technical Selection Data",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623; 9590-0032-01 Ver. 2 260331",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
   }
  },
  {
@@ -534,12 +574,14 @@
   "width_mm": 980,
   "depth_mm": 415,
   "height_mm": 975,
+  "sound_low_dba": 55.0,
+  "sound_high_dba": 64.0,
   "weight_kg": 89.0,
   "provenance": {
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System; Cascade Cassette DS Series, Technical Selection Data",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623; 9590-0032-01 Ver. 2 260331",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
   }
  },
  {
@@ -559,12 +601,14 @@
   "width_mm": 952,
   "depth_mm": 415,
   "height_mm": 1333,
+  "sound_low_dba": 55.0,
+  "sound_high_dba": 63.5,
   "weight_kg": 93.0,
   "provenance": {
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System; Cascade Cassette DS Series, Technical Selection Data",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623; 9590-0032-01 Ver. 2 260331",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
   }
  },
  {
@@ -584,12 +628,14 @@
   "width_mm": 952,
   "depth_mm": 415,
   "height_mm": 1333,
+  "sound_low_dba": 55.0,
+  "sound_high_dba": 63.0,
   "weight_kg": 94.0,
   "provenance": {
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections); IM 9590-5031 p.58"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58"
   }
  },
  {
@@ -609,12 +655,13 @@
   "width_mm": 765,
   "depth_mm": 303,
   "height_mm": 555,
+  "sound_high_dba": 55.0,
   "weight_kg": 29.4,
   "provenance": {
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -634,12 +681,13 @@
   "width_mm": 805,
   "depth_mm": 330,
   "height_mm": 554,
+  "sound_high_dba": 55.0,
   "weight_kg": 31.8,
   "provenance": {
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -659,12 +707,13 @@
   "width_mm": 890,
   "depth_mm": 342,
   "height_mm": 673,
+  "sound_high_dba": 59.0,
   "weight_kg": 42.3,
   "provenance": {
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -684,12 +733,13 @@
   "width_mm": 890,
   "depth_mm": 342,
   "height_mm": 673,
+  "sound_high_dba": 59.0,
   "weight_kg": 42.3,
   "provenance": {
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -709,12 +759,13 @@
   "width_mm": 890,
   "depth_mm": 342,
   "height_mm": 673,
+  "sound_high_dba": 61.0,
   "weight_kg": 43.8,
   "provenance": {
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -734,12 +785,13 @@
   "width_mm": 890,
   "depth_mm": 342,
   "height_mm": 673,
+  "sound_high_dba": 61.0,
   "weight_kg": 43.8,
   "provenance": {
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -759,12 +811,13 @@
   "width_mm": 946,
   "depth_mm": 410,
   "height_mm": 810,
+  "sound_high_dba": 61.0,
   "weight_kg": 60.3,
   "provenance": {
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections); IM 9590-5037 p.53 (refrigerant charge 1700 g; catalogue p.2 prints 2.200)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge 1700 g; catalogue p.2 prints 2.200)"
   }
  },
  {
@@ -785,12 +838,13 @@
   "width_mm": 805,
   "depth_mm": 330,
   "height_mm": 554,
+  "sound_high_dba": 56.4,
   "weight_kg": 34.6,
   "provenance": {
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge); IM 9590-5036 p.15 (port A connection sizes)"
+   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
   }
  },
  {
@@ -811,12 +865,13 @@
   "width_mm": 890,
   "depth_mm": 342,
   "height_mm": 673,
+  "sound_high_dba": 58.7,
   "weight_kg": 48.1,
   "provenance": {
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge); IM 9590-5036 p.15 (port A connection sizes)"
+   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
   }
  },
  {
@@ -837,12 +892,13 @@
   "width_mm": 946,
   "depth_mm": 410,
   "height_mm": 810,
+  "sound_high_dba": 61.0,
   "weight_kg": 61,
   "provenance": {
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge); IM 9590-5036 p.15 (port A connection sizes)"
+   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
   }
  },
  {
@@ -863,12 +919,13 @@
   "width_mm": 980,
   "depth_mm": 415,
   "height_mm": 975,
+  "sound_high_dba": 63.5,
   "weight_kg": 91,
   "provenance": {
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge); IM 9590-5036 p.15 (port A connection sizes)"
+   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
   }
  },
  {

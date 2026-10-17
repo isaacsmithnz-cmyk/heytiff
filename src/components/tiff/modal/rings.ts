@@ -194,7 +194,7 @@ export function readButton(from: HTMLElement | null): Button | null {
       arcA: deg(find(arcA, "tiffArc"), 2600),
       arcB: deg(find(arcB, "tiffArc"), 2600),
     },
-    ground: from.classList.contains("tiffbtn-topbar") ? "ink" : "paper",
+    ground: from.classList.contains("tiffbtn-onink") ? "ink" : "paper",
     gw,
     hov: !!gw && hov,
     rho: (3 * tb) / box.a,

@@ -13,13 +13,6 @@ import { fmtAuWeekdayDateLong, todayInAu } from "@/lib/au-dates";
    Home in the sidebar (./home-count). Its suite went with it; To do's and
    the count's pin what it did. */
 
-/* The topbar carries the Tiff button, which reaches the note flow and its
-   server actions — and "use server" modules cannot be imported into jsdom.
-   Stubbed so this suite stays about the topbar; the button has its own. */
-jest.mock("@/components/notes/tiff-button", () => ({
-  TiffButton: () => <button aria-label="Ask or tell Tiff" />,
-}));
-
 jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ push: jest.fn() }) }));
 
 const draw = () =>
@@ -31,18 +24,18 @@ const draw = () =>
 
 afterEach(cleanup);
 
-describe("the Tiff button, and no bell", () => {
-  it("sits in the header's end, and nothing rings beside it", async () => {
+describe("the header: no Tiff button, no bell", () => {
+  /* v2 (Isaac, 18 October): "I don't think we need it in the header
+     anymore. Home page will do it all." Her box is on Home; sheets and
+     boxes carry their own button. */
+  it("carries neither Tiff's button nor the bell", async () => {
     draw();
-    const tiff = document.querySelector('[aria-label^="Ask or tell Tiff"]') as HTMLElement;
-    expect(tiff).not.toBeNull();
-    expect(tiff.closest(".fr-headend")).not.toBeNull();
-    expect(tiff.closest(".fr-headend")!.children).toHaveLength(1);
+    expect(document.querySelector('[aria-label^="Ask or tell Tiff"]')).toBeNull();
     expect(document.querySelector(".bell, .bell-panel")).toBeNull();
-    expect(screen.queryByRole("button", { name: /needs you|nothing needs/i })).toBeNull();
     await act(async () => {});
   });
 });
+
 
 /* ── OPEN TABS (rules 10 and 11) ─────────────────────────────────────────
    The store's own rules are pinned in open-tabs.test; these pin what the
@@ -123,15 +116,10 @@ describe("the clock", () => {
     );
   });
 
-  it("is information, not a control — it sits outside the button cluster", () => {
-    /* Order is the point: when · do · you. If it drifts in among the controls
-       it starts reading as one. */
+  it("is information, not a control: it leads the header and holds no button", () => {
     draw();
     const clock = document.querySelector(".tbclock") as HTMLElement;
-    const tiff = document.querySelector('[aria-label^="Ask or tell Tiff"]') as HTMLElement;
     expect(clock.closest(".fr-head")).not.toBeNull();
-    expect(clock.closest(".fr-headend")).toBeNull();
-    expect(clock.compareDocumentPosition(tiff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(clock.querySelector("button")).toBeNull();
   });
 });

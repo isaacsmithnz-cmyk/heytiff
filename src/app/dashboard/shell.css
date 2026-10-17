@@ -651,7 +651,6 @@
 .fg .fr-tab button:focus-visible, .fg .fr-head button.fr-newtab:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .fr-head button.fr-newtab { display:flex; align-items:center; gap:8px; flex:0 0 auto; height:32px; padding:0 8px; font-size:14px; font-weight:500; color:var(--q); border-radius:var(--r-button); transition:color var(--t-fast) ease-out; }
 .fg .fr-head button.fr-newtab:hover { color:var(--ink); }
-.fg .fr-headend { display:flex; align-items:center; gap:12px; flex:0 0 auto; }
 
 
 /* ===== HeyTiff · Staff Profile — edit profile, in the app design language ===== */

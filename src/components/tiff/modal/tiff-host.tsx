@@ -110,9 +110,10 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
       else if (c.changed) router.refresh();
       if (c.moveTo && c.turns.length) kept.current = { turns: c.turns, at: Date.now() };
       /* Focus goes back to the button pressed; after a move it may have gone
-         with the page, so then to the frame's own Tiff button. */
+         with the page, so then to a Tiff button on the page it moved to
+         (Home's box has one). The header has none in v2. */
       if (to.isConnected) to.focus({ preventScroll: true });
-      else document.querySelector<HTMLElement>(".tiffbtn-topbar")?.focus({ preventScroll: true });
+      else document.querySelector<HTMLElement>(".tiffbtn")?.focus({ preventScroll: true });
     },
     [router, records]
   );

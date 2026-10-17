@@ -55,6 +55,7 @@ The mock-ups for everything below are at https://claude.ai/artifact/Ez9ak2XsHSWC
 - **Her mark's rings show while she works.** They are drawn a little thicker then, so the colour reads at 24 px.
 - **Unsent words in a reply box are kept on the server, per person** (his option 2, 18 October). Built for the quote's box on main: `reply_drafts`, `/api/drafts`, `useReplyDraft`. Other boxes join by adding to `DRAFT_BOXES` and the table's check.
 - **New makes a Job, and only a Job** (18 October). Task: "Talking to Tiff seems to be the best way to add one fast." Quote: "Quote should just live in the job section, you need a job before a quote." A quote and a task come from the job's Add; a task is also words to Tiff (Home's box, or her button on any page). Rules 3 and 44 say so, and New opens the job form straight from the button.
+- **Tiff's button leaves the header** (18 October): "I don't think we need it in the header anymore. Home page will do it all." The header is the date and time, then open tabs. Her box is on Home; a sheet or a box keeps its own Tiff button.
 - **Nothing on a quote has a Save button.** Everything saves as it happens, and the one gap, unsent words, is closed above.
 
 ## What the build assumes until Isaac answers

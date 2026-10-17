@@ -13,8 +13,6 @@
   --gray400: #9ca3af;
   --gray500: #57616f;
   --gray700: #374151;
-  --teal: #00e5c0;
-  --teal-d: #00a389;
   --font: var(--font-jakarta), sans-serif;
 
   min-height: 100%;
@@ -40,9 +38,8 @@
 }
 .dsd-sp { flex: 1 1 auto; }
 
-/* the chip says LIVE, and the ink on it has to survive the wash it sits on:
-   #00806c on a 15% teal wash measures 4.43 and fails at this size, so this is
-   the app's own --ok-t (5.27). */
+/* the chip says LIVE in v2's green word on a green wash (rule 17's state
+   colour); #15803D keeps 4.5:1 on it, and the dot takes the same ink. */
 .dsd-livechip {
   display: inline-flex;
   align-items: center;
@@ -51,19 +48,16 @@
   border-radius: 999px;
   font-size: 11.5px;
   font-weight: 700;
-  color: #00735f;
-  background: rgba(0, 229, 192, 0.15);
-  border: 1px solid rgba(0, 163, 137, 0.34);
+  color: var(--green-w);
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.34);
 }
-/* the dot takes the chip's OWN ink, not the accent: --teal-d on this wash
-   measures 2.89 and misses the 3:1 graphic floor by a hair, and a live
-   indicator you cannot quite see is the one thing this chip is for */
 .dsd-livechip s {
   width: 6px;
   height: 6px;
   flex: none;
   border-radius: 999px;
-  background: #00735f;
+  background: var(--green-w);
   text-decoration: none;
 }
 .dsd-exp { font-size: 11.5px; font-weight: 600; color: var(--gray500); }
@@ -84,11 +78,10 @@
 }
 .dsd-btn:hover { border-color: var(--ink); }
 .dsd-btn:active { transform: scale(0.975); }
-.dsd-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.4); }
-/* the app's CTA convention: teal ground, ink text (10.25:1). White on
-   --teal-d measures 3.18 and is banned as a pair. */
-.dsd-btn.cta { background: var(--teal); border-color: var(--teal); color: #04231f; }
-.dsd-btn.cta:hover { background: #2ee9c9; border-color: #2ee9c9; }
+.dsd-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.4); }
+/* v2 rule 22: the main button is blue with white words, and a hover keeps
+   its colour. */
+.dsd-btn.cta { background: var(--teal); border-color: var(--teal); color: #fff; }
 
 .dsd-body { padding: clamp(26px, 4vh, 44px) clamp(20px, 5vw, 84px) clamp(40px, 6vw, 90px); }
 

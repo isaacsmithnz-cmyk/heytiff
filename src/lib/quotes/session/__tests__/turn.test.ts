@@ -243,3 +243,17 @@ describe("a file she looks at", () => {
     expect(saves.some((x) => holds(x.state.messages))).toBe(false);
   });
 });
+
+/* Isaac, 2026-10-17, option A of the working-notes mocks: what she says on
+   the way to her tools is marked as her working; her answer is not */
+it("marks words said alongside her tool calls as working, and her answer as not", async () => {
+  const model = scripted([
+    { content: [text("PEA-M100HAA is the one. Checking specs."), use("t1", "read_quote")], stopReason: "tool_use" },
+    { content: [text("A 10 kW ducted under the floor.")], stopReason: "end_turn" },
+  ]);
+  const { d, saves } = deps(model);
+  await runTurn({ messages: [], summary: "" }, "Quote it", d);
+  const replies = saves.flatMap((x) => x.events).filter((e) => e.kind === "reply");
+  expect(replies.map((e) => e.body)).toEqual([{ text: "PEA-M100HAA is the one. Checking specs.", working: true }, { text: "A 10 kW ducted under the floor." }]);
+});
+

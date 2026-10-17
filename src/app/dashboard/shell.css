@@ -6760,6 +6760,12 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qc-says > p { margin:0; font-size:14px; line-height:1.6; color:var(--hd-ink); white-space:pre-line; }
 /* a run of what she did, together */
 .fg .qt-dids { display:flex; flex-direction:column; gap:4px; }
+/* her working folded to one line, opened to every step and note (option A, 17 Oct) */
+.fg .qt-fold { padding-left:16px; }
+.fg .qt-foldbtn { display:flex; align-items:baseline; gap:8px; padding:2px 0; border:0; background:none; font-size:13px; color:var(--hd-body); cursor:pointer; text-align:left; }
+.fg .qt-foldbtn b { font-weight:600; }
+.fg .qt-foldbtn em { font-style:normal; color:var(--q); text-decoration:underline; text-underline-offset:3px; }
+.fg .qt-foldbtn:hover em, .fg .qt-foldbtn:focus-visible em { color:var(--hd-ink); }
 .fg .qc-comp { flex:none; padding:8px 48px 24px; }
 .fg .qc-box { padding:8px 8px 8px 16px; }
 .fg .qc-box .qt-in { min-height:48px; }
@@ -6957,6 +6963,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .fg .qt-meta { font-size:12px; color:var(--q); }
 .fg .qt-did { margin:0; font-size:13px; line-height:1.45; color:var(--hd-body); }
 .fg .qt-did.off { color:var(--q); }
+.fg .qt-did.note { font-style:italic; color:var(--q); }
 .fg .qt-mile { margin:0; display:flex; align-items:center; gap:12px; font-size:12px; font-weight:600; color:var(--hd-today); }
 .fg .qt-mile::before, .fg .qt-mile::after { content:""; flex:1; height:1px; background:var(--hd-rule); }
 .fg .qt-working { margin:0; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--info-t); }

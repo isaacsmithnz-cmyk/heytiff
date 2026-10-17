@@ -108,6 +108,8 @@ export function TiffPanel({
   const [note, setNote] = useState<string | null>(null);
   /* researched prices put on their lines this visit */
   const [used, setUsed] = useState<Set<number>>(new Set());
+  /* the runs of her working opened to every step, by their first event */
+  const [opened, setOpened] = useState<Set<number>>(new Set());
   /* Read the job: its sources, and which are ticked */
   const [sources, setSources] = useState<{ list: Source[]; left: number } | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
@@ -301,23 +303,51 @@ export function TiffPanel({
   const thread: ReactNode[] = [];
   let steps: Ev[] = [];
   let hers = false;
+  /* her working, folded to one line once she's done: every step she took and
+     the notes she wrote on the way, under "Worked through it" (Isaac,
+     2026-10-17, option A of the working-notes mocks). Open while she works. */
   const endSteps = () => {
     if (steps.length === 0) return;
     const run = steps;
+    const key = run[0]!.id;
+    const live = working && run.at(-1)!.turnId === turn;
+    const open = live || opened.has(key);
+    const n = run.filter((e) => e.kind === "tool").length;
+    const flip = () =>
+      setOpened((was) => {
+        const next = new Set(was);
+        if (!next.delete(key)) next.add(key);
+        return next;
+      });
     thread.push(
-      <div key={`steps-${run[0]!.id}`} className="qt-dids">
-        {run.map((e) => (
-          <p key={e.id} className={e.body.ok === false ? "qt-did off" : "qt-did"}>
-            {`${String(e.body.label ?? "")}${e.body.said ? `: ${String(e.body.said)}` : ""}`}
-          </p>
-        ))}
+      <div key={`steps-${key}`} className="qt-dids qt-fold">
+        {!live && (
+          <button type="button" className="qt-foldbtn" aria-expanded={open} onClick={flip}>
+            <b>Worked through it</b>
+            <span>{`${n} ${n === 1 ? "step" : "steps"}`}</span>
+            <em>{open ? "Hide" : "Show all"}</em>
+          </button>
+        )}
+        {open &&
+          run.map((e) =>
+            e.kind === "reply" ? (
+              <p key={e.id} className="qt-did note">
+                {String(e.body.text ?? "")}
+              </p>
+            ) : (
+              <p key={e.id} className={e.body.ok === false ? "qt-did off" : "qt-did"}>
+                {`${String(e.body.label ?? "")}${e.body.said ? `: ${String(e.body.said)}` : ""}`}
+              </p>
+            )
+          )}
       </div>
     );
     steps = [];
   };
   for (const e of events) {
     const research = e.kind === "tool" && e.body.ok !== false && e.body.name === "research_price" ? researchDetailOf((e.body.detail as { research?: unknown } | undefined)?.research) : null;
-    if (e.kind === "tool" && !research) {
+    /* a note she wrote on the way to her tools is part of her working */
+    if ((e.kind === "tool" && !research) || (e.kind === "reply" && e.body.working === true)) {
       steps.push(e);
       hers = false;
       continue;

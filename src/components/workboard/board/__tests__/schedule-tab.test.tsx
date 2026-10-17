@@ -139,8 +139,9 @@ it("never writes the time on a block — the rail already says it", async () => 
   const block = (await screen.findAllByRole("button", { name: /Job #3171/ }))[0];
   // position carries the when; the card carries who and where only
   expect(block.textContent).not.toMatch(/am|pm/);
-  // ...but the hover title still says it in full
-  expect(block).toHaveAttribute("title", expect.stringContaining("7am–3pm"));
+  // ...but its name still says it in full
+  expect(block).not.toHaveAttribute("title");
+  expect(block).toHaveAccessibleName(/7am to 3pm/);
 });
 
 /* ── ONE JOB, BROUGHT FORWARD ──
@@ -768,8 +769,8 @@ describe("time off on the day", () => {
     expect(await screen.findByText("Luke Ingold")).toBeInTheDocument();
     expect(screen.getByText("Off all day")).toBeInTheDocument();
     expect(screen.getByText("Off 12pm–3:30pm")).toBeInTheDocument();
-    expect(screen.getByText("SICK").closest(".wb2-schaway")).toHaveAttribute("title", "Luke Ingold: SICK, all day");
-    expect(screen.getByText("TAFE").closest(".wb2-schaway")).toHaveAttribute("title", "Tom Apprentice: TAFE, 12pm–3:30pm");
+    expect(screen.getByText("SICK").closest(".wb2-schaway")).toHaveTextContent("SICK, all day");
+    expect(screen.getByText("TAFE").closest(".wb2-schaway")).toHaveTextContent("TAFE, 12pm–3:30pm");
     // time off is nobody's crew: two people are out working
     expect(screen.getByText("2 crews")).toBeInTheDocument();
   });

@@ -279,11 +279,6 @@ export function JobMediaViewer({
               aria-label={
                 favourites?.has(item.remoteId) ? `Unstar ${item.name}` : `Star ${item.name}`
               }
-              title={
-                favourites?.has(item.remoteId)
-                  ? "Starred — in the gallery"
-                  : "Star this photo for the gallery"
-              }
             >
               <Icon name="star" size={14} />
             </button>
@@ -291,7 +286,7 @@ export function JobMediaViewer({
           {items.length > 1 && (
             <em className="wb2-mvcount">{`${index + 1} / ${items.length}`}</em>
           )}
-          <button className="wb2-ico" onClick={onClose} title="Close" aria-label="Close viewer">
+          <button className="wb2-ico" onClick={onClose} aria-label="Close viewer">
             <Icon name="x" size={14} />
           </button>
         </div>
@@ -359,7 +354,6 @@ export function JobMediaViewer({
                 role="tab"
                 aria-selected={i === index}
                 aria-label={it.name}
-                title={it.name}
                 onClick={() => onNav(i)}
               >
                 {it.url ? (

@@ -1302,7 +1302,7 @@ describe("the day modal — the list behind a day's colour, live (A3/A5/K8)", ()
     expect(modal.getByText("Halston Freight")).toBeInTheDocument();
     expect(modal.getByText("3 to confirm")).toBeInTheDocument();
 
-    await userEvent.click(modal.getByTitle(/Equipment ready — not confirmed/));
+    await userEvent.click(modal.getByRole("button", { name: "Equipment" }));
     expect(act.setVisitReadiness).toHaveBeenCalledWith("v-1", "equipment_ready", true);
     expect(screen.getByText("Equipment confirmed — Halston Freight")).toBeInTheDocument();
   });

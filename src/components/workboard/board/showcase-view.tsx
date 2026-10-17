@@ -449,7 +449,6 @@ export function ShowcaseView({
                 onClick={() => toggleStar(p.remoteId)}
                 aria-pressed={starred.has(p.remoteId)}
                 aria-label={`Unstar ${p.caption || p.name}`}
-                title="Starred — click to take it out of the gallery"
               >
                 <Icon name="star" size={13} />
               </button>

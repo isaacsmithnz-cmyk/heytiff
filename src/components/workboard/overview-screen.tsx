@@ -733,7 +733,6 @@ export function OverviewScreen({
           <button
             className="pbtn ghost"
             onClick={() => setDisplay(false)}
-            title="Back to the app — Esc does the same"
           >
             <Icon name="x" size={16} />
             Close display mode
@@ -742,7 +741,6 @@ export function OverviewScreen({
           <button
             className="pbtn ghost"
             onClick={toDisplay}
-            title="Fill the screen — same board, no app frame"
           >
             <Icon name="maximize" size={16} />
             Display mode

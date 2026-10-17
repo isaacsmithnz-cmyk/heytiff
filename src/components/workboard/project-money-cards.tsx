@@ -197,20 +197,12 @@ export function MoneyCard({
             <button
               className={"wb2-chip" + (c.status === "paid" ? " ok" : " warn")}
               disabled={busy}
-              title={c.status === "paid" ? "Mark it back to awaiting" : "Mark it paid"}
               onClick={() => run(() => setClaimPaid(c.id, c.status !== "paid"))}
             >
               {c.status === "paid" ? "Paid" : "Awaiting payment"}
             </button>
           ) : (
-            <span
-              className={"wb2-chip" + (c.status === "paid" ? " ok" : " warn")}
-              title={
-                c.source === "manual"
-                  ? undefined
-                  : "Follows ServiceM8 — change it there and it follows here"
-              }
-            >
+            <span className={"wb2-chip" + (c.status === "paid" ? " ok" : " warn")}>
               {c.status === "paid" ? "Paid" : "Awaiting payment"}
             </span>
           )}
@@ -428,7 +420,6 @@ export function VariationsCard({
               <button
                 className="pbtn ghost"
                 disabled={busy}
-                title="Raise its claim row — it becomes part of axis one"
                 onClick={() =>
                   run(() =>
                     addClaim(project.id, {
@@ -446,7 +437,6 @@ export function VariationsCard({
               <button
                 className="pbtn ghost"
                 disabled={busy}
-                title="Back to pending — clears the decision"
                 onClick={() => run(() => decideVariation(v.id, "pending"))}
               >
                 Reopen

@@ -515,9 +515,6 @@ export function CapacityView({
                   : d.bookedMinutes > 0
                     ? `${fmtHoursShort(d.bookedMinutes)} booked`
                     : "";
-                const title = [hours || null, d.over ? "over capacity" : null]
-                  .filter(Boolean)
-                  .join(", ");
                 const cls =
                   "wb2-scmc" +
                   (hasPct ? " gauge" : " ns") +
@@ -557,7 +554,7 @@ export function CapacityView({
                 );
                 if (!clickable) {
                   return (
-                    <span key={d.dayISO} className={cls} style={style} title={title || undefined}>
+                    <span key={d.dayISO} className={cls} style={style}>
                       {inner}
                     </span>
                   );
@@ -572,7 +569,6 @@ export function CapacityView({
                     }}
                     className={cls}
                     style={style}
-                    title={title || undefined}
                     aria-pressed={sel}
                     aria-label={`${fmtAuWeekdayDayMonth(d.dayISO)}${
                       hasPct ? `, ${d.fillPct}% full` : ""

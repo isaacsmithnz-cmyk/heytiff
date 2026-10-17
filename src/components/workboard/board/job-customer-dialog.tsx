@@ -73,7 +73,7 @@ export function JobCustomerDialog({ jobUuid, onClose, onSaved }: { jobUuid: stri
         <div className="wb2-dmhd">
           <div className="wb2-dmtop">
             <h2 className="njob-title">Edit customer</h2>
-            <button className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
+            <button className="wb2-ico" onClick={onClose} aria-label="Close">
               <Icon name="x" size={14} />
             </button>
           </div>

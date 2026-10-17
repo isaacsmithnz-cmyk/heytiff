@@ -408,14 +408,13 @@ export function VisitSheet({
             role="checkbox"
             aria-checked={on}
             disabled={busy || !open || isQuote}
-            title={on ? "Confirmed — click to reopen" : "Mark confirmed"}
             aria-label={`${label} — ${on ? "confirmed" : "not confirmed"}`}
             onClick={tick}
           >
             <Icon name="check" size={12} />
           </button>
         ) : (
-          <span className={"wb2-bx derived" + (on ? " on" : "")} title="Ticks itself when someone is assigned" aria-hidden="true">
+          <span className={"wb2-bx derived" + (on ? " on" : "")} aria-hidden="true">
             <Icon name="check" size={12} />
           </span>
         )}
@@ -493,7 +492,7 @@ export function VisitSheet({
             {windowControls}
             <span className="wb2-shchips">
               {toneChip}
-              <span className="wb2-chip" title="How often this service comes round">
+              <span className="wb2-chip">
                 {cadenceLabel(visit.intervalMonths)}
               </span>
               {visit.category && (
@@ -509,7 +508,6 @@ export function VisitSheet({
               <button
                 className="wb2-chip blue"
                 onClick={() => onOpenAgreement(visit.agreementId)}
-                title="Open the service agreement behind this visit"
               >
                 Service agreement
                 <i className="wb2-shcar" aria-hidden>
@@ -523,13 +521,12 @@ export function VisitSheet({
                     href={sm8Href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title="ServiceM8 raised this job — opens it over there"
                   >
                     {`SM8 #${visit.jobNumber}`}
                     <Icon name="arrowUR" size={12} />
                   </a>
                 ) : (
-                  <span className="wb2-chip" title="The job's number in ServiceM8">
+                  <span className="wb2-chip">
                     SM8 #{visit.jobNumber}
                   </span>
                 )
@@ -539,7 +536,7 @@ export function VisitSheet({
                    normal case and not news. */
                 connected &&
                 open && (
-                  <span className="wb2-chip" title="Nothing for it in ServiceM8 yet">
+                  <span className="wb2-chip">
                     No ServiceM8 job
                   </span>
                 )
@@ -554,7 +551,6 @@ export function VisitSheet({
               ref={closeRef}
               className="wb2-ico"
               onClick={onClose}
-              title="Close"
               aria-label="Close"
             >
               <Icon name="x" size={14} />
@@ -753,7 +749,6 @@ export function VisitSheet({
                                   <button
                                     className="wb2-pkx"
                                     disabled={busy}
-                                    title="Remove from the list"
                                     aria-label={`Remove ${p.label}`}
                                     onClick={() => run(() => removePackingItem(p.id))}
                                   >
@@ -805,7 +800,6 @@ export function VisitSheet({
                               <button
                                 className="wb2-pkx show"
                                 disabled={busy}
-                                title="Take them off this visit"
                                 aria-label={`Unassign ${t.name}`}
                                 onClick={() => run(() => unassignVisitTech(visit.id, t.id))}
                               >
@@ -1167,7 +1161,6 @@ export function VisitSheet({
                             />
                             <button
                               className="wb2-pkx"
-                              title="Take it off"
                               aria-label={`Remove note ${i + 1}`}
                               onClick={() => setNoteLines(noteLines.filter((_, j) => j !== i))}
                             >
@@ -1300,7 +1293,6 @@ export function VisitSheet({
                     key={v.id}
                     className="wb2-mline visit"
                     onClick={() => onOpenVisit(v.id)}
-                    title="Open that visit"
                   >
                     <b>{fmtAuWeekdayDayMonth(v.completedAt ?? v.dueDate)}</b>
                     <em>
@@ -1337,7 +1329,6 @@ export function VisitSheet({
                     className="wb2-ico"
                     disabled={busy}
                     onClick={() => setClosing(false)}
-                    title="Not yet"
                     aria-label="Not yet — leave it open"
                   >
                     <Icon name="x" size={14} />

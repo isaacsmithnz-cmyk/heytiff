@@ -18,7 +18,6 @@ import {
 import type { BoardTech } from "@/lib/workboard/board-query";
 import type { ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 import {
-  GATE_FULL,
   GATE_LABEL,
   projectMissingOf,
   projectPlacedDayOf,
@@ -264,7 +263,6 @@ export function ProjectDayModal({
                 className="wb2-ck"
                 style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : "acc"})` } as CSSProperties}
                 disabled={busy}
-                title={`${GATE_FULL[g]} — not confirmed. Press to confirm.`}
                 onClick={(e) => {
                   e.stopPropagation();
                   const key = g === "equipment" ? "equipment_ready" : "access_confirmed";
@@ -303,7 +301,7 @@ export function ProjectDayModal({
         <div className="wb2-dmhd" data-tone={tone}>
           <div className="wb2-dmtop">
             <span className="wb2-sect">{when}</span>
-            <button ref={closeRef} className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
+            <button ref={closeRef} className="wb2-ico" onClick={onClose} aria-label="Close">
               <Icon name="x" size={14} />
             </button>
           </div>

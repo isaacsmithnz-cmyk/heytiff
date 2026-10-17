@@ -34,7 +34,7 @@ export function JobCustomer({ detail, onEdit }: { detail: MirrorJobDetail | null
               <ContactNumber value={c.phone} />
               <ContactNumber value={c.altPhone} />
               {c.email && (
-                <a className="jcl-mail" href={`mailto:${c.email}`} title={c.email}>
+                <a className="jcl-mail" href={`mailto:${c.email}`}>
                   {c.email}
                 </a>
               )}

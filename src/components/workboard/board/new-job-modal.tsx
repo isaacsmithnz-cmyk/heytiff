@@ -170,7 +170,7 @@ export function NewJobModal({ onClose }: { onClose: () => void }) {
         <div className="wb2-dmhd">
           <div className="wb2-dmtop">
             <h2 className="njob-title">New job</h2>
-            <button className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
+            <button className="wb2-ico" onClick={onClose} aria-label="Close">
               <Icon name="x" size={14} />
             </button>
           </div>

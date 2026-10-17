@@ -321,7 +321,6 @@ export function ProjectDetailScreen({
                     className={"wb-chip" + (e.manualLeft ? " on" : "")}
                     disabled={busy}
                     onClick={() => run(() => setEquipmentManualLeft(e.id, !e.manualLeft))}
-                    title="Tap when the manual is with the customer"
                   >
                     {e.manualLeft ? "Manual left ✓" : "Manual not left"}
                   </button>
@@ -1094,7 +1093,7 @@ function TripsCard({
                       key={g}
                       className={"wb2-ckq" + (on ? " on" : "")}
                       style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` } as CSSProperties}
-                      title={`${GATE_LABEL[g]} — ${on ? "confirmed" : "not yet"}`}
+                      aria-label={`${GATE_LABEL[g]} — ${on ? "confirmed" : "not yet"}`}
                     >
                       {on ? <Icon name="check" size={12} /> : <i />}
                     </span>
@@ -1598,7 +1597,7 @@ function AttachJobModal({
               </span>
               {h.status && <span className="wb-chip">{h.status}</span>}
               {h.linkedTo.length > 0 && (
-                <span className="wb-chip bad" title={h.linkedTo.join(", ")}>
+                <span className="wb-chip bad">
                   on {h.linkedTo.length} project{h.linkedTo.length === 1 ? "" : "s"}
                 </span>
               )}

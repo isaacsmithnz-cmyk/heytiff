@@ -157,19 +157,6 @@ function offLine(away: LaneAway[]): string {
   return fillWords(AWAY_WORDS.partDay, { start: clockLabel(first.startMin), end: clockLabel(last.endMin % (24 * 60)) });
 }
 
-function blockTitle(b: ScheduleBlock): string {
-  return [
-    b.jobNumber ? `#${b.jobNumber}` : null,
-    b.clientName,
-    b.suburb,
-    `${clockLabel(b.startMin)}–${clockLabel(b.endMin)}`,
-    b.categoryName,
-    b.tracked?.label ?? null,
-  ]
-    .filter(Boolean)
-    .join(", ");
-}
-
 export function ScheduleTab({
   today,
   connected,
@@ -720,7 +707,6 @@ export function ScheduleTab({
                               top: strip ? LANE_PAD_PX + l.rows.length * LANE_ROW_PX : LANE_PAD_PX,
                               height: strip ? AWAY_STRIP_PX : BLOCK_PX,
                             }}
-                            title={`${l.name}: ${a.word}, ${awaySpan(a)}`}
                           >
                             <span>{a.word}</span>
                             <span className="wb2-sr">{`, ${awaySpan(a)}`}</span>
@@ -768,7 +754,6 @@ export function ScheduleTab({
                                 "--pale": paint.pale,
                                 "--pale-edge": paint.paleEdge,
                               } as CSSProperties}
-                              title={blockTitle(b)}
                               aria-label={`Job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
                                 b.clientName ?? ""
                               }, ${clockLabel(b.startMin)} to ${clockLabel(b.endMin)}${

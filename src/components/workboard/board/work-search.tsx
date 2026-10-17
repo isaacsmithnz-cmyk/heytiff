@@ -273,11 +273,6 @@ export function WorkSearchPanel({
                         onClick={() => onStarPhoto(h.remoteId)}
                         aria-pressed={starred.has(h.remoteId)}
                         aria-label={`${starred.has(h.remoteId) ? "Unstar" : "Star"} ${h.caption || h.name}`}
-                        title={
-                          starred.has(h.remoteId)
-                            ? "Starred — click to take it out of the gallery"
-                            : "Star this photo for the gallery"
-                        }
                       >
                         <Icon name="star" size={13} />
                       </button>

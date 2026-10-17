@@ -406,10 +406,7 @@ export function JobMoneyBlock({
               <span className={claim.state === "not_invoiced" ? "quiet" : undefined}>
                 {claim.amountCents !== null ? fmtAud(claim.amountCents) : "—"}
               </span>
-              <i
-                className={`wb2-chip${chip.tone}`}
-                title="Follows ServiceM8 — change it there and it follows here"
-              >
+              <i className={`wb2-chip${chip.tone}`}>
                 {chip.word}
               </i>
             </>

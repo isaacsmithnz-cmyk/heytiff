@@ -2465,7 +2465,7 @@ export function JobSheet({
                   className="wb2-shno open"
                   onClick={() => setNumbersOpen((v) => !v)}
                   aria-expanded={numbersOpen}
-                  title={`${family.claims.length} invoices on this job`}
+                  aria-label={`${cardNumber ? `#${cardNumber}` : "No number"}, ${family.claims.length} invoices on this job`}
                 >
                   {cardNumber ? `#${cardNumber}` : "—"}
                   <i className="wb2-shcar" aria-hidden>
@@ -2483,7 +2483,7 @@ export function JobSheet({
                   <button
                     className="wb2-shno here"
                     onClick={() => setOpenClaim(focusClaim.remoteId)}
-                    title={`${claimTitle(focusClaim)} — open it`}
+                    aria-label={`Open ${claimTitle(focusClaim)}`}
                   >
                     {focusClaim.jobNumber ? `#${focusClaim.jobNumber}` : "—"}
                   </button>
@@ -2562,16 +2562,12 @@ export function JobSheet({
                   href={sm8Href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="ServiceM8 owns this job — HeyTiff only reads it. Edit it over there and the change follows here on the next sync. Opens the job in ServiceM8."
                 >
                   {sm8Line}
                   <Icon name="arrowUR" size={12} />
                 </a>
               ) : (
-                <span
-                  className="wb2-chip"
-                  title="ServiceM8 owns this job — HeyTiff only reads it. Edit it over there and the change follows here on the next sync."
-                >
+                <span className="wb2-chip">
                   {sm8Line}
                 </span>
               )}
@@ -2629,7 +2625,6 @@ export function JobSheet({
                 <button
                   className="wb2-chip blue"
                   onClick={() => onOpenTracked(row.tracked!)}
-                  title={`Open ${row.tracked.label}`}
                 >
                   {row.tracked.kind === "visit"
                     ? "On the maintenance board"
@@ -2652,7 +2647,6 @@ export function JobSheet({
                 <button
                   className="wb2-ico"
                   onClick={() => setMenuOpen((v) => !v)}
-                  title="More"
                   aria-label="More actions"
                   aria-expanded={menuOpen}
                 >
@@ -2689,7 +2683,6 @@ export function JobSheet({
               ref={closeRef}
               className="wb2-ico"
               onClick={onClose}
-              title="Close"
               aria-label="Close"
             >
               <Icon name="x" size={14} />

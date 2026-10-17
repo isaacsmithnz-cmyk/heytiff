@@ -206,7 +206,7 @@ export function CalendarTab({
                      two readings of a day can never disagree. */
                   <span className="wb2-mcdots">
                     {c.dayVisits.slice(0, 4).map((v) => (
-                      <i key={v.id} data-tone={toneOfCal(v, today)} title={`${v.name} — ${v.label}`}>
+                      <i key={v.id} data-tone={toneOfCal(v, today)}>
                         <b>{v.name}</b>
                         <em>{v.label}</em>
                       </i>

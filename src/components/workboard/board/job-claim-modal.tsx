@@ -101,7 +101,6 @@ export function JobClaimModal({
             ref={closeRef}
             className="wb2-ico"
             onClick={onClose}
-            title="Close"
             aria-label="Close this invoice"
           >
             <Icon name="x" size={14} />

@@ -13,6 +13,7 @@ import { namedUnit, unitRoleOf } from "@/lib/quotes/unit-name";
 import { visitSummary, withHours, withoutTask, withTask, type LineVisit } from "@/lib/quotes/line-visit";
 import type { Variation } from "@/lib/quotes/lines-job";
 import { Button } from "@/components/parts/button";
+import { Tooltip } from "@/components/parts/tooltip";
 import { Icon } from "@/components/shell/icon";
 import { Globe } from "./tiff-panel";
 import { CompareCard } from "./compare-card";
@@ -593,20 +594,20 @@ export function QuoteLineItems({
                           <tr key={l.id} className="ql-it">
                             <td>
                               <span className="ql-n">
-                                <i
-                                  className={`ql-d ${fitOf.get(l.id)?.state === "fitted" ? "fitted" : l.source}`}
-                                  title={
+                                <Tooltip
+                                  label={
                                     fitOf.get(l.id)
                                       ? `${fitOf.get(l.id)!.state === "fitted" ? "Fitted" : fitOf.get(l.id)!.state === "misfit" ? "Doesn't fit" : "Not checked"}: ${fitOf.get(l.id)!.why}`
                                       : `${SOURCE_WORDS[l.source]}${l.why ? `: ${l.why}` : ""}`
                                   }
-                                />
+                                >
+                                  <i className={`ql-d ${fitOf.get(l.id)?.state === "fitted" ? "fitted" : l.source}`} />
+                                </Tooltip>
                                 <span className="nm">
                                   {l.kind !== "labour" && money ? (
                                     <button
                                       type="button"
                                       className="ql-nmbtn"
-                                      title="Select preferred item"
                                       aria-expanded={swapping === l.id}
                                       onClick={() => setSwapping(swapping === l.id ? null : l.id)}
                                     >
@@ -616,9 +617,11 @@ export function QuoteLineItems({
                                     l.name
                                   )}
                                   {view?.researched?.[l.id] && (
-                                    <a className="ql-web" href={view.researched[l.id]!.url} target="_blank" rel="noopener noreferrer" title={`From the web: ${view.researched[l.id]!.title}`} aria-label={`From the web: ${view.researched[l.id]!.title}`}>
-                                      <Globe />
-                                    </a>
+                                    <Tooltip label={`From the web: ${view.researched[l.id]!.title}`}>
+                                      <a className="ql-web" href={view.researched[l.id]!.url} target="_blank" rel="noopener noreferrer" aria-label={`From the web: ${view.researched[l.id]!.title}`}>
+                                        <Globe />
+                                      </a>
+                                    </Tooltip>
                                   )}
                                   {l.estimate && <em className="ql-vs ql-est"> Estimate</em>}
                                   {at !== base && againstFirst(l, all, base) !== "same" && (

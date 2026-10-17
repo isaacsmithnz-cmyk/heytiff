@@ -233,7 +233,7 @@ export function NewAgreementModal({
         <div className="wb2-dmhd">
           <div className="wb2-dmtop">
             <span className="wb2-sect">New service agreement</span>
-            <button ref={closeRef} className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
+            <button ref={closeRef} className="wb2-ico" onClick={onClose} aria-label="Close">
               <Icon name="x" size={14} />
             </button>
           </div>
@@ -388,7 +388,6 @@ export function NewAgreementModal({
                   <span className="wb2-tag on t-slate" key={item}>
                     {item}
                     <button
-                      title="Drop it"
                       aria-label={`Drop ${item}`}
                       onClick={() => setBringItems(bringItems.filter((x) => x !== item))}
                     >

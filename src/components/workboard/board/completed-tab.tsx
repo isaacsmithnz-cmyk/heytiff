@@ -123,16 +123,7 @@ export function CompletedTab({
             — and nothing in the ServiceM8 mirror feeds it, so a visit closed
             from SM8 has none. Isaac asked the question this answers: "I don't
             know where you actually put that in." */}
-        <div
-          className="wb2-dnh"
-          title={
-            v.actualHours !== null
-              ? "Typed into Hours on site when this visit was closed out."
-              : v.completedSource === "servicem8"
-                ? "This visit closed from ServiceM8, which doesn't carry hours — close out here to record them."
-                : "Nobody filled in Hours on site at close-out."
-          }
-        >
+        <div className="wb2-dnh">
           {v.actualHours !== null ? (
             <>
               <b>{hoursLabel(v.actualHours)} on site</b>
@@ -147,11 +138,8 @@ export function CompletedTab({
         <span className="wb2-dnact">
           {/* "13 days late" alone never says late FOR what — the row carries
               three dates. It's the due date, so the chip names the verb it
-              belongs to and the tooltip names the date it counted from. */}
-          <span
-            className={"wb2-chip " + (timing.onTime ? "ok" : "dan")}
-            title={`Due ${fmtAuWeekdayDayMonth(v.dueDate)}, done ${fmtAuWeekdayDayMonth(v.completedAt!)}`}
-          >
+              belongs to; the dates are on the row. */}
+          <span className={"wb2-chip " + (timing.onTime ? "ok" : "dan")}>
             {timing.onTime
               ? "Done on time"
               : `Done ${timing.daysLate} ${timing.daysLate === 1 ? "day" : "days"} after it was due`}

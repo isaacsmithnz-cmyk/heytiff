@@ -158,13 +158,10 @@ function Row({
       </span>
 
       {/* The column has no header to hang the basis off, and repeating it on
-          every row would drown the figures — so it rides as the cell's title
-          and is stated plainly on the sheet this row opens. */}
+          every row would drown the figures — so it is stated plainly on the
+          sheet this row opens. */}
       {moneyVisible && (
-        <span
-          className="wb2-money wb2-ajmoney"
-          title={`ServiceM8's job total — ${MONEY_BASIS}`}
-        >
+        <span className="wb2-money wb2-ajmoney">
           {row.money?.valueCents != null ? <b>{fmtAud(row.money.valueCents)}</b> : <em>—</em>}
         </span>
       )}
@@ -247,7 +244,7 @@ function QuoteRow({
       </span>
 
       {moneyVisible && (
-        <span className="wb2-money wb2-ajmoney" title={`ServiceM8's job total — ${MONEY_BASIS}`}>
+        <span className="wb2-money wb2-ajmoney">
           {row.money?.valueCents ? <b>{fmtAud(row.money.valueCents)}</b> : <em>—</em>}
         </span>
       )}

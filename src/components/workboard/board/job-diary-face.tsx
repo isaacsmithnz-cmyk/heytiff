@@ -580,7 +580,7 @@ function DiaryEntry({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img key={p.remoteId} src={p.url} alt={p.name} loading="lazy" />
               ) : (
-                <span key={p.remoteId} className="pending" title={p.name}>
+                <span key={p.remoteId} className="pending" role="img" aria-label={p.name}>
                   <Icon name="cam" size={13} />
                 </span>
               )
@@ -589,7 +589,6 @@ function DiaryEntry({
               <button
                 className="more"
                 onClick={onPhotos}
-                title="Open the Photos tab"
               >{`+${entry.count - entry.shown.length}`}</button>
             )}
           </div>
@@ -714,7 +713,6 @@ function NoteEv({
     <button
       className="wb2-evdoor"
       onClick={() => doors.onRemoveNote!(entry.id!)}
-      title="Take this note back off the job"
     >
       Remove
     </button>

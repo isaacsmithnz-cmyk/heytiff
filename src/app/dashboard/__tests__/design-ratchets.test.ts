@@ -352,7 +352,13 @@ function namedLoops(): Record<string, number> {
   return out;
 }
 
-const gradients = (css = CSS) => count(/(?:linear|radial|conic)-gradient\(/g, css);
+/* A gradient in `mask-image` paints nothing: a mask is read for its alpha,
+   so it is how text fades out on any ground (rule 50, the Fade part,
+   18 October 2026) and is not counted. Only the longhand is let through;
+   the `mask` shorthand, which every mask in the sheets used before that
+   day, still counts, so no count moved. */
+const MASK_IMAGE = /(?:-webkit-)?mask-image\s*:[^;}]*/g;
+const gradients = (css = CSS) => count(/(?:linear|radial|conic)-gradient\(/g, css.replace(MASK_IMAGE, ""));
 
 /* A pill is counted only while it is drawn as one: a pill, chip, tag or
    badge selector whose own rule gives it a radius. A state word keeps the
@@ -598,6 +604,14 @@ describe("the design ratchets only go down", () => {
 
   it("keeps no glyph-only button that docs/design.md does not name, and names none that has gone", () => {
     expect(iconOnly()).toEqual(namedIconOnly());
+  });
+
+  it("counts no gradient in a mask-image, and every other gradient", () => {
+    const fade = ".pt-x { -webkit-mask-image:linear-gradient(to right, var(--ink) 80%, transparent); mask-image:linear-gradient(var(--ink), var(--ink)), linear-gradient(to right, var(--ink), transparent); }";
+    expect(gradients(fade)).toBe(0);
+    expect(gradients(".x { mask:linear-gradient(red, blue); }")).toBe(1);
+    expect(gradients(".x { background-image:linear-gradient(red, blue); mask-image:none; }")).toBe(1);
+    expect(gradients(".x { --m:radial-gradient(red, blue); }")).toBe(1);
   });
 
   describe("named exemptions", () => {

@@ -23,7 +23,10 @@ Nothing here is on main or in production. `v1.0.0` is today's app, tagged. Every
 - Conversations, `/dashboard/conversations`, from the board, on Tiff's threads; Only me is your notes.
 - Home from the board: Tiff's box, Today and To do. The bell is gone; its count sits beside Home. Today's old Home is at `/dashboard/desk` until Schedule takes its calendar.
 
-**Across the app.** The typed "…" is gone from the words (193 to 2) and the CSS cuts fade instead (91 to 1).
+**Across the app.**
+- The typed "…" is gone from the words (193 to 2), and the CSS cuts fade instead (91 to 1).
+- The browser's hover tooltips are gone (372 to 7). Where the words mattered they are in the Tooltip part; elsewhere the control already says them. A few hovers went with them: a schedule block's summary, one disabled reason in Design's menu, an approver's week strip, and the names behind "on 2 projects".
+- Colours outside the 19 fell from 150 to 68. What's left defines the tokens, is Home's named exemption, or keeps v1's darker state words until their tints go.
 
 ## Waiting for Isaac
 
@@ -31,6 +34,7 @@ Nothing here is on main or in production. `v1.0.0` is today's app, tagged. Every
 - **Schedule, Team, Documents and your timesheet**: https://claude.ai/artifact/S4UAyEiwfm4VQY7un7Nnyz, with seven calls.
 - **What New › Quote makes.**
 - **Approve only once every line is priced**, as layout C does now.
+- **The second button's outline**: v2's 14% edge (the boards, and now the app), or August's 3.15:1 grey.
 - **Decisions 12 to 36 and Q1 to Q10** stand as recommended (`6-revisions.md`) until he says otherwise.
 
 ## At the switch-over

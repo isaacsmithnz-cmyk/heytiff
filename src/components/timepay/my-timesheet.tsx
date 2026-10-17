@@ -816,7 +816,6 @@ function DayEditor({
               className="mts2-btn"
               disabled={busy}
               onClick={() => onSave(index, { t: "empty" })}
-              title={expected ? "Go back to your normal day" : "Take this day off the timesheet"}
             >
               {expected ? "Back to normal" : "Remove day"}
             </button>
@@ -1461,9 +1460,7 @@ export function MyTimesheet({
                               label={dayLabel(week[selected])}
                               holidayName={holidayByDate.get(dateOfDay(periodStart, selected))}
                               right={
-                                <span
-                                  className={`mts2-pill ${dayClass(me.days[selected], selected, settings, ctx)}`}
-                                >
+                                <span className={`mts2-pill ${dayClass(me.days[selected], selected, settings, ctx)}`}>
                                   {pillLabel(
                                     me.days[selected],
                                     dayClass(me.days[selected], selected, settings, ctx),

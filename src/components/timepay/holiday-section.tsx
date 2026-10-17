@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { DateField } from "@/components/ui/date-field";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import {
@@ -201,7 +202,6 @@ export function HolidaySection({
               </span>
               <button
                 className="hol-sugadd"
-                title="Prefill the form — you supply the gazetted date"
                 onClick={() => {
                   setPicked(s.state);
                   setName(s.name);
@@ -234,7 +234,7 @@ export function HolidaySection({
                 <button
                   className="lv-cancel"
                   disabled={busy}
-                  title="Remove"
+                  aria-label={`Remove ${h.name}`}
                   onClick={() => run(() => removeHoliday(h.id))}
                 >
                   <Icon name="x" size={14} />
@@ -253,14 +253,16 @@ export function HolidaySection({
               <span className="hol-date">{fmtAuWeekdayDate(h.date)}</span>
               <span className="hol-name">{h.name}</span>
               <span className="dchip2 mute">{h.state}</span>
-              <button
-                className="lv-cancel"
-                disabled={busy}
-                title="Restore"
-                onClick={() => run(() => restoreHoliday(h.id))}
-              >
-                <Icon name="sync" size={14} />
-              </button>
+              <Tooltip label="Restore">
+                <button
+                  className="lv-cancel"
+                  disabled={busy}
+                  aria-label={`Restore ${h.name}`}
+                  onClick={() => run(() => restoreHoliday(h.id))}
+                >
+                  <Icon name="sync" size={14} />
+                </button>
+              </Tooltip>
             </div>
           ))}
         </div>

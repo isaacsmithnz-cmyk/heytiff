@@ -93,13 +93,14 @@ describe("who can't work", () => {
     expect(legend.textContent).toContain("nothing to");
   });
 
-  it("carries the reason as a title when one was given, and copes without one", () => {
+  it("carries the reason in a tooltip when one was given, and copes without one", () => {
     const { container } = renderTeam({
       calendar: [day("2026-08-05", [unavailEntry("Dee", "second job"), unavailEntry("Eli")])],
     });
     const chips = [...container.querySelectorAll(".dchip2.unavail")];
-    expect(chips[0].getAttribute("title")).toContain("second job");
-    expect(chips[1].getAttribute("title")).toContain("nothing to approve");
+    expect(chips[0]).toHaveAccessibleDescription(/second job/);
+    expect(chips[1]).not.toHaveAttribute("title");
+    expect(chips[1]).not.toHaveAttribute("aria-describedby");
   });
 
   it("shows a day that has only unavailability on it", () => {

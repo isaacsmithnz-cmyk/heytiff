@@ -1,0 +1,2266 @@
+{
+ "v": 3,
+ "attachments": {},
+ "boards": {
+  "Admin.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Admin, settings layout",
+   "w": 1440,
+   "x": 6080,
+   "y": 37584
+  },
+  "C-SettingsPay.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "26. Claude style: Settings, Pay and holidays",
+   "w": 1440,
+   "x": 0,
+   "y": 35984
+  },
+  "C-TeamExpenses.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "24. Claude style: Team, Expenses",
+   "w": 1440,
+   "x": 6080,
+   "y": 34884
+  },
+  "C-TeamLeave.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "23. Claude style: Team, Leave",
+   "w": 1440,
+   "x": 4560,
+   "y": 34884
+  },
+  "C-TeamTimesheets.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "22. Claude style: Team, Timesheets",
+   "w": 1440,
+   "x": 3040,
+   "y": 34884
+  },
+  "C-Timesheet.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "25. Claude style: your Timesheet",
+   "w": 1440,
+   "x": 7600,
+   "y": 34884
+  },
+  "CU-detail.dc.html": {
+   "h": 900,
+   "page": "f1",
+   "title": "The two 40 curves, three times the size",
+   "w": 1440,
+   "x": 1520,
+   "y": 0
+  },
+  "CU-home.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "1. Home: the page curls in at the top, the ink curls back at the foot",
+   "w": 1440,
+   "x": 0,
+   "y": 15404
+  },
+  "CU-job.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "4. A job",
+   "w": 1440,
+   "x": 3040,
+   "y": 15404
+  },
+  "CU-now.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "3. Now, for comparison: the top curve only",
+   "w": 1440,
+   "x": 1520,
+   "y": 15404
+  },
+  "CU-schedule.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "5. Schedule",
+   "w": 1440,
+   "x": 4560,
+   "y": 15404
+  },
+  "Chat.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "3. A conversation  /c/1842",
+   "w": 1440,
+   "x": 4560,
+   "y": 41224
+  },
+  "Compare.dc.html": {
+   "h": 3360,
+   "page": "archive",
+   "title": "Every feature, today and proposed",
+   "w": 1440,
+   "x": 0,
+   "y": 46952
+  },
+  "Convos.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "2. Conversations  /conversations",
+   "w": 1440,
+   "x": 3040,
+   "y": 41224
+  },
+  "Costs.dc.html": {
+   "h": 1560,
+   "page": "archive",
+   "title": "Running costs, conversation first",
+   "w": 1440,
+   "x": 1520,
+   "y": 46952
+  },
+  "Desk.dc.html": {
+   "expand": "fill",
+   "h": 940,
+   "page": "archive",
+   "title": "Today, one box for everything",
+   "w": 1440,
+   "x": 0,
+   "y": 39524
+  },
+  "Docs.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "7. Documents  /documents",
+   "w": 1440,
+   "x": 1520,
+   "y": 42664
+  },
+  "F-Docs.dc.html": {
+   "h": 2597,
+   "page": "flows",
+   "title": "3. Documents, Library and Design",
+   "w": 1440,
+   "x": 4560,
+   "y": 0
+  },
+  "F-Home.dc.html": {
+   "h": 1507,
+   "page": "flows",
+   "title": "2. Home, To do, tasks and Tiff",
+   "w": 1440,
+   "x": 3040,
+   "y": 0
+  },
+  "F-Jobs.dc.html": {
+   "h": 4005,
+   "page": "flows",
+   "title": "1. Jobs and quotes",
+   "w": 1440,
+   "x": 1520,
+   "y": 0
+  },
+  "F-Rules.dc.html": {
+   "h": 4260,
+   "page": "flows",
+   "title": "0. The rules: where everything lives, New, text sizes",
+   "w": 1440,
+   "x": 0,
+   "y": 0
+  },
+  "F-Settings.dc.html": {
+   "h": 2967,
+   "page": "flows",
+   "title": "7. Settings and reports",
+   "w": 1440,
+   "x": 10640,
+   "y": 0
+  },
+  "F-Team.dc.html": {
+   "h": 2172,
+   "page": "flows",
+   "title": "6. Team, approvals and vehicles",
+   "w": 1440,
+   "x": 9120,
+   "y": 0
+  },
+  "F-Work.dc.html": {
+   "h": 4801,
+   "page": "flows",
+   "title": "4. Projects, maintenance and the schedule",
+   "w": 1440,
+   "x": 6080,
+   "y": 0
+  },
+  "F-You.dc.html": {
+   "h": 2784,
+   "page": "flows",
+   "title": "5. You: timesheet, leave, expenses, your card",
+   "w": 1440,
+   "x": 7600,
+   "y": 0
+  },
+  "FR-0.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Now: the two curls",
+   "w": 1440,
+   "x": 0,
+   "y": 23484
+  },
+  "FR-A.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "A. Floating sheet: ink all round, four round corners",
+   "w": 1440,
+   "x": 1520,
+   "y": 23484
+  },
+  "FR-B.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "B. Rising sheet: square at the foot, like the phone",
+   "w": 1440,
+   "x": 3040,
+   "y": 23484
+  },
+  "FR-C.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "C. The menu holds the page: the row you're on runs into it",
+   "w": 1440,
+   "x": 4560,
+   "y": 23484
+  },
+  "FR-D.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "D. Chevron cut: the corners cut at the Tiff mark's angle",
+   "w": 1440,
+   "x": 6080,
+   "y": 23484
+  },
+  "FR-E.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "E. One long sweep at the top, square at the foot. Chosen",
+   "w": 1440,
+   "x": 7600,
+   "y": 23484
+  },
+  "H2-convo.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "2. A conversation going",
+   "w": 1440,
+   "x": 1520,
+   "y": 18604
+  },
+  "H2-home.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "1. Home: date and time, Tiff, Today, To do",
+   "w": 1440,
+   "x": 0,
+   "y": 18604
+  },
+  "HP2-convo.dc.html": {
+   "h": 844,
+   "page": "archive",
+   "radius": 44,
+   "title": "4. A conversation on a phone",
+   "w": 390,
+   "x": 3510,
+   "y": 18604
+  },
+  "HP2-home.dc.html": {
+   "h": 844,
+   "page": "archive",
+   "radius": 44,
+   "title": "3. Home on a phone",
+   "w": 390,
+   "x": 3040,
+   "y": 18604
+  },
+  "IF-info.dc.html": {
+   "h": 1740,
+   "page": "archive",
+   "title": "Four ways to say 'for your information'. Grey chosen",
+   "w": 1440,
+   "x": 0,
+   "y": 9700
+  },
+  "JC-0.dc.html": {
+   "h": 900,
+   "page": "f3",
+   "title": "How a job's conversation works",
+   "w": 1440,
+   "x": 0,
+   "y": 1100
+  },
+  "JC-1.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f3",
+   "title": "A job  /jobs/3342, its conversation",
+   "w": 1440,
+   "x": 1520,
+   "y": 1100
+  },
+  "JC-2.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f3",
+   "title": "A note opened: Tiff's summary, the recording, every word",
+   "w": 1440,
+   "x": 3040,
+   "y": 1100
+  },
+  "JC-3.dc.html": {
+   "h": 844,
+   "page": "f8",
+   "radius": 44,
+   "title": "A tech on site, talking to the job",
+   "w": 679,
+   "x": 940,
+   "y": 0
+  },
+  "Job.dc.html": {
+   "expand": "fill",
+   "h": 1000,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "5. A job  /jobs/3342",
+   "w": 1440,
+   "x": 7600,
+   "y": 41224
+  },
+  "Jobs.dc.html": {
+   "expand": "fill",
+   "h": 940,
+   "page": "archive",
+   "title": "Jobs, one list with the job beside it",
+   "w": 1440,
+   "x": 1520,
+   "y": 39524
+  },
+  "JobsGrid.dc.html": {
+   "expand": "fill",
+   "h": 1000,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "4. Jobs  /jobs",
+   "w": 1440,
+   "x": 6080,
+   "y": 41224
+  },
+  "Library.dc.html": {
+   "expand": "fill",
+   "h": 1000,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "8. Library  /library",
+   "w": 1440,
+   "x": 3040,
+   "y": 42664
+  },
+  "M-Home.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "Phone 1. Home",
+   "w": 390,
+   "x": 4560,
+   "y": 30484
+  },
+  "M-Job.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "Phone 3. A job",
+   "w": 390,
+   "x": 5500,
+   "y": 30484
+  },
+  "M-New.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "Phone 2. New, on a job",
+   "w": 390,
+   "x": 5030,
+   "y": 30484
+  },
+  "M-Timesheet.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "Phone 4. Your timesheet, filling in today",
+   "w": 390,
+   "x": 0,
+   "y": 31584
+  },
+  "MN-actions.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "3. Doing: a job's Actions, only what's done to the job; what ends it in red, last",
+   "w": 1440,
+   "x": 0,
+   "y": 7000
+  },
+  "MN-new.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "4. Making: New on a job starts 'For 3342 Rifkin'",
+   "w": 1440,
+   "x": 1520,
+   "y": 7000
+  },
+  "MN-sort.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f3",
+   "title": "Jobs: choosing the order",
+   "w": 1440,
+   "x": 3040,
+   "y": 0
+  },
+  "MN-spec.dc.html": {
+   "h": 900,
+   "page": "f3",
+   "title": "Menus: three kinds, and what isn't a menu",
+   "w": 1440,
+   "x": 4560,
+   "y": 0
+  },
+  "MN-who.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f3",
+   "title": "Jobs: choosing who",
+   "w": 1440,
+   "x": 1520,
+   "y": 0
+  },
+  "Main.dc.html": {
+   "expand": "fill",
+   "h": 1240,
+   "page": "archive",
+   "title": "Home, your day",
+   "w": 1440,
+   "x": 0,
+   "y": 37584
+  },
+  "Map.dc.html": {
+   "h": 1000,
+   "page": "archive",
+   "title": "What folds into what",
+   "w": 1440,
+   "x": 3040,
+   "y": 39524
+  },
+  "N-Convos.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "4. Conversations  /conversations",
+   "w": 1440,
+   "x": 470,
+   "y": 31584
+  },
+  "N-Design.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "13. Design  /design",
+   "w": 1440,
+   "x": 6080,
+   "y": 32684
+  },
+  "N-Documents.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "9. Documents  /documents",
+   "w": 1440,
+   "x": 0,
+   "y": 32684
+  },
+  "N-Home.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "1. Home  /",
+   "w": 1440,
+   "x": 0,
+   "y": 30484
+  },
+  "N-Job.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "6. A job  /jobs/3342",
+   "w": 1440,
+   "x": 3510,
+   "y": 31584
+  },
+  "N-Jobs.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "5. Jobs  /jobs",
+   "w": 1440,
+   "x": 1990,
+   "y": 31584
+  },
+  "N-Library.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "12. Library  /library",
+   "w": 1440,
+   "x": 4560,
+   "y": 32684
+  },
+  "N-New.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "2. New, pressed on a job",
+   "w": 1440,
+   "x": 1520,
+   "y": 30484
+  },
+  "N-NewSWMS.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "11. New SWMS for a job  /documents/new/swms",
+   "w": 1440,
+   "x": 3040,
+   "y": 32684
+  },
+  "N-Project.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "17. A Project job  /jobs/3302",
+   "w": 1440,
+   "x": 4560,
+   "y": 33784
+  },
+  "N-Quote.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "7. A job's quote  /jobs/3342/quote",
+   "w": 1440,
+   "x": 5030,
+   "y": 31584
+  },
+  "N-Schedule.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "8. Schedule  /schedule",
+   "w": 1440,
+   "x": 6550,
+   "y": 31584
+  },
+  "N-Settings.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "16. Settings, Business  /settings/business",
+   "w": 1440,
+   "x": 3040,
+   "y": 33784
+  },
+  "N-SettingsPay.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "21. Settings, Pay and holidays  /settings/pay",
+   "w": 1440,
+   "x": 6080,
+   "y": 33784
+  },
+  "N-Team.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "14. Team, a person open  /team/lyle",
+   "w": 1440,
+   "x": 7600,
+   "y": 32684
+  },
+  "N-TeamExpenses.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "20. Team, Expenses  /team/expenses",
+   "w": 1440,
+   "x": 1520,
+   "y": 34884
+  },
+  "N-TeamLeave.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "19. Team, Leave  /team/leave",
+   "w": 1440,
+   "x": 0,
+   "y": 34884
+  },
+  "N-TeamTech.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "14b. Team as a tech sees it: contact details and Notices",
+   "w": 1440,
+   "x": 1520,
+   "y": 33784
+  },
+  "N-TeamTimesheets.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "18. Team, Timesheets  /team/timesheets",
+   "w": 1440,
+   "x": 7600,
+   "y": 33784
+  },
+  "N-Templates.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "10. Templates  /documents/templates",
+   "w": 1440,
+   "x": 1520,
+   "y": 32684
+  },
+  "N-Timesheet.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "15. Your timesheet  /you/timesheet",
+   "w": 1440,
+   "x": 0,
+   "y": 33784
+  },
+  "N-You.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "3. Your-name menu",
+   "w": 1440,
+   "x": 3040,
+   "y": 30484
+  },
+  "NM-below.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "New A. Drops from the button, left edges lined up, like Actions",
+   "w": 1440,
+   "x": 3040,
+   "y": 7000
+  },
+  "NM-dark-wide.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "New B, dark and a little wider, reaching over the page; Document open",
+   "w": 1440,
+   "x": 0,
+   "y": 8100
+  },
+  "NM-dark.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "New B, dark: inside the panel, the same width. Superseded by New and Add",
+   "w": 1440,
+   "x": 7600,
+   "y": 7000
+  },
+  "NM-flow-dark.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "New C, dark: the panel reaches out into the menu, square where it leaves. Superseded by New and Add",
+   "w": 1440,
+   "x": 1520,
+   "y": 8100
+  },
+  "NM-flow.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "New C. The button turns white and runs into the menu, curving where they meet",
+   "w": 1440,
+   "x": 6080,
+   "y": 7000
+  },
+  "NM-grow.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "New B. The button opens into the menu: one white shape with New at its top",
+   "w": 1440,
+   "x": 4560,
+   "y": 7000
+  },
+  "PH-a.dc.html": {
+   "h": 844,
+   "page": "archive",
+   "radius": 44,
+   "title": "A. The same S, turned on its side: the page curls up at the left, the ink curls down at the right",
+   "w": 390,
+   "x": 470,
+   "y": 13860
+  },
+  "PH-b.dc.html": {
+   "h": 844,
+   "page": "archive",
+   "radius": 44,
+   "title": "B. The top curve only, like a desktop page. Chosen",
+   "w": 390,
+   "x": 940,
+   "y": 13860
+  },
+  "PH-menu.dc.html": {
+   "h": 844,
+   "page": "f8",
+   "radius": 44,
+   "title": "The menu on a phone: the sidebar itself",
+   "w": 390,
+   "x": 470,
+   "y": 0
+  },
+  "PH-now.dc.html": {
+   "h": 844,
+   "page": "archive",
+   "radius": 44,
+   "title": "Now: both top corners round, no curl",
+   "w": 390,
+   "x": 0,
+   "y": 13860
+  },
+  "Paths.dc.html": {
+   "h": 1240,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "0. Paths: every page, its address, what it replaced",
+   "w": 1440,
+   "x": 0,
+   "y": 41224
+  },
+  "Phone-Chat.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "4. A conversation  /c/1842",
+   "w": 390,
+   "x": 1410,
+   "y": 44364
+  },
+  "Phone-Doc.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "5. A document, full screen",
+   "w": 390,
+   "x": 1880,
+   "y": 44364
+  },
+  "Phone-Home.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "1. Home  /",
+   "w": 390,
+   "x": 0,
+   "y": 44364
+  },
+  "Phone-Job.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "6. A job  /jobs/3342",
+   "w": 390,
+   "x": 2350,
+   "y": 44364
+  },
+  "Phone-Jobs.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "8. Jobs  /jobs",
+   "w": 390,
+   "x": 470,
+   "y": 45408
+  },
+  "Phone-Menu.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "2. The menu",
+   "w": 390,
+   "x": 470,
+   "y": 44364
+  },
+  "Phone-Sched.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "7. Schedule  /schedule",
+   "w": 390,
+   "x": 0,
+   "y": 45408
+  },
+  "Phone-Talk.dc.html": {
+   "h": 844,
+   "is_interactive": true,
+   "page": "archive",
+   "radius": 44,
+   "title": "3. Talking to Tiff",
+   "w": 390,
+   "x": 940,
+   "y": 44364
+  },
+  "SO-counts.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Sections 5. Underlined, with what's in each. Chosen",
+   "w": 1440,
+   "x": 0,
+   "y": 5400
+  },
+  "SO-hub.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Sections 7. No tabs: a card for each part, each opens its own page",
+   "w": 1440,
+   "x": 3040,
+   "y": 5400
+  },
+  "SO-jump.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Sections 6. One long page: the row jumps down to each part",
+   "w": 1440,
+   "x": 1520,
+   "y": 5400
+  },
+  "SO-plain.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Sections 4. Plain words, the current one in bold black",
+   "w": 1440,
+   "x": 7600,
+   "y": 4300
+  },
+  "SO-side.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Sections 3. Down the left of the page (Claude's Settings)",
+   "w": 1440,
+   "x": 6080,
+   "y": 4300
+  },
+  "SO-soft.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Sections 2. Soft tabs, the same look as views 2",
+   "w": 1440,
+   "x": 4560,
+   "y": 4300
+  },
+  "SO-under.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Sections 1. Underlined, as now",
+   "w": 1440,
+   "x": 3040,
+   "y": 4300
+  },
+  "SYS-buttons.dc.html": {
+   "h": 1940,
+   "page": "archive",
+   "title": "Buttons: kinds, choices and sizes (the main button is being redrawn above)",
+   "w": 1440,
+   "x": 4560,
+   "y": 20204
+  },
+  "SYS-colour.dc.html": {
+   "h": 2580,
+   "page": "archive",
+   "title": "Colour before the cut: ink and paper, four states, and the keys",
+   "w": 1440,
+   "x": 7600,
+   "y": 20204
+  },
+  "SYS-colour8.dc.html": {
+   "h": 1840,
+   "page": "f1",
+   "title": "The 19 colours: the eight, ink, white and the quiet grey",
+   "w": 1440,
+   "x": 1520,
+   "y": 2200
+  },
+  "SYS-jobcolour.dc.html": {
+   "h": 1300,
+   "page": "archive",
+   "title": "3. A job's colour, without the wash or the edge line",
+   "w": 1440,
+   "x": 1520,
+   "y": 20204
+  },
+  "SYS-main.dc.html": {
+   "h": 820,
+   "page": "archive",
+   "title": "2. The main button, without the black",
+   "w": 1440,
+   "x": 0,
+   "y": 20204
+  },
+  "SYS-mark.dc.html": {
+   "h": 480,
+   "page": "archive",
+   "title": "4. Tiff in black and white",
+   "w": 1440,
+   "x": 3040,
+   "y": 20204
+  },
+  "SYS-type.dc.html": {
+   "h": 1180,
+   "page": "archive",
+   "title": "Type: one face, eight sizes",
+   "w": 1440,
+   "x": 6080,
+   "y": 20204
+  },
+  "Sched.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "6. Schedule  /schedule",
+   "w": 1440,
+   "x": 0,
+   "y": 42664
+  },
+  "Settings.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "10. Settings  /settings/connectors",
+   "w": 1440,
+   "x": 6080,
+   "y": 42664
+  },
+  "Staff.dc.html": {
+   "expand": "fill",
+   "h": 1180,
+   "page": "archive",
+   "title": "Team, a staff card",
+   "w": 1440,
+   "x": 4560,
+   "y": 37584
+  },
+  "Start.dc.html": {
+   "expand": "fill",
+   "h": 960,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "1. Home  /",
+   "w": 1440,
+   "x": 1520,
+   "y": 41224
+  },
+  "T-design.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "1. Designing, with the job one tab over",
+   "w": 1440,
+   "x": 0,
+   "y": 28884
+  },
+  "T-job.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "2. The job, one click over",
+   "w": 1440,
+   "x": 1520,
+   "y": 28884
+  },
+  "T-maint.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "4. Maintenance for the month, in the next tab",
+   "w": 1440,
+   "x": 6080,
+   "y": 28884
+  },
+  "T-schedule.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "3. The day's schedule",
+   "w": 1440,
+   "x": 4560,
+   "y": 28884
+  },
+  "T-spec.dc.html": {
+   "h": 900,
+   "page": "archive",
+   "title": "5. How tabs behave",
+   "w": 1440,
+   "x": 3040,
+   "y": 28884
+  },
+  "TC-mark.dc.html": {
+   "h": 1020,
+   "page": "archive",
+   "title": "Eight places colour could live on Tiff's mark. E chosen",
+   "w": 1440,
+   "x": 0,
+   "y": 12140
+  },
+  "TW-A-design.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "A while designing",
+   "w": 1440,
+   "x": 6080,
+   "y": 27284
+  },
+  "TW-A-home.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "A on Home",
+   "w": 1440,
+   "x": 4560,
+   "y": 27284
+  },
+  "TW-A-job.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "A on the job",
+   "w": 1440,
+   "x": 7600,
+   "y": 27284
+  },
+  "TW-A.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "A. Soft pills: the tab you're on is tinted",
+   "w": 1440,
+   "x": 7600,
+   "y": 26184
+  },
+  "TW-B.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "B. Folder tabs standing on a line",
+   "w": 1440,
+   "x": 0,
+   "y": 27284
+  },
+  "TW-C.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "C. Light Chrome: a pale band, the tab cut into the page",
+   "w": 1440,
+   "x": 1520,
+   "y": 27284
+  },
+  "TW-D.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "D. Ink pill",
+   "w": 1440,
+   "x": 3040,
+   "y": 27284
+  },
+  "TW-E-design.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "While designing",
+   "w": 1440,
+   "x": 4560,
+   "y": 26184
+  },
+  "TW-E-home.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "On Home",
+   "w": 1440,
+   "x": 3040,
+   "y": 26184
+  },
+  "TW-E-job.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "On the job",
+   "w": 1440,
+   "x": 6080,
+   "y": 26184
+  },
+  "TW-E.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "C, the band only as wide as the tabs",
+   "w": 1440,
+   "x": 1520,
+   "y": 26184
+  },
+  "TW-H-design.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "3. While designing",
+   "w": 1440,
+   "x": 3040,
+   "y": 25084
+  },
+  "TW-H-empty.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "1. Nothing open but Home: no tabs, just New tab",
+   "w": 1440,
+   "x": 0,
+   "y": 25084
+  },
+  "TW-H-job.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "4. On the job",
+   "w": 1440,
+   "x": 4560,
+   "y": 25084
+  },
+  "TW-H-none-empty.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Other way: no new-tab button; a tab opens from right-click or ⌘-click",
+   "w": 1440,
+   "x": 6080,
+   "y": 25084
+  },
+  "TW-H-plus-empty.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Other way: a plus instead of the words, nothing open",
+   "w": 1440,
+   "x": 7600,
+   "y": 25084
+  },
+  "TW-H-plus.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Other way: a plus instead of the words, four open",
+   "w": 1440,
+   "x": 0,
+   "y": 26184
+  },
+  "TW-H.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "2. Four open: a hairline round each, the one you're on in ink",
+   "w": 1440,
+   "x": 1520,
+   "y": 25084
+  },
+  "Team.dc.html": {
+   "expand": "fill",
+   "h": 1000,
+   "is_interactive": true,
+   "page": "archive",
+   "title": "9. Team, a person open  /team/lyle",
+   "w": 1440,
+   "x": 4560,
+   "y": 42664
+  },
+  "Tiff.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Ask Tiff, with the source open",
+   "w": 1440,
+   "x": 1520,
+   "y": 37584
+  },
+  "V3-analytics.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f7",
+   "title": "Reports, under your name",
+   "w": 1440,
+   "x": 1520,
+   "y": 0
+  },
+  "V3-dialog.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "A dialog and a toast: 25, 36, 37",
+   "w": 1440,
+   "x": 4560,
+   "y": 17004
+  },
+  "V3-home.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f2",
+   "title": "Home  /",
+   "w": 1440,
+   "x": 0,
+   "y": 0
+  },
+  "V3-job.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "A job: 31, 34, 35, 47. Sections underlined with counts",
+   "w": 1440,
+   "x": 0,
+   "y": 17004
+  },
+  "V3-jobs.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f3",
+   "title": "Jobs  /jobs, views as soft tabs",
+   "w": 1440,
+   "x": 0,
+   "y": 0
+  },
+  "V3-new.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "The New menu: 36, 44",
+   "w": 1440,
+   "x": 1520,
+   "y": 17004
+  },
+  "V3-phone.dc.html": {
+   "h": 844,
+   "page": "f8",
+   "radius": 44,
+   "title": "Home on a phone",
+   "w": 390,
+   "x": 0,
+   "y": 0
+  },
+  "V3-rules.dc.html": {
+   "h": 4027,
+   "page": "f1",
+   "title": "The 54 rules, all decided",
+   "w": 1440,
+   "x": 0,
+   "y": 0
+  },
+  "V3-schedule.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f4",
+   "title": "Schedule  /schedule",
+   "w": 1440,
+   "x": 0,
+   "y": 0
+  },
+  "V3-search.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Search: 43",
+   "w": 1440,
+   "x": 3040,
+   "y": 17004
+  },
+  "V3-settings.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f7",
+   "title": "Settings, Pay and holidays  /settings/pay",
+   "w": 1440,
+   "x": 0,
+   "y": 0
+  },
+  "V3-states.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f1",
+   "title": "Nothing there yet, loading, and when something goes wrong",
+   "w": 1440,
+   "x": 3040,
+   "y": 0
+  },
+  "V3-team.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "f6",
+   "title": "Team, Timesheets  /team/timesheets",
+   "w": 1440,
+   "x": 3040,
+   "y": 0
+  },
+  "VO-chips.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Views 1. Outlined chips, as now",
+   "w": 1440,
+   "x": 0,
+   "y": 3200
+  },
+  "VO-grouped.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Views 8. No views: the list grouped by what's next, each group folds",
+   "w": 1440,
+   "x": 1520,
+   "y": 4300
+  },
+  "VO-menu.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Views 3. One Show menu beside Who and Sort (closest to Claude's lists: search and a menu, no chips)",
+   "w": 1440,
+   "x": 3040,
+   "y": 3200
+  },
+  "VO-pipe.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Views 6. The stages of a job, the same words as a job's own steps; kind, who and sort move up",
+   "w": 1440,
+   "x": 7600,
+   "y": 3200
+  },
+  "VO-plain.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Views 5. Plain words: the chosen one in bold black, nothing else",
+   "w": 1440,
+   "x": 6080,
+   "y": 3200
+  },
+  "VO-side.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Views 4. In the sidebar under Jobs, only while you're in Jobs",
+   "w": 1440,
+   "x": 4560,
+   "y": 3200
+  },
+  "VO-soft.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Views 2. Soft tabs: the chosen one in a light fill, no outlines. Chosen",
+   "w": 1440,
+   "x": 1520,
+   "y": 3200
+  },
+  "VO-title.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Views 7. The title is the menu: 'All jobs' opens the views",
+   "w": 1440,
+   "x": 0,
+   "y": 4300
+  },
+  "WF-0.dc.html": {
+   "h": 900,
+   "page": "archive",
+   "title": "0. How New works, with the fixes (superseded: New is universal now)",
+   "w": 1440,
+   "x": 0,
+   "y": 500
+  },
+  "WF-1.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "1. New on a job: 'For job 3342', Job for Julian Rifkin, Visit, Leave set apart (superseded: New is universal now)",
+   "w": 1440,
+   "x": 1520,
+   "y": 500
+  },
+  "WF-2.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "2. Task: the form opens over the page, the job a field you can change (superseded: New is universal now)",
+   "w": 1440,
+   "x": 3040,
+   "y": 500
+  },
+  "WF-3.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "3. Saved: still on the job, the task in To do, a toast with Undo (superseded: New is universal now)",
+   "w": 1440,
+   "x": 4560,
+   "y": 500
+  },
+  "WF-4.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "4. Expense: the job changed or cleared where you type (superseded: New is universal now)",
+   "w": 1440,
+   "x": 6080,
+   "y": 500
+  },
+  "WF-5.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "5. A section's own door: Book a visit on the Visits tab (superseded: New is universal now)",
+   "w": 1440,
+   "x": 7600,
+   "y": 500
+  },
+  "WF-6.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "6. The same visit form, the job filled in (superseded: New is universal now)",
+   "w": 1440,
+   "x": 0,
+   "y": 1600
+  },
+  "WF-7.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "7. A tech's New: only what a tech can make (superseded: New is universal now)",
+   "w": 1440,
+   "x": 1520,
+   "y": 1600
+  },
+  "Workboard.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "page": "archive",
+   "title": "Workboard, job open in the side panel",
+   "w": 1440,
+   "x": 3040,
+   "y": 37584
+  },
+  "NJ-1.dc.html": {
+   "page": "f2",
+   "title": "New as a list: Job, Quote, Task. Pick this or NJ-2",
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "expand": "fill"
+  },
+  "NJ-2.dc.html": {
+   "page": "f2",
+   "title": "New as a row, in New's own highlight. Pick this or NJ-1",
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "expand": "fill"
+  },
+  "NJ-3.dc.html": {
+   "page": "f3",
+   "title": "A job's Add",
+   "x": 4560,
+   "y": 1100,
+   "w": 1440,
+   "h": 900,
+   "expand": "fill"
+  },
+  "S-dialog.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f1",
+   "x": 1520,
+   "y": 1100,
+   "title": "A dialog and a toast, over a job"
+  },
+  "S-search.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f1",
+   "x": 3040,
+   "y": 1100,
+   "title": "Search: results by kind, the last row asks Tiff"
+  },
+  "S-you.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f2",
+   "x": 0,
+   "y": 1100,
+   "title": "Your-name menu"
+  },
+  "S-convos.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f2",
+   "x": 1520,
+   "y": 1100,
+   "title": "Conversations  /conversations"
+  },
+  "S-actions.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f3",
+   "x": 0,
+   "y": 2200,
+   "title": "A job's Actions"
+  },
+  "S-quote.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f3",
+   "x": 1520,
+   "y": 2200,
+   "title": "A job's quote  /jobs/3361/quote, Tiff asking"
+  },
+  "S-project.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f3",
+   "x": 3040,
+   "y": 2200,
+   "title": "A Project job  /jobs/3302, its visits"
+  },
+  "S-documents.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f5",
+   "x": 0,
+   "y": 0,
+   "title": "Documents  /documents"
+  },
+  "S-templates.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f5",
+   "x": 1520,
+   "y": 0,
+   "title": "Documents, Templates"
+  },
+  "S-swms.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f5",
+   "x": 3040,
+   "y": 0,
+   "title": "A SWMS from a job's Add, in its own tab"
+  },
+  "S-library.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f5",
+   "x": 0,
+   "y": 1100,
+   "title": "Library  /library"
+  },
+  "S-design.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f5",
+   "x": 1520,
+   "y": 1100,
+   "title": "Design  /design"
+  },
+  "S-person.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f6",
+   "x": 0,
+   "y": 0,
+   "title": "Team  /team/lyle, a person open"
+  },
+  "S-person-tech.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f6",
+   "x": 1520,
+   "y": 0,
+   "title": "Team, as a tech sees it"
+  },
+  "S-leave.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f6",
+   "x": 0,
+   "y": 1100,
+   "title": "Team, Leave  /team/leave"
+  },
+  "S-expenses.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f6",
+   "x": 1520,
+   "y": 1100,
+   "title": "Team, Expenses  /team/expenses"
+  },
+  "S-timesheet.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f6",
+   "x": 3040,
+   "y": 1100,
+   "title": "Your timesheet  /you/timesheet"
+  },
+  "S-phone-timesheet.dc.html": {
+   "w": 390,
+   "h": 844,
+   "radius": 44,
+   "page": "f8",
+   "x": 1699,
+   "y": 0,
+   "title": "Your timesheet on a phone"
+  },
+  "S-time.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f1",
+   "x": 3040,
+   "y": 2200,
+   "title": "A time, on a wheel: every clock time is chosen, never typed"
+  },
+  "S-notices.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f6",
+   "x": 4560,
+   "y": 0,
+   "title": "Team, Notices  /team/notices, an event open"
+  },
+  "S-notice-write.dc.html": {
+   "w": 1440,
+   "h": 900,
+   "page": "f6",
+   "x": 6080,
+   "y": 0,
+   "title": "Write a notice: an event, its start on the wheel"
+  }
+ },
+ "createdOnFiles": {
+  "at": "2026-10-11T09:00:00Z",
+  "v": 1
+ },
+ "designSystems": [],
+ "launch": {
+  "page": "f1",
+  "view": "canvas"
+ },
+ "notes": {
+  "n_f1": {
+   "kind": "title1",
+   "maxW": 4400,
+   "page": "f1",
+   "text": "1. The 54 rules and the parts they make. A teal disc on a screen is a rule's number, not part of the design.",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_f2": {
+   "kind": "title1",
+   "maxW": 4400,
+   "page": "f2",
+   "text": "2. Home, New, Search, Conversations and your name. New: pick the list (NJ-1) or the row (NJ-2).",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_f3": {
+   "kind": "title1",
+   "maxW": 4400,
+   "page": "f3",
+   "text": "3. Jobs: the list, a job and its conversation, Add, Actions, a quote and a Project job",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_f4": {
+   "kind": "title1",
+   "maxW": 4400,
+   "page": "f4",
+   "text": "4. Schedule",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_f5": {
+   "kind": "title1",
+   "maxW": 4400,
+   "page": "f5",
+   "text": "5. Documents, Library and Design",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_f6": {
+   "kind": "title1",
+   "maxW": 4400,
+   "page": "f6",
+   "text": "6. Team, and your own time",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_f7": {
+   "kind": "title1",
+   "maxW": 4400,
+   "page": "f7",
+   "text": "7. Settings and reports, under your name",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_f8": {
+   "kind": "title1",
+   "maxW": 4400,
+   "page": "f8",
+   "text": "8. On a phone",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_flows": {
+   "kind": "title1",
+   "maxW": 4400,
+   "page": "flows",
+   "text": "9. Every task, today and in the new layout, with the first press marked",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_archive": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Archive: not the plan. Options turned down, things replaced and earlier rounds, kept only for reference. Where an option was chosen, it is drawn on the pages above.",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "n_ar_wf": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: New, start to finish",
+   "w": 240,
+   "x": 0,
+   "y": 200
+  },
+  "n_ar_rows": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Views and sections",
+   "w": 240,
+   "x": 0,
+   "y": 2900
+  },
+  "n_ar_menus": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Menus in Jobs",
+   "w": 240,
+   "x": 0,
+   "y": 6700
+  },
+  "n_ar_info": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: For your information",
+   "w": 240,
+   "x": 0,
+   "y": 9400
+  },
+  "n_ar_tiffc": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Tiff's colour",
+   "w": 240,
+   "x": 0,
+   "y": 11840
+  },
+  "n_ar_phcurve": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Phone curves",
+   "w": 240,
+   "x": 0,
+   "y": 13560
+  },
+  "n_ar_curl": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Bottom curl, locked in",
+   "w": 240,
+   "x": 0,
+   "y": 15104
+  },
+  "n_ar_rules3": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: New rules",
+   "w": 240,
+   "x": 0,
+   "y": 16704
+  },
+  "n_ar_homec": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Home",
+   "w": 240,
+   "x": 0,
+   "y": 18304
+  },
+  "n_ar_system": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Buttons, type and colour",
+   "w": 240,
+   "x": 0,
+   "y": 19904
+  },
+  "n_ar_frames": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Frame variants",
+   "w": 240,
+   "x": 0,
+   "y": 23184
+  },
+  "n_ar_tabsw": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Tabs on white",
+   "w": 240,
+   "x": 0,
+   "y": 24784
+  },
+  "n_ar_tabs": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Tabs on a dark bar",
+   "w": 240,
+   "x": 0,
+   "y": 28584
+  },
+  "n_ar_v2": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: New layout",
+   "w": 240,
+   "x": 0,
+   "y": 30184
+  },
+  "n_ar_light": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Light, Claude-style",
+   "w": 240,
+   "x": 0,
+   "y": 37284
+  },
+  "n_ar_one": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Consolidated",
+   "w": 240,
+   "x": 0,
+   "y": 39224
+  },
+  "n_ar_claude": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Claude layout",
+   "w": 240,
+   "x": 0,
+   "y": 40924
+  },
+  "n_ar_mobile": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Mobile",
+   "w": 240,
+   "x": 0,
+   "y": 44064
+  },
+  "n_ar_compare": {
+   "kind": "title1",
+   "maxW": 8800,
+   "page": "archive",
+   "text": "Was: Today vs proposed, and costs",
+   "w": 240,
+   "x": 0,
+   "y": 46652
+  }
+ },
+ "order": [
+  "V3-rules.dc.html",
+  "CU-detail.dc.html",
+  "V3-states.dc.html",
+  "S-dialog.dc.html",
+  "S-search.dc.html",
+  "SYS-colour8.dc.html",
+  "S-time.dc.html",
+  "V3-home.dc.html",
+  "NJ-1.dc.html",
+  "NJ-2.dc.html",
+  "S-you.dc.html",
+  "S-convos.dc.html",
+  "V3-jobs.dc.html",
+  "MN-who.dc.html",
+  "MN-sort.dc.html",
+  "MN-spec.dc.html",
+  "JC-0.dc.html",
+  "JC-1.dc.html",
+  "JC-2.dc.html",
+  "NJ-3.dc.html",
+  "S-actions.dc.html",
+  "S-quote.dc.html",
+  "S-project.dc.html",
+  "V3-schedule.dc.html",
+  "S-documents.dc.html",
+  "S-templates.dc.html",
+  "S-swms.dc.html",
+  "S-library.dc.html",
+  "S-design.dc.html",
+  "S-person.dc.html",
+  "S-person-tech.dc.html",
+  "V3-team.dc.html",
+  "S-notices.dc.html",
+  "S-notice-write.dc.html",
+  "S-leave.dc.html",
+  "S-expenses.dc.html",
+  "S-timesheet.dc.html",
+  "V3-settings.dc.html",
+  "V3-analytics.dc.html",
+  "V3-phone.dc.html",
+  "PH-menu.dc.html",
+  "JC-3.dc.html",
+  "S-phone-timesheet.dc.html",
+  "F-Rules.dc.html",
+  "F-Jobs.dc.html",
+  "F-Home.dc.html",
+  "F-Docs.dc.html",
+  "F-Work.dc.html",
+  "F-You.dc.html",
+  "F-Team.dc.html",
+  "F-Settings.dc.html",
+  "WF-0.dc.html",
+  "WF-1.dc.html",
+  "WF-2.dc.html",
+  "WF-3.dc.html",
+  "WF-4.dc.html",
+  "WF-5.dc.html",
+  "WF-6.dc.html",
+  "WF-7.dc.html",
+  "VO-chips.dc.html",
+  "VO-soft.dc.html",
+  "VO-menu.dc.html",
+  "VO-side.dc.html",
+  "VO-plain.dc.html",
+  "VO-pipe.dc.html",
+  "VO-title.dc.html",
+  "VO-grouped.dc.html",
+  "SO-under.dc.html",
+  "SO-soft.dc.html",
+  "SO-side.dc.html",
+  "SO-plain.dc.html",
+  "SO-counts.dc.html",
+  "SO-jump.dc.html",
+  "SO-hub.dc.html",
+  "MN-actions.dc.html",
+  "MN-new.dc.html",
+  "NM-below.dc.html",
+  "NM-grow.dc.html",
+  "NM-flow.dc.html",
+  "NM-dark.dc.html",
+  "NM-dark-wide.dc.html",
+  "NM-flow-dark.dc.html",
+  "IF-info.dc.html",
+  "TC-mark.dc.html",
+  "PH-now.dc.html",
+  "PH-a.dc.html",
+  "PH-b.dc.html",
+  "CU-home.dc.html",
+  "CU-now.dc.html",
+  "CU-job.dc.html",
+  "CU-schedule.dc.html",
+  "V3-job.dc.html",
+  "V3-new.dc.html",
+  "V3-search.dc.html",
+  "V3-dialog.dc.html",
+  "H2-home.dc.html",
+  "H2-convo.dc.html",
+  "HP2-home.dc.html",
+  "HP2-convo.dc.html",
+  "SYS-main.dc.html",
+  "SYS-jobcolour.dc.html",
+  "SYS-mark.dc.html",
+  "SYS-buttons.dc.html",
+  "SYS-type.dc.html",
+  "SYS-colour.dc.html",
+  "FR-0.dc.html",
+  "FR-A.dc.html",
+  "FR-B.dc.html",
+  "FR-C.dc.html",
+  "FR-D.dc.html",
+  "FR-E.dc.html",
+  "TW-H-empty.dc.html",
+  "TW-H.dc.html",
+  "TW-H-design.dc.html",
+  "TW-H-job.dc.html",
+  "TW-H-none-empty.dc.html",
+  "TW-H-plus-empty.dc.html",
+  "TW-H-plus.dc.html",
+  "TW-E.dc.html",
+  "TW-E-home.dc.html",
+  "TW-E-design.dc.html",
+  "TW-E-job.dc.html",
+  "TW-A.dc.html",
+  "TW-B.dc.html",
+  "TW-C.dc.html",
+  "TW-D.dc.html",
+  "TW-A-home.dc.html",
+  "TW-A-design.dc.html",
+  "TW-A-job.dc.html",
+  "T-design.dc.html",
+  "T-job.dc.html",
+  "T-spec.dc.html",
+  "T-schedule.dc.html",
+  "T-maint.dc.html",
+  "N-Home.dc.html",
+  "N-New.dc.html",
+  "N-You.dc.html",
+  "M-Home.dc.html",
+  "M-New.dc.html",
+  "M-Job.dc.html",
+  "M-Timesheet.dc.html",
+  "N-Convos.dc.html",
+  "N-Jobs.dc.html",
+  "N-Job.dc.html",
+  "N-Quote.dc.html",
+  "N-Schedule.dc.html",
+  "N-Documents.dc.html",
+  "N-Templates.dc.html",
+  "N-NewSWMS.dc.html",
+  "N-Library.dc.html",
+  "N-Design.dc.html",
+  "N-Team.dc.html",
+  "N-Timesheet.dc.html",
+  "N-TeamTech.dc.html",
+  "N-Settings.dc.html",
+  "N-Project.dc.html",
+  "N-SettingsPay.dc.html",
+  "N-TeamTimesheets.dc.html",
+  "N-TeamLeave.dc.html",
+  "N-TeamExpenses.dc.html",
+  "C-TeamTimesheets.dc.html",
+  "C-TeamLeave.dc.html",
+  "C-TeamExpenses.dc.html",
+  "C-Timesheet.dc.html",
+  "C-SettingsPay.dc.html",
+  "Main.dc.html",
+  "Tiff.dc.html",
+  "Workboard.dc.html",
+  "Staff.dc.html",
+  "Admin.dc.html",
+  "Desk.dc.html",
+  "Jobs.dc.html",
+  "Map.dc.html",
+  "Paths.dc.html",
+  "Start.dc.html",
+  "Convos.dc.html",
+  "Chat.dc.html",
+  "JobsGrid.dc.html",
+  "Job.dc.html",
+  "Sched.dc.html",
+  "Docs.dc.html",
+  "Library.dc.html",
+  "Team.dc.html",
+  "Settings.dc.html",
+  "Phone-Home.dc.html",
+  "Phone-Menu.dc.html",
+  "Phone-Talk.dc.html",
+  "Phone-Chat.dc.html",
+  "Phone-Doc.dc.html",
+  "Phone-Job.dc.html",
+  "Phone-Sched.dc.html",
+  "Phone-Jobs.dc.html",
+  "Compare.dc.html",
+  "Costs.dc.html"
+ ],
+ "pages": [
+  {
+   "id": "f1",
+   "name": "1. The rules and the parts"
+  },
+  {
+   "id": "f2",
+   "name": "2. Home, New and your name"
+  },
+  {
+   "id": "f3",
+   "name": "3. Jobs"
+  },
+  {
+   "id": "f4",
+   "name": "4. Schedule"
+  },
+  {
+   "id": "f5",
+   "name": "5. Documents, Library, Design"
+  },
+  {
+   "id": "f6",
+   "name": "6. Team and your time"
+  },
+  {
+   "id": "f7",
+   "name": "7. Settings and reports"
+  },
+  {
+   "id": "f8",
+   "name": "8. On a phone"
+  },
+  {
+   "id": "flows",
+   "name": "9. Every task, today and new"
+  },
+  {
+   "id": "archive",
+   "name": "Archive: not the plan"
+  }
+ ],
+ "title": "HeyTiff, the new layout"
+}

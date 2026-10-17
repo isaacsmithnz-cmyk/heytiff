@@ -5,7 +5,7 @@ import { readLines } from "@/lib/quotes/lines-server";
 import { readByHand } from "@/lib/quotes/lines-job-server";
 import { approvalStands } from "@/lib/quotes/lines-proposal";
 import { readVersions } from "@/lib/quotes/quote-versions-server";
-import { readOpenQuestions, readSession } from "@/lib/quotes/session/store-server";
+import { hasTalked, readOpenQuestions, readSession } from "@/lib/quotes/session/store-server";
 import { readStoredProposal } from "@/lib/quotes/old-draft-server";
 import { toConfirmOf, type QuoteFacts } from "@/lib/quotes/quote-card";
 
@@ -28,14 +28,14 @@ export async function GET(req: Request) {
     readSession(orgId, jobUuid).catch(() => null),
     readStoredProposal(orgId, jobUuid).catch(() => null),
   ]);
-  const asked = talk ? (await readOpenQuestions(orgId, talk.id).catch(() => [])).length : 0;
+  const [asked, talked] = talk ? await Promise.all([readOpenQuestions(orgId, talk.id).then((q) => q.length).catch(() => 0), hasTalked(orgId, talk.id).catch(() => false)]) : [0, false];
   const changedAt = lines.reduce<string | null>((at, l) => (!at || l.updatedAt > at ? l.updatedAt : at), null);
   const facts: QuoteFacts = {
     lines: lines.length,
     options: Math.max(0, ...lines.map((l) => l.optionIndex + 1)),
     toConfirm: toConfirmOf(lines, asked),
     changedAt,
-    talked: (talk?.messages.length ?? 0) > 0,
+    talked,
     drafted: drafted != null,
     approved: byHand.proposal ? approvalStands(byHand.proposal, lines.map((l) => l.updatedAt)) : false,
     version: (versions[0]?.n ?? 0) + 1,

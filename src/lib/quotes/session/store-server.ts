@@ -14,33 +14,58 @@ import { openQuestionsOf } from "./answers";
 /** Longer than a turn can run (the route's maxDuration is 300 s). */
 export const HOLD_MS = 6 * 60_000;
 
-export type SessionRow = { id: string; messages: Msg[]; summary: string; spentUsd: number; turnId: string | null; turnSince: string | null };
+/** A session as everything but a turn reads it: its hold, its spend and
+    whether it's begun, never its conversation. The panel polls every few
+    seconds, and every poll read the whole conversation: on 16 October two
+    held a drawing set each (7 MB and 11 MB) and the database slowed for
+    everyone, ServiceM8's webhooks with it. */
+export type SessionHead = { id: string; spentUsd: number; turnId: string | null; turnSince: string | null };
+/** A session as a turn reads it: the conversation too. */
+export type SessionRow = SessionHead & { messages: Msg[]; summary: string };
 
+/* never the conversation: even one message of it out of the column unpacks the whole of it */
+const HEAD_COLS = "id, spent_usd, turn_id, turn_since";
 const COLS = "id, messages, summary, spent_usd, turn_id, turn_since";
 
-const rowOf = (r: Record<string, unknown>): SessionRow => ({
+const headOf = (r: Record<string, unknown>): SessionHead => ({
   id: r.id as string,
-  messages: Array.isArray(r.messages) ? (r.messages as Msg[]) : [],
-  summary: typeof r.summary === "string" ? r.summary : "",
   spentUsd: Number(r.spent_usd) || 0,
   turnId: (r.turn_id as string | null) ?? null,
   turnSince: (r.turn_since as string | null) ?? null,
 });
 
-export async function readSession(orgId: string, jobUuid: string): Promise<SessionRow | null> {
+const rowOf = (r: Record<string, unknown>): SessionRow => ({
+  ...headOf(r),
+  messages: Array.isArray(r.messages) ? (r.messages as Msg[]) : [],
+  summary: typeof r.summary === "string" ? r.summary : "",
+});
+
+export async function readSession(orgId: string, jobUuid: string): Promise<SessionHead | null> {
+  const { data } = await supabaseAdmin.from("quote_sessions").select(HEAD_COLS).eq("org_id", orgId).eq("sm8_job_uuid", jobUuid).maybeSingle();
+  return data ? headOf(data as Record<string, unknown>) : null;
+}
+
+/** Whether anyone has said anything to her on the session yet. */
+export async function hasTalked(orgId: string, sessionId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin.from("quote_session_events").select("id").eq("org_id", orgId).eq("session_id", sessionId).eq("kind", "message").limit(1);
+  return (data ?? []).length > 0;
+}
+
+/** The session with its conversation: for a turn only. */
+async function readSessionState(orgId: string, jobUuid: string): Promise<SessionRow | null> {
   const { data } = await supabaseAdmin.from("quote_sessions").select(COLS).eq("org_id", orgId).eq("sm8_job_uuid", jobUuid).maybeSingle();
   return data ? rowOf(data) : null;
 }
 
 async function openSession(orgId: string, jobUuid: string): Promise<SessionRow | null> {
-  const had = await readSession(orgId, jobUuid);
+  const had = await readSessionState(orgId, jobUuid);
   if (had) return had;
   const { data } = await supabaseAdmin
     .from("quote_sessions")
     .upsert({ org_id: orgId, sm8_job_uuid: jobUuid }, { onConflict: "org_id,sm8_job_uuid", ignoreDuplicates: true })
     .select(COLS)
     .maybeSingle();
-  return data ? rowOf(data) : readSession(orgId, jobUuid);
+  return data ? rowOf(data) : readSessionState(orgId, jobUuid);
 }
 
 /** Whether a turn's hold still stands at `now`. Pure. */
@@ -99,7 +124,7 @@ const THREAD_READ = 500;
     never what she'd just said. A poll reads on from `since`, oldest first,
     and the panel's next poll carries on from the last of them, so a burst
     bigger than one read skips nothing. */
-export async function readThread(orgId: string, jobUuid: string, since = 0): Promise<{ session: SessionRow | null; events: ThreadEvent[] }> {
+export async function readThread(orgId: string, jobUuid: string, since = 0): Promise<{ session: SessionHead | null; events: ThreadEvent[] }> {
   const session = await readSession(orgId, jobUuid);
   if (!session) return { session: null, events: [] };
   const q = supabaseAdmin.from("quote_session_events").select("id, turn_id, kind, author, body, at").eq("org_id", orgId).eq("session_id", session.id);

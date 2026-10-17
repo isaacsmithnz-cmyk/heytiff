@@ -80,7 +80,7 @@ describe("the places (rule 5)", () => {
     expect(places()).toEqual(["Home"]);
     cleanup();
     draw(userAs("owner"));
-    expect(places().slice(0, 5)).toEqual(["Home", "Jobs", "Library", "Design", "Team"]);
+    expect(places().slice(0, 6)).toEqual(["Home", "Conversations", "Jobs", "Library", "Design", "Team"]);
   });
 
   it("marks the place you're on", () => {

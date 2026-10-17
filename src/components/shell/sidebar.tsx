@@ -12,6 +12,8 @@ import { NewJobModal } from "@/components/workboard/board/new-job-modal";
 import { TaskForm } from "@/components/making/task-form";
 import { pinsServerSnapshot, pinsSnapshot, seedPins, subscribePins } from "./pins-store";
 import { pinKey, type Pin } from "@/lib/pins/pins";
+import type { RecordRef } from "@/lib/records/ref";
+import { jobPageHref } from "@/lib/shell/links";
 import { Initials } from "@/components/parts/initials";
 import { Menu, type MenuItem } from "@/components/parts/menu";
 import type { Role } from "@/lib/roles-shared";
@@ -128,22 +130,46 @@ function NewButton({ newJob }: { newJob: boolean }) {
 
 const KIND_ICON = { job: "folder", visit: "calendar", agreement: "file" } as const;
 
+/* ONE ROW OF PINNED OR RECENTS. A job is a page now (step 5), so its row is
+   a link to it, and it lights while you're on it; a visit and an agreement
+   still open their card over the page you're on. */
+function RecordRow({ record: rec, name, sub, pathname }: { record: RecordRef; name: string; sub: string | null; pathname: string }) {
+  const { open } = useRecords();
+  const body = (
+    <>
+      <Icon name={KIND_ICON[rec.kind]} size={16} />
+      <span className="fr-lbl">
+        {name}
+        {sub ? `, ${sub}` : ""}
+      </span>
+    </>
+  );
+  if (rec.kind === "job") {
+    const href = jobPageHref(rec.id);
+    const on = pathname === href;
+    return (
+      <Link href={href} className={`fr-row fr-rec${on ? " on" : ""}`} aria-current={on ? "page" : undefined}>
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className="fr-row fr-rec" onClick={() => open(rec)}>
+      {body}
+    </button>
+  );
+}
+
 /* PINNED (rule 6): what you keep, newest first, from your Pin on a record. */
 function Pinned() {
   const pins = useSyncExternalStore(subscribePins, pinsSnapshot, pinsServerSnapshot);
-  const { open } = useRecords();
+  const pathname = usePathname();
   if (pins.length === 0) return null;
   return (
     <section className="fr-group" aria-label="Pinned">
       <h2 className="fr-grouphead">Pinned</h2>
       {pins.map((p) => (
-        <button key={pinKey(p.ref)} type="button" className="fr-row fr-rec" onClick={() => open(p.ref)}>
-          <Icon name={KIND_ICON[p.ref.kind]} size={16} />
-          <span className="fr-lbl">
-            {p.title}
-            {p.sub ? `, ${p.sub}` : ""}
-          </span>
-        </button>
+        <RecordRow key={pinKey(p.ref)} record={p.ref} name={p.title} sub={p.sub} pathname={pathname} />
       ))}
     </section>
   );
@@ -152,20 +178,14 @@ function Pinned() {
 /* RECENTS (rule 6): the records opened lately, newest first. */
 function Recents() {
   const host = useContext(WindowsContext);
-  const { open } = useRecords();
+  const pathname = usePathname();
   const recent = host?.recent ?? [];
   if (recent.length === 0) return null;
   return (
     <section className="fr-group" aria-label="Recents">
       <h2 className="fr-grouphead">Recents</h2>
       {recent.map((r) => (
-        <button key={r.key} type="button" className="fr-row fr-rec" onClick={() => open(r.ref)}>
-          <Icon name={KIND_ICON[r.ref.kind]} size={16} />
-          <span className="fr-lbl">
-            {r.title}
-            {r.sub ? `, ${r.sub}` : ""}
-          </span>
-        </button>
+        <RecordRow key={r.key} record={r.ref} name={r.title} sub={r.sub} pathname={pathname} />
       ))}
     </section>
   );

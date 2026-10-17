@@ -15,6 +15,13 @@ export const staffHref = (id: string) => `/dashboard/team/${encodeURIComponent(i
 export const jobHref = (uuid: string, face?: string) =>
   `/dashboard/workboard?job=${encodeURIComponent(uuid)}${face ? `&face=${encodeURIComponent(face)}` : ""}`;
 
+/** A job's own page (v2, step 5), on the section named — Overview when none
+    is. Beside `jobHref` rather than in its place: the board's rows, Tiff and
+    the old doors still open the card over the Workboard, and the tests that
+    assert those links stand until the board is rebuilt. */
+export const jobPageHref = (uuid: string, section?: string) =>
+  `/dashboard/jobs/${encodeURIComponent(uuid)}${section && section !== "overview" ? `?tab=${encodeURIComponent(section)}` : ""}`;
+
 /** A client has no page of their own: the Workboard's search, run on their
     name, is every job, visit, project and photo that names them. */
 export const clientHref = (name: string) => `/dashboard/workboard?q=${encodeURIComponent(name)}`;

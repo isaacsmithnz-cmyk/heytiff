@@ -382,6 +382,14 @@ function RecordsCore({
     return () => window.removeEventListener("popstate", onPop);
   }, [syncUrl, openRef]);
 
+  const remember = useCallback((r: RecentRecord) => {
+    setRecent((rs) => {
+      const top = rs[0];
+      if (top && top.key === r.key && top.title === r.title && top.sub === r.sub) return rs;
+      return [r, ...rs.filter((x) => x.key !== r.key)].slice(0, RECENT_MAX);
+    });
+  }, []);
+
   const forget = useCallback(() => {
     asked.current += 1;
     setWindows([]);
@@ -404,9 +412,10 @@ function RecordsCore({
       step,
       reload,
       recent,
+      remember,
       toast,
     }),
-    [shown, syncUrl, close, dismiss, setAside, restore, stepOf, step, reload, recent, toast],
+    [shown, syncUrl, close, dismiss, setAside, restore, stepOf, step, reload, recent, remember, toast],
   );
 
   return (

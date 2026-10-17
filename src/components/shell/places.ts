@@ -31,7 +31,8 @@ export type Place = {
 
 export const PLACES: readonly Place[] = [
   { key: "home", label: "Home", icon: "home", href: "/dashboard", under: ["/dashboard/action-required", "/dashboard/notices"] },
-  { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/workboard", under: [], capability: "workboard" },
+  /* a job's own page (step 5) lights Jobs before the list has a page */
+  { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/workboard", under: ["/dashboard/jobs"], capability: "workboard" },
   { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff", under: [], capability: "tiff" },
   { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", under: [], capability: "studio" },
   { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: [], capability: "team" },

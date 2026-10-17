@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { Sidebar, type ShellUser } from "../sidebar";
 import { CommandPaletteProvider } from "../command-palette-context";
+import { RecordsContext, WindowsContext } from "@/components/records/records-context";
 import { resolve } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 
@@ -156,13 +157,53 @@ describe("New", () => {
 });
 
 describe("Pinned (rule 6)", () => {
-  it("lists what you pinned, above Recents, and opens it where you are", () => {
+  /* a job is a page now (v2, step 5): its row goes there; a visit still
+     opens its card where you are */
+  it("lists what you pinned, a job as a link to its page and a visit as its card", () => {
+    const open = jest.fn();
     render(
-      <CommandPaletteProvider>
-        <Sidebar user={userAs("staff")} pins={[{ ref: { kind: "job", id: "j1" }, title: "Job 3342", sub: "Rifkin, Bellevue Hill" }]} />
-      </CommandPaletteProvider>,
+      <RecordsContext.Provider value={{ hosted: true, open }}>
+        <CommandPaletteProvider>
+          <Sidebar
+            user={userAs("staff")}
+            pins={[
+              { ref: { kind: "job", id: "j1" }, title: "Job 3342", sub: "Rifkin, Bellevue Hill" },
+              { ref: { kind: "visit", id: "v1" }, title: "Quarterly service", sub: null },
+            ]}
+          />
+        </CommandPaletteProvider>
+      </RecordsContext.Provider>,
     );
     const pinned = screen.getByRole("region", { name: "Pinned" });
-    expect(within(pinned).getByRole("button", { name: "Job 3342, Rifkin, Bellevue Hill" })).toBeInTheDocument();
+    expect(within(pinned).getByRole("link", { name: "Job 3342, Rifkin, Bellevue Hill" })).toHaveAttribute("href", "/dashboard/jobs/j1");
+    fireEvent.click(within(pinned).getByRole("button", { name: "Quarterly service" }));
+    expect(open).toHaveBeenCalledWith({ kind: "visit", id: "v1" });
+  });
+});
+
+describe("Recents (rule 6)", () => {
+  it("lists the jobs opened lately as links to their pages", () => {
+    const windows = {
+      windows: [],
+      docked: true,
+      close: jest.fn(),
+      dismiss: jest.fn(),
+      setAside: jest.fn(),
+      restore: jest.fn(),
+      stepOf: () => null,
+      step: jest.fn(),
+      reload: jest.fn(),
+      toast: jest.fn(),
+      recent: [{ key: "job.j-7", ref: { kind: "job" as const, id: "j-7" }, title: "Job 3209", sub: "Richards Building" }],
+    };
+    render(
+      <WindowsContext.Provider value={windows}>
+        <CommandPaletteProvider>
+          <Sidebar user={userAs("staff")} />
+        </CommandPaletteProvider>
+      </WindowsContext.Provider>,
+    );
+    const recents = screen.getByRole("region", { name: "Recents" });
+    expect(within(recents).getByRole("link", { name: "Job 3209, Richards Building" })).toHaveAttribute("href", "/dashboard/jobs/j-7");
   });
 });

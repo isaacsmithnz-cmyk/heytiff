@@ -1,0 +1,86 @@
+import type { JobSheetTab } from "@/components/workboard/board/job-sheet";
+import type { JobStep } from "@/lib/workboard/job-steps";
+import type { Tone } from "@/components/parts/state";
+
+/* A JOB'S SEVEN SECTIONS (docs/design.md rule 31): Overview, Quote, Visits,
+   Checklist, Photos, Documents, Billing. The job page (app/dashboard/jobs)
+   draws each from the job card's own faces, so the card and the page never
+   tell two stories about one job:
+
+     Overview  = the summary and the diary, under the stages line (the line
+                 lives on Overview only, 6-revisions, 17 October)
+     Quote     = the quote
+     Visits    = the visits
+     Checklist = the checklist
+     Photos    = the photos
+     Documents = the files and compliance
+     Billing   = the money, only for whoever holds `workboard_money`: without
+                 it the section is absent, as the card's Billing face is.
+
+   Pure, so the page, the quote page's tabs and the tests read one list. */
+
+export const JOB_SECTIONS = ["overview", "quote", "visits", "checklist", "photos", "documents", "billing"] as const;
+export type JobSection = (typeof JOB_SECTIONS)[number];
+
+export const SECTION_LABEL: Record<JobSection, string> = {
+  overview: "Overview",
+  quote: "Quote",
+  visits: "Visits",
+  checklist: "Checklist",
+  photos: "Photos",
+  documents: "Documents",
+  billing: "Billing",
+};
+
+/** The card's faces each section shows, in the order it shows them. */
+export const SECTION_FACES: Record<JobSection, readonly JobSheetTab[]> = {
+  overview: ["summary", "diary"],
+  quote: ["quote"],
+  visits: ["visits"],
+  checklist: ["checklist"],
+  photos: ["photos"],
+  documents: ["documents", "compliance"],
+  billing: ["money"],
+};
+
+/** The section a face lives in: where a door into the card's face lands on the page. */
+export function sectionOfFace(face: JobSheetTab): JobSection {
+  for (const s of JOB_SECTIONS) if (SECTION_FACES[s].includes(face)) return s;
+  return "overview";
+}
+
+/** The sections this reader has: Billing only with the money grant. */
+export const sectionsFor = (moneyVisible: boolean): readonly JobSection[] =>
+  moneyVisible ? JOB_SECTIONS : JOB_SECTIONS.filter((s) => s !== "billing");
+
+/** The section an address's `?tab=` names, or Overview: an invented one, a
+    repeated one, and Billing without the money grant all land on Overview. */
+export function parseSection(raw: string | string[] | undefined | null, moneyVisible: boolean): JobSection {
+  if (typeof raw !== "string") return "overview";
+  const s = raw.trim().toLowerCase();
+  return (sectionsFor(moneyVisible) as readonly string[]).includes(s) ? (s as JobSection) : "overview";
+}
+
+/** Where the job stands, as one word after the address (6-revisions: "on
+    every other tab the stage is one grey word after the address"): a step
+    that went wrong says so in red (Declined), one that needs a look says
+    what it is in orange ("Invoiced, not paid"); otherwise the last step
+    done, in grey. Null before the job has done anything. */
+export function stageWord(steps: readonly JobStep[]): { word: string; tone: Tone } | null {
+  const bad = steps.find((s) => s.state === "bad");
+  if (bad) return { word: bad.label, tone: "wrong" };
+  const warn = steps.find((s) => s.state === "warn");
+  if (warn) return { word: warn.fact || warn.label, tone: "look" };
+  const done = steps.filter((s) => s.state === "done").at(-1);
+  return done ? { word: done.label, tone: "info" } : null;
+}
+
+/** What an open tab calls a job: its number and the first word of its
+    client's name, "3209 Richards". */
+export function jobTabLabel(number: string | null | undefined, clientName: string | null | undefined): string {
+  const short = (clientName ?? "").trim().split(/\s+/)[0] ?? "";
+  const n = (number ?? "").trim();
+  if (n && short) return `${n} ${short}`;
+  if (short) return (clientName ?? "").trim();
+  return n ? `Job ${n}` : "Job";
+}

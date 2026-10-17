@@ -62,4 +62,12 @@ describe("the sidebar's places (rules 5 and 7)", () => {
     expect(placeOn(team, "/dashboard/team/abc")).toBe(true);
     expect(placeOn(team, "/dashboard/teams")).toBe(false);
   });
+
+  /* a job is a page now (step 5), and Jobs says you're in it */
+  it("lights Jobs on a job's own page as well as on the board", () => {
+    const jobs = PLACES.find((p) => p.key === "jobs")!;
+    expect(placeOn(jobs, "/dashboard/jobs/a3539c01")).toBe(true);
+    expect(placeOn(jobs, "/dashboard/workboard")).toBe(true);
+    expect(placeOn(jobs, "/dashboard/jobsite")).toBe(false);
+  });
 });

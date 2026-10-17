@@ -11,16 +11,27 @@ import { NAV } from "./nav";
 import { PLACES, STILL_TO_MOVE, YOURS } from "./places";
 import { useCommandPalette } from "./command-palette-context";
 import { arrive, choose, closeTab, newTab, subscribeTabs, tabsServerSnapshot, tabsSnapshot } from "./open-tabs";
+import { pageName, pageNamesServerSnapshot, pageNamesSnapshot, subscribePageNames, type PageName } from "./page-names";
+import { Dot, type Hue } from "@/components/parts/state";
 
-/* What a tab is called, and its glyph: the place or screen whose address
-   is the longest start of the page's. */
+/* What a tab is called, and its glyph: the name the page gave itself
+   (page-names.ts: a job's page says "3209 Richards" and its colour), or
+   else the place or screen whose address is the longest start of the
+   page's. */
 const NAMED = [
+  /* a job's page before it has said its name */
+  { href: "/dashboard/jobs", label: "Job", icon: "folder" },
   ...PLACES.map((p) => ({ href: p.href, label: p.label, icon: p.icon })),
   ...STILL_TO_MOVE.map((p) => ({ href: p.href, label: p.label, icon: p.icon })),
   ...YOURS.map((p) => ({ href: p.href, label: p.label, icon: p.icon })),
   ...NAV.map((n) => ({ href: n.href, label: n.label, icon: n.icon })),
 ];
-export function tabName(href: string): { label: string; icon: string } {
+export function tabName(
+  href: string,
+  names: Readonly<Record<string, PageName>> = {},
+): { label: string; icon: string; hue?: Hue } {
+  const own = pageName(names, href);
+  if (own) return { label: own.label, icon: "folder", ...(own.hue ? { hue: own.hue } : {}) };
   const path = href.split(/[?#]/)[0];
   let best: { href: string; label: string; icon: string } | null = null;
   for (const n of NAMED) {
@@ -37,6 +48,7 @@ export function Topbar({ today, tz = null }: { today: string; tz?: string | null
   const router = useRouter();
   const { open: openSearch } = useCommandPalette();
   const { tabs, on } = useSyncExternalStore(subscribeTabs, tabsSnapshot, tabsServerSnapshot);
+  const names = useSyncExternalStore(subscribePageNames, pageNamesSnapshot, pageNamesServerSnapshot);
 
   useEffect(() => {
     arrive(pathname);
@@ -51,7 +63,7 @@ export function Topbar({ today, tz = null }: { today: string; tz?: string | null
       <Clock today={today} tz={tz} />
       <div className="fr-tabs" role="tablist" aria-label="Open tabs">
         {tabs.map((t) => {
-          const name = t.blank ? { label: "New tab", icon: "search" } : tabName(t.href);
+          const name: { label: string; icon: string; hue?: Hue } = t.blank ? { label: "New tab", icon: "search" } : tabName(t.href, names);
           const here = t.id === on;
           return (
             <div key={t.id} className={`fr-tab${here ? " on" : ""}`}>
@@ -71,7 +83,8 @@ export function Topbar({ today, tz = null }: { today: string; tz?: string | null
                   if (e.button === 1) window.open(t.href, "_blank", "noopener");
                 }}
               >
-                <Icon name={name.icon} size={16} />
+                {/* a job's tab wears its colour's dot (rule 18), not a glyph */}
+                {name.hue ? <Dot hue={name.hue} /> : <Icon name={name.icon} size={16} />}
                 <Fade className="fr-tablbl">{name.label}</Fade>
               </button>
               {tabs.length > 1 && (

@@ -4,7 +4,7 @@ import { projectHref } from "@/lib/shell/links";
 import { Fragment, useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { useOverlay } from "@/components/overlay/use-overlay";
+import { OverlayWhileOpen } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
 import { Button } from "@/components/parts/button";
 import { Menu, type MenuItem } from "@/components/parts/menu";
@@ -111,6 +111,9 @@ import { catTintVars } from "@/lib/workboard/card-tint";
 import { syncedAgo, type Sm8Health } from "./sm8-chip";
 import { useHydrated } from "@/lib/use-hydrated";
 import type { ScheduleJobState } from "./schedule-tab";
+import { JobPageHead } from "@/components/jobs/job-page-head";
+import { jobHue } from "@/lib/workboard/job-hue";
+import { SECTION_FACES, SECTION_LABEL, sectionOfFace, sectionsFor, stageWord, type JobSection } from "@/lib/jobs/job-sections";
 
 /* One ServiceM8 job — a CARD OF TABS.
 
@@ -281,6 +284,19 @@ export function telHref(raw: string | null | undefined): string | null {
    wearers now, and importing a sheet for a pure helper drags its server
    actions into every jsdom suite that renders the borrower. */
 
+/** THE JOB AS A PAGE (v2, step 5): the card's own faces, under the page's
+    head instead of the card's band and rail. The page holds which section
+    is open (its `?tab=`); a door inside the card that moves to a face moves
+    the page to that face's section. */
+export type JobSheetPage = {
+  section: JobSection;
+  onSection: (section: JobSection) => void;
+  /** what the page itself does to the job, in Actions after its stage: pin
+      it, copy the link (rule 53) */
+  actions: readonly MenuItem[];
+  onAction: (key: string) => void;
+};
+
 export function JobSheet({
   row,
   manage,
@@ -295,7 +311,12 @@ export function JobSheet({
   onOpenTracked,
   onToast,
   windowControls,
+  page,
 }: {
+  /** Drawn as the job's own page rather than a card over the screen: no
+      scrim, no band, no rail, no close; the page's head, the section's
+      faces under it. Absent, it is the card, as it has always been. */
+  page?: JobSheetPage;
   row: AllJobRow;
   manage: boolean;
   moneyVisible: boolean;
@@ -458,7 +479,7 @@ export function JobSheet({
   /* Whether the reader has chosen a tab themselves — the one thing that
      outranks the clone-open landing on Money. A face the door asked for is
      that choice made on the reader's behalf, and outranks it the same way. */
-  const touchedTab = useRef(initialTab !== undefined || !!openBookIn || !!openClear);
+  const touchedTab = useRef(initialTab !== undefined || !!openBookIn || !!openClear || !!page);
   const alive = useRef(true);
 
   useEffect(() => {
@@ -478,15 +499,14 @@ export function JobSheet({
      the viewer, Edit customer, the SWMS and certificate wizards — are each
      in front of it on the overlay stack and answer their own Escape, so the
      card hears the key only when nothing is over it. Its own two menus
-     close before it does. */
+     close before it does. The card joins the stack (`OverlayWhileOpen`,
+     drawn first in its portal); the job's page is a page, and never does. */
   const sheet = useRef<HTMLElement>(null);
-  useOverlay(sheet, {
-    onEscape: () => {
-      if (numbersOpen) setNumbersOpen(false);
-      else if (menuOpen) setMenuOpen(false);
-      else onClose();
-    },
-  });
+  const onEscape = () => {
+    if (numbersOpen) setNumbersOpen(false);
+    else if (menuOpen) setMenuOpen(false);
+    else onClose();
+  };
 
   useEffect(() => {
     if (!numbersOpen) return;
@@ -1489,6 +1509,9 @@ export function JobSheet({
             ? "visits"
             : "summary";
 
+  /* WHICH FACES ARE SHOWING: the card's one, or the page's section's. */
+  const faceOn = (k: TabKey) => (page ? SECTION_FACES[page.section].includes(k) : tab === k);
+
   const go = (key: string) => {
     touchedTab.current = true;
     if (key !== "diary") {
@@ -1497,6 +1520,11 @@ export function JobSheet({
     }
     setStep(null);
     setTab(key as TabKey);
+    /* on the page, a face is reached by its section */
+    if (page) {
+      const to = sectionOfFace(key as TabKey);
+      if (to !== page.section) page.onSection(to);
+    }
   };
 
   const openStep = (k: StepKey) => {
@@ -1586,14 +1614,17 @@ export function JobSheet({
     document.getElementById(`jctab-${next.key}`)?.focus();
   };
 
+  /* On the page every face is a region of its section, named by itself:
+     the section's tab labels the whole body, not one face of it. */
+  const railed = (key: TabKey) => !page && rail.some((r) => r.key === key);
   const panel = (key: TabKey, body: React.ReactNode) => (
     <section
       className="wb2-jcface"
       id={`jcsec-${key}`}
-      role={rail.some((r) => r.key === key) ? "tabpanel" : "region"}
-      aria-labelledby={rail.some((r) => r.key === key) ? `jctab-${key}` : undefined}
-      aria-label={rail.some((r) => r.key === key) ? undefined : FACE_NAME[key]}
-      hidden={tab !== key}
+      role={railed(key) ? "tabpanel" : "region"}
+      aria-labelledby={railed(key) ? `jctab-${key}` : undefined}
+      aria-label={railed(key) ? undefined : FACE_NAME[key]}
+      hidden={!faceOn(key)}
     >
       {body}
     </section>
@@ -1604,8 +1635,816 @@ export function JobSheet({
      "raised" and "booked" are their own facts and wear their own chip. */
   const dateStandsAlone = cardDateLabel === "raised" || cardDateLabel === "booked";
 
+  /* THE FACES, each drawn once: the card puts them under its rail, the
+     page under its head (Overview holds the summary and the diary). */
+  const faceSummary = (
+    <>
+          {panel(
+            "summary",
+            <JobSummaryFace
+              loading={loading}
+              detail={detail}
+              row={row}
+              summary={summary}
+              pending={summaryPending}
+              category={categoryName ? { name: categoryName, colour: categoryColour } : null}
+            />
+          )}
+    </>
+  );
+  const faceDiary = (
+    <>
+          {panel(
+            "diary",
+            <JobDiaryFace
+              focusFlagged={flagFocus}
+              entries={story}
+              loading={loading && !detail}
+              moneyVisible={moneyVisible}
+              onOpenClaim={setOpenClaim}
+              onPhotos={() => go("photos")}
+              /* The pen waits for the card to know WHICH job it is — a note
+                 saved against a guess is worse than a note that waits a
+                 beat. */
+              onWrite={cardId ? writeNote : undefined}
+              onRemoveNote={unwriteNote}
+              /* notes to ServiceM8: absent where the deployment sends none */
+              sender={sender}
+              notesSm8={notesSm8}
+              flags={flags}
+              replyFor={replyFor}
+              onReplyShown={() => setReplyFor(null)}
+              onReply={replyNote}
+              onSendCopy={sendCopy}
+              onTakeBack={takeBack}
+              onMarkDone={markDone}
+              onUndoDone={undoDone}
+              flagsBusy={flagsBusy}
+              onConfirm={confirmLink}
+            />
+          )}
+    </>
+  );
+  const faceMoney = (
+    <>
+          {moneyVisible &&
+            panel(
+              "money",
+              (() => {
+                /* MONEY READS ONCE, and it reads here. The block waits for
+                   the family read so a family-billed parent never paints its
+                   netted total and then corrects itself. */
+                const block =
+                  record !== undefined || recordFailed ? (
+                    <JobMoneyBlock
+                      family={family}
+                      unavailable={recordFailed}
+                      money={money}
+                      ledgerPaidCents={
+                        record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0
+                      }
+                      statusLabel={row.statusLabel}
+                      focusRemoteId={focus}
+                      onOpenClaim={setOpenClaim}
+                      deposit={(() => {
+                        const status = (detail?.status ?? "").trim().toLowerCase();
+                        const started = (detail?.visits.length ?? 0) > 0 || status === "completed";
+                        /* asked while a deposit could still be wanted: no
+                           deposit invoice, work not started, not declined */
+                        const ask = !!family && family.claims[0]?.stage !== "Deposit" && !started && status !== "unsuccessful";
+                        return noDeposit || ask
+                          ? { noDeposit, busy: depositBusy, error: depositError, onSet: (on: boolean) => void tickNoDeposit(on) }
+                          : null;
+                      })()}
+                      billTo={(() => {
+                        const name = detail?.clientName ?? row.clientName;
+                        if (!name) return null;
+                        const c = detail?.contacts.find((x) => (x.type ?? "").trim().toLowerCase() === "billing");
+                        return { name, contact: c ? { name: c.name, email: c.email } : null };
+                      })()}
+                    />
+                  ) : (
+                    <p className="int-hint">Reading the figures…</p>
+                  );
+
+                /* A BLOCK THAT HAS OPENED ITS LEDGER KEEPS THE FULL WIDTH.
+                   The claim rows are a table — name, what it says about
+                   itself, amount, chip — and in the left column each one
+                   wrapped to four lines. The same test the block itself
+                   applies before it opens the ledger. */
+                const ledgerOpen = family !== null && family.isFamily && family.claims.length > 1;
+
+                const paidSection =
+                  record?.ledger && record.ledger.payments.length > 0 ? (
+                    <div className="wb2-shsect">
+                      <span className="wb2-sect">
+                        What&apos;s been paid —{" "}
+                        {(() => {
+                          const paid = paymentsTotalCents(record.ledger.payments);
+                          /* COLLECTION IS SAID ONCE, and the block above says
+                             it. On a family this figure is measured against
+                             THIS row's own netted total, so no verdict. */
+                          if (record.family?.isFamily) return fmtAud(paid);
+                          const state = collectionAgainst(paid, money?.valueCents ?? null);
+                          if (state === "paid") return `${fmtAud(paid)}, paid in full`;
+                          if (state === "part")
+                            return `${fmtAud(paid)} of ${fmtAud(money!.valueCents!)}`;
+                          return fmtAud(paid);
+                        })()}
+                      </span>
+                      {record.ledger.payments.map((p) => (
+                        <div className="wb2-mline" key={p.remoteId}>
+                          <b>{p.method ?? "Payment"}</b>
+                          <em>
+                            {[
+                              p.isDeposit ? "deposit" : null,
+                              p.takenOn ? fmtAuWeekdayDayMonth(p.takenOn) : null,
+                              p.takenBy,
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </em>
+                          <span>{p.amountCents !== null ? fmtAud(p.amountCents) : "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null;
+
+                /* PARTIAL-INVOICE ROWS LEAVE THIS LIST. "Partial invoice
+                   #2380A × −1" is ServiceM8 subtracting one of its own
+                   clones out of the parent — bookkeeping, not something
+                   that went on the job. It belongs to the block above,
+                   where it IS a claim. */
+                const goodsSection =
+                  materials.length > 0 ? (
+                    <div className="wb2-shsect">
+                      <span className="wb2-sect">What went on the job</span>
+                      {materials.map((m) => (
+                        <div className="wb2-mline" key={m.remoteId}>
+                          <b>{m.name}</b>
+                          <em>{m.quantity !== null ? `× ${fmtQuantity(m.quantity)}` : ""}</em>
+                          <span>{m.lineCents !== null ? fmtAud(m.lineCents) : "—"}</span>
+                        </div>
+                      ))}
+                      {(() => {
+                        const total = materialsTotalCents(materials);
+                        const mixed = materialsTaxMixed(materials);
+                        /* No total when a line couldn't be read, and none
+                           when the lines disagree about tax. */
+                        if (mixed)
+                          return (
+                            <p className="int-hint">
+                              These lines mix tax-inclusive and tax-exclusive prices, so they
+                              don&apos;t add up to one figure here — ServiceM8&apos;s invoice is
+                              the total.
+                            </p>
+                          );
+                        if (total === null)
+                          return (
+                            <p className="int-hint">
+                              Some lines aren&apos;t priced, so there&apos;s no total to show.
+                            </p>
+                          );
+                        return (
+                          <div className="wb2-mline total">
+                            <b>{materials[0].taxInclusive ? "Total inc GST" : "Total ex GST"}</b>
+                            <em />
+                            <span>{fmtAud(total)}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : null;
+
+                /* THE FACE IS TWO COLUMNS (Isaac, 2026-09-10): the money on
+                   the left — the value, its collection row, what's been paid
+                   — and what went on the job on the right. The block used to
+                   run the full width with the figure top-right and the
+                   sentence bottom-left, over a grid with one column empty on
+                   any job with nothing paid. With nothing to stand beside,
+                   whichever column is there runs the full width rather than
+                   leaving the other half blank, which was the fault. */
+                const left = !ledgerOpen || paidSection !== null;
+                const twoUp = left && goodsSection !== null;
+                return (
+                  <>
+                    {ledgerOpen && block}
+                    {(left || goodsSection !== null) && (
+                      <div className={"wb2-jcgrid money" + (twoUp ? "" : " one")}>
+                        {left && (
+                          <div className="wb2-jcol">
+                            {!ledgerOpen && block}
+                            {paidSection}
+                          </div>
+                        )}
+                        {goodsSection}
+                      </div>
+                    )}
+                  </>
+                );
+              })()
+            )}
+    </>
+  );
+  const faceVisits = (
+    <>
+          {panel(
+            "visits",
+            <>
+              {/* CHECK IN / CHECK OUT (Isaac, 2026-10-02): the record of who
+                  was on site, over ServiceM8's check-ins, which miss most
+                  days. One press; checking in here checks out of anywhere
+                  else. */}
+              {cardId && mine !== undefined && (
+                <div className={"jcl-check" + (mine?.jobUuid === cardId ? " on" : mine ? "" : " bare")}>
+                  {mine?.jobUuid === cardId ? (
+                    <>
+                      <span>{`On site since ${fmtAuTime(new Date(mine.since))}`}</span>
+                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(true)}>
+                        Check out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {mine && (
+                        <span>{`Checked in at ${mine.jobNumber ? `#${mine.jobNumber}` : "another job"} since ${fmtAuTime(new Date(mine.since))}`}</span>
+                      )}
+                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(false)}>
+                        {mine ? "Check in here" : "Check in"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+              {/* BOOK IN (two-way phase 3): the door, or its panel in place,
+                  then every press on the job whose booking isn't standing
+                  on the list below — newest first, a status change said
+                  once above its bookings. Nothing of it where the
+                  deployment books nothing. */}
+              {bookings?.canBook && cardId && !bookIn && (
+                <div className="wb2-jcattsave">
+                  <button type="button" className="pbtn" onClick={() => openPanel(null)}>
+                    {BOOKING_WORDS.panel.book}
+                  </button>
+                </div>
+              )}
+              {bookings?.canBook && cardId && bookIn && (
+                <BookInPanel
+                  key={bookIn.n}
+                  jobUuid={cardId}
+                  number={detail?.jobNumber ?? row.number ?? null}
+                  zone={bookings.zone}
+                  seed={bookIn.seed}
+                  onDone={bookedIn}
+                  onCancel={() => setBookIn(null)}
+                />
+              )}
+              {above.length > 0 && (
+                <div className="wb2-jcsec">
+                  {above.map((v) => (
+                    <Fragment key={v.verbId}>
+                      {v.status?.state.text && (
+                        <div className="wb2-evmeta">
+                          <StateLine as="span" line={{ word: v.status.state.text, tone: v.status.state.tone }} />
+                        </div>
+                      )}
+                      {v.bookings.map((b) => (
+                        <Fragment key={b.rowId}>
+                          {b.start && (
+                            <BookingEntryLine start={b.start} end={b.end} name={b.name} startOnly={b.op === "clear"} />
+                          )}
+                          <BookingStateLine
+                            state={b.state}
+                            sm8Url={sm8Url}
+                            busy={bkBusy.has(b.rowId)}
+                            canPanel={b.op === "clear" || !!bookings?.canBook}
+                            onAct={(act) => bookingAct(act, { rowId: b.rowId, op: b.op, uuid: b.uuid, seed: seedOf(b) })}
+                          />
+                        </Fragment>
+                      ))}
+                    </Fragment>
+                  ))}
+                </div>
+              )}
+              {standing ? (
+                visitsAhead[0] && (
+                  <div className="wb2-nextv">
+                    <span className="wb2-sect">Next on site</span>
+                    <b>{bookingLabel(visitsAhead[0].start, visitsAhead[0].end)}</b>
+                    <em>{crewOf(visitsAhead[0].crew)}</em>
+                    {visitsAhead[0].crew.map((b) => (
+                      <Fragment key={b.uuid}>{entryState(b)}</Fragment>
+                    ))}
+                  </div>
+                )
+              ) : null}
+              {visitsAhead.length > 1 && (
+                <div className="wb2-jcsec">
+                  {visitsAhead.slice(1).map((v) => (
+                    <Fragment key={v.key}>
+                      <BookingEntryLine
+                        start={v.start}
+                        end={v.end}
+                        name={v.crew.map((b) => b.staffName ?? BOOKING_WORDS.fill.person).join(", ")}
+                        title={v.crew.length === 1 ? v.crew[0]!.staffTitle : null}
+                      />
+                      {v.crew.map((b) => (
+                        <Fragment key={b.uuid}>{entryState(b)}</Fragment>
+                      ))}
+                    </Fragment>
+                  ))}
+                </div>
+              )}
+              {/* SITE VISITS IS ONE SECTION — the next booking FIRST, in the
+                  accent, then every past visit under the same roof. */}
+              {!standing && detail?.nextBooking && (
+                <div className="wb2-nextv">
+                  <span className="wb2-sect">Next on site</span>
+                  <b>{bookingLabel(detail.nextBooking.start, detail.nextBooking.end)}</b>
+                  <em>
+                    {detail.nextBooking.staffName ?? "Nobody named"}
+                    {detail.nextBooking.staffName && detail.nextBooking.staffTitle && (
+                      <i className="wb2-jcrole">{`, ${detail.nextBooking.staffTitle}`}</i>
+                    )}
+                  </em>
+                </div>
+              )}
+              {detail?.queue && (
+                <div className="wb2-jcsec">
+                  <span className="wb2-sect">In queue</span>
+                  <p className="wb2-shtext">
+                    <b>{detail.queue.name}</b>
+                    {", "}
+                    {[
+                      detail.queue.staffName,
+                      detail.queue.expiry
+                        ? `until ${fmtAuWeekdayDayMonth(detail.queue.expiry)}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "waiting"}
+                  </p>
+                </div>
+              )}
+              {detail ? (
+                <JobVisitTasks
+                  job={cardId ?? row.id}
+                  visible={faceOn("visits")}
+                  onSite={detail.visits.map((v) => ({
+                    day: v.day,
+                    crewNode: visitCrew(v),
+                    length: visitLength(v),
+                    minutes: v.minutes,
+                    onSite: v.crew.some((c) => c.onSite),
+                  }))}
+                  ahead={daysAhead}
+                  workOrderDate={detail.workOrderDate}
+                  onSiteMinutes={detail.timeOnSite?.minutes ?? null}
+                  askAdd={taskAsk}
+                  onBook={
+                    bookings?.canBook && cardId
+                      ? () => {
+                          /* a Book in already open, half filled, is kept */
+                          if (!bookIn) openPanel(null);
+                          document.getElementById("jcsec-visits")?.scrollIntoView?.({ block: "start" });
+                        }
+                      : undefined
+                  }
+                  emptyWords={above.length > 0 || detail.queue ? "" : "Nobody's been on site yet, and nothing is booked."}
+                />
+              ) : (
+                <p className="int-hint">{loading ? "Reading it from the mirror…" : "Nobody's been on site yet, and nothing is booked."}</p>
+              )}
+            </>
+          )}
+    </>
+  );
+  const faceChecklist = (
+    <>
+          {panel(
+            "checklist",
+            <JobChecklistFace
+              loading={loading}
+              sm8={detail?.checklist ?? []}
+              items={picklist}
+              timezone={detail?.timezone ?? null}
+              manage={manage}
+              ready={!!cardId}
+              onTick={tickChecklistItem}
+              onRemove={removeChecklistItem}
+              onAdd={addChecklistItem}
+            />
+          )}
+    </>
+  );
+  const facePhotos = (
+    <>
+          {panel(
+            "photos",
+            <JobPhotosFace
+              photos={media ? media.photos : null}
+              loading={media === null}
+              truncated={!!media?.truncated}
+              mediaNote={mediaNote}
+              visits={detail?.visits ?? []}
+              unread={photosUnread}
+              favourites={favourites}
+              onOpen={(id) => setViewer({ kind: "photos", id })}
+              onStar={toggleFavourite}
+            />
+          )}
+    </>
+  );
+  const faceQuote = (
+    <>
+          {panel(
+            "quote",
+            /* the card keeps a small Quote face: ServiceM8's quote, where
+               HeyTiff's stands, and the way into the quote page (Isaac,
+               2026-10-05: "it should have opened up the proper quote screen
+               not a section below"); for everyone on the Workboard */
+            <JobQuoteCard
+              job={cardId ?? row.id}
+              visible={faceOn("quote")}
+              sm8={sm8QuoteOf({
+                documents: media?.documents ?? null,
+                sentOn: detail?.quoteSentOn ?? null,
+                moneyVisible,
+                family,
+                rowValueCents: money?.valueCents ?? null,
+              })}
+              onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+            />
+          )}
+    </>
+  );
+  const faceDocuments = (
+    <>
+          {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,
+              2026-10-02: "compliance is supposed to sit underneath files").
+              One face, told which part it holds; a tick to send carries
+              across both. */}
+          {(["documents", "compliance"] as const).map((key) => (
+            <Fragment key={key}>
+              {panel(
+                key,
+                <JobDocumentsFace
+                  part={key === "documents" ? "files" : "compliance"}
+                  documents={media ? media.documents : null}
+                  elsewhere={media ? media.elsewhere : null}
+                  designs={detail?.designs ?? []}
+                  swms={swms}
+                  swmsFailed={swmsFailed}
+                  canCreateSwms={!!cardId}
+                  /* a SWMS is a before-work document: once ServiceM8 has the job
+                     finished, nobody is asked to sign one and the bell won't ring */
+                  swmsClosed={SWMS_CLOSED.has(detail?.status ?? "")}
+                  loading={media === null}
+                  truncated={!!media?.truncated}
+                  onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+                  onUpload={cardId ? uploadDocument : undefined}
+                  onRemove={removeDocument}
+                  onCreateSwms={() => setSwmsWizard({ revise: null })}
+                  onOpenSwms={(s) => setViewer({ kind: "page", item: swmsPaper(s.versionId) })}
+                  onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
+                  certificates={certs}
+                  certificatesFailed={certsFailed}
+                  onCreateCertificate={cardId ? () => setCertWizard({ reissue: null }) : undefined}
+                  onOpenCertificate={(c) => setViewer({ kind: "page", item: certPaper(c.versionId) })}
+                  onReissueCertificate={(versionId) => setCertWizard({ reissue: versionId })}
+                  onDeleteCertificate={removeCertificate}
+                  papers={papers ? papers.papers : null}
+                  papersFailed={papersFailed}
+                  mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
+                  today={todayInAu()}
+                  picked={papers?.may.send ? picked : undefined}
+                  onPick={papers?.may.send ? tick : undefined}
+                  onLoadChoices={cardId ? () => readComplianceChoices(cardId) : undefined}
+                  onAddPapers={cardId ? addPapers : undefined}
+                  onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
+                  onRemovePaper={removePaper}
+                  onRenewPaper={renewPaper}
+                  sends={sm8Read?.sends ?? null}
+                  sendHold={sm8Read?.hold ?? null}
+            />
+              )}
+            </Fragment>
+          ))}
+    </>
+  );
+
+  /* What sits under the faces: the send row, and the naming row while a
+     project is being named. */
+  const footer = (
+    <>
+        {/* SENDING WHAT'S TICKED — the card's footer, under the scrolling body,
+            so the list keeps scrolling above it. Only on the face the ticks
+            are on, and never over the naming row. */}
+        {(faceOn("documents") || faceOn("compliance")) && !naming && cardId && papers?.may.send && (pickedList.length > 0 || writing) && (
+          <DocumentsSend
+            picked={pickedList}
+            writing={writing}
+            onWriting={setWriting}
+            onLoadDraft={() => readEmailDraft(cardId)}
+            onSend={sendDocuments}
+            sm8={sm8Read?.send ?? null}
+            sm8Note={sm8Note}
+            onSendToSm8={sendToServiceM8}
+          />
+        )}
+
+        {manage && naming && (
+          <div className="wb2-shft">
+            <input
+              className="wb2-fi"
+              autoFocus
+              value={name}
+              placeholder={row.clientName ?? "Project name"}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") makeProject();
+                if (e.key === "Escape") {
+                  /* Cancels the naming, not the card: a key taken here is
+                     one the overlay stack leaves alone. */
+                  e.preventDefault();
+                  setNaming(false);
+                }
+              }}
+              aria-label="Name the project"
+            />
+            <button className="pbtn" disabled={busy} onClick={makeProject}>
+              <Icon name="check" size={15} />
+              Create it
+            </button>
+            <button className="pbtn ghost" disabled={busy} onClick={() => setNaming(false)}>
+              Cancel
+            </button>
+          </div>
+        )}
+    </>
+  );
+
+  /* The dialogs over the job, in its own portal (a card) or in one of
+     their own (the page). */
+  const dialogs = (
+    <>
+      {/* Over the card, inside the SAME portal — a modal on a modal that
+          portals separately is how a scrim ends up above the thing it dims. */}
+      {editingCustomer && cardId && (
+        <JobCustomerDialog jobUuid={cardId} onClose={() => setEditingCustomer(false)} onSaved={onToast} />
+      )}
+      {openClaimRow && (
+        <JobClaimModal
+          key={openClaimRow.remoteId}
+          claim={openClaimRow}
+          parentNumber={cardNumber}
+          onClose={() => setOpenClaim(null)}
+        />
+      )}
+
+      {/* The SWMS wizard — same portal, over the card. Keyed by what it opened
+          for, so a revision never inherits a new SWMS's half-made choices. */}
+      {swmsWizard && cardId && (
+        <SwmsWizard
+          key={`${cardId}:${swmsWizard.revise ?? "new"}`}
+          jobUuid={cardId}
+          reviseVersionId={swmsWizard.revise}
+          onClose={() => setSwmsWizard(null)}
+          onIssued={reloadSwms}
+          onOpen={(versionId) => {
+            setSwmsWizard(null);
+            setViewer({ kind: "page", item: swmsPaper(versionId) });
+          }}
+          onSignOn={(versionId) => router.push(`/dashboard/swms/${versionId}`)}
+        />
+      )}
+
+      {/* The certificate wizard — the same portal, over the card, keyed like
+          the SWMS's so a reissue never inherits a new one's half-made answers. */}
+      {certWizard && cardId && (
+        <CertWizard
+          key={`${cardId}:${certWizard.reissue ?? "new"}`}
+          jobUuid={cardId}
+          reviseVersionId={certWizard.reissue}
+          onClose={() => setCertWizard(null)}
+          onIssued={certIssued}
+          onEmail={(documentId) => void emailCertificate(documentId)}
+          onSendToSm8={(documentId, fileName) => void sendCertificateToSm8(documentId, fileName)}
+          onOpen={(versionId) => {
+            setCertWizard(null);
+            setViewer({ kind: "page", item: certPaper(versionId) });
+          }}
+          canSend={!!papers?.may.send}
+          onFilesChanged={() =>
+            void readJobFiles(cardId)
+              .then((fresh) => {
+                if (alive.current && fresh) setMedia(fresh);
+              })
+              .catch(() => {})
+          }
+        />
+      )}
+
+      {viewer?.kind === "page" && (
+        <JobMediaViewer items={[viewer.item]} index={0} favourites={null} onNav={() => {}} onClose={() => setViewer(null)} />
+      )}
+
+      {/* A licence or certificate on the job — its own pages, in the same
+          viewer as the job's other paper. */}
+      {viewer?.kind === "papers" &&
+        (() => {
+          const paper = papers?.papers.find((p) => p.id === viewer.id);
+          const pages = paper ? paperPages(paper) : [];
+          if (pages.length === 0) return null;
+          return (
+            <JobMediaViewer
+              items={pages}
+              index={Math.min(viewer.index, pages.length - 1)}
+              favourites={null}
+              onNav={(i) => setViewer({ kind: "papers", id: viewer.id, index: i })}
+              onClose={() => setViewer(null)}
+            />
+          );
+        })()}
+
+      {/* The shared viewer — same portal, same law as the claim modal. */}
+      {viewer &&
+        viewer.kind !== "page" &&
+        viewer.kind !== "papers" &&
+        media &&
+        (() => {
+          /* THE VIEWER CARRIES ONLY WHAT IT CAN SHOW. A video's bytes stay
+             in ServiceM8 by charter, so it is a plate in the mosaic and not
+             a stop on the arrow keys — otherwise "next" lands on a frame
+             promising a file that is never coming. */
+          const items =
+            viewer.kind === "photos"
+              ? media.photos.filter((p) => p.kind !== "video")
+              : media.documents.filter((d) => d.remoteId === viewer.id);
+          const index = items.findIndex((i) => i.remoteId === viewer.id);
+          if (index < 0) return null;
+          return (
+            <JobMediaViewer
+              items={items}
+              index={index}
+              /* Paper has no star: the showcase is a gallery of the work. */
+              favourites={viewer.kind === "photos" ? favourites : null}
+              onStar={viewer.kind === "photos" ? toggleFavourite : undefined}
+              onNav={(i) =>
+                setViewer({ kind: viewer.kind, id: items[i]?.remoteId ?? viewer.id })
+              }
+              onClose={() => setViewer(null)}
+            />
+          );
+        })()}
+    </>
+  );
+
+  /* ABOVE THE FACES, ON EVERY ONE. The strip outranks the row for the same
+     reason it outranks the summary: what needs you beats where it's up to.
+     It draws nothing at all on a quiet job. */
+  const attentionStrip = attention ? (
+            <JobAttentionStrip
+              attention={attention}
+              assignable={record?.assignable ?? []}
+              busy={busy}
+              onClearFlag={clearJobFlag}
+              onOpenNote={() => {
+                setFlagFocus(true);
+                go("diary");
+              }}
+              onMakeTask={makeTaskFromNote}
+              onDismissNote={answerNote}
+              sm8={
+                record?.flags
+                  ? {
+                      flags,
+                      canReply: !!notesSm8 && (sender?.state === "ready" || sender?.state === "confirm"),
+                      canMark: !!notesSm8,
+                      onReply: (noteUuid) => {
+                        setReplyFor(noteUuid);
+                        go("diary");
+                      },
+                      onMarkDone: (noteUuid) => markDone(noteUuid),
+                      marking: flagsBusy,
+                    }
+                  : null
+              }
+            />
+  ) : null;
+
+  if (page) {
+    /* THE JOB'S PAGE (v2, step 5): the head, then the section's faces. */
+    const address = (detail?.address ?? detail?.geoLine ?? row.suburb ?? "")
+      .split(/\s*\n\s*/)
+      .filter(Boolean)
+      .join(", ");
+    const status = (cardStatus ?? "").trim();
+    /* "Work Order" as a sentence says it: "Work order" */
+    const kind = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : "";
+    const facts = [kind, cardNumber ? `Job ${cardNumber}` : "", address].filter(Boolean).join(", ");
+    /* WHAT'S IN EACH SECTION, once the card knows it (rule 31): the days on
+       site and the visits booked, the checklist's lines, the photos and the
+       files. Nothing is said while it is still being read. */
+    const counts: Partial<Record<JobSection, number>> = {
+      ...(detail ? { visits: detail.visits.length + (standing ? visitsAhead.length : detail.nextBooking ? 1 : 0) } : {}),
+      ...(detail && picklist ? { checklist: detail.checklist.length + picklist.length } : {}),
+      ...(media ? { photos: media.photos.length, documents: media.documents.length } : {}),
+    };
+    const sections = sectionsFor(moneyVisible).map((key) => ({ key, label: SECTION_LABEL[key], count: counts[key] }));
+    /* ACTIONS (rule 53): only what's done to the job itself. Its stage
+       first, then what the page does (pin it, copy the link), then the
+       card's own two once-per-job acts for a manager. Nothing here ends a
+       job: ServiceM8 does that. */
+    const actionItems: MenuItem[] = [
+      ...(offerWorkOrder && wo === null ? [{ key: "work-order", label: "Make it a work order" }] : []),
+      ...page.actions,
+      ...(manage
+        ? [
+            { key: "project", label: "Create a project from this job", disabled: busy },
+            { key: "agreement", label: "Create a maintenance agreement", disabled: busy },
+          ]
+        : []),
+    ];
+    const actionPick = (key: string) => {
+      if (key === "work-order") setWo("ask");
+      else if (key === "project") {
+        setName(row.clientName ?? "");
+        setNaming(true);
+      } else if (key === "agreement") onCreateAgreement(row, detail);
+      else page.onAction(key);
+    };
+    return (
+      <>
+        <div className="wb2-sheet jc jp-sheet">
+          <JobPageHead
+            name={detail?.clientName ?? row.clientName ?? "Unnamed client"}
+            hue={jobHue(categoryColour, status.toLowerCase() === "unsuccessful")}
+            facts={facts}
+            stage={stageWord(steps)}
+            sm8Href={sm8Href}
+            add={{ items: addItems, onPick: addPick, disabled: !cardId, onReach: askQuote }}
+            actions={{ items: actionItems, onPick: actionPick }}
+            sections={sections}
+            section={page.section}
+            onSection={(key) => go(SECTION_FACES[key as JobSection][0]!)}
+          />
+          {offerWorkOrder && (wo === "ask" || wo === "busy") && (
+            <div className="jp-ask" role="group" aria-label="Make it a work order">
+              <span>Make it a Work Order in ServiceM8?</span>
+              <Button kind="main" size={32} disabled={wo === "busy"} onClick={() => void pressWorkOrder()}>
+                {wo === "busy" ? "Making it a work order" : "Make it a work order"}
+              </Button>
+              {wo === "ask" && (
+                <Button kind="second" size={32} onClick={() => setWo(null)}>
+                  Keep it a quote
+                </Button>
+              )}
+            </div>
+          )}
+          {attentionStrip}
+          {here && <p className="wb2-here">{here}</p>}
+          <div className="wb2-jcbody jp-body" role="tabpanel" aria-labelledby={`jp-tab-${page.section}`}>
+            {err && <div className="wb2-sherr">{err}</div>}
+            {/* OVERVIEW: the stages line (6-revisions: it lives on Overview
+                only), the summary and the diary, and the customer beside */}
+            <div className="jp-over" hidden={page.section !== "overview"}>
+              <JobProgressLine steps={steps} open={step} onOpen={openStep} />
+              <div className="jp-overgrid">
+                <div className="jp-overmain">
+                  {faceSummary}
+                  {faceDiary}
+                </div>
+                <div className="jp-overside">
+                  <JobCustomer detail={detail} onEdit={customerEdit && cardId ? () => setEditingCustomer(true) : undefined} />
+                  {/* a tracked job wears its board, as the card's chip did */}
+                  {row.tracked && (
+                    <Button kind="quiet" size={32} onClick={() => onOpenTracked(row.tracked!)}>
+                      {row.tracked.kind === "visit" ? "Open it on the maintenance board" : "Open it on the projects board"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+            {faceMoney}
+            {faceVisits}
+            {faceChecklist}
+            {facePhotos}
+            {faceQuote}
+            {faceDocuments}
+          </div>
+          {footer}
+        </div>
+        {/* the dialogs portal, as the card's do: the page's own stacking
+            context would trap a fixed layer under the frame */}
+        {hydrated && createPortal(dialogs, document.body)}
+      </>
+    );
+  }
+
   return createPortal(
     <>
+      <OverlayWhileOpen of={sheet} onEscape={onEscape} />
       <div className="wb2-scrim" onClick={onClose} />
       <aside
         ref={sheet}
@@ -1860,35 +2699,7 @@ export function JobSheet({
           {/* ABOVE THE TABS, ON EVERY FACE. The strip outranks the row for
               the same reason it outranks the summary: what needs you beats
               where it's up to. It draws nothing at all on a quiet job. */}
-          {attention && (
-            <JobAttentionStrip
-              attention={attention}
-              assignable={record?.assignable ?? []}
-              busy={busy}
-              onClearFlag={clearJobFlag}
-              onOpenNote={() => {
-                setFlagFocus(true);
-                go("diary");
-              }}
-              onMakeTask={makeTaskFromNote}
-              onDismissNote={answerNote}
-              sm8={
-                record?.flags
-                  ? {
-                      flags,
-                      canReply: !!notesSm8 && (sender?.state === "ready" || sender?.state === "confirm"),
-                      canMark: !!notesSm8,
-                      onReply: (noteUuid) => {
-                        setReplyFor(noteUuid);
-                        go("diary");
-                      },
-                      onMarkDone: (noteUuid) => markDone(noteUuid),
-                      marking: flagsBusy,
-                    }
-                  : null
-              }
-            />
-          )}
+          {attentionStrip}
 
           <JobProgressLine steps={steps} open={step} onOpen={openStep} />
         </div>
@@ -1918,478 +2729,14 @@ export function JobSheet({
 
         <div className="wb2-jcbody">
           {err && <div className="wb2-sherr">{err}</div>}
-
-          {panel(
-            "summary",
-            <JobSummaryFace
-              loading={loading}
-              detail={detail}
-              row={row}
-              summary={summary}
-              pending={summaryPending}
-              category={categoryName ? { name: categoryName, colour: categoryColour } : null}
-            />
-          )}
-
-          {panel(
-            "diary",
-            <JobDiaryFace
-              focusFlagged={flagFocus}
-              entries={story}
-              loading={loading && !detail}
-              moneyVisible={moneyVisible}
-              onOpenClaim={setOpenClaim}
-              onPhotos={() => go("photos")}
-              /* The pen waits for the card to know WHICH job it is — a note
-                 saved against a guess is worse than a note that waits a
-                 beat. */
-              onWrite={cardId ? writeNote : undefined}
-              onRemoveNote={unwriteNote}
-              /* notes to ServiceM8: absent where the deployment sends none */
-              sender={sender}
-              notesSm8={notesSm8}
-              flags={flags}
-              replyFor={replyFor}
-              onReplyShown={() => setReplyFor(null)}
-              onReply={replyNote}
-              onSendCopy={sendCopy}
-              onTakeBack={takeBack}
-              onMarkDone={markDone}
-              onUndoDone={undoDone}
-              flagsBusy={flagsBusy}
-              onConfirm={confirmLink}
-            />
-          )}
-
-          {moneyVisible &&
-            panel(
-              "money",
-              (() => {
-                /* MONEY READS ONCE, and it reads here. The block waits for
-                   the family read so a family-billed parent never paints its
-                   netted total and then corrects itself. */
-                const block =
-                  record !== undefined || recordFailed ? (
-                    <JobMoneyBlock
-                      family={family}
-                      unavailable={recordFailed}
-                      money={money}
-                      ledgerPaidCents={
-                        record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0
-                      }
-                      statusLabel={row.statusLabel}
-                      focusRemoteId={focus}
-                      onOpenClaim={setOpenClaim}
-                      deposit={(() => {
-                        const status = (detail?.status ?? "").trim().toLowerCase();
-                        const started = (detail?.visits.length ?? 0) > 0 || status === "completed";
-                        /* asked while a deposit could still be wanted: no
-                           deposit invoice, work not started, not declined */
-                        const ask = !!family && family.claims[0]?.stage !== "Deposit" && !started && status !== "unsuccessful";
-                        return noDeposit || ask
-                          ? { noDeposit, busy: depositBusy, error: depositError, onSet: (on: boolean) => void tickNoDeposit(on) }
-                          : null;
-                      })()}
-                      billTo={(() => {
-                        const name = detail?.clientName ?? row.clientName;
-                        if (!name) return null;
-                        const c = detail?.contacts.find((x) => (x.type ?? "").trim().toLowerCase() === "billing");
-                        return { name, contact: c ? { name: c.name, email: c.email } : null };
-                      })()}
-                    />
-                  ) : (
-                    <p className="int-hint">Reading the figures…</p>
-                  );
-
-                /* A BLOCK THAT HAS OPENED ITS LEDGER KEEPS THE FULL WIDTH.
-                   The claim rows are a table — name, what it says about
-                   itself, amount, chip — and in the left column each one
-                   wrapped to four lines. The same test the block itself
-                   applies before it opens the ledger. */
-                const ledgerOpen = family !== null && family.isFamily && family.claims.length > 1;
-
-                const paidSection =
-                  record?.ledger && record.ledger.payments.length > 0 ? (
-                    <div className="wb2-shsect">
-                      <span className="wb2-sect">
-                        What&apos;s been paid —{" "}
-                        {(() => {
-                          const paid = paymentsTotalCents(record.ledger.payments);
-                          /* COLLECTION IS SAID ONCE, and the block above says
-                             it. On a family this figure is measured against
-                             THIS row's own netted total, so no verdict. */
-                          if (record.family?.isFamily) return fmtAud(paid);
-                          const state = collectionAgainst(paid, money?.valueCents ?? null);
-                          if (state === "paid") return `${fmtAud(paid)}, paid in full`;
-                          if (state === "part")
-                            return `${fmtAud(paid)} of ${fmtAud(money!.valueCents!)}`;
-                          return fmtAud(paid);
-                        })()}
-                      </span>
-                      {record.ledger.payments.map((p) => (
-                        <div className="wb2-mline" key={p.remoteId}>
-                          <b>{p.method ?? "Payment"}</b>
-                          <em>
-                            {[
-                              p.isDeposit ? "deposit" : null,
-                              p.takenOn ? fmtAuWeekdayDayMonth(p.takenOn) : null,
-                              p.takenBy,
-                            ]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </em>
-                          <span>{p.amountCents !== null ? fmtAud(p.amountCents) : "—"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null;
-
-                /* PARTIAL-INVOICE ROWS LEAVE THIS LIST. "Partial invoice
-                   #2380A × −1" is ServiceM8 subtracting one of its own
-                   clones out of the parent — bookkeeping, not something
-                   that went on the job. It belongs to the block above,
-                   where it IS a claim. */
-                const goodsSection =
-                  materials.length > 0 ? (
-                    <div className="wb2-shsect">
-                      <span className="wb2-sect">What went on the job</span>
-                      {materials.map((m) => (
-                        <div className="wb2-mline" key={m.remoteId}>
-                          <b>{m.name}</b>
-                          <em>{m.quantity !== null ? `× ${fmtQuantity(m.quantity)}` : ""}</em>
-                          <span>{m.lineCents !== null ? fmtAud(m.lineCents) : "—"}</span>
-                        </div>
-                      ))}
-                      {(() => {
-                        const total = materialsTotalCents(materials);
-                        const mixed = materialsTaxMixed(materials);
-                        /* No total when a line couldn't be read, and none
-                           when the lines disagree about tax. */
-                        if (mixed)
-                          return (
-                            <p className="int-hint">
-                              These lines mix tax-inclusive and tax-exclusive prices, so they
-                              don&apos;t add up to one figure here — ServiceM8&apos;s invoice is
-                              the total.
-                            </p>
-                          );
-                        if (total === null)
-                          return (
-                            <p className="int-hint">
-                              Some lines aren&apos;t priced, so there&apos;s no total to show.
-                            </p>
-                          );
-                        return (
-                          <div className="wb2-mline total">
-                            <b>{materials[0].taxInclusive ? "Total inc GST" : "Total ex GST"}</b>
-                            <em />
-                            <span>{fmtAud(total)}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  ) : null;
-
-                /* THE FACE IS TWO COLUMNS (Isaac, 2026-09-10): the money on
-                   the left — the value, its collection row, what's been paid
-                   — and what went on the job on the right. The block used to
-                   run the full width with the figure top-right and the
-                   sentence bottom-left, over a grid with one column empty on
-                   any job with nothing paid. With nothing to stand beside,
-                   whichever column is there runs the full width rather than
-                   leaving the other half blank, which was the fault. */
-                const left = !ledgerOpen || paidSection !== null;
-                const twoUp = left && goodsSection !== null;
-                return (
-                  <>
-                    {ledgerOpen && block}
-                    {(left || goodsSection !== null) && (
-                      <div className={"wb2-jcgrid money" + (twoUp ? "" : " one")}>
-                        {left && (
-                          <div className="wb2-jcol">
-                            {!ledgerOpen && block}
-                            {paidSection}
-                          </div>
-                        )}
-                        {goodsSection}
-                      </div>
-                    )}
-                  </>
-                );
-              })()
-            )}
-
-          {panel(
-            "visits",
-            <>
-              {/* CHECK IN / CHECK OUT (Isaac, 2026-10-02): the record of who
-                  was on site, over ServiceM8's check-ins, which miss most
-                  days. One press; checking in here checks out of anywhere
-                  else. */}
-              {cardId && mine !== undefined && (
-                <div className={"jcl-check" + (mine?.jobUuid === cardId ? " on" : mine ? "" : " bare")}>
-                  {mine?.jobUuid === cardId ? (
-                    <>
-                      <span>{`On site since ${fmtAuTime(new Date(mine.since))}`}</span>
-                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(true)}>
-                        Check out
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {mine && (
-                        <span>{`Checked in at ${mine.jobNumber ? `#${mine.jobNumber}` : "another job"} since ${fmtAuTime(new Date(mine.since))}`}</span>
-                      )}
-                      <button type="button" className="pbtn" disabled={checking} onClick={() => pressCheck(false)}>
-                        {mine ? "Check in here" : "Check in"}
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-              {/* BOOK IN (two-way phase 3): the door, or its panel in place,
-                  then every press on the job whose booking isn't standing
-                  on the list below — newest first, a status change said
-                  once above its bookings. Nothing of it where the
-                  deployment books nothing. */}
-              {bookings?.canBook && cardId && !bookIn && (
-                <div className="wb2-jcattsave">
-                  <button type="button" className="pbtn" onClick={() => openPanel(null)}>
-                    {BOOKING_WORDS.panel.book}
-                  </button>
-                </div>
-              )}
-              {bookings?.canBook && cardId && bookIn && (
-                <BookInPanel
-                  key={bookIn.n}
-                  jobUuid={cardId}
-                  number={detail?.jobNumber ?? row.number ?? null}
-                  zone={bookings.zone}
-                  seed={bookIn.seed}
-                  onDone={bookedIn}
-                  onCancel={() => setBookIn(null)}
-                />
-              )}
-              {above.length > 0 && (
-                <div className="wb2-jcsec">
-                  {above.map((v) => (
-                    <Fragment key={v.verbId}>
-                      {v.status?.state.text && (
-                        <div className="wb2-evmeta">
-                          <StateLine as="span" line={{ word: v.status.state.text, tone: v.status.state.tone }} />
-                        </div>
-                      )}
-                      {v.bookings.map((b) => (
-                        <Fragment key={b.rowId}>
-                          {b.start && (
-                            <BookingEntryLine start={b.start} end={b.end} name={b.name} startOnly={b.op === "clear"} />
-                          )}
-                          <BookingStateLine
-                            state={b.state}
-                            sm8Url={sm8Url}
-                            busy={bkBusy.has(b.rowId)}
-                            canPanel={b.op === "clear" || !!bookings?.canBook}
-                            onAct={(act) => bookingAct(act, { rowId: b.rowId, op: b.op, uuid: b.uuid, seed: seedOf(b) })}
-                          />
-                        </Fragment>
-                      ))}
-                    </Fragment>
-                  ))}
-                </div>
-              )}
-              {standing ? (
-                visitsAhead[0] && (
-                  <div className="wb2-nextv">
-                    <span className="wb2-sect">Next on site</span>
-                    <b>{bookingLabel(visitsAhead[0].start, visitsAhead[0].end)}</b>
-                    <em>{crewOf(visitsAhead[0].crew)}</em>
-                    {visitsAhead[0].crew.map((b) => (
-                      <Fragment key={b.uuid}>{entryState(b)}</Fragment>
-                    ))}
-                  </div>
-                )
-              ) : null}
-              {visitsAhead.length > 1 && (
-                <div className="wb2-jcsec">
-                  {visitsAhead.slice(1).map((v) => (
-                    <Fragment key={v.key}>
-                      <BookingEntryLine
-                        start={v.start}
-                        end={v.end}
-                        name={v.crew.map((b) => b.staffName ?? BOOKING_WORDS.fill.person).join(", ")}
-                        title={v.crew.length === 1 ? v.crew[0]!.staffTitle : null}
-                      />
-                      {v.crew.map((b) => (
-                        <Fragment key={b.uuid}>{entryState(b)}</Fragment>
-                      ))}
-                    </Fragment>
-                  ))}
-                </div>
-              )}
-              {/* SITE VISITS IS ONE SECTION — the next booking FIRST, in the
-                  accent, then every past visit under the same roof. */}
-              {!standing && detail?.nextBooking && (
-                <div className="wb2-nextv">
-                  <span className="wb2-sect">Next on site</span>
-                  <b>{bookingLabel(detail.nextBooking.start, detail.nextBooking.end)}</b>
-                  <em>
-                    {detail.nextBooking.staffName ?? "Nobody named"}
-                    {detail.nextBooking.staffName && detail.nextBooking.staffTitle && (
-                      <i className="wb2-jcrole">{`, ${detail.nextBooking.staffTitle}`}</i>
-                    )}
-                  </em>
-                </div>
-              )}
-              {detail?.queue && (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">In queue</span>
-                  <p className="wb2-shtext">
-                    <b>{detail.queue.name}</b>
-                    {", "}
-                    {[
-                      detail.queue.staffName,
-                      detail.queue.expiry
-                        ? `until ${fmtAuWeekdayDayMonth(detail.queue.expiry)}`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "waiting"}
-                  </p>
-                </div>
-              )}
-              {detail ? (
-                <JobVisitTasks
-                  job={cardId ?? row.id}
-                  visible={tab === "visits"}
-                  onSite={detail.visits.map((v) => ({
-                    day: v.day,
-                    crewNode: visitCrew(v),
-                    length: visitLength(v),
-                    minutes: v.minutes,
-                    onSite: v.crew.some((c) => c.onSite),
-                  }))}
-                  ahead={daysAhead}
-                  workOrderDate={detail.workOrderDate}
-                  onSiteMinutes={detail.timeOnSite?.minutes ?? null}
-                  askAdd={taskAsk}
-                  onBook={
-                    bookings?.canBook && cardId
-                      ? () => {
-                          /* a Book in already open, half filled, is kept */
-                          if (!bookIn) openPanel(null);
-                          document.getElementById("jcsec-visits")?.scrollIntoView?.({ block: "start" });
-                        }
-                      : undefined
-                  }
-                  emptyWords={above.length > 0 || detail.queue ? "" : "Nobody's been on site yet, and nothing is booked."}
-                />
-              ) : (
-                <p className="int-hint">{loading ? "Reading it from the mirror…" : "Nobody's been on site yet, and nothing is booked."}</p>
-              )}
-            </>
-          )}
-
-          {panel(
-            "checklist",
-            <JobChecklistFace
-              loading={loading}
-              sm8={detail?.checklist ?? []}
-              items={picklist}
-              timezone={detail?.timezone ?? null}
-              manage={manage}
-              ready={!!cardId}
-              onTick={tickChecklistItem}
-              onRemove={removeChecklistItem}
-              onAdd={addChecklistItem}
-            />
-          )}
-
-          {panel(
-            "photos",
-            <JobPhotosFace
-              photos={media ? media.photos : null}
-              loading={media === null}
-              truncated={!!media?.truncated}
-              mediaNote={mediaNote}
-              visits={detail?.visits ?? []}
-              unread={photosUnread}
-              favourites={favourites}
-              onOpen={(id) => setViewer({ kind: "photos", id })}
-              onStar={toggleFavourite}
-            />
-          )}
-
-          {panel(
-            "quote",
-            /* the card keeps a small Quote face: ServiceM8's quote, where
-               HeyTiff's stands, and the way into the quote page (Isaac,
-               2026-10-05: "it should have opened up the proper quote screen
-               not a section below"); for everyone on the Workboard */
-            <JobQuoteCard
-              job={cardId ?? row.id}
-              visible={tab === "quote"}
-              sm8={sm8QuoteOf({
-                documents: media?.documents ?? null,
-                sentOn: detail?.quoteSentOn ?? null,
-                moneyVisible,
-                family,
-                rowValueCents: money?.valueCents ?? null,
-              })}
-              onOpenPaper={(item) => setViewer({ kind: "paper", id: item.remoteId })}
-            />
-          )}
-
-          {/* FILES AND COMPLIANCE, TWO SECTIONS ON THE RAIL (Isaac,
-              2026-10-02: "compliance is supposed to sit underneath files").
-              One face, told which part it holds; a tick to send carries
-              across both. */}
-          {(["documents", "compliance"] as const).map((key) => (
-            <Fragment key={key}>
-              {panel(
-                key,
-                <JobDocumentsFace
-                  part={key === "documents" ? "files" : "compliance"}
-                  documents={media ? media.documents : null}
-                  elsewhere={media ? media.elsewhere : null}
-                  designs={detail?.designs ?? []}
-                  swms={swms}
-                  swmsFailed={swmsFailed}
-                  canCreateSwms={!!cardId}
-                  /* a SWMS is a before-work document: once ServiceM8 has the job
-                     finished, nobody is asked to sign one and the bell won't ring */
-                  swmsClosed={SWMS_CLOSED.has(detail?.status ?? "")}
-                  loading={media === null}
-                  truncated={!!media?.truncated}
-                  onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
-                  onUpload={cardId ? uploadDocument : undefined}
-                  onRemove={removeDocument}
-                  onCreateSwms={() => setSwmsWizard({ revise: null })}
-                  onOpenSwms={(s) => setViewer({ kind: "page", item: swmsPaper(s.versionId) })}
-                  onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
-                  certificates={certs}
-                  certificatesFailed={certsFailed}
-                  onCreateCertificate={cardId ? () => setCertWizard({ reissue: null }) : undefined}
-                  onOpenCertificate={(c) => setViewer({ kind: "page", item: certPaper(c.versionId) })}
-                  onReissueCertificate={(versionId) => setCertWizard({ reissue: versionId })}
-                  onDeleteCertificate={removeCertificate}
-                  papers={papers ? papers.papers : null}
-                  papersFailed={papersFailed}
-                  mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
-                  today={todayInAu()}
-                  picked={papers?.may.send ? picked : undefined}
-                  onPick={papers?.may.send ? tick : undefined}
-                  onLoadChoices={cardId ? () => readComplianceChoices(cardId) : undefined}
-                  onAddPapers={cardId ? addPapers : undefined}
-                  onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
-                  onRemovePaper={removePaper}
-                  onRenewPaper={renewPaper}
-                  sends={sm8Read?.sends ?? null}
-                  sendHold={sm8Read?.hold ?? null}
-            />
-              )}
-            </Fragment>
-          ))}
-
+          {faceSummary}
+          {faceDiary}
+          {faceMoney}
+          {faceVisits}
+          {faceChecklist}
+          {facePhotos}
+          {faceQuote}
+          {faceDocuments}
           {/* No Actions face. The once-per-job acts live behind the band's
               ⋯; the naming row below is the only floor furniture, and only
               while a project is being named — and the send row, only while
@@ -2397,161 +2744,10 @@ export function JobSheet({
         </div>
         </div>
 
-        {/* SENDING WHAT'S TICKED — the card's footer, under the scrolling body,
-            so the list keeps scrolling above it. Only on the face the ticks
-            are on, and never over the naming row. */}
-        {(tab === "documents" || tab === "compliance") && !naming && cardId && papers?.may.send && (pickedList.length > 0 || writing) && (
-          <DocumentsSend
-            picked={pickedList}
-            writing={writing}
-            onWriting={setWriting}
-            onLoadDraft={() => readEmailDraft(cardId)}
-            onSend={sendDocuments}
-            sm8={sm8Read?.send ?? null}
-            sm8Note={sm8Note}
-            onSendToSm8={sendToServiceM8}
-          />
-        )}
-
-        {manage && naming && (
-          <div className="wb2-shft">
-            <input
-              className="wb2-fi"
-              autoFocus
-              value={name}
-              placeholder={row.clientName ?? "Project name"}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") makeProject();
-                if (e.key === "Escape") {
-                  /* Cancels the naming, not the card: a key taken here is
-                     one the overlay stack leaves alone. */
-                  e.preventDefault();
-                  setNaming(false);
-                }
-              }}
-              aria-label="Name the project"
-            />
-            <button className="pbtn" disabled={busy} onClick={makeProject}>
-              <Icon name="check" size={15} />
-              Create it
-            </button>
-            <button className="pbtn ghost" disabled={busy} onClick={() => setNaming(false)}>
-              Cancel
-            </button>
-          </div>
-        )}
+        {footer}
       </aside>
 
-      {/* Over the card, inside the SAME portal — a modal on a modal that
-          portals separately is how a scrim ends up above the thing it dims. */}
-      {editingCustomer && cardId && (
-        <JobCustomerDialog jobUuid={cardId} onClose={() => setEditingCustomer(false)} onSaved={onToast} />
-      )}
-      {openClaimRow && (
-        <JobClaimModal
-          key={openClaimRow.remoteId}
-          claim={openClaimRow}
-          parentNumber={cardNumber}
-          onClose={() => setOpenClaim(null)}
-        />
-      )}
-
-      {/* The SWMS wizard — same portal, over the card. Keyed by what it opened
-          for, so a revision never inherits a new SWMS's half-made choices. */}
-      {swmsWizard && cardId && (
-        <SwmsWizard
-          key={`${cardId}:${swmsWizard.revise ?? "new"}`}
-          jobUuid={cardId}
-          reviseVersionId={swmsWizard.revise}
-          onClose={() => setSwmsWizard(null)}
-          onIssued={reloadSwms}
-          onOpen={(versionId) => {
-            setSwmsWizard(null);
-            setViewer({ kind: "page", item: swmsPaper(versionId) });
-          }}
-          onSignOn={(versionId) => router.push(`/dashboard/swms/${versionId}`)}
-        />
-      )}
-
-      {/* The certificate wizard — the same portal, over the card, keyed like
-          the SWMS's so a reissue never inherits a new one's half-made answers. */}
-      {certWizard && cardId && (
-        <CertWizard
-          key={`${cardId}:${certWizard.reissue ?? "new"}`}
-          jobUuid={cardId}
-          reviseVersionId={certWizard.reissue}
-          onClose={() => setCertWizard(null)}
-          onIssued={certIssued}
-          onEmail={(documentId) => void emailCertificate(documentId)}
-          onSendToSm8={(documentId, fileName) => void sendCertificateToSm8(documentId, fileName)}
-          onOpen={(versionId) => {
-            setCertWizard(null);
-            setViewer({ kind: "page", item: certPaper(versionId) });
-          }}
-          canSend={!!papers?.may.send}
-          onFilesChanged={() =>
-            void readJobFiles(cardId)
-              .then((fresh) => {
-                if (alive.current && fresh) setMedia(fresh);
-              })
-              .catch(() => {})
-          }
-        />
-      )}
-
-      {viewer?.kind === "page" && (
-        <JobMediaViewer items={[viewer.item]} index={0} favourites={null} onNav={() => {}} onClose={() => setViewer(null)} />
-      )}
-
-      {/* A licence or certificate on the job — its own pages, in the same
-          viewer as the job's other paper. */}
-      {viewer?.kind === "papers" &&
-        (() => {
-          const paper = papers?.papers.find((p) => p.id === viewer.id);
-          const pages = paper ? paperPages(paper) : [];
-          if (pages.length === 0) return null;
-          return (
-            <JobMediaViewer
-              items={pages}
-              index={Math.min(viewer.index, pages.length - 1)}
-              favourites={null}
-              onNav={(i) => setViewer({ kind: "papers", id: viewer.id, index: i })}
-              onClose={() => setViewer(null)}
-            />
-          );
-        })()}
-
-      {/* The shared viewer — same portal, same law as the claim modal. */}
-      {viewer &&
-        viewer.kind !== "page" &&
-        viewer.kind !== "papers" &&
-        media &&
-        (() => {
-          /* THE VIEWER CARRIES ONLY WHAT IT CAN SHOW. A video's bytes stay
-             in ServiceM8 by charter, so it is a plate in the mosaic and not
-             a stop on the arrow keys — otherwise "next" lands on a frame
-             promising a file that is never coming. */
-          const items =
-            viewer.kind === "photos"
-              ? media.photos.filter((p) => p.kind !== "video")
-              : media.documents.filter((d) => d.remoteId === viewer.id);
-          const index = items.findIndex((i) => i.remoteId === viewer.id);
-          if (index < 0) return null;
-          return (
-            <JobMediaViewer
-              items={items}
-              index={index}
-              /* Paper has no star: the showcase is a gallery of the work. */
-              favourites={viewer.kind === "photos" ? favourites : null}
-              onStar={viewer.kind === "photos" ? toggleFavourite : undefined}
-              onNav={(i) =>
-                setViewer({ kind: viewer.kind, id: items[i]?.remoteId ?? viewer.id })
-              }
-              onClose={() => setViewer(null)}
-            />
-          );
-        })()}
+      {dialogs}
     </>,
     document.body
   );

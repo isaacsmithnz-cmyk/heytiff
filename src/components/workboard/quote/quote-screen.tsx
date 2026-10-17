@@ -8,7 +8,8 @@ import { Button } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
 import { Dot } from "@/components/parts/state";
 import { SectionTabs, type TabItem } from "@/components/parts/tabs";
-import { useRecords } from "@/components/records/records-context";
+import { jobPageHref } from "@/lib/shell/links";
+import { SECTION_LABEL, sectionsFor } from "@/lib/jobs/job-sections";
 import { Waiting } from "@/components/ui/orb";
 import { jobHue } from "@/lib/workboard/job-hue";
 import { proposalTitle } from "@/lib/quotes/proposal";
@@ -19,7 +20,6 @@ import { JobMediaViewer } from "../board/job-media-viewer";
 import { JobQuoteSend } from "../board/job-quote-send";
 import { useQuotePrice } from "./quote-parts";
 import { QuoteLinesFace, type QuoteStage } from "./quote-lines-face";
-import type { JobSheetTab } from "../board/job-sheet";
 import { ToastHost, useBoardToasts } from "../board/toasts";
 import { sm8QuoteOf } from "./sm8-quote-of";
 
@@ -36,8 +36,8 @@ import { sm8QuoteOf } from "./sm8-quote-of";
    ServiceM8 and ServiceM8's own quote, its price read afresh whenever the
    quote changes.
 
-   The job isn't a page yet, so each other tab opens the job's card on that
-   face, over this page, through the record host.
+   Each other tab goes to the job's own page on that section (v2, step 5);
+   Billing is there only for whoever sees the money, as on the job's page.
 
    EVERY QUOTE IS BUILT ON ITS LINES (retiring the old builder, Isaac,
    2026-10-12): one still on the old builder is switched to them as it's
@@ -51,17 +51,6 @@ import { sm8QuoteOf } from "./sm8-quote-of";
 const MAX_QUOTE_ROUNDS = 4;
 
 type Detail = NonNullable<Awaited<ReturnType<typeof readMirrorJob>>["detail"]>;
-
-/** The job's sections (rule 31), each with the card's face it opens on. */
-const SECTIONS: readonly { key: string; label: string; face: JobSheetTab }[] = [
-  { key: "overview", label: "Overview", face: "summary" },
-  { key: "quote", label: "Quote", face: "quote" },
-  { key: "visits", label: "Visits", face: "visits" },
-  { key: "checklist", label: "Checklist", face: "checklist" },
-  { key: "photos", label: "Photos", face: "photos" },
-  { key: "documents", label: "Documents", face: "documents" },
-  { key: "billing", label: "Billing", face: "money" },
-];
 
 /** "Work Order" as a sentence says it: "Work order". */
 const kindWords = (status: string | null | undefined) => {
@@ -88,7 +77,6 @@ export function QuoteScreen({
   const [paper, setPaper] = useState<JobMediaItem | null>(null);
   /* the quote's state word, for the line under the name, once its lines are read */
   const [stage, setStage] = useState<QuoteStage | null>(null);
-  const records = useRecords();
 
   /* the quote's PDFs, and the family's value where the job bills in claims */
   useEffect(() => {
@@ -140,10 +128,11 @@ export function QuoteScreen({
   const facts = [kindWords(detail.status), detail.jobNumber ? `Job ${detail.jobNumber}` : "", (address ?? "").split(/\s*\n\s*/).filter(Boolean).join(", ")]
     .filter(Boolean)
     .join(", ");
-  const tabs: TabItem[] = SECTIONS.map((t) => ({
-    key: t.key,
-    label: t.label,
-    count: t.key === "photos" ? media?.photos.length : t.key === "documents" ? media?.documents.length : undefined,
+  const tabs: TabItem[] = sectionsFor(moneyVisible).map((key) => ({
+    key,
+    label: SECTION_LABEL[key],
+    count: key === "photos" ? media?.photos.length : key === "documents" ? media?.documents.length : undefined,
+    ...(key === "quote" ? {} : { href: jobPageHref(job, key) }),
   }));
   const sm8 = sm8QuoteOf({
     documents: media?.documents ?? null,
@@ -194,10 +183,6 @@ export function QuoteScreen({
               items={tabs}
               current="quote"
               ariaLabel="The job"
-              onGo={(key) => {
-                const face = SECTIONS.find((t) => t.key === key)?.face;
-                if (face && face !== "quote") records.open({ kind: "job", id: job }, { tab: face });
-              }}
             />
           </header>
           {onLines ? (

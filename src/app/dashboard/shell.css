@@ -12623,3 +12623,46 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .qland-acts { display:flex; flex-wrap:wrap; gap:8px; }
 .qland-sm8 { display:flex; flex-direction:column; gap:8px; }
 .qland .qland-label { margin:0; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+
+/* ===== V2: A JOB'S PAGE (v2, step 5, "Jobs and a job") =====
+   components/jobs and job-sheet.tsx's page mode. The head: the job's name,
+   one grey line (its colour's dot, its kind, number and address, and where
+   it stands), the three second buttons on the right, then the seven section
+   tabs (rule 31). No breadcrumb. Under it the card's own faces, which still
+   wear the card's dress (`.wb2-sheet.jc`), so the card's box comes off here:
+   no fixed layer, no outline, no shadow, no corner and no scroller of its
+   own, because the page scrolls. `.fg .wb2-sheet.jc.jp-sheet` is (0,4,0),
+   over the card's `.wb2-sheet.jc.jcl` (0,3,0). */
+.fg .wrap.jp { padding:24px 32px 96px; }
+.fg .wb2-sheet.jc.jp-sheet { position:static; inset:auto; width:auto; height:auto; min-height:0; max-height:none;
+  margin:0; padding:0; overflow:visible; border:0; border-radius:0; box-shadow:none; animation:none; background:var(--paper); }
+.fg .jp-head { display:flex; flex-direction:column; gap:16px; }
+.fg .jp-top { display:flex; align-items:flex-start; gap:16px; min-width:0; }
+.fg .jp-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.fg .jp-name { margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
+.fg .jp-line { display:flex; align-items:center; gap:8px; min-width:0; margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .jp-facts { flex:0 1 auto; }
+.fg .jp-stage { flex:none; font-weight:500; }
+.fg .jp-acts { flex:none; display:flex; align-items:center; gap:8px; }
+/* Add's and Actions' chevron, after the word */
+.fg .jp-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
+/* Make it a work order, asked once, under the head */
+.fg .jp-ask { display:flex; align-items:center; gap:12px; margin-top:16px; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jp-sheet > .wb2-here { margin:12px 0 0; font-size:13px; font-weight:500; color:var(--q); }
+.fg .wb2-sheet.jc.jp-sheet .wb2-jcbody { overflow:visible; border-top:0; border-radius:0; padding:24px 0 0; scrollbar-gutter:auto; background:var(--paper); }
+/* Overview: the stages line, then the summary and the diary, the customer beside */
+.fg .jp-over { display:flex; flex-direction:column; gap:16px; }
+.fg .jp-over[hidden] { display:none; }
+.fg .jp-overgrid { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:32px; align-items:start; }
+.fg .jp-overmain { display:flex; flex-direction:column; gap:24px; min-width:0; }
+.fg .jp-overside { display:flex; flex-direction:column; align-items:flex-start; gap:12px; min-width:0; }
+.fg .jp-overside .jcl-cust { align-self:stretch; margin-top:0; padding:0; border-top:0; }
+/* the stages line on the white page: the hover fill to point, the selected fill for the step that's open */
+.fg .jp-sheet .jcl-line { margin:0; }
+.fg .jp-sheet .jcl-step:hover { background:var(--hov); }
+.fg .jp-sheet .jcl-step.on { background:var(--sel); }
+@media (max-width:900px) {
+  .fg .jp-top { flex-direction:column; }
+  .fg .jp-acts { flex-wrap:wrap; }
+  .fg .jp-overgrid { grid-template-columns:minmax(0,1fr); }
+}

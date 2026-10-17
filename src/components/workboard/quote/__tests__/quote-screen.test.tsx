@@ -124,7 +124,9 @@ it("puts the quote's state word at the end of the grey line, orange while someth
   expect(word.closest(".qp-line")).not.toBeNull();
 });
 
-it("opens the job's card on the tab's face over the page, and stays on Quote", async () => {
+/* a job is a page now (v2, step 5): each other tab goes to the job's own
+   page on that section, not to its card over this page */
+it("takes each other tab to the job's page on that section, and stays on Quote", async () => {
   const open = jest.fn();
   render(
     <RecordsContext.Provider value={{ hosted: true, open }}>
@@ -132,15 +134,23 @@ it("opens the job's card on the tab's face over the page, and stays on Quote", a
     </RecordsContext.Provider>
   );
   await screen.findByText("Lines, $64,790 inc GST");
-  fireEvent.click(screen.getByRole("tab", { name: "Billing" }));
-  expect(open).toHaveBeenLastCalledWith({ kind: "job", id: JOB }, { tab: "money" });
-  fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
-  expect(open).toHaveBeenLastCalledWith({ kind: "job", id: JOB }, { tab: "summary" });
+  expect(screen.getByRole("tab", { name: "Billing" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}?tab=billing`);
+  expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}`);
+  expect(screen.getByRole("tab", { name: /Photos/ })).toHaveAttribute("href", `/dashboard/jobs/${JOB}?tab=photos`);
   /* the photos and documents read for the page say what's in them */
   expect(screen.getByRole("tab", { name: /Documents/ })).toHaveTextContent("Documents1");
+  /* the tab you're on goes nowhere */
+  expect(screen.getByRole("tab", { name: "Quote" })).not.toHaveAttribute("href");
   fireEvent.click(screen.getByRole("tab", { name: "Quote" }));
-  expect(open).toHaveBeenCalledTimes(2);
+  expect(open).not.toHaveBeenCalled();
   expect(push).not.toHaveBeenCalled();
+});
+
+it("leaves Billing out of the job's tabs for someone without the money", async () => {
+  render(<QuoteScreen job={JOB} detail={detail} moneyVisible={false} financials={false} />);
+  await screen.findByText("Lines, no value");
+  const tabs = screen.getByRole("tablist", { name: "The job" });
+  expect(within(tabs).getAllByRole("tab").map((t) => t.querySelector(".pt-stab-word")!.textContent)).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents"]);
 });
 
 it("reads no price and no family value for someone without the money grants", async () => {

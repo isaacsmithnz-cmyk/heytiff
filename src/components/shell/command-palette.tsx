@@ -83,7 +83,8 @@ const photoOrigin = (h: PhotoHit) =>
 /* Where each record opens: one set of links, shared with Tiff's open_record
    (lib/shell/links), so the two doors never land in different places. */
 const staffHref = (person: PaletteStaff) => links.staffHref(person.id);
-const jobHref = (job: AllJobsMirrorJob) => links.jobHref(job.remoteId);
+/* a job is a page now (v2, step 5): its row goes to it */
+const jobHref = (job: AllJobsMirrorJob) => links.jobPageHref(job.remoteId);
 const clientHref = (client: PaletteClient) => links.clientHref(client.name);
 const projectHref = (project: PaletteProject) => links.projectHref(project.id);
 
@@ -197,7 +198,12 @@ export function CommandPalette({
         ? []
         : windows.recent
             .filter((r) => r.key !== front?.key)
-            .map((r): Row => ({ kind: "recent", key: `recent:${r.key}`, href: recordHref(r.ref), recent: r })),
+            .map((r): Row => ({
+              kind: "recent",
+              key: `recent:${r.key}`,
+              href: r.ref.kind === "job" ? links.jobPageHref(r.ref.id) : recordHref(r.ref),
+              recent: r,
+            })),
     [query, windows, front],
   );
 
@@ -337,7 +343,9 @@ export function CommandPalette({
       if (row.kind === "verb") {
         row.act();
       } else if (row.kind === "recent") {
-        records.open(row.recent.ref, { from: searchbtn });
+        /* a job goes to its page; a visit or an agreement opens its card where you are */
+        if (row.recent.ref.kind === "job") router.push(row.href);
+        else records.open(row.recent.ref, { from: searchbtn });
       } else if (row.kind === "tiff") {
         /* The words go to Tiff as the first thing said, the way "Sort it
            out" hands over what was typed in a box. */
@@ -345,20 +353,9 @@ export function CommandPalette({
       } else if (row.kind === "photo") {
         setStars(new Set(finds.photos.filter((h) => h.starred).map((h) => h.remoteId)));
         setViewing({ items: finds.photos, index: row.at });
-      } else if (row.kind === "job") {
-        /* A job opens OVER the screen you are on, in the record host — not
-           by sending you to the Workboard. Focus goes back to the search
-           button that opened the palette, and the jobs it found come with
-           it, so the card steps through them (Next job). */
-        const jobs = finds.jobs.map((j) => j.remoteId);
-        records.open(
-          { kind: "job", id: row.job.remoteId },
-          {
-            from: searchbtn,
-            ...(jobs.length > 1 ? { list: jobs } : {}),
-          }
-        );
       } else {
+        /* A JOB GOES TO ITS PAGE (v2, step 5), like every other row here:
+           a job is a page now, not a card over the Workboard. */
         router.push(row.href);
       }
     },

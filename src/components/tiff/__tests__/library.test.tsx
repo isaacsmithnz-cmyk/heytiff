@@ -165,12 +165,12 @@ describe("the day-1 state sells the reason before the button", () => {
 describe("what a row says about itself", () => {
   it("a document being read shows how far through it is", () => {
     render(<Library docs={[doc({ status: "processing", nextPage: 41, pageCount: 220 })]} canManage />);
-    expect(screen.getByText("Reading… 40 of 220 pages")).toBeInTheDocument();
+    expect(screen.getByText("Reading 40 of 220 pages")).toBeInTheDocument();
   });
 
   it("a document not yet opened reads honestly rather than as 0 of 0", () => {
     render(<Library docs={[doc({ status: "processing", nextPage: 1, pageCount: null })]} canManage />);
-    expect(screen.getByText("Reading…")).toBeInTheDocument();
+    expect(screen.getByText("Reading the document")).toBeInTheDocument();
   });
 
   it("a document out of pages says when it comes back, and offers Resume", () => {
@@ -292,7 +292,7 @@ describe("reading the pages Tiff couldn't", () => {
     mockOcr.running = "d-1";
     render(<Library docs={[scanned()]} canManage />);
 
-    expect(screen.getByText("Reading 3 scanned pages…")).toBeInTheDocument();
+    expect(screen.getByText("Reading 3 scanned pages")).toBeInTheDocument();
     expect(screen.queryByText(/unreadable/)).not.toBeInTheDocument();
     // and nothing to press twice
     expect(screen.queryByRole("button", { name: /Read pages/ })).not.toBeInTheDocument();
@@ -493,7 +493,7 @@ describe("the embedding gap", () => {
     render(<Library docs={[doc()]} quota={quota()} canManage unembedded={106} />);
     await userEvent.click(screen.getByRole("button", { name: "Fill these in" }));
 
-    expect(await screen.findByText("Filling in… 64 of 106")).toBeInTheDocument();
+    expect(await screen.findByText("Filling in 64 of 106 passages")).toBeInTheDocument();
 
     release(batch({ done: 42, remaining: 0 }));
     await waitFor(() => expect(refresh).toHaveBeenCalled());

@@ -416,8 +416,8 @@ function FileProgress({ item, progress }: { item: Pending; progress?: KbIngestPr
     return (
       <p className="tk-fst work">
         {known
-          ? `Reading… ${progress.pagesDone.toLocaleString("en-AU")} of ${progress.pageCount!.toLocaleString("en-AU")} pages`
-          : "Reading…"}
+          ? `Reading ${progress.pagesDone.toLocaleString("en-AU")} of ${progress.pageCount!.toLocaleString("en-AU")} pages`
+          : "Reading the document"}
       </p>
     );
   }

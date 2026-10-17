@@ -63,6 +63,14 @@ const HOME_BOX = "home-box";
 /** Said when a save throws rather than answering. */
 export const SAVE_FAILED = "Couldn't save that.";
 
+/** Save's wait, said for the room the words are going to (rule 49). */
+const SAVING = {
+  home: "Saving the note",
+  diary: "Saving to the diary",
+  tasks: "Saving the task",
+  calendar: "Saving to the calendar",
+} satisfies Record<TiffRoom, string>;
+
 export function TiffBox({
   room,
   placeholder,
@@ -201,7 +209,7 @@ export function TiffBox({
         {typed ? (
           <>
             <button type="button" className="pbtn ghost" disabled={saving} onClick={onSave}>
-              {saving ? "Saving…" : "Save"}
+              {saving ? SAVING[room] : "Save"}
             </button>
             <button
               type="button"

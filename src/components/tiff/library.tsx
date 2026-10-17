@@ -311,7 +311,7 @@ export function Library({
             <div className="tk-search">
               <Icon name="search" size={18} />
               <input
-                placeholder="Search documents…"
+                placeholder="Search documents"
                 aria-label="Search documents"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -549,7 +549,7 @@ function EmbedGap({ count }: { count: number }) {
     <p className="tk-gap">
       <Icon name="sync" size={14} />
       {fill.running ? (
-        <span>{`Filling in… ${n(fill.done)} of ${n(total)}`}</span>
+        <span>{`Filling in ${n(fill.done)} of ${n(total)} passages`}</span>
       ) : fill.stopped === "rate-limited" ? (
         <span>
           Voyage is rate-limiting — this account is capped at 3 requests a minute until a payment
@@ -765,8 +765,8 @@ function StatusPill({ state, ocr }: { state: RowState; ocr: OcrView }) {
       <span className="tk-pill work">
         <span>
           {known
-            ? `Reading… ${n(state.pagesDone)} of ${n(state.pageCount as number)} pages`
-            : "Reading…"}
+            ? `Reading ${n(state.pagesDone)} of ${n(state.pageCount as number)} pages`
+            : "Reading the document"}
         </span>
         <span className={`tk-prog${known ? "" : " ind"}`} aria-hidden="true">
           <i style={known ? { width: `${Math.min(100, (state.pagesDone / (state.pageCount as number)) * 100)}%` } : undefined} />
@@ -809,7 +809,7 @@ function StatusPill({ state, ocr }: { state: RowState; ocr: OcrView }) {
   if (ocr.reading) {
     return (
       <span className="tk-pill work">
-        {`Reading ${n(ocr.left)} scanned ${plural(ocr.left, "page")}…`}
+        {`Reading ${n(ocr.left)} scanned ${plural(ocr.left, "page")}`}
       </span>
     );
   }

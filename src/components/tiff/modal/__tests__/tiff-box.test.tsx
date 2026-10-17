@@ -266,7 +266,7 @@ describe("Save", () => {
       fireEvent.click(saveButton);
     });
     expect(save).toHaveBeenCalledTimes(1);
-    expect(button("Saving…")).toBeDisabled();
+    expect(button("Saving to the diary")).toBeDisabled();
     expect(button("Sort it out")).toBeDisabled();
     // Enter is Sort it out, and a save still out is not raced by it
     fireEvent.keyDown(field(), { key: "Enter" });

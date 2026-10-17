@@ -79,7 +79,7 @@ export function MyNotesFace({
         onChange={setDraft}
         onCommit={commit}
         disabled={busy}
-        placeholder="Ring the wholesaler back about the coil pricing…"
+        placeholder="Ring the wholesaler back about the coil pricing"
       />
 
       {notes.length === 0 ? (

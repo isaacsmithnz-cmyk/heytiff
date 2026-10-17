@@ -1401,7 +1401,7 @@ export function TiffAssistant({
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setTyped(e.target.value)}
-                  placeholder={active ? "Ask a follow-up…" : "Ask Tiff anything…"}
+                  placeholder={active ? "Ask a follow-up" : "Ask Tiff anything"}
                   aria-label="Ask Tiff"
                   disabled={listening}
                 />

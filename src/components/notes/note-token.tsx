@@ -119,7 +119,7 @@ function Strip({
             ref={field}
             className="wb2-stripin"
             value={value}
-            placeholder={dict.recording ? "Listening…" : (placeholder ?? "Add a note, or say it…")}
+            placeholder={dict.recording ? "Listening" : (placeholder ?? "Add a note, or say it")}
             aria-label={label}
             disabled={busy}
             onChange={(e) => onChange(e.target.value)}
@@ -419,7 +419,7 @@ function FieldPosture({
             <input
               ref={line}
               className="wb2-fi"
-              placeholder={dict.recording ? "Listening…" : placeholder}
+              placeholder={dict.recording ? "Listening" : placeholder}
               value={value}
               disabled={busy}
               aria-label={label}
@@ -513,7 +513,7 @@ function FieldPosture({
           ref={box}
           className="wb2-notes"
           rows={rows}
-          placeholder={dict.recording ? "Listening…" : placeholder}
+          placeholder={dict.recording ? "Listening" : placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={busy}

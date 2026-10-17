@@ -770,7 +770,7 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
             }}
             value={held === "listen" ? "" : c.draft}
             onChange={(e) => (held === "listen" ? c.typeInstead(e.target.value) : c.setDraft(e.target.value))}
-            placeholder={held === "listen" ? "Type instead…" : "Reply to Tiff…"}
+            placeholder={held === "listen" ? "Type instead" : "Reply to Tiff"}
             aria-label={held === "listen" ? "Type instead" : "Reply to Tiff"}
             autoComplete="off"
           />

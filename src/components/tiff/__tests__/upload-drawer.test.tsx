@@ -171,7 +171,7 @@ describe("driving the uploads", () => {
         onClose={jest.fn()}
       />
     );
-    expect(screen.getByText("Reading… 20 of 220 pages")).toBeInTheDocument();
+    expect(screen.getByText("Reading 20 of 220 pages")).toBeInTheDocument();
 
     rerender(
       <UploadDrawer

@@ -123,7 +123,7 @@ export function TagPicker({
           ref={box}
           value={query}
           aria-label={canCreate ? "Find or create a tag" : "Find a tag"}
-          placeholder={canCreate ? "Find a tag, or type a new one…" : "Find a tag…"}
+          placeholder={canCreate ? "Find a tag, or type a new one" : "Find a tag"}
           onChange={(e) => {
             setQuery(e.target.value);
             setError(null);

@@ -607,7 +607,6 @@ def ask_compare():
     tr = "".join(f'<tr><th>{a}</th><td class="nm">{b}</td><td class="nm">{c}</td></tr>' for a, b, c in rows)
     table = f'''<div class="cd" style="margin-top:10px;padding:4px 16px 12px">
   <table class="cmp"><thead><tr><th></th><th>Daikin Cora<span>FTXV50WVMA</span></th><th>Mitsubishi Electric AP<span>MSZ-AP50VGD2</span></th></tr></thead><tbody>{tr}</tbody></table>
-  <div style="display:flex;gap:8px;margin-top:12px"><span class="b sm sec">{ico("plus")}Add Cora to a quote</span><span class="b sm sec">{ico("plus")}Add AP to a quote</span></div>
 </div>'''
     series = '<div class="chips2" style="flex-wrap:wrap"><span class="b sm sec">Daikin: Zena</span><span class="b sm sec">Alira X</span><span class="b sm sec">Lite</span><span class="b sm sec">Mitsubishi Electric: LN</span><span class="b sm sec">EF</span><span class="b sm sec">GS</span></div>'
     thread = f'''<div class="dd2">Today</div>

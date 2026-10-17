@@ -177,7 +177,7 @@ One Tiff and one engine, wherever you ask: the box on Home, Search's last row, a
 
 - Your records first, then the data packs, then general HVAC knowledge. Every part says where it came from: a job's materials, a data pack, a manual and its page, or "General HVAC knowledge, not from your documents". General knowledge is never written as though a document said it.
 - When the Library has nothing, she says so and names the document that would have answered. A Library only switch under the box keeps an answer to your own documents.
-- A comparison is a table in the conversation, with each pair's price from your book and an Add to a quote button for each. When a request matches several series ("a Daikin 5 kW"), she compares the ones you quote most and offers the rest as buttons.
+- A comparison is a table in the conversation, with each pair's price from your book. Putting a unit on a quote happens in the quote, not here. When a request matches several series ("a Daikin 5 kW"), she compares the ones you quote most and offers the rest as buttons.
 - A job or record she names is a row you can open.
 - No web search. General knowledge is what the model already knows, so a model released lately, a price or a rule change may be missing; she says so when it matters.
 

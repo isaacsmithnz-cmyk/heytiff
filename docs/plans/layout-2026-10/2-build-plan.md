@@ -132,6 +132,7 @@ Eight phases. Each one ends with the app working and every test green. Phases 3 
 - **Your name**, at the foot of the sidebar: your card (with your normal week, pay and vehicle), timesheet, leave, expense claims, then Reports and Settings.
 - **Search**, under New with ⌘K: any record by name or number, grouped by kind; its last row asks Tiff, with Enter.
 - **The box on Home** talks to Tiff and starts a conversation. Anything you can press, you can say there.
+- **Anything addressed to you** lands in To do on Home, and only there: a ServiceM8 or HeyTiff note that names you, a task someone gives you, an @mention in a notice comment. Each row says who and where; opening it goes to the spot (the job's conversation at that note, the notice at that comment), and you reply there. It stays until you act on it or dismiss it. Conversations has no Mentions view. Phone notifications are not part of this; they would come with phase 7, as their own decision.
 
 **Where each thing is made**
 

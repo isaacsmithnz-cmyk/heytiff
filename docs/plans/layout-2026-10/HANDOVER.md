@@ -92,6 +92,7 @@ Only 84 of the findings were checked: 82 held, 1 was wrong and 1 was not worth f
   - She reads everything the person asking may see: ServiceM8 jobs and what went into them, quotes, the data packs (specs, pairing, side by side), the Library down to the page, Schedule, and Team by permission.
   - She works as an HVAC assistant from general knowledge where the records stop, and labels where each part of an answer came from.
   - See "Tiff: one engine" in `2-build-plan.md`, and canvas page 2, "Asking Tiff".
+- **Anything addressed to you lands in To do on Home**, and only there: a note that names you, a task someone gives you, an @mention in a notice comment. Conversations has no Mentions view.
 - **Version 1 and the data rule.** Until version 2 has settled, migrations only add: new tables and columns, nothing renamed, retyped or removed. That way version 1 can still run on the same data.
 
 ## House rules

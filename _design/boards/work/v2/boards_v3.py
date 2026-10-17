@@ -316,8 +316,10 @@ def home():
         rows += row
     todo = [
         ("Red", "Hilux XQG 41B rego", '<span class="st wrong">Runs out today</span>', "Renew"),
+        ("Orange", "Lyle asked you: which fans for Rozelle?", '<span class="s">A note on 3348 Ma, Rozelle, 7:40 am</span>', "Reply"),
         ("Orange", "Kingsford Bakery, 2380", '<span class="st look">Finished, ready to invoice</span>', "Invoice"),
         ("Orange", "Timesheets, last week", '<span class="s">4 to approve, 150.5 hours</span>', "Review"),
+        ("Grey", "Callum mentioned you on Toolbox talk", '<span class="s">A comment on the notice, Friday</span>', "Open"),
     ]
     td = ""
     for i, (c, t, s, v) in enumerate(todo):

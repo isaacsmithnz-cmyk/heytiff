@@ -528,9 +528,9 @@ def notice_write():
 
 # ------------------------------------------------------------------ Conversations
 def conversations():
-    items = [("Bellevue Hill wrap-up and isolator", "Today 10:20 am", True), ("Riverview brief", "Today 8:40 am", False), ("Hilux and the head for Lyle", "Today 8:12 am", False), ("Lyle asked: fans for Rozelle", "Mention, 7:40 am", False), ("Clearing an E6 on a Daikin split", "Yesterday", False), ("Fans for Rozelle: which brand", "Friday", False), ("Who's free Thursday", "Friday", False)]
+    items = [("Bellevue Hill wrap-up and isolator", "Today 10:20 am", True), ("Riverview brief", "Today 8:40 am", False), ("Hilux and the head for Lyle", "Today 8:12 am", False), ("Clearing an E6 on a Daikin split", "Yesterday", False), ("Fans for Rozelle: which brand", "Friday", False), ("Who's free Thursday", "Friday", False)]
     li = "".join(f'<a class="{"on" if s else ""}" href="#"><span class="m"><span class="t">{t}</span><span class="s">{d}</span></span></a>' for t, d, s in items)
-    vw = "".join(f'<a class="{"on" if i == 0 else ""}" href="#">{n}{f" <span class=c>{c}</span>" if c else ""}</a>' for i, (n, c) in enumerate([("All", ""), ("Mentions", "1"), ("Team", ""), ("Only me", "")]))
+    vw = "".join(f'<a class="{"on" if i == 0 else ""}" href="#">{n}{f" <span class=c>{c}</span>" if c else ""}</a>' for i, (n, c) in enumerate([("All", ""), ("Team", ""), ("Only me", "")]))
     voice = f'{ico("mic")}<span class="qq">Spoken, on 3342</span>'
     thread = f'''<div class="dd2">Today</div>
 <div class="msg">{jc.av("IS")}<div class="bd">{jc.who("Isaac Smith", "10:20 am", voice)}<p>Lyle's finished the study head. Customer wants an extra isolator on the deck, quote it. And book Northgate in for Thursday with Kai.</p></div></div>
@@ -567,7 +567,7 @@ def reading(*lines):
 
 def ask_page(on, thread):
     li = "".join(f'<a class="{"on" if t == on else ""}" href="#"><span class="m"><span class="t">{t}</span><span class="s">{d}</span></span></a>' for t, d in ASK_ITEMS)
-    vw = "".join(f'<a class="{"on" if i == 0 else ""}" href="#">{n}{f" <span class=c>{c}</span>" if c else ""}</a>' for i, (n, c) in enumerate([("All", ""), ("Mentions", "1"), ("Team", ""), ("Only me", "")]))
+    vw = "".join(f'<a class="{"on" if i == 0 else ""}" href="#">{n}{f" <span class=c>{c}</span>" if c else ""}</a>' for i, (n, c) in enumerate([("All", ""), ("Team", ""), ("Only me", "")]))
     bar = f'''<div class="jbar"><div class="r16 qq" style="min-height:32px">Ask Tiff anything</div><div class="row"><span class="b sm sec">{ico("camera")}Add photo</span><span class="ib">{ico("mic")}</span><span style="flex:1"></span><span class="b sm go">Send</span></div></div>'''
     body = f'''<div style="display:flex;height:calc(900px - 56px)">
   <div style="width:340px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column">

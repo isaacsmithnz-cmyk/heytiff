@@ -283,9 +283,15 @@ describe("the isolator follows the outdoor's draw and supply", () => {
     expect(row.choice!.selectedId).toBe(NOT_CHOSEN);
   });
 
-  it("an 18.4 A multi outdoor gets a 1Ø 20 A", () => {
-    expect(odu("MXZ-5F100VGD")).toMatchObject({ phase: "1", max_amps_a: 18.4 });
-    expect(proposed("MXZ-5F100VGD").name).toBe("Isolator, 1Ø 20 A");
+  it("an 18.4 A multi outdoor whose book asks a 25 A breaker gets a 1Ø 32 A", () => {
+    /* M-P0922's breaker for the MXZ-5F100VGD is 25 A: an isolator after it is rated at least that */
+    expect(odu("MXZ-5F100VGD")).toMatchObject({ phase: "1", max_amps_a: 18.4, breaker_a: 25 });
+    expect(proposed("MXZ-5F100VGD").name).toBe("Isolator, 1Ø 32 A");
+  });
+
+  it("a 13.5 A split whose book asks a 20 A breaker keeps the 1Ø 20 A", () => {
+    expect(odu("SUZ-M50VAD-A")).toMatchObject({ phase: "1", max_amps_a: 13.5, breaker_a: 20 });
+    expect(proposed("SUZ-M50VAD-A").name).toBe("Isolator, 1Ø 20 A");
   });
 
   it("the other single-phase outdoors past 20 A get the 1Ø 32 A too", () => {
@@ -295,11 +301,21 @@ describe("the isolator follows the outdoor's draw and supply", () => {
     expect(proposed("MXZ-6F120VGD").name).toBe("Isolator, 1Ø 32 A");
   });
 
-  it("a draw exactly on a rating takes that rating", () => {
-    expect(odu("PUZ-M100VKA-A")).toMatchObject({ phase: "1", max_amps_a: 20 });
-    expect(defaultIsolatorId(odu("PUZ-M100VKA-A"))).toBe("isolator-20a-1ph");
-    expect(odu("PUZ-ZM250YKA-A")).toMatchObject({ phase: "3", max_amps_a: 20 });
-    expect(defaultIsolatorId(odu("PUZ-ZM250YKA-A"))).toBe("isolator-20a-3ph");
+  it("a draw or a breaker exactly on a rating takes that rating", () => {
+    /* PUZ-M100VKA-A draws 20 A and its book asks a 32 A breaker: the breaker sizes it */
+    expect(odu("PUZ-M100VKA-A")).toMatchObject({ phase: "1", max_amps_a: 20, breaker_a: 32 });
+    expect(defaultIsolatorId(odu("PUZ-M100VKA-A"))).toBe("isolator-32a-1ph");
+    expect(defaultIsolatorId({ ...odu("PUZ-M100VKA-A"), breaker_a: undefined })).toBe("isolator-20a-1ph");
+    expect(odu("PUZ-ZM250YKA-A")).toMatchObject({ phase: "3", max_amps_a: 20, breaker_a: 32 });
+    expect(defaultIsolatorId(odu("PUZ-ZM250YKA-A"))).toBe("isolator-32a-3ph");
+    expect(defaultIsolatorId({ ...odu("PUZ-ZM250YKA-A"), breaker_a: undefined })).toBe("isolator-20a-3ph");
+  });
+
+  it("a breaker past every isolator listed takes the largest on its supply, never back to the 20 A", () => {
+    expect(odu("PUZ-M140VKA-A")).toMatchObject({ phase: "1", max_amps_a: 30, breaker_a: 40 });
+    expect(defaultIsolatorId(odu("PUZ-M140VKA-A"))).toBe("isolator-32a-1ph");
+    expect(odu("PUMY-P300YBMD-A")).toMatchObject({ phase: "3", breaker_a: 40 });
+    expect(defaultIsolatorId(odu("PUMY-P300YBMD-A"))).toBe("isolator-32a-3ph");
   });
 
   it("a three-phase outdoor gets a 3Ø isolator", () => {
@@ -330,17 +346,21 @@ describe("the isolator follows the outdoor's draw and supply", () => {
 
   it("never sizes from a circuit figure standing in for the draw", () => {
     // City Multi prints MCA and no max running current: MCA sizes a circuit,
-    // it is not the draw, so the default is the unsized 20 A
-    expect(odu("PUHY-P500YNW-A1")).toMatchObject({ phase: "3", mca_a: 43.7 });
+    // it is not the draw, so without the breaker the default is the unsized 20 A
+    expect(odu("PUHY-P500YNW-A1")).toMatchObject({ phase: "3", mca_a: 43.7, breaker_a: 60 });
     expect(odu("PUHY-P500YNW-A1").max_amps_a).toBeUndefined();
-    expect(proposed("PUHY-P500YNW-A1").name).toBe("Isolator, 3Ø 20 A");
+    expect(defaultIsolatorId({ ...odu("PUHY-P500YNW-A1"), breaker_a: undefined })).toBe("isolator-20a-3ph");
+    // its book's 60 A breaker is past every isolator listed: the largest on its supply
+    expect(proposed("PUHY-P500YNW-A1").name).toBe("Isolator, 3Ø 32 A");
   });
 
-  it("a draw it cannot read, or past every rating, keeps the 20 A rather than guess", () => {
-    const base = odu("PUZ-M140VKA-A");
-    for (const draw of [0, -3, Number.NaN, "28" as unknown as number, 45, 200]) {
+  it("a draw it cannot read keeps the 20 A rather than guess; one past every rating takes the largest", () => {
+    const base = { ...odu("PUZ-M140VKA-A"), breaker_a: undefined };
+    for (const draw of [0, -3, Number.NaN, "28" as unknown as number]) {
       expect(defaultIsolatorId({ ...base, max_amps_a: draw })).toBe("isolator-20a-1ph");
+      expect(defaultIsolatorId({ ...base, max_amps_a: undefined, breaker_a: draw })).toBe("isolator-20a-1ph");
     }
+    for (const draw of [45, 200]) expect(defaultIsolatorId({ ...base, max_amps_a: draw })).toBe("isolator-32a-1ph");
   });
 
   it("a hand-picked isolator stands, whatever the outdoor draws", () => {
@@ -428,19 +448,18 @@ describe("the isolator follows the outdoor's draw and supply", () => {
     }
   });
 
-  it("every outdoor in the shipped pack with a draw gets the smallest isolator that covers it, on its supply", () => {
-    const withDraw = pack.outdoor_units.filter((o) => o.max_amps_a != null);
-    expect(withDraw.length).toBeGreaterThan(50);
-    const wrong = withDraw.flatMap((o) => {
+  it("every outdoor in the shipped pack with a draw or a breaker gets the smallest isolator that covers both, on its supply", () => {
+    const sized = pack.outdoor_units.flatMap((o) => {
+      const need = isolatorDrawOf(o);
+      return need ? [{ o, amps: need.amps }] : [];
+    });
+    expect(sized.length).toBeGreaterThan(70);
+    const wrong = sized.flatMap(({ o, amps }) => {
       const got = isolatorOf(defaultIsolatorId(o));
-      const smallest = Math.min(
-        ...isolators
-          .filter((i) => i.isolator.phase === o.phase && i.isolator.amps >= o.max_amps_a!)
-          .map((i) => i.isolator.amps)
-      );
-      return got.phase === o.phase && got.amps === smallest
-        ? []
-        : [`${o.model} (${o.phase}Ø, ${o.max_amps_a} A) got ${got.phase}Ø ${got.amps} A`];
+      const onSupply = isolators.filter((i) => i.isolator.phase === o.phase).map((i) => i.isolator.amps);
+      const covering = onSupply.filter((a) => a >= amps);
+      const want = covering.length ? Math.min(...covering) : Math.max(...onSupply);
+      return got.phase === o.phase && got.amps === want ? [] : [`${o.model} (${o.phase}Ø, ${amps} A) got ${got.phase}Ø ${got.amps} A`];
     });
     expect(wrong).toEqual([]);
   });

@@ -8,6 +8,8 @@ import { jobKind, readCorrections } from "../corrections-server";
 import { jobFiles, lookAt } from "./job-files-server";
 import { lookupCharge, lookupPairing, lookupUnit } from "../lookups-server";
 import { loadAirflowGuide } from "@/lib/guides/airflow-server";
+import { readJobDesign } from "../design-read-server";
+import { NO_DESIGN } from "../design-read";
 import { runResearch } from "../research-server";
 import { sessionModelFor } from "./model-server";
 import { readOrgDay } from "../org-day-server";
@@ -65,6 +67,7 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
     pairing: (brand, outdoor, indoors) => lookupPairing(brand, outdoor, indoors, orgId),
     charge: (brand, ask) => lookupCharge(brand, ask, orgId),
     airflowGuide: () => loadAirflowGuide(),
+    design: (id) => (jobUuid ? readJobDesign(orgId, jobUuid, id) : Promise.resolve({ found: false, reason: NO_DESIGN })),
     taskHours: () =>
       Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) => ({ hours: s.taskHours, dayHours: d.hours?.hours ?? null })),
     openQuestions: async () => {

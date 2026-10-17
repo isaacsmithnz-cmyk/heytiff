@@ -15,6 +15,7 @@ import { systemCover, systemPairKw } from "@/lib/studio/coverage";
 import { multiCapableIdus, multiFormFactorSummary, poolOf } from "@/lib/studio/multi";
 import { vrfOutdoorsListing, vrfRatio } from "@/lib/studio/vrf";
 import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tree";
+import { headPipeMm } from "@/lib/studio/pipe-sizes";
 import { formFactorSummary } from "@/lib/studio/select";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import {
@@ -176,15 +177,11 @@ interface SystemView {
   bandPipe: string | null;
 }
 
-/** the pipe a head is drawn with: a split's pairing, a multi head's own
-    connection */
-function pipeSize(pack: DataPack, sys: DesignSystem, head: Allocation, oduModel: string | null): string | null {
-  if (sys.type === "split" || sys.type === "ducted") {
-    const pair = pack.pair_tables.find((p) => p.idu_model === head.model && p.odu_model === oduModel);
-    if (pair) return `${pair.pipe_liquid_mm} / ${pair.pipe_gas_mm}`;
-  }
-  const u = iduRowOf(pack, head.model);
-  return u ? `${u.conn_liquid_mm} / ${u.conn_gas_mm}` : null;
+/** the pipe a head is drawn with (pipe-sizes.ts headPipeMm): a VRF head's
+    section of its tree, a split's pairing, a multi head's own connection */
+function pipeSize(pack: DataPack, sys: DesignSystem, head: Allocation, oduModel: string | null, tree: SizedTree | null = null): string | null {
+  const p = headPipeMm(pack, sys, head, oduModel, tree);
+  return p ? `${p.liquidMm} / ${p.gasMm}` : null;
 }
 
 function zoneWord(args: {
@@ -290,10 +287,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   let shareDiffers = false;
   /* a VRF's sizes come from its tree: each head's own section */
   const vrfTree = systemVrfTree(pack, sys, draft);
-  const sizeOf = (a: Allocation): string | null => {
-    const sec = vrfTree ? headSection(vrfTree, a.id) : null;
-    return sec ? `${sec.liquidMm} / ${sec.gasMm}` : pipeSize(pack, sys, a, odu?.model ?? null);
-  };
+  const sizeOf = (a: Allocation): string | null => pipeSize(pack, sys, a, odu?.model ?? null, vrfTree);
   const zones: ZoneView[] = zoneList.map((zone, i) => {
     const loadKw = zoneLoads[i];
     const mine = zoneHeads.filter((a) => a.roomId === zone.id);
@@ -2022,8 +2016,7 @@ function UnitDetail({
     [candidates, draft, pack, basis, sys.id, alloc.id, alloc.model]
   );
   const beforeOdu = view.odu?.model ?? "";
-  const sec = view.vrfTree ? headSection(view.vrfTree, alloc.id) : null;
-  const pipe = sec ? `${sec.liquidMm} / ${sec.gasMm}` : pipeSize(pack, sys, alloc, view.odu?.model ?? null);
+  const pipe = pipeSize(pack, sys, alloc, view.odu?.model ?? null, view.vrfTree);
   const kw = kwOf(pack, alloc.model, basis);
 
   return (

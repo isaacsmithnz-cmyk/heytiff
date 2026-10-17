@@ -19,6 +19,7 @@ import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
 import { fitRead } from "./read-fit";
 import { airflowCheck, airflowSaid, type AirflowGuide } from "@/lib/guides/airflow";
+import { fitDesignRead, type JobDesign } from "../design-read";
 import { airflowAskOf, bookPrice, isErr, kitAskOf, newLineOf, patchOf, questionOf, roomLoads, TOOL_LABELS, type NewLine } from "./tools";
 
 /* TIFF'S TOOLS, RUN (tools.ts says what each is and what holds her to the
@@ -77,6 +78,8 @@ export type QuoteStore = {
   openQuestions: () => Promise<{ id: number; question: string }[]>;
   /** the ducted airflow guide every business shares (lib/guides); null when none is installed */
   airflowGuide: () => Promise<AirflowGuide | null>;
+  /** the job's Studio design as she reads it (design-read.ts): `id`'s, else the newest; why not, when there's none */
+  design: (id: string | null) => Promise<JobDesign>;
 };
 
 const SEARCH_LIMIT = 12;
@@ -314,6 +317,27 @@ export function makeTools(store: QuoteStore) {
         if (!bookPrice(await store.book(), code, "")) return fail(`${code} isn't in the business's book.`);
         const res = await store.compareWith(lineId, code);
         return res.ok ? { ok: true, label, said: code, value: { added: code } } : fail(res.reason);
+      }
+      /* the business's own design of the job, as the Studio's Summary shows
+         it (Isaac, 2026-10-17: "I think Tiff can already read the studio
+         design. Or can she not?") */
+      case "read_design": {
+        const id = typeof input.id === "string" && input.id.trim() ? input.id.trim().slice(0, 80) : null;
+        const system = typeof input.system === "string" ? input.system.slice(0, 120) : null;
+        const got = await store.design(id);
+        if (!got.found) {
+          if (!got.designs?.length) return { ok: true, label, said: "No design on this job", value: { design: null, said: got.reason } };
+          return fail(`${got.reason} Its designs: ${got.designs.map((d) => `${d.name} (${d.id}, saved ${d.saved})`).join("; ")}.`);
+        }
+        const { read, others } = got;
+        const n = (k: number, one: string) => `${k} ${one}${k === 1 ? "" : "s"}`;
+        return {
+          ok: true,
+          label,
+          said: `${read.design.name}: ${n(read.systems.length, "system")}, ${n(read.rooms, "room")}`,
+          /* a long design narrowed to fit, saying what it left out */
+          value: fitDesignRead({ ...read, ...(others.length ? { other_designs: others } : {}) }, { system }),
+        };
       }
       case "job_files": {
         const files = await store.jobFiles();

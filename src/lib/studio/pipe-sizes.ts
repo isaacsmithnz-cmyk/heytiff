@@ -9,7 +9,7 @@
 
 import type { DesignDocument, DesignSystem } from "./document";
 import type { DataPack } from "./packs/schema";
-import { systemVrfTree, type SizedFitting, type SizedSection } from "./vrf-tree";
+import { headSection, systemVrfTree, type SizedFitting, type SizedSection, type SizedTree } from "./vrf-tree";
 
 export type PipeUnits = "in" | "mm";
 
@@ -45,6 +45,27 @@ export function pairSize(liquidMm: number, gasMm: number, units: PipeUnits): str
   return units === "mm"
     ? `${liquidMm} / ${gasMm} mm`
     : `${tubeSize(liquidMm, units)} / ${tubeSize(gasMm, units)}`;
+}
+
+/** the pipe a head is drawn with, mm: a VRF head's own section of its sized
+    tree, a split's or a ducted unit's pairing, a multi head's own connection;
+    null when the book gives none. The builder's rail and Tiff's read of a
+    design both say it from here. */
+export function headPipeMm(
+  pack: DataPack,
+  sys: DesignSystem,
+  head: { id: string; model: string },
+  oduModel: string | null,
+  tree: SizedTree | null = null
+): { liquidMm: number; gasMm: number } | null {
+  const sec = tree ? headSection(tree, head.id) : null;
+  if (sec) return { liquidMm: sec.liquidMm, gasMm: sec.gasMm };
+  if (sys.type === "split" || sys.type === "ducted") {
+    const pair = pack.pair_tables.find((p) => p.idu_model === head.model && p.odu_model === oduModel);
+    if (pair) return { liquidMm: pair.pipe_liquid_mm, gasMm: pair.pipe_gas_mm };
+  }
+  const u = pack.indoor_units.find((x) => x.model === head.model);
+  return u ? { liquidMm: u.conn_liquid_mm, gasMm: u.conn_gas_mm } : null;
 }
 
 /** the size's colour step, 1 (smallest) to 8, from the gas tube: the drawing

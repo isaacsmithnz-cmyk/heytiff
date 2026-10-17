@@ -10,7 +10,7 @@ Today's app is version 1. The new layout is version 2.
 
 ## Read in this order
 
-1. This file.
+1. This file, then `6-revisions.md`: Isaac's answers on 17 and 18 October, what the build assumes until he answers the rest, and where the build is up to.
 2. `2-build-plan.md`: the ground rules, the phases, where each thing is made, Still open, and the bugs.
 3. `3-design-rules.md`: the 54 rules, the palette, the scales and the ratchets.
 4. `4-review.md`: the plan checked against the code on 15 October. It covers:
@@ -39,6 +39,8 @@ Only 84 of the findings were checked: 82 held, 1 was wrong and 1 was not worth f
 - **Precedence:** when sources disagree, the design rules win, then canvas pages 1 to 9, then the main tab.
 
 ## Before phase 0, in this order
+
+Steps 1 and 2 below are done: `v1.0.0` is on GitHub at `4978e9c3`, and this handover is on main (#1169). Step 3 is recorded in `6-revisions.md`. The build runs on the branch `v2-layout`.
 
 1. **Make the version 1 tag.** The planning session could not push tags, so make it from here:
    ```

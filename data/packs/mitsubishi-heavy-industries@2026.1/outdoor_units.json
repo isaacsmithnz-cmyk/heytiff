@@ -19,11 +19,13 @@
   "weight_kg": 43,
   "sound_high_dba": 43,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
    "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
-   "page": "20; 47 (PDF p.7): factory + maximum charge"
+   "page": "20; 47 (PDF p.7): factory + maximum charge; 48 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -46,11 +48,13 @@
   "weight_kg": 43,
   "sound_high_dba": 44,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
    "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
-   "page": "20; 47 (PDF p.7): factory + maximum charge"
+   "page": "20; 47 (PDF p.7): factory + maximum charge; 48 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -73,11 +77,13 @@
   "weight_kg": 43,
   "sound_high_dba": 48,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
    "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
-   "page": "20; 47 (PDF p.7): factory + maximum charge"
+   "page": "20; 47 (PDF p.7): factory + maximum charge; 48 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -100,11 +106,13 @@
   "weight_kg": 45,
   "sound_high_dba": 51,
   "max_amps_a": 15.0,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
    "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
-   "page": "20; 47 (PDF p.7): factory + maximum charge"
+   "page": "20; 47 (PDF p.7): factory + maximum charge; 48 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -127,11 +135,13 @@
   "weight_kg": 45,
   "sound_high_dba": 52,
   "max_amps_a": 15.0,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book SRK20-60ZSXA-WF (outdoor installation manual RWC012A064A)",
    "edition": "Split Systems April 2026 AU; '23 SRK-DB-390",
-   "page": "20; 47 (PDF p.7): factory + maximum charge"
+   "page": "20; 47 (PDF p.7): factory + maximum charge; 48 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -154,11 +164,13 @@
   "weight_kg": 33,
   "sound_high_dba": 44,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
-   "page": "21; 31 (PDF p.7): factory + maximum charge"
+   "page": "21; 31 (PDF p.7): factory + maximum charge; 32 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -181,11 +193,13 @@
   "weight_kg": 34.5,
   "sound_high_dba": 45,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
    "edition": "Split Systems April 2026 AU; Ceiling Systems September 2026 AU; '24 DXK-T-419",
-   "page": "21; weight: 25, 26; 13 (PDF p.7): weight; 31 (PDF p.7): factory + maximum charge"
+   "page": "21; weight: 25, 26; 13 (PDF p.7): weight; 31 (PDF p.7): factory + maximum charge; 32 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -208,11 +222,13 @@
   "weight_kg": 34.5,
   "sound_high_dba": 50,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHIAA Ceiling Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
    "edition": "Split Systems April 2026 AU; Ceiling Systems September 2026 AU; '24 DXK-T-419",
-   "page": "21; weight: 25, 26; 13 (PDF p.7): weight; 31 (PDF p.7): factory + maximum charge"
+   "page": "21; weight: 25, 26; 13 (PDF p.7): weight; 31 (PDF p.7): factory + maximum charge; 32 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -235,11 +251,13 @@
   "weight_kg": 43.5,
   "sound_high_dba": 49,
   "max_amps_a": 14.5,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK06-18ZSA-WF1 (outdoor installation manual RWC012A062A)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-419",
-   "page": "21; 31 (PDF p.7): factory + maximum charge"
+   "page": "21; 31 (PDF p.7): factory + maximum charge; 32 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -262,11 +280,13 @@
   "weight_kg": 45,
   "sound_high_dba": 54,
   "max_amps_a": 14.5,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
-   "page": "22; 36 (PDF p.7): factory + maximum charge"
+   "page": "22; 36 (PDF p.7): factory + maximum charge; 37 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -289,11 +309,13 @@
   "weight_kg": 58,
   "sound_high_dba": 53,
   "max_amps_a": 17.0,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
-   "page": "22; 36 (PDF p.7): factory + maximum charge"
+   "page": "22; 36 (PDF p.7): factory + maximum charge; 37 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -316,11 +338,13 @@
   "weight_kg": 58,
   "sound_high_dba": 56,
   "max_amps_a": 17.0,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
-   "page": "22; 36 (PDF p.7): factory + maximum charge"
+   "page": "22; 36 (PDF p.7): factory + maximum charge; 37 (PDF p.8): breaker + power cable"
   }
  },
  {
@@ -343,11 +367,13 @@
   "weight_kg": 69,
   "sound_high_dba": 57,
   "max_amps_a": 17.5,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Technical Manual DXK21-33ZRA-WF1 (outdoor installation manuals RCT012A211, SRC95/DXC33)",
    "edition": "Split Systems April 2026 AU; '24 DXK-T-422",
-   "page": "22; 40 (PDF p.11): factory + maximum charge"
+   "page": "22; 40 (PDF p.11): factory + maximum charge; 41 (PDF p.12): breaker + power cable"
   }
  },
  {
@@ -370,11 +396,13 @@
   "weight_kg": 22,
   "sound_high_dba": 43,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
    "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
-   "page": "24; 53 (PDF p.54): factory + maximum charge"
+   "page": "24; 53 (PDF p.54): factory + maximum charge; 54 (PDF p.55): breaker + power cable"
   }
  },
  {
@@ -397,11 +425,13 @@
   "weight_kg": 22,
   "sound_high_dba": 45,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
    "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
-   "page": "24; 53 (PDF p.54): factory + maximum charge"
+   "page": "24; 53 (PDF p.54): factory + maximum charge; 54 (PDF p.55): breaker + power cable"
   }
  },
  {
@@ -424,11 +454,13 @@
   "weight_kg": 24,
   "sound_high_dba": 47,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
    "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
-   "page": "24; 53 (PDF p.54): factory + maximum charge"
+   "page": "24; 53 (PDF p.54): factory + maximum charge; 54 (PDF p.55): breaker + power cable"
   }
  },
  {
@@ -451,11 +483,13 @@
   "weight_kg": 24,
   "sound_high_dba": 50,
   "max_amps_a": 9.0,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
    "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
-   "page": "24; 53 (PDF p.54): factory + maximum charge"
+   "page": "24; 53 (PDF p.54): factory + maximum charge; 54 (PDF p.55): breaker + power cable"
   }
  },
  {
@@ -478,11 +512,13 @@
   "weight_kg": 32,
   "sound_high_dba": 52,
   "max_amps_a": 14.5,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK05-18ZTLA-WFJ (Wall Mounted Residential)",
    "edition": "Split Systems April 2026 AU; '25 DXK-DB-454",
-   "page": "24; 53 (PDF p.54): factory + maximum charge"
+   "page": "24; 53 (PDF p.54): factory + maximum charge; 54 (PDF p.55): breaker + power cable"
   }
  },
  {
@@ -505,11 +541,13 @@
   "weight_kg": 41,
   "sound_high_dba": 52,
   "max_amps_a": 17.0,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK21-24ZTLA-WFJ (Wall Mounted Residential)",
    "edition": "Split Systems April 2026 AU; '25 DXK-DB-455",
-   "page": "24; 31 (PDF p.32): factory + maximum charge"
+   "page": "24; 31 (PDF p.32): factory + maximum charge; 32 (PDF p.33): breaker + power cable"
   }
  },
  {
@@ -532,11 +570,13 @@
   "weight_kg": 41,
   "sound_high_dba": 55,
   "max_amps_a": 17.0,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Split Systems Brochure (AU); MHI Data Book DXK21-24ZTLA-WFJ (Wall Mounted Residential)",
    "edition": "Split Systems April 2026 AU; '25 DXK-DB-455",
-   "page": "24; 31 (PDF p.32): factory + maximum charge"
+   "page": "24; 31 (PDF p.32): factory + maximum charge; 32 (PDF p.33): breaker + power cable"
   }
  },
  {
@@ -872,11 +912,13 @@
   "weight_kg": 40,
   "sound_high_dba": 49,
   "max_amps_a": 14,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Multi-Split Systems Brochure (AU); MHI Data Book Inverter Multi-Split SCM40-80ZS-W",
    "edition": "Multi-Split Systems March 2026 AU; '21 SCM-DB-330C",
-   "page": "10 (PDF p.6); 4 (PDF p.6); charge 27 (PDF p.29)"
+   "page": "10 (PDF p.6); 4 (PDF p.6); charge 27 (PDF p.29); breaker + power cable 28 (PDF p.30)"
   }
  },
  {
@@ -900,11 +942,13 @@
   "weight_kg": 40,
   "sound_high_dba": 50,
   "max_amps_a": 14,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Multi-Split Systems Brochure (AU); MHI Data Book Inverter Multi-Split SCM40-80ZS-W",
    "edition": "Multi-Split Systems March 2026 AU; '21 SCM-DB-330C",
-   "page": "10 (PDF p.6); 5 (PDF p.7); charge 27 (PDF p.29)"
+   "page": "10 (PDF p.6); 5 (PDF p.7); charge 27 (PDF p.29); breaker + power cable 28 (PDF p.30)"
   }
  },
  {
@@ -927,11 +971,13 @@
   "weight_kg": 48.5,
   "sound_high_dba": 49,
   "max_amps_a": 15,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Multi-Split Systems Brochure (AU); MHI Data Book Inverter Multi-Split SCM40-80ZS-W",
    "edition": "Multi-Split Systems March 2026 AU; '21 SCM-DB-330C",
-   "page": "10 (PDF p.6); 6 (PDF p.8)"
+   "page": "10 (PDF p.6); 6 (PDF p.8); breaker + power cable 31 (PDF p.33)"
   }
  },
  {
@@ -954,11 +1000,13 @@
   "weight_kg": 48.5,
   "sound_high_dba": 50,
   "max_amps_a": 15,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Multi-Split Systems Brochure (AU); MHI Data Book Inverter Multi-Split SCM40-80ZS-W",
    "edition": "Multi-Split Systems March 2026 AU; '21 SCM-DB-330C",
-   "page": "10 (PDF p.6); 7 (PDF p.9)"
+   "page": "10 (PDF p.6); 7 (PDF p.9); breaker + power cable 31 (PDF p.33)"
   }
  },
  {
@@ -982,11 +1030,13 @@
   "weight_kg": 61,
   "sound_high_dba": 50,
   "max_amps_a": 20,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Multi-Split Systems Brochure (AU); MHI Data Book Inverter Multi-Split SCM40-80ZS-W",
    "edition": "Multi-Split Systems March 2026 AU; '21 SCM-DB-330C",
-   "page": "10 (PDF p.6); 8 (PDF p.10); charge 35 (PDF p.37)"
+   "page": "10 (PDF p.6); 8 (PDF p.10); charge 35 (PDF p.37); breaker + power cable 36 (PDF p.38)"
   }
  },
  {
@@ -1010,11 +1060,13 @@
   "weight_kg": 61,
   "sound_high_dba": 54,
   "max_amps_a": 20,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Multi-Split Systems Brochure (AU); MHI Data Book Inverter Multi-Split SCM40-80ZS-W",
    "edition": "Multi-Split Systems March 2026 AU; '21 SCM-DB-330C",
-   "page": "10 (PDF p.6); 9 (PDF p.11); charge 35 (PDF p.37)"
+   "page": "10 (PDF p.6); 9 (PDF p.11); charge 35 (PDF p.37); breaker + power cable 36 (PDF p.38)"
   }
  },
  {
@@ -1038,11 +1090,13 @@
   "weight_kg": 73,
   "sound_high_dba": 54,
   "max_amps_a": 21,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "provenance": {
    "kind": "extracted",
    "source": "MHIAA Multi-Split Systems Brochure (AU); MHI Data Book Inverter Multi-Split SCM40-100ZS-W (outdoor installation manuals)",
    "edition": "Multi-Split Systems March 2026 AU; '21 SCM-DB-332",
-   "page": "10 (PDF p.6); outdoor installation manual RSA012A926 (PDF p.15): maximum charge"
+   "page": "10 (PDF p.6); outdoor installation manual RSA012A926 (PDF p.15): maximum charge; breaker + power cable 46 (PDF p.16)"
   }
  },
  {
@@ -1071,11 +1125,12 @@
   "weight_kg": 85,
   "sound_high_dba": 53,
   "max_amps_a": 23,
+  "breaker_a": 40,
   "provenance": {
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14)"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); KX-T-374 21 (PDF p.23): breaker, outdoor unit on its own power source"
   }
  },
  {
@@ -1104,11 +1159,12 @@
   "weight_kg": 85,
   "sound_high_dba": 53,
   "max_amps_a": 23,
+  "breaker_a": 40,
   "provenance": {
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14)"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); KX-T-374 21 (PDF p.23): breaker, outdoor unit on its own power source"
   }
  },
  {
@@ -1143,11 +1199,12 @@
   "weight_kg": 85,
   "sound_high_dba": 54,
   "max_amps_a": 23,
+  "breaker_a": 40,
   "provenance": {
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*')"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*'); KX-T-374 21 (PDF p.23): breaker, outdoor unit on its own power source"
   }
  },
  {
@@ -1182,11 +1239,12 @@
   "weight_kg": 85,
   "sound_high_dba": 54,
   "max_amps_a": 23,
+  "breaker_a": 40,
   "provenance": {
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*')"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*'); KX-T-374 21 (PDF p.23): breaker, outdoor unit on its own power source"
   }
  },
  {
@@ -1215,11 +1273,12 @@
   "weight_kg": 87,
   "sound_high_dba": 53,
   "max_amps_a": 13.5,
+  "breaker_a": 20,
   "provenance": {
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14)"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); KX-T-374 21 (PDF p.23): breaker, outdoor unit on its own power source"
   }
  },
  {
@@ -1254,11 +1313,12 @@
   "weight_kg": 87,
   "sound_high_dba": 54,
   "max_amps_a": 13.5,
+  "breaker_a": 20,
   "provenance": {
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*')"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*'); KX-T-374 21 (PDF p.23): breaker, outdoor unit on its own power source"
   }
  },
  {
@@ -1293,11 +1353,12 @@
   "weight_kg": 87,
   "sound_high_dba": 54,
   "max_amps_a": 13.5,
+  "breaker_a": 20,
   "provenance": {
    "kind": "extracted",
    "source": "MHI Technical Manual VRF Inverter Multi-System KXZ series (KX Micro); MHIAA R32 KX Systems Brochure (AU)",
    "edition": "'21 KX-T-374; R32 KX Systems Brochure Feb 2026 AU",
-   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*')"
+   "page": "6 (PDF p.8); 3 (PDF p.5): 80-150 % (FDC90 100-150 %); 15 (PDF p.17), 215 (PDF p.217): units + total capacity; 4 (PDF p.6): indoor sizes 15-160; 26-27 (PDF p.14); R32 brochure 25 (PDF p.13): 9 units or more, 5HP 110 % / 6HP 100 % (the 14.0 and 15.2 kW columns, '1-10*'); KX-T-374 21 (PDF p.23): breaker, outdoor unit on its own power source"
   }
  },
  {
@@ -1308,6 +1369,8 @@
   "capacity_cool_kw": 2.0,
   "capacity_heat_kw": 2.7,
   "phase": "1",
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "power_supply": "1 Phase 220 -240V 50Hz",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
@@ -1319,9 +1382,9 @@
   "weight_kg": 33,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
-   "edition": "Elouera Brochure June 2026 AU",
-   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions"
+   "source": "MHIAA Elouera ZTA Series Brochure (AU); MHI Data Book SRK10-18YTA-WF (outdoor installation manual RWC012A084, SRC20-50ZTA-W)",
+   "edition": "Elouera Brochure June 2026 AU; '26 SRK-DB-471",
+   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions; SRK-DB-471 41 (PDF p.42): breaker + power cable"
   }
  },
  {
@@ -1332,6 +1395,8 @@
   "capacity_cool_kw": 2.5,
   "capacity_heat_kw": 3.2,
   "phase": "1",
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "power_supply": "1 Phase 220 -240V 50Hz",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
@@ -1343,9 +1408,9 @@
   "weight_kg": 33,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
-   "edition": "Elouera Brochure June 2026 AU",
-   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions"
+   "source": "MHIAA Elouera ZTA Series Brochure (AU); MHI Data Book SRK10-18YTA-WF (outdoor installation manual RWC012A084, SRC20-50ZTA-W)",
+   "edition": "Elouera Brochure June 2026 AU; '26 SRK-DB-471",
+   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions; SRK-DB-471 41 (PDF p.42): breaker + power cable"
   }
  },
  {
@@ -1356,6 +1421,8 @@
   "capacity_cool_kw": 3.5,
   "capacity_heat_kw": 4.0,
   "phase": "1",
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "power_supply": "1 Phase 220 -240V 50Hz",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
@@ -1367,9 +1434,9 @@
   "weight_kg": 33.5,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
-   "edition": "Elouera Brochure June 2026 AU",
-   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions"
+   "source": "MHIAA Elouera ZTA Series Brochure (AU); MHI Data Book SRK10-18YTA-WF (outdoor installation manual RWC012A084, SRC20-50ZTA-W)",
+   "edition": "Elouera Brochure June 2026 AU; '26 SRK-DB-471",
+   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions; SRK-DB-471 41 (PDF p.42): breaker + power cable"
   }
  },
  {
@@ -1380,6 +1447,8 @@
   "capacity_cool_kw": 4.2,
   "capacity_heat_kw": 5.4,
   "phase": "1",
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "power_supply": "1 Phase 220 -240V 50Hz",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -1391,9 +1460,9 @@
   "weight_kg": 33,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
-   "edition": "Elouera Brochure June 2026 AU",
-   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions"
+   "source": "MHIAA Elouera ZTA Series Brochure (AU); MHI Data Book SRK10-18YTA-WF (outdoor installation manual RWC012A084, SRC20-50ZTA-W)",
+   "edition": "Elouera Brochure June 2026 AU; '26 SRK-DB-471",
+   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions; SRK-DB-471 41 (PDF p.42): breaker + power cable"
   }
  },
  {
@@ -1404,6 +1473,8 @@
   "capacity_cool_kw": 5.0,
   "capacity_heat_kw": 5.8,
   "phase": "1",
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "power_supply": "1 Phase 220 -240V 50Hz",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -1415,9 +1486,9 @@
   "weight_kg": 33,
   "provenance": {
    "kind": "extracted",
-   "source": "MHIAA Elouera ZTA Series Brochure (AU)",
-   "edition": "Elouera Brochure June 2026 AU",
-   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions"
+   "source": "MHIAA Elouera ZTA Series Brochure (AU); MHI Data Book SRK10-18YTA-WF (outdoor installation manual RWC012A084, SRC20-50ZTA-W)",
+   "edition": "Elouera Brochure June 2026 AU; '26 SRK-DB-471",
+   "page": "2: spec (printed 'SRC20ZTA-W / SRC20ZTA-WB'); 4: outdoor dimensions; SRK-DB-471 41 (PDF p.42): breaker + power cable"
   }
  }
 ]

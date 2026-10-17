@@ -12,6 +12,7 @@ import { putResearchedOn } from "@/lib/quotes/lines-job-server";
 import { briefOf } from "@/lib/quotes/session/job-sources";
 import { readJobSources } from "@/lib/quotes/session/job-sources-server";
 import { maskMoney, threadWithoutMoney } from "@/lib/quotes/money-hidden";
+import { clearDraft } from "@/lib/drafts/drafts-server";
 
 /* Tiff's session on a quote (slice 4.1): GET reads the thread as a person
    reads it, after an event id, with whether she's working and what the
@@ -122,5 +123,8 @@ export async function POST(req: Request) {
   const started = await startTurn(g.orgId, target.parentRemoteId, g.userId, typeof body.message === "string" ? body.message : "", { brief, noMoney: !g.money });
   if (!started.ok) return Response.json({ ok: false, reason: started.reason }, { status: started.status });
   after(started.run);
+  /* the words are sent: no draft of them is left in this person's box, on
+     any device (reply_drafts.sql) */
+  after(() => clearDraft({ orgId: g.orgId, userSub: g.userId, box: "quote", ref: target.parentRemoteId }).then(() => undefined));
   return Response.json({ ok: true, turn: started.turnId });
 }

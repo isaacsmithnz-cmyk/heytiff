@@ -54,6 +54,8 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     "- Check every system's outdoor takes its indoors (pairing_check) before its units go on. One that doesn't connect never goes on as it is: say why, in the book's words, and put on one that does.",
     /* the bench, 16 October: told a code wasn't in the pack, she swapped the
        AP35 she'd picked for the dearer EF35 the pack has (3311, +50%) */
+    /* 3209, 17 October: a whole 10 kg cylinder on a PUMY-SP112 the book puts at about 4 kg */
+    "- The refrigerant a system takes on top of its outdoor's own comes from its maker's book on the pipe lengths (refrigerant_charge), never a whole cylinder by default: put on that weight as a part of the pack the book sells (4.1 kg of a 10 kg cylinder is 0.41), the book's figure in why. Where the lengths aren't known yet, put it on at the lengths you've assumed and say it moves with them.",
     "- A model the pack hasn't got isn't refused: keep the one the brief or the book gives, and say its pairing isn't checked. Never swap a unit only to get one the pack has.",
     /* Isaac, 2026-10-15, on 3231: "[MITSUBISHI ELEC. DUCT OUT 10KW 1P R32].
        That's like a line code from a supplier… simplified to indoor unit,

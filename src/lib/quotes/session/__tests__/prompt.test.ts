@@ -97,3 +97,8 @@ it("searches the book before calling a part unknown, and keeps what a found item
   expect(p).toMatch(/on a ducted head \(and a head hidden in joinery or a bulkhead is one\) its plenum or supply adaptor, its supply grilles with their boxes and flex, its return grille, box and flex/);
 });
 
+/* 3209, 17 October: a whole 10 kg cylinder on a PUMY-SP112 the book puts at about 4 kg */
+it("puts on the refrigerant the maker's book gives on the pipe lengths, never a whole cylinder by default", () => {
+  expect(sessionSystemPrompt()).toMatch(/The refrigerant a system takes on top of its outdoor's own comes from its maker's book on the pipe lengths \(refrigerant_charge\), never a whole cylinder by default/);
+});
+

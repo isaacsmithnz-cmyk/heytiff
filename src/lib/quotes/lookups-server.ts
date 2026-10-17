@@ -6,6 +6,7 @@ import { brandNames } from "@/lib/hq/packs";
 import { bookProducts } from "./book-view-server";
 import { findInBook, unitSpecs, type BookHit, type BookQuery, type ConfirmedLink, type UnitLookup } from "./lookups";
 import { pairingOf, type Pairing } from "./pairing";
+import { chargeOf, type Charge, type ChargeAsk } from "./charge";
 
 /* The lookups (lookups.ts), read for one business: its own book, and the
    installed data packs, which every business shares. The callers gate on
@@ -59,4 +60,10 @@ export async function lookupUnit(brand: string, model: string, orgId?: string | 
 export async function lookupPairing(brand: string, outdoor: string, indoors: string[], orgId?: string | null): Promise<Pairing> {
   const [pack, links] = await Promise.all([packFor(brand.toLowerCase()).catch(() => null), confirmedLinks(orgId)]);
   return pairingOf(pack, outdoor, indoors, links);
+}
+
+/** The refrigerant to add to a system, by its maker's book (charge.ts). */
+export async function lookupCharge(brand: string, ask: ChargeAsk, orgId?: string | null): Promise<Charge> {
+  const [pack, links] = await Promise.all([packFor(brand.toLowerCase()).catch(() => null), confirmedLinks(orgId)]);
+  return chargeOf(pack, ask, links);
 }

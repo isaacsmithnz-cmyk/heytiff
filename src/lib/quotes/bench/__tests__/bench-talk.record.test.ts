@@ -42,7 +42,7 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
 (ON ? describe : describe.skip)("talking Tiff through a job (spends money)", () => {
   jest.setTimeout(30 * 60_000);
   it("takes one turn of the conversation", async () => {
-    const [{ anthropicModel }, { bookProducts }, { lookupPairing, lookupUnit, zoningFor }, { readQuoteSettings }, { readOrgDay }, { readRangeOffers }, { buildSettingsOf }, { hourCostOf }] = await Promise.all([
+    const [{ anthropicModel }, { bookProducts }, { lookupCharge, lookupPairing, lookupUnit, zoningFor }, { readQuoteSettings }, { readOrgDay }, { readRangeOffers }, { buildSettingsOf }, { hourCostOf }] = await Promise.all([
       import("../../session/model-server"),
       import("../../book-view-server"),
       import("../../lookups-server"),
@@ -72,6 +72,7 @@ type Talk = { state: SessionState; lines: QuoteLine[]; turns: { said: string; us
       taskHours: FRESH ? undefined : settings.taskHours,
       lookup: (brand: string, model: string) => lookupUnit(brand, model, ORG),
       pairing: (brand: string, outdoor: string, indoors: string[]) => lookupPairing(brand, outdoor, indoors, ORG),
+      charge: (brand: string, ask: import("../../charge").ChargeAsk) => lookupCharge(brand, ask, ORG),
       zoning: zoningFor,
       airflowGuide: await (await import("@/lib/guides/airflow-server")).loadAirflowGuide(),
       kitPrefs: FRESH ? null : { ranges, components: settings.preferred },

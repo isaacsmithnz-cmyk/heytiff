@@ -209,6 +209,29 @@ export const SESSION_TOOLS: ToolDef[] = [
       "A unit's specs from its maker's data pack: indoor or outdoor, capacity, size, weight, sound, phase, current and pipe. Says \"no data pack\" for a brand HeyTiff has none for: then its figures are assumed and marked not checked.",
     input_schema: { type: "object", properties: { brand: { type: "string", description: "e.g. mitsubishi-electric" }, model: { type: "string" } }, required: ["brand", "model"], additionalProperties: false },
   },
+  /* 3209, 17 October: a whole 10 kg cylinder on a PUMY-SP112 the book puts at about 4 kg */
+  {
+    name: "refrigerant_charge",
+    description:
+      "The refrigerant a system takes on top of its outdoor's own, by its maker's book: a split pair's rule on the run, a multi's rule, a VRF's by the liquid pipe of each size, the run to the farthest head and the heads it carries. Gives the kg to add, the outdoor's own charge and the most it may hold. Says when the book needs a length it hasn't been given.",
+    input_schema: {
+      type: "object",
+      properties: {
+        brand: { type: "string", description: "The maker's data pack, e.g. mitsubishi-electric" },
+        outdoor: { type: "string", description: "The outdoor's model" },
+        indoors: { type: "array", items: { type: "string" }, description: "Every indoor on it, one entry a head" },
+        liquid_pipe: {
+          type: "array",
+          description: "The liquid pipe by size: metres of each, across the whole system",
+          items: { type: "object", properties: { size_mm: { type: "number", description: "The liquid pipe's size, mm: 6.35, 9.52, 12.7…" }, metres: { type: "number" } }, required: ["size_mm", "metres"], additionalProperties: false },
+        },
+        farthest_m: { type: "number", description: "VRF: the run from the outdoor to the farthest head, metres" },
+        method: { type: "string", enum: ["joint", "branch-box"], description: "VRF: how the heads connect; joints unless said" },
+      },
+      required: ["brand", "outdoor", "indoors", "liquid_pipe"],
+      additionalProperties: false,
+    },
+  },
   /* the bench, 15 October: a VRF ducted head went on a multi outdoor, "pairing not checked" */
   {
     name: "pairing_check",
@@ -622,6 +645,7 @@ export const TOOL_LABELS: Record<string, string> = {
   search_book: "Searched your book",
   unit_specs: "Read the data pack",
   pairing_check: "Checked the pairing",
+  refrigerant_charge: "Worked out the refrigerant",
   room_load: "Sized the rooms",
   add_lines: "Added lines",
   change_line: "Changed a line",

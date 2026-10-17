@@ -43,7 +43,7 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
 (ON ? describe : describe.skip)("the seventeen, live (spends money)", () => {
   jest.setTimeout(170 * 60_000);
   it("runs each case's brief, then its corrections, and keeps everything", async () => {
-    const [{ anthropicModel }, { bookProducts }, { lookupPairing, lookupUnit, zoningFor }, { readQuoteSettings }, { readOrgDay }, { readRangeOffers }, { buildSettingsOf }, { hourCostOf }] = await Promise.all([
+    const [{ anthropicModel }, { bookProducts }, { lookupCharge, lookupPairing, lookupUnit, zoningFor }, { readQuoteSettings }, { readOrgDay }, { readRangeOffers }, { buildSettingsOf }, { hourCostOf }] = await Promise.all([
       import("../../session/model-server"),
       import("../../book-view-server"),
       import("../../lookups-server"),
@@ -84,6 +84,7 @@ type Case = { job: string; title: string; brief: string; followUp: string | null
         taskHours: FRESH ? undefined : settings.taskHours,
         lookup: (brand: string, model: string) => lookupUnit(brand, model, ORG),
         pairing: (brand: string, outdoor: string, indoors: string[]) => lookupPairing(brand, outdoor, indoors, ORG),
+        charge: (brand: string, ask: import("../../charge").ChargeAsk) => lookupCharge(brand, ask, ORG),
         zoning: zoningFor,
         airflowGuide: await (await import("@/lib/guides/airflow-server")).loadAirflowGuide(),
         kitPrefs: FRESH ? null : { ranges, components: settings.preferred },

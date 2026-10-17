@@ -124,8 +124,9 @@ describe("a unit, from its maker's data pack", () => {
   /* Isaac, 2026-10-18: "add breaker and min cable fields" (M-P0860 p.47) */
   it("reads an outdoor's breaker and the smallest cable its maker allows", () => {
     expect(unitSpecs(packs, "mitsubishi-electric", "PUMY-SP112VKMD2-A")).toMatchObject({ found: true, specs: { mcaAmps: 30.5, breakerA: 32, minCableMm2: 6 } });
-    const none = unitSpecs(packs, "mitsubishi-electric", "PUZ-ZM125VKA2-A");
-    expect(none.found && [none.specs.breakerA, none.specs.minCableMm2]).toEqual([null, null]);
+    /* M-P0922 prints the SUZ-M50VAD-A's breaker and no cable */
+    const some = unitSpecs(packs, "mitsubishi-electric", "SUZ-M50VAD-A");
+    expect(some.found && [some.specs.breakerA, some.specs.minCableMm2]).toEqual([20, null]);
   });
 
   it("reads an order code the pack doesn't name through the business's confirmed link, saying so", () => {

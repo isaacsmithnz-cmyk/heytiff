@@ -568,8 +568,9 @@ export interface OutdoorUnit {
       operating current, while the Mr Slim book prints the reverse. Tier-3. */
   mca_a?: number;
   /** the circuit breaker the maker says to fit on the outdoor's own supply,
-      amps, as printed ("Breaker for wiring", "Circuit breaker current"). Not
-      a maximum: a "max fuse" (Daikin's MFA) is the largest allowed, not the
+      amps, as printed ("Breaker for wiring", "Circuit breaker current"), or
+      the fuse where that is what the book says to fit ("Recommended field
+      fuse", "Fuse rated current": the page note names which). Not a maximum: a "max fuse" (Daikin's MFA) is the largest allowed, not the
       size to fit, and doesn't go here. Where a book prints more than one
       supply arrangement (PUMY: branch box fed from the outdoor), the
       outdoor-on-its-own figure. Tier-3. */

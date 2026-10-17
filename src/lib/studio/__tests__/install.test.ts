@@ -179,12 +179,13 @@ describe("a five-head multi on an MXZ-5F100VGD", () => {
   it("sizes the isolator and the cable's current from the pack, and lists them only when the electrical is ours", () => {
     let doc = fiveHeadMulti();
     const question = questionById(installQuestions(doc, pack, sysOf(doc, "multi")), "electrical-work");
-    expect(question.hint).toBe("From the pack: 1Ø 20 A, for its 18.4 A");
+    /* MXZ-5F100VGD draws 18.4 A and its book asks a 25 A breaker */
+    expect(question.hint).toBe("From the pack: 1Ø 32 A, for its 25 A breaker");
 
     doc = answerInstall(doc, "multi", "electrical-work", ["yes"]);
     let rows = equipmentList(doc, pack, sysOf(doc, "multi")).rows;
-    expect(rowsNamed(rows, "Isolator, 1Ø 20 A")).toEqual([
-      { group: "Electrical", name: "Isolator, 1Ø 20 A", qty: 1 },
+    expect(rowsNamed(rows, "Isolator, 1Ø 32 A")).toEqual([
+      { group: "Electrical", name: "Isolator, 1Ø 32 A", qty: 1 },
     ]);
     // the cable carries the current to size against, never a size
     expect(rowsNamed(rows, "Supply cable")).toEqual([
@@ -542,6 +543,19 @@ describe("a split and a ducted pair", () => {
     ]);
   });
 
+  it("a breaker past every isolator listed says the isolator is under it", () => {
+    const doc = withSystem(
+      house(),
+      "ducted",
+      "ducted",
+      [{ id: "ahu", model: "PEAD-M140JAA(D)", roomId: null, serves: "system" }],
+      "PUZ-M140VKA-A"
+    );
+    expect(pack.outdoor_units.find((u) => u.model === "PUZ-M140VKA-A")).toMatchObject({ phase: "1", breaker_a: 40 });
+    const questions = installQuestions(doc, pack, sysOf(doc, "ducted"));
+    expect(questionById(questions, "electrical-work").hint).toBe("From the pack: 1Ø 32 A, under its 40 A breaker");
+  });
+
   it("a PEAD ducted pair drains with its own pump and takes a 32 A isolator", () => {
     let doc = withSystem(
       house(),
@@ -554,6 +568,7 @@ describe("a split and a ducted pair", () => {
     expect(idu.drain_pump).toBe("built-in");
     const odu = pack.outdoor_units.find((u) => u.model === "PUZ-ZM125VKA2-A")!;
     expect(odu.max_amps_a).toBe(27.5);
+    expect(odu.breaker_a).toBe(32);
     expect(odu.phase).toBe("1");
     expect(defaultIsolatorId(odu)).toBe("isolator-32a-1ph");
 
@@ -561,7 +576,7 @@ describe("a split and a ducted pair", () => {
     expect(questionById(questions, "condensate").options.find((o) => o.id === "pump")?.sub).toBe(
       "Built in on PEAD-M125JAA(D)"
     );
-    expect(questionById(questions, "electrical-work").hint).toBe("From the pack: 1Ø 32 A, for its 27.5 A");
+    expect(questionById(questions, "electrical-work").hint).toBe("From the pack: 1Ø 32 A, for its 32 A breaker");
 
     doc = answerInstall(doc, "ducted", "condensate", ["pump"]);
     doc = answerInstall(doc, "ducted", "electrical-work", ["yes"]);

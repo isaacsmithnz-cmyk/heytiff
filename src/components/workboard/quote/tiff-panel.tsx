@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
+import { useReplyDraft } from "@/components/notes/use-reply-draft";
 import { planOf, type PlannedPart } from "@/lib/quotes/build-progress";
 import { researchDetailOf } from "@/lib/quotes/research";
 import { latestAsked } from "@/lib/quotes/session/answers";
@@ -182,6 +183,10 @@ export function TiffPanel({
   useEffect(() => {
     if (on !== null) status({ on, spentUsd: spent });
   }, [on, spent]);
+
+  /* what you typed and haven't sent is kept, for you, on the next device
+     too (Isaac, 2026-10-18); words already typed here are never replaced */
+  useReplyDraft("quote", job, typed, (text) => setTyped((now) => now || text), on === true);
 
   /* from the job card's Create a quote: straight into the box, once */
   useEffect(() => {

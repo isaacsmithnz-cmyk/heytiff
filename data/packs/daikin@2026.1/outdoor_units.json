@@ -105,6 +105,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 8.8,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -118,7 +120,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.5, 34)"
+   "page": "26 (also EDTMT042601 p.5, 34, 40)"
   }
  },
  {
@@ -131,6 +133,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 8.8,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -144,7 +148,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.5, 34)"
+   "page": "26 (also EDTMT042601 p.5, 34, 40)"
   }
  },
  {
@@ -157,6 +161,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 8.8,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -170,7 +176,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.6, 34)"
+   "page": "26 (also EDTMT042601 p.6, 34, 40)"
   }
  },
  {
@@ -183,6 +189,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 9.8,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -196,7 +204,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.6, 34)"
+   "page": "26 (also EDTMT042601 p.6, 34, 50)"
   }
  },
  {
@@ -209,6 +217,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 13.8,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -222,7 +232,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.7, 34)"
+   "page": "26 (also EDTMT042601 p.7, 34, 60)"
   }
  },
  {
@@ -235,6 +245,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 13.8,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -248,7 +260,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.7, 34)"
+   "page": "26 (also EDTMT042601 p.7, 34, 60)"
   }
  },
  {
@@ -261,6 +273,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 19.6,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -274,7 +288,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.8, 34)"
+   "page": "26 (also EDTMT042601 p.8, 34, 70)"
   }
  },
  {
@@ -455,6 +469,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 19.6,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -468,7 +484,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "28 (also EDTAU042229 p.7, 22)"
+   "page": "28 (also EDTAU042229 p.7, 22, 28)"
   }
  },
  {
@@ -481,6 +497,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 19.6,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -494,7 +512,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "28 (also EDTAU042229 p.7, 22)"
+   "page": "28 (also EDTAU042229 p.7, 22, 28)"
   }
  },
  {
@@ -507,6 +525,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 19.6,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -520,7 +540,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "29 (also EDTAU042230 p.4, 14)"
+   "page": "29 (also EDTAU042230 p.4, 14, 20)"
   }
  },
  {
@@ -533,6 +553,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 19.6,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -546,7 +568,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "29 (also EDTAU042230 p.4, 14)"
+   "page": "29 (also EDTAU042230 p.4, 14, 20)"
   }
  },
  {
@@ -559,6 +581,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 8.8,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -572,7 +596,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.4, 28)"
+   "page": "30 (also EDTAU062411 p.4, 28, 43)"
   }
  },
  {
@@ -585,6 +609,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 8.8,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -598,7 +624,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.4, 28)"
+   "page": "30 (also EDTAU062411 p.4, 28, 43)"
   }
  },
  {
@@ -611,6 +637,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 8.8,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -624,7 +652,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.5, 28)"
+   "page": "30 (also EDTAU062411 p.5, 28, 43)"
   }
  },
  {
@@ -637,6 +665,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 13.8,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -650,7 +680,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.5, 28)"
+   "page": "30 (also EDTAU062411 p.5, 28, 43)"
   }
  },
  {
@@ -663,6 +693,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 13.8,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -676,7 +708,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.6, 28)"
+   "page": "30 (also EDTAU062411 p.6, 28, 43)"
   }
  },
  {
@@ -689,6 +721,8 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
   "mca_a": 13.8,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -702,7 +736,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.6, 28)"
+   "page": "30 (also EDTAU062411 p.6, 28, 43)"
   }
  },
  {
@@ -883,6 +917,8 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "mca_a": 9.7,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -896,7 +932,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.28)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.28, 84)"
   }
  },
  {
@@ -909,6 +945,8 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "mca_a": 9.9,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -922,7 +960,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.28)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.28, 84)"
   }
  },
  {
@@ -935,6 +973,7 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "mca_a": 14.0,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -948,7 +987,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.10, 28)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.10, 28, 92)"
   }
  },
  {
@@ -961,6 +1000,7 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "mca_a": 14.2,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -974,7 +1014,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.10, 28)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.10, 28, 92)"
   }
  },
  {
@@ -987,6 +1027,8 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "mca_a": 15.9,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -1000,7 +1042,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.11, 28)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.11, 28, 100)"
   }
  },
  {
@@ -1013,6 +1055,7 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "mca_a": 17.3,
+  "breaker_a": 20,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -1025,7 +1068,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.8, 39)"
+   "page": "26 (also EDAU282225A p.8, 39, 139 (recommended field fuse))"
   },
   "precharged_kg": 1.35
  },
@@ -1039,6 +1082,7 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "mca_a": 17.3,
+  "breaker_a": 20,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -1051,7 +1095,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.8, 39)"
+   "page": "26 (also EDAU282225A p.8, 39, 139 (recommended field fuse))"
   },
   "precharged_kg": 1.35
  },
@@ -1065,6 +1109,7 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "mca_a": 17.3,
+  "breaker_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1077,7 +1122,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.9, 39)"
+   "page": "26 (also EDAU282225A p.9, 39, 139 (recommended field fuse))"
   },
   "precharged_kg": 1.7
  },
@@ -1378,6 +1423,7 @@
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "max_amps_a": 18.5,
   "mca_a": 18.5,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -1390,7 +1436,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282226 p.8, 31, 102)"
+   "page": "27 (also EDAU282226 p.8, 31, 102, 108 (fuse rated current))"
   },
   "precharged_kg": 5.8
  },
@@ -1405,6 +1451,7 @@
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "max_amps_a": 18.5,
   "mca_a": 18.5,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -1417,7 +1464,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282226 p.8, 31, 102)"
+   "page": "27 (also EDAU282226 p.8, 31, 102, 108 (fuse rated current))"
   },
   "precharged_kg": 6.3
  },
@@ -1431,6 +1478,7 @@
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "mca_a": 15.4,
+  "breaker_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 22.2,
   "refrigerant": "R410A",
@@ -1443,7 +1491,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282226 p.9, 32)"
+   "page": "27 (also EDAU282226 p.9, 32, 124 (recommended fuses))"
   },
   "precharged_kg": 9.3
  },
@@ -1614,6 +1662,8 @@
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "max_amps_a": 34.6,
   "mca_a": 34.6,
+  "breaker_a": 40,
+  "min_cable_mm2": 6,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -1627,7 +1677,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24 (also EDAU282514A p.8, 25, 81)"
+   "page": "24 (also EDAU282514A p.8, 25, 81 (fuse rated current, minimum wire size))"
   }
  },
  {
@@ -1641,6 +1691,8 @@
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "max_amps_a": 20,
   "mca_a": 20,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -1654,7 +1706,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282514A p.9, 25, 126)"
+   "page": "25 (also EDAU282514A p.9, 25, 126 (fuse rated current, minimum wire size))"
   }
  },
  {
@@ -1668,6 +1720,8 @@
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "max_amps_a": 20,
   "mca_a": 20,
+  "breaker_a": 25,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -1681,7 +1735,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282514A p.9, 25, 126)"
+   "page": "25 (also EDAU282514A p.9, 25, 126 (fuse rated current, minimum wire size))"
   }
  },
  {
@@ -1694,6 +1748,7 @@
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "mca_a": 22.0,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 22.2,
   "refrigerant": "R410A",
@@ -1706,7 +1761,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282302 p.8, 24)"
+   "page": "25 (also EDAU282302 p.8, 24, 86 (recommended fuses))"
   },
   "precharged_kg": 7.0
  },
@@ -1720,6 +1775,7 @@
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "mca_a": 16.1,
+  "breaker_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -1732,7 +1788,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282301 p.7, 24)"
+   "page": "25 (also EDAU282301 p.7, 24, 82 (recommended fuses))"
   },
   "precharged_kg": 7.0
  },
@@ -1746,6 +1802,7 @@
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "mca_a": 16.1,
+  "breaker_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -1758,7 +1815,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282301 p.7, 24)"
+   "page": "25 (also EDAU282301 p.7, 24, 82 (recommended fuses))"
   },
   "precharged_kg": 7.0
  },
@@ -1772,6 +1829,7 @@
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "mca_a": 22.0,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 22.2,
   "refrigerant": "R410A",
@@ -1784,7 +1842,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282301 p.8, 24)"
+   "page": "25 (also EDAU282301 p.8, 24, 82 (recommended fuses))"
   },
   "precharged_kg": 7.4
  },
@@ -1796,6 +1854,7 @@
   "capacity_cool_kw": 5.0,
   "capacity_heat_kw": 6.0,
   "phase": "1",
+  "breaker_a": 20,
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -1810,7 +1869,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28 (also PCSAU2313 p.51)"
+   "page": "28 (also PCSAU2313 p.51; EDAU282318 p.312 (recommended field fuse))"
   }
  },
  {
@@ -1821,6 +1880,7 @@
   "capacity_cool_kw": 6.0,
   "capacity_heat_kw": 7.1,
   "phase": "1",
+  "breaker_a": 20,
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
@@ -1835,7 +1895,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28 (also PCSAU2313 p.51)"
+   "page": "28 (also PCSAU2313 p.51; EDAU282318 p.312 (recommended field fuse))"
   }
  },
  {
@@ -1896,6 +1956,8 @@
   "capacity_cool_kw": 10.0,
   "capacity_heat_kw": 12.0,
   "phase": "1",
+  "breaker_a": 32,
+  "min_cable_mm2": 4.0,
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -1910,7 +1972,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28 (also PCSAU2313 p.51)"
+   "page": "28 (also PCSAU2313 p.51; EDAU282318 p.367 (recommended field fuse, wire size))"
   }
  },
  {
@@ -1921,6 +1983,8 @@
   "capacity_cool_kw": 12.5,
   "capacity_heat_kw": 15.0,
   "phase": "1",
+  "breaker_a": 32,
+  "min_cable_mm2": 4.0,
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -1935,7 +1999,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28 (also PCSAU2313 p.51)"
+   "page": "28 (also PCSAU2313 p.51; EDAU282318 p.367 (recommended field fuse, wire size))"
   }
  },
  {
@@ -1946,6 +2010,8 @@
   "capacity_cool_kw": 14.0,
   "capacity_heat_kw": 16.5,
   "phase": "1",
+  "breaker_a": 32,
+  "min_cable_mm2": 4.0,
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -1960,7 +2026,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28 (also PCSAU2313 p.51)"
+   "page": "28 (also PCSAU2313 p.51; EDAU282318 p.367 (recommended field fuse, wire size))"
   }
  },
  {
@@ -2021,6 +2087,8 @@
   "capacity_cool_kw": 10.0,
   "capacity_heat_kw": 12.0,
   "phase": "3",
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -2035,7 +2103,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "29 (also PCSAU2313 p.52)"
+   "page": "29 (also PCSAU2313 p.52; EDAU282318 p.367 (recommended field fuse, wire size))"
   }
  },
  {
@@ -2046,6 +2114,8 @@
   "capacity_cool_kw": 12.5,
   "capacity_heat_kw": 15.0,
   "phase": "3",
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -2060,7 +2130,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "29 (also PCSAU2313 p.52)"
+   "page": "29 (also PCSAU2313 p.52; EDAU282318 p.367 (recommended field fuse, wire size))"
   }
  },
  {
@@ -2071,6 +2141,8 @@
   "capacity_cool_kw": 14.0,
   "capacity_heat_kw": 16.5,
   "phase": "3",
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -2085,7 +2157,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "29 (also PCSAU2313 p.52)"
+   "page": "29 (also PCSAU2313 p.52; EDAU282318 p.367 (recommended field fuse, wire size))"
   }
  },
  {
@@ -2096,6 +2168,7 @@
   "capacity_cool_kw": 7.1,
   "capacity_heat_kw": 8.0,
   "phase": "1",
+  "breaker_a": 20,
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
@@ -2110,7 +2183,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "28 (also PCSAU2313 p.63; EDAU282223A p.9)"
+   "page": "28 (also PCSAU2313 p.63; EDAU282223A p.9, 152 (recommended field fuse))"
   }
  },
  {
@@ -2225,6 +2298,8 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
   "mca_a": 29.6,
+  "breaker_a": 32,
+  "min_cable_mm2": 4.0,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2238,7 +2313,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "53 (also EDAU282223A p.48, MCA as printed with FCA140CVMA)"
+   "page": "53 (also EDAU282223A p.48, MCA as printed with FCA140CVMA; EDAU282223A p.207 (recommended field fuse, wire size))"
   }
  },
  {
@@ -2303,6 +2378,8 @@
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
   "mca_a": 16.4,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2316,7 +2393,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "54 (also EDAU282223A p.48, MCA as printed with FCA140CVMA)"
+   "page": "54 (also EDAU282223A p.48, MCA as printed with FCA140CVMA; EDAU282223A p.207 (recommended field fuse, wire size))"
   }
  },
  {
@@ -2329,6 +2406,8 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
   "mca_a": 5.4,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2342,7 +2421,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55 (also EDAU282227 p.26)"
+   "page": "55 (also EDAU282227 p.26, 77)"
   }
  },
  {
@@ -2355,6 +2434,8 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
   "mca_a": 7.2,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2368,7 +2449,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55 (also EDAU282227 p.26)"
+   "page": "55 (also EDAU282227 p.26, 77)"
   }
  },
  {
@@ -2381,6 +2462,8 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
   "mca_a": 10.8,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2394,7 +2477,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55 (also EDAU282227 p.26)"
+   "page": "55 (also EDAU282227 p.26, 85)"
   }
  },
  {
@@ -2407,6 +2490,8 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
   "mca_a": 12.4,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2420,7 +2505,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55 (also EDAU282227 p.26)"
+   "page": "55 (also EDAU282227 p.26, 85)"
   }
  },
  {
@@ -2433,6 +2518,8 @@
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
   "mca_a": 14.9,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2446,7 +2533,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55 (also EDAU282227 p.26)"
+   "page": "55 (also EDAU282227 p.26, 85)"
   }
  },
  {
@@ -2702,6 +2789,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 8.5,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2715,7 +2804,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
    "edition": "EDTAU042238",
-   "page": "5, 26"
+   "page": "5, 26, 45"
   }
  },
  {
@@ -2728,6 +2817,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 8.5,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2741,7 +2832,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
    "edition": "EDTAU042238",
-   "page": "6, 26"
+   "page": "6, 26, 45"
   }
  },
  {
@@ -2754,6 +2845,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 13.5,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2767,7 +2860,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
    "edition": "EDTAU042238",
-   "page": "7, 26"
+   "page": "7, 26, 53"
   }
  },
  {
@@ -2780,6 +2873,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 13.5,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2793,7 +2888,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
    "edition": "EDTAU042238",
-   "page": "8, 26"
+   "page": "8, 26, 53"
   }
  },
  {
@@ -2806,6 +2901,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 8.5,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2819,7 +2916,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "6, 46"
+   "page": "6, 46, 69"
   }
  },
  {
@@ -2832,6 +2929,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 8.5,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2845,7 +2944,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "6, 46"
+   "page": "6, 46, 69"
   }
  },
  {
@@ -2858,6 +2957,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 8.5,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2871,7 +2972,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "7, 46"
+   "page": "7, 46, 69"
   }
  },
  {
@@ -2884,6 +2985,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 9.3,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2897,7 +3000,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "7, 46"
+   "page": "7, 46, 77"
   }
  },
  {
@@ -2910,6 +3013,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 13.5,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2923,7 +3028,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "8, 46"
+   "page": "8, 46, 77"
   }
  },
  {
@@ -2936,6 +3041,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 13.5,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2949,7 +3056,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "8, 46"
+   "page": "8, 46, 77"
   }
  },
  {
@@ -2962,6 +3069,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 17.3,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2975,7 +3084,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "9, 46"
+   "page": "9, 46, 77"
   }
  },
  {
@@ -2988,6 +3097,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 19.6,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -3001,7 +3112,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "10, 46"
+   "page": "10, 46, 85"
   }
  },
  {
@@ -3014,6 +3125,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 19.6,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -3027,7 +3140,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "10, 46"
+   "page": "10, 46, 85"
   }
  },
  {
@@ -3040,6 +3153,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 8.5,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -3053,7 +3168,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "5, 35"
+   "page": "5, 35, 49"
   }
  },
  {
@@ -3066,6 +3181,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 8.5,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -3079,7 +3196,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "5, 35"
+   "page": "5, 35, 49"
   }
  },
  {
@@ -3092,6 +3209,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 8.5,
+  "breaker_a": 10,
+  "min_cable_mm2": 2.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -3105,7 +3224,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "6, 35"
+   "page": "6, 35, 49"
   }
  },
  {
@@ -3118,6 +3237,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 10.3,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -3131,7 +3252,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "6, 35"
+   "page": "6, 35, 49"
   }
  },
  {
@@ -3144,6 +3265,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 10.3,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -3157,7 +3280,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "7, 35"
+   "page": "7, 35, 49"
   }
  },
  {
@@ -3170,6 +3293,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 10.3,
+  "breaker_a": 15,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -3183,7 +3308,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "7, 35"
+   "page": "7, 35, 49"
   }
  },
  {
@@ -3196,6 +3321,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 13.5,
+  "breaker_a": 20,
+  "min_cable_mm2": 2.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -3209,7 +3336,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "8, 35"
+   "page": "8, 35, 49"
   }
  },
  {
@@ -3222,6 +3349,7 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 18.0,
+  "min_cable_mm2": 2.5,
   "refrigerant": "R32",
   "precharged_kg": 1.8,
   "ports": 3,
@@ -3234,7 +3362,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "22, 24-27, 316 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
+   "page": "22, 24-27, 316, 507 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
   }
  },
  {
@@ -3247,6 +3375,7 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 19.0,
+  "min_cable_mm2": 2.5,
   "refrigerant": "R32",
   "precharged_kg": 1.95,
   "ports": 4,
@@ -3259,7 +3388,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "22, 28-35, 316 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
+   "page": "22, 28-35, 316, 507 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
   }
  },
  {
@@ -3272,6 +3401,7 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 20.0,
+  "min_cable_mm2": 2.5,
   "refrigerant": "R32",
   "precharged_kg": 2.05,
   "ports": 4,
@@ -3284,7 +3414,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "23, 36-47, 316 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
+   "page": "23, 36-47, 316, 507 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
   }
  },
  {
@@ -3297,6 +3427,7 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 28.0,
+  "min_cable_mm2": 2.5,
   "refrigerant": "R32",
   "precharged_kg": 2.8,
   "ports": 5,
@@ -3309,7 +3440,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "23, 48-63, 316 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
+   "page": "23, 48-63, 316, 526 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
   }
  },
  {
@@ -3323,6 +3454,7 @@
   "phase": "1",
   "power_supply": "1 phase, 230-240 V, 50 Hz",
   "mca_a": 16.5,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3340,7 +3472,7 @@
    "kind": "extracted",
    "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
    "edition": "EDTRAU332223A",
-   "page": "8, 5, 18"
+   "page": "8, 5, 18, 43 (fuse rated current)"
   }
  },
  {
@@ -3354,6 +3486,7 @@
   "phase": "1",
   "power_supply": "1 phase, 230-240 V, 50 Hz",
   "mca_a": 16.5,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3371,7 +3504,7 @@
    "kind": "extracted",
    "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
    "edition": "EDTRAU332223A",
-   "page": "8, 5, 18"
+   "page": "8, 5, 18, 43 (fuse rated current)"
   }
  },
  {
@@ -3385,6 +3518,7 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
   "mca_a": 27,
+  "breaker_a": 30,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3402,7 +3536,7 @@
    "kind": "extracted",
    "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
    "edition": "EDTRAU332223A",
-   "page": "9, 5, 19"
+   "page": "9, 5, 19, 59 (fuse rated current)"
   }
  },
  {
@@ -3416,6 +3550,7 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
   "mca_a": 27,
+  "breaker_a": 30,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3433,7 +3568,7 @@
    "kind": "extracted",
    "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
    "edition": "EDTRAU332223A",
-   "page": "9, 5, 19"
+   "page": "9, 5, 19, 59 (fuse rated current)"
   }
  },
  {
@@ -3447,6 +3582,7 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
   "mca_a": 20,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3464,7 +3600,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6AVMA",
    "edition": "EDTRAU332025A",
-   "page": "8, 5, 15"
+   "page": "8, 5, 15, 38 (fuse rated current)"
   }
  },
  {
@@ -3478,6 +3614,7 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
   "mca_a": 27,
+  "breaker_a": 30,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3495,7 +3632,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6AVMA",
    "edition": "EDTRAU332025A",
-   "page": "8, 5, 15"
+   "page": "8, 5, 15, 38 (fuse rated current)"
   }
  },
  {
@@ -3509,6 +3646,7 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
   "mca_a": 27,
+  "breaker_a": 30,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3526,7 +3664,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6AVMA",
    "edition": "EDTRAU332025A",
-   "page": "9, 5, 15"
+   "page": "9, 5, 15, 38 (fuse rated current)"
   }
  },
  {
@@ -3540,6 +3678,7 @@
   "phase": "3",
   "power_supply": "3 phase, 380-415/380 V, 50/60 Hz",
   "mca_a": 18.9,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3557,7 +3696,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ7/8AYM",
    "edition": "EDTRMT332101A",
-   "page": "8, 5, 14"
+   "page": "8, 5, 14, 32 (fuse rated current)"
   }
  },
  {
@@ -3571,6 +3710,7 @@
   "phase": "3",
   "power_supply": "3 phase, 380-415/380 V, 50/60 Hz",
   "mca_a": 18.9,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3588,7 +3728,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ7/8AYM",
    "edition": "EDTRMT332101A",
-   "page": "8, 5, 14"
+   "page": "8, 5, 14, 32 (fuse rated current)"
   }
  },
  {
@@ -3602,6 +3742,7 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
   "mca_a": 20,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3619,7 +3760,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6A2VMA",
    "edition": "EDTRAU332224A",
-   "page": "8, 5, 15"
+   "page": "8, 5, 15, 36 (fuse rated current)"
   }
  },
  {
@@ -3633,6 +3774,7 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
   "mca_a": 27,
+  "breaker_a": 30,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3650,7 +3792,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6A2VMA",
    "edition": "EDTRAU332224A",
-   "page": "8, 5, 15"
+   "page": "8, 5, 15, 36 (fuse rated current)"
   }
  },
  {
@@ -3664,6 +3806,7 @@
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
   "mca_a": 27,
+  "breaker_a": 30,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3681,7 +3824,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6A2VMA",
    "edition": "EDTRAU332224A",
-   "page": "9, 5, 15"
+   "page": "9, 5, 15, 36 (fuse rated current)"
   }
  },
  {
@@ -3694,6 +3837,8 @@
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
   "mca_a": 10.3,
+  "breaker_a": 16,
+  "min_cable_mm2": 2.5,
   "refrigerant": "R32",
   "precharged_kg": 1.24,
   "ports": 2,
@@ -3706,7 +3851,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
    "edition": "EDTAU122301",
-   "page": "7, 8-9, 29 (capacity_cool/heat_kw: the largest combination total on pp.8-9, the spec page printing \"—\")"
+   "page": "7, 8-9, 29, 43 (capacity_cool/heat_kw: the largest combination total on pp.8-9, the spec page printing \"—\")"
   }
  }
 ]

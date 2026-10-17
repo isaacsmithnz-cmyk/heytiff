@@ -1,4 +1,5 @@
 import type { AirflowGuide } from "@/lib/guides/airflow";
+import { NO_DESIGN, type JobDesign } from "../design-read";
 import type { BuildSettings } from "../buildup";
 import type { Product } from "../families";
 import { expandKit, kitFactsFrom, stillToSize, type KitAllowances, type KitPreferences } from "../kits";
@@ -50,6 +51,8 @@ export function memoryStore(opts: {
   openQuestions?: { id: number; question: string }[];
   /** the ducted airflow guide, as the app reads it; none, and her check says so */
   airflowGuide?: AirflowGuide | null;
+  /** the job's Studio design, as the app reads it (design-read-server); none, and her read says so */
+  design?: (id: string | null) => Promise<JobDesign>;
 }): QuoteStore & { lines: () => QuoteLine[] } {
   let lines: QuoteLine[] = [...(opts.seed ?? [])];
   const names: string[] = [];
@@ -125,6 +128,7 @@ export function memoryStore(opts: {
     taskHours: async () => ({ hours: opts.taskHours ?? { zone: null, grille: null, metre: null, visit: null }, dayHours: opts.settings.dayHours }),
     openQuestions: async () => opts.openQuestions ?? [],
     airflowGuide: async () => opts.airflowGuide ?? null,
+    design: async (id) => (opts.design ? opts.design(id) : { found: false, reason: NO_DESIGN }),
   };
 }
 

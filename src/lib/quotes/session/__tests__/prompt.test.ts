@@ -73,6 +73,17 @@ it("asks the crew and days she worked out as a question, not in passing", () => 
   expect(sessionSystemPrompt()).toMatch(/Then ask the crew and days as a question \(ask\), every visit's in it and what you worked out its put: nothing moves a quote more\./);
 });
 
+/* Isaac, 2026-10-17, on 27 Milroy ("check design tool"): "I think Tiff can
+   already read the studio design. Or can she not?" She couldn't */
+it("reads the job's Studio design before choosing a unit, takes it over the brief's guess, and asks where they disagree", () => {
+  const p = sessionSystemPrompt();
+  expect(p).toMatch(/Read the job's Studio design \(read_design\) with your first lookups/);
+  expect(p).toMatch(/it's the business's own design of this job, so its units, rooms, loads and pipe runs go on from it, source said, the design quoted in why, over a guess from the brief/);
+  expect(p).toMatch(/Where the design and the brief disagree, say so and ask\. The design outranks the airflow guide and the business's usual, never the person's word in this conversation\./);
+  /* the same for every business */
+  expect(p).not.toMatch(/Diamond Air|Milroy/);
+});
+
 /* the bench, 16 October: a code the pack hasn't got, and she swapped the AP35 for the dearer EF35 the pack has */
 it("keeps a unit the pack hasn't got, saying its pairing isn't checked, never swapping it for one the pack has", () => {
   expect(sessionSystemPrompt()).toMatch(/A model the pack hasn't got isn't refused: keep the one the brief or the book gives, and say its pairing isn't checked\. Never swap a unit only to get one the pack has\./);

@@ -174,13 +174,10 @@ export function isolatorDrawOf(odu: OutdoorUnit): { amps: number; by: "draw" | "
 export function defaultIsolatorId(odu: OutdoorUnit): string {
   const supply = supplyOf(odu);
   const draw = isolatorDrawOf(odu)?.amps;
-  const sized =
-    typeof draw === "number" && Number.isFinite(draw) && draw > 0
-      ? ISOLATORS.filter((o) => o.isolator.phase === supply)
-          .sort((a, b) => a.isolator.amps - b.isolator.amps)
-          .find((o) => o.isolator.amps >= draw)
-      : undefined;
-  return sized?.id ?? `isolator-20a-${supply}ph`;
+  if (!(typeof draw === "number" && Number.isFinite(draw) && draw > 0)) return `isolator-20a-${supply}ph`;
+  const onSupply = ISOLATORS.filter((o) => o.isolator.phase === supply).sort((a, b) => a.isolator.amps - b.isolator.amps);
+  /* past every one listed (a 40 A breaker), the largest: never back to the 20 A */
+  return (onSupply.find((o) => o.isolator.amps >= draw) ?? onSupply.at(-1))?.id ?? `isolator-20a-${supply}ph`;
 }
 
 /** Ids an older catalogue stored, read as the option each still means. The

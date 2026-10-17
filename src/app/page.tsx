@@ -26,7 +26,7 @@ export default function Home() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center gap-9 overflow-hidden bg-surface px-6">
       <div className="relative flex items-center gap-3">
-        <Chevron size={44} gradient className="ht-draw" decorative />
+        <Chevron size={44} className="ht-draw" decorative />
         <Wordmark className="text-4xl" />
       </div>
 

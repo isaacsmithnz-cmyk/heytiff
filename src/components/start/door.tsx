@@ -35,7 +35,7 @@ export function DoorFrame({
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-zinc-50 px-6 py-10">
       <div className="flex items-center gap-2">
-        <Chevron size={26} gradient decorative />
+        <Chevron size={26} decorative />
         <Wordmark className="text-xl" />
       </div>
 

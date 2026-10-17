@@ -46,8 +46,13 @@
      in both of its skins. Brand, the way `--wordmark` is: the logo's colours on
      the logo, never a working screen's accent. The `-ink` pair is the depth of
      the mark on paper, a step darker so the solid reads on white. */
-  --mark-teal:#00E5C0; --mark-blue:#2E68FF; --mark-blue-l:#5F96FF; --mark-core:#5FD4FF;
-  --mark-teal-d:#00A389; --mark-teal-ink:#007A67; --mark-blue-ink:#1D46C8;
+  /* v2 (rule 8): the mark is black and white at rest. Its light is paper on
+     the ink and ink on paper; the colours are only for a working mark, and
+     they live in the stylesheet's `tiffCyc`. */
+  --mark-teal:var(--paper); --mark-blue:var(--ink); --mark-blue-l:var(--paper); --mark-core:var(--paper);
+  --mark-teal-d:var(--ink); --mark-teal-ink:var(--ink); --mark-blue-ink:var(--ink);
+  /* a working mark's colours, in the boards' order (Isaac, 17 October): blue, purple, pink, red, orange, yellow, green */
+  --mark-cyc-1:var(--blue); --mark-cyc-2:var(--purple); --mark-cyc-3:var(--pink); --mark-cyc-4:var(--red); --mark-cyc-5:var(--orange); --mark-cyc-6:var(--yellow); --mark-cyc-7:var(--green);
   --ink:#050505; --ink2:var(--ink); /* the page is white (rule 1): the grey ground leaves */ --bg:var(--white);
   /* --gray400 and --gray500 were #9ca3af and #6b7280, and between them carried
      352 `color:` declarations — they are the two most-used text colours in the

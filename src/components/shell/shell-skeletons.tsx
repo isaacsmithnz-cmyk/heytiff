@@ -20,7 +20,7 @@ export function SidebarSkeleton() {
       <div className="brand">
         <div className="ht-brandcol">
           <div className="ht-logo">
-            <Chevron size={40} gradient />
+            <Chevron size={40} />
             <span className="ht-wm">
               Hey<span>Tiff</span>
             </span>

@@ -16,7 +16,6 @@ import type { CSSProperties, ReactNode } from "react";
 
 const INK = "#050505";
 const QUIET = "#5f6a79";
-const TEAL = "#00E5C0";
 const FONT = "Plus Jakarta Sans";
 
 /** The mark, as the app draws it: a 7% stroke, butt caps, round joins, the
@@ -35,8 +34,9 @@ export function Wordmark({ size }: { size: number }) {
     <div style={{ display: "flex", alignItems: "center", gap: Math.round(size * 0.35) }}>
       <Chevron size={Math.round(size * 1.3)} color={INK} />
       <div style={{ display: "flex", fontFamily: FONT, fontWeight: 700, fontSize: size, color: INK, letterSpacing: -0.5 }}>
+        {/* v2 rule 9: HeyTiff is one colour. */}
         <span>Hey</span>
-        <span style={{ color: TEAL }}>Tiff</span>
+        <span>Tiff</span>
       </div>
     </div>
   );

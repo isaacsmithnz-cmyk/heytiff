@@ -147,7 +147,9 @@ describe("the button itself", () => {
     mount();
     const el = btn();
     expect(el.querySelectorAll(".tiffbtn-gim")).toHaveLength(2);
-    expect(el.querySelectorAll(".tiffbtn-arc circle")).toHaveLength(4);
+    // each gimbal: its faint ring, its run at rest, and its run in colour while Tiff works (v2, rule 8)
+    expect(el.querySelectorAll(".tiffbtn-arc circle")).toHaveLength(6);
+    expect(el.querySelectorAll(".tiffbtn-arc circle.tiffbtn-runw")).toHaveLength(2);
     expect(el.querySelector(".tiffbtn-halo, .tiffbtn-spark, .tiffbtn-core")).toBeNull();
     // the band of light is cut to the logo's own shape, passed in from the one geometry
     expect(el.style.getPropertyValue("--tiffbtn-mask")).toMatch(/^url\("data:image\/svg\+xml,/);

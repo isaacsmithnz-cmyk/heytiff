@@ -9252,13 +9252,30 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tiffmk.working .tiffbtn-gim-a { animation-duration:2.8s; }
 .tiffmk.working .tiffbtn-gim-b { animation-duration:2s; }
 .tiffmk.working .tiffbtn-arc { animation-duration:1s; }
-.tiffmk.quiet :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
-.tiffmk.quiet .tiffbtn-sheen::before { animation-play-state:paused; }
-/* the control it sits in, or a list row that declares itself the host (`data-tiff-hover`) */
-:is(button, a):is(:hover, :focus-visible) > .tiffmk.quiet :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
-:is(button, a):is(:hover, :focus-visible) > .tiffmk.quiet .tiffbtn-sheen::before,
-[data-tiff-hover]:is(:hover, :focus-within) .tiffmk.quiet :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
-[data-tiff-hover]:is(:hover, :focus-within) .tiffmk.quiet .tiffbtn-sheen::before { animation-play-state:running; }
+/* V2: STILL AT REST, TURNING WHILE SHE WORKS (docs/design.md, rule 8;
+   Isaac, 17 October 2026: "The mark does not turn at rest. It can stay
+   still."). Every mark, the button's and the label's, holds its pose until
+   it is working; then its loops run at the working pace above and its rings
+   take the colours. A quiet mark is one more resting mark. */
+:is(.tiffbtn, .tiffmk) :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
+:is(.tiffbtn, .tiffmk) .tiffbtn-sheen::before { animation-play-state:paused; }
+:is(.tiffbtn, .tiffmk).working :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
+:is(.tiffbtn, .tiffmk).working .tiffbtn-sheen::before { animation-play-state:running; }
+/* the colours: the runs swap to the cycling gradients, and the faint rings
+   take the same cycle, a little thicker so the colour reads at 24px */
+.tiffbtn-runw { display:none; }
+:is(.tiffbtn, .tiffmk).working .tiffbtn-run { display:none; }
+:is(.tiffbtn, .tiffmk).working .tiffbtn-runw { display:inline; }
+.tiffcyc { animation:tiffCyc 4s linear infinite; }
+.tiffcyc2 { animation:tiffCyc 4s linear -2s infinite; }
+:is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring { stroke-opacity:.35; animation:tiffCycRing 4s linear infinite; }
+:is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring { stroke-opacity:.35; animation:tiffCycRing 4s linear -2s infinite; }
+:is(.tiffbtn, .tiffmk).working .tiffbtn-arc circle { stroke-width:max(1.6px, calc(var(--tb) * .045)); }
+/* the boards' order: blue, purple, pink, red, orange, yellow, green */
+@keyframes tiffCyc { 0%, 100% { stop-color:var(--mark-cyc-1); } 14.3% { stop-color:var(--mark-cyc-2); } 28.6% { stop-color:var(--mark-cyc-3); } 42.9% { stop-color:var(--mark-cyc-4); }
+  57.1% { stop-color:var(--mark-cyc-5); } 71.4% { stop-color:var(--mark-cyc-6); } 85.7% { stop-color:var(--mark-cyc-7); } }
+@keyframes tiffCycRing { 0%, 100% { stroke:var(--mark-cyc-1); } 14.3% { stroke:var(--mark-cyc-2); } 28.6% { stroke:var(--mark-cyc-3); } 42.9% { stroke:var(--mark-cyc-4); }
+  57.1% { stroke:var(--mark-cyc-5); } 71.4% { stroke:var(--mark-cyc-6); } 85.7% { stroke:var(--mark-cyc-7); } }
 
 /* ── A TIFF CONTROL HAS A ROUND END (Isaac, 2026-09-25: "circle into
    rectangle … round end, moving, no dark background") ──
@@ -9286,6 +9303,8 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   .tiffbtn, .tiffbtn-root { transition:none; }
   .tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc,
   .tiffbtn.lit .tiffbtn-flip, .tiffbtn.lit .tiffbtn-burst { animation:none; }
+  /* the working colours hold still too: the runs and rings keep their first colour */
+  .tiffcyc, .tiffcyc2, :is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring, :is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring { animation:none; }
   .tiffbtn-pre { transform:rotateY(18deg); }
   .tiffbtn-sheen { display:none; }
   .tiffbtn-gim-a { transform:rotateZ(-20deg) rotateY(60deg); }

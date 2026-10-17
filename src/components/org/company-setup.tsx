@@ -153,7 +153,7 @@ export function CompanySetup({
           new business ever sees, and a bare form on white reads as nowhere.
           Decorative — the wordmark beside it already says the name. */}
       <div className="flex items-center gap-2">
-        <Chevron size={26} gradient decorative />
+        <Chevron size={26} decorative />
         <Wordmark className="text-xl" />
       </div>
 

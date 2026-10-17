@@ -80,8 +80,8 @@ describe("what mail clients actually render", () => {
     expect(body).not.toMatch(/display:\s*(flex|grid)/i);
     expect(body).toContain("<table");
 
-    // The mark is a PNG on our own https origin.
-    expect(body).toContain(assets.chevron);
+    // v2: the word only, no image of the mark (Isaac, 17 October 2026).
+    expect(body).not.toContain(assets.chevron);
   });
 
   it.each(templates.map((t) => t.template))(
@@ -112,20 +112,17 @@ describe("what mail clients actually render", () => {
       expect(body).toContain(">Hey</span>");
       expect(body).toContain(">Tiff</span>");
 
-      // ...and the image beside it must be the gradient mark, which reads on
-      // white and near-black alike — never the full lockup, whose wordmark
-      // is baked ink.
-      expect(body).toContain(assets.chevron);
+      // ...and no image beside it: the word only (v2, Isaac, 17 October
+      // 2026), never the mark or the lockup, whose ink an inverting client
+      // would leave on a dark card.
+      expect(body).not.toContain(assets.chevron);
       expect(body).not.toContain(assets.lockup);
 
-      // THE BUTTON NEEDS AN EDGE. Gmail leaves this ink fill roughly alone
-      // while darkening the card around it, so without a border it is
-      // black-on-black and reads only by its label. A mid-tone survives the
-      // inversion, which is why it is `--q` and not white or ink.
-      if (/background-color:#0A0B10/.test(body)) {
-        expect(body).toMatch(
-          new RegExp(`background-color:${BRAND.ink};\\s*border:1px solid ${BRAND.quiet}`),
-        );
+      // THE BUTTON IS BLUE WITH WHITE WORDS (rule 22): a mid-tone keeps its
+      // shape on a card the client has darkened, as the ink one could not.
+      if (body.includes("<a href=") && /bgcolor=/.test(body)) {
+        expect(body).toContain(`background-color:${BRAND.press};`);
+        expect(body).not.toContain(`bgcolor="${BRAND.ink}"`);
       }
     },
   );

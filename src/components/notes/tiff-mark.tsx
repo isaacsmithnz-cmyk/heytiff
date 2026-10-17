@@ -59,10 +59,18 @@ const IDS = {
   ink: { face: null, depth: "tiffDepthInk", runA: "tiffRunAInk", runB: "tiffRunBInk" },
   paper: { face: "tiffFacePaper", depth: "tiffDepthPaper", runA: "tiffRunAPaper", runB: "tiffRunBPaper" },
 } as const;
+/* While Tiff works, the runs of light take the colours (v2, rule 8). The same
+   gradients for either ground: their stops cycle through the boards' order
+   (shell.css, `tiffCyc`), and only a working mark's runs point at them, so a
+   resting mark never shows them. */
+const WORK = { runA: "tiffRunAWork", runB: "tiffRunBWork" } as const;
+/* v2 (rule 8): black and white at rest, the ground deciding which. On the
+   frame's ink the mark is paper; on paper it is ink. */
+const MONO: Record<Ground, string> = { ink: "var(--paper)", paper: "var(--ink)" };
 
 /** Stop colours are tokens, set as style (a presentation attribute cannot read a custom property). */
-const stop = (offset: number, colour: string, opacity = 1) => (
-  <stop key={offset} offset={offset} style={{ stopColor: colour, stopOpacity: opacity }} />
+const stop = (offset: number, colour: string, opacity = 1, className?: string) => (
+  <stop key={offset} offset={offset} className={className} style={{ stopColor: colour, stopOpacity: opacity }} />
 );
 
 /* A ring's run of light is a 120° arc, tail to head, clockwise from three
@@ -71,41 +79,43 @@ const stop = (offset: number, colour: string, opacity = 1) => (
    the arc reads as light travelling round the ring. */
 const R = 48;
 const HEAD = { x: 50 + R * Math.cos((2 * Math.PI) / 3), y: 50 + R * Math.sin((2 * Math.PI) / 3) };
-function Run({ id, colour, head }: { id: string; colour: string; head: string }) {
+function Run({ id, colour, head, cycle }: { id: string; colour: string; head: string; cycle?: "tiffcyc" | "tiffcyc2" }) {
   return (
     <linearGradient id={id} gradientUnits="userSpaceOnUse" x1={50 + R} y1={50} x2={HEAD.x} y2={HEAD.y}>
-      {stop(0, colour, 0)}
-      {stop(0.6, colour, 0.92)}
-      {stop(0.95, head)}
-      {stop(1, head)}
+      {stop(0, colour, 0, cycle)}
+      {stop(0.6, colour, 0.92, cycle)}
+      {stop(0.95, head, 1, cycle)}
+      {stop(1, head, 1, cycle)}
     </linearGradient>
   );
 }
 
 function Defs({ ground }: { ground: Ground }) {
-  const ink = ground === "ink";
+  const mono = MONO[ground];
   return (
     <svg className="tiffbtn-defs" width="0" height="0" aria-hidden="true" focusable="false">
       <defs>
-        {ink ? (
+        {ground === "ink" ? (
           <linearGradient id={IDS.ink.depth} x1="0" y1="0" x2="1" y2="1">
-            {stop(0, "var(--mark-teal)")}
-            {stop(1, "var(--mark-blue)")}
+            {stop(0, mono)}
+            {stop(1, mono)}
           </linearGradient>
         ) : (
           <>
             <linearGradient id={IDS.paper.face} x1="0" y1="0" x2="1" y2="1">
-              {stop(0, "var(--mark-teal-d)")}
-              {stop(1, "var(--mark-blue)")}
+              {stop(0, mono)}
+              {stop(1, mono)}
             </linearGradient>
             <linearGradient id={IDS.paper.depth} x1="0" y1="0" x2="1" y2="1">
-              {stop(0, "var(--mark-teal-ink)")}
-              {stop(1, "var(--mark-blue-ink)")}
+              {stop(0, mono)}
+              {stop(1, mono)}
             </linearGradient>
           </>
         )}
-        <Run id={IDS[ground].runA} colour={ink ? "var(--mark-teal)" : "var(--mark-teal-d)"} head={ink ? "var(--paper)" : "var(--mark-teal-d)"} />
-        <Run id={IDS[ground].runB} colour={ink ? "var(--mark-blue-l)" : "var(--mark-blue)"} head={ink ? "var(--paper)" : "var(--mark-blue)"} />
+        <Run id={IDS[ground].runA} colour={mono} head={mono} />
+        <Run id={IDS[ground].runB} colour={mono} head={mono} />
+        <Run id={WORK.runA} colour="var(--blue)" head="var(--blue)" cycle="tiffcyc" />
+        <Run id={WORK.runB} colour="var(--red)" head="var(--red)" cycle="tiffcyc2" />
       </defs>
     </svg>
   );
@@ -119,10 +129,11 @@ export const TiffMarkDefs = Defs;
     Anything that takes over from a ring's line starts at this size. */
 export const RING_DRAWN = (2 * R) / 100;
 
-/** A ring's own colour, faint, on each ground: A teal, B blue. */
+/** A ring's own colour, faint, on each ground: the ground's mono at rest
+    (v2, rule 8); a working mark's rings take the colours in its stylesheet. */
 export const RING_COLOUR: Record<Ground, Record<"a" | "b", string>> = {
-  ink: { a: "var(--mark-teal)", b: "var(--mark-blue-l)" },
-  paper: { a: "var(--mark-teal-d)", b: "var(--mark-blue)" },
+  ink: { a: MONO.ink, b: MONO.ink },
+  paper: { a: MONO.paper, b: MONO.paper },
 };
 
 /* A GIMBAL RING THAT FLIES (the Tiff modal, ./tiff/modal/rings). The
@@ -174,17 +185,30 @@ function Layer({ stroke, z, opacity, face }: { stroke: string; z: number; opacit
   );
 }
 
-function Gimbal({ axis, run, ring }: { axis: "a" | "b"; run: string; ring: string }) {
+function Gimbal({ axis, run, work, ring }: { axis: "a" | "b"; run: string; work: string; ring: string }) {
   return (
     <span className={`tiffbtn-gim tiffbtn-gim-${axis}`}>
       <span className="tiffbtn-arc">
         <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
           <circle className="tiffbtn-ring" cx="50" cy="50" r={R} style={{ stroke: ring }} vectorEffect="non-scaling-stroke" />
+          {/* the run at rest, in the ground's mono */}
           <circle
+            className="tiffbtn-run"
             cx="50"
             cy="50"
             r={R}
             stroke={`url(#${run})`}
+            pathLength={360}
+            strokeDasharray="120 240"
+            vectorEffect="non-scaling-stroke"
+          />
+          {/* the same run while she works, in the colours (shown by the stylesheet) */}
+          <circle
+            className="tiffbtn-runw"
+            cx="50"
+            cy="50"
+            r={R}
+            stroke={`url(#${work})`}
             pathLength={360}
             strokeDasharray="120 240"
             vectorEffect="non-scaling-stroke"
@@ -225,8 +249,8 @@ export function TiffMark({ ground }: { ground: Ground }) {
             </span>
           </span>
           <span className="tiffbtn-gw">
-            <Gimbal axis="a" run={ids.runA} ring={ink ? "var(--mark-teal)" : "var(--mark-teal-d)"} />
-            <Gimbal axis="b" run={ids.runB} ring={ink ? "var(--mark-blue-l)" : "var(--mark-blue)"} />
+            <Gimbal axis="a" run={ids.runA} work={WORK.runA} ring={RING_COLOUR[ground].a} />
+            <Gimbal axis="b" run={ids.runB} work={WORK.runB} ring={RING_COLOUR[ground].b} />
           </span>
         </span>
       </span>

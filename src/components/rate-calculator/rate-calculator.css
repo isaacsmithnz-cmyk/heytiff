@@ -39,9 +39,9 @@
 .fg .rca-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:40px; padding:0 16px;
   border-radius:var(--r-button); font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:14px; font-weight:700;
   border:none; cursor:pointer; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); white-space:nowrap; }
-.fg .rca-btn.primary { background:var(--ink); color:var(--paper); }
-.fg .rca-btn.primary:hover { background:var(--ink); color:var(--paper); }
-.fg .rca-btn.primary:disabled { background:var(--ink); color:var(--paper); opacity:.35; cursor:default; }
+.fg .rca-btn.primary { background:var(--press); color:var(--paper); }
+.fg .rca-btn.primary:hover { background:var(--press); color:var(--paper); }
+.fg .rca-btn.primary:disabled { background:var(--press); color:var(--paper); opacity:.35; cursor:default; }
 .fg .rca-btn.ghost { background:var(--paper); border:1px solid var(--line); color:var(--ink); }
 .fg .rca-btn.ghost:hover { background:var(--tint); }
 .fg .rca-btn.ghost:disabled { opacity:.45; cursor:default; background:var(--paper); }
@@ -63,7 +63,7 @@
   border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); color:var(--ink); font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:13px; font-weight:700;
   cursor:pointer; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .rca-railbtn:hover { background:var(--tint); }
-.fg .rca-railbtn.on { background:var(--ink); border-color:var(--ink); color:var(--paper); }
+.fg .rca-railbtn.on { background:var(--press); border-color:var(--press); color:var(--paper); }
 .fg .rca-railbtn.on:hover { background:var(--ink); }
 
 /* soft chip button (allocation tags etc.) */

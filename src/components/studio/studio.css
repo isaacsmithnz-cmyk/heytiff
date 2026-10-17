@@ -9314,8 +9314,8 @@ html[data-ds-display] .dstudio.editing {
   cursor: default;
 }
 .ds-sb-btn.primary {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--press);
+  border-color: var(--press);
   color: var(--paper);
 }
 .ds-sb-btn.primary:hover {
@@ -9762,12 +9762,12 @@ html[data-ds-display] .dstudio.editing {
   height: 36px;
   border: none;
   border-radius: var(--r-button);
-  background: var(--ink);
+  background: var(--press);
   color: var(--paper);
   font: 600 14px var(--font);
   cursor: pointer;
 }
-.dstudio .ds-zp-primary:hover { background: var(--ink2); }
+.dstudio .ds-zp-primary:hover { background: var(--press); }
 
 /* the rack: units waiting for the plan, each dragged out by its grip */
 .dstudio .ds-zp-rack {
@@ -10447,8 +10447,8 @@ html[data-ds-display] .dstudio.editing {
   color: var(--bad-t);
 }
 :is(.dstudio, .ds-sb) .ds-schem-act.primary {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--press);
+  border-color: var(--press);
   color: var(--paper);
 }
 :is(.dstudio, .ds-sb) .ds-schem-mount {

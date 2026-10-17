@@ -180,7 +180,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   padding: 12px 16px; border-radius: var(--r-button); font-size: 14px; font-weight: 700;
   font-family: var(--font); cursor: pointer; transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); border: 0;
-  background: var(--ink); color: var(--paper);
+  background: var(--press); color: var(--paper);
 }
 .fg .tool .tbtn:hover { }
 .fg .tool .tbtn.ghost { background: var(--paper); color: var(--gray700); border: 1px solid var(--line); }

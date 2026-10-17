@@ -213,8 +213,11 @@ export async function runTurn(start: SessionState, message: string, deps: TurnDe
       state = { ...state, messages: withoutFiles(state.messages) };
       const events: EventDraft[] = [];
       const said = reply.content.filter(isText).map((b) => b.text).join("").trim();
-      if (said) events.push({ kind: "reply", author: "tiff", body: { text: said } });
       const calls = reply.content.filter(isToolUse);
+      /* words said on the way to her tools are her working, not her answer:
+         the panel folds them in with the steps (Isaac, 2026-10-17, option A
+         of the working-notes mocks: "Worked through it · 26 steps") */
+      if (said) events.push({ kind: "reply", author: "tiff", body: { text: said, ...(calls.length ? { working: true } : {}) } });
       state = { ...state, messages: [...state.messages, { role: "assistant", content: reply.content }] };
 
       /* every call she made is answered, however the round stopped: one that

@@ -123,7 +123,11 @@ it("shows her thread, who said what and what she did, her words under her name",
   expect(onOpen).toHaveBeenLastCalledWith(1);
   expect(screen.getByText("Ducted for the whole house")).toBeInTheDocument();
   expect(screen.getByText("Luke Bennett")).toBeInTheDocument();
+  /* what she did, folded to one line once she's done; every step on Show all */
+  expect(screen.queryByText("Added a kit: Ducted, 12 parts")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /Worked through it.*1 step.*Show all/ }));
   expect(screen.getByText("Added a kit: Ducted, 12 parts")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Hide/ })).toHaveAttribute("aria-expanded", "true");
   /* the quote's history in her thread */
   expect(screen.getByText("Option 1 accepted by you")).toBeInTheDocument();
   /* law 26: state is a word, not a pill; her working mark already moves */
@@ -351,3 +355,42 @@ it("numbers her questions as her message does, says what the quote has, and tick
   expect(done.getByText("From your message")).toBeInTheDocument();
   expect(screen.queryByText("How long is the pipe run, indoor to outdoor?")).toBeNull();
 });
+
+/* Isaac, 2026-10-17, option A of the working-notes mocks: the notes she
+   writes on the way to her tools ("PEA-M100HAA is the one. Checking specs and
+   outdoor pairing.") fold in with her steps, and only her answer stands as a
+   message; while she works, the run stays open */
+it("folds her working notes in with her steps, open while she works", async () => {
+  const run = (working: boolean) => ({
+    ...thread,
+    working,
+    events: [
+      { id: 1, turnId: "t1", kind: "message", author: "u-isaac", at: "", body: { text: "Quote the underfloor ducted" } },
+      { id: 2, turnId: "t1", kind: "tool", author: "tiff", at: "", body: { name: "search_book", label: "Searched your book", ok: true, said: "PEA" } },
+      { id: 3, turnId: "t1", kind: "reply", author: "tiff", at: "", body: { text: "PEA-M100HAA is the one. Checking specs and outdoor pairing.", working: true } },
+      { id: 4, turnId: "t1", kind: "tool", author: "tiff", at: "", body: { name: "pairing_check", label: "Checked the pairing", ok: true, said: "PUZ-M100VKA: connects" } },
+      ...(working ? [] : [{ id: 5, turnId: "t1", kind: "reply", author: "tiff", at: "", body: { text: "A 10 kW PEA-M100HAA under the floor." } }]),
+    ],
+    questions: {},
+  });
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(run(true)));
+  const live = render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  /* working: every step and her note in view, no fold */
+  expect(await screen.findByText("Checked the pairing: PUZ-M100VKA: connects")).toBeInTheDocument();
+  expect(screen.getByText("PEA-M100HAA is the one. Checking specs and outdoor pairing.")).toHaveClass("note");
+  expect(screen.queryByRole("button", { name: /Worked through it/ })).toBeNull();
+  live.unmount();
+
+  (global as unknown as { fetch: unknown }).fetch = jest.fn(async () => respond(run(false)));
+  render(<TiffPanel job="j" onChanged={jest.fn()} />);
+  const answer = await screen.findByText("A 10 kW PEA-M100HAA under the floor.");
+  /* done: one line, her answer the only message under her name */
+  expect(screen.queryByText("PEA-M100HAA is the one. Checking specs and outdoor pairing.")).toBeNull();
+  const fold = screen.getByRole("button", { name: /Worked through it.*2 steps.*Show all/ });
+  expect(answer.closest(".qt-msg")).toHaveTextContent(/^Tiff/);
+  fireEvent.click(fold);
+  const note = screen.getByText("PEA-M100HAA is the one. Checking specs and outdoor pairing.");
+  expect(note.closest(".qt-msg")).toBeNull();
+  expect(note.closest(".qt-fold")).toContainElement(screen.getByText("Searched your book: PEA"));
+});
+

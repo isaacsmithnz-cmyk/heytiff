@@ -141,7 +141,7 @@ export function PdfPages({
     };
   }, []);
 
-  if (state.kind === "making") return <p className="ds-lb-wait">Making the pages…</p>;
+  if (state.kind === "making") return <p className="ds-lb-wait">Making the pages</p>;
   if (state.kind === "error")
     return (
       <p className="ds-lb-wait" role="alert">

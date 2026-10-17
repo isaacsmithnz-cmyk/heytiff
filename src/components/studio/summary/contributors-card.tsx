@@ -65,7 +65,7 @@ export function ContributorsCard({ designId }: { designId: string }) {
       </h3>
 
       {state.kind === "loading" ? (
-        <span className="ds-contrib-note">Loading…</span>
+        <span className="ds-contrib-note">Finding who worked on it</span>
       ) : (
         <>
           <ul className="ds-contrib-list">

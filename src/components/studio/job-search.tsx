@@ -152,7 +152,7 @@ export function JobSearchField({
           {hits.length === 0 && (
             <p className="ds-sm8-none">
               {searching
-                ? "Searching ServiceM8…"
+                ? "Searching ServiceM8"
                 : `No ServiceM8 job matches “${query.trim()}”.`}
             </p>
           )}

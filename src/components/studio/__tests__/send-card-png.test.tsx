@@ -11,7 +11,7 @@
 
    The failure case is the one worth having. A `finally` clears the flag on
    every path by construction; hand-written cleanup on two paths can miss one,
-   and the symptom is a button that says "Drawing…" forever with no way back
+   and the symptom is a button that says "Drawing the plans" forever with no way back
    short of a reload. */
 
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
@@ -84,7 +84,7 @@ function renderCard(doc: DesignDocument) {
 
 /* the images are a format, not a part: one press under the preview */
 const pngButton = () =>
-  screen.getByRole("button", { name: /Plans as (an image|\d+ images)|Drawing…/ });
+  screen.getByRole("button", { name: /Plans as (an image|\d+ images)|Drawing the plans/ });
 
 let createObjectURL: jest.Mock;
 let clicks: number;
@@ -121,7 +121,7 @@ describe("PNG per floor", () => {
     renderCard(mkDoc([mkFloor("f1", 0)]));
 
     fireEvent.click(pngButton());
-    expect(pngButton()).toHaveTextContent("Drawing…");
+    expect(pngButton()).toHaveTextContent("Drawing the plans");
 
     await waitFor(() => expect(pngButton()).toHaveTextContent("Plans as an image"));
     expect(pngButton()).not.toBeDisabled();
@@ -129,7 +129,7 @@ describe("PNG per floor", () => {
 
   /* THE STUCK-BUTTON CASE. Cleanup on the failure path is hand-written now,
      so this is the assertion that it exists at all. */
-  it("gives the button back when the raster fails, rather than sticking on Drawing…", async () => {
+  it("gives the button back when the raster fails, rather than sticking on Drawing the plans", async () => {
     svgToPngBlob.mockRejectedValue(new Error("canvas gave up"));
     const logged = jest.spyOn(console, "error").mockImplementation(() => {});
 

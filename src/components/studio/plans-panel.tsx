@@ -392,7 +392,7 @@ export function PlansPanel({
       {busy && (
         <div className="ds-plans-busy">
           <div className="ds-plans-busy-t">
-            {busy.kind === "rendering" ? "Reading pages…" : "Uploading plans…"}
+            {busy.kind === "rendering" ? "Reading the pages" : "Uploading the plans"}
           </div>
           <div className="ds-progress">
             <div
@@ -1402,7 +1402,7 @@ export function NamingLightbox({
             value={names[at]}
             autoFocus
             aria-label="Page name"
-            placeholder="e.g. Ground floor, First floor…"
+            placeholder="e.g. Ground floor, First floor"
             onChange={(e) => onName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key !== "Enter") return;

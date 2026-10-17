@@ -298,7 +298,7 @@ describe("installer scenarios: upload → floors", () => {
   it("restores under StrictMode — a double-invoked effect doesn't leave it stuck loading", async () => {
     // StrictMode mounts, cancels, remounts effects in dev; the once-per-open
     // guard must not be poisoned by the cancelled run, or rehydration hangs on
-    // the "Reading pages…" bar and never shows the restored session.
+    // the "Reading the pages" bar and never shows the restored session.
     pdfToPages.mockResolvedValue([page("A", 1), page("B", 2), page("C", 3)]);
     const fake = new CountingPlanImages();
     const store = new LocalDesignStore(window.localStorage);

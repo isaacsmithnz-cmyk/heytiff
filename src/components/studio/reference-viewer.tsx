@@ -94,7 +94,7 @@ export function ReferenceViewer({
           {error ? (
             <div className="ds-ref-msg">Couldn&apos;t load this file.</div>
           ) : !url ? (
-            <div className="ds-ref-msg">Loading…</div>
+            <div className="ds-ref-msg">Loading the file</div>
           ) : src.kind === "pdf" ? (
             <iframe className="ds-ref-frame" src={url} title="Reference PDF" />
           ) : (

@@ -1022,7 +1022,7 @@ function Home({
                 <label className="ds-search">
                   <Icon name="search" size={16} />
                   <input
-                    placeholder="Search designs…"
+                    placeholder="Search designs"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                   />
@@ -1863,7 +1863,7 @@ function Editor({
             ) : (
               <span className={`ds-save ${saveState}`}>
                 <span className="dot" />
-                {saveState === "saving" ? "Saving…" : "Saved"}
+                {saveState === "saving" ? "Saving the design" : "Saved"}
               </span>
             )}
           </div>

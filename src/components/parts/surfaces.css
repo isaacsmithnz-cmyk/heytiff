@@ -180,6 +180,9 @@
 
 .pt-tray {
   display: inline-flex;
+  /* as wide as its words, even as a flex column's child */
+  align-self: flex-start;
+  width: max-content;
   align-items: stretch;
   gap: 2px;
   height: 32px;

@@ -3,23 +3,27 @@
 import { useContext, useEffect, useId, useState } from "react";
 import { Dialog } from "@/components/parts/dialog";
 import { Button, IconButton } from "@/components/parts/button";
-import { Field, TextInput } from "@/components/parts/field";
+import { Field, TextArea, TextInput } from "@/components/parts/field";
 import { Chooser } from "@/components/parts/chooser";
 import { TimeField } from "@/components/parts/time-field";
 import { DateField } from "@/components/ui/date-field";
 import { WindowsContext } from "@/components/records/records-context";
-import { deleteTask, makeTask, taskPeople, type TaskPeople } from "@/app/actions/dashboard";
+import { deleteTask, makeTasks, taskPeople, type TaskPeople } from "@/app/actions/dashboard";
+import { taskLinesOf } from "@/lib/dashboard/task-lines";
 import { searchPalette } from "@/app/actions/palette";
 
 export type TaskJob = { uuid: string; label: string };
 
 /* NEW › TASK (rules 44 and 51), and a job's Add › Task. One form wherever a
    task starts (Isaac, 18 October: "on a job it automatically goes on the
-   job, from home it's a general task"): what needs doing; the job it is
-   for, filled in when it opens on a job's page and clearable, so cleared it
-   is a general task; when, a day and a time to have it done by if it has
-   one; and who, you unless you may give work and choose someone. It opens
-   over the page you're on; saving keeps you there, with a toast and Undo. */
+   job, from home it's a general task"): what needs doing, one task a line,
+   so a list makes several at once; the job they are for, filled in when it
+   opens on a job's page and clearable, so cleared they are general tasks;
+   when, a day and a time to have them done by; and who, you unless you may
+   give work and choose someone. The lines share the rest; tasks that need
+   different days or people are what Tiff is for. It opens over the page
+   you're on; saving keeps you there, with a toast whose Undo takes them all
+   back. */
 export function TaskForm({ job = null, onClose }: { job?: TaskJob | null; onClose: () => void }) {
   const host = useContext(WindowsContext);
   const whenId = useId();
@@ -40,14 +44,17 @@ export function TaskForm({ job = null, onClose }: { job?: TaskJob | null; onClos
     };
   }, []);
 
+  const lines = taskLinesOf(title);
+  const many = lines.length > 1;
+
   async function save() {
-    if (!title.trim()) {
+    if (lines.length === 0) {
       setError("Say what needs doing.");
       return;
     }
     setSaving(true);
-    const made = await makeTask({
-      title,
+    const made = await makeTasks({
+      text: title,
       jobUuid: forJob?.uuid ?? null,
       dueDate: due,
       dueTime: due ? time : null,
@@ -59,9 +66,11 @@ export function TaskForm({ job = null, onClose }: { job?: TaskJob | null; onClos
       return;
     }
     onClose();
-    const words = forJob ? (made.jobKept === false ? "Task added, without its job for now" : `Task added to ${forJob.label}`) : "Task added";
+    const n = made.taskIds.length;
+    const what = n > 1 ? `${n} tasks added` : "Task added";
+    const words = forJob ? (made.jobKept === false ? `${what}, without the job for now` : `${what} to ${forJob.label}`) : what;
     host?.toast(words, async () => {
-      await deleteTask(made.taskId);
+      for (const id of made.taskIds) await deleteTask(id);
     });
   }
 
@@ -78,7 +87,7 @@ export function TaskForm({ job = null, onClose }: { job?: TaskJob | null; onClos
             Cancel
           </Button>
           <Button kind="main" onClick={save} disabled={saving}>
-            {saving ? "Adding the task" : "Add task"}
+            {saving ? (many ? `Adding ${lines.length} tasks` : "Adding the task") : many ? `Add ${lines.length} tasks` : "Add task"}
           </Button>
         </>
       }
@@ -91,10 +100,18 @@ export function TaskForm({ job = null, onClose }: { job?: TaskJob | null; onClos
         }}
       >
         <Field label="What needs doing" error={error}>
-          <TextInput
+          <TextArea
             value={title}
+            rows={3}
             invalid={!!error}
             data-autofocus
+            onKeyDown={(e) => {
+              /* Enter is a new line, a new task; ⌘ or Ctrl with Enter saves */
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                void save();
+              }
+            }}
             onChange={(e) => {
               setTitle(e.target.value);
               if (error) setError(null);

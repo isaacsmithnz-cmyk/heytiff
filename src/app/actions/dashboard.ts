@@ -18,6 +18,7 @@ import { getSm8Timezone } from "@/lib/workboard/query";
 import { zonedParts } from "@/lib/dashboard/day-rail";
 import { hhmm, remindAtFrom } from "@/lib/dashboard/reminders";
 import { logTaskEvent } from "@/lib/dashboard/task-events";
+import { taskLinesOf } from "@/lib/dashboard/task-lines";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { sendTaskDone, takeBackTaskDone } from "./task-sm8";
 
@@ -166,25 +167,28 @@ function clock24(word: string | null | undefined): string | null {
   return `${String(h).padStart(2, "0")}:${m[2]}`;
 }
 
-/** One task, from New or a job's Add: what needs doing; the job it is for,
-    or none for a general task; when, a day and maybe a time to have it done
-    by; and who, you unless you may give work and chose someone. Saving says
-    so in a toast with Undo, which is deleteTask.
+export type MakeTasksResult = { ok: true; taskIds: string[]; jobKept?: boolean } | { ok: false; error: string };
+
+/** Tasks from New or a job's Add: what needs doing, one task a line (Isaac,
+    18 October: several in one go), and what they share: the job they are
+    for, or none for general tasks; when, a day and maybe a time to have them
+    done by; and who, you unless you may give work and chose someone. Saving
+    says so in a toast whose Undo takes back the lot (deleteTask each).
 
     THE JOB WAITS ON ITS COLUMN. `tasks.sm8_job_uuid` is docs/migrations/
-    tasks_job.sql, applied at the switch-over. Until then a task with a job
-    is kept without it rather than lost, and the answer says so. */
-export async function makeTask(input: {
-  title: string;
+    tasks_job.sql, applied at the switch-over. Until then tasks with a job
+    are kept without it rather than lost, and the answer says so. */
+export async function makeTasks(input: {
+  text: string;
   jobUuid?: string | null;
   dueDate?: string | null;
   dueTime?: string | null;
   forStaffId?: string | null;
-}): Promise<AddTaskResult & { jobKept?: boolean }> {
+}): Promise<MakeTasksResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "Not signed in." };
-  const title = typeof input.title === "string" ? input.title.trim().slice(0, 200).trim() : "";
-  if (!title) return { ok: false, error: "Say what needs doing." };
+  const titles = taskLinesOf(input.text);
+  if (titles.length === 0) return { ok: false, error: "Say what needs doing." };
   const dueDate = input.dueDate && isISODate(input.dueDate) ? input.dueDate : null;
   if (input.dueDate && !dueDate) return { ok: false, error: "Check the day." };
   const job = typeof input.jobUuid === "string" && input.jobUuid.trim() ? input.jobUuid.trim().slice(0, 80) : null;
@@ -199,7 +203,7 @@ export async function makeTask(input: {
 
   const time = dueDate ? clock24(input.dueTime) : null;
   const remindAt = dueDate && time ? remindAtFrom(dueDate, time, await getSm8Timezone(ctx.orgId)) : null;
-  const row: Record<string, unknown> = {
+  const rows: Record<string, unknown>[] = titles.map((title) => ({
     org_id: ctx.orgId,
     title,
     detail: null,
@@ -209,20 +213,20 @@ export async function makeTask(input: {
     remind_at: remindAt,
     remind_kind: remindAt ? "by" : null,
     status: "open",
-  };
+  }));
 
   let jobKept = !!job;
-  let made = await supabaseAdmin.from("tasks").insert(job ? { ...row, sm8_job_uuid: job } : row).select("id").single();
+  let made = await supabaseAdmin.from("tasks").insert(job ? rows.map((r) => ({ ...r, sm8_job_uuid: job })) : rows).select("id");
   if (made.error && job) {
     jobKept = false;
-    made = await supabaseAdmin.from("tasks").insert(row).select("id").single();
+    made = await supabaseAdmin.from("tasks").insert(rows).select("id");
   }
-  if (made.error || !made.data) return { ok: false, error: "Couldn't save that task." };
+  const ids = ((made.data ?? []) as { id: string }[]).map((r) => String(r.id));
+  if (made.error || ids.length === 0) return { ok: false, error: titles.length > 1 ? "Couldn't save those tasks." : "Couldn't save that task." };
 
-  const taskId = String((made.data as { id: string }).id);
-  await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "created", to: assignee });
+  for (const id of ids) await logTaskEvent(ctx.orgId, id, ctx.staffId, { kind: "created", to: assignee });
   refresh();
-  return { ok: true, taskId, ...(job ? { jobKept } : {}) };
+  return { ok: true, taskIds: ids, ...(job ? { jobKept } : {}) };
 }
 
 /** Hand a task to someone else — the Tasks face's "Give it to". Managers

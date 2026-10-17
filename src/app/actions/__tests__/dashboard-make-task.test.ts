@@ -14,15 +14,17 @@ const table = (name: string) => {
   chain.select = () => chain;
   chain.eq = () => chain;
   chain.maybeSingle = async () => ({ data: name === "staff_profiles" ? staffRow : null });
-  chain.insert = (row: Record<string, unknown>) => {
-    if (name === "tasks") inserts.push(row);
+  chain.insert = (given: Record<string, unknown> | Record<string, unknown>[]) => {
+    const rows = Array.isArray(given) ? given : [given];
+    const withJob = rows.some((r) => "sm8_job_uuid" in r);
+    if (name === "tasks") inserts.push(...rows);
+    const answer =
+      name === "tasks" && failWithJob && withJob
+        ? { data: null, error: { code: "PGRST204", message: "column sm8_job_uuid does not exist" } }
+        : { data: rows.map((_, i) => ({ id: `t-${i + 1}` })), error: null };
     const done: Record<string, unknown> = {};
     done.select = () => done;
-    done.single = async () =>
-      name === "tasks" && failWithJob && "sm8_job_uuid" in row
-        ? { data: null, error: { code: "PGRST204", message: "column sm8_job_uuid does not exist" } }
-        : { data: { id: "t-new" }, error: null };
-    done.then = (res: (v: { error: unknown }) => unknown) => Promise.resolve({ error: null }).then(res);
+    done.then = (res: (v: unknown) => unknown) => Promise.resolve(name === "tasks" ? answer : { error: null }).then(res);
     return done;
   };
   return chain;
@@ -43,7 +45,7 @@ jest.mock("@/lib/fleet/query", () => ({
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn(async () => "Australia/Sydney") }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-import { makeTask, taskPeople } from "../dashboard";
+import { makeTasks, taskPeople } from "../dashboard";
 
 const last = () => inserts[inserts.length - 1]!;
 
@@ -54,49 +56,62 @@ beforeEach(() => {
   allowed = new Set();
 });
 
-describe("makeTask", () => {
+describe("makeTasks", () => {
   it("makes a general task for you, with no job and no day", async () => {
-    expect(await makeTask({ title: "  Order the grilles " })).toEqual({ ok: true, taskId: "t-new" });
+    expect(await makeTasks({ text: "  Order the grilles " })).toEqual({ ok: true, taskIds: ["t-1"] });
     expect(last()).toMatchObject({ title: "Order the grilles", assigned_to: "s-me", created_by: "s-me", due_date: null, remind_at: null, remind_kind: null });
     expect(last()).not.toHaveProperty("sm8_job_uuid");
   });
 
   it("puts the task on the job it was made for", async () => {
-    expect(await makeTask({ title: "Order the grilles", jobUuid: "job-3209" })).toEqual({ ok: true, taskId: "t-new", jobKept: true });
+    expect(await makeTasks({ text: "Order the grilles", jobUuid: "job-3209" })).toEqual({ ok: true, taskIds: ["t-1"], jobKept: true });
     expect(last()).toMatchObject({ sm8_job_uuid: "job-3209" });
   });
 
   it("keeps a task without its job while the job column isn't there, and says so", async () => {
     failWithJob = true;
-    expect(await makeTask({ title: "Order the grilles", jobUuid: "job-3209" })).toEqual({ ok: true, taskId: "t-new", jobKept: false });
+    expect(await makeTasks({ text: "Order the grilles", jobUuid: "job-3209" })).toEqual({ ok: true, taskIds: ["t-1"], jobKept: false });
     expect(inserts).toHaveLength(2);
     expect(last()).not.toHaveProperty("sm8_job_uuid");
   });
 
   it("files a day, and a time on it as the time to have it done by", async () => {
-    await makeTask({ title: "x", dueDate: "2026-10-21", dueTime: "12:30 PM" });
+    await makeTasks({ text: "x", dueDate: "2026-10-21", dueTime: "12:30 PM" });
     expect(last()).toMatchObject({ due_date: "2026-10-21", remind_kind: "by" });
     expect(last().remind_at).toBe("2026-10-21T01:30:00.000Z");
   });
 
   it("drops a time with no day, and refuses a day it can't read", async () => {
-    await makeTask({ title: "x", dueTime: "9:00 AM" });
+    await makeTasks({ text: "x", dueTime: "9:00 AM" });
     expect(last()).toMatchObject({ due_date: null, remind_at: null });
-    expect(await makeTask({ title: "x", dueDate: "Tuesday" })).toEqual({ ok: false, error: "Check the day." });
+    expect(await makeTasks({ text: "x", dueDate: "Tuesday" })).toEqual({ ok: false, error: "Check the day." });
+  });
+
+  it("makes one task a line, sharing the job, the day and the person", async () => {
+    allowed = new Set(["team"]);
+    const res = await makeTasks({ text: "Order the grilles\n\n  Book the crane \nCall Rifkin", jobUuid: "job-3209", dueDate: "2026-10-21", forStaffId: "s-lyle" });
+    expect(res).toEqual({ ok: true, taskIds: ["t-1", "t-2", "t-3"], jobKept: true });
+    expect(inserts.map((r) => r.title)).toEqual(["Order the grilles", "Book the crane", "Call Rifkin"]);
+    for (const r of inserts) expect(r).toMatchObject({ sm8_job_uuid: "job-3209", due_date: "2026-10-21", assigned_to: "s-lyle" });
+  });
+
+  it("makes no more than twenty in one go", async () => {
+    await makeTasks({ text: Array.from({ length: 30 }, (_, i) => `Task ${i}`).join("\n") });
+    expect(inserts).toHaveLength(20);
   });
 
   it("says why it won't save without words", async () => {
-    expect(await makeTask({ title: "   " })).toEqual({ ok: false, error: "Say what needs doing." });
+    expect(await makeTasks({ text: "   " })).toEqual({ ok: false, error: "Say what needs doing." });
     expect(inserts).toHaveLength(0);
   });
 
   it("gives it to someone else only for a person who may give work, and only to the team", async () => {
-    expect(await makeTask({ title: "x", forStaffId: "s-lyle" })).toEqual({ ok: false, error: "You can't give tasks to other people." });
+    expect(await makeTasks({ text: "x", forStaffId: "s-lyle" })).toEqual({ ok: false, error: "You can't give tasks to other people." });
     allowed = new Set(["team"]);
-    await makeTask({ title: "x", forStaffId: "s-lyle" });
+    await makeTasks({ text: "x", forStaffId: "s-lyle" });
     expect(last()).toMatchObject({ assigned_to: "s-lyle", created_by: "s-me" });
     staffRow = null;
-    expect(await makeTask({ title: "x", forStaffId: "s-nobody" })).toEqual({ ok: false, error: "That person isn't on the team." });
+    expect(await makeTasks({ text: "x", forStaffId: "s-nobody" })).toEqual({ ok: false, error: "That person isn't on the team." });
   });
 });
 

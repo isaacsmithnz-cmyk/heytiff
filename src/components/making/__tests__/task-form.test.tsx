@@ -1,14 +1,14 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TaskForm } from "../task-form";
 import { WindowsContext } from "@/components/records/records-context";
-import { deleteTask, makeTask, taskPeople } from "@/app/actions/dashboard";
+import { deleteTask, makeTasks, taskPeople } from "@/app/actions/dashboard";
 
 /* New › Task and a job's Add › Task (rules 44 and 51): what needs doing,
    the job (filled in on a job's page, clearable), when, and who; saving
    keeps you where you were, with a toast and Undo. */
 
 jest.mock("@/app/actions/dashboard", () => ({
-  makeTask: jest.fn(async () => ({ ok: true, taskId: "t1" })),
+  makeTasks: jest.fn(async () => ({ ok: true, taskIds: ["t1"] })),
   deleteTask: jest.fn(async () => ({ ok: true })),
   taskPeople: jest.fn(async () => ({ me: "s-me", people: [] })),
 }));
@@ -45,7 +45,7 @@ describe("the task form", () => {
     expect(screen.getByPlaceholderText("None, a general task")).toBeInTheDocument();
     say("Order the grilles");
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add task" })));
-    expect(makeTask).toHaveBeenCalledWith({ title: "Order the grilles", jobUuid: null, dueDate: null, dueTime: null, forStaffId: "s-me" });
+    expect(makeTasks).toHaveBeenCalledWith({ text: "Order the grilles", jobUuid: null, dueDate: null, dueTime: null, forStaffId: "s-me" });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(toast).toHaveBeenCalledWith("Task added", expect.any(Function));
     await toast.mock.calls[0][1]();
@@ -57,9 +57,9 @@ describe("the task form", () => {
     await act(async () => {});
     expect(screen.getByText("3209 Richards")).toBeInTheDocument();
     say("Order the grilles");
-    (makeTask as jest.Mock).mockResolvedValueOnce({ ok: true, taskId: "t1", jobKept: true });
+    (makeTasks as jest.Mock).mockResolvedValueOnce({ ok: true, taskIds: ["t1"], jobKept: true });
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add task" })));
-    expect((makeTask as jest.Mock).mock.calls[0][0]).toMatchObject({ jobUuid: "j-3209" });
+    expect((makeTasks as jest.Mock).mock.calls[0][0]).toMatchObject({ jobUuid: "j-3209" });
     expect(toast).toHaveBeenCalledWith("Task added to 3209 Richards", expect.any(Function));
   });
 
@@ -79,6 +79,18 @@ describe("the task form", () => {
     expect(screen.getByText("Job 3342, Rifkin, Bellevue Hill")).toBeInTheDocument();
   });
 
+  it("makes one task a line, says how many, and Undo takes them all back", async () => {
+    draw({ uuid: "j-3209", label: "3209 Richards" });
+    await act(async () => {});
+    say("Order the grilles\nBook the crane\n\nCall Rifkin");
+    expect(screen.getByRole("button", { name: "Add 3 tasks" })).toBeInTheDocument();
+    (makeTasks as jest.Mock).mockResolvedValueOnce({ ok: true, taskIds: ["a", "b", "c"], jobKept: true });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add 3 tasks" })));
+    expect(toast).toHaveBeenCalledWith("3 tasks added to 3209 Richards", expect.any(Function));
+    await toast.mock.calls[0][1]();
+    expect((deleteTask as jest.Mock).mock.calls.map((c) => c[0])).toEqual(["a", "b", "c"]);
+  });
+
   it("asks who only of someone who may give work", async () => {
     draw();
     await act(async () => {});
@@ -95,7 +107,7 @@ describe("the task form", () => {
     const onClose = draw();
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Add task" })));
     expect(screen.getByText("Say what needs doing.")).toBeInTheDocument();
-    expect(makeTask).not.toHaveBeenCalled();
+    expect(makeTasks).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
 });

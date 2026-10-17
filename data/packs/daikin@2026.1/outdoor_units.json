@@ -104,6 +104,7 @@
   "capacity_heat_kw": 2.7,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 8.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -117,7 +118,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.5)"
+   "page": "26 (also EDTMT042601 p.5, 34)"
   }
  },
  {
@@ -129,6 +130,7 @@
   "capacity_heat_kw": 3.2,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 8.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -142,7 +144,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.5)"
+   "page": "26 (also EDTMT042601 p.5, 34)"
   }
  },
  {
@@ -154,6 +156,7 @@
   "capacity_heat_kw": 3.7,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 8.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -167,7 +170,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.6)"
+   "page": "26 (also EDTMT042601 p.6, 34)"
   }
  },
  {
@@ -179,6 +182,7 @@
   "capacity_heat_kw": 4.7,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 9.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -192,7 +196,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.6)"
+   "page": "26 (also EDTMT042601 p.6, 34)"
   }
  },
  {
@@ -204,6 +208,7 @@
   "capacity_heat_kw": 6.0,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 13.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -217,7 +222,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.7)"
+   "page": "26 (also EDTMT042601 p.7, 34)"
   }
  },
  {
@@ -229,6 +234,7 @@
   "capacity_heat_kw": 7.2,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 13.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -242,7 +248,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.7)"
+   "page": "26 (also EDTMT042601 p.7, 34)"
   }
  },
  {
@@ -254,6 +260,7 @@
   "capacity_heat_kw": 8.0,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 19.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -267,7 +274,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "26 (also EDTMT042601 p.8)"
+   "page": "26 (also EDTMT042601 p.8, 34)"
   }
  },
  {
@@ -447,6 +454,7 @@
   "capacity_heat_kw": 9.0,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 19.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -460,7 +468,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "28 (also EDTAU042229 p.7)"
+   "page": "28 (also EDTAU042229 p.7, 22)"
   }
  },
  {
@@ -472,6 +480,7 @@
   "capacity_heat_kw": 10.3,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 19.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -485,7 +494,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "28 (also EDTAU042229 p.7)"
+   "page": "28 (also EDTAU042229 p.7, 22)"
   }
  },
  {
@@ -497,6 +506,7 @@
   "capacity_heat_kw": 9.0,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 19.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -510,7 +520,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "29 (also EDTAU042230 p.4)"
+   "page": "29 (also EDTAU042230 p.4, 14)"
   }
  },
  {
@@ -522,6 +532,7 @@
   "capacity_heat_kw": 10.3,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 19.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -535,7 +546,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "29 (also EDTAU042230 p.4)"
+   "page": "29 (also EDTAU042230 p.4, 14)"
   }
  },
  {
@@ -547,6 +558,7 @@
   "capacity_heat_kw": 3.5,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 8.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -560,7 +572,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.4)"
+   "page": "30 (also EDTAU062411 p.4, 28)"
   }
  },
  {
@@ -572,6 +584,7 @@
   "capacity_heat_kw": 4.5,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 8.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -585,7 +598,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.4)"
+   "page": "30 (also EDTAU062411 p.4, 28)"
   }
  },
  {
@@ -597,6 +610,7 @@
   "capacity_heat_kw": 5.4,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 8.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -610,7 +624,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.5)"
+   "page": "30 (also EDTAU062411 p.5, 28)"
   }
  },
  {
@@ -622,6 +636,7 @@
   "capacity_heat_kw": 6.0,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 13.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -635,7 +650,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.5)"
+   "page": "30 (also EDTAU062411 p.5, 28)"
   }
  },
  {
@@ -647,6 +662,7 @@
   "capacity_heat_kw": 7.0,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 13.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -660,7 +676,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.6)"
+   "page": "30 (also EDTAU062411 p.6, 28)"
   }
  },
  {
@@ -672,6 +688,7 @@
   "capacity_heat_kw": 8.0,
   "phase": "1",
   "power_supply": "1 phase, 220-240V, 50Hz",
+  "mca_a": 13.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -685,7 +702,7 @@
    "kind": "extracted",
    "source": "Split Systems Brochure (AU)",
    "edition": "PCSPAU0626",
-   "page": "30 (also EDTAU062411 p.6)"
+   "page": "30 (also EDTAU062411 p.6, 28)"
   }
  },
  {
@@ -865,6 +882,7 @@
   "capacity_heat_kw": 3.5,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 9.7,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -878,7 +896,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.28)"
   }
  },
  {
@@ -890,6 +908,7 @@
   "capacity_heat_kw": 4.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 9.9,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -903,7 +922,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.28)"
   }
  },
  {
@@ -915,6 +934,7 @@
   "capacity_heat_kw": 6.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 14.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -928,7 +948,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.10)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.10, 28)"
   }
  },
  {
@@ -940,6 +960,7 @@
   "capacity_heat_kw": 7.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 14.2,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -953,7 +974,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.10)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.10, 28)"
   }
  },
  {
@@ -965,6 +986,7 @@
   "capacity_heat_kw": 8.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 15.9,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -978,7 +1000,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.11)"
+   "page": "30 (also PCSAU2313 p.60; EDAU282228 p.11, 28)"
   }
  },
  {
@@ -990,6 +1012,7 @@
   "capacity_heat_kw": 6.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 17.3,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -1002,7 +1025,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.8)"
+   "page": "26 (also EDAU282225A p.8, 39)"
   },
   "precharged_kg": 1.35
  },
@@ -1015,6 +1038,7 @@
   "capacity_heat_kw": 7.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 17.3,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -1027,7 +1051,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.8)"
+   "page": "26 (also EDAU282225A p.8, 39)"
   },
   "precharged_kg": 1.35
  },
@@ -1040,6 +1064,7 @@
   "capacity_heat_kw": 7.5,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 17.3,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1052,7 +1077,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.9)"
+   "page": "26 (also EDAU282225A p.9, 39)"
   },
   "precharged_kg": 1.7
  },
@@ -1065,6 +1090,7 @@
   "capacity_heat_kw": 10.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 22.0,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1077,7 +1103,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.9)"
+   "page": "26 (also EDAU282225A p.9, 39)"
   },
   "precharged_kg": 2.6
  },
@@ -1090,6 +1116,7 @@
   "capacity_heat_kw": 12.5,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 22.0,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1102,7 +1129,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.10)"
+   "page": "26 (also EDAU282225A p.10, 39)"
   },
   "precharged_kg": 2.6
  },
@@ -1115,6 +1142,7 @@
   "capacity_heat_kw": 15.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 27.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1127,7 +1155,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.10)"
+   "page": "26 (also EDAU282225A p.10, 39)"
   },
   "precharged_kg": 2.9
  },
@@ -1140,6 +1168,7 @@
   "capacity_heat_kw": 16.5,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 27.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1152,7 +1181,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.11)"
+   "page": "26 (also EDAU282225A p.11, 39)"
   },
   "precharged_kg": 3.75
  },
@@ -1165,6 +1194,7 @@
   "capacity_heat_kw": 18.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 27.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1177,7 +1207,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "26 (also EDAU282225A p.11)"
+   "page": "26 (also EDAU282225A p.11, 39)"
   },
   "precharged_kg": 3.9
  },
@@ -1190,6 +1220,7 @@
   "capacity_heat_kw": 7.5,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 11.0,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1202,7 +1233,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282225A p.12)"
+   "page": "27 (also EDAU282225A p.12, 39)"
   },
   "precharged_kg": 2.6
  },
@@ -1215,6 +1246,7 @@
   "capacity_heat_kw": 10.0,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 12.8,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1227,7 +1259,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282225A p.12)"
+   "page": "27 (also EDAU282225A p.12, 39)"
   },
   "precharged_kg": 2.6
  },
@@ -1240,6 +1272,7 @@
   "capacity_heat_kw": 12.5,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 12.8,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1252,7 +1285,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282225A p.13)"
+   "page": "27 (also EDAU282225A p.13, 39)"
   },
   "precharged_kg": 2.6
  },
@@ -1265,6 +1298,7 @@
   "capacity_heat_kw": 15.0,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 16.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1277,7 +1311,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282225A p.13)"
+   "page": "27 (also EDAU282225A p.13, 39)"
   },
   "precharged_kg": 2.9
  },
@@ -1290,6 +1324,7 @@
   "capacity_heat_kw": 16.5,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 14.3,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1302,7 +1337,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282225A p.14)"
+   "page": "27 (also EDAU282225A p.14, 39)"
   },
   "precharged_kg": 3.75
  },
@@ -1315,6 +1350,7 @@
   "capacity_heat_kw": 18.0,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 14.3,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1327,7 +1363,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282225A p.14)"
+   "page": "27 (also EDAU282225A p.14, 39)"
   },
   "precharged_kg": 3.9
  },
@@ -1340,6 +1376,8 @@
   "capacity_heat_kw": 20.0,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "max_amps_a": 18.5,
+  "mca_a": 18.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -1352,7 +1390,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282226 p.8)"
+   "page": "27 (also EDAU282226 p.8, 31, 102)"
   },
   "precharged_kg": 5.8
  },
@@ -1365,6 +1403,8 @@
   "capacity_heat_kw": 22.4,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "max_amps_a": 18.5,
+  "mca_a": 18.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -1377,7 +1417,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282226 p.8)"
+   "page": "27 (also EDAU282226 p.8, 31, 102)"
   },
   "precharged_kg": 6.3
  },
@@ -1390,6 +1430,7 @@
   "capacity_heat_kw": 26.8,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 15.4,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 22.2,
   "refrigerant": "R410A",
@@ -1402,7 +1443,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "27 (also EDAU282226 p.9)"
+   "page": "27 (also EDAU282226 p.9, 32)"
   },
   "precharged_kg": 9.3
  },
@@ -1415,6 +1456,7 @@
   "capacity_heat_kw": 7.5,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 17.9,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1427,7 +1469,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24 (also EDAU282388 p.8)"
+   "page": "24 (also EDAU282388 p.8, 29)"
   },
   "precharged_kg": 2.6
  },
@@ -1440,6 +1482,7 @@
   "capacity_heat_kw": 10.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 27.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1452,7 +1495,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24 (also EDAU282388 p.8)"
+   "page": "24 (also EDAU282388 p.8, 29)"
   },
   "precharged_kg": 2.9
  },
@@ -1465,6 +1508,7 @@
   "capacity_heat_kw": 12.5,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 27.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1477,7 +1521,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24 (also EDAU282388 p.9)"
+   "page": "24 (also EDAU282388 p.9, 29)"
   },
   "precharged_kg": 3.75
  },
@@ -1490,6 +1534,7 @@
   "capacity_heat_kw": 15.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 27.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1502,7 +1547,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24 (also EDAU282388 p.9)"
+   "page": "24 (also EDAU282388 p.9, 29)"
   },
   "precharged_kg": 3.75
  },
@@ -1515,6 +1560,7 @@
   "capacity_heat_kw": 16.5,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 27.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1527,7 +1573,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24 (also EDAU282388 p.10)"
+   "page": "24 (also EDAU282388 p.10, 29)"
   },
   "precharged_kg": 3.75
  },
@@ -1540,6 +1586,7 @@
   "capacity_heat_kw": 18.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 27.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1552,7 +1599,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24 (also EDAU282388 p.10)"
+   "page": "24 (also EDAU282388 p.10, 29)"
   },
   "precharged_kg": 3.9
  },
@@ -1565,6 +1612,8 @@
   "capacity_heat_kw": 20.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "max_amps_a": 34.6,
+  "mca_a": 34.6,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -1578,7 +1627,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "24 (also EDAU282514A p.8)"
+   "page": "24 (also EDAU282514A p.8, 25, 81)"
   }
  },
  {
@@ -1590,6 +1639,8 @@
   "capacity_heat_kw": 20.0,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "max_amps_a": 20,
+  "mca_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -1603,7 +1654,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282514A p.9)"
+   "page": "25 (also EDAU282514A p.9, 25, 126)"
   }
  },
  {
@@ -1615,6 +1666,8 @@
   "capacity_heat_kw": 22.4,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "max_amps_a": 20,
+  "mca_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -1628,7 +1681,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282514A p.9)"
+   "page": "25 (also EDAU282514A p.9, 25, 126)"
   }
  },
  {
@@ -1640,6 +1693,7 @@
   "capacity_heat_kw": 26.8,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 22.0,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 22.2,
   "refrigerant": "R410A",
@@ -1652,7 +1706,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282302 p.8)"
+   "page": "25 (also EDAU282302 p.8, 24)"
   },
   "precharged_kg": 7.0
  },
@@ -1665,6 +1719,7 @@
   "capacity_heat_kw": 20.0,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 16.1,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -1677,7 +1732,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282301 p.7)"
+   "page": "25 (also EDAU282301 p.7, 24)"
   },
   "precharged_kg": 7.0
  },
@@ -1690,6 +1745,7 @@
   "capacity_heat_kw": 22.4,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 16.1,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -1702,7 +1758,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282301 p.7)"
+   "page": "25 (also EDAU282301 p.7, 24)"
   },
   "precharged_kg": 7.0
  },
@@ -1715,6 +1771,7 @@
   "capacity_heat_kw": 26.8,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 22.0,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 22.2,
   "refrigerant": "R410A",
@@ -1727,7 +1784,7 @@
    "kind": "extracted",
    "source": "Ducted Systems Brochure (AU)",
    "edition": "PCDUAU0126",
-   "page": "25 (also EDAU282301 p.8)"
+   "page": "25 (also EDAU282301 p.8, 24)"
   },
   "precharged_kg": 7.4
  },
@@ -2115,6 +2172,7 @@
   "capacity_heat_kw": 11.2,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 24.1,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2128,7 +2186,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "53"
+   "page": "53 (also EDAU282223A p.47, MCA as printed with FCA100CVMA)"
   }
  },
  {
@@ -2140,6 +2198,7 @@
   "capacity_heat_kw": 14.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 29.6,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2153,7 +2212,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "53"
+   "page": "53 (also EDAU282223A p.47, MCA as printed with FCA125CVMA)"
   }
  },
  {
@@ -2165,6 +2224,7 @@
   "capacity_heat_kw": 16.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V, 50Hz",
+  "mca_a": 29.6,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2178,7 +2238,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "53"
+   "page": "53 (also EDAU282223A p.48, MCA as printed with FCA140CVMA)"
   }
  },
  {
@@ -2190,6 +2250,7 @@
   "capacity_heat_kw": 11.2,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 14.9,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2203,7 +2264,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "54"
+   "page": "54 (also EDAU282223A p.47, MCA as printed with FCA100CVMA)"
   }
  },
  {
@@ -2215,6 +2276,7 @@
   "capacity_heat_kw": 14.0,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 18.6,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2228,7 +2290,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "54"
+   "page": "54 (also EDAU282223A p.47, MCA as printed with FCA125CVMA)"
   }
  },
  {
@@ -2240,6 +2302,7 @@
   "capacity_heat_kw": 16.0,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 16.4,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2253,7 +2316,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "54"
+   "page": "54 (also EDAU282223A p.48, MCA as printed with FCA140CVMA)"
   }
  },
  {
@@ -2265,6 +2328,7 @@
   "capacity_heat_kw": 3.2,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
+  "mca_a": 5.4,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2278,7 +2342,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55"
+   "page": "55 (also EDAU282227 p.26)"
   }
  },
  {
@@ -2290,6 +2354,7 @@
   "capacity_heat_kw": 4.2,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
+  "mca_a": 7.2,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2303,7 +2368,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55"
+   "page": "55 (also EDAU282227 p.26)"
   }
  },
  {
@@ -2315,6 +2380,7 @@
   "capacity_heat_kw": 6.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
+  "mca_a": 10.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2328,7 +2394,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55"
+   "page": "55 (also EDAU282227 p.26)"
   }
  },
  {
@@ -2340,6 +2406,7 @@
   "capacity_heat_kw": 7.1,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
+  "mca_a": 12.4,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2353,7 +2420,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55"
+   "page": "55 (also EDAU282227 p.26)"
   }
  },
  {
@@ -2365,6 +2432,7 @@
   "capacity_heat_kw": 8.0,
   "phase": "1",
   "power_supply": "1 Phase, 220-240V/220-230V, 50/60Hz",
+  "mca_a": 14.9,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2378,7 +2446,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "55"
+   "page": "55 (also EDAU282227 p.26)"
   }
  },
  {
@@ -2515,6 +2583,7 @@
   "capacity_heat_kw": 11.2,
   "phase": "3",
   "power_supply": "3 Phase, 380-415V, 50Hz",
+  "mca_a": 15.4,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2528,7 +2597,7 @@
    "kind": "extracted",
    "source": "SkyAir Brochure (AU)",
    "edition": "PCSAU2313",
-   "page": "59"
+   "page": "59 (also EDAU282318 p.106, MCA as printed with FAA100BVMA)"
   }
  },
  {
@@ -2632,6 +2701,7 @@
   "capacity_heat_kw": 3.2,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 8.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2645,7 +2715,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
    "edition": "EDTAU042238",
-   "page": "5"
+   "page": "5, 26"
   }
  },
  {
@@ -2657,6 +2727,7 @@
   "capacity_heat_kw": 3.7,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 8.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2670,7 +2741,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
    "edition": "EDTAU042238",
-   "page": "6"
+   "page": "6, 26"
   }
  },
  {
@@ -2682,6 +2753,7 @@
   "capacity_heat_kw": 6.0,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 13.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2695,7 +2767,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
    "edition": "EDTAU042238",
-   "page": "7"
+   "page": "7, 26"
   }
  },
  {
@@ -2707,6 +2779,7 @@
   "capacity_heat_kw": 7.2,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 13.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2720,7 +2793,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXJ-T Series",
    "edition": "EDTAU042238",
-   "page": "8"
+   "page": "8, 26"
   }
  },
  {
@@ -2732,6 +2805,7 @@
   "capacity_heat_kw": 2.7,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 8.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2745,7 +2819,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "6"
+   "page": "6, 46"
   }
  },
  {
@@ -2757,6 +2831,7 @@
   "capacity_heat_kw": 3.2,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 8.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2770,7 +2845,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "6"
+   "page": "6, 46"
   }
  },
  {
@@ -2782,6 +2857,7 @@
   "capacity_heat_kw": 3.7,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 8.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2795,7 +2871,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "7"
+   "page": "7, 46"
   }
  },
  {
@@ -2807,6 +2883,7 @@
   "capacity_heat_kw": 4.7,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 9.3,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2820,7 +2897,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "7"
+   "page": "7, 46"
   }
  },
  {
@@ -2832,6 +2909,7 @@
   "capacity_heat_kw": 6.0,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 13.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2845,7 +2923,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "8"
+   "page": "8, 46"
   }
  },
  {
@@ -2857,6 +2935,7 @@
   "capacity_heat_kw": 7.2,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 13.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -2870,7 +2949,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "8"
+   "page": "8, 46"
   }
  },
  {
@@ -2882,6 +2961,7 @@
   "capacity_heat_kw": 8.0,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 17.3,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2895,7 +2975,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "9"
+   "page": "9, 46"
   }
  },
  {
@@ -2907,6 +2987,7 @@
   "capacity_heat_kw": 9.0,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 19.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2920,7 +3001,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "10"
+   "page": "10, 46"
   }
  },
  {
@@ -2932,6 +3013,7 @@
   "capacity_heat_kw": 10.3,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 19.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -2945,7 +3027,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXV-W, FTXV-L Series",
    "edition": "EDTAU042221B",
-   "page": "10"
+   "page": "10, 46"
   }
  },
  {
@@ -2957,6 +3039,7 @@
   "capacity_heat_kw": 2.5,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 8.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2970,7 +3053,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "5"
+   "page": "5, 35"
   }
  },
  {
@@ -2982,6 +3065,7 @@
   "capacity_heat_kw": 3.0,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 8.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -2995,7 +3079,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "5"
+   "page": "5, 35"
   }
  },
  {
@@ -3007,6 +3091,7 @@
   "capacity_heat_kw": 3.7,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 8.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -3020,7 +3105,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "6"
+   "page": "6, 35"
   }
  },
  {
@@ -3032,6 +3117,7 @@
   "capacity_heat_kw": 4.7,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 10.3,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -3045,7 +3131,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "6"
+   "page": "6, 35"
   }
  },
  {
@@ -3057,6 +3143,7 @@
   "capacity_heat_kw": 5.2,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 10.3,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -3070,7 +3157,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "7"
+   "page": "7, 35"
   }
  },
  {
@@ -3082,6 +3169,7 @@
   "capacity_heat_kw": 6.5,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 10.3,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -3095,7 +3183,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "7"
+   "page": "7, 35"
   }
  },
  {
@@ -3107,6 +3195,7 @@
   "capacity_heat_kw": 8.0,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 13.5,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -3120,7 +3209,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Split Type Air Conditioners FTXF-W Series",
    "edition": "EDTAU042222B",
-   "page": "8"
+   "page": "8, 35"
   }
  },
  {
@@ -3132,6 +3221,7 @@
   "capacity_heat_kw": 6.8,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 18.0,
   "refrigerant": "R32",
   "precharged_kg": 1.8,
   "ports": 3,
@@ -3144,7 +3234,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "22, 24-27 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
+   "page": "22, 24-27, 316 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
   }
  },
  {
@@ -3156,6 +3246,7 @@
   "capacity_heat_kw": 8.6,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 19.0,
   "refrigerant": "R32",
   "precharged_kg": 1.95,
   "ports": 4,
@@ -3168,7 +3259,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "22, 28-35 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
+   "page": "22, 28-35, 316 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
   }
  },
  {
@@ -3180,6 +3271,7 @@
   "capacity_heat_kw": 9.6,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 20.0,
   "refrigerant": "R32",
   "precharged_kg": 2.05,
   "ports": 4,
@@ -3192,7 +3284,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "23, 36-47 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
+   "page": "23, 36-47, 316 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
   }
  },
  {
@@ -3204,6 +3296,7 @@
   "capacity_heat_kw": 11.0,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 28.0,
   "refrigerant": "R32",
   "precharged_kg": 2.8,
   "ports": 5,
@@ -3216,7 +3309,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Super Multi NX 3/4/5MXM-R Series",
    "edition": "EDTAU122219A",
-   "page": "23, 48-63 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
+   "page": "23, 48-63, 316 (capacity_heat_kw: the heating tables' total at the outdoor's limit)"
   }
  },
  {
@@ -3229,6 +3322,7 @@
   "capacity_index": 80,
   "phase": "1",
   "power_supply": "1 phase, 230-240 V, 50 Hz",
+  "mca_a": 16.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3246,7 +3340,7 @@
    "kind": "extracted",
    "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
    "edition": "EDTRAU332223A",
-   "page": "8, 5"
+   "page": "8, 5, 18"
   }
  },
  {
@@ -3259,6 +3353,7 @@
   "capacity_index": 100,
   "phase": "1",
   "power_supply": "1 phase, 230-240 V, 50 Hz",
+  "mca_a": 16.5,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3276,7 +3371,7 @@
    "kind": "extracted",
    "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
    "edition": "EDTRAU332223A",
-   "page": "8, 5"
+   "page": "8, 5, 18"
   }
  },
  {
@@ -3289,6 +3384,7 @@
   "capacity_index": 125,
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
+  "mca_a": 27,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3306,7 +3402,7 @@
    "kind": "extracted",
    "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
    "edition": "EDTRAU332223A",
-   "page": "9, 5"
+   "page": "9, 5, 19"
   }
  },
  {
@@ -3319,6 +3415,7 @@
   "capacity_index": 150,
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
+  "mca_a": 27,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3336,7 +3433,7 @@
    "kind": "extracted",
    "source": "Engineering Data RXYMQ3/4A2V4A, RXYMQ5/6B2VM",
    "edition": "EDTRAU332223A",
-   "page": "9, 5"
+   "page": "9, 5, 19"
   }
  },
  {
@@ -3349,6 +3446,7 @@
   "capacity_index": 100,
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
+  "mca_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3366,7 +3464,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6AVMA",
    "edition": "EDTRAU332025A",
-   "page": "8, 5"
+   "page": "8, 5, 15"
   }
  },
  {
@@ -3379,6 +3477,7 @@
   "capacity_index": 125,
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
+  "mca_a": 27,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3396,7 +3495,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6AVMA",
    "edition": "EDTRAU332025A",
-   "page": "8, 5"
+   "page": "8, 5, 15"
   }
  },
  {
@@ -3409,6 +3508,7 @@
   "capacity_index": 150,
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
+  "mca_a": 27,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3426,7 +3526,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6AVMA",
    "edition": "EDTRAU332025A",
-   "page": "9, 5"
+   "page": "9, 5, 15"
   }
  },
  {
@@ -3439,6 +3539,7 @@
   "capacity_index": 175,
   "phase": "3",
   "power_supply": "3 phase, 380-415/380 V, 50/60 Hz",
+  "mca_a": 18.9,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3456,7 +3557,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ7/8AYM",
    "edition": "EDTRMT332101A",
-   "page": "8, 5"
+   "page": "8, 5, 14"
   }
  },
  {
@@ -3469,6 +3570,7 @@
   "capacity_index": 200,
   "phase": "3",
   "power_supply": "3 phase, 380-415/380 V, 50/60 Hz",
+  "mca_a": 18.9,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3486,7 +3588,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ7/8AYM",
    "edition": "EDTRMT332101A",
-   "page": "8, 5"
+   "page": "8, 5, 14"
   }
  },
  {
@@ -3499,6 +3601,7 @@
   "capacity_index": 100,
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
+  "mca_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3516,7 +3619,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6A2VMA",
    "edition": "EDTRAU332224A",
-   "page": "8, 5"
+   "page": "8, 5, 15"
   }
  },
  {
@@ -3529,6 +3632,7 @@
   "capacity_index": 125,
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
+  "mca_a": 27,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R410A",
@@ -3546,7 +3650,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6A2VMA",
    "edition": "EDTRAU332224A",
-   "page": "8, 5"
+   "page": "8, 5, 15"
   }
  },
  {
@@ -3559,6 +3663,7 @@
   "capacity_index": 150,
   "phase": "1",
   "power_supply": "1 phase, 220-240/220-230 V, 50/60 Hz",
+  "mca_a": 27,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R410A",
@@ -3576,7 +3681,7 @@
    "kind": "extracted",
    "source": "Engineering Data RSUYQ4/5/6A2VMA",
    "edition": "EDTRAU332224A",
-   "page": "9, 5"
+   "page": "9, 5, 15"
   }
  },
  {
@@ -3588,6 +3693,7 @@
   "capacity_heat_kw": 7.0,
   "phase": "1",
   "power_supply": "50 Hz, 220 - 230 - 240 V / 60 Hz, 220 - 230 V",
+  "mca_a": 10.3,
   "refrigerant": "R32",
   "precharged_kg": 1.24,
   "ports": 2,
@@ -3600,7 +3706,7 @@
    "kind": "extracted",
    "source": "Engineering Data, Multi-Split Type Air Conditioners 2MXF-T Series",
    "edition": "EDTAU122301",
-   "page": "7, 8-9 (capacity_cool/heat_kw: the largest combination total on pp.8-9, the spec page printing \"—\")"
+   "page": "7, 8-9, 29 (capacity_cool/heat_kw: the largest combination total on pp.8-9, the spec page printing \"—\")"
   }
  }
 ]

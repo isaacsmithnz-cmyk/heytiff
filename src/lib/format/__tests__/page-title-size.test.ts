@@ -34,11 +34,11 @@ const SRC = join(__dirname, "..", "..", "..");
 const SIZE = "24px";
 
 /* WHOSE TITLES THIS RULE GOVERNS: the dashboard's screens, which is what #350
-   was about and what the audit walked. Studio's canvas (`studio.css`,
-   `data-library.css`) and the HQ portal (`hq.css`) are their own surfaces with
-   their own design languages and their own smaller heads — 22–30px, on
-   purpose. Sizing them from here would be this test deciding something nobody
-   asked it to decide. If either is ever brought into line, add its sheet. */
+   was about and what the audit walked. Studio's canvas (`studio.css`) and the
+   HQ portal (`hq.css`) are their own surfaces with their own design languages
+   and their own smaller heads — 22–30px, on purpose. Sizing them from here
+   would be this test deciding something nobody asked it to decide. If either
+   is ever brought into line, add its sheet. */
 const SHEETS = new Set(["app/dashboard/shell.css", "components/toolbox/toolbox.css"]);
 
 /* Headings that are deliberately NOT page titles. Each needs a reason, and

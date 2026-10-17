@@ -42,14 +42,27 @@ import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 import { looksLikeName } from "@/lib/staff/aliases";
 import { logUsage } from "@/lib/tiff/usage";
 
-/* Opus 5: the routing decision is the whole product. A cheaper model that
+/* Opus 5.5: the routing decision is the whole product. A cheaper model that
    mis-assigns "tell Lyle" to the wrong Lyle, or reads an urgent flag as a
-   bullet point, costs more in trust than the tokens save. Thinking is ON by
-   default on this model and shares the max_tokens budget with the response,
-   which is why the budget is generous for such a small output. Exported for
-   the reader of ServiceM8 asks (./mention-brain), which is the same router
-   reading the same kind of words. */
-export const MODEL = "claude-opus-5";
+   bullet point, costs more in trust than the tokens save. Thinking is always
+   on here and shares the max_tokens budget with the response, which is why
+   the budget is generous for such a small output; effort is the only lever
+   (DEFAULT_EFFORT). Exported for the reader of ServiceM8 asks
+   (./mention-brain), which is the same router reading the same kind of words.
+
+   From Opus 5 on 2026-10-15 (Isaac): the same tokenizer at $4/$20 a million
+   against $5/$25, and cache reads at $0.20 against $0.50, so the same note
+   costs about a fifth less. Whether a Sonnet or a Haiku could take the chair
+   is P4's question (src/lib/tiff/probes), answered on real notes before the
+   line moves again. */
+export const MODEL = "claude-opus-5-5";
+
+/* The same refusal fallback as brain/ask.ts. Opus 5.5 adds a biology screen
+   to the classifiers, and site notes talk about legionella, mould and dead
+   possums in the ceiling; a false decline would otherwise lose the routing
+   and keep only the words. */
+export const FALLBACK_BETA = "server-side-fallback-2026-06-01";
+export const FALLBACKS = [{ model: "claude-opus-4-8" }];
 const MAX_TOKENS = 16_000;
 
 /* MEASURED, NOT ASSUMED. At `high` — the API default, and what this shipped
@@ -560,8 +573,8 @@ export function systemPrompt(ctx: NoteContext): string {
 /** THE SAME PROMPT IN TWO BLOCKS, and the split is for the bill. The rules
     ahead of the roster are the same bytes for every note from every person
     (777 tokens, counted 2026-09-29), so the first block is marked for the
-    prompt cache and a second note inside five minutes reads it back at a
-    tenth of the price. Everything from `whoBlock` on names people, days and
+    prompt cache and a second note inside the hour reads it back at a
+    twentieth of the price. Everything from `whoBlock` on names people, days and
     jobs and changes per note, so it rides after the mark.
 
     The two blocks join to `systemPrompt(ctx)` byte for byte: the first ends
@@ -575,7 +588,14 @@ export function systemBlocks(ctx: NoteContext): { type: "text"; text: string; ca
   ];
 }
 
-const EPHEMERAL = { type: "ephemeral" } as const;
+/* An hour, not the default five minutes. A five-minute entry only pays when
+   the next note lands inside five minutes, and a small team's notes are often
+   further apart than that, so a note could pay the 1.25 times write and read
+   nothing back. An hour's write costs twice the input and pays for itself
+   from the third note in that hour; the head is the same bytes for every
+   HeyTiff workspace on this API key. The log's `cache(r=... w=...)` says
+   whether it is paying. */
+const EPHEMERAL = { type: "ephemeral", ttl: "1h" } as const;
 
 const ROUTER_RULES = [
   "You route a tradesperson's site note into structured outcomes for an",
@@ -1167,9 +1187,11 @@ export async function readNote(
   ].join("\n");
 
   try {
-    const response = await client.messages.create({
+    const response = await client.beta.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
+      betas: [FALLBACK_BETA],
+      fallbacks: FALLBACKS,
       // A real cost/quality/LATENCY lever here — see DEFAULT_EFFORT.
       output_config: {
         effort: DEFAULT_EFFORT,

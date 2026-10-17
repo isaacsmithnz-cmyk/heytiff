@@ -45,16 +45,20 @@ export type TokenUsage = {
   output_tokens?: number | null;
   cache_read_input_tokens?: number | null;
   cache_creation_input_tokens?: number | null;
+  /** The write split by lifetime, when the API sends it: an hour's write
+      costs twice the input where five minutes' costs a quarter more. */
+  cache_creation?: { ephemeral_5m_input_tokens?: number | null; ephemeral_1h_input_tokens?: number | null } | null;
 };
 
 /** USD for one call, or null when the model has no price on file — a model
     swapped in without a price here logs its tokens and no invented number.
 
     A cache READ is a tenth of the input rate; a cache WRITE is a quarter more
-    than it, which is the whole reason caching is a judgement call rather than
-    a free win — a prefix written and never read back costs more than not
-    caching at all. Both are counted, so the number stays honest in the round
-    that pays as well as the rounds that profit. */
+    than it, or twice it for an hour's lifetime, which is the whole reason
+    caching is a judgement call rather than a free win — a prefix written and
+    never read back costs more than not caching at all. Both are counted, so
+    the number stays honest in the round that pays as well as the rounds that
+    profit. */
 export function costOf(model: string, usage: TokenUsage): number | null {
   const price = PRICES[model];
   if (!price) return null;
@@ -62,10 +66,12 @@ export function costOf(model: string, usage: TokenUsage): number | null {
   const output = Number(usage.output_tokens) || 0;
   const cached = Number(usage.cache_read_input_tokens) || 0;
   const written = Number(usage.cache_creation_input_tokens) || 0;
+  const hour = Math.min(written, Number(usage.cache_creation?.ephemeral_1h_input_tokens) || 0);
   return (
     (input * price[0]) +
     (cached * price[0] * (price[2] ?? 0.1)) +
-    (written * price[0] * 1.25) +
+    ((written - hour) * price[0] * 1.25) +
+    (hour * price[0] * 2) +
     (output * price[1])
   ) / 1_000_000;
 }

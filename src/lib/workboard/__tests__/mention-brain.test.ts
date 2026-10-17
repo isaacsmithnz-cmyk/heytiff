@@ -129,7 +129,7 @@ describe("reading an ask", () => {
 
     expect(sent).toHaveLength(1);
     const body = sent[0];
-    expect(body.model).toBe("claude-opus-5");
+    expect(body.model).toBe("claude-opus-5-5");
     expect(body.output_config).toEqual({ effort: "medium", format: { type: "json_schema", schema: ASK_SCHEMA } });
     expect(body.system).toBe(askSystemPrompt("Isaac"));
     expect(body.messages).toEqual([{ role: "user", content: askContent(ask) }]);

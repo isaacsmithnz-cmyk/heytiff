@@ -42,7 +42,9 @@ const card: NoteContext = {
 const modal: NoteContext = { ...card, askWho: true, speak: true, room: "tasks" };
 
 type Body = {
-  system: { type: "text"; text: string; cache_control?: { type: "ephemeral" } }[];
+  model: string;
+  fallbacks?: { model: string }[];
+  system: { type: "text"; text: string; cache_control?: { type: "ephemeral"; ttl?: string } }[];
   messages: { role: string; content: string }[];
   output_config: { format: { type: string; schema: unknown } };
 };
@@ -119,6 +121,14 @@ describe("a read without `speak`", () => {
     expect(body.messages).toEqual([{ role: "user", content: "Note:\ntell Lyle to order the grilles" }]);
   });
 
+  /* Opus 5.5 screens for biology, and site notes talk about legionella and
+     mould: a false decline goes to the fallback rather than losing the read. */
+  it("goes to Opus 5.5 with the refusal fallback", async () => {
+    await readNote("cooling tower legionella test came back clear", card);
+    expect(sent[0].model).toBe("claude-opus-5-5");
+    expect(sent[0].fallbacks).toEqual([{ model: "claude-opus-4-8" }]);
+  });
+
   it("comes back with no line from Tiff, even when the app asks which Lyle", async () => {
     reply = lanes;
     const read = await readNote("tell Lyle to order the grilles", card);
@@ -159,7 +169,7 @@ describe("the cached head of the router's prompt", () => {
       targetLabel: "Smith St",
     };
     const [head, tail] = systemBlocks(modal);
-    expect(head.cache_control).toEqual({ type: "ephemeral" });
+    expect(head.cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
     expect(tail.cache_control).toBeUndefined();
     expect(systemBlocks(card)[0]).toEqual(head);
     expect(systemBlocks(other)[0]).toEqual(head);

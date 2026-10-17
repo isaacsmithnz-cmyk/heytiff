@@ -7,6 +7,7 @@
        TIFF_PROBE=p0base npm run probe:tiff  notes: today's router against itself
        TIFF_PROBE=p0effort npm run probe:tiff  notes: the router at medium against low
        TIFF_PROBE=p1 npm run probe:tiff      Opus 5 against Opus 5.5, notes and questions
+       TIFF_PROBE=p4 npm run probe:tiff      notes: Opus 5.5 against itself, Sonnet 5.5 and Haiku 5.5
        TIFF_PROBE=p3 npm run probe:tiff      tool search against every tool loaded
 
    Needs ANTHROPIC_API_KEY and the Supabase service role, so it runs on a
@@ -51,6 +52,8 @@ const RESULTS = path.join(ROOT, "results");
 const CONCURRENCY = 3;
 const OPUS_5 = "claude-opus-5";
 const OPUS_55 = "claude-opus-5-5";
+const SONNET_55 = "claude-sonnet-5-5";
+const HAIKU_55 = "claude-haiku-5-5";
 /** The loop's model in P0 (TIFF_LOOP_MODEL), Opus 5 unless named. */
 const LOOP_MODEL = process.env.TIFF_LOOP_MODEL ?? OPUS_5;
 /** A smoke run: `TIFF_PROBE_LIMIT=2` reads two notes, or two phrases. */
@@ -259,6 +262,64 @@ async function p1(client: Anthropic) {
   );
 }
 
+/** Whether a cheaper model can take the router's chair (2026-10-15). Every
+    note is read four times at the router's own effort, low: Opus 5.5 twice,
+    so the yardstick is how often it agrees with ITSELF, then Sonnet 5.5 and
+    Haiku 5.5 once each. Each is compared with the first Opus read. A cheaper
+    model earns the chair only if it agrees about as often as Opus does with
+    itself, and gives nobody the wrong work. The order turns over per note so
+    no model always meets the warmest connection. */
+async function p4(client: Anthropic) {
+  const notes = (await m.storedNotes()).slice(0, LIMIT);
+  const models = [OPUS_55, OPUS_55, SONNET_55, HAIKU_55] as const;
+  const reads = await mapLimit(notes, CONCURRENCY, async (note, i) => {
+    const ctx = await m.contextFor(note);
+    const out = new Array<NoteRead>(models.length);
+    for (let k = 0; k < models.length; k++) {
+      const j = (k + i) % models.length;
+      out[j] = await m.routerRead(client, note.transcript, ctx, models[j], "low");
+    }
+    return { note, out };
+  });
+  const against = (j: number): Pair[] =>
+    reads.map(({ note, out }) => {
+      const [a, b] = [out[0], out[j]];
+      return { note, a, b, verdict: a.proposal && b.proposal ? compareRows(a.proposal, b.proposal) : null };
+    });
+  const self = against(1);
+  const sonnet = against(2);
+  const haiku = against(3);
+
+  const line = (name: string, rows: Pair[]) => {
+    const both = rows.filter((r) => r.verdict);
+    const same = both.filter((r) => r.verdict?.same).length;
+    const wrong = both.filter((r) => r.verdict?.wrongAssignee).length;
+    const failed = rows.filter((r) => r.b.outcome !== "filed").length;
+    const spend = rows.reduce((sum, r) => sum + cost(r.b), 0);
+    return `| ${name} | ${same} of ${both.length} | ${wrong} | ${failed} | ${ms(percentile(rows.map((r) => r.b.modelMs), 50))} | ${usd(spend / Math.max(rows.length, 1))} |`;
+  };
+  const md = [
+    "# P4: can a cheaper model route the notes?",
+    "",
+    `${reads.length} notes, every read at effort low, each compared with a first read on Opus 5.5.`,
+    "",
+    "| Second read | Same rows as Opus 5.5 | Wrong assignee | Not filed | Time, median | Cost per note |",
+    "| --- | --- | --- | --- | --- | --- |",
+    line("Opus 5.5 again (the yardstick)", self),
+    line("Sonnet 5.5", sonnet),
+    line("Haiku 5.5", haiku),
+    "",
+    `Opus 5.5's first read: ${usd(self.reduce((sum, r) => sum + cost(r.a), 0) / Math.max(self.length, 1))} a note, ${ms(percentile(self.map((r) => r.a.modelMs), 50))} median.`,
+    "",
+    pairReport("Opus 5.5 against itself", "Opus 5.5", "Opus 5.5 again", self),
+    "",
+    pairReport("Opus 5.5 against Sonnet 5.5", "Opus 5.5", "Sonnet 5.5", sonnet),
+    "",
+    pairReport("Opus 5.5 against Haiku 5.5", "Opus 5.5", "Haiku 5.5", haiku),
+  ].join("\n");
+  await save("p4", reads, md);
+}
+
 async function p3(client: Anthropic) {
   const picks = await mapLimit(DRAFT_PHRASES.slice(0, LIMIT), CONCURRENCY, async (phrase, i) => {
     /* Every fifth phrase also sends a second round, to watch the cache. */
@@ -328,7 +389,8 @@ describe("Tiff's Phase 0 probes", () => {
       else if (PROBE === "p0effort") await p0effort(client);
       else if (PROBE === "p1") await p1(client);
       else if (PROBE === "p3") await p3(client);
-      else console.log(`No probe called ${PROBE}. Try p0, p0base, p1 or p3.`);
+      else if (PROBE === "p4") await p4(client);
+      else console.log(`No probe called ${PROBE}. Try p0, p0base, p0effort, p1, p3 or p4.`);
     },
     3 * 60 * 60 * 1000,
   );

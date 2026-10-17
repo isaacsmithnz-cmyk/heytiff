@@ -2,8 +2,8 @@
 
    Reads/writes the `pack_overrides` current-state table and the append-only
    `pack_override_log` audit trail, and provides override-aware pack loaders that
-   the studio engine and the customer data-library both go through, so a staff
-   correction feeds pairing / sim / readiness everywhere.
+   the studio engine goes through, so a staff correction feeds pairing / sim /
+   readiness everywhere.
 
    Kept separate from server.ts (which stays Supabase-free so its jest suite runs
    without env) and from the pure applyOverrides (overrides.ts). */
@@ -114,8 +114,8 @@ export async function logOverride(e: OverrideLogEvent): Promise<void> {
 }
 
 /** loadInstalledPack + staff overrides applied, with validation/completeness
-    recomputed on the EFFECTIVE pack. The single entry point the engine and the
-    data-library use so their readiness always reflects manual corrections. */
+    recomputed on the EFFECTIVE pack. The single entry point the engine uses so
+    its readiness always reflects manual corrections. */
 export async function loadPackWithOverrides(
   brand: string,
   version: string,

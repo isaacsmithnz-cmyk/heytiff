@@ -33,9 +33,6 @@ export function PageSkeleton() {
           <span className="pk-sr">Loading</span>
           <ScreenBand title={<span className="pk-b pk-title" aria-hidden="true" />} />
           <ScreenPanel>
-            {/* `pk` marks this as the light page hold — the Data Library's
-                own boundary is asserted on it, so it does not inherit the
-                Studio's dark one (see app/dashboard/studio/data-library). */}
             <div className="pk" aria-hidden="true">
               {[0, 1, 2, 3, 4].map((i) => (
                 <div className="pk-row" key={i}>

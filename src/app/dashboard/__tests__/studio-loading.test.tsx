@@ -7,21 +7,18 @@
    snapped black when the page arrived. A dark skeleton was tried next and
    was wrong the other way (Isaac, 2026-09-14: grey bars on the black are a
    loading state, and this screen makes an entrance). So the route's own
-   fallback is the dark alone, and this pins the three things that make it
+   fallback is the dark alone, and this pins the two things that make it
    work:
 
    1. it carries the `.dstudio` root and NOT `.editing`, because studio.css
       dissolves the well and lights the frame's dot grid off exactly that
       selector — a fallback without it would be a dark hold on a white well;
-   2. it holds nothing else — no bars, no shapes;
-   3. the Data Library beneath it, a light page, keeps a light fallback of its
-      own rather than inheriting the dark one. */
+   2. it holds nothing else — no bars, no shapes. */
 
 import fs from "node:fs";
 import path from "node:path";
 import { render } from "@testing-library/react";
 import StudioLoading from "../studio/loading";
-import DataLibraryLoading from "../studio/data-library/loading";
 
 const STUDIO_CSS = fs
   .readFileSync(path.join(process.cwd(), "src/components/studio/studio.css"), "utf8")
@@ -52,11 +49,5 @@ describe("the Design Studio's own loading boundary", () => {
     expect(STUDIO_CSS).toMatch(/@keyframes dsRise\s*\{\s*from\s*\{[^}]*translateY\(72px\)[^}]*opacity:\s*0/);
     expect(STUDIO_CSS).toMatch(/\.dstudio \.ds-home-stack\s*\{[^}]*animation:\s*dsRise var\(--t-move\)/);
     expect(STUDIO_CSS).toMatch(/\.dstudio\.swapping \.ds-home-stack\s*\{[^}]*animation:\s*none/);
-  });
-
-  it("the Data Library beneath it keeps the shell's light fallback", () => {
-    const { container } = render(<DataLibraryLoading />);
-    expect(container.querySelector(".dstudio")).toBeNull();
-    expect(container.querySelector(".pk")).not.toBeNull();
   });
 });

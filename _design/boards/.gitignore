@@ -1,0 +1,4 @@
+# The boards are generated: `python3 work/v2/gen.py` writes them here.
+canvas/project/*.dc.html
+__pycache__/
+work/shots/

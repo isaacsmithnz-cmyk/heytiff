@@ -51,7 +51,7 @@ export function JobPicker({
           placeholder="Search jobs — client, service, site or job number"
           aria-label="Search jobs"
         />
-        <button className="wb2-ico" onClick={onClose} title="Close" aria-label="Close the job search">
+        <button className="wb2-ico" onClick={onClose} aria-label="Close the job search">
           <Icon name="x" size={13} />
         </button>
       </div>

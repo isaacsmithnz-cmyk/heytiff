@@ -187,7 +187,6 @@ function Cell({
             aria-pressed={on}
             aria-label={hol ? `${fmtDay(c.day)}: ${hol.title}` : fmtDay(c.day)}
             aria-current={c.today ? "date" : undefined}
-            title={hol?.title}
             onClick={(e) => onPickDay(c.day, e.detail > 0)}
           >
             {row}
@@ -209,7 +208,6 @@ function Cell({
                 data-fresh={fresh?.includes(m.item.id) ? "" : undefined}
                 aria-pressed={m.item.id === selected}
                 aria-label={`${fmtDay(c.day)}: ${m.title}${m.meta ? `, ${m.meta}` : ""}`}
-                title={m.meta ? `${m.title}, ${m.meta}` : m.title}
                 onClick={(e) => onPick(m.item.id, e.detail > 0)}
               >
                 <CalSwatch cat={m.item.cat} late={m.overdue} />
@@ -240,7 +238,6 @@ function Bar({ bar: b, selected, onPick }: { bar: MonthBar<CalItem>; selected: s
       data-after={b.continuesAfter ? "" : undefined}
       aria-pressed={b.item.id === selected}
       aria-label={name}
-      title={name}
       style={{
         left: `calc(${b.left.toFixed(3)}% + 4px)`,
         width: `calc(${b.width.toFixed(3)}% - 8px)`,

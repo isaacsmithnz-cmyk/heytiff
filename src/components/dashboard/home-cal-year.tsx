@@ -83,7 +83,6 @@ function Cell({
       aria-pressed={c.day === day || (c.ring !== null && c.ring === selected)}
       aria-label={c.tip ?? fmtDay(c.day)}
       aria-current={c.today ? "date" : undefined}
-      title={c.tip ?? undefined}
       onClick={(e) => onPickDay(c.day, e.detail > 0)}
     >
       {c.date}

@@ -160,7 +160,7 @@ export function BusinessDetail({ s, patch }: StepBodyProps) {
                   style={{ fontSize: 11.5, fontWeight: 700, color: ch.c, background: ch.bg, padding: "5px 12px", borderRadius: 100, textTransform: "capitalize" }}>{o.allocated_to}</button>
               </div>
               <div style={{ textAlign: "right" }}><NumInput value={o.amount} w={120} size={14} onChange={n => setCost(i, { amount: n })} /></div>
-              <button onClick={() => patch({ businessCosts: s.businessCosts.filter((_, j) => j !== i) })} title="Remove" className="rca-stepbtn" style={{ width: 28, height: 28, borderRadius: 8, fontSize: 12, justifySelf: "end", color: RC.faint }}>✕</button>
+              <button onClick={() => patch({ businessCosts: s.businessCosts.filter((_, j) => j !== i) })} aria-label="Remove" className="rca-stepbtn" style={{ width: 28, height: 28, borderRadius: 8, fontSize: 12, justifySelf: "end", color: RC.faint }}>✕</button>
             </div>
           );
         })}

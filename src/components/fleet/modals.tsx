@@ -953,7 +953,7 @@ export function LogRow({
               somebody looks at when the question is "do we have the receipt
               for that fill", months before the Tax screen is opened. */}
           {log.kind === "fuel" && log.hasReceipt && (
-            <span className="dchip2 ok" title="Receipt stored for tax">
+            <span className="dchip2 ok">
               <Icon name="receipt" size={12} />
               Receipt
             </span>

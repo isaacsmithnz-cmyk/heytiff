@@ -89,7 +89,6 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
                     <button
                       className="pbtn ghost sm"
                       disabled={busy}
-                      title="Take it out of the library"
                       onClick={() => run(e.id, () => removeFieldNote(e.id))}
                     >
                       Take it down

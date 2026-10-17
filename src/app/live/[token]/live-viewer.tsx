@@ -141,7 +141,6 @@ export function LiveViewer({
         <button
           className="ds-present-exit"
           onClick={onExit}
-          title="Back to the design (Esc)"
         >
           Back to the design
           <span aria-hidden>✕</span>

@@ -22,7 +22,7 @@ export function NotifBanner({ daysSince = null, message = null, onReview, onDism
         <button onClick={onReview} style={{ border: "none", background: RC.ink, color: "#fff", borderRadius: 9, padding: "7px 15px", fontFamily: RC.head, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap", transition: "all .25s" }}
           onMouseEnter={e => { e.currentTarget.style.background = RC.teal; e.currentTarget.style.color = RC.ink; }}
           onMouseLeave={e => { e.currentTarget.style.background = RC.ink; e.currentTarget.style.color = "#fff"; }}>Review rates</button>
-        <button onClick={onDismiss} title="Dismiss" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${RC.amber}40`, background: "transparent", color: RC.amberInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}><RcIcon name="x" size={13} /></button>
+        <button onClick={onDismiss} aria-label="Dismiss" style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid ${RC.amber}40`, background: "transparent", color: RC.amberInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}><RcIcon name="x" size={13} /></button>
       </div>
     </div>
   );

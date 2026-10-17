@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import type { FleetState } from "./fleet-state";
 import {
@@ -312,7 +313,6 @@ export function FleetRegister({
             className={`pbtn ghost fl-add fl-valuebtn tiffkey${valuing ? " busy" : ""}`}
             disabled={valuing}
             onClick={runValuation}
-            title="Tiff estimates each vehicle's AU market value — Manager+ only"
           >
             <TiffGlyph working={valuing} />
             {valuing ? "Tiff is valuing the vehicles" : "Value with Tiff"}
@@ -387,30 +387,31 @@ export function FleetRegister({
                 <span className="fl-value">
                   <b>{fmtMoney(v.value)}</b>
                   {!isSold && val && (
-                    <em
-                      className={`fl-tiff${stale ? " stale" : ""}`}
-                      title={
+                    <Tooltip
+                      label={
                         stale
-                          ? "Odometer has moved since Tiff valued this — run Value with Tiff again"
+                          ? "Odometer has moved since Tiff valued this"
                           : `Tiff: ${fmtMoney(val.low)}–${fmtMoney(val.high)}${val.note ? `, ${val.note}` : ""}`
                       }
                     >
-                      <TiffGlyph size={18} quiet />
-                      {fmtMoney(val.point)}
-                      {/* The note was hover-only and Isaac found it by accident.
-                          The ⓘ is the visible door; the detail modal prints the
-                          source in full. */}
-                      <button
-                        className="fl-tiffinfo"
-                        aria-label="How Tiff priced this"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModal({ t: "detail", id: v.id });
-                        }}
-                      >
-                        <Icon name="info" size={13} />
-                      </button>
-                    </em>
+                      <em className={`fl-tiff${stale ? " stale" : ""}`}>
+                        <TiffGlyph size={18} quiet />
+                        {fmtMoney(val.point)}
+                        {/* The note was hover-only and Isaac found it by accident.
+                            The ⓘ is the visible door; the detail modal prints the
+                            source in full. */}
+                        <button
+                          className="fl-tiffinfo"
+                          aria-label="How Tiff priced this"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModal({ t: "detail", id: v.id });
+                          }}
+                        >
+                          <Icon name="info" size={13} />
+                        </button>
+                      </em>
+                    </Tooltip>
                   )}
                 </span>
                 <span className="dmorewrap" onClick={(e) => e.stopPropagation()}>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { DateField } from "@/components/ui/date-field";
 import {
@@ -223,18 +224,18 @@ function ReactionRow({
   return (
     <div className="nb-reacts">
       {reactions.tallies.map((t) => (
-        <button
-          key={t.emoji}
-          type="button"
-          className={`nb-react${t.mine ? " on" : ""}`}
-          disabled={pending}
-          aria-pressed={t.mine}
-          title={t.names.join(", ")}
-          onClick={() => onReact(nextReaction(reactions.mine, t.emoji))}
-        >
-          <span aria-hidden>{t.emoji}</span>
-          {t.count}
-        </button>
+        <Tooltip key={t.emoji} label={t.names.join(", ")}>
+          <button
+            type="button"
+            className={`nb-react${t.mine ? " on" : ""}`}
+            disabled={pending}
+            aria-pressed={t.mine}
+            onClick={() => onReact(nextReaction(reactions.mine, t.emoji))}
+          >
+            <span aria-hidden>{t.emoji}</span>
+            {t.count}
+          </button>
+        </Tooltip>
       ))}
       <button
         type="button"

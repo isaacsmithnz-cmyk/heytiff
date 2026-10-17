@@ -23,6 +23,7 @@ import {
   type RateCalcState,
 } from "./state";
 import { RC } from "./theme";
+import { Tooltip } from "@/components/parts/tooltip";
 import { money, rate0, gstOf } from "./format";
 import { HEALTH_COLORS, parseRate, RcIcon, WsEyebrow } from "./ui";
 import { StaffStep, BusinessStep, VehiclesStep, RiskStep, ProfitStep } from "./steps";
@@ -442,8 +443,8 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {s.businessName && <span style={{ fontFamily: RC.head, fontSize: 12, fontWeight: 700, color: RC.label, background: "#fff", border: `1px solid rgba(10,12,20,.07)`, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>{s.businessName}</span>}
-          <button className="rca-iconbtn" onClick={() => setHelpOpen(true)} title="How to use" style={{ fontWeight: 700, fontSize: 15 }}>?</button>
-          <button className="rca-iconbtn" onClick={() => setShowSettings(true)} title="Settings"><RcIcon name="settings" size={16} /></button>
+          <Tooltip label="How to use" side="bottom"><button className="rca-iconbtn" onClick={() => setHelpOpen(true)} aria-label="How to use" style={{ fontWeight: 700, fontSize: 15 }}>?</button></Tooltip>
+          <Tooltip label="Settings" side="bottom"><button className="rca-iconbtn" onClick={() => setShowSettings(true)} aria-label="Settings"><RcIcon name="settings" size={16} /></button></Tooltip>
         </div>
       </div>
 

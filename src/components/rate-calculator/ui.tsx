@@ -106,7 +106,7 @@ export function WsHelpNote({ id, children, style = {} }: {
   const [open, setOpen] = React.useState(!rcNoteStore[id]);
   if (!open) return (
     <div style={{ ...style }}>
-      <button onClick={() => setOpen(true)} title="Show help"
+      <button onClick={() => setOpen(true)}
         style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${RC.lineStrong}`, background: "#fff", color: RC.label, borderRadius: 100, padding: "4px 11px 4px 8px", fontFamily: RC.body, fontSize: 11.5, fontWeight: 700, cursor: "pointer", boxShadow: "0 1px 2px rgba(10,12,20,.04)" }}>
         <span style={{ display: "flex", marginTop: -2 }}><WsInfoGlyph size={13} /></span> How this works
       </button>
@@ -118,7 +118,7 @@ export function WsHelpNote({ id, children, style = {} }: {
       <span style={{ flex: 1 }}>{children}</span>
       <span style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0, marginLeft: 8, marginTop: 2 }}>
         <button onClick={() => { rcNoteStore[id] = true; setOpen(false); }} style={{ border: "none", background: "transparent", color: "#1D4FD7", opacity: .7, fontSize: 11.5, fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontFamily: RC.body, padding: 0, whiteSpace: "nowrap" }}>Don&apos;t show again</button>
-        <button onClick={() => setOpen(false)} title="Close" style={{ border: "none", background: "transparent", color: "#1D4FD7", cursor: "pointer", padding: 0, display: "flex", opacity: .8 }}><RcIcon name="x" size={13} /></button>
+        <button onClick={() => setOpen(false)} aria-label="Close" style={{ border: "none", background: "transparent", color: "#1D4FD7", cursor: "pointer", padding: 0, display: "flex", opacity: .8 }}><RcIcon name="x" size={13} /></button>
       </span>
     </div>
   );

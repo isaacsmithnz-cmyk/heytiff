@@ -16,6 +16,7 @@ import {
 import { isSpigotOpening, spigotLabel } from "@/lib/studio/packs/schema";
 import type { SaveInput, ClearInput, SaveResult } from "./edit-types";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 
 /** system_roles values ↔ human labels for the tag editor */
 const ROLE_OPTIONS = [
@@ -897,7 +898,6 @@ function SeriesGroup({
         {editable && onTags ? (
           <button
             className="hq-series-tags"
-            title="Set system tags for every unit in this series"
             onClick={() =>
               onTags(group.rows, `${group.series} series, system tags`)
             }
@@ -1002,10 +1002,9 @@ function SeriesTable({
                 >
                   {c.sub}
                   {c.toAdd && c.blocks ? (
-                    <span
-                      className="hq-cmp-blockdot"
-                      title={`Blocks: ${(c.roles ?? []).join(", ")}`}
-                    />
+                    <Tooltip label={`Blocks: ${(c.roles ?? []).join(", ")}`}>
+                      <span className="hq-cmp-blockdot" />
+                    </Tooltip>
                   ) : null}
                 </th>
               ))}
@@ -1083,11 +1082,6 @@ function SeriesTableRow({
               onClick={
                 onTags ? () => onTags([row], `${row.title}, system tags`) : undefined
               }
-              title={
-                tagsEdited
-                  ? "System tags (manually set) — click to edit"
-                  : "System tags — click to edit"
-              }
             >
               {row.roles.length
                 ? row.roles.map((r) => ROLE_LABEL.get(r) ?? r).join(", ")
@@ -1101,10 +1095,7 @@ function SeriesTableRow({
             </span>
           )}
           {row.derived?.length ? (
-            <span
-              className="hq-xrole derived"
-              title="Derived from outdoor compatibility rules in the pack — computed, never hand-set"
-            >
+            <span className="hq-xrole derived">
               + multi, rules
             </span>
           ) : null}
@@ -1130,14 +1121,13 @@ function SeriesTableRow({
           {filled}/{total}
         </span>
         {structural.length ? (
-          <span
-            className="hq-cmp-struct"
-            title={structural
+          <Tooltip
+            label={structural
               .map((g) => (g.blocks ? `${g.field} — blocks ${g.roles.join(", ")}` : g.field))
-              .join("\n")}
+              .join("; ")}
           >
-            {structural.length} structural
-          </span>
+            <span className="hq-cmp-struct">{structural.length} structural</span>
+          </Tooltip>
         ) : null}
       </td>
     </tr>
@@ -1163,21 +1153,19 @@ function CmpCell({
   const tdClass = col.gstart ? "gstart" : undefined;
 
   if (value == null) {
+    const add = (
+      <button
+        className={`hq-cmp-add${gap?.blocks ? " block" : ""}`}
+        disabled={!editable}
+        onClick={() => onPick(row, col.field)}
+        aria-label={`Add ${spec.label} — ${row.title}`}
+      >
+        ＋
+      </button>
+    );
     return (
       <td className={tdClass}>
-        <button
-          className={`hq-cmp-add${gap?.blocks ? " block" : ""}`}
-          disabled={!editable}
-          onClick={() => onPick(row, col.field)}
-          aria-label={`Add ${spec.label} — ${row.title}`}
-          title={
-            gap?.blocks
-              ? `Blocks: ${gap.roles.join(", ")}`
-              : "Nice to know — not required by the engine"
-          }
-        >
-          ＋
-        </button>
+        {gap?.blocks ? <Tooltip label={`Blocks: ${gap.roles.join(", ")}`}>{add}</Tooltip> : add}
       </td>
     );
   }
@@ -1207,7 +1195,6 @@ function CmpCell({
         disabled={!editable}
         onClick={() => onPick(row, col.field)}
         aria-label={`${spec.label} — ${row.title}: ${display}`}
-        title={edited ? "Manually entered — click to edit" : "Click to edit"}
       >
         {chip ? (
           <span className={`hq-cmp-chip ${chip}${edited ? " edited" : ""}`}>{display}</span>

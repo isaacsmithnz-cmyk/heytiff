@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Icon } from "@/components/shell/icon";
@@ -994,7 +995,9 @@ export function SendCard({
 
           {dest === "job" && doc.jobLink && (
             <div className="ds-send-link">
-              <span className="ds-share-url">{pdfName}</span>
+              <span className="ds-share-url">
+                <Fade>{pdfName}</Fade>
+              </span>
               <span className="ds-share-meta">
                 {jobRead?.sm8 === "live"
                   ? `Goes on job ${doc.jobLink.jobNumber ?? ""}'s card here, then to ServiceM8.`

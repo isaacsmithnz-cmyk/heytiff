@@ -36,6 +36,7 @@
    check is to compile the file and look for the `react/compiler-runtime`
    import and `$[` cache slots. Zero slots means skipped. */
 
+import { Fade } from "@/components/parts/fade";
 import {
   useCallback,
   useEffect,
@@ -6320,7 +6321,7 @@ export function StudioCanvas({
             <span className="ds-unitcard-sw" style={{ background: hoverCard.colour }} />
             <span className="ds-unitcard-role">{hoverCard.role}</span>
             {hoverCard.system && (
-              <span className="ds-unitcard-sys">{hoverCard.system}</span>
+              <Fade className="ds-unitcard-sys">{hoverCard.system}</Fade>
             )}
           </div>
           <div className="ds-unitcard-model">{hoverCard.model || "No model yet"}</div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
@@ -64,10 +65,10 @@ export function ReferenceViewer({
           <div className="ds-ref-title">
             <Icon name="library" size={16} />
             <b>Reference sheets</b>
-            <span className="ds-ref-sub">
+            <Fade className="ds-ref-sub">
               Every uploaded page — read heights, sections and details without
               placing them on the canvas.
-            </span>
+            </Fade>
           </div>
           <button className="ds-ub-close" onClick={onClose} aria-label="Close">
             <Icon name="x" size={16} />

@@ -587,7 +587,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sm8-no {
   flex: 0 0 58px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   padding: 4px 4px;
   border-radius:var(--r-control);
@@ -608,8 +607,9 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sm8-s,
 .dstudio .ds-sm8-d {
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .dstudio .ds-sm8-t {
   font-size: 14px;
@@ -660,8 +660,9 @@ html[data-ds-display] .dstudio.editing {
   font-size: 13px;
   font-weight: 600;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .dstudio .ds-sm8-onl b {
   color: var(--paper);
@@ -955,7 +956,8 @@ html[data-ds-display] .dstudio.editing {
   color: var(--paper);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .dstudio .ds-rmeta {
   font: 700 12px var(--mono);
@@ -2252,8 +2254,11 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-floor-row.on .ds-floor-pick .lvl { background: var(--teal-d); color: var(--paper); }
 .dstudio .ds-floor-pick .nm {
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 /* a floor's height in its menu row: a riser up from it is this tall */
 .dstudio .ds-floor-hgt {
@@ -2376,8 +2381,11 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-var-row.on:hover .ds-var-pick { background: transparent; }
 .dstudio .ds-var-pick .nm {
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 /* placeholder that keeps unchecked labels aligned with the checked one */
 .dstudio .ds-var-dot { width: 11px; flex: 0 0 auto; }
@@ -2468,7 +2476,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--q);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .ds-ref-tabs {
   display: flex;
@@ -3215,7 +3222,6 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   color: var(--gray500);
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .dstudio .ds-unitcard-model {
@@ -3697,7 +3703,6 @@ html[data-ds-display] .dstudio.editing {
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* right: the building yard */
@@ -4447,7 +4452,8 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .dstudio .ds-restack-moves { display: flex; gap: 4px; flex: none; }
 .dstudio .ds-restack-moves button {
@@ -5829,7 +5835,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .ds-rm-body {
   padding: 16px 16px 16px;
@@ -7358,7 +7363,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--paper);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .dstudio .ds-present-sys {
   display: inline-flex;
@@ -7610,7 +7614,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--paper);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 34ch;
 }
 .dstudio .ds-present-stat-comp {
@@ -7735,7 +7738,6 @@ html[data-ds-display] .dstudio.editing {
   border-radius:var(--r-control);
   padding: 8px 8px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .dstudio .ds-share-meta {
@@ -8937,7 +8939,9 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 1;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 .ds-sb-zone-need,
 .ds-sb-zone-none,
@@ -8964,7 +8968,6 @@ html[data-ds-display] .dstudio.editing {
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   cursor: pointer;
   pointer-events: auto;
   transition: background-color var(--t-fast) var(--ease);
@@ -9562,7 +9565,6 @@ html[data-ds-display] .dstudio.editing {
   text-align: left;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 /* the card's identity, down the left: the name with what it is beside it on
@@ -9807,7 +9809,8 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  -webkit-mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - 24px), transparent);
 }
 /* the zones nobody has claimed: a section of its own, so the list has a
    start, and a well when it is empty — dropping a zone here is what takes

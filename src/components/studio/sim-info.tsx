@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useSyncExternalStore } from "react";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import {
@@ -91,7 +92,7 @@ export function SimHeaderStatus({
     <div className="ds-present-status" role="status" aria-label="System status">
       <div className="ds-present-stat-phase">
         <span className={`ds-present-stat-tag tone-${copy.tone}`}>{copy.tag}</span>
-        <span className="ds-present-stat-desc">{copy.desc}</span>
+        <Fade className="ds-present-stat-desc">{copy.desc}</Fade>
       </div>
 
       <div className="ds-present-stat-comp">

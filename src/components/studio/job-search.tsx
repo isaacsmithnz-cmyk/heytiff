@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import {
@@ -138,7 +139,7 @@ export function JobSearchField({
               onClick={() => pick(h)}
             >
               <span className="ds-sm8-no">
-                {h.jobNumber ? `#${h.jobNumber}` : "—"}
+                <Fade>{h.jobNumber ? `#${h.jobNumber}` : "—"}</Fade>
               </span>
               <span className="ds-sm8-b">
                 <span className="ds-sm8-t">

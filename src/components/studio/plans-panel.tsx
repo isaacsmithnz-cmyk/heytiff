@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type {
@@ -924,7 +925,7 @@ function PlanCard({
           </button>
         )}
       </div>
-      <span className="ds-plancard-name">{name}</span>
+      <Fade className="ds-plancard-name">{name}</Fade>
     </div>
   );
 }

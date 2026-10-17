@@ -1,5 +1,6 @@
 "use client";
 
+import { Fade } from "@/components/parts/fade";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { DesignDocument, Floor } from "@/lib/studio/document";
@@ -68,7 +69,7 @@ export function SimPresentMode({
     <div className="fg dstudio ds-present" role="dialog" aria-label="Simulation presentation">
       <div className="ds-present-bar">
         <div className="ds-present-title">
-          <span className="ds-present-name">{doc.meta.name || "Design"}</span>
+          <Fade className="ds-present-name">{doc.meta.name || "Design"}</Fade>
           {activeSystem && (
             <span className="ds-present-sys">
               <span className="ds-present-dot" style={{ background: activeSystem.colour }} />

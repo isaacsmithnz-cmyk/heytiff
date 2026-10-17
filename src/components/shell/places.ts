@@ -30,7 +30,15 @@ export type Place = {
 };
 
 export const PLACES: readonly Place[] = [
-  { key: "home", label: "Home", icon: "home", href: "/dashboard", under: ["/dashboard/action-required", "/dashboard/notices"] },
+  /* To do's whole list, and the old desk (Diary, Tasks and the Calendar)
+     until Conversations and Schedule take them in, are Home's */
+  {
+    key: "home",
+    label: "Home",
+    icon: "home",
+    href: "/dashboard",
+    under: ["/dashboard/todo", "/dashboard/desk", "/dashboard/action-required", "/dashboard/notices"],
+  },
   /* a job's own page (step 5) lights Jobs before the list has a page */
   { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", under: ["/dashboard/my-notes"], capability: "tiff" },
   { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", under: [], capability: "workboard" },

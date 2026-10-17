@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
@@ -60,7 +60,7 @@ async function context(): Promise<Ctx | null> {
   return { orgId, staffId: await staffProfileIdFor(orgId, userId) };
 }
 
-const refresh = () => revalidatePath("/dashboard");
+const refresh = () => revalidateHome();
 
 /* Attaching already-uploaded files to a notice.
 

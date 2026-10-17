@@ -1,8 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { revalidatePath } from "next/cache";
-import { navHref } from "@/components/shell/nav";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
@@ -84,9 +83,11 @@ const COULDNT_CHANGE = "Couldn't change that on the calendar.";
 const GONE = "That's no longer on the calendar.";
 const NOT_ON_CALENDAR = "That day isn't on the calendar.";
 
-/* By name, not by path: a revalidate aimed at a moved route fails silently
-   (see the note on `refresh` in ./kb). */
-const refresh = () => revalidatePath(navHref("home"));
+/* Every address Home has (lib/shell/revalidate-home): the Calendar is the
+   desk's, at /dashboard/desk, until Schedule takes it in. A revalidate aimed
+   at a moved route fails silently (see the note on `refresh` in ./kb), so
+   the addresses live in one list. */
+const refresh = () => revalidateHome();
 
 /** The caller, when they may write to the calendar; otherwise why not. */
 async function gate(refused: string): Promise<{ orgId: string; userId: string } | { error: string }> {

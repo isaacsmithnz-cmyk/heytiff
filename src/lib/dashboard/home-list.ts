@@ -64,8 +64,9 @@ export const VISIT_WINDOW_DAYS = 56;
 
 /** The bell's kinds that reach the list: the ones that count down to a date.
     The rest — queues to decide, a timesheet sent back, a SWMS to sign, files
-    stuck on the way to ServiceM8 — stay on the bell until Isaac says (spec
-    question 1); adding a kind here is the whole switch. */
+    stuck on the way to ServiceM8 — were the bell's alone; since the bell
+    went (v2, decision 25) Home's To do carries them in the bell's own words
+    (./todo), and these in the list's. */
 export const LIST_CHIP_KINDS: readonly ChipKind[] = [
   "licence",
   "work-rights",

@@ -24,7 +24,7 @@ Every feature HeyTiff has today, its one home in v2, and the build step that mov
 | F-002 | Search, ⌘K: screens, staff, clients, projects, jobs, photos | Top bar; ⌘K | Frame › Search, ⌘K; its last row asks Tiff. Its kinds and gates are listed when the places land | 3 | [ ] |
 | F-003 | Clock and date | Top bar | Frame › header, left; on the workspace's time zone | 3 | [ ] |
 | F-004 | Tiff button | Top bar, every page | Goes. Home › the box; Search's last row from any screen | 3 | [ ] |
-| F-005 | Bell: reminders due (Done, Later), tasks given to you (Done, Got it), up to 20 alerts | Top bar | Home › To do; its count on Home in the menu (rev 25). The bell stays until To do lands | 5 | [ ] |
+| F-005 | Bell: reminders due (Done, Later), tasks given to you (Done, Got it), up to 20 alerts | Top bar | Home › To do; its count on Home in the menu (rev 25). The bell stays until To do lands | 5 | [x] |
 | F-006 | Your profile: details, emergency contact, licences, qualifications, signature, work rights, pay | Avatar › Profile; bell; Home's list; letter editor | Your name › Your card, at `/team/<you>` | 5 | [ ] |
 | F-007 | Sign out | Avatar › Sign out | Your name menu › Sign out (rev 33) | 3 | [ ] |
 | F-008 | Switch organisation | Built, never shown | Goes. One company per person, said on /start (rev 32) | D | [ ] |
@@ -36,11 +36,11 @@ Every feature HeyTiff has today, its one home in v2, and the build step that mov
 
 | ID | Feature | Today | v2 home | Step | Done |
 | --- | --- | --- | --- | --- | --- |
-| F-012 | Home page, titled with today's date | Menu; search; Tiff; signing in; back links; morning email; about 40 bounces | Home, at / when signed in (rev 2) | 5 | [ ] |
-| F-013 | Your day bar: your bookings and timed tasks, or your next booked day | Home, top | Home › Today | 5 | [ ] |
-| F-014 | Open a job from Your day | Your day › card › Open job (Home's copy of the card) | Home › Today › the job opens Jobs › a job. Home's copy goes | 5 | [ ] |
+| F-012 | Home page, titled with today's date | Menu; search; Tiff; signing in; back links; morning email; about 40 bounces | Home, at / when signed in (rev 2) | 5 | [x] |
+| F-013 | Your day bar: your bookings and timed tasks, or your next booked day | Home, top | Home › Today | 5 | [x] |
+| F-014 | Open a job from Your day | Your day › card › Open job (Home's copy of the card) | Home › Today › the job opens Jobs › a job. Home's copy goes | 5 | [x] |
 | F-015 | Diary: what you told Tiff and what it filed; edit, delete, undo | Home › Diary; doors from the list and Tasks | Conversations › a conversation: Edit, Delete, Undo | 5 | [ ] |
-| F-016 | Add to the diary: Sort it out with Tiff | Home › Diary box | Home › the box | 5 | [ ] |
+| F-016 | Add to the diary: Sort it out with Tiff | Home › Diary box | Home › the box | 5 | [x] |
 | F-017 | Add to the diary: save as typed, private to you | Home › Diary box | Conversations › Only me, its own box and Save | 5 | [ ] |
 | F-018 | ServiceM8 mentions of you: reply, hide, make a task | Home › Diary; list row "X asked you"; Tasks | Home › To do: "X asked you" › Reply, Make it a task, Done (J15, H6) | 5 | [ ] |
 | F-019 | Tasks: open and done; mark done, move the date, give to someone, delete | Home › Tasks; the bell | Home › To do. A task opens as its form with Delete; Done today: Show (H3) | 5 | [ ] |
@@ -49,7 +49,7 @@ Every feature HeyTiff has today, its one home in v2, and the build step that mov
 | F-022 | List buttons: Renew, Log service, Book in, Clear, Create job, Book | List rows | Home › To do rows; each opens its record's one form | 5 | [ ] |
 | F-023 | Calendar: public holidays, company events, notices, renewals; 4 weeks, month | Home › Calendar | Schedule › Calendar (S3). Notice events show there (rev 29); renewals go to To do | 5 | [ ] |
 | F-024 | Add or edit a calendar event | Home › Calendar box; event › Edit | Schedule › Add an event; the event › Edit (S2) | 4 | [ ] |
-| F-025 | Action required: every alert as a tile | Search; Tiff; the bell's "N more" | Home › To do | 5 | [ ] |
+| F-025 | Action required: every alert as a tile | Search; Tiff; the bell's "N more" | Home › To do | 5 | [x] |
 | F-026 | Noticeboard: notices, polls, events, comments, reactions | Search; Tiff; Calendar › Open notice | Team › Notices; Write a notice. A new notice is in To do until read (rev 28) | 5 | [ ] |
 | F-027 (R) | A notice's event: date, place, RSVP, comments | Noticeboard; also made from the calendar | TWO HOMES: Team › Notices › Write a notice (an event) and Schedule › Add an event. One event record or two is unanswered | 5 | [ ] |
 | F-028 | Morning email: reminders and expiries, daily | Daily email (sent behind the scenes) | Stays. Outside the frame › the mail; each item links to its place | 8 | [ ] |

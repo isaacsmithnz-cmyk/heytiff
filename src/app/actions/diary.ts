@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { staffIdFor } from "@/lib/workboard/projects-query";
@@ -114,7 +115,7 @@ async function leftHeyTiff(ctx: Ctx, row: EntryRow): Promise<boolean> {
 }
 
 function refresh(row: EntryRow) {
-  revalidatePath("/dashboard");
+  revalidateHome();
   if (row.target_kind === "job") revalidatePath("/dashboard/workboard");
 }
 

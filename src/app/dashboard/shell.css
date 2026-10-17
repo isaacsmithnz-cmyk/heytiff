@@ -91,21 +91,6 @@
 .fg .topbar .tbclock b { min-width:66px; min-height:16px; font-size:14px; font-weight:700; line-height:1.15; color:var(--paper); font-variant-numeric:tabular-nums; }
 /* the date under the clock — .45 is the alpha that LOOKS safe and is 4.46 */
 .fg .topbar .tbclock em { font-style:normal; font-size:12px; font-weight:600; color:var(--on-ink-q); }
-/* The bell is an <a> now, not a button, so it needs the two things the button
-   reset was giving it for free — no underline, and a box that wraps the glyph
-   rather than a line of text. */
-.fg .bell { position:relative; display:inline-flex; padding:12px; border-radius:var(--r-card); background:var(--on-ink-tint-2); border:1px solid var(--line); color:var(--gray500); text-decoration:none; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .bell:hover { color:#111; background:var(--paper); }
-/* `.d` is a COUNT now and only renders when there is something to count, so it
-   no longer pulses: a number that is present at all is already the signal, and
-   an animation that ran forever was what made the old dot invisible.
-
-   It hangs OFF the corner rather than sitting inside it. At `top:6px right:6px`
-   — where the old 10px dot lived quite happily — an 18px pill lands squarely on
-   the bell glyph's top-right quadrant and eats the shape you are meant to
-   recognise. `.topbar` and `.tbr` are both `overflow:visible` and the gap to the
-   separator is 24px, so the 4px overhang has room. */
-.fg .bell .d { position:absolute; top:-5px; right:-5px; min-width:18px; height:18px; padding:0 4px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--bad); border:2px solid var(--paper); color:var(--paper); font-size:12px; font-weight:700; line-height:1; }
 
 
 /* BOTH EDGES, OR EVERY SCREEN IN THE APP SITS OFF ITS OWN CENTRE.
@@ -574,193 +559,6 @@
    screen is the content well. frame-still.test.ts holds the line. The
    topbar's children keep their own stacking context, as they did above it. */
 .fg .topbar > * { position:relative; z-index:1; }
-
-/* v2: the header is on the white page, so the bell sits on white until step 5 moves its count to Home */
-.fg .bell { padding:8px; border-radius:var(--r-button); background:var(--white); border:1px solid var(--edge); color:var(--ink); }
-.fg .bell:hover { background:var(--hov); color:var(--ink); box-shadow:none; }
-.fg .bell .d { border-color:var(--white); }
-
-/* ===== THE BELL'S PANEL — notifications where you already are =============
-
-   The bell used to be a link to /dashboard/action-required: the only way to
-   learn whether the badge was worth caring about was to leave the screen you
-   were on. This is the same list, grown down out of the bell.
-
-   ABSOLUTE, NOT FIXED. `.page.in` sets `will-change`, which makes a containing
-   block out of the page and breaks `position:fixed` anywhere in this shell —
-   the user menu two controls right has the same note. The topbar sits outside
-   `.page`, and `.topbar` / `.tbr` are both overflow:visible (the badge already
-   overhangs by 4px), so an absolutely-positioned panel escapes cleanly.
-
-   NO SCRIM. A body-portalled overlay would sit over `.fg` and trap everything
-   inside it — including this panel. Outside-click and Escape close it instead.
-
-   RIGHT-ANCHORED off the bell, which is not the right-hand edge of the topbar:
-   the panel is 360 wide and the bell is 44, so it hangs left across the Tiff
-   button and the clock and stops well short of the sidebar at every width the
-   app is used at. */
-.fg .topbar .bell-top { position:relative; display:flex; align-items:center; }
-.fg .bell.on { background:var(--sel); color:var(--ink); }
-/* THE GROUND IS OPAQUE, AND THAT IS THE WHOLE POINT.
-
-   This was `rgba(14,15,20,.92)` + `backdrop-filter`, copied from the user menu.
-   A translucent ground is not a ground: it is 8% of WHATEVER IS BEHIND IT, and
-   this panel hangs over the content well, which is the LIGHT card. Over the
-   shell's own #050505 it composites to rgb(13,14,19); over Home it composites
-   to rgb(32,33,38) — nineteen levels lighter, on a surface whose quiet ink
-   (`--on-ink-q`, white at .5) is calibrated for the dark chrome and nothing
-   else. On a HOVERED row, where the .08 white tint lifts the ground again, the
-   subject line measured **4.44** on prod. Under AA, on the real screen, while
-   every harness reading said 5.03 — because the harness only ever put it over
-   the dark ground.
-
-   #0d0e13 is exactly what .92 composited to over the shell's own floor, so the
-   panel looks identical where it always looked right and stops changing
-   underneath its own text everywhere else: 5.34 at rest, 5.03 hovered, on
-   every backdrop. The `backdrop-filter` goes with it — at 92% it was already
-   invisible (proved by swapping it out on prod and comparing), and dead CSS in
-   this file has styled things by accident before.
-
-   `.me-menu` has the same construction and the same latent bug; it is spared
-   only because it opens over the topbar and the sidebar rather than the card. */
-.fg .topbar .bell-panel { position:absolute; top:calc(100% + 9px); right:0; z-index:var(--z-overlay); transform-origin:calc(100% - 23px) -9px; display:flex; flex-direction:column; width:360px; max-height:min(460px, calc(100vh - 120px)); padding:8px; border-radius:var(--r-card); background:var(--ink2); border:1px solid var(--on-ink-line); box-shadow:var(--shadow-overlay); animation:bellPanelIn .18s var(--ease) both; }
-
-/* IT GROWS OUT OF THE BELL, AND STAYS TIED TO IT.
-
-   It read as a floating window: a 10px gap to the bell and a `translateY`
-   drop, which is the motion of a thing ARRIVING from somewhere else. Nothing
-   in it said which control it belonged to — the shell has three controls in
-   that corner and a panel that just appears near them is a guess.
-
-   Two changes, and they do different halves of the job.
-
-   THE CARET ties it. A rotated square wearing the panel's own ground and the
-   two border edges that face the bell, aligned to the bell's centre: the
-   `.bell-top` wrapper is `right:0`-aligned with the panel, and the bell is a
-   20px glyph in 12px padding INSIDE a 1px border — 46px, not 44 — so its
-   centre is 23px in from the right, which is `right:17px` plus half the
-   caret. MEASURED, not added up: the first attempt reasoned its way to 22 and
-   sat a pixel off on the real chrome.
-
-   `bottom:100%` with a −1px pull sits the caret ON the panel's top border and
-   hides the seam behind its own fill — which only works because that fill is
-   now OPAQUE. At the old .92 the caret and the panel would each composite the
-   backdrop separately and the join would have shown as a brighter wedge.
-
-   THE ORIGIN animates it. `transform-origin` is the caret's tip, so the scale
-   runs OUT of the bell rather than down onto the page. The caret is a CHILD of
-   the transformed element and scales with it, and a point AT the origin does
-   not move at any scale — measured on a paused animation, the caret's drift is
-   a flat 0.38px from .92 through to 1. Put the origin anywhere else and the
-   caret slides off the bell on the way in, which is the floating window again.
-
-   THE 9px IS NOT THE GAP TO THE BELL, and this is the part that was written
-   down wrong. `top` and the origin's `-9px` resolve against `.bell-top`, which
-   is a flex ITEM in `.tbr` and stretches to the row's height — taller than the
-   46px bell. On prod the real gap measures 11px. It still reads as joined
-   because the caret reaches ~13.5px above the panel's top edge (a 12px square
-   rotated 45° is 16.97 across, positioned 1px into the panel), so it tucks
-   under the bell by ~2.5px rather than the ~4.5px a harness with a
-   bell-height wrapper suggested. Anything that makes `.bell-top` taller eats
-   that 2.5px silently — if the stem ever stops touching, this is why.
-
-   Scale-and-fade, not scale-and-slide: a slide re-introduces the travel that
-   made it look like a separate window. */
-.fg .topbar .bell-panel::before { content:""; position:absolute; bottom:calc(100% - 1px); right:17px; width:12px; height:12px; transform:rotate(45deg); border-radius:0; background:var(--ink2); border-top:1px solid var(--on-ink-line); border-left:1px solid var(--on-ink-line); }
-@keyframes bellPanelIn { from { opacity:0; transform:scale(.92); } to { opacity:1; transform:none; } }
-/* The caret is a CHILD of the transformed element, so it scales too — and
-   that is why the origin is its tip rather than the panel's corner. A point
-   at the transform origin does not move at any scale, so the caret stays
-   pinned to the bell for the whole 180ms while the panel unfolds away from
-   it. Put the origin anywhere else and the caret slides off the bell and
-   lands between two controls on the way in. */
-@media (prefers-reduced-motion:reduce) { .fg .topbar .bell-panel { animation:none; } }
-.fg .topbar .bp-head { display:flex; align-items:center; gap:8px; padding:8px 12px 8px; }
-.fg .topbar .bp-head b { font-size:13px; font-weight:700; color:var(--paper); }
-.fg .topbar .bp-n { min-width:20px; padding:2px 4px; border-radius:var(--r-control); background:var(--on-ink-tint); color:var(--paper); font-size:12px; font-weight:700; text-align:center; }
-
-/* The scroller, and the reason the panel is a column flexbox: the head and the
-   footer stay put and only this moves. `min-height:0` because a flex child
-   defaults to min-content and would refuse to shrink — without it the panel
-   grows past its own max-height and the list never scrolls.
-
-   IT MOVED UP ONE LEVEL when reminders joined the panel, from `.bp-list` to a
-   wrapper around both groups. Two scrollers in a 360px popover is the thing to
-   avoid: whichever one the wheel happened to be over would move, and neither
-   could reach the other group's rows. */
-.fg .topbar .bp-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--on-ink-line) transparent; }
-.fg .topbar .bp-scroll::-webkit-scrollbar { width:6px; }
-.fg .topbar .bp-scroll::-webkit-scrollbar-thumb { background:var(--on-ink-tint-2); border-radius:999px; }
-
-/* One row. Two channels, same as the board's tiles: the GLYPH is the domain
-   (truck / shield / hexagon, matching the nav) and the COLOUR is the urgency —
-   colour alone made an expiring rego and an expiring licence identical. */
-.fg .topbar .bp-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:var(--r-button); color:var(--paper); text-decoration:none; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .topbar .bp-row:hover { background:var(--on-ink-tint); color:var(--paper); }
-.fg .topbar .bp-ic { display:flex; align-items:center; justify-content:center; width:30px; height:30px; flex:0 0 auto; border-radius:var(--r-button); background:var(--on-ink-tint); }
-.fg .topbar .bp-row.bad .bp-ic { background:var(--bad-tint); color:#ff7d99; }
-.fg .topbar .bp-row.warn .bp-ic { background:rgba(245,158,11,.16); color:#f7b955; }
-.fg .topbar .bp-main { flex:1; min-width:0; }
-.fg .topbar .bp-main b { display:block; font-size:13px; font-weight:700; line-height:1.25; color:var(--paper); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-/* the subject line — the shell's quiet-on-ink token, 4.46 on #050505 */
-.fg .topbar .bp-main em { display:block; font-style:normal; font-size:12px; color:var(--on-ink-q); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.fg .topbar .bp-chev { flex:0 0 auto; opacity:0; transition:opacity var(--t-fast) var(--ease); }
-.fg .topbar .bp-row:hover .bp-chev { opacity:.6; }
-
-.fg .topbar .bp-quiet { padding:16px 12px; font-size:12px; color:var(--on-ink-q); }
-.fg .topbar .bp-empty { display:flex; flex-direction:column; align-items:center; gap:4px; padding:24px 16px 24px; text-align:center; }
-.fg .topbar .bp-empty .bp-ei { display:flex; align-items:center; justify-content:center; width:38px; height:38px; margin-bottom:2px; border-radius:50%; background:rgba(0,163,137,.16); color:#3fd7b6; }
-.fg .topbar .bp-empty b { font-size:13px; font-weight:700; color:var(--paper); }
-.fg .topbar .bp-empty em { font-style:normal; font-size:12px; line-height:1.45; color:var(--on-ink-q); }
-
-/* Present ONLY when rows were actually cut. A "see all" under a list that is
-   already all of it is a lie about there being more. */
-.fg .topbar .bp-more { display:flex; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; margin-top:4px; padding:8px; border-radius:var(--r-button); background:var(--on-ink-tint); color:var(--paper); font-size:12px; font-weight:700; text-decoration:none; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .topbar .bp-more:hover { background:var(--on-ink-tint); color:var(--paper); }
-
-/* REMINDERS — the group above the chips.
-
-   THE ROW DOES NOT LIFT ON HOVER, and that is a contrast decision rather than a
-   styling one. A chip row is a link, so hovering it lifts the ground by .08
-   white and its text goes to #fff to keep up. This row is not a link — it is
-   text with two buttons on it — so a lift would raise the ground under a
-   subject line that stayed put, which is exactly how this panel shipped under
-   AA once already. The ground here is the panel's own opaque #0d0e13 and
-   nothing moves it; only the BUTTONS light up, and they carry their own ink.
-
-   `--on-ink-q` on the late line measures 5.03 against that ground.
-   `topbar-popover-grounds.test.ts` holds all of this. */
-.fg .topbar .bp-grp { padding:8px 12px 4px; font-size:12px; font-weight:500; color:var(--on-ink-q); }
-.fg .topbar .bp-rems { display:flex; flex-direction:column; }
-.fg .topbar .bp-rem { border-radius:var(--r-button); }
-.fg .topbar .bp-remrow { display:flex; align-items:center; gap:12px; padding:8px 12px; }
-.fg .topbar .bp-rem .bp-ic { background:var(--on-ink-tint); color:var(--paper); }
-.fg .topbar .bp-remacts { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
-
-/* THE TITLE WRAPS HERE, WHERE A CHIP'S DOES NOT, and the difference is what
-   the line is FOR. A chip's headline is a formula — "<thing> <expiry clause>" —
-   so its first few words carry the whole meaning and an ellipsis costs a
-   subject you can also read underneath. A reminder's title is a sentence
-   somebody dictated, and it is the entire content of the row: measured on the
-   real font, "Check with Lyle about quote to Chris from Scott Group" wants
-   335px and the two buttons leave 187, so an ellipsis cut it at "quote…" —
-   which is the half that says nothing. Clamped at two lines rather than
-   unbounded, so one long note can't push the rest of the list off the panel. */
-.fg .topbar .bp-rem .bp-main b { white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden; }
-.fg .topbar .bp-remrow { align-items:flex-start; }
-.fg .topbar .bp-rem .bp-ic, .fg .topbar .bp-remacts { margin-top:1px; }
-.fg .topbar :is(.bp-remdo, .bp-remsnz) { display:flex; align-items:center; justify-content:center; border:0; border-radius:var(--r-button); background:var(--on-ink-tint); color:var(--paper); font:inherit; font-size:12px; font-weight:700; cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .topbar .bp-remdo { width:28px; height:28px; }
-.fg .topbar .bp-remsnz { height:28px; padding:0 8px; }
-.fg .topbar :is(.bp-remdo, .bp-remsnz):hover { background:var(--on-ink-tint); color:var(--paper); }
-.fg .topbar .bp-remsnz.on { background:var(--on-ink-tint-2); color:var(--paper); }
-
-/* The three choices, in the row's own space rather than a menu over it. A
-   popover inside a popover needs its own dismissal, its own escape key and its
-   own outside-click — for three buttons that are already one tap away. */
-.fg .topbar .bp-snooze { display:flex; gap:4px; padding:0 12px 8px 52px; }
-.fg .topbar .bp-snzopt { flex:1 1 0; padding:8px 4px; border:1px solid var(--on-ink-line); border-radius:var(--r-button); background:none; color:var(--paper); font:inherit; font-size:12px; font-weight:700; cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .topbar .bp-snzopt:hover { background:var(--on-ink-tint); border-color:var(--on-ink-line); color:var(--paper); }
 
 /* THE DOCK — the cards set aside (components/records/record-dock). A row of
    the dark frame under the page, there only while something waits in it, so
@@ -12811,3 +12609,37 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .fg .cv-list { flex:none; max-height:40vh; padding:0 8px 16px; }
   .fg .cv-pane { min-height:70vh; padding:16px; }
 }
+
+/* ===== HOME, v2 (components/dashboard/home.tsx, home-todo.tsx) =====
+   The board v2-board-home: Tiff's mark over her box, Today and To do, one
+   column on the white page. The rows are the Row part (rule 39), the
+   buttons the Button part; what is here is the column, the two heads, the
+   box in v2's dress, a row's time and tick, a line in its state's colour,
+   and the count beside Home in the sidebar (decision 25). */
+.fg .wrap.hm { max-width:912px; padding:24px 32px 96px; display:flex; flex-direction:column; gap:32px; }
+.fg .hm-ask { display:flex; flex-direction:column; align-items:center; gap:16px; }
+.fg .hm-box { align-self:stretch; display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--white); transition:border-color var(--t-fast) var(--ease); }
+.fg .hm-box:focus-within { border-color:var(--ink); }
+.fg .hm-box:has(.hm-box-in:focus-visible) { box-shadow:var(--ring); }
+.fg .hm-box .hm-box-in { width:100%; min-width:0; margin:0; padding:0; border:0; outline:none; background:none; font:400 16px/24px var(--font); color:var(--ink); }
+.fg .hm-box .hm-box-in::placeholder { color:var(--q); }
+.fg .hm-box-row { display:flex; align-items:center; gap:8px; }
+.fg .hm-box-row .hm-box-send { margin-left:auto; }
+.fg .hm-sec { display:flex; flex-direction:column; min-width:0; }
+.fg .hm-head { display:flex; align-items:baseline; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.fg .hm-h { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .hm-title { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .hm-sum { min-width:0; font-size:14px; line-height:20px; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .hm-headlinks { margin-left:auto; display:flex; gap:16px; font-size:14px; line-height:20px; }
+.fg .hm-head .hm-headlink { margin-left:auto; font-size:14px; line-height:20px; }
+.fg .hm .pt-row { padding-block:12px; }
+.fg .hm .pt-empty { min-height:0; padding:24px 16px; }
+.fg .hm-lead { display:flex; align-items:center; gap:12px; }
+.fg .hm-time { width:96px; font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
+/* a tick sits over the row's link, as the row's end does */
+.fg .hm-tick { position:relative; z-index:var(--z-raised); }
+.fg .hm-line.hm-line--wrong { color:var(--red-w); }
+.fg .hm-line.hm-line--look { color:var(--orange-w); }
+.fg .hm-line.hm-line--info { color:var(--q); }
+/* on the ink a coloured word falls under 4.5:1, so the count is white */
+.fg .side .hm-navcount { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--paper); font-variant-numeric:tabular-nums; }

@@ -66,6 +66,10 @@ jest.mock("@/lib/workboard/schedule-query", () => ({ EMPTY_SCHEDULE: {}, loadSch
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: jest.fn() }));
 // the desk's list, Tasks, calendar and diary reads are page-data-desk's and their own suites'
 jest.mock("../home-list-query", () => ({ loadHomeList: jest.fn() }));
+/* To do's own reads (./todo-query) reach the database; what they read is
+   pinned in todo.test and the Home suites, and here they are a name. */
+const loadTodoExtras = jest.fn(async (_ctx: unknown) => ({ reminders: [], assignments: [], notices: [], timesheets: 0 }));
+jest.mock("../todo-query", () => ({ loadTodoExtras: (ctx: unknown) => loadTodoExtras(ctx) }));
 jest.mock("../task-record-query", () => ({ loadTasksFace: jest.fn() }));
 jest.mock("@/lib/calendar/query", () => ({ loadCompanyCalendar: jest.fn() }));
 jest.mock("../diary-query", () => ({ loadDiaryFeed: jest.fn() }));

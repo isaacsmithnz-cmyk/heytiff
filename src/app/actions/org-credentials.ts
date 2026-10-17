@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { refIsOrgs } from "@/lib/documents/files";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
@@ -59,7 +60,7 @@ async function ownerOrgId(): Promise<Ctx | { error: string }> {
    team on the next render rather than at the next deploy. */
 function revalidate() {
   revalidatePath("/dashboard/admin/organization");
-  revalidatePath("/dashboard");
+  revalidateHome();
 }
 
 /* Adding one, with its first TERM if the certificate was scanned on the way in

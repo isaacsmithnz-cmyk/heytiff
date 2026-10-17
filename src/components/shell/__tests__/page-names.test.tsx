@@ -6,7 +6,6 @@
 import { act, render, screen, within } from "@testing-library/react";
 
 jest.mock("@/components/notes/tiff-button", () => ({ TiffButton: () => null }));
-jest.mock("../bell", () => ({ Bell: () => null }));
 let pathname = "/dashboard/jobs/j-3209";
 jest.mock("next/navigation", () => ({ usePathname: () => pathname, useRouter: () => ({ push: jest.fn() }) }));
 

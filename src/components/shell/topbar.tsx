@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "./icon";
 import { Fade } from "@/components/parts/fade";
 import { Clock } from "./clock";
-import { Bell } from "./bell";
 import { TiffButton } from "@/components/notes/tiff-button";
 import { NAV } from "./nav";
 import { PLACES, STILL_TO_MOVE, YOURS } from "./places";
@@ -41,8 +40,9 @@ export function tabName(
 }
 
 /* THE HEADER (rule 2): the date and the time together on the left of every
-   page, open tabs on the right. Tiff's button and the bell sit after the
-   tabs until step 5 gives them their v2 homes. */
+   page, open tabs on the right. Tiff's button sits after the tabs until
+   step 5 gives it its v2 home. The bell has gone (decision 25): what it
+   carried is Home's To do, and its count sits on Home in the sidebar. */
 export function Topbar({ today, tz = null }: { today: string; tz?: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -109,7 +109,6 @@ export function Topbar({ today, tz = null }: { today: string; tz?: string | null
       </div>
       <div className="fr-headend">
         <TiffButton />
-        <Bell />
       </div>
     </header>
   );

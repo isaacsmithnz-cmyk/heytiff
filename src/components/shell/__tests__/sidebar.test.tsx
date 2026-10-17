@@ -21,6 +21,10 @@ jest.mock("@/components/workboard/board/new-job-modal", () => ({
 jest.mock("@/components/making/task-form", () => ({
   TaskForm: () => <div role="dialog" aria-label="New task" />,
 }));
+/* Home's count asks the server (app/actions/home-count); nothing to count
+   unless a test says so. */
+const homeCount = jest.fn(async (): Promise<number | null> => null);
+jest.mock("@/app/actions/home-count", () => ({ homeCount: () => homeCount() }));
 
 const userAs = (role: Role, caps = [...resolve(role)]): ShellUser => ({
   name: "Isaac Smith",
@@ -40,6 +44,8 @@ const draw = (user: ShellUser, newJob = false) =>
 afterEach(() => {
   cleanup();
   push.mockReset();
+  homeCount.mockReset();
+  homeCount.mockResolvedValue(null);
 });
 
 const places = () =>
@@ -205,5 +211,53 @@ describe("Recents (rule 6)", () => {
     );
     const recents = screen.getByRole("region", { name: "Recents" });
     expect(within(recents).getByRole("link", { name: "Job 3209, Richards Building" })).toHaveAttribute("href", "/dashboard/jobs/j-7");
+  });
+});
+
+/* THE COUNT BESIDE HOME (decision 25): the bell went, and what it counted
+   sits on Home's row. Only when there is something to count; a failed read
+   keeps the last number rather than claiming nothing is waiting. */
+describe("Home's count", () => {
+  const homeRow = () => within(screen.getByRole("navigation", { name: "Places" })).getAllByRole("link")[0]!;
+
+  it("(F) shows what is waiting beside Home, and says it to a screen reader", async () => {
+    homeCount.mockResolvedValue(3);
+    draw(userAs("staff"));
+    await act(async () => {});
+    expect(homeRow()).toHaveAttribute("href", "/dashboard");
+    expect(homeRow().querySelector(".hm-navcount")).toHaveTextContent("3");
+    expect(homeRow()).toHaveAccessibleName("Home , 3 to do");
+  });
+
+  it("draws nothing at zero, or before the first answer", async () => {
+    homeCount.mockResolvedValue(0);
+    draw(userAs("staff"));
+    expect(homeRow().querySelector(".hm-navcount")).toBeNull();
+    await act(async () => {});
+    expect(homeRow().querySelector(".hm-navcount")).toBeNull();
+    expect(homeRow().textContent).toBe("Home");
+  });
+
+  it("asks again when a screen clears a row", async () => {
+    homeCount.mockResolvedValue(2);
+    draw(userAs("staff"));
+    await act(async () => {});
+    expect(homeRow().querySelector(".hm-navcount")).toHaveTextContent("2");
+    homeCount.mockResolvedValue(1);
+    await act(async () => {
+      window.dispatchEvent(new Event("heytiff:bell-refresh"));
+    });
+    expect(homeRow().querySelector(".hm-navcount")).toHaveTextContent("1");
+  });
+
+  it("keeps the last number when a read fails", async () => {
+    homeCount.mockResolvedValue(4);
+    draw(userAs("staff"));
+    await act(async () => {});
+    homeCount.mockResolvedValue(null);
+    await act(async () => {
+      window.dispatchEvent(new Event("heytiff:bell-refresh"));
+    });
+    expect(homeRow().querySelector(".hm-navcount")).toHaveTextContent("4");
   });
 });

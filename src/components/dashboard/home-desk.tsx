@@ -29,10 +29,13 @@ import { DeskJobHost } from "./home-job-sheet";
 import { HomeList } from "./home-list";
 import { HomeTasksFace } from "./home-tasks-face";
 
-/* HOME — the desk (docs/design.md, "Home is the day, three tabs and the
-   list", 2026-09-25). Everyone's since 2026-09-26: it was built behind a
-   switch, HOME_DESK, the owner's until he had walked it, and the old Home
-   went with the switch.
+/* THE DESK — the old Home (docs/design-log.md, "Home is the day, three
+   tabs and the list", 2026-09-25), at /dashboard/desk since v2's Home took
+   /dashboard (18 October 2026). It stays whole until its faces have their
+   v2 homes: the Diary in Conversations, the Calendar in Schedule, the
+   Tasks face in To do's own forms (docs/plans/layout-2026-10/
+   7-feature-checklist.md, F-015 to F-024). Home links to it: Today's
+   Calendar, To do's Open and Reply.
 
    The date is the h1, in the band every screen wears. Under it "Your day"
    (Isaac, 2026-09-25: "The top hero can stay as it is, that says Your
@@ -96,16 +99,23 @@ function offsetOf(el: HTMLElement | null): number {
 export function DashboardDesk({
   data,
   taskId = null,
+  askId = null,
+  face = null,
 }: {
   data: DashboardData;
-  /** A task the address names (`/dashboard?task=<id>`, the bell's door onto
-      a Done that didn't go to ServiceM8): the desk opens on Tasks with it
-      chosen. */
+  /** A task the address names (`/dashboard/desk?task=<id>`, To do's door
+      onto a task, and an alert's onto a Done that didn't go to ServiceM8):
+      the desk opens on Tasks with it chosen. */
   taskId?: string | null;
+  /** A ServiceM8 ask the address names (`?ask=<note uuid>`, To do's Reply):
+      the desk opens on the Diary with its conversation up. */
+  askId?: string | null;
+  /** The face the address names (`?face=calendar`, Home's Calendar link). */
+  face?: DeskFace | null;
 }) {
   return (
     <DeskJobHost manage={data.rail.manage} moneyVisible={data.rail.moneyVisible}>
-      <Desk data={data} taskId={taskId} />
+      <Desk data={data} taskId={taskId} askId={askId} named={face} />
     </DeskJobHost>
   );
 }
@@ -114,7 +124,20 @@ export function DashboardDesk({
    slides for it, and the face it lands on moves nothing (law 8). */
 const addressed = (id: string): DeskArrival => ({ face: "tasks", kind: "task", ids: [id], pointer: false });
 
-function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) {
+/* An ask the address names opens its conversation, the same way. */
+const asked = (id: string): DeskArrival => ({ face: "diary", kind: "conversation", ids: [id], pointer: false });
+
+function Desk({
+  data,
+  taskId,
+  askId,
+  named,
+}: {
+  data: DashboardData;
+  taskId: string | null;
+  askId: string | null;
+  named: DeskFace | null;
+}) {
   const { assignable, canManage, viewerStaffId, today, rail } = data;
   /* A DOOR INTO THE DIARY ONLY FOR WHAT IT HOLDS. The page's journal is
      your sixty newest entries whatever their age, and the diary reaches
@@ -142,14 +165,16 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     });
   }, [data, journal]);
 
-  const [face, setFace] = useState<DeskFace>(taskId ? "tasks" : DEFAULT_FACE);
+  const [face, setFace] = useState<DeskFace>(taskId ? "tasks" : askId ? "diary" : (named ?? DEFAULT_FACE));
   const [motion, setMotion] = useState<Motion | null>(null);
   /** The day stepping aside for the Calendar, or back, while the body
       rises over it or goes down to uncover it (below). */
   const [fold, setFold] = useState<Fold | null>(null);
   /* A door from one face to another, until the face it names has shown it
      — with how it was pressed, so that face moves nothing for a key. */
-  const [focus, setFocus] = useState<DeskArrival | null>(taskId ? addressed(taskId) : null);
+  const [focus, setFocus] = useState<DeskArrival | null>(
+    taskId ? addressed(taskId) : askId ? asked(askId) : null,
+  );
 
   /* THE ADDRESS CAN NAME A TASK AFTER THE DESK IS UP — the bell's door onto
      a Done (two-way phase 2, PR C) is pressed from Home itself, and only the

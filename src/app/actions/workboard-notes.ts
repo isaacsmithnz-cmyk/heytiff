@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateHome } from "@/lib/shell/revalidate-home";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
@@ -195,7 +196,7 @@ function refresh(target?: NoteTarget) {
     so Home is refreshed with the board. */
 function refreshHome(target?: NoteTarget) {
   refresh(target);
-  revalidatePath("/dashboard");
+  revalidateHome();
 }
 
 /* The shaper's own trimmer — same rule on the browser's payload as on the

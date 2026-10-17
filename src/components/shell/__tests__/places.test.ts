@@ -55,6 +55,9 @@ describe("the sidebar's places (rules 5 and 7)", () => {
     const home = PLACES.find((p) => p.key === "home")!;
     expect(placeOn(home, "/dashboard")).toBe(true);
     expect(placeOn(home, "/dashboard/notices")).toBe(true);
+    // To do's whole list, and the old desk until its faces move
+    expect(placeOn(home, "/dashboard/todo")).toBe(true);
+    expect(placeOn(home, "/dashboard/desk")).toBe(true);
     expect(placeOn(home, "/dashboard/team")).toBe(false);
   });
 

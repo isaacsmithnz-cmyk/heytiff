@@ -121,6 +121,13 @@ describe("a unit, from its maker's data pack", () => {
     { model: "MSZ-AP35VGD2", code: "MSZ-AP35VGKD2-A2" },
     { model: "MUZ-AP35VG2", code: "MUZ-AP35VGD2-A2" },
   ];
+  /* Isaac, 2026-10-18: "add breaker and min cable fields" (M-P0860 p.47) */
+  it("reads an outdoor's breaker and the smallest cable its maker allows", () => {
+    expect(unitSpecs(packs, "mitsubishi-electric", "PUMY-SP112VKMD2-A")).toMatchObject({ found: true, specs: { mcaAmps: 30.5, breakerA: 32, minCableMm2: 6 } });
+    const none = unitSpecs(packs, "mitsubishi-electric", "PUZ-ZM125VKA2-A");
+    expect(none.found && [none.specs.breakerA, none.specs.minCableMm2]).toEqual([null, null]);
+  });
+
   it("reads an order code the pack doesn't name through the business's confirmed link, saying so", () => {
     expect(unitSpecs(packs, "mitsubishi-electric", "MSZ-AP35VGKD2-A2")).toEqual({ found: false, reason: "not in the pack" });
     expect(unitSpecs(packs, "mitsubishi-electric", "MSZ-AP35VGKD2-A2", links)).toMatchObject({ found: true, linkedFrom: "MSZ-AP35VGKD2-A2", specs: { role: "indoor", model: "MSZ-AP35VGD2" } });

@@ -17,6 +17,7 @@ import {
   systemComponents,
   componentChoices,
   defaultIsolatorId,
+  isolatorDrawOf,
   COMPONENT_CHOICES,
   NOT_CHOSEN,
   type IsolatorOption,
@@ -306,13 +307,25 @@ describe("the isolator follows the outdoor's draw and supply", () => {
     expect(proposed("PUZ-ZM100YKA3-A").name).toBe("Isolator, 3Ø 20 A");
   });
 
-  it("with no max_amps_a in the pack it keeps the 20 A, on the outdoor's supply", () => {
-    expect(odu("PUMY-SP112VKMD2-A")).toMatchObject({ phase: "1" });
-    expect(odu("PUMY-SP112VKMD2-A").max_amps_a).toBeUndefined();
-    expect(proposed("PUMY-SP112VKMD2-A").id).toBe("isolator-20a-1ph");
-    expect(odu("PUMY-SP112YKMD2-A")).toMatchObject({ phase: "3" });
+  it("with neither a running current nor a breaker in the pack it keeps the 20 A, on the outdoor's supply", () => {
+    /* every ME outdoor now carries one or the other: the case is made by taking both off */
+    const bare = (model: string) => ({ ...odu(model), max_amps_a: undefined, breaker_a: undefined });
+    expect(defaultIsolatorId(bare("PUZ-M125VKA-A"))).toBe("isolator-20a-1ph");
+    expect(defaultIsolatorId(bare("PUZ-ZM100YKA3-A"))).toBe("isolator-20a-3ph");
+    /* a three-phase PUMY's 16 A breaker keeps the 3Ø 20 A: the smallest at or above it */
+    expect(odu("PUMY-SP112YKMD2-A")).toMatchObject({ phase: "3", breaker_a: 16 });
     expect(odu("PUMY-SP112YKMD2-A").max_amps_a).toBeUndefined();
     expect(proposed("PUMY-SP112YKMD2-A").name).toBe("Isolator, 3Ø 20 A");
+  });
+
+  /* Isaac, 2026-10-18: "add breaker and min cable fields". A PUMY prints no
+     running current, but its maker's breaker (M-P0860 p.47) */
+  it("sizes from the breaker its maker says to fit, where that's more than the draw", () => {
+    expect(odu("PUMY-SP112VKMD2-A")).toMatchObject({ phase: "1", breaker_a: 32 });
+    expect(odu("PUMY-SP112VKMD2-A").max_amps_a).toBeUndefined();
+    expect(isolatorDrawOf(odu("PUMY-SP112VKMD2-A"))).toEqual({ amps: 32, by: "breaker" });
+    expect(proposed("PUMY-SP112VKMD2-A").name).toBe("Isolator, 1Ø 32 A");
+    expect(isolatorDrawOf({ ...odu("PUMY-SP112VKMD2-A"), max_amps_a: 34 })).toEqual({ amps: 34, by: "draw" });
   });
 
   it("never sizes from a circuit figure standing in for the draw", () => {

@@ -43,6 +43,10 @@ export type KitFacts = {
   powerM: number | null;
   /** what the outdoor draws, amps */
   amps: number | null;
+  /** the breaker its maker says to fit, amps, and the smallest power cable it
+      allows, mm²: off the outdoor's pack, where the book prints them */
+  breakerA?: number | null;
+  cableMm2?: number | null;
   mount: "ground" | "wall";
   /** the outside run in trunking, metres; null or 0: none */
   trunkingM: number | null;
@@ -198,6 +202,23 @@ export const isolatorFor = (amps: number) => ISOLATORS.find((b) => b >= amps) ??
 /** TPS by the circuit it carries: 2.5 mm² to 20 A, 4 mm² to 32 A, 6 mm² beyond. */
 export const cableFor = (amps: number) => (amps <= 20 ? "2.5" : amps <= 32 ? "4" : "6");
 
+/** The power cable's size: by what the outdoor draws, never under the
+    smallest its maker allows (a PUMY-SP112's book asks 6.0 mm² where 30.5 A
+    would read as 4); null when neither is known. */
+export function cableSizeOf(f: { amps: number | null; cableMm2?: number | null }): string | null {
+  const byDraw = f.amps != null ? Number(cableFor(f.amps)) : null;
+  const sizes = [byDraw, f.cableMm2 ?? null].filter((x): x is number => x != null && x > 0);
+  return sizes.length ? String(Math.max(...sizes)) : null;
+}
+
+/** What a breaker and an isolator are sized at: the maker's breaker where the
+    book prints one, and never under what the outdoor draws. */
+const breakerNeed = (f: { amps: number | null; breakerA?: number | null }): number | null => f.breakerA ?? f.amps;
+const isolatorNeed = (f: { amps: number | null; breakerA?: number | null }): number | null => {
+  const both = [f.amps, f.breakerA].filter((x): x is number => x != null && x > 0);
+  return both.length ? Math.max(...both) : null;
+};
+
 /** The smallest rating the book has at or above what's needed: a 13.5 A
     unit takes a 20 A breaker when the business stocks no 16 A (3375). */
 const atLeast = (want: number, words: RegExp) => (all: Product[]) => {
@@ -234,32 +255,44 @@ const SPLIT: KitPart[] = [
   {
     key: "power",
     rule: "From the board",
-    sizedBy: "What the outdoor draws",
+    sizedBy: "What the outdoor draws, never under its maker's smallest cable",
     group: "Pipe, power and controls",
     name: "Power cable",
-    search: (f) => (f.amps != null ? { text: `tps ${cableFor(f.amps)}` } : null),
+    search: (f) => {
+      const size = cableSizeOf(f);
+      return size ? { text: `tps ${size}` } : null;
+    },
     /* Quoting's power cable is the 2.5 mm² */
-    component: (f) => (f.amps != null && cableFor(f.amps) === "2.5" ? "power_cable" : null),
+    component: (f) => (cableSizeOf(f) === "2.5" ? "power_cable" : null),
     qty: (f) => metres(f.powerM, "from the board"),
   },
   {
     key: "breaker",
     rule: "One for the new circuit",
-    sizedBy: "At or above what the outdoor draws",
+    sizedBy: "Its maker's breaker, else at or above what the outdoor draws",
     group: "Pipe, power and controls",
     name: "RCBO",
-    search: (f) => (f.amps != null ? { text: "rcbo", pool: atLeast(f.amps, /rcbo/i) } : null),
+    search: (f) => {
+      const need = breakerNeed(f);
+      return need != null ? { text: "rcbo", pool: atLeast(need, /rcbo/i) } : null;
+    },
     qty: one("one for the new circuit"),
   },
   {
     key: "isolator",
     rule: "One at the outdoor",
-    sizedBy: "At or above what the outdoor draws",
+    sizedBy: "At or above its breaker and what it draws",
     shows: { kind: "isolator" },
     group: "Pipe, power and controls",
     name: "Isolator",
-    search: (f) => (f.amps != null ? { text: "isolator", pool: atLeast(f.amps, /isolat/i) } : null),
-    range: (f) => (f.amps != null ? { kind: "isolator", need: { amps: f.amps } } : null),
+    search: (f) => {
+      const need = isolatorNeed(f);
+      return need != null ? { text: "isolator", pool: atLeast(need, /isolat/i) } : null;
+    },
+    range: (f) => {
+      const need = isolatorNeed(f);
+      return need != null ? { kind: "isolator", need: { amps: need } } : null;
+    },
     qty: one("one at the outdoor"),
   },
   {
@@ -769,7 +802,7 @@ export function pipeFromMm(liquid: number, gas: number): PipeSize | null {
 export function kitFactsFrom(
   kit: KitKey,
   facts: KitFacts,
-  looked: readonly ({ found: true; specs: { role: "indoor" | "outdoor"; model: string; pipeMm: { liquid: number; gas: number } | null; mcaAmps: number | null; maxAmps: number | null; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } } } | { found: false })[],
+  looked: readonly ({ found: true; specs: { role: "indoor" | "outdoor"; model: string; pipeMm: { liquid: number; gas: number } | null; mcaAmps: number | null; maxAmps: number | null; breakerA?: number | null; minCableMm2?: number | null; air?: { supply: { w: number; h: number } | null; ret: { w: number; h: number } | null; returnSpigots: boolean } } } | { found: false })[],
   zoning: ZoningController | null,
   /** the unit's maker, its pack's key, whether its pack is installed or not */
   brand: string | null = null
@@ -780,6 +813,8 @@ export function kitFactsFrom(
     if (u.specs.role === "outdoor") {
       if (!f.pipe && u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
       if (f.amps == null) f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
+      if (f.breakerA == null) f.breakerA = u.specs.breakerA ?? null;
+      if (f.cableMm2 == null) f.cableMm2 = u.specs.minCableMm2 ?? null;
     }
     /* a ducted indoor: its plenums are made for its faces (kits, round 2) */
     if (u.specs.role === "indoor") Object.assign(f, indoorFacts(u.specs), f.supplyFace ? { supplyFace: f.supplyFace } : {});

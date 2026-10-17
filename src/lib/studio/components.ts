@@ -154,14 +154,26 @@ export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
 /** the supply as the outdoor row labels it: anything not three phase is single */
 const supplyOf = (odu: OutdoorUnit): Phase => (odu.phase === "3" ? "3" : "1");
 
+/** What an outdoor's isolator is sized at: its max running current, and
+    never under the breaker its maker says to fit (a PUMY-SP112 prints no
+    running current but a 32 A breaker). Never its MCA: a circuit figure isn't
+    the draw. Null when the pack carries neither. */
+export function isolatorDrawOf(odu: OutdoorUnit): { amps: number; by: "draw" | "breaker" } | null {
+  const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v > 0;
+  const draw = ok(odu.max_amps_a) ? odu.max_amps_a : null;
+  const breaker = ok(odu.breaker_a) ? odu.breaker_a : null;
+  if (breaker != null && (draw == null || breaker > draw)) return { amps: breaker, by: "breaker" };
+  return draw != null ? { amps: draw, by: "draw" } : null;
+}
+
 /** The isolator a system gets until somebody picks one: the smallest rating
-    at or above the outdoor's max running current, on the outdoor's own
-    supply. A draw the pack doesn't carry, or one past every rating here,
-    keeps the 20 A this catalogue has always started on: a size is read off
-    the pack, never guessed. */
+    at or above the outdoor's max running current and its maker's breaker, on
+    the outdoor's own supply. A figure the pack doesn't carry, or one past
+    every rating here, keeps the 20 A this catalogue has always started on: a
+    size is read off the pack, never guessed. */
 export function defaultIsolatorId(odu: OutdoorUnit): string {
   const supply = supplyOf(odu);
-  const draw = odu.max_amps_a;
+  const draw = isolatorDrawOf(odu)?.amps;
   const sized =
     typeof draw === "number" && Number.isFinite(draw) && draw > 0
       ? ISOLATORS.filter((o) => o.isolator.phase === supply)

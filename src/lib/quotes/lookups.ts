@@ -207,6 +207,10 @@ export type UnitSpecs = {
   /** the most it draws, and the circuit it needs, amps */
   maxAmps: number | null;
   mcaAmps: number | null;
+  /** an outdoor's breaker and the smallest power cable its maker allows, as
+      printed; null where the book prints none */
+  breakerA?: number | null;
+  minCableMm2?: number | null;
   /** the pipe it connects with, mm */
   pipeMm: { liquid: number; gas: number } | null;
   /** a ducted indoor's air faces, from its data book: what its supply and
@@ -280,6 +284,8 @@ function specsIn(pack: DataPack, brand: string, model: string): UnitLookup {
         phase: out.phase ?? null,
         maxAmps: n(out.max_amps_a),
         mcaAmps: n(out.mca_a),
+        breakerA: n(out.breaker_a),
+        minCableMm2: n(out.min_cable_mm2),
         pipeMm: { liquid: out.conn_liquid_mm, gas: out.conn_gas_mm },
       },
     };

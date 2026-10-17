@@ -47,6 +47,8 @@ export async function GET(req: Request) {
       if (u.specs.role === "outdoor") {
         if (u.specs.pipeMm) f.pipe = pipeFromMm(u.specs.pipeMm.liquid, u.specs.pipeMm.gas);
         f.amps = u.specs.mcaAmps ?? u.specs.maxAmps;
+        f.breakerA = u.specs.breakerA ?? null;
+        f.cableMm2 = u.specs.minCableMm2 ?? null;
       } else Object.assign(f, indoorFacts(u.specs));
     }
   }

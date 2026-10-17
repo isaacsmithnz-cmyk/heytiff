@@ -567,6 +567,17 @@ export interface OutdoorUnit {
       (MEES21K067) prints MCA and rated running current but never a max
       operating current, while the Mr Slim book prints the reverse. Tier-3. */
   mca_a?: number;
+  /** the circuit breaker the maker says to fit on the outdoor's own supply,
+      amps, as printed ("Breaker for wiring", "Circuit breaker current"). Not
+      a maximum: a "max fuse" (Daikin's MFA) is the largest allowed, not the
+      size to fit, and doesn't go here. Where a book prints more than one
+      supply arrangement (PUMY: branch box fed from the outdoor), the
+      outdoor-on-its-own figure. Tier-3. */
+  breaker_a?: number;
+  /** the smallest power cable the maker allows for that supply, mm² ("Minimum
+      wire thickness", "Power supply cable"): a floor under the wiring rules'
+      answer, never instead of it. Same arrangement as `breaker_a`. Tier-3. */
+  min_cable_mm2?: number;
   conn_liquid_mm: number;
   conn_gas_mm: number;
   refrigerant: Refrigerant;

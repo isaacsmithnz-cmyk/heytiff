@@ -50,6 +50,7 @@ import {
   COMPONENT_CHOICES,
   componentChoices,
   defaultIsolatorId,
+  isolatorDrawOf,
   hardDrawnLengthM,
   type ComponentChoiceOption,
 } from "./components";
@@ -579,34 +580,40 @@ function isolatorRows(context: Context): EquipmentRow[] {
   return [{ group: "Electrical", name: found.option.name, qty: 1 }];
 }
 
-/** The supply cable's CURRENT, never its size. The pack gives the outdoor's
-    max running amps and nothing else about the supply: the mm² is the wiring
-    rules' answer, against the run, the method and the volt drop, and it is
-    the electrician who signs for it. So the row carries the figure to size
-    against and says where it came from. */
+/** The supply cable's CURRENT, and the smallest its maker allows, never its
+    size: the mm² is the wiring rules' answer, against the run, the method and
+    the volt drop, and it is the electrician who signs for it. The maker's
+    minimum is a floor under that answer (a PUMY-SP112's book asks 6.0 mm²).
+    So the row carries the figures to size against and says where they came
+    from. */
 function supplyCableRows(context: Context): EquipmentRow[] {
   const model = context.oduAllocation?.model;
   if (!model) return [];
+  const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v > 0;
   const draw = context.odu?.max_amps_a;
-  if (typeof draw !== "number" || !Number.isFinite(draw) || draw <= 0) {
+  const floor = context.odu?.min_cable_mm2;
+  if (!ok(draw) && !ok(floor)) {
     return [{ group: "Electrical", name: "Supply cable", qty: 1, why: `Unsized, ${model} has no running amps in the pack` }];
+  }
+  if (!ok(draw)) {
+    return [{ group: "Electrical", name: "Supply cable", value: `At least ${floor} mm²`, why: `${model}'s maker's smallest cable, from the pack; no running amps in it` }];
   }
   return [
     {
       group: "Electrical",
       name: "Supply cable",
-      value: `Size for ${draw} A`,
-      why: `${model}'s max running amps, from the pack`,
+      value: ok(floor) ? `Size for ${draw} A, at least ${floor} mm²` : `Size for ${draw} A`,
+      why: ok(floor) ? `${model}'s max running amps and its maker's smallest cable, from the pack` : `${model}'s max running amps, from the pack`,
     },
   ];
 }
 
 function isolatorHint(context: Context): string | undefined {
   const found = isolatorOption(context);
-  const draw = context.odu?.max_amps_a;
-  if (!found || typeof draw !== "number" || !Number.isFinite(draw) || draw <= 0) return undefined;
+  const sizedBy = context.odu ? isolatorDrawOf(context.odu) : null;
+  if (!found || !sizedBy) return undefined;
   const rating = found.option.name.replace(/^Isolator, /, "");
-  return `${found.sized ? "From the pack" : "Picked by hand"}: ${rating}, for its ${draw} A`;
+  return `${found.sized ? "From the pack" : "Picked by hand"}: ${rating}, for its ${sizedBy.amps} A${sizedBy.by === "breaker" ? " breaker" : ""}`;
 }
 
 /** the wired controller for each head model and, where the pack lists an

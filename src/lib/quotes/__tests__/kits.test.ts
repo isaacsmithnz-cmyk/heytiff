@@ -1,5 +1,5 @@
 import type { Product } from "../families";
-import { breakerFor, cableFor, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS, normaliseKitFacts, stillToSize, zoneKitOf } from "../kits";
+import { breakerFor, cableFor, cableSizeOf, consumablesEstimate, expandKit, indoorFacts, isolatorFor, KITS, normaliseKitFacts, stillToSize, zoneKitOf } from "../kits";
 import type { ZoningController } from "@/lib/studio/packs/schema";
 import zoning from "../../../../data/packs/mitsubishi-electric@2026.1/zoning_controllers.json";
 
@@ -436,3 +436,30 @@ describe("a ducted kit's wall controller", () => {
     expect(controllerOf(null, [me, dai])).toMatchObject({ name: me.name });
   });
 });
+
+/* Isaac, 2026-10-18: "add breaker and min cable fields". A PUMY-SP112's book
+   asks a 32 A breaker and 6.0 mm² cable for 30.5 A of circuit amps, where the
+   generic rule would read 4 mm² (M-P0860 p.47). */
+describe("a circuit sized by its maker's book", () => {
+  const circuitBook = [...book, product("TPS 6MM 2C+E 100M", 52000), product("RCBO 40A 30MA 1P+N", 4100), product("ISOLATOR 63A 2P IP66", 3900)];
+  const circuit = (f: Partial<typeof facts> & { breakerA?: number | null; cableMm2?: number | null }) =>
+    expandKit("split", { ...facts, ...f }, circuitBook, at, null, null, null).filter((l) => /TPS|RCBO|ISOLATOR/.test(l.name ?? "")).map((l) => l.name);
+
+  it("never puts on a cable under the maker's smallest, and fits the maker's breaker", () => {
+    expect(cableSizeOf({ amps: 30.5, cableMm2: 6 })).toBe("6");
+    expect(cableSizeOf({ amps: 30.5 })).toBe("4");
+    expect(cableSizeOf({ amps: 12, cableMm2: 2.5 })).toBe("2.5");
+    expect(cableSizeOf({ amps: null, cableMm2: 6 })).toBe("6");
+    expect(cableSizeOf({ amps: null })).toBeNull();
+    expect(circuit({ amps: 30.5, breakerA: 32, cableMm2: 6 })).toEqual(["TPS 6MM 2C+E 100M", "RCBO 32A 30MA 1P+N", "ISOLATOR 35A 2P IP66"]);
+  });
+
+  it("sizes by what the outdoor draws where the book prints neither", () => {
+    expect(circuit({ amps: 30.5 })).toEqual(["TPS 4MM 2C+E 100M", "RCBO 32A 30MA 1P+N", "ISOLATOR 35A 2P IP66"]);
+  });
+
+  it("takes the isolator at or above the larger of the draw and the breaker", () => {
+    expect(circuit({ amps: 18, breakerA: 40 })).toEqual(["TPS 2.5MM 2C+E 100M", "RCBO 40A 30MA 1P+N", "ISOLATOR 63A 2P IP66"]);
+  });
+});
+

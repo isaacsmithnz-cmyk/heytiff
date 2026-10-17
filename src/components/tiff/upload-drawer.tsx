@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { KB_CATEGORIES } from "./kb";
 import { TagPicker } from "./tag-picker";
 import {
@@ -187,6 +188,20 @@ export function UploadDrawer({
       ? "Upload documents"
       : `Upload ${ready.length} ${ready.length === 1 ? "document" : "documents"}`;
 
+  const closeBtn = (
+    <button
+      type="button"
+      className="tk-shx"
+      aria-label="Close"
+      disabled={running}
+      onClick={() => {
+        if (!running) onClose();
+      }}
+    >
+      <Icon name="x" size={15} />
+    </button>
+  );
+
   if (typeof document === "undefined") return null;
   return createPortal(
     <>
@@ -208,18 +223,7 @@ export function UploadDrawer({
                   : ` This month's ${KB_LARGE_PER_MONTH} large uploads (up to 150 MB) are used; more from ${fmtResets(large.resetsOn)}.`)}
             </p>
           </div>
-          <button
-            type="button"
-            className="tk-shx"
-            aria-label="Close"
-            disabled={running}
-            title={running ? "Uploading — this closes when the files have landed" : undefined}
-            onClick={() => {
-              if (!running) onClose();
-            }}
-          >
-            <Icon name="x" size={15} />
-          </button>
+          {running ? <Tooltip label="Uploading; this closes when the files have landed">{closeBtn}</Tooltip> : closeBtn}
         </header>
 
         <div

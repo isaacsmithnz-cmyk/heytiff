@@ -164,7 +164,6 @@ export function RecordingCard({ dict, text }: RecordingCardProps) {
           type="button"
           className="pbtn ghost"
           onClick={dict.restart}
-          title="Bin this one and start the recording again"
         >
           <Icon name="rotate" size={14} sw={1.9} />
           Start again

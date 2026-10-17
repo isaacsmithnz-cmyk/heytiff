@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
@@ -646,6 +647,12 @@ function DocRow({
   const [busy, start] = useTransition();
   const ready = state.status === "ready";
   const meta = metaLine(doc);
+  const readBtn = (
+    <button type="button" className="tk-abtn" disabled={ocr.waiting} onClick={onRead}>
+      <Icon name="file" size={14} />
+      Read pages
+    </button>
+  );
 
   return (
     <div className={`tk-row${ready ? " ready" : ""}`}>
@@ -699,7 +706,6 @@ function DocRow({
           type="button"
           className="tk-ask tiffkey"
           aria-label={`Ask Tiff about ${doc.title}`}
-          title="Ask Tiff about this document"
           onClick={onAsk}
         >
           {/* the brand mark, not a sparkle — same call the composer made. The
@@ -719,20 +725,11 @@ function DocRow({
               are pages Tiff couldn't read, and nowhere else. It waits its turn
               while another document is being read: one allowance, one run. */}
           {ready && ocr.left > 0 && !ocr.reading && !ocr.spent && (
-            <button
-              type="button"
-              className="tk-abtn"
-              disabled={ocr.waiting}
-              title={
-                ocr.waiting
-                  ? "Reading another document first"
-                  : "Read the scanned pages so they become searchable — this uses your page allowance"
-              }
-              onClick={onRead}
-            >
-              <Icon name="file" size={14} />
-              Read pages
-            </button>
+            ocr.waiting ? (
+              <Tooltip label="Reading another document first">{readBtn}</Tooltip>
+            ) : (
+              readBtn
+            )
           )}
           {(state.status === "failed" || state.status === "paused") && (
             <button

@@ -1111,7 +1111,6 @@ export function DictClock({ seconds, big }: { seconds: number; big?: boolean }) 
          at the clock to notice, so it is announced once it matters. */
       role={closing ? "status" : undefined}
       aria-live={closing ? "polite" : undefined}
-      title={closing ? `${left}s left — it stops on its own at two minutes` : undefined}
     >
       {closing ? `${left}s left` : clockOf(seconds)}
     </span>

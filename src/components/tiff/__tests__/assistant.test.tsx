@@ -229,7 +229,7 @@ describe("where the answer comes from", () => {
     render(<TiffAssistant readyCount={0} />);
 
     expect(libraryMode()).toBeDisabled();
-    expect(libraryMode()).toHaveAttribute("title", "Add documents to the library first");
+    expect(libraryMode()).toHaveAccessibleDescription("Add documents to the library first");
     /* The one hint left on this row, and the only one that ever earned its
        place: a dead segment with no reason given is the single thing here a
        person cannot work out by reading the control. */

@@ -445,7 +445,6 @@ function FieldPosture({
                 type="button"
                 className="wb2-micgo on"
                 onClick={dict.stop}
-                title="Stop and read it back"
                 aria-label={`Stop dictating — ${label}`}
               >
                 <Icon name="square" size={12} />
@@ -454,7 +453,6 @@ function FieldPosture({
                 type="button"
                 className="wb2-dictx"
                 onClick={dict.cancel}
-                title="Throw it away"
                 aria-label={`Discard the recording — ${label}`}
               >
                 <Icon name="x" size={12} />
@@ -468,7 +466,6 @@ function FieldPosture({
                   className="wb2-micgo"
                   onClick={dict.start}
                   disabled={disabled || dict.transcribing}
-                  title="Say it instead"
                   aria-label={`Dictate — ${label}`}
                 >
                   <Icon name="mic" size={14} />
@@ -478,7 +475,6 @@ function FieldPosture({
                 type="button"
                 className={"wb2-addgo" + (value.trim() === "" ? " idle" : "")}
                 disabled={disabled || dict.transcribing}
-                title="Add it"
                 aria-label={`Add — ${label}`}
                 onClick={addLine}
               >
@@ -527,7 +523,6 @@ function FieldPosture({
                 type="button"
                 className="wb2-dictmic on"
                 onClick={dict.stop}
-                title="Stop and read it back"
                 aria-label={`Stop dictating — ${label}`}
               >
                 <Icon name="square" size={13} />
@@ -544,7 +539,6 @@ function FieldPosture({
                 type="button"
                 className="wb2-dictx"
                 onClick={dict.cancel}
-                title="Throw it away"
                 aria-label={`Discard the recording — ${label}`}
               >
                 <Icon name="x" size={12} />
@@ -558,7 +552,6 @@ function FieldPosture({
               className="wb2-dictmic"
               onClick={dict.start}
               disabled={disabled}
-              title="Say it instead"
               aria-label={`Dictate — ${label}`}
             >
               <Icon name="mic" size={13} />

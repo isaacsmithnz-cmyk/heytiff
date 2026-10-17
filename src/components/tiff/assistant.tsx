@@ -4,6 +4,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useS
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { Tooltip } from "@/components/parts/tooltip";
 import { navHref } from "@/components/shell/nav";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -1361,7 +1362,6 @@ export function TiffAssistant({
                     type="button"
                     className="wb2-ico"
                     onClick={dict.cancel}
-                    title="Throw it away"
                     aria-label="Discard the recording"
                   >
                     <Icon name="x" size={14} />
@@ -1411,7 +1411,6 @@ export function TiffAssistant({
                     className="tmic"
                     onClick={dict.start}
                     disabled={dict.transcribing}
-                    title="Ask it out loud"
                     aria-label="Ask by voice"
                   >
                     <Icon name="mic" size={19} />
@@ -1499,17 +1498,18 @@ export function TiffAssistant({
                 </span>
               ) : (
               <div className="tk-mode" role="group" aria-labelledby="tk-modelbl">
-                <button
-                  type="button"
-                  className={`tk-modeb${research ? " on" : ""}`}
-                  aria-pressed={research}
-                  disabled={!canResearch}
-                  title={canResearch ? undefined : "Add documents to the library first"}
-                  onClick={() => setResearchPick(true)}
-                >
-                  <Icon name="library" size={15} />
-                  Your library
-                </button>
+                <Tip label={canResearch ? null : "Add documents to the library first"}>
+                  <button
+                    type="button"
+                    className={`tk-modeb${research ? " on" : ""}`}
+                    aria-pressed={research}
+                    disabled={!canResearch}
+                    onClick={() => setResearchPick(true)}
+                  >
+                    <Icon name="library" size={15} />
+                    Your library
+                  </button>
+                </Tip>
                 <button
                   type="button"
                   className={`tk-modeb${research ? "" : " on"}`}
@@ -1891,21 +1891,21 @@ function RecentDocs({
         {docs.map((d) => {
           const cat = KB_CATEGORIES.find((c) => c.key === d.category);
           return (
-            <button
-              key={d.id}
-              type="button"
-              className="tk-nd"
-              style={{ "--tkc": cat?.color ?? "var(--q)" } as React.CSSProperties}
-              aria-label={`Ask Tiff about ${d.title}`}
-              title={d.title}
-              onClick={() => onAsk(d.title)}
-            >
-              <span className="tk-ndt">{d.title}</span>
-              <em>
-                {cat?.label ?? "Document"}
-                {d.pageCount ? `, ${d.pageCount.toLocaleString("en-AU")} pages` : ""}
-              </em>
-            </button>
+            <Tooltip key={d.id} label={d.title}>
+              <button
+                type="button"
+                className="tk-nd"
+                style={{ "--tkc": cat?.color ?? "var(--q)" } as React.CSSProperties}
+                aria-label={`Ask Tiff about ${d.title}`}
+                onClick={() => onAsk(d.title)}
+              >
+                <span className="tk-ndt">{d.title}</span>
+                <em>
+                  {cat?.label ?? "Document"}
+                  {d.pageCount ? `, ${d.pageCount.toLocaleString("en-AU")} pages` : ""}
+                </em>
+              </button>
+            </Tooltip>
           );
         })}
       </div>
@@ -2336,4 +2336,9 @@ function SourcePeek({ source, onClose }: { source: SourceDoc; onClose: () => voi
     </div>,
     document.body
   );
+}
+
+/* A Tooltip only when there is something to say: a disabled control's reason. */
+function Tip({ label, children }: { label: string | null; children: React.ReactElement<{ "aria-describedby"?: string }> }) {
+  return label ? <Tooltip label={label}>{children}</Tooltip> : children;
 }

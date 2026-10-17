@@ -127,7 +127,6 @@ export function TiffButton({ where = "topbar", room, day }: { where?: Where; roo
       type="button"
       className={`tiffbtn tiffbtn-${where}${lit ? " lit" : ""}`}
       aria-label={label}
-      title={where === "sheet" ? label : undefined}
       aria-haspopup="dialog"
       aria-expanded={tiff.openedBy === id}
       style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}

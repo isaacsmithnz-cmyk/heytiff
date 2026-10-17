@@ -10,7 +10,7 @@ Today's app is version 1. The new layout is version 2.
 
 ## Read in this order
 
-1. This file, then `6-revisions.md`: Isaac's answers on 17 and 18 October, what the build assumes until he answers the rest, and where the build is up to.
+1. This file, then `6-revisions.md`: Isaac's answers on 17 and 18 October, what the build assumes until he answers the rest, and where the build is up to. Then `8-overnight.md`: what the overnight build of 18 October did, what waits for him, and what the switch-over needs.
 2. `2-build-plan.md`: the ground rules, the phases, where each thing is made, Still open, and the bugs.
 3. `3-design-rules.md`: the 54 rules, the palette, the scales and the ratchets.
 4. `4-review.md`: the plan checked against the code on 15 October. It covers:

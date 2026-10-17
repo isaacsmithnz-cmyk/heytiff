@@ -83,13 +83,15 @@ describe("the frame is still", () => {
     expect(read("src/app/page.tsx")).not.toMatch(/blur-\[/);
   });
 
-  /* THE ONE TEAL. The ink-and-paper decision keeps #00E5C0 in exactly one
-     place, the "Tiff" of the wordmark on the rail. The accent pass turned it
-     to ink — black on the near-black rail — because its selector carries no
-     dark word. It is its own token now, and this holds it. */
-  it("the wordmark's Tiff is the brand teal, not ink", () => {
+  /* THE WORDMARK IS ONE COLOUR (v2, rule 9: "HeyTiff in one colour. The
+     teal leaves the app."). The "Tiff" keeps its own token so one change
+     moves it everywhere, and the token takes the colour of the words around
+     it: white on the ink rail, ink on paper. It was the one place the teal
+     lived, #00E5C0, from the ink-and-paper decision until 18 October 2026. */
+  it("the wordmark's Tiff is the colour of the words around it, not the teal", () => {
     const css = read("src/app/tokens.css") + "\n" + read("src/app/dashboard/shell.css");
     expect(css).toMatch(/\.fg \.ht-wm span \{[^}]*color:var\(--wordmark\)/);
-    expect(css).toMatch(/--wordmark:#00E5C0;/);
+    expect(css).toMatch(/--wordmark:currentColor;/);
+    expect(css).not.toMatch(/--wordmark:#00E5C0/i);
   });
 });

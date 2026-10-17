@@ -24,17 +24,17 @@
     file the test reads. */
 export const BRAND = {
   /* globals.css @theme */
-  /** --color-brand-teal — the primary accent. Screen only, never words. */
-  teal: "#00E5C0",
+  /** --color-brand-teal — v1's accent; since v2 it points at blue until its last use goes. */
+  teal: "#2563EB",
   /** --color-brand-teal-dark — teal at display size on light (3.2:1, so
       large/bold text and graphics only; it is the "Tiff" of the wordmark). */
-  tealDark: "#00A389",
+  tealDark: "#2563EB",
   /** --color-brand-blue — the far end of the mark's gradient. */
-  blue: "#2E68FF",
+  blue: "#2563EB",
   /** --color-ink-2 — headings, and the primary button's ground. */
-  ink: "#0A0B10",
+  ink: "#050505",
   /** --color-surface — the app's page ground, and the sign-in page's. */
-  surface: "#F0F2F5",
+  surface: "#FFFFFF",
   /** --color-surface-line — card hairline. */
   line: "#F0F0F2",
 
@@ -49,8 +49,10 @@ export const BRAND = {
       green since 2026-09-10; the teal-green it replaced was the one readable
       teal and had become decoration. */
   okText: "#196B2D",
-  /** --bad-t — danger AS WORDS. */
-  badText: "#C81A41",
+  /** --red-w — wrong AS WORDS, v2's red word value (--bad-t points at it). */
+  badText: "#BE123C",
+  /** --blue — v2's colour of pressing: the main button, with white words (rule 22). */
+  press: "#2563EB",
 } as const;
 
 /** White, named, because "widget background" and "button label" are two

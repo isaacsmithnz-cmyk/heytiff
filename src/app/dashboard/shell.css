@@ -6164,7 +6164,7 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-schb.late::after, .wb2-schb.dan::after { content:"!"; position:absolute; right:8px; top:50%; margin-top:-8px;
   width:16px; height:16px; border-radius:50%; background:var(--wb2-dan);
   display:flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:700; line-height:1; color:var(--paper); }
+  font-size:12px; font-weight:700; line-height:1; color:var(--ink); } /* v2: ink on every hue but blue (docs/design.md, the palette) — 5.6:1 on the red */
 
 /* MARKED COMPLETE IN SERVICEM8, BOOKING STILL ON THE DAY. ServiceM8 has no
    per-booking status — a crew marking TODAY complete closes the whole job,

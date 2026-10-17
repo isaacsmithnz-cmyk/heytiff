@@ -170,8 +170,12 @@ const TAILWIND = [
   "#f5f5f5", "#e5e5e5", "#d4d4d4", "#a3a3a3", "#737373", "#525252", "#404040", "#262626", "#171717",
   "#6366f1", "#4f46e5", "#8b5cf6", "#7c3aed", "#3b82f6", "#2563eb", "#10b981", "#059669", "#22c55e", "#16a34a", "#ef4444", "#dc2626", "#f59e0b", "#d97706", "#0ea5e9", "#14b8a6",
 ];
+/* v2's palette shares four values with Tailwind's (red-500, blue-600,
+   green-500, gray-400): the token blocks that declare them, `:root` and
+   Tailwind's own `@theme`, are where colour is meant to come from, so they
+   are not read here (18 October 2026). */
 function tailwindHexes(css = CSS): number {
-  const low = css.toLowerCase();
+  const low = css.replace(/(^|[};\n])\s*(?::root|@theme(?:\s+inline)?)\s*\{[^{}]*\}/g, "$1").toLowerCase();
   let n = 0;
   for (const h of TAILWIND) n += (low.match(new RegExp(h, "g")) ?? []).length;
   return n;
@@ -553,10 +557,10 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
         n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
       }
       return n;
-    }, baseline: 161 },
+    }, baseline: 157 },
   // v2, 18 October 2026: each first set wrong on purpose (-1), then to the count the run printed
   { law: "main buttons painted ink — the main button is blue (rule 22)", now: inkButtons, baseline: 22 },
-  { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: offPalette, baseline: 195 },
+  { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: offPalette, baseline: 167 },
   { law: "`text-overflow: ellipsis` — text that doesn't fit fades (rule 50)", now: () => count(/text-overflow\s*:\s*ellipsis/g), baseline: 93 },
   { law: "a typed \"…\" on screen — a wait says what it's doing; text that doesn't fit fades (rule 50)", now: () => countTsx(onScreen("…")), baseline: 199 },
   { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 95 },

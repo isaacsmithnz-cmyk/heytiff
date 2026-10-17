@@ -25,7 +25,22 @@
    — and no value moved, so the token-by-token palette guard still passes.
    `.fg` keeps the layout that is genuinely its own, below. */
 :root {
-  --teal:#00E5C0; --wordmark:#00E5C0; /* the "Tiff" of the wordmark, the one place the teal lives */ --teal-d:#00A389; --blue:#2E68FF; --violet:#8A2BE2;
+  /* V2'S COLOURS (docs/design.md, the palette; 18 October 2026). Nineteen
+     values: each of the eight hues has a bright value (dots, blocks, charts,
+     ticks) and a word value (state words, text on white); blue's word is its
+     bright and grey's word is the quiet grey; then ink, white and the quiet
+     grey. Ink at an alpha draws the lines and fills. Every v1 name below now
+     points at one of these, so nothing lost its colour on the way; each name
+     goes when its last use does. */
+  --red:#EF4444; --red-w:#BE123C; --orange:#F97316; --orange-w:#B45309; --yellow:#FACC15; --yellow-w:#A16207;
+  --green:#22C55E; --green-w:#15803D; --blue:#2563EB; --purple:#A855F7; --purple-w:#7E22CE; --pink:#EC4899; --pink-w:#9D174D;
+  --grey:#9CA3AF; --white:#FFFFFF;
+  --edge:rgba(5,5,5,.14); --sel:rgba(5,5,5,.07); --hov:rgba(5,5,5,.04); --soft:rgba(5,5,5,.05);
+  /* blue only ever means press (rule 17): the main button, a tick or switch that is on, a selection */
+  --press:var(--blue);
+  --t-slide:280ms; --r-page:40px;
+  /* v1's accent, gone in v2 (rule 9): the teal points at blue until its last use goes; the wordmark takes the colour of the words around it, ink on paper and white on the ink */
+  --teal:var(--blue); --wordmark:currentColor; --teal-d:var(--blue); --violet:var(--purple);
   /* THE MARK'S OWN LIGHT: the Tiff button (docs/design.md, "The Tiff button").
      The chevron's two colours, and the light that runs on the button's rings,
      in both of its skins. Brand, the way `--wordmark` is: the logo's colours on
@@ -33,7 +48,7 @@
      the mark on paper, a step darker so the solid reads on white. */
   --mark-teal:#00E5C0; --mark-blue:#2E68FF; --mark-blue-l:#5F96FF; --mark-core:#5FD4FF;
   --mark-teal-d:#00A389; --mark-teal-ink:#007A67; --mark-blue-ink:#1D46C8;
-  --ink:#050505; --ink2:#0A0B10; --bg:#F0F2F5; --red:#FF3366;
+  --ink:#050505; --ink2:var(--ink); /* the page is white (rule 1): the grey ground leaves */ --bg:var(--white);
   /* --gray400 and --gray500 were #9ca3af and #6b7280, and between them carried
      352 `color:` declarations — they are the two most-used text colours in the
      app and neither cleared AA. 400 measured 2.54 on white; 500 looks safe at
@@ -41,7 +56,7 @@
      which is where it is most often actually used. Both are re-pointed at
      measured values below. Nothing else about them changed: they are still the
      two quiet tiers, still used the same way, and --gray700 is untouched. */
-  --gray400:var(--q); --gray500:#57616f; --gray700:var(--ink);
+  --gray400:var(--q); --gray500:var(--q); --gray700:var(--ink);
 
   /* QUIET TEXT ON A LIGHT GROUND, and the reason it is one token and not four.
 
@@ -60,7 +75,7 @@
      unclaimed directory row now carries instead of `opacity:.62`. Adding them
      is what moved this from #646d7d to here: over that slightly darker ground
      #646d7d falls to 4.30. */
-  --q:#5f6a79;
+  --q:#5F6A79;
 
   /* Semantic state AS TEXT, for a light ground — the `-t` convention the
      workboard already uses. The fills stay exactly as they were: --teal-d and
@@ -76,13 +91,15 @@
      16% tint too (the staff card's missing-field badge), where it is 4.48, and
      over an inactive row it is 4.14. Same hue, taken down until every ground
      clears. */
-  --ok-t:#196B2D; /* a plain green, 6.6:1 on white and 5.6:1 on the well's dot grid; #00735f, the readable teal, retired 2026-09-10 with the accent */ --warn-t:#a44b08; --bad-t:#c81a41; --info-t:#2554d8;
+  /* v1's state words. Wrong is v2's red word and for your information is grey, never blue (rule 17). Good and needs-a-look keep v1's tuned values: v2's --green-w and --orange-w fall under 4.5:1 on the state tints v1 still paints behind them, and the tints go with their screens (rule 17: never a fill). text-contrast holds them. */
+  --ok-t:#196B2D; --warn-t:#a44b08; --bad-t:var(--red-w); --info-t:var(--q);
   /* THE GO GREEN: the quote page's primary, a dark green outline with a
      white body and green words (Isaac, 2026-10-13: "Dark green outline white
      body and green approved text"; docs/design.md). The OK green by value,
      named for what it does so a button never reads as a state; an alias,
      which the OK colour's count reads as a definition, not a use. */
-  --go:var(--ok-t);
+  /* v2: the main button is blue with white words (rule 22) */
+  --go:var(--press);
 
   /* QUIET TEXT ON THE DARK CHROME — the shell's own floor, and the mirror of
      `--q` above.
@@ -144,15 +161,16 @@
      contrast guard reads still clear (#053b34 on #2EC351, 5.4:1). Sick is
      the tile red its ink was tuned to (#450012 on #FF3366, 4.7:1), not the
      app's bad chip, which that ink cannot read on. */
+  /* Time & Pay's day vocabulary keeps v1's fills and the inks tuned to them until its screens are rebuilt; rule 21 replaces the bars and tints with a dot and the hours. */
   --day-std:#2EC351; --day-std-d:#259D41; --day-std-tint:rgba(46,195,81,.1);
-  --day-over:var(--warn); --day-over-tint:var(--warn-tint);
+  --day-over:#F0A431; --day-over-tint:rgba(240,164,49,.13);
   --day-under:#f472b6; --day-under-d:#9d174d; --day-under-tint:rgba(244,114,182,.1);
   --day-leave:#2E68FF; --day-leave-tint:rgba(46,104,255,.09);
   --day-sick:#FF3366; --day-sick-tint:rgba(255,51,102,.08);
   --day-ph:#8A2BE2; --day-ph-d:#7322c4; --day-ph-tint:rgba(138,43,226,.09);
   --day-off:var(--q); --day-off-tint:rgba(120,126,140,.1);
   --day-empty:#d8dbe1; --day-empty-tint:rgba(216,219,225,.14);
-  --ok-tint:rgba(25,107,45,.12); --bad:#e0264f; /* words in the bad colour on ink (the dark Tiff modal's error): --bad is 4.27:1 on --ink2, this is 6.6:1 */ --bad-on-ink:#ff5c7a; --bad-tint:rgba(224,38,79,.1); --warn:#F0A431; --warn-tint:rgba(240,164,49,.13); --info-tint:rgba(37,84,216,.1);
+  --ok-tint:rgba(25,107,45,.12); --bad:var(--red); /* words in the bad colour on ink (the dark Tiff modal's error): --bad is 4.27:1 on --ink2, this is 6.6:1 */ --bad-on-ink:#ff5c7a; --bad-tint:rgba(239,68,68,.1); --warn:var(--orange); --warn-tint:rgba(249,115,22,.13); --info-tint:rgba(95,106,121,.1);
   /* THE PIPE SIZES — a VRF's refrigerant pair drawn in its size's colour, so
      a change of size shows on the plan at a glance (Isaac, 2026-09-29: "pipes
      can change colour by size"). Drawing vocabulary, like the day colours:
@@ -173,7 +191,8 @@
      lightest to darkest, for ordered groups (price bands, days to quote).
      None of them is a state token: a chart's colour says which series,
      never good or bad. */
-  --chart-1:#2a78d6; --chart-2:#eb6834; --chart-3:#1baf7a; --chart-4:#4a3aa7; --chart-5:#e87ba4; --chart-6:#eda100; --chart-7:#008300;
+  /* v2 (rule 20): the kinds of job in the eight, in this fixed order, ventilation grey */
+  --chart-1:var(--blue); --chart-2:var(--orange); --chart-3:var(--green); --chart-4:var(--purple); --chart-5:var(--pink); --chart-6:var(--yellow); --chart-7:var(--grey);
   --chart-seq-1:#86b6ef; --chart-seq-2:#5598e7; --chart-seq-3:#2a78d6; --chart-seq-4:#1c5cab;
   --t-fast:120ms; --t-move:200ms; --ease:ease-out;
   --z-raised:1; --z-sticky:10; --z-overlay:100; --z-modal:200; --z-toast:300;

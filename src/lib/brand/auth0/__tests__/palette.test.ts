@@ -43,7 +43,8 @@ describe("the Auth0 palette is the app's palette", () => {
     ["body", "ink", "tokens.css"],
     ["quiet", "q", "tokens.css"],
     ["okText", "ok-t", "tokens.css"],
-    ["badText", "bad-t", "tokens.css"],
+    ["badText", "red-w", "tokens.css"],
+    ["press", "blue", "tokens.css"],
   ];
 
   it.each(claims)("%s is --%s in %s", (key, token, sheet) => {

@@ -166,15 +166,25 @@ One Tiff and one engine, wherever you ask: the box on Home, Search's last row, a
 
 **What she reads.** Each is a read tool in the one registry (src/lib/tiff/registry), behind the same permission as the screen it comes from, so nothing a screen hides can be reached by asking.
 
-- Jobs from ServiceM8: find one by client, address or number, or by what went in. Job materials, quote lines and the plates photographed on site are matched to the data packs, so "the last job we put a 10 kW Mitsubishi Electric ducted in" has an answer. A job's history, notes, visits, checklist, photos and documents.
-- Quotes and the price book. Money only with Financials.
+- Jobs from ServiceM8: find one by client, address or number, or by what went in. Job materials, quote lines and the plates photographed on site are matched to the data packs, so "the last job we put a 10 kW Mitsubishi Electric ducted in" has an answer. A job's history, notes, bookings, visits, checklist, photos and documents.
+- Clients and sites: each client's contacts, every job at an address, and the equipment on site across all its jobs.
+- Money, with Financials only: quotes and their options, the price book, what a job was invoiced, what's paid and what's owed, its costs, variations and margin.
+- Service agreements: what each covers and what's due.
 - The data packs: a unit's specs, whether units pair, and two or more units side by side. These are today's quote tools (search\_book, unit\_specs, pairing\_check, the compare), moved into the registry.
+- Designs made for a job: the units, rooms and loads in them.
 - The Library: manuals, SOPs and field notes, down to the page.
-- Schedule, To do and tasks, Documents, and Team: everyone's contact details, and timesheets, leave, expenses and vehicles by permission.
+- Schedule and To do: bookings, visits, tasks and who's free.
+- Documents: SWMS, certificates, letters and handover sheets, and what's in them.
+- Team: everyone's contact details and Notices; timesheets, leave, expenses, licences and tickets, and vehicles (rego, services, logs) by permission.
+- Your own past conversations with her, and your private notes. Never anyone else's private notes.
+- Reports' figures and Settings' values (the charge-out rate, labour, pay rules), each behind its screen's permission.
+- What's in a photo: a rating plate, a gauge, a fault code on a display.
 - General HVAC knowledge, for whatever the records don't cover.
+- Never HQ, never another business's records, never anything above the asker's permission. Reading is all she does here; changing things stays with the forms and the writes that are gated today.
 
 **How she answers.**
 
+- She checks before she answers, the way connected tools would: she reads as many of the above as the question needs, cross-checks (a pairing against the pack, a job's materials against its quote), says when the ServiceM8 copy last synced if that matters, and says plainly what she couldn't check. She never fills a gap with something that sounds right.
 - Your records first, then the data packs, then general HVAC knowledge. Every part says where it came from: a job's materials, a data pack, a manual and its page, or "General HVAC knowledge, not from your documents". General knowledge is never written as though a document said it.
 - When the Library has nothing, she says so and names the document that would have answered. A Library only switch under the box keeps an answer to your own documents.
 - A comparison is a table in the conversation, with each pair's price from your book. Putting a unit on a quote happens in the quote, not here. When a request matches several series ("a Daikin 5 kW"), she compares the ones you quote most and offers the rest as buttons.

@@ -1,4 +1,4 @@
-import { sessionSystemPrompt } from "../prompt";
+import { openWords, sessionSystemPrompt } from "../prompt";
 
 /* The write-up first is switched on only once the bench says she quotes as
    well or better with it (Isaac, 2026-10-11: "get as much built as possible
@@ -77,3 +77,23 @@ it("asks the crew and days she worked out as a question, not in passing", () => 
 it("keeps a unit the pack hasn't got, saying its pairing isn't checked, never swapping it for one the pack has", () => {
   expect(sessionSystemPrompt()).toMatch(/A model the pack hasn't got isn't refused: keep the one the brief or the book gives, and say its pairing isn't checked\. Never swap a unit only to get one the pack has\./);
 });
+
+/* 3209, 17 October: questions called by the app's ids ("313, 315, 317 and
+   319"), a price asked that the book had, and the flex lost when its line
+   became the box */
+it("numbers her open questions as she asked them, the id only for settling", () => {
+  const w = openWords([
+    { id: 313, question: "Is a 2-person crew right?", put: "2 people, 2.5 days" },
+    { id: 315, question: "How many metres of pipe?", put: "" },
+  ]);
+  expect(w).toMatch(/^Your questions still open, numbered as you asked them:\n1\. Is a 2-person crew right\? \(the quote has 2 people, 2\.5 days\) \[id 313\]\n2\. How many metres of pipe\? \[id 315\]/);
+  expect(w).toMatch(/To them, call each by its number, never its id\./);
+});
+
+it("searches the book before calling a part unknown, and keeps what a found item doesn't cover", () => {
+  const p = sessionSystemPrompt();
+  expect(p).toMatch(/Search the book \(search_book\) for every part before you call it unknown or ask its price: a custom item or an allowance may be in it\./);
+  expect(p).toMatch(/When a book item covers only part of what a line stood for, put it on and keep the rest on its own line \(unknown if it must be\)/);
+  expect(p).toMatch(/on a ducted head \(and a head hidden in joinery or a bulkhead is one\) its plenum or supply adaptor, its supply grilles with their boxes and flex, its return grille, box and flex/);
+});
+

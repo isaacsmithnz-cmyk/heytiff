@@ -103,7 +103,7 @@ it("puts her open questions before the person's own words, by number, to settle 
   expect(model.calls[0]!.messages.at(-1)!.content).toEqual([
     {
       type: "text",
-      text: "Your questions still open, by number:\n- 41: How long is the pipe run, indoor to outdoor? (the quote has 10 m)\n- 42: Does the pipe need cover up the rear wall?\nWhere their words answer one, change the lines to match, then settle it.\n\nPipe run is 14 m and 2 lengths of cover",
+      text: "Your questions still open, numbered as you asked them:\n1. How long is the pipe run, indoor to outdoor? (the quote has 10 m) [id 41]\n2. Does the pipe need cover up the rear wall? [id 42]\nWhere their words answer one, change the lines to match, then settle it by its id. To them, call each by its number, never its id.\n\nPipe run is 14 m and 2 lengths of cover",
     },
   ]);
 });

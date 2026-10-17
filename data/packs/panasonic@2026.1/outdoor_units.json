@@ -602,6 +602,7 @@
   "capacity_heat_kw": 3.4,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 5.9,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -613,7 +614,7 @@
    "kind": "extracted",
    "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "46-47 (lowest rating printed with it); 32-33; NZ catalogue PNZ-J8888 24-25"
+   "page": "46-47 (lowest rating printed with it); 32-33; NZ catalogue PNZ-J8888 24-25 (max current: 24, printed with CS-Z25UFRAW)"
   }
  },
  {
@@ -625,6 +626,7 @@
   "capacity_heat_kw": 4.3,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 8.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -636,7 +638,7 @@
    "kind": "extracted",
    "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "46-47 (lowest rating printed with it); 32-33; NZ catalogue PNZ-J8888 24-25"
+   "page": "46-47 (lowest rating printed with it); 32-33; NZ catalogue PNZ-J8888 24-25 (max current: 24, printed with CS-Z35UFRAW)"
   }
  },
  {
@@ -648,6 +650,7 @@
   "capacity_heat_kw": 5.6,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 11.4,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -659,7 +662,7 @@
    "kind": "extracted",
    "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "46-47 (lowest rating printed with it); 32-33; NZ catalogue PNZ-J8888 24-25"
+   "page": "46-47 (lowest rating printed with it); 32-33; NZ catalogue PNZ-J8888 24-25 (max current: 24, printed with CS-Z50UFRAW)"
   }
  },
  {
@@ -694,6 +697,7 @@
   "capacity_heat_kw": 3.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 6.3,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -707,7 +711,7 @@
    "kind": "extracted",
    "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
    "edition": "AC-AUS-RZ-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 22-23; PACi catalogue 44-45"
+   "page": "2; NZ catalogue PNZ-J8888 22-23 (max current: 22, printed with CS-RZ25AKRW); PACi catalogue 44-45"
   }
  },
  {
@@ -719,6 +723,7 @@
   "capacity_heat_kw": 4.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 7.2,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -731,7 +736,7 @@
    "kind": "extracted",
    "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-RZ-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 22-23"
+   "page": "2; NZ catalogue PNZ-J8888 22-23 (max current: 22)"
   }
  },
  {
@@ -743,6 +748,7 @@
   "capacity_heat_kw": 5.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 8.9,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -755,7 +761,7 @@
    "kind": "extracted",
    "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-RZ-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 22-23"
+   "page": "2; NZ catalogue PNZ-J8888 22-23 (max current: 22)"
   }
  },
  {
@@ -767,6 +773,7 @@
   "capacity_heat_kw": 6.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 11.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -780,7 +787,7 @@
    "kind": "extracted",
    "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
    "edition": "AC-AUS-RZ-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 22-23; PACi catalogue 44-45"
+   "page": "2; NZ catalogue PNZ-J8888 22-23 (max current: 22, printed with CS-RZ50AKRW); PACi catalogue 44-45"
   }
  },
  {
@@ -792,6 +799,7 @@
   "capacity_heat_kw": 6.5,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 11.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -804,7 +812,7 @@
    "kind": "extracted",
    "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-RZ-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 22-23"
+   "page": "2; NZ catalogue PNZ-J8888 22-23 (max current: 22)"
   }
  },
  {
@@ -816,6 +824,7 @@
   "capacity_heat_kw": 8.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 14.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -829,7 +838,7 @@
    "kind": "extracted",
    "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ); Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU)",
    "edition": "AC-AUS-RZ-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 22-23; PACi catalogue 44-45"
+   "page": "2; NZ catalogue PNZ-J8888 22-23 (max current: 22, printed with CS-RZ71AKRW); PACi catalogue 44-45"
   }
  },
  {
@@ -841,6 +850,7 @@
   "capacity_heat_kw": 9.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 15.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -853,7 +863,7 @@
    "kind": "extracted",
    "source": "Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-RZ-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 22-23"
+   "page": "2; NZ catalogue PNZ-J8888 22-23 (max current: 22)"
   }
  },
  {
@@ -865,6 +875,7 @@
   "capacity_heat_kw": 9.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 16.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -878,7 +889,7 @@
    "kind": "extracted",
    "source": "Panasonic R32 Residential & Light Commercial Air Conditioning catalogue (AU); Panasonic RZ Series wall split leaflet (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "OCAU_R32 PAC_CAT_2025_V2 (August 2025)",
-   "page": "44-45 (lowest rating printed with it); RZ brochure AC-AUS-RZ-L24 2; NZ catalogue PNZ-J8888 22-23"
+   "page": "44-45 (lowest rating printed with it); RZ brochure AC-AUS-RZ-L24 2; NZ catalogue PNZ-J8888 22-23 (max current: 22, printed with CS-RZ95AKR)"
   }
  },
  {
@@ -890,6 +901,7 @@
   "capacity_heat_kw": 4.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 7.2,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -902,7 +914,7 @@
    "kind": "extracted",
    "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-Z-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 20-21"
+   "page": "2; NZ catalogue PNZ-J8888 20-21 (max current: 20)"
   }
  },
  {
@@ -914,6 +926,7 @@
   "capacity_heat_kw": 5.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 8.9,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -926,7 +939,7 @@
    "kind": "extracted",
    "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-Z-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 20-21"
+   "page": "2; NZ catalogue PNZ-J8888 20-21 (max current: 20)"
   }
  },
  {
@@ -938,6 +951,7 @@
   "capacity_heat_kw": 6.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 11.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -950,7 +964,7 @@
    "kind": "extracted",
    "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-Z-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 20-21"
+   "page": "2; NZ catalogue PNZ-J8888 20-21 (max current: 20)"
   }
  },
  {
@@ -962,6 +976,7 @@
   "capacity_heat_kw": 8.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 14.8,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -974,7 +989,7 @@
    "kind": "extracted",
    "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-Z-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 20-21"
+   "page": "2; NZ catalogue PNZ-J8888 20-21 (max current: 20)"
   }
  },
  {
@@ -986,6 +1001,7 @@
   "capacity_heat_kw": 9.0,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 15.0,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -998,7 +1014,7 @@
    "kind": "extracted",
    "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-Z-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 20-21"
+   "page": "2; NZ catalogue PNZ-J8888 20-21 (max current: 20)"
   }
  },
  {
@@ -1010,6 +1026,7 @@
   "capacity_heat_kw": 10.3,
   "phase": "1",
   "power_supply": "230/240 V, 1 phase, 50 Hz",
+  "max_amps_a": 16.6,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -1022,7 +1039,7 @@
    "kind": "extracted",
    "source": "Panasonic Z Series wall split brochure (AU); Panasonic Residential Air Conditioners catalogue (NZ)",
    "edition": "AC-AUS-Z-L24 (July 2024)",
-   "page": "2; NZ catalogue PNZ-J8888 20-21"
+   "page": "2; NZ catalogue PNZ-J8888 20-21 (max current: 20)"
   }
  },
  {

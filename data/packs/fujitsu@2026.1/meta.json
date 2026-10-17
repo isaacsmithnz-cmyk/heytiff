@@ -2,7 +2,7 @@
  "brand": "fujitsu",
  "version": "2026.1",
  "packSchemaVersion": 1,
- "name": "Fujitsu (AIRSTAGE, AU) — Lifestyle wall splits, bulkhead / mid / high static ducted, multi-split",
+ "name": "Fujitsu (AIRSTAGE, AU) — Lifestyle wall splits, bulkhead / mid / high static ducted, multi-split, AIRSTAGE VRF (J-IVS, J-IV, J-IVL)",
  "updated": "2026-10-14",
  "sources": [
   {
@@ -218,6 +218,36 @@
   {
    "title": "Duct Type Design & Technical Manual High Static Single Phase ARTH24-60KHTA",
    "edition": "DR_AR082EF_01 (GENERAL Partner Portal)",
+   "access": "dealer-portal"
+  },
+  {
+   "title": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "access": "dealer-portal"
+  },
+  {
+   "title": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLBH",
+   "edition": "DV_J4ST070EF_03 (GENERAL Partner Portal)",
+   "access": "dealer-portal"
+  },
+  {
+   "title": "AIRSTAGE J-IV Design & Technical Manual AJT040-054LBLCH",
+   "edition": "DV_J4T068EF_09 (GENERAL Partner Portal)",
+   "access": "dealer-portal"
+  },
+  {
+   "title": "AIRSTAGE J-IV Design & Technical Manual AJY040-054LBLBH",
+   "edition": "DV_J4T068EF_03 (GENERAL Partner Portal)",
+   "access": "dealer-portal"
+  },
+  {
+   "title": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "access": "dealer-portal"
+  },
+  {
+   "title": "Duct Type Installation Manual ARXA024-045GLEH",
+   "edition": "PART No. 9373385257 (GENERAL Partner Portal)",
    "access": "dealer-portal"
   }
  ]

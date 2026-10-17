@@ -79,7 +79,6 @@ export function LicenceCard({
           <button
             className="idc-del"
             type="button"
-            title={`Remove ${typeName}`}
             aria-label={`Remove ${typeName}`}
             disabled={removing}
             onClick={onRemove}

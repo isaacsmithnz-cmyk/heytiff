@@ -9,7 +9,7 @@ The mock-ups for everything below are at https://claude.ai/artifact/Ez9ak2XsHSWC
 - **Version 1 is tagged.** `v1.0.0` is on GitHub at `4978e9c3`, the app before any v2 work.
 - **The handover is on main** (#1169).
 - **v2 is built on the branch `v2-layout`.** Nothing reaches main, and so production, until Isaac says to merge. Main keeps taking v1 work from other sessions; `v2-layout` merges main in as it goes.
-- **The data rule holds.** Until v2 has settled, a migration only adds. The one migration since the handover, `reply_drafts` (18 October), adds a table.
+- **The data rule holds.** Until v2 has settled, a migration only adds. The migrations since the handover each add a table: `reply_drafts` (18 October), and `tiff_threads` (18 October, on the branch v2-conversations, NOT YET APPLIED), which keeps Tiff's threads per person; until it is applied they stay in the browser.
 
 ## Isaac's answers
 

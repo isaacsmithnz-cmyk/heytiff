@@ -212,7 +212,7 @@ Every feature HeyTiff has today, its one home in v2, and the build step that mov
 | F-129 | Ask a question: answer with page sources, from your library or general knowledge | Library › ask box (type or speak) | TWO HOMES: Home's box with sources (1-main.md's merge table) and the Library's "Ask the Library" (H5) | 5 | [ ] |
 | F-130 | Ask about one document | All documents › a row's Ask Tiff | The box, scoped to one document, from Library › the document (review) | 5 | [ ] |
 | F-131 | Open a source at the cited page | An answer's source chip | Library › the document, at that page | 5 | [ ] |
-| F-132 | Saved chats: pick up, rename, delete | Library landing, this browser only | Conversations, kept on the server | 5 | [ ] |
+| F-132 | Saved chats: pick up, rename, delete | Library landing, this browser only | Conversations, kept on the server | 5 | [x] branch v2-conversations: the threads in Conversations, and kept on the server once docs/migrations/tiff_threads.sql is applied (NOT YET); until then on the device |
 | F-133 | All documents: search, shelves, tags | Library › All documents; 6 other doors | Library, the list; a tag filter with its own address | 5 | [ ] |
 | F-134 | Find a word inside a document | All documents › a document's title | Library › the document › Search inside (L2) | 5 | [ ] |
 | F-135 | Add documents: drop PDFs, title, shelf, brand, tags; large uploads (owner) | All documents › Add documents | Library › Add a document, the upload drawer (L1) | 4 | [ ] |
@@ -273,7 +273,7 @@ Every feature HeyTiff has today, its one home in v2, and the build step that mov
 | F-173 | My expenses: scan a receipt or type it, against a job; cancel | Me › Expenses; search; Tiff; alert | Your name › Expense claims › Claim an expense (E5); Cancel on the claim | 5 | [ ] |
 | F-174 | Fuel receipts | Expenses › Vehicle › Log fuel | Your name › Expense claims › Claim an expense; Fuel asks litres and km (E6) | 4 | [ ] |
 | F-175 | My vehicle: details, fuel, issues, services, odometer, fix my own entry | Me › Vehicle; Assets; alerts; Home | Your name › Your card › Vehicle: the vehicle read-only for its driver, with odometer and own-entry edits (correction) | 5 | [ ] |
-| F-176 | My private notes: add, dictate, edit, archive, put back, delete for good | Me › Notes; search; Tiff; a diary door | Conversations › Only me, its own box; Edit and Archive on a note (correction) | 5 | [ ] |
+| F-176 | My private notes: add, dictate, edit, archive, put back, delete for good | Me › Notes; search; Tiff; a diary door | Conversations › Only me, its own box; Edit and Archive on a note (correction) | 5 | [x] branch v2-conversations |
 
 ### Time & Pay
 

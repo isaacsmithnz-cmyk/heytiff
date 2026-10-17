@@ -9,6 +9,7 @@
   "phase": "1",
   "power_supply": "230V / 1Ph+N / 50Hz",
   "max_amps_a": 27.3,
+  "breaker_a": 32,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -24,7 +25,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "4 (nett rated, outdoor full load amps), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "4 (nett rated, outdoor full load amps, circuit breaker), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.25 (circuit breaker, same), p.51 (PDF p.47)"
   }
  },
  {
@@ -37,6 +38,7 @@
   "phase": "1",
   "power_supply": "230V / 1Ph+N / 50Hz",
   "max_amps_a": 27.4,
+  "breaker_a": 32,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -52,7 +54,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "4 (nett rated, outdoor full load amps), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "4 (nett rated, outdoor full load amps, circuit breaker), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.25 (circuit breaker, same), p.51 (PDF p.47)"
   }
  },
  {
@@ -65,6 +67,7 @@
   "phase": "1",
   "power_supply": "230V / 1Ph+N / 50Hz",
   "max_amps_a": 30.3,
+  "breaker_a": 40,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -80,7 +83,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "4 (nett rated, outdoor full load amps), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "4 (nett rated, outdoor full load amps, circuit breaker), 6-7 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.25 (circuit breaker, same), p.51 (PDF p.47)"
   }
  },
  {
@@ -93,6 +96,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 7.89,
+  "breaker_a": 16,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -108,7 +112,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps, circuit breaker), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.25 (circuit breaker, same), p.51 (PDF p.47)"
   }
  },
  {
@@ -121,6 +125,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 10.1,
+  "breaker_a": 16,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -136,7 +141,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps, circuit breaker), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.25 (circuit breaker, same), p.51 (PDF p.47)"
   }
  },
  {
@@ -149,6 +154,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 10.8,
+  "breaker_a": 16,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -164,7 +170,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps, circuit breaker), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high); ICG 0525-137 p.25 (circuit breaker, same), p.51 (PDF p.47)"
   }
  },
  {
@@ -177,6 +183,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 12.48,
+  "breaker_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -192,7 +199,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high, column C (cooling)); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps, circuit breaker), 8-9 (dims, weight, factory charge, max charge, connections), 22 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high, column C (cooling)); ICG 0525-137 p.25 (circuit breaker, same), p.51 (PDF p.47)"
   }
  },
  {
@@ -205,6 +212,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 13.6,
+  "breaker_a": 20,
   "conn_liquid_mm": 12.7,
   "conn_gas_mm": 22.22,
   "refrigerant": "R32",
@@ -220,7 +228,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 23 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high, column C (cooling)); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps, circuit breaker), 8-9 (dims, weight, factory charge, max charge, connections), 23 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high, column C (cooling)); ICG 0525-137 p.25 (circuit breaker, same), p.51 (PDF p.47)"
   }
  },
  {
@@ -233,6 +241,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 14.2,
+  "breaker_a": 25,
   "conn_liquid_mm": 12.7,
   "conn_gas_mm": 22.22,
   "refrigerant": "R32",
@@ -248,7 +257,7 @@
    "kind": "extracted",
    "source": "Advance B Series Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Advance B Split Ducted Outdoor Units (R-32 Series)",
    "edition": "9590-0030-01 Ver. 13 260717; 0525-137 Ver. 8 260606",
-   "page": "5 (nett rated, outdoor full load amps), 8-9 (dims, weight, factory charge, max charge, connections), 23 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high, column C (cooling)); ICG 0525-137 p.51 (PDF p.47)"
+   "page": "5 (nett rated, outdoor full load amps, circuit breaker), 8-9 (dims, weight, factory charge, max charge, connections), 23 (outdoor dimensions); 26 (weights); 27 (outdoor sound pressure @1 m: Quiet as low, Rated as high, column C (cooling)); ICG 0525-137 p.25 (circuit breaker, same), p.51 (PDF p.47)"
   }
  },
  {
@@ -261,6 +270,7 @@
   "phase": "1",
   "power_supply": "230V / 1Ph+N / 50Hz",
   "max_amps_a": 17.26,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -276,7 +286,7 @@
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
+   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight, circuit breaker), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.44 (circuit breaker, same), p.82-83"
   }
  },
  {
@@ -289,6 +299,7 @@
   "phase": "1",
   "power_supply": "230V / 1Ph+N / 50Hz",
   "max_amps_a": 17.77,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -304,7 +315,7 @@
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
+   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight, circuit breaker), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.44 (circuit breaker, same), p.82-83"
   }
  },
  {
@@ -317,6 +328,7 @@
   "phase": "1",
   "power_supply": "230V / 1Ph+N / 50Hz",
   "max_amps_a": 21.45,
+  "breaker_a": 32,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -332,7 +344,7 @@
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
+   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight, circuit breaker), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.44 (circuit breaker, same), p.82-83"
   }
  },
  {
@@ -345,6 +357,7 @@
   "phase": "1",
   "power_supply": "230V / 1Ph+N / 50Hz",
   "max_amps_a": 23.98,
+  "breaker_a": 32,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -360,7 +373,7 @@
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high; p.27 prints this row as 'CRV17AS', its @3 m figures 50.1 / 55.0 / 56.8 / 56.9 are p.4's CRS17AS column); ICG 0525-133 p.82-83"
+   "page": "4 (nett rated, outdoor full load amps, outdoor D/H/W, weight, circuit breaker), 6-7 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high; p.27 prints this row as 'CRV17AS', its @3 m figures 50.1 / 55.0 / 56.8 / 56.9 are p.4's CRS17AS column); ICG 0525-133 p.44 (circuit breaker, same), p.82-83"
   }
  },
  {
@@ -373,6 +386,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 5.75,
+  "breaker_a": 16,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -388,7 +402,7 @@
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight, circuit breaker), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.44 (circuit breaker, same), p.82-83"
   }
  },
  {
@@ -401,6 +415,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 6.8,
+  "breaker_a": 16,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -416,7 +431,7 @@
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight, circuit breaker), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.44 (circuit breaker, same), p.82-83"
   }
  },
  {
@@ -429,6 +444,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 8.0,
+  "breaker_a": 16,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -444,7 +460,7 @@
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight, circuit breaker), 8-9 (factory charge, max charge, connections); 22 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.44 (circuit breaker, same), p.82-83"
   }
  },
  {
@@ -457,6 +473,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 12.48,
+  "breaker_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 22.22,
   "refrigerant": "R32",
@@ -472,7 +489,7 @@
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 23 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight, circuit breaker), 8-9 (factory charge, max charge, connections); 23 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.44 (circuit breaker, same), p.82-83"
   }
  },
  {
@@ -485,6 +502,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 12.41,
+  "breaker_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 22.22,
   "refrigerant": "R32",
@@ -500,7 +518,7 @@
    "kind": "extracted",
    "source": "AIRES Split Ducted Unit, Technical Selection Data; Installation and Commissioning Guide, Aires Split Ducted Outdoor Units",
    "edition": "9590-0027-01 Ver. 17 260305; 0525-133 Ver. 11 260324",
-   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight), 8-9 (factory charge, max charge, connections); 23 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.82-83"
+   "page": "5 (nett rated, outdoor full load amps, outdoor D/H/W, weight, circuit breaker), 8-9 (factory charge, max charge, connections); 23 (outdoor dimensions); 27 (outdoor sound pressure @1 m: Quiet as low, Rated Cooling as high); ICG 0525-133 p.44 (circuit breaker, same), p.82-83"
   }
  },
  {
@@ -513,6 +531,7 @@
   "phase": "1",
   "power_supply": "220 - 240V / 1Ph / 50Hz",
   "max_amps_a": 16,
+  "breaker_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -527,7 +546,7 @@
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current, circuit breaker), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58"
   }
  },
  {
@@ -540,6 +559,7 @@
   "phase": "1",
   "power_supply": "220 - 240V / 1Ph / 50Hz",
   "max_amps_a": 21,
+  "breaker_a": 25,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -554,7 +574,7 @@
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System; Cascade Cassette DS Series, Technical Selection Data",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623; 9590-0032-01 Ver. 2 260331",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current, circuit breaker), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
   }
  },
  {
@@ -567,6 +587,7 @@
   "phase": "1",
   "power_supply": "220 - 240V / 1Ph / 50Hz",
   "max_amps_a": 31,
+  "breaker_a": 32,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -581,7 +602,7 @@
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System; Cascade Cassette DS Series, Technical Selection Data",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623; 9590-0032-01 Ver. 2 260331",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current, circuit breaker), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
   }
  },
  {
@@ -594,6 +615,7 @@
   "phase": "1",
   "power_supply": "220 - 240V / 1Ph / 50Hz",
   "max_amps_a": 31,
+  "breaker_a": 32,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -608,7 +630,7 @@
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System; Cascade Cassette DS Series, Technical Selection Data",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623; 9590-0032-01 Ver. 2 260331",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current, circuit breaker), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58; Cascade DS 9590-0032-01 p.3-4 (same outdoor dims, weight, pre-charge)"
   }
  },
  {
@@ -621,6 +643,7 @@
   "phase": "1",
   "power_supply": "220 - 240V / 1Ph / 50Hz",
   "max_amps_a": 31,
+  "breaker_a": 32,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 19.05,
   "refrigerant": "R32",
@@ -635,7 +658,7 @@
    "kind": "extracted",
    "source": "Aspire Split System, Technical Selection Data; Installation and Commissioning Guide, Aspire Split System",
    "edition": "9590-0031-01 Ver. 7 260922; 9590-5031 Ver. 5 260623",
-   "page": "2 (operating capacity with the Aspire indoor, maximum running current), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58"
+   "page": "2 (operating capacity with the Aspire indoor, maximum running current, circuit breaker), 3 (outdoor H/W/D, net weight, pre-charge, connections, outdoor sound pressure @1m as high and Silent @1m as low); IM 9590-5031 p.58"
   }
  },
  {
@@ -648,6 +671,7 @@
   "phase": "1",
   "power_supply": "220-240V / 1Ph / 50Hz",
   "max_amps_a": 10.0,
+  "breaker_a": 10,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -661,7 +685,7 @@
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight, circuit breaker), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -674,6 +698,7 @@
   "phase": "1",
   "power_supply": "220-240V / 1Ph / 50Hz",
   "max_amps_a": 10.5,
+  "breaker_a": 16,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -687,7 +712,7 @@
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight, circuit breaker), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -700,6 +725,7 @@
   "phase": "1",
   "power_supply": "220-240V / 1Ph / 50Hz",
   "max_amps_a": 15.5,
+  "breaker_a": 16,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -713,7 +739,7 @@
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight, circuit breaker), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -726,6 +752,7 @@
   "phase": "1",
   "power_supply": "220-240V / 1Ph / 50Hz",
   "max_amps_a": 15.5,
+  "breaker_a": 16,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -739,7 +766,7 @@
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight, circuit breaker), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -752,6 +779,7 @@
   "phase": "1",
   "power_supply": "220-240V / 1Ph / 50Hz",
   "max_amps_a": 17.5,
+  "breaker_a": 20,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -765,7 +793,7 @@
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight, circuit breaker), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -778,6 +806,7 @@
   "phase": "1",
   "power_supply": "220-240V / 1Ph / 50Hz",
   "max_amps_a": 17.5,
+  "breaker_a": 20,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -791,7 +820,7 @@
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight, circuit breaker), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge grams)"
   }
  },
  {
@@ -804,6 +833,7 @@
   "phase": "1",
   "power_supply": "220-240V / 1Ph / 50Hz",
   "max_amps_a": 18.0,
+  "breaker_a": 20,
   "conn_liquid_mm": 9.52,
   "conn_gas_mm": 15.88,
   "refrigerant": "R32",
@@ -817,7 +847,7 @@
    "kind": "extracted",
    "source": "Wall Hung DS Series Split System (Serene DS), Technical Selection Data; Installation and Commissioning Guide, Serene DS Series Split System",
    "edition": "9590-0037-01 Ver. 4 251120; 9590-5037 Ver. 2 260319",
-   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge 1700 g; catalogue p.2 prints 2.200)"
+   "page": "2 (operating capacity, maximum running current, outdoor H/W/D, net weight, circuit breaker), 3 (connections, outdoor sound pressure @1m); IM 9590-5037 p.53 (refrigerant charge 1700 g; catalogue p.2 prints 2.200)"
   }
  },
  {
@@ -830,6 +860,7 @@
   "phase": "1",
   "power_supply": "1Ph / 220-240V / 50Hz",
   "max_amps_a": 12,
+  "breaker_a": 16,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -844,7 +875,7 @@
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
+   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge, circuit breaker), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
   }
  },
  {
@@ -857,6 +888,7 @@
   "phase": "1",
   "power_supply": "1Ph / 220-240V / 50Hz",
   "max_amps_a": 17.5,
+  "breaker_a": 20,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 9.52,
   "refrigerant": "R32",
@@ -871,7 +903,7 @@
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
+   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge, circuit breaker), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
   }
  },
  {
@@ -884,6 +916,7 @@
   "phase": "1",
   "power_supply": "1Ph / 220-240V / 50Hz",
   "max_amps_a": 19,
+  "breaker_a": 20,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -898,7 +931,7 @@
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
+   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge, circuit breaker), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
   }
  },
  {
@@ -911,6 +944,7 @@
   "phase": "1",
   "power_supply": "1Ph / 220-240V / 50Hz",
   "max_amps_a": 30,
+  "breaker_a": 32,
   "conn_liquid_mm": 6.35,
   "conn_gas_mm": 12.7,
   "refrigerant": "R32",
@@ -925,7 +959,7 @@
    "kind": "extracted",
    "source": "MultiElite DS Series Split System, Technical Selection Data; Installation and Commissioning Guide, MultiElite DS Series Split System",
    "edition": "9590-0036-01 Ver. 7 260702; 9590-5036 Ver. 4 260227",
-   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
+   "page": "4 (operating capacity, maximum running current, unit H/W/D, net weight, pre-charge, circuit breaker), 5 (outdoor sound pressure @1 m); IM 9590-5036 p.15 (port A connection sizes)"
   }
  },
  {
@@ -938,6 +972,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 22.6,
+  "breaker_a": 32.0,
   "conn_liquid_mm": 15.88,
   "conn_gas_mm": 28.58,
   "refrigerant": "R410A",
@@ -950,7 +985,7 @@
    "kind": "extracted",
    "source": "Technical Selection Data, Split Ducted Unit CRV290T / EVA290T; Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
    "edition": "9590-0009-01A Ver. 11 241203; 0525-066 Ver. 10 251008",
-   "page": "1 (nett rated, outdoor full load amps, weight), 5 (outline 1415 x 1840 x 820, swaged connections), 8 (factory charge); ICG 0525-066 p.50 (charge details)"
+   "page": "1 (nett rated, outdoor full load amps, weight, circuit breaker), 5 (outline 1415 x 1840 x 820, swaged connections), 8 (factory charge, circuit breaker size); ICG 0525-066 p.23 (circuit breaker, same), p.50 (charge details)"
   }
  },
  {
@@ -963,6 +998,7 @@
   "phase": "3",
   "power_supply": "400V / 3Ph+N / 50Hz",
   "max_amps_a": 25.5,
+  "breaker_a": 32.0,
   "conn_liquid_mm": 15.88,
   "conn_gas_mm": 28.58,
   "refrigerant": "R410A",
@@ -975,7 +1011,7 @@
    "kind": "extracted",
    "source": "Technical Selection Data, Split Ducted Unit CRV330T / EVA330T; Installation and Commissioning Guide, Split Ducted Variable Capacity Commercial Outdoor Unit",
    "edition": "9590-0009-02A Ver. 8 241203; 0525-066 Ver. 10 251008",
-   "page": "1 (nett rated, outdoor full load amps, weight), 5 (outline 1415 x 1840 x 820, swaged connections), 8 (factory charge); ICG 0525-066 p.50 (charge details)"
+   "page": "1 (nett rated, outdoor full load amps, weight, circuit breaker), 5 (outline 1415 x 1840 x 820, swaged connections), 8 (factory charge, circuit breaker size); ICG 0525-066 p.23 (circuit breaker, same), p.50 (charge details)"
   }
  }
 ]

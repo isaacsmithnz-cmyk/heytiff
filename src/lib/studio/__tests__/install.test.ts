@@ -685,6 +685,9 @@ describe("matchesModelGlob", () => {
   it("reads the pack's accessories by compatibility and category", () => {
     expect(accessoriesFor(pack, "MSZ-AP35VGD2", "wifi").map((a) => a.model)).toEqual(["MAC-588IF-E"]);
     expect(accessoriesFor(pack, "MSZ-AP35VGD2", "wired-controller")[0].model).toBe("PAR-41MAA");
+    // a City Multi head takes the same MA controllers (MEES21K067 1-122, 1-128)
+    expect(accessoriesFor(pack, "PEFY-P20VMX-E", "wired-controller").map((a) => a.model)).toEqual(["PAR-41MAA", "PAC-YT52CRA", "PAR-CT01MAA-PB/SB"]);
+    expect(accessoriesFor(pack, "PLFY-P32VEM-A", "wired-controller")[0].model).toBe("PAR-41MAA");
     expect(accessoriesFor(pack, "MSZ-AP35VGD2", "condensate-pump")).toEqual([]);
     expect(accessoriesFor(pack, "MXZ-5F100VGD", "drain-kit").map((a) => a.model)).toEqual(["PAC-SG60DS-E"]);
     // no category: everything compatible, in pack order

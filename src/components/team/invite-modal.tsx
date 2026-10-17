@@ -283,7 +283,7 @@ export function InviteModal({
             </button>
             <button className="fl-btn primary" disabled={busy || !email.trim()} onClick={submit}>
               <Icon name="mail" size={15} />
-              {busy ? "Sending…" : "Send invitation"}
+              {busy ? "Sending the invitation" : "Send invitation"}
             </button>
           </div>
         </div>

@@ -158,7 +158,7 @@ export function SignInEmailModal({
                 onClick={commit}
               >
                 <Icon name="check" size={15} />
-                {busy ? "Changing…" : "Change address"}
+                {busy ? "Changing the address" : "Change address"}
               </button>
             </div>
           </div>

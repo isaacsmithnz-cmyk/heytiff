@@ -491,7 +491,7 @@ export function VehicleForm({
             {cert.state === "reading" && (
               <div className="vm-reading" role="status">
                 <span className="vm-shimmer" />
-                <span>Reading {cert.name}…</span>
+                <span>Reading {cert.name}</span>
               </div>
             )}
             {cert.state === "read" && (
@@ -554,7 +554,7 @@ export function VehicleForm({
                     {m}
                   </option>
                 ))}
-                <option value={MAKE_NOT_LISTED}>Not listed…</option>
+                <option value={MAKE_NOT_LISTED}>Not listed</option>
               </select>
               {makeNotListed && (
                 <input
@@ -727,7 +727,7 @@ export function VehicleForm({
                   onClick={() => invoiceInput.current?.click()}
                 >
                   <Icon name="upload" size={13} />
-                  {invoice.state === "reading" ? "Tiff is reading the invoice…" : "Attach the invoice — Tiff reads the price and date"}
+                  {invoice.state === "reading" ? "Tiff is reading the invoice" : "Attach the invoice — Tiff reads the price and date"}
                 </button>
               )}
             </div>

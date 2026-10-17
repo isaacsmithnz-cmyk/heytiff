@@ -95,7 +95,7 @@ const save = jest.fn<Promise<BoxSaved>, [string]>();
 function Room({
   hosted = true,
   room = "diary",
-  placeholder = "Add to the diary…",
+  placeholder = "Add to the diary",
   day,
   enter,
 }: {
@@ -111,7 +111,7 @@ function Room({
 
 /** The Calendar's box, as its page holds it (2026-09-26): on a day, and
     Enter is its Save. */
-const CalendarRoom = () => <Room room="calendar" placeholder="Add to Thu 1 Oct…" day="2026-10-01" enter="save" />;
+const CalendarRoom = () => <Room room="calendar" placeholder="Add to Thu 1 Oct" day="2026-10-01" enter="save" />;
 const calendarField = () => screen.getByRole("textbox", { name: "Add to Thu 1 Oct" });
 
 const field = () => screen.getByRole("textbox", { name: "Add to the diary" });
@@ -137,7 +137,7 @@ afterEach(cleanup);
 describe("empty, the box is the words and the Tiff button", () => {
   it("shows only the Tiff button, labelled for what it does", () => {
     render(<Room />);
-    expect(field()).toHaveAttribute("placeholder", "Add to the diary…");
+    expect(field()).toHaveAttribute("placeholder", "Add to the diary");
     expect(button("Talk to Tiff")).toBeInTheDocument();
     expect(button("Save")).toBeNull();
     expect(button("Sort it out")).toBeNull();
@@ -163,7 +163,7 @@ describe("empty, the box is the words and the Tiff button", () => {
 
   it("the Tiff button opens the modal listening, and what you say is read as said in the box's room", async () => {
     const user = userEvent.setup();
-    render(<Room room="tasks" placeholder="Add a task…" />);
+    render(<Room room="tasks" placeholder="Add a task" />);
     await user.click(button("Talk to Tiff")!);
     const d = dialog()!;
     expect(d).toBeInTheDocument();
@@ -457,7 +457,7 @@ describe("a box whose Enter is its Save", () => {
     render(
       <NoteScopeProvider voiceEnabled>
         <TiffContext.Provider value={api}>
-          <TiffBox room="calendar" placeholder="Add to Thu 1 Oct…" save={save} day="2026-10-01" enter="save" />
+          <TiffBox room="calendar" placeholder="Add to Thu 1 Oct" save={save} day="2026-10-01" enter="save" />
         </TiffContext.Provider>
       </NoteScopeProvider>,
     );

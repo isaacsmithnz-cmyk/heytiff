@@ -199,7 +199,7 @@ function DangerZone({ onReset }: { onReset: () => Promise<boolean> }) {
             <button className="rca-btn ghost sm" disabled={busy} onClick={() => { setArmed(false); setErr(null); }}>Keep my setup</button>
             <button className="rca-btn sm" disabled={busy} onClick={run}
               style={{ background: RC.redInk, color: "#fff", opacity: busy ? 0.6 : 1, cursor: busy ? "default" : "pointer" }}>
-              {busy ? "Clearing…" : "Yes, clear everything"}
+              {busy ? "Clearing everything" : "Yes, clear everything"}
             </button>
           </div>
         )}

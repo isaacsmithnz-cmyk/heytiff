@@ -75,8 +75,8 @@ import { CalYear } from "./home-cal-year";
    room, at the top of the right-hand column in every view — over the rail
    beside 4 weeks, over the panel beside Month and Year — and it says the
    day it adds to (`addDayOf`): the day picked, else the first day of the
-   thing picked, else today, the server's, as "Add to Thu 1 Oct…" or "Add
-   to today…". Save, or Enter, puts the words on that day, all day, as
+   thing picked, else today, the server's, as "Add to Thu 1 Oct" or "Add
+   to today". Save, or Enter, puts the words on that day, all day, as
    typed (`addCalendarEvent`); Sort it out and the Tiff button ask Tiff,
    who reads the line for the calendar — "toolbox talk every first
    Thursday" goes on as eleven dates, and a line that names no day goes on
@@ -571,7 +571,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
               >
                 <TiffBox
                   room="calendar"
-                  placeholder={addTo === cal.today ? "Add to today…" : `Add to ${fmtDay(addTo)}…`}
+                  placeholder={addTo === cal.today ? "Add to today" : `Add to ${fmtDay(addTo)}`}
                   save={save}
                   day={addTo}
                   enter="save"

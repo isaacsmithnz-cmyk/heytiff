@@ -379,7 +379,7 @@ export function RenewalScreen({
               {kind === "insurance" && (
                 <Field label="Cover">
                   <select className="vm-input" value={f.cover} onChange={(e) => set("cover")(e.target.value)}>
-                    <option value="">Select…</option>
+                    <option value="">Select the cover</option>
                     {INSURANCE_COVERS.map((c) => (
                       <option key={c} value={c}>
                         {INSURANCE_COVER_LABEL[c]}
@@ -490,7 +490,7 @@ export function RenewalScreen({
       {showFields && (
         <div className="fl-foot bar">
           <Btn kind="primary" onClick={save} disabled={!canSave}>
-            {pending ? "Saving…" : SAVE_LABEL[kind]}
+            {pending ? "Saving the renewal" : SAVE_LABEL[kind]}
           </Btn>
         </div>
       )}

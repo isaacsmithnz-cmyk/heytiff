@@ -345,7 +345,7 @@ export function RecordScreen({
           </Btn>
           {showFields && (
             <Btn kind="primary" onClick={save} disabled={!canSave}>
-              {pending ? "Saving…" : filingOnly ? "File the document" : "Save card"}
+              {pending ? "Saving the card" : filingOnly ? "File the document" : "Save card"}
             </Btn>
           )}
         </span>

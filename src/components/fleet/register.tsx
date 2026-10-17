@@ -281,7 +281,7 @@ export function FleetRegister({
             <Icon name="search" size={17} />
             <input
               className="dsearchin"
-              placeholder="Search rego, name or driver…"
+              placeholder="Search rego, name or driver"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -315,7 +315,7 @@ export function FleetRegister({
             title="Tiff estimates each vehicle's AU market value — Manager+ only"
           >
             <TiffGlyph working={valuing} />
-            {valuing ? "Tiff is valuing…" : "Value with Tiff"}
+            {valuing ? "Tiff is valuing the vehicles" : "Value with Tiff"}
           </button>
           <button className="pbtn primary fl-add" onClick={() => setModal({ t: "add" })}>
             <Icon name="plus" size={16} />

@@ -438,7 +438,7 @@ describe("fileCalendarLine", () => {
   });
 
   /* THE BOX'S DAY (2026-09-26): the Calendar's box adds to a day and says
-     so ("Add to Thu 1 Oct…"), and sends it with the words. A line that
+     so ("Add to Thu 1 Oct"), and sends it with the words. A line that
      names no day goes on it instead of her asking, and her Done names it;
      one that names a day, or a repeat, is read as it says. The reader is
      asked nothing new: the day is filled in after it has read the line. */

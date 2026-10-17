@@ -402,7 +402,7 @@ export function MyExpensesFace({
               <div className="xc-startb">
                 <button className="pbtn primary" onClick={() => fileRef.current?.click()} disabled={scanning}>
                   <Icon name="cam" size={16} />
-                  {scanning ? "Reading…" : "Scan a receipt"}
+                  {scanning ? "Reading the receipt" : "Scan a receipt"}
                 </button>
                 <button
                   className="pbtn ghost"
@@ -630,14 +630,14 @@ export function MyExpensesFace({
                 {draft.category === "fuel" ? (
                   <button className="pbtn primary" onClick={toVehicle} disabled={busy}>
                     <Icon name="fuel" size={16} />
-                    {busy ? "Taking it over…" : "Log it on the vehicle"}
+                    {busy ? "Logging it on the vehicle" : "Log it on the vehicle"}
                   </button>
                 ) : (
                 <button className="pbtn primary" onClick={submit} disabled={busy || !!missing}>
                   {busy
                     ? company
-                      ? "Saving…"
-                      : "Sending…"
+                      ? "Saving the receipt"
+                      : "Sending for approval"
                     : company
                       ? "Save the receipt"
                       : "Send for approval"}

@@ -69,7 +69,7 @@ export function XeroFleetPanel({ s, patch, onFetch }: XeroFleetPanelProps) {
         </p>
         {error && <p className="rcx-err">{error}</p>}
         <button className="rcx-go" onClick={pull} disabled={busy}>
-          {busy ? "Reading Xero…" : "Pull from Xero"}
+          {busy ? "Reading Xero" : "Pull from Xero"}
         </button>
       </div>
     );
@@ -132,7 +132,7 @@ export function XeroFleetPanel({ s, patch, onFetch }: XeroFleetPanelProps) {
       )}
 
       <button className="rcx-go" onClick={pull} disabled={busy} style={{ marginTop: 12 }}>
-        {busy ? "Reading Xero…" : "Refresh"}
+        {busy ? "Reading Xero" : "Refresh"}
       </button>
     </div>
   );

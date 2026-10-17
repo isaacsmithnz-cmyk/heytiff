@@ -35,7 +35,7 @@ import { useTiff } from "./tiff-context";
    yes, or the modal opened on them. Anything else leaves them where they
    were — a save that failed says why under the box, and a modal that could
    not open (one is already open, or this viewer does not have it yet) takes
-   nothing. While a save is out the words hold still (read-only, "Saving…"),
+   nothing. While a save is out the words hold still (read-only, "Saving to the diary"),
    so the words that leave are the words that were saved: an edit made
    meanwhile would have kept the saved words in the box, looking unsaved,
    for the next press to file again.
@@ -202,7 +202,7 @@ export function TiffBox({
             else sort(sortButton.current ?? e.currentTarget, true);
           }}
           placeholder={placeholder}
-          aria-label={placeholder.replace(/…$/, "")}
+          aria-label={placeholder}
           aria-describedby={error ? errorId : undefined}
           autoComplete="off"
         />

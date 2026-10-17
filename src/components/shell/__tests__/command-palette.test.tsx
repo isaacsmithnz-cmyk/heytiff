@@ -237,9 +237,9 @@ describe("the palette finds jobs", () => {
     palette();
 
     type("job 288");
-    expect(screen.getByText("Searching…")).toBeInTheDocument();
+    expect(screen.getByText(/^Searching screens/)).toBeInTheDocument();
     await settle();
-    expect(screen.getByText("Searching…")).toBeInTheDocument();
+    expect(screen.getByText(/^Searching screens/)).toBeInTheDocument();
     expect(screen.queryByText(/matches/)).toBeNull();
 
     await act(async () => answer.resolve(finds()));
@@ -440,7 +440,7 @@ describe("the palette finds staff", () => {
   it("asks for someone with the Team screen alone, and says so in the box", async () => {
     searchPalette.mockResolvedValue(finds({ staff: [person()] }));
     palette(["team"]);
-    expect(box()).toHaveAttribute("placeholder", "Search screens and staff…");
+    expect(box()).toHaveAttribute("placeholder", "Search screens and staff");
 
     type("smith");
     await settle();
@@ -452,7 +452,7 @@ describe("the palette finds staff", () => {
     palette(TEAM_AND_WORK);
     expect(box()).toHaveAttribute(
       "placeholder",
-      "Search screens, staff, clients, projects, jobs and photos…"
+      "Search screens, staff, clients, projects, jobs and photos"
     );
   });
 });
@@ -557,7 +557,7 @@ describe("the palette finds photos", () => {
     palette(["team", "workboard"]);
     expect(box()).toHaveAttribute(
       "placeholder",
-      "Search screens, staff, clients, projects, jobs and photos…"
+      "Search screens, staff, clients, projects, jobs and photos"
     );
   });
 });
@@ -565,7 +565,7 @@ describe("the palette finds photos", () => {
 describe("without the Workboard", () => {
   it("never asks, and says what it did look through", async () => {
     palette([]);
-    expect(box()).toHaveAttribute("placeholder", "Jump to a screen…");
+    expect(box()).toHaveAttribute("placeholder", "Jump to a screen");
 
     type("job 288");
     await settle();

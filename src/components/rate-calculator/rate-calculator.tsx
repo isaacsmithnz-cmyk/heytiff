@@ -171,7 +171,7 @@ function RateCard({ label, k, rec, be, ready, currentRates, patch }: {
             </>}
       </div>
 
-      {!ready ? <div className="rca-rc-wait rca-pulse">waiting for your numbers…</div>
+      {!ready ? <div className="rca-rc-wait rca-pulse">waiting for your numbers</div>
         : be == null ? <div className="rca-rc-wait">awaiting inputs</div>
         : <div className="rca-rc-be"><span className="k">Break-even</span><span className="v">{rate0(be)}<span className="u">/hr</span></span></div>}
 
@@ -421,7 +421,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
     if (chainOwed) { setChainDone(true); setIntroOpen(true); }
   };
 
-  const saveLabel = saveState === "saving" ? "saving…"
+  const saveLabel = saveState === "saving" ? "saving your numbers"
     : saveState === "local" ? "saved locally — will retry"
     : saveState === "saved" ? "saved"
     : "saves automatically";
@@ -550,7 +550,7 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
   /* THE SAVE IS SPLIT FROM WHAT IT SAYS ABOUT ITSELF. This half touches only
      the outside world — the crash buffer and the debounced write — which is
      exactly what an effect may do, and the crash restore below calls it
-     directly for that reason. `persist` is this plus the header's "saving…",
+     directly for that reason. `persist` is this plus the header's "saving your numbers",
      and it belongs to a keystroke. The two used to be one function with a
      `setSaveState` in it, so restoring a buffer meant setting state
      synchronously inside an effect: a `set-state-in-effect` disable, and one

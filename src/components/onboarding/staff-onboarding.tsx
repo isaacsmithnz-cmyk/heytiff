@@ -336,7 +336,7 @@ export function StaffOnboarding({
             disabled={busy !== null}
             className="h-[46px] rounded-[var(--r-button)] bg-[var(--ink)] px-6 text-[14px] font-semibold text-[var(--paper)] transition-colors duration-[120ms] ease-out hover:bg-[var(--ink2)] focus-visible:shadow-[var(--ring)] focus-visible:outline-none disabled:opacity-50"
           >
-            {busy === "save" ? "Saving…" : "Save details"}
+            {busy === "save" ? "Saving your details" : "Save details"}
           </button>
         </div>
       </form>

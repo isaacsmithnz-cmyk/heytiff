@@ -134,7 +134,7 @@ export function CalEdit({
 
   const out = pressed !== null;
   const word = (how: Pressed, words: string) =>
-    pressed === how ? (how.startsWith("delete") ? "Deleting…" : "Saving…") : words;
+    pressed === how ? (how.startsWith("delete") ? "Deleting the event" : "Saving the event") : words;
 
   return (
     <form

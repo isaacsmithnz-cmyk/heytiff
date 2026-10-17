@@ -438,7 +438,7 @@ export function Servicem8Screen({
               extraActions={
                 connected && sync ? (
                   <button className="pbtn ghost" onClick={syncNow} disabled={busy}>
-                    {busy ? "Syncing…" : "Sync now"}
+                    {busy ? "Syncing with ServiceM8" : "Sync now"}
                   </button>
                 ) : null
               }
@@ -516,7 +516,7 @@ function SyncLine({ sync }: { sync: Sm8SyncStatusView }) {
      backfill — which is the state that lasts for days and the one the card
      used to hide — then the ordinary "last synced" line. */
   const subtitle = sync.lastRun?.running
-    ? "Syncing now…"
+    ? "Syncing now"
     : reading.length > 0
       ? `Still reading ${nameList(reading.map((o) => o.label))} across — ${num(readingRows)} row${
           readingRows === 1 ? "" : "s"

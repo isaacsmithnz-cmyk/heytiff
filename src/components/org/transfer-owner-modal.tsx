@@ -168,7 +168,7 @@ export function TransferOwnerModal({
                 onClick={commit}
               >
                 <Icon name="check" size={15} />
-                {busy ? "Handing over…" : "Hand over the account"}
+                {busy ? "Handing over the account" : "Hand over the account"}
               </button>
             </div>
           </div>

@@ -64,11 +64,11 @@ export function StartScreen({
   const createDoor = (primary: boolean) =>
     primary ? (
       <button type="button" className={PRIMARY} disabled={busy} onClick={create}>
-        {busy ? "Creating…" : "Create a company"}
+        {busy ? "Creating the company" : "Create a company"}
       </button>
     ) : (
       <button type="button" className={QUIET} disabled={busy} onClick={create}>
-        {busy ? "Creating…" : "Create a company instead"}
+        {busy ? "Creating the company" : "Create a company instead"}
       </button>
     );
 

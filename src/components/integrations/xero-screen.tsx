@@ -269,7 +269,7 @@ export function XeroScreen({
                   onClick={switchTenant}
                   disabled={busy || !tenantPick || tenantPick === connection.tenantId}
                 >
-                  {busy ? "Switching…" : "Use this organisation"}
+                  {busy ? "Switching organisation" : "Use this organisation"}
                 </button>
               </div>
             </div>

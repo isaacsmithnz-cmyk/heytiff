@@ -136,7 +136,7 @@ const SCAN_COPY = {
   fuel: {
     prompt: "Snap or upload the receipt",
     hint: "Tiff reads the litres, cost & servo for you",
-    reading: "Tiff is reading the receipt…",
+    reading: "Tiff is reading the receipt",
     kept: "Receipt saved — it'll be filed against this financial year",
     lost: "Couldn't store the photo — the entry will save without it.",
     without: "This entry will save without the receipt photo.",
@@ -147,7 +147,7 @@ const SCAN_COPY = {
   service: {
     prompt: "Snap or upload the service invoice",
     hint: "Tiff reads the work done, the cost & the workshop for you",
-    reading: "Tiff is reading the invoice…",
+    reading: "Tiff is reading the invoice",
     kept: "Service record saved — it'll be filed against this vehicle",
     lost: "Couldn't store the record — the entry will save without it.",
     without: "This entry will save without the service record.",

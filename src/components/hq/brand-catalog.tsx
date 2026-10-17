@@ -423,7 +423,7 @@ export function HqBrandCatalog({
             className="hq-search-in"
             type="search"
             value={query}
-            placeholder="Search models or series…"
+            placeholder="Search models or series"
             aria-label="Search models or series"
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -756,7 +756,7 @@ export function HqBrandCatalog({
 
             <div className="hq-pop-actions">
               <button className="hq-btn primary" onClick={save} disabled={busy}>
-                {busy ? "Saving…" : "Save"}
+                {busy ? "Saving the value" : "Save"}
               </button>
               {editing.overridden && onClear ? (
                 <button className="hq-btn ghost" onClick={clear} disabled={busy}>
@@ -820,7 +820,7 @@ export function HqBrandCatalog({
 
             <div className="hq-pop-actions">
               <button className="hq-btn primary" onClick={saveTags} disabled={busy}>
-                {busy ? "Saving…" : "Save tags"}
+                {busy ? "Saving the tags" : "Save tags"}
               </button>
               {tagEditing.overridden && onClear ? (
                 <button className="hq-btn ghost" onClick={clearTags} disabled={busy}>

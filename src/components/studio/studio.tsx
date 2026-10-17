@@ -1063,7 +1063,7 @@ function Home({
                status line is for anyone not looking at shapes. */
             <div className="ds-rlist" aria-busy="true">
               <span className="ds-sr" role="status">
-                Loading your designs…
+                Loading your designs
               </span>
               {[0, 1, 2].map((i) => (
                 <div key={i} className="ds-rcard skel" aria-hidden>

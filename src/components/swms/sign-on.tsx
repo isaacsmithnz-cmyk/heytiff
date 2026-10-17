@@ -99,7 +99,7 @@ function SignOnForm({
           {tooLong ? "That signature is too long to keep. Clear it and sign again." : (error ?? (signed ? "" : "Sign in the box to finish."))}
         </span>
         <button type="button" className="pbtn primary" disabled={busy || !signed || tooLong} onClick={submit}>
-          {busy ? "Signing on…" : own ? "Sign on" : `Sign on ${person.name}`}
+          {busy ? "Signing on" : own ? "Sign on" : `Sign on ${person.name}`}
         </button>
       </div>
     </div>
@@ -161,7 +161,7 @@ function RaiseIssue({
           Cancel
         </button>
         <button type="button" className="pbtn primary" disabled={busy || !text.trim()} onClick={save}>
-          {busy ? "Saving…" : "Tell the crew lead"}
+          {busy ? "Telling the crew lead" : "Tell the crew lead"}
         </button>
       </div>
     </div>
@@ -194,7 +194,7 @@ function SortedOnSite({ personId, onDone }: { personId: string; onDone: () => vo
           }, () => setBusy(false));
         }}
       >
-        {busy ? "Recording…" : "Record it as sorted"}
+        {busy ? "Recording it as sorted" : "Record it as sorted"}
       </button>
     </span>
   );

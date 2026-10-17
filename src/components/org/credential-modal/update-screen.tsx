@@ -158,7 +158,7 @@ export function UpdateScreen({
         {showFields && (
           <Btn kind="primary" onClick={save} disabled={!canSave}>
             {pending
-              ? "Saving…"
+              ? "Saving the record"
               : filingOnly
                 ? "File the document"
                 : kind === "insurance"

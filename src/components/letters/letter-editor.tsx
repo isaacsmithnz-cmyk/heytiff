@@ -214,7 +214,7 @@ export function LetterEditor({
     const id = dirty || !l.id ? await save() : l.id;
     if (!id) return;
     setBusy("pdf");
-    setNote({ text: "Printing the PDF…", bad: false });
+    setNote({ text: "Printing the PDF", bad: false });
     const ok = await downloadPdf(id, `${titleOf(l)}.pdf`);
     setBusy(null);
     setNote(ok ? { text: "PDF downloaded.", bad: false } : { text: "Couldn't print the PDF. Try again.", bad: true });
@@ -250,10 +250,10 @@ export function LetterEditor({
             tools={
               <>
                 <button type="button" className="pbtn ghost" disabled={!!busy} onClick={() => void download()}>
-                  {busy === "pdf" ? "Printing…" : "Download PDF"}
+                  {busy === "pdf" ? "Printing the PDF" : "Download PDF"}
                 </button>
                 <button type="button" className="pbtn" disabled={!!busy || !dirty} onClick={() => void save()}>
-                  {busy === "save" ? "Saving…" : "Save"}
+                  {busy === "save" ? "Saving the letter" : "Save"}
                 </button>
               </>
             }
@@ -360,7 +360,7 @@ export function LetterEditor({
                           Keep
                         </button>
                         <button type="button" className="pbtn ghost dan" disabled={!!busy} onClick={() => void remove()}>
-                          {busy === "delete" ? "Deleting…" : "Delete letter"}
+                          {busy === "delete" ? "Deleting the letter" : "Delete letter"}
                         </button>
                       </div>
                     </>

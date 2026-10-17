@@ -389,7 +389,7 @@ function FileProgress({ item, progress }: { item: Pending; progress?: KbIngestPr
   if (item.phase === "uploading") {
     return (
       <p className="tk-fst work">
-        Uploading…
+        Uploading the document
       </p>
     );
   }
@@ -406,7 +406,7 @@ function FileProgress({ item, progress }: { item: Pending; progress?: KbIngestPr
   if (!progress) {
     return (
       <p className="tk-fst work">
-        Queued for reading…
+        Queued for reading
       </p>
     );
   }

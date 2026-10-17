@@ -422,7 +422,7 @@ export function CommandPalette({
             ref={inputRef}
             value={query}
             onChange={(e) => ask(e.target.value)}
-            placeholder={asksServer ? `Search ${reachSaid}…` : "Jump to a screen…"}
+            placeholder={asksServer ? `Search ${reachSaid}` : "Jump to a screen"}
             aria-label={asksServer ? `Search ${reachSaid}` : "Jump to a screen"}
             autoComplete="off"
             role="combobox"
@@ -442,7 +442,7 @@ export function CommandPalette({
             <div className="cempty" role="presentation">
               <b>
                 {!answered
-                  ? "Searching…"
+                  ? `Searching ${reachSaid}`
                   : asking
                     ? <>Nothing matches &ldquo;{query}&rdquo;</>
                     : <>No screen matches &ldquo;{query}&rdquo;</>}

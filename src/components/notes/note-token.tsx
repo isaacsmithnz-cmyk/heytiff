@@ -74,7 +74,7 @@ function Strip({
   const busy = disabled || dict.recording || dict.transcribing;
   /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
      and from the start of a recording that already has something to show —
-     but NOT on an empty field with nothing heard yet, because "Listening…" is
+     but NOT on an empty field with nothing heard yet, because "Listening" is
      the only thing saying so until the first word lands, and a placeholder
      needs the field it belongs to.
 
@@ -110,7 +110,7 @@ function Strip({
             `.wb2-stripin` so it is the same 30px box, and it rides SIDEWAYS.
 
             Only once there is something to show: the field keeps the frame
-            while the box is empty, because "Listening…" is the only thing
+            while the box is empty, because "Listening" is the only thing
             saying so before the first word lands. */}
         {river ? (
           <LiveWords line className="wb2-stripin" label={label} said={value} text={dict.interim} />
@@ -394,7 +394,7 @@ function FieldPosture({
   const addLine = () => (value.trim() === "" ? line.current?.focus() : onCommit?.());
   /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
      and from the start of a recording that already has something to show —
-     but NOT on an empty field with nothing heard yet, because "Listening…" is
+     but NOT on an empty field with nothing heard yet, because "Listening" is
      the only thing saying so until the first word lands, and a placeholder
      needs the field it belongs to.
 

@@ -798,7 +798,7 @@ function StatusPill({ state, ocr }: { state: RowState; ocr: OcrView }) {
   if (state.status === "uploading") {
     return (
       <span className="tk-pill work">
-        Uploading…
+        Uploading the document
       </span>
     );
   }

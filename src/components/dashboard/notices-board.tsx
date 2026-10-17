@@ -1094,7 +1094,7 @@ export function NoticesBoard({
                 {files.length < MAX_NOTICE_FILES && (
                   <label className="fl-btn ghost" style={{ cursor: "pointer" }}>
                     <Icon name="plus" size={13} />
-                    {uploading ? "Uploading…" : "Attach a photo or file"}
+                    {uploading ? "Uploading the file" : "Attach a photo or file"}
                     <input
                       type="file"
                       multiple

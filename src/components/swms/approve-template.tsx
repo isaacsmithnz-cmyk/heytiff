@@ -35,7 +35,7 @@ export function ApproveTemplate({ onApproved }: { onApproved?: () => void }) {
     <>
       {error && <span className="sw-state bad">{error}</span>}
       <button type="button" className="pbtn primary" disabled={busy} onClick={approve}>
-        {busy ? "Approving…" : "Approve the template"}
+        {busy ? "Approving the template" : "Approve the template"}
       </button>
     </>
   );

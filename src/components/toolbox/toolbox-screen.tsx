@@ -96,7 +96,7 @@ export function ToolboxScreen({ today }: { today: string }) {
                 <Icon name="search" size={14} />
                 <input
                   type="search"
-                  placeholder="Search tools…"
+                  placeholder="Search tools"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   aria-label="Search tools"

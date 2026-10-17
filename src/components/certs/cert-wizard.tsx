@@ -596,7 +596,7 @@ export function CertWizard({
         <p className="sw-state bad">{`This job's quote has ${live.quoteToMark} options and none is marked accepted. Mark the one the client took on the Quote face, then open the certificate again.`}</p>
       )}
       {readingDescription ? (
-        <p className="sw-note">Tiff is reading the job&apos;s description…</p>
+        <p className="sw-note">Tiff is reading the job&apos;s description</p>
       ) : live?.reading.systems.length ? (
         <p className="sw-note">
           {live.equipmentFrom === "quote" ? "Filled in from the accepted quote. Check every row." : "Filled in from the job's description. Check every row against what was installed."}
@@ -774,7 +774,7 @@ export function CertWizard({
             {live.files.some((f) => !f.fromSm8) && <optgroup label="Uploaded here">{fileOptions(false)}</optgroup>}
           </select>
           <button type="button" className="pbtn ghost" disabled={uploading || listBusy} onClick={() => listPicker.current?.click()}>
-            {uploading ? "Uploading…" : "Upload a file"}
+            {uploading ? "Uploading the file" : "Upload a file"}
           </button>
           <input
             ref={listPicker}
@@ -793,11 +793,11 @@ export function CertWizard({
         <p className="sw-note">
           Files emailed to this job in ServiceM8 are listed.{" "}
           <button type="button" className="sw-more cz-inline" disabled={looking} onClick={() => void lookAgain()}>
-            {looking ? "Looking…" : "Look again"}
+            {looking ? "Looking in ServiceM8" : "Look again"}
           </button>
         </p>
         <button type="button" className="pbtn cz-read" disabled={!unread || listBusy || uploading} onClick={() => void readAsked()}>
-          {listBusy ? "Reading…" : "Read the requirements"}
+          {listBusy ? "Reading the requirements" : "Read the requirements"}
         </button>
         {listError && <p className="sw-state bad">{listError}</p>}
         {!listError && unread && !listBusy && <p className="sw-note">Not read yet.</p>}
@@ -994,7 +994,7 @@ export function CertWizard({
             <>
               <SignaturePad label="Draw your signature" onChange={setDrawing} />
               <button type="button" className="pbtn ghost sm cz-add" disabled={!drawing || sigBusy} onClick={() => void keepSignature()}>
-                {sigBusy ? "Saving…" : "Keep this signature"}
+                {sigBusy ? "Saving the signature" : "Keep this signature"}
               </button>
             </>
           )}
@@ -1043,7 +1043,7 @@ export function CertWizard({
   );
 
   if (ctx === null) {
-    body = <p className="sw-note">Reading the job…</p>;
+    body = <p className="sw-note">Reading the job</p>;
   } else if (ctx === "failed") {
     body = <p className="sw-note">Couldn&apos;t open the certificate for this job. Close it and try again.</p>;
     foot = close;
@@ -1116,7 +1116,7 @@ export function CertWizard({
           </button>
         ) : (
           <button type="button" className="pbtn" disabled={!canIssue} onClick={() => void issue()}>
-            {busy ? "Issuing…" : prev ? `Issue version ${prev.version + 1}` : "Issue the certificate"}
+            {busy ? "Issuing the certificate" : prev ? `Issue version ${prev.version + 1}` : "Issue the certificate"}
           </button>
         )}
       </>
@@ -1141,7 +1141,7 @@ export function CertWizard({
             {job?.number && <span className="wb2-shno">{`#${job.number}`}</span>}
             <span className="wb2-jcid">
               <h2 className="wb2-shname">{tabs ? CERT_TITLE : title}</h2>
-              <p className="wb2-jcaddr">{job?.address ?? (ctx === null ? "Reading the job…" : "No address on the job")}</p>
+              <p className="wb2-jcaddr">{job?.address ?? (ctx === null ? "Reading the job" : "No address on the job")}</p>
             </span>
           </div>
           <button type="button" className="wb2-ico" aria-label="Close the certificate" onClick={askClose}>

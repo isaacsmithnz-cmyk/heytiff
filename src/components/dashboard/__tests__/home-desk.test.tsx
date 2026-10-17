@@ -32,7 +32,7 @@ import { typedAbout, type RecordTask, type TaskAbout, type TaskRecord } from "@/
    diary's box is the real one, and its Tiff button opens only the modal. */
 jest.mock("@/components/notes/note-token", () => ({
   NoteToken: ({ placeholder }: { placeholder?: string }) => (
-    <button aria-label={placeholder ?? "Add to the diary…"} />
+    <button aria-label={placeholder ?? "Add to the diary"} />
   ),
 }));
 const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
@@ -476,7 +476,7 @@ describe("the faces", () => {
     expect(page).not.toBeNull();
     const views = within(face("calendar")).getByRole("group", { name: "View" });
     expect(within(views).getByRole("button", { name: "4 weeks" })).toHaveAttribute("aria-pressed", "true");
-    const add = within(face("calendar")).getByRole("textbox", { name: "Add to today…" });
+    const add = within(face("calendar")).getByRole("textbox", { name: "Add to today" });
     expect(add.closest(".hd-cal-side")).not.toBeNull();
     const row = screen.getByRole("tablist", { name: "Home" });
     expect(row.contains(views)).toBe(false);

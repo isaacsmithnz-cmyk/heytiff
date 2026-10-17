@@ -233,7 +233,7 @@ describe("adding a vehicle from its rego certificate", () => {
     readRegoCertificate.mockReturnValue(new Promise((r) => (finish = r)));
     const { user, onClose } = setup();
     await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
-    await screen.findByText("Reading cert.jpg…");
+    await screen.findByText("Reading cert.jpg");
     await user.keyboard("{Escape}");
     expect(onClose).not.toHaveBeenCalled();
 

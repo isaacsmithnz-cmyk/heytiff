@@ -23,7 +23,7 @@ export function ApproveWording() {
     <>
       {error && <span className="sw-state bad">{error}</span>}
       <button type="button" className="pbtn primary" disabled={busy} onClick={approve}>
-        {busy ? "Approving…" : "Approve the wording"}
+        {busy ? "Approving the wording" : "Approve the wording"}
       </button>
     </>
   );

@@ -300,7 +300,7 @@ export function IdentityScreen({
           </button>
         )}
         <Btn kind="primary" onClick={save} disabled={!canSave}>
-          {pending ? "Saving…" : adding ? "Add card" : "Save"}
+          {pending ? "Saving the card" : adding ? "Add card" : "Save"}
         </Btn>
       </div>
     </>

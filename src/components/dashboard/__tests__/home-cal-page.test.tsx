@@ -258,24 +258,24 @@ describe("the box", () => {
   it("adds to today while nothing is picked, the first thing from today in the panel or not, and Enter saves", async () => {
     const user = userEvent.setup();
     draw();
-    expect(field()).toHaveAccessibleName("Add to today…");
+    expect(field()).toHaveAccessibleName("Add to today");
     expect(box).toMatchObject({ day: TODAY, enter: "save" });
     await user.click(viewBtn("Month"));
     expect(heading()).toHaveTextContent("School holidays");
-    expect(box).toMatchObject({ placeholder: "Add to today…", day: TODAY });
+    expect(box).toMatchObject({ placeholder: "Add to today", day: TODAY });
   });
 
   it("names the day picked, or else the first day of the thing picked", async () => {
     const user = userEvent.setup();
     draw();
     await user.click(within(agenda()).getByRole("button", { name: "Toolbox talk" }));
-    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct…");
+    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct");
     expect(box?.day).toBe("2026-10-01");
     await user.click(within(agenda()).getByRole("button", { name: "Fri 25 – Sun 27 Sept, nothing on" }));
-    expect(field()).toHaveAccessibleName("Add to Fri 25 Sept…");
+    expect(field()).toHaveAccessibleName("Add to Fri 25 Sept");
     expect(box?.day).toBe("2026-09-25");
     await user.click(within(agenda()).getByRole("button", { name: "Thu 24 Sept" }));
-    expect(field()).toHaveAccessibleName("Add to today…");
+    expect(field()).toHaveAccessibleName("Add to today");
   });
 
   /* The page's own choice is not a day anyone asked to add to — until it
@@ -284,10 +284,10 @@ describe("the box", () => {
     const user = userEvent.setup();
     draw();
     await user.click(viewBtn("Month"));
-    expect(field()).toHaveAccessibleName("Add to today…");
+    expect(field()).toHaveAccessibleName("Add to today");
     await user.click(screen.getByRole("button", { name: "School holidays, Mon 28 Sept – Fri 9 Oct" }));
     expect(heading()).toHaveTextContent("School holidays");
-    expect(field()).toHaveAccessibleName("Add to Mon 28 Sept…");
+    expect(field()).toHaveAccessibleName("Add to Mon 28 Sept");
   });
 });
 
@@ -402,7 +402,7 @@ describe("4 weeks", () => {
     expect(run).toHaveTextContent("25 – 27");
     await user.click(within(agenda()).getByText("Fri – Sun, nothing on"));
     expect(run).toHaveAttribute("aria-pressed", "true");
-    expect(field()).toHaveAccessibleName("Add to Fri 25 Sept…");
+    expect(field()).toHaveAccessibleName("Add to Fri 25 Sept");
     // Sunday, chosen in Month, is in the run: 4 weeks says so, and a press keeps it
     await user.click(viewBtn("Month"));
     await user.click(screen.getByRole("button", { name: "Sun 27 Sept" }));
@@ -410,7 +410,7 @@ describe("4 weeks", () => {
     const again = within(agenda()).getByRole("button", { name: "Fri 25 – Sun 27 Sept, nothing on" });
     expect(again).toHaveAttribute("aria-pressed", "true");
     await user.click(again);
-    expect(field()).toHaveAccessibleName("Add to Sun 27 Sept…");
+    expect(field()).toHaveAccessibleName("Add to Sun 27 Sept");
   });
 });
 
@@ -608,7 +608,7 @@ describe("a day, picked", () => {
     expect(listed()).toEqual(["School holidays", "Toolbox talk, 6:45 am"]);
     expect(screen.getByRole("button", { name: "Thu 1 Oct" })).toHaveAttribute("aria-pressed", "true");
     expect(cell("Thu 1 Oct")).toHaveAttribute("data-picked");
-    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct…");
+    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct");
   });
 
   it('says "Nothing on." for a day with nothing on it', async () => {
@@ -653,7 +653,7 @@ describe("a day, picked", () => {
     await user.keyboard("{Enter}");
     expect(heading()).toHaveTextContent("Thursday 15 October");
     expect(day).toHaveFocus();
-    expect(field()).toHaveAccessibleName("Add to Thu 15 Oct…");
+    expect(field()).toHaveAccessibleName("Add to Thu 15 Oct");
   });
 
   it("offers no day outside the twelve months, where Month's whole weeks reach past them", async () => {
@@ -667,7 +667,7 @@ describe("a day, picked", () => {
     expect(within(aug31).queryByRole("button")).toBeNull();
     await user.click(aug31);
     expect(heading()).toHaveTextContent("School holidays");
-    expect(field()).toHaveAccessibleName("Add to today…");
+    expect(field()).toHaveAccessibleName("Add to today");
     // and the days in view of another month that are on it are the calendar's
     expect(screen.getByRole("button", { name: "Thu 1 Oct" })).toBeInTheDocument();
   });
@@ -705,7 +705,7 @@ describe("a day, picked", () => {
     expect(within(panel()).getByText("Nothing on.")).toBeInTheDocument();
     await user.click(filter(/^Events/));
     expect(listed()).toEqual(["Toolbox talk, 6:45 am"]);
-    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct…");
+    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct");
   });
 
   it("is one choice across the views: a day picked in Month is 4 weeks' and Year's", async () => {
@@ -812,7 +812,7 @@ describe("Save", () => {
     await user.click(viewBtn("Month"));
     await user.click(screen.getByRole("button", { name: "Later" }));
     await user.click(screen.getByRole("button", { name: "Wed 14 Oct" }).closest(".hd-cal-mc")!);
-    expect(box).toMatchObject({ placeholder: "Add to Wed 14 Oct…", day: "2026-10-14" });
+    expect(box).toMatchObject({ placeholder: "Add to Wed 14 Oct", day: "2026-10-14" });
     mockAdd.mockResolvedValueOnce({ ok: true, id: "e9", day: "2026-10-14" });
     await act(async () => {
       await box!.save("Team barbecue");
@@ -825,7 +825,7 @@ describe("Save", () => {
     expect(listed).toHaveAttribute("data-fresh");
     expect(screen.getByRole("button", { name: "Wed 14 Oct: Team barbecue" })).toHaveAttribute("data-fresh");
     expect(screen.getByRole("button", { name: "Wed 14 Oct" })).toHaveAttribute("aria-pressed", "true");
-    expect(box).toMatchObject({ placeholder: "Add to Wed 14 Oct…", day: "2026-10-14" });
+    expect(box).toMatchObject({ placeholder: "Add to Wed 14 Oct", day: "2026-10-14" });
     // and the next goes on the same day
     mockAdd.mockResolvedValueOnce({ ok: true, id: "e10", day: "2026-10-14" });
     await act(async () => {
@@ -848,7 +848,7 @@ describe("Save", () => {
     rerender(<HomeCalendarPage cal={calendar({ events: [...ROWS.events, check] })} />);
     expect(within(agenda()).getByRole("button", { name: "Ladder check" })).toHaveAttribute("aria-pressed", "true");
     expect(within(agenda()).getByRole("button", { name: "Toolbox talk" })).toHaveAttribute("aria-pressed", "false");
-    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct…");
+    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct");
   });
 
   /* His calLand: what landed is brought into sight, once, as soon as the

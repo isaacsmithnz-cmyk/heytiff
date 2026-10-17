@@ -241,7 +241,7 @@ export function SectionCard({
                     onClick={save}
                   >
                     <Icon name="check" size={14} />
-                    {saving ? "Saving…" : "Save changes"}
+                    {saving ? "Saving the changes" : "Save changes"}
                   </button>
                 </>
               ) : (
@@ -282,7 +282,7 @@ export function SectionCard({
                     onClick={save}
                   >
                     <Icon name="check" size={14} />
-                    {saving ? "Saving…" : "Save changes"}
+                    {saving ? "Saving the changes" : "Save changes"}
                   </button>
                 </>
               ) : (

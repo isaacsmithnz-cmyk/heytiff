@@ -232,7 +232,7 @@ export function JobChecklistFace({
             setText(e.target.value);
             setSub("");
           }}
-          placeholder="Add to the list…"
+          placeholder="Add to the list"
           aria-label="Add to the list"
         />
         {kind === "material" && (
@@ -378,7 +378,7 @@ export function JobChecklistFace({
       {!anything && (
         <p className="int-hint">
           {loading && items === null
-            ? "Reading it from the mirror…"
+            ? "Reading the list from the mirror"
             : "Nothing on the checklist yet — type the first row above."}
         </p>
       )}

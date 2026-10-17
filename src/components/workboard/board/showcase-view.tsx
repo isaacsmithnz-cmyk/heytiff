@@ -229,7 +229,7 @@ export function ShowcaseView({
   if (photos === null)
     return (
       <div className="wb2-show">
-        <p className="int-hint">Opening the gallery…</p>
+        <p className="int-hint">Opening the gallery</p>
       </div>
     );
 

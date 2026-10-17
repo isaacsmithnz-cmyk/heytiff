@@ -399,7 +399,7 @@ export function NewJobModal({ onClose }: { onClose: () => void }) {
             <>
               <span className="njob-charge">{JOB_WORDS.card.charges}</span>
               <button className="pbtn" disabled={!canCreate} onClick={() => void create()}>
-                {busy ? "Adding it to ServiceM8…" : "Create job"}
+                {busy ? "Adding the job to ServiceM8" : "Create job"}
               </button>
             </>
           )}

@@ -484,7 +484,7 @@ export function ProjectTripSheet({
                       }}
                     >
                       <option value="">
-                        {visit.techs.length ? "Add another…" : "Nobody yet — pick one"}
+                        {visit.techs.length ? "Add another technician" : "Nobody yet — pick one"}
                       </option>
                       {unassigned.map((s) => (
                         <option key={s.id} value={s.id}>
@@ -655,7 +655,7 @@ export function ProjectTripSheet({
             value={notesText}
             onChange={setNotesText}
             rows={3}
-            placeholder="Gate codes, who to ask for, what to watch out for…"
+            placeholder="Gate codes, who to ask for, what to watch out for"
           />
           {/* Save keeps it on the trip; Go hands the same words to the note
               brain, which is what the pill does. */}

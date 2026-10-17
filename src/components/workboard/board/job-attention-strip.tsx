@@ -301,7 +301,7 @@ function TaskDraft({
           onChange={(e) => setAssigneeId(e.target.value)}
           aria-label="Who the task is for"
         >
-          <option value="">Say who…</option>
+          <option value="">Say who</option>
           {assignable.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}

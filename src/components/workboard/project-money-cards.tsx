@@ -641,7 +641,7 @@ export function ScopeCard({
       {manage && (
         <AddScopeRow
           busy={busy}
-          placeholder={kind === "inclusion" ? "Supply & install…" : "Electrical mains upgrade…"}
+          placeholder={kind === "inclusion" ? "Supply & install" : "Electrical mains upgrade"}
           onAdd={(label) => run(() => addScopeItem(project.id, kind, label))}
         />
       )}

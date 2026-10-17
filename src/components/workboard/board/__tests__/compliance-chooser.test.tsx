@@ -55,7 +55,7 @@ const open = (over: Partial<Parameters<typeof ComplianceChooser>[0]> = {}) => {
 
 it("says what it is doing while it reads", () => {
   open({ onLoad: () => new Promise(() => {}) });
-  expect(screen.getByText("Reading the licences and insurance…")).toBeInTheDocument();
+  expect(screen.getByText("Reading the licences and insurance")).toBeInTheDocument();
 });
 
 it("says a failed read failed", async () => {

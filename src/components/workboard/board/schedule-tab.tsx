@@ -604,7 +604,7 @@ export function ScheduleTab({
           </div>
         )}
 
-        {loading && !current && <p className="wb2-hint wb2-schload">Reading the day…</p>}
+        {loading && !current && <p className="wb2-hint wb2-schload">Reading the day</p>}
 
         {day && day.lanes.length === 0 && (
           <div className="wb2-empty">

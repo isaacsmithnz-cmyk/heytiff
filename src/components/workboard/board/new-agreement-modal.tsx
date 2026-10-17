@@ -268,11 +268,11 @@ export function NewAgreementModal({
               <span className="wb2-sect">Find the job it grew out of</span>
               <input
                 className="wb2-fi"
-                placeholder="Job number, client name or address…"
+                placeholder="Job number, client name or address"
                 value={q}
                 onChange={(e) => search(e.target.value)}
               />
-              {searching && <p className="wb2-hint">Searching the mirror…</p>}
+              {searching && <p className="wb2-hint">Searching the mirror</p>}
               {hits.map((h) => (
                 <button key={h.remoteId} className="wb2-lpr as-btn" onClick={() => pick(h)}>
                   <span className={"wb2-chip" + (h.status === "Completed" ? " ok" : "")}>
@@ -295,7 +295,7 @@ export function NewAgreementModal({
                   </span>
                   {!voiceless && (
                     <button className="pbtn ghost" disabled={busy || analysing} onClick={analyse}>
-                      {analysing ? "Reading the job…" : "Let Tiff read the job"}
+                      {analysing ? "Reading the job" : "Let Tiff read the job"}
                     </button>
                   )}
                 </div>

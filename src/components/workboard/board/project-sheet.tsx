@@ -383,7 +383,7 @@ export function ProjectSheet({
                 {merged.past.length > 0 ? (
                   rowList(merged.past, true)
                 ) : diaryKnown === null && !diaryFailed ? (
-                  <p className="wb2-hint">Reading the ServiceM8 diary…</p>
+                  <p className="wb2-hint">Reading the ServiceM8 diary</p>
                 ) : (
                   <p className="wb2-hint">
                     {linkedJobs.length > 0

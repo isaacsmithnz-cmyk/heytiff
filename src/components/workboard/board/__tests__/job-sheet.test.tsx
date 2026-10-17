@@ -2346,7 +2346,7 @@ describe("the Money face", () => {
     await openMoney();
 
     expect(document.querySelector(".wb2-jmoney")).toBeNull();
-    expect(screen.getByText("Reading the figures…")).toBeInTheDocument();
+    expect(screen.getByText("Reading the figures")).toBeInTheDocument();
 
     land(record({ family: familyMoney() }));
     expect(await screen.findByText("$31,340.35")).toBeInTheDocument();

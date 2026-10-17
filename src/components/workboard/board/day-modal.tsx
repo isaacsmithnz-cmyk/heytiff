@@ -271,7 +271,7 @@ export function DayModal({
                     );
                   }}
                 >
-                  <option value="">Crew — assign…</option>
+                  <option value="">Assign the crew</option>
                   {staff.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}

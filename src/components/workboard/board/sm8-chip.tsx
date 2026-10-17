@@ -58,7 +58,7 @@ export function Sm8Chip({ sm8 }: { sm8: Sm8Health | null | undefined }) {
   const freshness = sm8.attention
     ? "ServiceM8 needs attention"
     : sm8.running
-      ? "ServiceM8 syncing…"
+      ? "Syncing with ServiceM8"
       : hydrated
         ? `Synced ${syncedAgo(sm8.syncedAt)}`
         : "Synced";

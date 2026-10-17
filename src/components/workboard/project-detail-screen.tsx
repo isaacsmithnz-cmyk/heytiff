@@ -427,7 +427,7 @@ export function ProjectDetailScreen({
             kind="progress"
             title="Site journal"
             sub="What was done and found, dated as it happened — spoken or typed."
-            placeholder="Rough-in done in the roof, two penetrations to seal Monday…"
+            placeholder="Rough-in done in the roof, two penetrations to seal Monday"
           />
 
           <JournalCard
@@ -438,7 +438,7 @@ export function ProjectDetailScreen({
             kind="commissioning"
             title="Commissioning"
             sub="Readings and settings, as recorded on site — the handover sheet reads these."
-            placeholder="Suction 8.2 bar, superheat 6.1 K, all zones balanced…"
+            placeholder="Suction 8.2 bar, superheat 6.1 K, all zones balanced"
             headerExtra={
               <a
                 className="pbtn ghost"
@@ -829,7 +829,7 @@ function DocumentsCard({
         </div>
         <label className="pbtn ghost" style={{ marginLeft: "auto", cursor: "pointer" }}>
           <Icon name="upload" size={15} />
-          {uploading ? "Uploading…" : "Upload"}
+          {uploading ? "Uploading the file" : "Upload"}
           <input
             type="file"
             accept="image/*,application/pdf"
@@ -1298,7 +1298,7 @@ function ChecklistSection({
             className="wb-inline"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="New item…"
+            placeholder="New item"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter" && label.trim()) {
@@ -1581,10 +1581,10 @@ function AttachJobModal({
             <input
               value={query}
               onChange={(e) => doSearch(e.target.value)}
-              placeholder="1042, or “Smith”…"
+              placeholder="1042, or “Smith”"
             />
           </label>
-          {searching && <p className="int-hint">Searching…</p>}
+          {searching && <p className="int-hint">Searching ServiceM8</p>}
           {hits.map((h) => (
             <button
               key={h.remoteId}
@@ -1691,7 +1691,7 @@ function AddEquipmentModal({
           }}
         />
       </label>
-      {scanning && <p className="int-hint">Reading the nameplate…</p>}
+      {scanning && <p className="int-hint">Reading the nameplate</p>}
       {scanNote && <p className="int-hint">{scanNote}</p>}
       {photo && (
         <label className="wb2-carry" style={{ marginBottom: 10 }}>

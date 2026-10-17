@@ -65,7 +65,7 @@ export function JobSummaryFace({
           </p>
         )}
         {loading && !detail ? (
-          <p className="int-hint">Reading it from the mirror…</p>
+          <p className="int-hint">Reading the job from the mirror</p>
         ) : what ? (
           <>
             <p className={"jcl-what" + (folds && !open ? " folded" : "")}>{what}</p>

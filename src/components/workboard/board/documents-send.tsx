@@ -107,7 +107,7 @@ function SendBar({
       )}
       {sm8 && onSendToSm8 && (
         <button type="button" className="pbtn ghost" disabled={sending} onClick={() => void sendToSm8()}>
-          {sending ? "Sending to ServiceM8…" : "Send to ServiceM8"}
+          {sending ? "Sending to ServiceM8" : "Send to ServiceM8"}
         </button>
       )}
       <button type="button" className="pbtn" disabled={sending} onClick={onEmail}>
@@ -201,7 +201,7 @@ function EmailForm({
         {failed ? (
           <p className="int-hint">Couldn&apos;t start the email. Close the card and open it again.</p>
         ) : draft === null ? (
-          <p className="int-hint">Finding who to send it to…</p>
+          <p className="int-hint">Finding who to send it to</p>
         ) : (
           <>
             <span className={`wb2-maillbl${draft.contacts.length > 0 ? " people" : ""}`}>To</span>
@@ -269,7 +269,7 @@ function EmailForm({
           </button>
           <button type="submit" className="pbtn" disabled={busy || !draft || !draft.ready || names.length === 0}>
             <Icon name="send" size={15} />
-            {busy ? "Sending email…" : "Send email"}
+            {busy ? "Sending the email" : "Send email"}
           </button>
         </div>
       </form>

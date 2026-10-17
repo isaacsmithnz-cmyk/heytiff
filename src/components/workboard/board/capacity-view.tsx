@@ -431,7 +431,7 @@ export function CapacityView({
       onClose={closeDetail}
     >
       <div className="wb2-scdlist">
-        {!detailNow && <p className="wb2-hint wb2-schload">Reading the day…</p>}
+        {!detailNow && <p className="wb2-hint wb2-schload">Reading the day</p>}
         {detailNow && detailJobs.length === 0 && (
           <p className="wb2-hint wb2-schload">Nothing booked.</p>
         )}
@@ -478,7 +478,7 @@ export function CapacityView({
       {head}
 
       <Split aside={aside}>
-        {loading && !current && <p className="wb2-hint wb2-schload">Reading the weeks…</p>}
+        {loading && !current && <p className="wb2-hint wb2-schload">Reading the weeks</p>}
 
         {days && !scored && (
           <div className="wb2-scmnone">
@@ -697,7 +697,7 @@ function CrewEditor({
             Cancel
           </button>
           <button type="button" className="fl-btn primary" disabled={saving} onClick={save}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving the hours" : "Save"}
           </button>
         </div>
       </div>

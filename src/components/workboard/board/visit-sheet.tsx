@@ -826,7 +826,7 @@ export function VisitSheet({
                             }}
                           >
                             <option value="">
-                              {visit.techs.length ? "Add another…" : "Nobody yet — pick one"}
+                              {visit.techs.length ? "Add another technician" : "Nobody yet — pick one"}
                             </option>
                             {unassigned.map((s) => (
                               <option key={s.id} value={s.id}>
@@ -1036,7 +1036,7 @@ export function VisitSheet({
                       {jobHits !== null &&
                         (jobHits.length === 0 ? (
                           <p className="wb2-hint">
-                            {searching ? "Searching…" : "Nothing in ServiceM8 matches that."}
+                            {searching ? "Searching ServiceM8" : "Nothing in ServiceM8 matches that."}
                           </p>
                         ) : (
                           jobHits.slice(0, 6).map((j) => (
@@ -1184,8 +1184,8 @@ export function VisitSheet({
                       onCommit={commitDraft}
                       placeholder={
                         noteLines.length
-                          ? "Add another…"
-                          : "Gate codes, who to ask for, what to watch out for…"
+                          ? "Add another note"
+                          : "Gate codes, who to ask for, what to watch out for"
                       }
                     />
                     <div className="wb2-noteact">
@@ -1229,8 +1229,8 @@ export function VisitSheet({
                             disabled={busy}
                             placeholder={
                               savedNotes.length
-                                ? "Add another…"
-                                : "Gate codes, who to ask for, what to watch out for…"
+                                ? "Add another note"
+                                : "Gate codes, who to ask for, what to watch out for"
                             }
                           />
                         )}

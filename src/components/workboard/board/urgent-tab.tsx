@@ -173,7 +173,7 @@ export function UrgentTab({
             );
           }}
         >
-          <option value="">Assign…</option>
+          <option value="">Assign someone</option>
           {staff.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}

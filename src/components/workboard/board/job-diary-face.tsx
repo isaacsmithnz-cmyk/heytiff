@@ -282,7 +282,7 @@ export function JobDiaryFace({
 
       <div id={`jcdfp-${filter}`} role="tabpanel" aria-labelledby={`jcdf-${filter}`}>
         {loading && entries.length === 0 ? (
-          <p className="int-hint">Reading it from the mirror…</p>
+          <p className="int-hint">Reading the diary from the mirror</p>
         ) : entries.length === 0 ? (
           <p className="int-hint">{emptyStoryLine(moneyVisible)}</p>
         ) : shown.length === 0 ? (
@@ -361,7 +361,7 @@ function Pen({
         value={draft}
         onChange={setDraft}
         onCommit={commit}
-        placeholder="Write on the job, or say it…"
+        placeholder="Write on the job, or say it"
       />
       {notesSm8 && (
         <div className="wb2-evreply">

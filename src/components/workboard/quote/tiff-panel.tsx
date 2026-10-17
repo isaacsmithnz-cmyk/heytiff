@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { Dot } from "@/components/parts/state";
+import { Fade } from "@/components/parts/fade";
 import { Icon } from "@/components/shell/icon";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
@@ -471,7 +472,7 @@ export function TiffPanel({
                       />
                       <span>
                         <b>{s.label}</b>
-                        <small>{s.text.length > 140 ? `${s.text.slice(0, 140)}…` : s.text}</small>
+                        <small><Fade lines={2}>{s.text}</Fade></small>
                       </span>
                     </label>
                   </li>

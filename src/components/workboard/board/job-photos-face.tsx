@@ -113,7 +113,7 @@ export function JobPhotosFace({
 
       {photos === null || photos.length === 0 ? (
         <p className="int-hint">
-          {loading && photos === null ? "Reading the files…" : "No photos on this job."}
+          {loading && photos === null ? "Reading the photos" : "No photos on this job."}
         </p>
       ) : (
         days.map((day) => {

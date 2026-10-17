@@ -919,7 +919,7 @@ export function JobSheet({
     : sm8.attention
       ? "ServiceM8 needs attention"
       : sm8.running
-        ? "ServiceM8 syncing…"
+        ? "Syncing with ServiceM8"
         : hydrated
           ? `ServiceM8, synced ${syncedAgo(sm8.syncedAt)}`
           : "ServiceM8";
@@ -1724,7 +1724,7 @@ export function JobSheet({
                       })()}
                     />
                   ) : (
-                    <p className="int-hint">Reading the figures…</p>
+                    <p className="int-hint">Reading the figures</p>
                   );
 
                 /* A BLOCK THAT HAS OPENED ITS LEDGER KEEPS THE FULL WIDTH.
@@ -2013,7 +2013,7 @@ export function JobSheet({
                   emptyWords={above.length > 0 || detail.queue ? "" : "Nobody's been on site yet, and nothing is booked."}
                 />
               ) : (
-                <p className="int-hint">{loading ? "Reading it from the mirror…" : "Nobody's been on site yet, and nothing is booked."}</p>
+                <p className="int-hint">{loading ? "Reading the visits from the mirror" : "Nobody's been on site yet, and nothing is booked."}</p>
               )}
             </>
           )}
@@ -2586,7 +2586,7 @@ export function JobSheet({
                   <>
                     <span className="wb2-chip">Make it a Work Order in ServiceM8?</span>
                     <button type="button" className="wb2-chip" disabled={wo === "busy"} onClick={() => void pressWorkOrder()}>
-                      {wo === "busy" ? "Making it…" : "Yes"}
+                      {wo === "busy" ? "Making the Work Order" : "Yes"}
                     </button>
                     {wo === "ask" && (
                       <button type="button" className="wb2-chip" onClick={() => setWo(null)}>

@@ -353,11 +353,11 @@ export function AgreementSheet({
               </label>
               <label className="wb2-fl wide">
                 Access notes
-                <NoteToken as="field" label="access notes" value={accessNotes} onChange={setAccessNotes} rows={2} placeholder="keys, roof access, who to ask for…" />
+                <NoteToken as="field" label="access notes" value={accessNotes} onChange={setAccessNotes} rows={2} placeholder="keys, roof access, who to ask for" />
               </label>
               <label className="wb2-fl wide">
                 Site requirements
-                <NoteToken as="field" label="site requirements" value={siteRequirements} onChange={setSiteRequirements} rows={2} placeholder="inductions, white card, PPE…" />
+                <NoteToken as="field" label="site requirements" value={siteRequirements} onChange={setSiteRequirements} rows={2} placeholder="inductions, white card, PPE" />
               </label>
               <label className="wb2-fl wide">
                 Agreement notes

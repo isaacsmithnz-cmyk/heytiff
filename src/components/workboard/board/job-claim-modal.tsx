@@ -128,7 +128,7 @@ export function JobClaimModal({
 
         <div className="wb2-clbody">
           {loading && !detail ? (
-            <p className="int-hint">Reading the invoice…</p>
+            <p className="int-hint">Reading the invoice</p>
           ) : (
             <>
               {materials.length > 0 && (

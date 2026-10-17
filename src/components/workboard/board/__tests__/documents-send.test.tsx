@@ -62,7 +62,7 @@ describe("the bar", () => {
     footer({ sm8: "live", onSendToSm8 });
     await userEvent.click(screen.getByRole("button", { name: "Send to ServiceM8" }));
     expect(onSendToSm8).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Sending to ServiceM8…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sending to ServiceM8" })).toBeDisabled();
     // nothing else leaves the footer while it waits
     expect(screen.getByRole("button", { name: "Email documents" })).toBeDisabled();
     finish();

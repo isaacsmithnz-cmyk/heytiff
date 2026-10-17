@@ -86,8 +86,3 @@ export function flattenOnWhite(hex: string, alpha: number): string {
       .toUpperCase()
   );
 }
-
-/** The mark's gradient, as the two stops every renderer of it uses.
-    Kept beside the palette because an email cannot draw it — it links the
-    PNG instead — and the page template can. */
-export const MARK_GRADIENT = [BRAND.teal, BRAND.blue] as const;

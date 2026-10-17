@@ -4,14 +4,11 @@ import { AdminIndex } from "../admin-index";
 /* The index is the section's gate made visible: which rows a viewer gets is
    the same question as what they are allowed to open, so every case here is a
    role/capability case. The "no link" assertions matter as much as the
-   positive ones — a coming tool that quietly became clickable would take an
-   admin to a 404, and the two routes this page used to offer are gone.
+   positive ones — the two routes this page used to offer are gone.
 
-   EVERY ROW IS A LINK NOW. A planned tool used to be a full row wearing a
-   "Planned" tag; measured on 2026-08-12 that was seven of an owner's twelve
-   rows and 496px of 1060px — a settings index that was mostly doors which
-   don't open. What is coming is one line per group instead (`.adm-coming`),
-   so "is it a row?" and "can I open it?" are the same question again. */
+   EVERY ROW IS A LINK. A planned tool was first a row wearing a "Planned"
+   tag, then a name in a "Coming" line; on 2026-10-18 the seven planned tools
+   went altogether, because they promised things that don't exist. */
 
 const linkHrefs = () =>
   Array.from(document.querySelectorAll("a")).map((a) => a.getAttribute("href"));
@@ -28,19 +25,6 @@ describe("AdminIndex", () => {
       "href",
       "/dashboard/admin/rate-calculator",
     );
-    expect(screen.queryByText("Nothing here for you yet")).not.toBeInTheDocument();
-  });
-
-  it("names the owner-only tools that are coming, without offering rows", () => {
-    render(<AdminIndex isOwner canFinancials kbQueueCount={0} />);
-
-    const coming = document.querySelectorAll(".adm-coming");
-    const text = Array.from(coming, (c) => c.textContent).join(" ");
-    for (const title of ["Password vault", "Billing", "Usage analytics"]) {
-      expect(text).toContain(title);
-    }
-    // named, but not as something you can click or mistake for a row
-    expect(document.querySelectorAll(".adm-row")).toHaveLength(9);
   });
 
   it("keeps the owner's doors out of an admin's sight", () => {
@@ -52,24 +36,7 @@ describe("AdminIndex", () => {
       "/dashboard/admin/rate-calculator",
     );
     expect(screen.queryByText("Organisation")).not.toBeInTheDocument();
-    expect(screen.queryByText("Password vault")).not.toBeInTheDocument();
-    expect(screen.queryByText("Billing")).not.toBeInTheDocument();
-    expect(screen.queryByText("Usage analytics")).not.toBeInTheDocument();
-    expect(screen.queryByText("Owner")).not.toBeInTheDocument();
-  });
-
-  it("still lists the manager tools that are coming", () => {
-    render(<AdminIndex isOwner={false} canFinancials kbQueueCount={0} />);
-
-    const text = Array.from(document.querySelectorAll(".adm-coming"), (c) => c.textContent).join(" ");
-    for (const title of [
-      "Compliance",
-      "Documents",
-      "Licences & insurances",
-      "Training & apprentices",
-    ]) {
-      expect(text).toContain(title);
-    }
+    expect(screen.queryByText("Integrations")).not.toBeInTheDocument();
   });
 
   it("gives an owner nine rows, all of them openable", () => {
@@ -91,10 +58,10 @@ describe("AdminIndex", () => {
       "/dashboard/admin/price-book",
       "/dashboard/admin/tax",
     ]);
-    // the seven that are coming are named in two lines, not seven rows
     expect(document.querySelectorAll(".adm-row")).toHaveLength(9);
-    expect(document.querySelectorAll(".adm-coming")).toHaveLength(2);
+    // no planned tools, as a row or as a line
     expect(screen.queryByText("Planned")).not.toBeInTheDocument();
+    expect(screen.queryByText("Coming")).not.toBeInTheDocument();
   });
 
   /* Integrations is owner-INTRINSIC, not `financials`: one Xero grant reaches
@@ -114,15 +81,13 @@ describe("AdminIndex", () => {
 
   /* This asserted an EMPTY page for an admin with neither gated item — and
      that page no longer exists, because the knowledge queue is editorial
-     rather than gated and every admin holds it. The empty state's code path
-     survives for a future where all rows are gated; what matters here is
-     that this viewer still sees none of the doors they don't hold. */
+     rather than gated and every admin holds it. What matters here is that
+     this viewer still sees none of the doors they don't hold. */
   it("gives an ungranted admin the knowledge queue and nothing gated", () => {
     render(<AdminIndex isOwner={false} canFinancials={false} kbQueueCount={0} />);
 
     /* the business's own templates, readable by any admin */
     expect(linkHrefs()).toEqual(["/dashboard/admin/templates", "/dashboard/admin/letters", "/dashboard/admin/knowledge"]);
-    expect(screen.queryByText("Nothing here for you yet")).not.toBeInTheDocument();
     expect(screen.queryByText("Rate Calculator")).not.toBeInTheDocument();
     expect(screen.queryByText("Organisation")).not.toBeInTheDocument();
   });

@@ -574,13 +574,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .topbar .me-div { height:1px; margin:4px 8px; background:var(--on-ink-tint); }
 .fg .topbar .sep { width:1px; height:30px; background:var(--on-ink-tint); }
 
-/* page-level tabs (Time & Pay, Assets) */
-.fg .ptabs { display:inline-flex; gap:4px; padding:4px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); margin-bottom:24px; }
-.fg .ptab { padding:8px 16px; border-radius:var(--r-button); font-size:14px; font-weight:700; color:var(--gray500,var(--q)); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .ptab:hover { color:var(--ink,var(--ink)); }
-.fg .ptab.on { background:var(--ink,var(--ink)); color:var(--paper); }
-.fg .ptabpanel { display:none; }
-.fg .ptabpanel.on { display:block; }
 .fg .emptybox { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:72px 16px; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); }
 .fg .emptybox .ei { width:54px; height:54px; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--q); }
 .fg .emptybox b { font-size:16px; font-weight:700; color:var(--ink); }
@@ -995,10 +988,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .page { background:transparent; }
 
 /* ===== HeyTiff · Staff Profile — edit profile, in the app design language ===== */
-.fg .prof { padding:32px 32px 80px; max-width:1320px; margin:0 auto; }
 
 /* breadcrumb + actions */
-.fg .pbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
 .fg .crumb { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .crumb a { color:var(--link); }
 .fg .crumb .sep { color:var(--q); }
@@ -1025,16 +1016,16 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    What it does NOT borrow is `.wb2`'s own button restyles: those are the
    board's cyan AND its 38px sizing, and this card keeps the profile's 42px.
    So only the tokens are declared here, and the fill is restated below. */
-.fg .pcard2, .fg .pbar { --wb2-line:var(--line); --wb2-line2:var(--line);
+.fg .pcard2 { --wb2-line:var(--line); --wb2-line2:var(--line);
   --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* The primary button wears the board's cyan here too. It is the SAME surface
    as maintenance and projects, so a black button on it would read as a
    different screen. Green stays green — `Active` is a STATE, and a state is
    never the page accent (see the design rule in feedback_design_system). */
-.fg .pcard2 .pbtn.primary, .fg .pbar .pbtn.primary {
+.fg .pcard2 .pbtn.primary {
   background:var(--wb2-cy); border:1px solid var(--wb2-cy); color:var(--paper); }
-.fg .pcard2 .pbtn.primary:hover:not(:disabled), .fg .pbar .pbtn.primary:hover:not(:disabled) {
+.fg .pcard2 .pbtn.primary:hover:not(:disabled) {
   background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:var(--paper); }
 
 /* the lock on a tab is the only thing saying a section is not the person's
@@ -1523,7 +1514,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   }
 }
 @media (max-width:920px){
-  .fg .pbar { align-items:flex-start; }
   .fg .pident { gap:12px; }
   .fg .phid h1 { font-size:24px; }
   /* the display size needs the room; below it the name is a screen title again */
@@ -1664,13 +1654,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .card2:not(.readonly) .cardactions [data-edit] { display:none; }
 /* evident empty state */
 .fg .field > label { position:relative; }
-
-/* info button + tooltip */
-.fg .infobtn { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; color:var(--q); cursor:help; vertical-align:middle; margin-left:4px; }
-.fg .infobtn:hover, .fg .infobtn:focus { color:var(--ink); outline:none; }
-.fg .infobtn .tip { position:absolute; bottom:calc(100% + 9px); left:50%; transform:translateX(-50%) translateY(4px); width:260px; padding:12px 12px; border-radius:var(--r-button); background:var(--ink); color:var(--paper); font-size:12px; font-weight:500; line-height:1.5; text-transform:none; box-shadow:var(--shadow-overlay); opacity:0; visibility:hidden; transition:opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); z-index:var(--z-overlay); pointer-events:none; }
-.fg .infobtn .tip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--ink); }
-.fg .infobtn:hover .tip, .fg .infobtn:focus .tip, .fg .infobtn:focus-within .tip { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
 
 /* status segmented */
 /* THE HOUSE TRAY. `#f3f4f6` measured 1.101 against the white cards it
@@ -4434,7 +4417,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    reads as a spreadsheet — 760px keeps title, sub and chevron in one glance.
    The icon-chip accent is inline (per row, ~10% tint) the way the nav and the
    toolbox do it; everything structural lives here. */
-.fg .adm-stg { max-width:760px; }
 .fg .adm-group + .adm-group { margin-top:32px; }
 .fg .adm-glabel { font-size:12px; font-weight:500; color:var(--gray400); margin:0 0 12px 2px; }
 .fg .adm-card { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
@@ -4447,17 +4429,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .adm-main em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:2px; }
 .fg .adm-ch { flex:0 0 auto; display:flex; color:var(--gray400); transition:transform var(--t-move) var(--ease); }
 .fg a.adm-row:hover .adm-ch { }
-/* WHAT IS COMING, in one line under the live rows.
-
-   `.adm-row.soon` and `.adm-soon` are gone with the full-height planned rows
-   they dressed — seven of the twelve rows on an owner's page, 496px of 1060px,
-   each one a menu item that could not be opened. Naming what is coming was
-   right; giving it more of the page than the tools that work was not. Left
-   here, those two rules would be dead CSS shadowing a live class name, which
-   has bitten this stylesheet twice. */
-.fg .adm-coming { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
-  margin:8px 2px 0; font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .adm-coming span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .adm-empty { padding:80px 16px; text-align:center; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:4px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
@@ -9931,7 +9902,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-agdot.off { background:rgba(5,5,5,.22); }
 
 /* ---- Tax & EOFY (components/tax/) ----
-   Reuses the admin index's shell wholesale (.adm-stg / .adm-card / .emptybox)
+   Reuses the admin index's shell wholesale (.adm-card / .emptybox)
    — a settings-section screen should not invent a second card. What is new is
    only what a year of spending needs: a year picker, three headline figures, a
    category strip, and a row that ends in whether the receipt exists.
@@ -12362,11 +12333,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* nothing above it to rule off from — a citizen's check has no grid, so
    the evidence is the card's first and only block */
 .vm-divider.bare { margin-top:0; padding-top:0; border-top:0; }
-/* the door out to the check, and the way to get an account for it — the one
-   place in the app that links off to Home Affairs */
-.vm-doors { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-top:12px; }
-.vm-doors a.vm-btn { text-decoration:none; }
-.vm-doors a.vm-inline { text-decoration:underline; text-underline-offset:3px; }
 .vm-note { font-size:12px; color:var(--vm-muted); }
 
 /* the record panel */
@@ -12654,26 +12620,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    that lays a model's price at every supplier side by side, the cheaper in
    the state's green (law 31: it means something) */
 .qs-notedetail { display:block; margin-top:4px; font-weight:500; }
-.qs-suprow { grid-template-columns:200px minmax(0, 1fr) 260px; }
 .qs-upload { position:relative; cursor:pointer; }
 .qs-upload[aria-disabled="true"] { opacity:.5; cursor:default; }
 .qs-file { position:absolute; inset:0; opacity:0; cursor:pointer; }
-/* a supplier added by name, and a file's columns matched by hand: its
-   first rows as they are, a column to choose for each field */
-.qs-addsup .wb2-fi { width:100%; }
 /* a list-price supplier's discount: a range per row, its Remove on the
    fields' baseline */
 .qs-rule { align-items:flex-end; }
+/* a file's columns matched by hand: its first rows as they are, a column
+   to choose for each field */
 .qs-match { margin-top:16px; padding:16px; border:1px solid var(--line); border-radius:var(--r-card); }
 .qs-preview { margin-top:12px; overflow-x:auto; }
 .qs-preview table { border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
 .qs-preview th { padding:4px 8px; text-align:left; font-weight:600; color:var(--q); }
 .qs-preview td { padding:4px 8px; border-top:1px solid var(--line); white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
-/* the shelves to browse the book by */
-.qs-shelves { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
-.qs-find { margin-top:16px; max-width:420px; }
-.qs-find .wb2-fi { width:100%; }
-.qs-cmprow { grid-template-columns:minmax(0, 1fr) minmax(0, 1.2fr) 220px; }
 .qs-offers { display:flex; flex-wrap:wrap; gap:16px; }
 .qs-offer { display:flex; flex-direction:column; font-variant-numeric:tabular-nums; font-weight:500; }
 .qs-offer em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }

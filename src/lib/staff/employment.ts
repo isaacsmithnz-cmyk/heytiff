@@ -72,8 +72,6 @@ export function presumesDays(cls: EmploymentClass): boolean {
     timesheet becomes a record with an overtime exception, not an input. */
 export type PayBasis = "hourly" | "salary";
 
-export const PAY_BASES: readonly PayBasis[] = ["hourly", "salary"];
-
 export function isPayBasis(v: unknown): v is PayBasis {
   return v === "hourly" || v === "salary";
 }

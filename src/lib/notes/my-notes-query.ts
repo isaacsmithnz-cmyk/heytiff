@@ -80,15 +80,3 @@ export async function listArchivedNotes(
     .limit(limit);
   return ((data ?? []) as Row[]).map(toNote);
 }
-
-/** How many are waiting, for a nav badge or a dashboard line. `head: true`
-    so the rows never travel just to be counted. */
-export async function countMyNotes(orgId: string, staffId: string): Promise<number> {
-  const { count } = await supabaseAdmin
-    .from("staff_notes")
-    .select("id", { count: "exact", head: true })
-    .eq("org_id", orgId)
-    .eq("staff_id", staffId)
-    .is("archived_at", null);
-  return count ?? 0;
-}

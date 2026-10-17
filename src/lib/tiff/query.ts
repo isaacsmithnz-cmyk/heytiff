@@ -7,7 +7,6 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { SIGNED_URL_SECONDS } from "@/lib/documents/query";
 import { displayNameOf } from "@/lib/staff/name";
 import { asKbCategory, KB_BUCKET, KB_CATEGORIES, type KbCategory } from "./files";
-import { auMonthStart } from "./quota";
 
 export type KbDocRow = {
   id: string;
@@ -238,26 +237,6 @@ export type KbChunkHit = {
   pageTo: number;
   heading: string | null;
 };
-
-export type KbUsageRow = { month: string; pagesProcessed: number; questionsAsked: number };
-
-/** This AU month's counters. A missing row is zero, not an error — it simply
-    means nothing has been ingested yet this month. */
-export async function kbUsageThisMonth(orgId: string, now: Date = new Date()): Promise<KbUsageRow> {
-  const month = auMonthStart(now);
-  const { data } = await supabaseAdmin
-    .from("kb_usage")
-    .select("pages_processed, questions_asked")
-    .eq("org_id", orgId)
-    .eq("month", month)
-    .maybeSingle();
-
-  return {
-    month,
-    pagesProcessed: Number(data?.pages_processed) || 0,
-    questionsAsked: Number(data?.questions_asked) || 0,
-  };
-}
 
 /** A short-lived link to the stored PDF — for "open the document at page 42".
     Null when the object is gone, so the caller drops the link rather than

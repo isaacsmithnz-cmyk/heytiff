@@ -603,8 +603,6 @@ export type JobLedgerRead = {
   payments: JobPaymentEntry[];
 };
 
-export const EMPTY_LEDGER: JobLedgerRead = { materials: [], payments: [] };
-
 /** What was written on the job. NOT money-gated — a note is the work's own
     record, and the same reader who sees the description should see it.
     Notes hang off related_object_uuid, not job_uuid.

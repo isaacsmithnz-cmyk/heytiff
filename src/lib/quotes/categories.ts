@@ -229,7 +229,3 @@ export function categoryOf(name: string, code = ""): CategoryKey {
   for (const r of RULES) if (r.test(name, code)) return r.key;
   return "other";
 }
-
-export const categoryLabel = (key: CategoryKey) => CATEGORIES.find((c) => c.key === key)?.label ?? "Everything else";
-
-export const isCategory = (v: unknown): v is CategoryKey => typeof v === "string" && CATEGORIES.some((c) => c.key === v);

@@ -2,9 +2,10 @@
 
    This was three big marketing-ish cards; a settings landing is a MENU, and a
    menu is rows. Grouped rows read as a formal index (one card per group,
-   hairline-separated rows inside it), stay legible as the section grows past
-   the two live items, and let the page state what is COMING without pretending
-   it is here: a planned row is quiet, tagged, and not a link.
+   hairline-separated rows inside it), and stay legible as the section grows.
+   Every row is a door that opens: the planned tools this page used to name
+   in a "Coming" line went on 2026-10-18 (docs/plans/layout-2026-10, "Nothing
+   uses these"), since they promised things that don't exist.
 
    Data-driven from SECTIONS so adding a tool is one entry, not a block of
    markup — the same shape the nav (components/shell/nav.ts) and the toolbox
@@ -35,21 +36,15 @@ type AdminRow = {
   title: string;
   sub: string;
   icon: string;
-  /** icon-chip accent; planned rows carry the neutral so they stay quiet */
+  /** icon-chip accent */
   accent: string;
-  /** live rows link — a planned row has nowhere to go yet */
-  href?: string;
+  href: string;
   show: (v: AdminViewer) => boolean;
   /** "N new" on the row's right edge — the only number this index shows. */
   badge?: (v: AdminViewer) => number;
 };
 
 type AdminGroup = { label: string; rows: AdminRow[] };
-
-/* Planned rows share one muted chip rather than each claiming a colour: the
-   accents are how a live row says "open me", and a row you cannot open should
-   not shout it. */
-const SOON = "#9ca3af";
 
 const anyone = () => true;
 const owner = (v: AdminViewer) => v.isOwner;
@@ -99,34 +94,6 @@ export const SECTIONS: AdminGroup[] = [
         icon: "file",
         accent: "#0E9F6E",
         href: "/dashboard/admin/letters",
-        show: anyone,
-      },
-      {
-        title: "Compliance",
-        sub: "Incidents, corrective actions & QA",
-        icon: "shield",
-        accent: SOON,
-        show: anyone,
-      },
-      {
-        title: "Documents",
-        sub: "Store, verify & share company files",
-        icon: "folder",
-        accent: SOON,
-        show: anyone,
-      },
-      {
-        title: "Licences & insurances",
-        sub: "Expiry tracking across the business",
-        icon: "file",
-        accent: SOON,
-        show: anyone,
-      },
-      {
-        title: "Training & apprentices",
-        sub: "Courses, sign-offs & apprentice progress",
-        icon: "library",
-        accent: SOON,
         show: anyone,
       },
     ],
@@ -200,34 +167,6 @@ export const SECTIONS: AdminGroup[] = [
       },
     ],
   },
-  {
-    /* Owner-only, and only shown to owners — an admin should not be told about
-       doors that will never open for them. */
-    label: "Owner",
-    rows: [
-      {
-        title: "Password vault",
-        sub: "Shared logins, held once and properly",
-        icon: "fingerprint",
-        accent: SOON,
-        show: owner,
-      },
-      {
-        title: "Billing",
-        sub: "Your HeyTiff plan, invoices & payment",
-        icon: "receipt",
-        accent: SOON,
-        show: owner,
-      },
-      {
-        title: "Usage analytics",
-        sub: "What the workspace actually gets used for",
-        icon: "activity",
-        accent: SOON,
-        show: owner,
-      },
-    ],
-  },
 ];
 
 function RowBody({ row, badge = 0 }: { row: AdminRow; badge?: number }) {
@@ -245,8 +184,6 @@ function RowBody({ row, badge = 0 }: { row: AdminRow; badge?: number }) {
           {badge} new
         </span>
       )}
-      {/* Only live rows reach RowBody now — a planned tool is a name in the
-          `Coming` line, not a row wearing a "Planned" tag. */}
       <span className="adm-ch">
         <Icon name="chevR" size={17} />
       </span>
@@ -257,49 +194,19 @@ function RowBody({ row, badge = 0 }: { row: AdminRow; badge?: number }) {
 function Row({ row, viewer }: { row: AdminRow; viewer: AdminViewer }) {
   const badge = row.badge?.(viewer) ?? 0;
   return (
-    <Link className="adm-row" href={row.href!}>
+    <Link className="adm-row" href={row.href}>
       <RowBody row={row} badge={badge} />
     </Link>
   );
 }
 
-/* WHAT IS COMING, IN ONE LINE.
-
-   Each planned tool used to be a full row — icon chip, title, subtitle, a
-   "Planned" tag — which read as a menu item you could not open. Measured on
-   2026-08-12: as an owner the page was twelve rows, SEVEN of them planned, and
-   496px of 1060px. An owner scrolled past four dead rows to reach the tools
-   they actually use, and a settings index that is mostly doors that don't open
-   teaches people to stop reading it.
-
-   Saying what is coming was the right instinct and it is kept — it is the
-   WEIGHT that was wrong. One line under the live rows, naming them, not
-   pretending to be a menu. */
-function Coming({ rows }: { rows: AdminRow[] }) {
-  if (rows.length === 0) return null;
-  return (
-    <div className="adm-coming">
-      <span>Coming</span>
-      {rows.map((r) => r.title).join(", ")}
-    </div>
-  );
-}
-
 export function AdminIndex(viewer: AdminViewer) {
-  const groups = SECTIONS.map((g) => {
-    const visible = g.rows.filter((r) => r.show(viewer));
-    return {
-      label: g.label,
-      rows: visible.filter((r) => r.href),
-      coming: visible.filter((r) => !r.href),
-    };
-  }).filter((g) => g.rows.length > 0 || g.coming.length > 0);
-
-  /* The empty state hangs off the LIVE rows, not off row count: an admin with
-     neither gated item can only ever see what is coming, and a page of things
-     you cannot open is a worse answer than saying so plainly — the empty-state
-     copy names those same coming tools anyway. */
-  const anyLive = groups.some((g) => g.rows.length > 0);
+  /* No empty state: Templates, Letters and the knowledge queue are any
+     admin's, so every viewer who reaches this page has a row. */
+  const groups = SECTIONS.map((g) => ({
+    label: g.label,
+    rows: g.rows.filter((r) => r.show(viewer)),
+  })).filter((g) => g.rows.length > 0);
 
   return (
     /* Paper to the frame, the title in the band, and the menu at the width of
@@ -309,29 +216,16 @@ export function AdminIndex(viewer: AdminViewer) {
         <div className="stg">
           <ScreenBand title="Admin" />
           <ScreenPanel>
-          {anyLive ? (
-            groups.map((g) => (
-              <div className="adm-group" key={g.label}>
-                <div className="adm-glabel">{g.label}</div>
-                {g.rows.length > 0 && (
-                  <div className="adm-card">
-                    {g.rows.map((r) => (
-                      <Row row={r} viewer={viewer} key={r.title} />
-                    ))}
-                  </div>
-                )}
-                <Coming rows={g.coming} />
+          {groups.map((g) => (
+            <div className="adm-group" key={g.label}>
+              <div className="adm-glabel">{g.label}</div>
+              <div className="adm-card">
+                {g.rows.map((r) => (
+                  <Row row={r} viewer={viewer} key={r.title} />
+                ))}
               </div>
-            ))
-          ) : (
-            <div className="adm-empty">
-              <b>Nothing here for you yet</b>
-              <em>
-                Compliance, documents, licences &amp; insurances and training will appear here.
-                Financial tools are owner-only.
-              </em>
             </div>
-          )}
+          ))}
           </ScreenPanel>
         </div>
       </div>

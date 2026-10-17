@@ -397,16 +397,6 @@ export function Seg({
   );
 }
 
-/** The little "what is this?" tooltip the design puts beside a label. */
-export function InfoTip({ children }: { children: ReactNode }) {
-  return (
-    <span className="infobtn" tabIndex={0}>
-      <Icon name="info" size={14} />
-      <span className="tip">{children}</span>
-    </span>
-  );
-}
-
 /** A read-mode fact row for values that don't belong on the plastic card. */
 export function FactRow({ label, value }: { label: string; value: ReactNode }) {
   return (

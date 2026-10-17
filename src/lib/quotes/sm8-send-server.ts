@@ -19,10 +19,6 @@ import { approvalStands } from "./lines-proposal";
     send checks ServiceM8 still holds that before anything is queued. */
 export type SendView = { plan: SendPlan; editDate: string | null };
 
-export async function readSm8SendPlan(orgId: string, cardId: string): Promise<SendPlan> {
-  return (await readSm8SendView(orgId, cardId)).plan;
-}
-
 /** What goes: the accepted quote as a work order, or (slice 7.3) the
     approved quote as a quote, before it's accepted. */
 export type SendAs = "accepted" | "quote";

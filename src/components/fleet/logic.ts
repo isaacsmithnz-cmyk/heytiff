@@ -167,10 +167,6 @@ export const FUEL_PAYER_LABEL: Record<FuelPayer, string> = {
   own: "My own money",
 };
 
-export function isFuelPayer(v: unknown): v is FuelPayer {
-  return typeof v === "string" && (FUEL_PAYERS as readonly string[]).includes(v);
-}
-
 export type NewLog = {
   vehicleId: string;
   kind: LogKind;
@@ -822,16 +818,3 @@ export function fmtCost(n: number): string {
    moved to lib/au-dates.ts, beside the `todayInAu` that has to produce its
    second argument; this re-export keeps fleet's own callers pointed here. */
 export { daysUntil } from "@/lib/au-dates";
-
-/** Stable unique id from a name/plate ("VRF 09" → "vrf-09", "vrf-09-2" if taken). */
-export function slugId(label: string, taken: string[]): string {
-  const base =
-    label
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "vehicle";
-  if (!taken.includes(base)) return base;
-  let n = 2;
-  while (taken.includes(`${base}-${n}`)) n++;
-  return `${base}-${n}`;
-}

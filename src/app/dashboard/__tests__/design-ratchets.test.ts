@@ -510,7 +510,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      Isaac agreed to the re-base; docs/design.md names the two that stay (the
      photo thumbnail's star, the Studio's close-ready vertex) and records that
      the donut's three go with the Studio's new design. */
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 49 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 48 },
   { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: () => leftBars(outside("bars at the left edge")), baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens; his are named below", now: () => tailwindHexes(outside("Tailwind palette hexes")), baseline: 0 },

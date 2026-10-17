@@ -450,6 +450,8 @@ const TOKENS = new Set([
   "ink", "white", "q", "blue", "red", "red-w", "orange", "orange-w", "green", "green-w", "yellow", "yellow-w", "purple", "purple-w",
   "pink", "pink-w", "grey", "line", "edge", "sel", "hov", "soft", "scrim", "shadow-overlay", "ring",
   "r-control", "r-button", "r-card", "t-fast", "t-move", "t-slide", "ease", "z-overlay", "z-modal", "z-toast", "font",
+  // New's dark panel (rule 44) takes the ink sidebar's own white tints
+  "on-ink-tint-2", "on-ink-q",
 ]);
 
 describe("fields.css", () => {
@@ -496,7 +498,8 @@ describe("fields.css", () => {
       const shadow = /box-shadow\s*:\s*([^;]+)/.exec(body)?.[1]?.trim();
       if (!shadow) continue;
       if (shadow === "var(--shadow-overlay)") expect(sel.split(",").map((s) => s.trim())).toEqual([".pt-menu", ".pt-timefield-panel"]);
-      else expect(["var(--ring)", "inset 0 0 0 2px var(--ink), inset 0 0 0 4px var(--white)"]).toContain(shadow);
+      // the keys' ring, drawn inward: ink then white, or white then ink on New's dark panel
+      else expect(["var(--ring)", "inset 0 0 0 2px var(--ink), inset 0 0 0 4px var(--white)", "inset 0 0 0 2px var(--white), inset 0 0 0 4px var(--ink)"]).toContain(shadow);
     }
   });
 

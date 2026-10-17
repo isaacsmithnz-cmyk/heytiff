@@ -17,6 +17,9 @@ jest.mock("next/navigation", () => ({
 jest.mock("@/components/workboard/board/new-job-modal", () => ({
   NewJobModal: () => <div role="dialog" aria-label="New job" />,
 }));
+jest.mock("@/components/making/task-form", () => ({
+  TaskForm: () => <div role="dialog" aria-label="New task" />,
+}));
 
 const userAs = (role: Role, caps = [...resolve(role)]): ShellUser => ({
   name: "Isaac Smith",
@@ -57,12 +60,16 @@ describe("the sidebar's top", () => {
     expect(screen.getByRole("button", { name: /Search/ })).toHaveTextContent("⌘K");
   });
 
-  it("shows New only where a Job can be made from it", () => {
+  it("offers New on every page, with Job only where ServiceM8 takes new jobs (rule 44)", () => {
     draw(userAs("owner"));
-    expect(screen.queryByRole("button", { name: "New" })).toBeNull();
+    act(() => screen.getByRole("button", { name: "New" }).click());
+    expect(within(screen.getByRole("menu", { name: "New" })).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Task"]);
     cleanup();
     draw(userAs("owner"), true);
-    expect(screen.getByRole("button", { name: "New" })).toHaveAttribute("aria-haspopup", "menu");
+    act(() => screen.getByRole("button", { name: "New" }).click());
+    const menu = screen.getByRole("menu", { name: "New" });
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Job", "Task"]);
+    expect(menu.closest(".pt-menu")).toHaveClass("pt-menu--ink");
   });
 });
 
@@ -133,6 +140,13 @@ describe("your name (rule 7)", () => {
 });
 
 describe("New", () => {
+  it("makes a Task with the task form", () => {
+    draw(userAs("staff"));
+    act(() => screen.getByRole("button", { name: "New" }).click());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Task" }));
+    expect(screen.getByRole("dialog", { name: "New task" })).toBeInTheDocument();
+  });
+
   it("makes a Job with the board's own form", () => {
     draw(userAs("owner"), true);
     act(() => screen.getByRole("button", { name: "New" }).click());

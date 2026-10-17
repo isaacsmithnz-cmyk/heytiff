@@ -3,16 +3,17 @@ import path from "node:path";
 
 /* THE NUMBERS ONLY GO DOWN.
 
-   docs/design.md sets four radii, eight type sizes, four weights, no accent
-   (ink does the accent's jobs) and one shadow. The stylesheets were written
-   before any of that existed, so a guard that demanded the scales today would
-   fail on every file and be skipped by everyone. This one counts instead. Each ratchet below records
-   how many times the sheets break a law, as of the day the law was written,
-   and holds the count exactly there.
+   docs/design.md holds v2's rules (18 October 2026): the radii 6, 10, 16
+   and the page's 40, seven type sizes, four weights, the 19 colours, blue
+   only for pressing, and one shadow. The stylesheets were written before
+   any of that existed, so a guard that demanded the rules today would fail
+   on every file and be skipped by everyone. This one counts instead. Each
+   ratchet below records how many times the sheets break a rule, as of the
+   day the rule was written, and holds the count exactly there.
 
    A PR that removes some of them lowers the number in this file. A PR that
    adds one fails here, with the count in the message. The number is therefore
-   always the truth, and reading this file tells you how far the fold has got.
+   always the truth, and reading this file tells you how far the build has got.
    Equality, not "at most": a count that drops without the number following it
    is a change nobody wrote down, which is how the sheets got here.
 
@@ -23,7 +24,7 @@ import path from "node:path";
    One number may go up, and only this way: a counter that was blind to a
    spelling learns it, and work already in the sheets becomes visible. That is
    not a licence — it needs Isaac's word and the reason written into
-   docs/design.md beside the law, the way the shadows ratchet records its
+   docs/design.md beside the rule, the way the shadows ratchet records its
    52 → 57. A baseline raised to let something new in is the thing this file
    exists to stop.
 
@@ -63,7 +64,9 @@ const count = (re: RegExp, css = CSS) => (css.match(re) ?? []).length;
    hit if any of its parts is off the scale. Tokens and calc() are trusted:
    they are how the fold will express the scale, and a `calc(6px - 3.5px)` is
    an inner well concentric with its swatch — geometry, read off the rule. */
-const RADII = new Set(["0", "6px", "10px", "16px", "999px", "50%", "inherit", "initial"]);
+/* 40px joined the scale on 18 October 2026 for the page's two curves (rule
+   46), the one change in v2 that loosens a law; docs/design.md records it. */
+const RADII = new Set(["0", "6px", "10px", "16px", "40px", "999px", "50%", "inherit", "initial"]);
 function offScaleRadii(): number {
   let n = 0;
   for (const m of CSS.matchAll(/border-radius\s*:\s*([^;}]+)/g)) {
@@ -260,10 +263,11 @@ function small(): number {
   return sizes().filter((n) => n < 12).length;
 }
 
-/* The type scale from docs/design.md: eight sizes, and a rule picks one by
-   role. Relative sizes (`0.86em` on inline code) are not on it and not counted:
-   they follow the text they sit in. */
-const TYPE = new Set([12, 13, 14, 16, 20, 24, 32, 40]);
+/* The type scale from docs/design.md: seven sizes since v2 (40 left it on 18
+   October 2026, when nothing used it), and a rule picks one by role. Relative
+   sizes (`0.86em` on inline code) are not on it and not counted: they follow
+   the text they sit in. */
+const TYPE = new Set([12, 13, 14, 16, 20, 24, 32]);
 function offScaleType(): number {
   return sizes().filter((n) => !TYPE.has(n)).length;
 }
@@ -353,6 +357,46 @@ function pills(css = CSS): number {
   let n = 0;
   for (const [sel, body] of blocks(css)) {
     if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++;
+  }
+  return n;
+}
+
+/* V2, 18 OCTOBER 2026. Counts for the rules v2 added, each starting where the
+   sheets stood that day (docs/design.md, Guards, "Added with v2").
+
+   Rule 22: the main button is blue with white words, and no button is black.
+   A rule on a button's class (btn, button, cta, primary, `.b.go`) that paints
+   its fill ink counts; its hover, focus and active states are the same
+   button, so they don't count again. */
+const BUTTON_CLASS = /(btn|button|\.b\.go|cta|primary)/i;
+const INK_FILL = /background(?:-color)?\s*:\s*(?:var\(--(?:ink|hd-ink)\)|#000(?:000)?(?![0-9a-f])|#050505|#0a0a0a|black(?![\w-]))/i;
+function inkButtons(): number {
+  let n = 0;
+  for (const [sel, body] of blocks()) if (BUTTON_CLASS.test(sel) && INK_FILL.test(body) && !/:hover|:active|:focus/.test(sel)) n++;
+  return n;
+}
+
+/* Rule 15: nineteen values, and no hex outside them, the token block
+   included. White and ink are two of the 19; blue's word value is its bright
+   one and grey's is the quiet grey, so seventeen hexes cover them all. The
+   Design studio's own sheet keeps its drawing colours until its step and is
+   left out, as the paper sheets are. */
+const PALETTE = new Set([
+  "#ef4444", "#be123c", "#f97316", "#b45309", "#facc15", "#a16207", "#22c55e", "#15803d",
+  "#2563eb", "#a855f7", "#7e22ce", "#ec4899", "#9d174d", "#9ca3af", "#5f6a79", "#050505", "#ffffff",
+]);
+const STUDIO_SHEET = "src/components/studio/studio.css";
+const CSS_BUT_STUDIO = sheets(SRC)
+  .filter((f) => path.relative(process.cwd(), f) !== STUDIO_SHEET)
+  .map((f) => fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))
+  .join("\n");
+function offPalette(): number {
+  let n = 0;
+  for (const m of CSS_BUT_STUDIO.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
+    let h = m[0].toLowerCase();
+    if (h.length === 4) h = `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}`;
+    else if (h.length === 9) h = h.slice(0, 7);
+    if (h.length !== 7 || !PALETTE.has(h)) n++;
   }
   return n;
 }
@@ -450,11 +494,11 @@ const outside = (ratchet: string) => exempt(CSS, classesFor(ratchet), EXEMPTABLE
 
 const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "type below 12px — the floor", now: small, baseline: 0 },
-  { law: "type off the scale — 12, 13, 14, 16, 20, 24, 32, 40", now: offScaleType, baseline: 0 },
+  { law: "type off the scale — 12, 13, 14, 16, 20, 24, 32", now: offScaleType, baseline: 0 },
   { law: "weight off 400, 500, 600, 700 — 800 is retired", now: heavy, baseline: 0 },
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 0 },
   { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 2 },
-  { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
+  { law: "radius off the scale — 6, 10, 16, the page's 40, and a circle", now: offScaleRadii, baseline: 0 },
   { law: "gradients — one accent, flat surfaces; his are named below", now: () => gradients(outside("gradients")), baseline: 38 },
   /* 52 → 57 on 2026-09-21, the one baseline in this file that has ever gone
      up. Nothing was added: the counter learned `filter: drop-shadow()`, and
@@ -510,6 +554,15 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
       }
       return n;
     }, baseline: 161 },
+  // v2, 18 October 2026: each first set wrong on purpose (-1), then to the count the run printed
+  { law: "main buttons painted ink — the main button is blue (rule 22)", now: inkButtons, baseline: 22 },
+  { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: offPalette, baseline: 195 },
+  { law: "`text-overflow: ellipsis` — text that doesn't fit fades (rule 50)", now: () => count(/text-overflow\s*:\s*ellipsis/g), baseline: 93 },
+  { law: "a typed \"…\" on screen — a wait says what it's doing; text that doesn't fit fades (rule 50)", now: () => countTsx(onScreen("…")), baseline: 199 },
+  { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 95 },
+  { law: "native time inputs — a clock time opens the wheel (rule 34)", now: () => countTsx(/type="time"/g), baseline: 3 },
+  { law: "native colour inputs — a typed hex with a swatch", now: () => countTsx(/type="color"/g), baseline: 1 },
+  { law: "`title` tooltips — a title is not a label; the tooltip rule replaces them", now: () => countTsx(/\stitle=[{"]/g), baseline: 379 },
 ];
 
 describe("the design ratchets only go down", () => {

@@ -33,7 +33,7 @@ jest.mock("../../lines-job-server", () => ({
   readByHand: jest.fn(async () => ({ supplier: null, proposal: { options: [{ summary: "Kept", areas: [], included: ["Commissioning"] }] } })),
   saveProposal: (...a: unknown[]) => saveProposal(...a),
 }));
-jest.mock("../../lookups-server", () => ({ lookupUnit: jest.fn(), lookupPairing: jest.fn() }));
+jest.mock("../../lookups-server", () => ({ lookupUnit: jest.fn(), lookupPairing: jest.fn(), lookupCharge: jest.fn() }));
 const runResearch = jest.fn();
 jest.mock("../../research-server", () => ({ runResearch: (...a: unknown[]) => runResearch(...a) }));
 jest.mock("../model-server", () => ({ sessionModelFor: () => "claude-opus-5-5" }));
@@ -66,7 +66,7 @@ jest.mock("../../book-view-server", () => ({ bookProducts: jest.fn(async () => B
 import { bookPrice, isErr, newLineOf, patchOf, questionOf, SESSION_TOOLS } from "../tools";
 import { sessionTools } from "../tools-server";
 import { readLines } from "../../lines-server";
-import { lookupPairing, lookupUnit } from "../../lookups-server";
+import { lookupCharge, lookupPairing, lookupUnit } from "../../lookups-server";
 
 beforeEach(() => {
   lines.length = 0;
@@ -322,6 +322,21 @@ describe("her tools, run", () => {
     expect(out).toMatchObject({ ok: true, label: "Checked the pairing", said: "MXZ-6F120VGD: doesn't connect", value: { connects: false } });
     expect(lookupPairing).toHaveBeenLastCalledWith("mitsubishi-electric", "MXZ-6F120VGD", ["PEFY-P63VMA-E4", "PEFY-P63VMA-E4"], "org-1");
     expect(await run("pairing_check", { brand: "mitsubishi-electric", outdoor: "MXZ-6F120VGD", indoors: [] })).toMatchObject({ ok: false, error: "Name the brand's pack, the outdoor and every indoor on it." });
+  });
+
+  /* 3209, 17 October: a whole 10 kg cylinder on a PUMY-SP112 the book puts at about 4 kg */
+  it("works out the refrigerant to add by the maker's book, from the liquid pipe by size", async () => {
+    (lookupCharge as jest.Mock).mockResolvedValueOnce({ found: true, system: "vrf", addKg: 4.1, prechargedKg: 3.5, maxKg: 12.5, said: ["20 m of 9.52 mm and 30 m of 6.35 mm of liquid pipe, 30 m to the farthest head"] });
+    const out = await run("refrigerant_charge", {
+      brand: "mitsubishi-electric",
+      outdoor: "PUMY-SP112VKMD2-A",
+      indoors: ["PEFY-P25VMX-E1", "PEFY-P71VMA-E4"],
+      liquid_pipe: [{ size_mm: 9.52, metres: 20 }, { size_mm: 6.35, metres: 30 }],
+      farthest_m: 30,
+    });
+    expect(out).toMatchObject({ ok: true, label: "Worked out the refrigerant", said: "PUMY-SP112VKMD2-A: 4.1 kg to add", value: { addKg: 4.1 } });
+    expect(lookupCharge).toHaveBeenLastCalledWith("mitsubishi-electric", { outdoor: "PUMY-SP112VKMD2-A", indoors: ["PEFY-P25VMX-E1", "PEFY-P71VMA-E4"], liquidM: { "9.52": 20, "6.35": 30 }, farthestM: 30, method: "joint" }, "org-1");
+    expect(await run("refrigerant_charge", { brand: "mitsubishi-electric", outdoor: "PUMY-SP112VKMD2-A", indoors: ["PEFY-P25VMX-E1"], liquid_pipe: [] })).toMatchObject({ ok: false, error: expect.stringMatching(/liquid pipe by size and metres/) });
   });
 
   it("says so for a tool that doesn't exist", async () => {

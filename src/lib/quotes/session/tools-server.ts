@@ -6,7 +6,7 @@ import { addLine, changeLine, copyOption, readLines, removeLine } from "../lines
 import { addCompared, nameOption, readByHand, saveProposal } from "../lines-job-server";
 import { jobKind, readCorrections } from "../corrections-server";
 import { jobFiles, lookAt } from "./job-files-server";
-import { lookupPairing, lookupUnit } from "../lookups-server";
+import { lookupCharge, lookupPairing, lookupUnit } from "../lookups-server";
 import { loadAirflowGuide } from "@/lib/guides/airflow-server";
 import { runResearch } from "../research-server";
 import { sessionModelFor } from "./model-server";
@@ -63,6 +63,7 @@ export function dbStore(orgId: string, jobUuid: string): QuoteStore {
       )),
     lookupUnit: (brand, model) => lookupUnit(brand, model, orgId),
     pairing: (brand, outdoor, indoors) => lookupPairing(brand, outdoor, indoors, orgId),
+    charge: (brand, ask) => lookupCharge(brand, ask, orgId),
     airflowGuide: () => loadAirflowGuide(),
     taskHours: () =>
       Promise.all([readQuoteSettings(orgId), readOrgDay(orgId)]).then(([s, d]) => ({ hours: s.taskHours, dayHours: d.hours?.hours ?? null })),

@@ -14,6 +14,7 @@ import { keepPeoplesTasks, visitHours, visitName, type LineVisit } from "../line
 import { taskCheck } from "../task-hours";
 import { namedUnit, unitRoleOf, type UnitRole } from "../unit-name";
 import type { Pairing } from "../pairing";
+import type { Charge, ChargeAsk } from "../charge";
 import type { ToolOutcome } from "./turn";
 import type { MediaBlock } from "./model";
 import { fitRead } from "./read-fit";
@@ -58,6 +59,8 @@ export type QuoteStore = {
   lookupUnit: (brand: string, model: string) => Promise<UnitLookup>;
   /** whether an outdoor takes the indoors given, by its maker's book */
   pairing: (brand: string, outdoor: string, indoors: string[]) => Promise<Pairing>;
+  /** the refrigerant to add to a system, by its maker's book */
+  charge: (brand: string, ask: ChargeAsk) => Promise<Charge>;
   /** each option's total ex GST, cents; not ok when pricing isn't set up */
   totals: () => Promise<{ ok: true; options: number[] } | { ok: false }>;
   /** the supplier the job buys from, where it sells the item; null: any */
@@ -192,6 +195,21 @@ export function makeTools(store: QuoteStore) {
         const model = typeof input.model === "string" ? input.model.trim() : "";
         if (!brand || !model) return fail("Name the brand's pack and the model.");
         return { ok: true, label, said: model, value: await store.lookupUnit(brand, model) };
+      }
+      case "refrigerant_charge": {
+        const brand = typeof input.brand === "string" ? input.brand.trim() : "";
+        const outdoor = typeof input.outdoor === "string" ? input.outdoor.trim() : "";
+        const indoors = Array.isArray(input.indoors) ? input.indoors.filter((m): m is string => typeof m === "string" && m.trim() !== "").map((m) => m.trim()).slice(0, 40) : [];
+        const liquidM: Record<string, number> = {};
+        for (const r of Array.isArray(input.liquid_pipe) ? input.liquid_pipe : []) {
+          const o = r && typeof r === "object" ? (r as { size_mm?: unknown; metres?: unknown }) : {};
+          if (typeof o.size_mm === "number" && typeof o.metres === "number" && o.metres > 0 && o.metres < 1000) liquidM[String(o.size_mm)] = (liquidM[String(o.size_mm)] ?? 0) + o.metres;
+        }
+        if (!brand || !outdoor || !indoors.length || Object.keys(liquidM).length === 0) return fail("Name the brand's pack, the outdoor, every indoor on it and the liquid pipe by size and metres.");
+        const farthestM = typeof input.farthest_m === "number" && input.farthest_m > 0 ? input.farthest_m : null;
+        const method = input.method === "branch-box" ? "branch-box" : "joint";
+        const c = await store.charge(brand, { outdoor, indoors, liquidM, farthestM, method });
+        return { ok: true, label, said: `${outdoor}: ${!c.found ? c.reason : c.addKg == null ? "not from what's known" : `${c.addKg} kg to add`}`, value: c };
       }
       case "pairing_check": {
         const brand = typeof input.brand === "string" ? input.brand.trim() : "";

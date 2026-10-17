@@ -34,6 +34,7 @@ jest.mock("../../lines-job-server", () => ({
   saveProposal: (...a: unknown[]) => saveProposal(...a),
 }));
 jest.mock("../../lookups-server", () => ({ lookupUnit: jest.fn(), lookupPairing: jest.fn(), lookupCharge: jest.fn() }));
+jest.mock("../../design-read-server", () => ({ readJobDesign: jest.fn() }));
 const runResearch = jest.fn();
 jest.mock("../../research-server", () => ({ runResearch: (...a: unknown[]) => runResearch(...a) }));
 jest.mock("../model-server", () => ({ sessionModelFor: () => "claude-opus-5-5" }));
@@ -67,6 +68,7 @@ import { bookPrice, isErr, newLineOf, patchOf, questionOf, SESSION_TOOLS } from 
 import { sessionTools } from "../tools-server";
 import { readLines } from "../../lines-server";
 import { lookupCharge, lookupPairing, lookupUnit } from "../../lookups-server";
+import { readJobDesign } from "../../design-read-server";
 
 beforeEach(() => {
   lines.length = 0;
@@ -371,9 +373,48 @@ describe("her tools, run", () => {
     expect(JSON.stringify(out.value).length).toBeLessThan(20_000);
   });
 
+  /* Isaac, 2026-10-17, on 27 Milroy: "I think Tiff can already read the studio design. Or can she not?" */
+  it("reads the job's Studio design, the newest unless she names another, and lists the job's others", async () => {
+    const read = {
+      design: { id: "dsn_new", name: "12 Example St", saved: "15 Oct 2026" },
+      basis: "Zone 5 (Sydney), residential, sized on heat/cool",
+      rooms: 5,
+      area_m2: 166.3,
+      load_kw: 24.1,
+      systems: [{ name: "System 1", kind: "Split", brand: "Mitsubishi Electric", outdoor: "MUZ-AP25VG2", load_kw: 1.7, capacity_kw: 2.5, covers: "yes", rooms: [], pipe: { drawn: true, total_m: 6 }, takeoff: ["Isolator, 1Ø 20 A: 1"] }],
+    };
+    (readJobDesign as jest.Mock).mockResolvedValueOnce({ found: true, read, others: [{ id: "dsn_old", name: "12 Example St, first go", saved: "2 Oct 2026" }] });
+    const out = await run("read_design", {});
+    expect(readJobDesign).toHaveBeenLastCalledWith("org-1", "job-1", null);
+    expect(out).toMatchObject({ ok: true, label: "Read the design", said: "12 Example St: 1 system, 5 rooms", value: { design: read.design, systems: read.systems, other_designs: [{ id: "dsn_old" }] } });
+
+    (readJobDesign as jest.Mock).mockResolvedValueOnce({ found: true, read, others: [] });
+    const narrowed = await run("read_design", { id: "dsn_old", system: "System 1" });
+    expect(readJobDesign).toHaveBeenLastCalledWith("org-1", "job-1", "dsn_old");
+    expect(narrowed).toMatchObject({ ok: true, value: { systems: [{ name: "System 1", takeoff: ["Isolator, 1Ø 20 A: 1"] }] } });
+  });
+
+  it("says plainly when the job has no design, and names the job's designs for one that isn't its", async () => {
+    (readJobDesign as jest.Mock).mockResolvedValueOnce({ found: false, reason: "There's no Studio design linked to this job." });
+    expect(await run("read_design", {})).toMatchObject({ ok: true, label: "Read the design", said: "No design on this job", value: { design: null, said: "There's no Studio design linked to this job." } });
+    (readJobDesign as jest.Mock).mockResolvedValueOnce({ found: false, reason: "That design isn't linked to this job.", designs: [{ id: "dsn_new", name: "12 Example St", saved: "15 Oct 2026" }] });
+    expect(await run("read_design", { id: "dsn_nope" })).toMatchObject({ ok: false, error: "That design isn't linked to this job. Its designs: 12 Example St (dsn_new, saved 15 Oct 2026)." });
+  });
+
   it("asks for the unit's airflow and the outlets before it checks anything", async () => {
     expect(await run("airflow_check", { outlets: [{ count: 2, kind: "round_ceiling_diffuser", size: "250" }] })).toMatchObject({ ok: false, error: "Give the unit's airflow in L/s, from unit_specs.", label: "Checked the air" });
     expect(await run("airflow_check", { unit: { airflow_ls: 700 }, outlets: [] })).toMatchObject({ ok: false, error: expect.stringMatching(/^Give the outlets/) });
+  });
+});
+
+describe("what she's told of the design", () => {
+  it("is a tool that reads the business's own design of the job, a design named by id, a long one a system at a time", () => {
+    const t = SESSION_TOOLS.find((x) => x.name === "read_design")!;
+    expect(t.description).toMatch(/The job's Studio design, as the business drew it/);
+    expect(t.description).toMatch(/whether it covers the room/);
+    expect(t.description).toMatch(/Says so plainly when the job has none/);
+    expect(Object.keys((t.input_schema as { properties: Record<string, unknown> }).properties)).toEqual(["id", "system"]);
+    expect((t.input_schema as { required?: string[] }).required).toBeUndefined();
   });
 });
 

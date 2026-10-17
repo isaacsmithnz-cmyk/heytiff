@@ -446,6 +446,21 @@ export const SESSION_TOOLS: ToolDef[] = [
     description: "Add a unit from the book to the compare on a unit line, when the person asked to compare it with something: the indoor's code as search_book gave it; its outdoor is paired from the book.",
     input_schema: { type: "object", properties: { line_id: { type: "string" }, code: { type: "string" } }, required: ["line_id", "code"], additionalProperties: false },
   },
+  /* Isaac, 2026-10-17, on 27 Milroy: "I think Tiff can already read the
+     studio design. Or can she not?" She saw a design only as a PDF on the job */
+  {
+    name: "read_design",
+    description:
+      "The job's Studio design, as the business drew it, read as its Summary shows it: each system's kind, brand, outdoor and indoor units; each room with its area, its design load, the unit serving it, what that gives the room and whether it covers the room; the pipe drawn from the outdoor to each head with its size, the total and the farthest run; the joints, branch boxes and parts on its takeoff; a ducted system's zones and what's drawn of its air side; the extra refrigerant the Studio works out; and what fails its checks, in its words; and the rooms no system serves. The newest of the job's designs unless you name another by id. Says so plainly when the job has none. A long design comes back one system at a time, saying so: read the others by name.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "One of the job's designs by its id, when it has several and the newest isn't the one" },
+        system: { type: "string", description: "One system by its name, when a long design came back a system at a time" },
+      },
+      additionalProperties: false,
+    },
+  },
   {
     name: "job_files",
     description: "The job's photos and documents you can look at, newest first: their ids, names, whether a photo or a document, and when.",
@@ -661,6 +676,7 @@ export const TOOL_LABELS: Record<string, string> = {
   your_corrections: "Read her corrections",
   job_files: "Listed the job's files",
   look_at: "Looked at",
+  read_design: "Read the design",
   compare_with: "Added to the compare",
   airflow_check: "Checked the air",
   ask: "Asked",

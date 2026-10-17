@@ -16,7 +16,7 @@
 
 export type JobSource = {
   id: string;
-  kind: "description" | "sm8_quote" | "note" | "earlier";
+  kind: "description" | "sm8_quote" | "note" | "earlier" | "design";
   /** what it is, as the list shows it: "Note, 6 Oct, Luke" */
   label: string;
   text: string;
@@ -42,12 +42,28 @@ export function jobSources(input: {
   notes: readonly { id: string; text: string; at: string | null; by: string | null }[];
   /** what the person answered on the old builder, question by question */
   earlier?: readonly { question: string; answer: string }[];
+  /** the Studio designs linked to the job, newest first */
+  designs?: readonly { id: string; name: string; saved: string; systems: number }[];
 }): { sources: JobSource[]; left: number } {
   const out: JobSource[] = [];
   const description = squash(input.description ?? "");
   if (description) out.push({ id: "description", kind: "description", label: "The job's description", text: description, at: null });
   const quote = squash(input.sm8Quote ?? "");
   if (quote) out.push({ id: "sm8_quote", kind: "sm8_quote", label: "ServiceM8's quote", text: quote, at: null });
+  /* the business's own design of the job (Isaac, 2026-10-17): that there is
+     one, for her to read whole with read_design */
+  const designs = input.designs ?? [];
+  if (designs.length) {
+    const several = designs.length > 1;
+    const each = designs.map((d) => `- ${d.name} (${d.id}), saved ${d.saved}, ${d.systems} ${d.systems === 1 ? "system" : "systems"}`);
+    out.push({
+      id: "design",
+      kind: "design",
+      label: several ? "The Studio designs" : "The Studio design",
+      text: [several ? "The business's own design of this job, newest first; read_design reads one by its id:" : "The business's own design of this job; read_design reads it:", ...each].join("\n"),
+      at: null,
+    });
+  }
   const earlier = (input.earlier ?? []).filter((a) => a.question.trim() && a.answer.trim());
   if (earlier.length) out.push({ id: "earlier", kind: "earlier", label: "Your answers to the old builder", text: earlier.map((a) => `- ${a.question.trim()} ${a.answer.trim()}`).join("\n"), at: null });
 

@@ -33,6 +33,30 @@ it("says a day as people do", () => {
   expect(dayOf(null)).toBe("");
 });
 
+/* Isaac, 2026-10-17: Tiff couldn't see the job's Studio design */
+it("lists the job's Studio design as a source, saying read_design reads it", () => {
+  const { sources } = jobSources({
+    description: "Three bedrooms on a multi",
+    sm8Quote: null,
+    notes: [],
+    designs: [
+      { id: "dsn_new", name: "12 Example St", saved: "15 Oct 2026", systems: 2 },
+      { id: "dsn_old", name: "12 Example St, first go", saved: "2 Oct 2026", systems: 1 },
+    ],
+  });
+  expect(sources.map((s) => s.id)).toEqual(["description", "design"]);
+  expect(sources[1]).toEqual({
+    id: "design",
+    kind: "design",
+    label: "The Studio designs",
+    text: "The business's own design of this job, newest first; read_design reads one by its id:\n- 12 Example St (dsn_new), saved 15 Oct 2026, 2 systems\n- 12 Example St, first go (dsn_old), saved 2 Oct 2026, 1 system",
+    at: null,
+  });
+  const one = jobSources({ description: null, sm8Quote: null, notes: [], designs: [{ id: "dsn_new", name: "12 Example St", saved: "15 Oct 2026", systems: 1 }] }).sources;
+  expect(one).toEqual([{ id: "design", kind: "design", label: "The Studio design", text: "The business's own design of this job; read_design reads it:\n- 12 Example St (dsn_new), saved 15 Oct 2026, 1 system", at: null }]);
+  expect(jobSources({ description: null, sm8Quote: null, notes: [] }).sources).toEqual([]);
+});
+
 /* Isaac, 2026-10-11 (3343): quoted again with Tiff, nothing he told the old builder asked again */
 it("brings what the person answered on the old builder, question by question", () => {
   const { sources } = jobSources({

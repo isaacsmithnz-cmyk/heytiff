@@ -4162,7 +4162,7 @@ describe("the job's own checklist", () => {
     await openTab("Checklist");
 
     await user.type(screen.getByLabelText("Add to the list"), "Order PAR-40 controller");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(face("checklist").getByRole("button", { name: "Add" }));
 
     /* optimistic first — the row is on the list before the server answers */
     expect(screen.getByText("Order PAR-40 controller")).toBeInTheDocument();
@@ -4187,7 +4187,7 @@ describe("the job's own checklist", () => {
     await user.click(screen.getByRole("button", { name: "Material" }));
     await user.type(screen.getByLabelText("Add to the list"), "Linear bar grille");
     await user.type(screen.getByLabelText("Quantity"), "2");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(face("checklist").getByRole("button", { name: "Add" }));
     await waitFor(() =>
       expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", {
         kind: "material",
@@ -4208,7 +4208,7 @@ describe("the job's own checklist", () => {
     await openTab("Checklist");
 
     await user.type(screen.getByLabelText("Add to the list"), "Ghost row");
-    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.click(face("checklist").getByRole("button", { name: "Add" }));
     await waitFor(() => expect(screen.queryByText("Ghost row")).not.toBeInTheDocument());
     expect(onToast).toHaveBeenCalledWith("Could not add that row");
   });

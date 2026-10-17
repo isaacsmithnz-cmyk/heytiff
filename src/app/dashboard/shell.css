@@ -7025,6 +7025,13 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-jcwin ~ .wb2-ico { margin-left:0; }
 .wb2-jcband .wb2-jcwin { align-self:flex-start; margin:-2px 4px 0 auto; }
 .wb2-jcband .wb2-shtop:has(.wb2-shmenu) .wb2-jcwin { margin-right:calc(52px + 30px + 8px - 16px - 32px); }
+/* ADD (rule 54) ends the identity's line, where the window's controls did,
+   so it takes their clearance of the pinned ✕ and ⋯, and they stand beside it */
+.wb2-jcadd { flex:none; display:flex; margin-left:auto; }
+.wb2-jcband .wb2-jcadd { align-self:flex-start; margin:-2px 4px 0 auto; }
+.wb2-jcband .wb2-shtop:has(.wb2-shmenu) .wb2-jcadd { margin-right:calc(52px + 30px + 8px - 16px - 32px); }
+.wb2-jcband .wb2-shtop:has(.wb2-jcadd) .wb2-jcwin { margin-right:8px; }
+.wb2-jcwin + .wb2-jcadd { margin-left:0; }
 /* the chips always take their own line under the identity — a half-wrapped
    chip row (two beside the name, three below) reads as an accident */
 .wb2-jcband .wb2-shchips { flex-basis:100%; margin-top:4px; }

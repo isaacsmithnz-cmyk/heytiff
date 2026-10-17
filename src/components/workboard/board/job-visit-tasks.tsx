@@ -104,6 +104,7 @@ export function JobVisitTasks({
   onSiteMinutes,
   onBook,
   emptyWords,
+  askAdd = 0,
 }: {
   job: string;
   /** whether the face is open: the tasks are read the first time it is */
@@ -121,11 +122,22 @@ export function JobVisitTasks({
   /** what to say when there's nothing at all; empty when the face already
       says something */
   emptyWords: string;
+  /** bumped by the card's Add > Task: the list opens on All tasks, where
+      Add a task is, with its box ready to type in */
+  askAdd?: number;
 }) {
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"visit" | "all">("visit");
   const [openId, setOpenId] = useState<string | null>(null);
+  /* a new ask from Add, seen while rendering, the way a window host sees a
+     new pathname: no effect, so nothing paints the old view first */
+  const [askSeen, setAskSeen] = useState(askAdd);
+  if (askAdd !== askSeen) {
+    setAskSeen(askAdd);
+    setView("all");
+    setOpenId(null);
+  }
   /* the visit open: a visit's number, or a site visit's day; null is the
      one the card opens on */
   const [pick, setPick] = useState<number | string | null>(null);
@@ -360,7 +372,7 @@ export function JobVisitTasks({
           ))}
         </div>
       )}
-      {manage && data && (tasks.length ? view === "all" : !data.canMake) && <AddTask slots={slots} saving={saving} onAdd={edit} />}
+      {manage && data && (tasks.length ? view === "all" : !data.canMake) && <AddTask slots={slots} saving={saving} onAdd={edit} ask={askAdd} />}
     </div>
   );
 }
@@ -750,7 +762,22 @@ function VisitPick({ slots, value, label, disabled, onPick }: { slots: readonly 
   );
 }
 
-function AddTask({ slots, saving, onAdd }: { slots: readonly VisitSlot[]; saving: boolean; onAdd: (e: Record<string, unknown>) => Promise<boolean> }) {
+function AddTask({
+  slots,
+  saving,
+  onAdd,
+  ask = 0,
+}: {
+  slots: readonly VisitSlot[];
+  saving: boolean;
+  onAdd: (e: Record<string, unknown>) => Promise<boolean>;
+  /** the card's Add > Task: the box takes the keys, here or as it arrives */
+  ask?: number;
+}) {
+  const box = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ask > 0) box.current?.focus();
+  }, [ask]);
   const [name, setName] = useState("");
   const [stage, setStage] = useState<VisitStage>("Install");
   const [measured, setMeasured] = useState(false);
@@ -762,7 +789,7 @@ function AddTask({ slots, saving, onAdd }: { slots: readonly VisitSlot[]; saving
   };
   return (
     <div className="jcl-tadd">
-      <input className="wb2-fi" aria-label="A new task" placeholder="A new task" value={name} disabled={saving} onChange={(e) => setName(e.target.value)} />
+      <input ref={box} className="wb2-fi" aria-label="A new task" placeholder="A new task" value={name} disabled={saving} onChange={(e) => setName(e.target.value)} />
       <select className="wb2-sel" aria-label="Its stage" value={stage} disabled={saving} onChange={(e) => setStage(e.target.value as VisitStage)}>
         {VISIT_STAGES.map((s) => (
           <option key={s} value={s}>

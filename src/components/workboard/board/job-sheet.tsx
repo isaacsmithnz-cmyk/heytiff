@@ -6,6 +6,9 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useOverlay } from "@/components/overlay/use-overlay";
 import { Icon } from "@/components/shell/icon";
+import { Button } from "@/components/parts/button";
+import { Menu, type MenuItem } from "@/components/parts/menu";
+import { quoteStarted, type QuoteFacts } from "@/lib/quotes/quote-card";
 import { fmtAuTime, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import {
@@ -242,6 +245,11 @@ const paperPages = (paper: JobPaper): JobMediaItem[] =>
     sign-on door already stand down for. */
 const SWMS_CLOSED = new Set(["Completed", "Unsuccessful"]);
 
+/** Where a quote is made, as the Quote section's own link goes: a quote
+    not started yet starts with Tiff. */
+const quotePage = (job: string, started: boolean) =>
+  `/dashboard/workboard/quotes/${encodeURIComponent(job)}${started ? "" : "?start=1"}`;
+
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
 
@@ -400,6 +408,18 @@ export function JobSheet({
   const [openClaim, setOpenClaim] = useState<string | null>(null);
   const [numbersOpen, setNumbersOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  /* ADD (rule 54): what belongs to the job, each item a door to the flow the
+     card already has for it. `taskAsk` is bumped by Add > Task, which opens
+     the Visits face's own Add a task. */
+  const addRef = useRef<HTMLButtonElement>(null);
+  const [adding, setAdding] = useState(false);
+  const [taskAsk, setTaskAsk] = useState(0);
+  /* WHERE THE QUOTE STANDS, for Add's Quote, which reads Variation once a
+     quote is accepted: the Quote section's own read, asked the first time
+     the reader reaches for Add. Undefined until it lands, null when it
+     failed, and then Quote opens the Quote section, which says it. */
+  const [quoteFacts, setQuoteFacts] = useState<QuoteFacts | null | undefined>(undefined);
+  const quoteAsked = useRef<string | null>(null);
   /* THE SWMS WIZARD when it is open — a new one, or the next version of one
      (`revise` names the version it replaces) — and the certificates' —
      `reissue` the same. What they write is the papers' (use-job-papers). */
@@ -1484,6 +1504,78 @@ export function JobSheet({
     setStep(k);
   };
 
+  /* ADD (rule 54): Visit, Task, Quote (Variation once accepted), Cost, SWMS,
+     Certificate. Each is a door to what the card already does, behind the
+     same check that card's own door has, and an item the reader may not use
+     isn't there. It waits, as the diary's pen does, for the card to know
+     which job it is. */
+  const askQuote = () => {
+    const job = cardId;
+    if (!job || quoteAsked.current === job) return;
+    quoteAsked.current = job;
+    void Promise.resolve()
+      .then(() => fetch(`/api/workboard/quote-status?job=${encodeURIComponent(job)}`))
+      .then((r) => r.json() as Promise<{ ok: boolean; facts?: QuoteFacts }>)
+      .then((a) => {
+        if (!alive.current) return;
+        if (!a.ok || !a.facts) quoteAsked.current = null;
+        setQuoteFacts(a.ok && a.facts ? a.facts : null);
+      })
+      .catch(() => {
+        quoteAsked.current = null;
+        if (alive.current) setQuoteFacts(null);
+      });
+  };
+  /* a variation is made on an accepted quote, and only there (startVariation) */
+  const variation = !!quoteFacts && quoteFacts.accepted.length > 0;
+  const addItems: MenuItem[] = [
+    /* Book in, where the deployment books and the reader may */
+    ...(bookings?.canBook ? [{ key: "visit", label: "Visit" }] : []),
+    /* the Visits face's Add a task is a manager's (workboard_manage) */
+    ...(manage && detail ? [{ key: "task", label: "Task" }] : []),
+    /* the quote is everyone's on the Workboard; its money is not in it */
+    { key: "quote", label: variation ? "Variation" : "Quote" },
+    /* a cost on a job is an expense claim, and anyone may claim one */
+    { key: "cost", label: "Cost" },
+    /* a SWMS is a before-work paper: none is made once ServiceM8 has the job closed */
+    ...(SWMS_CLOSED.has(detail?.status ?? "") ? [] : [{ key: "swms", label: "SWMS" }]),
+    { key: "certificate", label: "Certificate" },
+  ];
+  const addPick = (key: string) => {
+    setAdding(false);
+    const job = cardId ?? row.id;
+    switch (key) {
+      case "visit":
+        /* a Book in already open, half filled, is kept */
+        openStep("installation");
+        if (!bookIn) openPanel(null);
+        return;
+      case "task":
+        openStep("installation");
+        setTaskAsk((n) => n + 1);
+        return;
+      case "quote":
+        /* until the card knows where the quote stands, the Quote section
+           does, and holds its own Create or Continue */
+        if (quoteFacts) router.push(quotePage(job, variation || quoteStarted(quoteFacts)));
+        else openStep("quoted");
+        return;
+      case "cost":
+        router.push("/dashboard/my-expenses");
+        return;
+      case "swms":
+        go("compliance");
+        /* one SWMS a job: a later one is a revision, on its own row */
+        if (swms !== null && swms.length === 0) setSwmsWizard({ revise: null });
+        return;
+      case "certificate":
+        go("compliance");
+        /* one certificate a job: a later one is a reissue */
+        if (certs !== null && certs.length === 0) setCertWizard({ reissue: null });
+        return;
+    }
+  };
+
   /* Up and down walk the rail, as a vertical tab list does. */
   const railKey = (e: React.KeyboardEvent, i: number) => {
     const d = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
@@ -1588,6 +1680,34 @@ export function JobSheet({
               </p>
             </span>
             {windowControls}
+            <span className="wb2-jcadd">
+              <Button
+                ref={addRef}
+                kind="second"
+                size={32}
+                icon="plus"
+                disabled={!cardId}
+                aria-haspopup="menu"
+                aria-expanded={adding}
+                onPointerEnter={askQuote}
+                onFocus={askQuote}
+                onClick={() => {
+                  askQuote();
+                  setAdding((v) => !v);
+                }}
+              >
+                Add
+              </Button>
+              <Menu
+                anchor={addRef}
+                open={adding}
+                onClose={() => setAdding(false)}
+                onSelect={addPick}
+                items={addItems}
+                label="Add to this job"
+                align="end"
+              />
+            </span>
             <span className="wb2-shchips">
               {focusClaim && <span className="wb2-chip cat">{claimTitle(focusClaim)}</span>}
               {/* THE CHIP IS THE DOOR — the shape the tracked chip proved.
@@ -2151,6 +2271,7 @@ export function JobSheet({
                   ahead={daysAhead}
                   workOrderDate={detail.workOrderDate}
                   onSiteMinutes={detail.timeOnSite?.minutes ?? null}
+                  askAdd={taskAsk}
                   onBook={
                     bookings?.canBook && cardId
                       ? () => {

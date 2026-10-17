@@ -273,8 +273,8 @@ describe("the isolator follows the outdoor's draw and supply", () => {
   // what the install questions offer for this outdoor: the sized isolator
   const proposed = (model: string) => isolators.find((o) => o.id === defaultIsolatorId(odu(model)))!;
 
-  it("a 28 A single-phase outdoor gets a 1Ø 32 A isolator, not a 20 A", () => {
-    expect(odu("PUZ-ZM125VKA2-A")).toMatchObject({ phase: "1", max_amps_a: 28 });
+  it("a 27.5 A single-phase outdoor gets a 1Ø 32 A isolator, not a 20 A", () => {
+    expect(odu("PUZ-ZM125VKA2-A")).toMatchObject({ phase: "1", max_amps_a: 27.5 });
     expect(proposed("PUZ-ZM125VKA2-A").id).toBe("isolator-32a-1ph");
     expect(proposed("PUZ-ZM125VKA2-A").name).toBe("Isolator, 1Ø 32 A");
     // proposed, never put on the job until it is picked
@@ -307,8 +307,9 @@ describe("the isolator follows the outdoor's draw and supply", () => {
   });
 
   it("with no max_amps_a in the pack it keeps the 20 A, on the outdoor's supply", () => {
-    expect(odu("PUZ-ZM100VKA2-A").max_amps_a).toBeUndefined();
-    expect(proposed("PUZ-ZM100VKA2-A").id).toBe("isolator-20a-1ph");
+    expect(odu("PUMY-SP112VKMD2-A")).toMatchObject({ phase: "1" });
+    expect(odu("PUMY-SP112VKMD2-A").max_amps_a).toBeUndefined();
+    expect(proposed("PUMY-SP112VKMD2-A").id).toBe("isolator-20a-1ph");
     expect(odu("PUMY-SP112YKMD2-A")).toMatchObject({ phase: "3" });
     expect(odu("PUMY-SP112YKMD2-A").max_amps_a).toBeUndefined();
     expect(proposed("PUMY-SP112YKMD2-A").name).toBe("Isolator, 3Ø 20 A");

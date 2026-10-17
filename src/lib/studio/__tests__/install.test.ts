@@ -553,7 +553,7 @@ describe("a split and a ducted pair", () => {
     const idu = pack.indoor_units.find((u) => u.model === "PEAD-M125JAA(D)")!;
     expect(idu.drain_pump).toBe("built-in");
     const odu = pack.outdoor_units.find((u) => u.model === "PUZ-ZM125VKA2-A")!;
-    expect(odu.max_amps_a).toBe(28);
+    expect(odu.max_amps_a).toBe(27.5);
     expect(odu.phase).toBe("1");
     expect(defaultIsolatorId(odu)).toBe("isolator-32a-1ph");
 
@@ -561,7 +561,7 @@ describe("a split and a ducted pair", () => {
     expect(questionById(questions, "condensate").options.find((o) => o.id === "pump")?.sub).toBe(
       "Built in on PEAD-M125JAA(D)"
     );
-    expect(questionById(questions, "electrical-work").hint).toBe("From the pack: 1Ø 32 A, for its 28 A");
+    expect(questionById(questions, "electrical-work").hint).toBe("From the pack: 1Ø 32 A, for its 27.5 A");
 
     doc = answerInstall(doc, "ducted", "condensate", ["pump"]);
     doc = answerInstall(doc, "ducted", "electrical-work", ["yes"]);
@@ -572,7 +572,7 @@ describe("a split and a ducted pair", () => {
       {
         group: "Electrical",
         name: "Supply cable",
-        value: "Size for 28 A",
+        value: "Size for 27.5 A",
         why: "PUZ-ZM125VKA2-A's max running amps, from the pack",
       },
     ]);

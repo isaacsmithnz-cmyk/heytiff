@@ -124,8 +124,10 @@
      A GRAPHIC needs 3, so α ≥ .345, and the nav icons at .4 are correctly
      fine. This token is the text floor with a little margin; the icons keep
      their own value because they are held to the other bar, and the tiers
-     above it are carried by size and weight exactly as on the light side. */
-  --on-ink-q: rgba(255,255,255,.5);
+     above it are carried by size and weight exactly as on the light side.
+     v2 (the palette: "on the ink sidebar, words are white or white at 60%")
+     lifts it to .6, 7.33. */
+  --on-ink-q: rgba(255,255,255,.6);
   /* THE ONE HAIRLINE ON THE DARK CHROME. A graphic on the frame is held to
      3:1, so its alpha floor is .345 (the argument above); this sits just over
      it. docs/design.md: the dark chrome has one hairline token and no inner

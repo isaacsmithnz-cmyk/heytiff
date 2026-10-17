@@ -84,47 +84,24 @@ function PlaceRow({ place, on }: { place: Place; on: boolean }) {
   );
 }
 
-/* NEW (rules 3 and 44): a white disc and the word. What starts work is made
-   here, Job and Quote, the same on every page, and nothing is filled in. A
-   task is words to Tiff, or a job's Add (Isaac, 18 October: "Talking to Tiff
-   seems to be the best way to add one fast"). Job is the board's own form,
-   offered where ServiceM8 takes new jobs from this workspace; Quote joins
-   when what it makes is settled, so until then New shows only where Job
-   does. The panel is dark and square where it leaves the sidebar. */
+/* NEW (rules 3 and 44): a white disc and the word, and it makes a Job:
+   the board's own form, opened straight from the button, nothing filled in.
+   A quote and a task are made on the job, through its Add (Isaac, 18
+   October: "Quote should just live in the job section, you need a job
+   before a quote"; a task is also words to Tiff). New shows where
+   ServiceM8 takes new jobs from this workspace. */
 function NewButton({ newJob }: { newJob: boolean }) {
-  const ref = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-  const [making, setMaking] = useState<"job" | null>(null);
-  const items: MenuItem[] = newJob ? [{ key: "job", label: "Job", lead: <Icon name="folder" size={16} /> }] : [];
-  if (items.length === 0) return null;
+  const [making, setMaking] = useState(false);
+  if (!newJob) return null;
   return (
     <>
-      <button
-        ref={ref}
-        type="button"
-        className="fr-new"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
+      <button type="button" className="fr-new" aria-haspopup="dialog" onClick={() => setMaking(true)}>
         <span className="fr-newdisc" aria-hidden>
           <Icon name="plus" size={14} />
         </span>
         New
       </button>
-      <Menu
-        anchor={ref}
-        open={open}
-        onClose={() => setOpen(false)}
-        onSelect={(key) => {
-          setOpen(false);
-          if (key === "job") setMaking(key);
-        }}
-        items={items}
-        label="New"
-        tone="ink"
-      />
-      {making === "job" && <NewJobModal onClose={() => setMaking(null)} />}
+      {making && <NewJobModal onClose={() => setMaking(false)} />}
     </>
   );
 }

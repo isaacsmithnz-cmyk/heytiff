@@ -64,15 +64,13 @@ describe("the sidebar's top", () => {
     expect(screen.getByRole("button", { name: /Search/ })).toHaveTextContent("⌘K");
   });
 
-  it("holds what starts work, never a task, and shows only where it has something (rule 44)", () => {
+  it("makes a Job, and shows where ServiceM8 takes new jobs (rules 3 and 44)", () => {
     draw(userAs("owner"));
     expect(screen.queryByRole("button", { name: "New" })).toBeNull();
     cleanup();
     draw(userAs("owner"), true);
-    act(() => screen.getByRole("button", { name: "New" }).click());
-    const menu = screen.getByRole("menu", { name: "New" });
-    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Job"]);
-    expect(menu.closest(".pt-menu")).toHaveClass("pt-menu--ink");
+    expect(screen.getByRole("button", { name: "New" })).toHaveAttribute("aria-haspopup", "dialog");
+    expect(screen.queryByRole("menu", { name: "New" })).toBeNull();
   });
 });
 
@@ -146,7 +144,6 @@ describe("New", () => {
   it("makes a Job with the board's own form", () => {
     draw(userAs("owner"), true);
     act(() => screen.getByRole("button", { name: "New" }).click());
-    fireEvent.click(screen.getByRole("menuitem", { name: "Job" }));
     expect(screen.getByRole("dialog", { name: "New job" })).toBeInTheDocument();
   });
 });

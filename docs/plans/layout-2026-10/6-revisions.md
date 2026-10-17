@@ -54,7 +54,7 @@ The mock-ups for everything below are at https://claude.ai/artifact/Ez9ak2XsHSWC
 - **While Tiff works,** her work sits in a message under her name and time. The heading says what she's doing now ("Changing the grille line", rule 49); finished steps are grey and the current one ink. Send fades until she's done. When she's done the run folds to "Worked through it, N steps" (his pick on 17 October). One fold per turn: a question she asks no longer cuts the run.
 - **Her mark's rings show while she works.** They are drawn a little thicker then, so the colour reads at 24 px.
 - **Unsent words in a reply box are kept on the server, per person** (his option 2, 18 October). Built for the quote's box on main: `reply_drafts`, `/api/drafts`, `useReplyDraft`. Other boxes join by adding to `DRAFT_BOXES` and the table's check.
-- **New holds Job and Quote, not Task** (18 October): "Talking to Tiff seems to be the best way to add one fast." A task is words to Tiff (Home's box, or her button on any page), or a job's Add. Rule 44 says so.
+- **New makes a Job, and only a Job** (18 October). Task: "Talking to Tiff seems to be the best way to add one fast." Quote: "Quote should just live in the job section, you need a job before a quote." A quote and a task come from the job's Add; a task is also words to Tiff (Home's box, or her button on any page). Rules 3 and 44 say so, and New opens the job form straight from the button.
 - **Nothing on a quote has a Save button.** Everything saves as it happens, and the one gap, unsent words, is closed above.
 
 ## What the build assumes until Isaac answers

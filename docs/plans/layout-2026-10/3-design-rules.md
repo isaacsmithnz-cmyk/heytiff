@@ -8,7 +8,7 @@ These 54 rules are all decided. In phase 0 of the build plan they replace the 34
 
 - **1. The page and its two curves.** Ink sidebar; a plain white page. The page curls into the ink at its top left, and the ink curls back into the page at its foot: 40 each, square everywhere else.
 - **2. The header.** The date and the time together on the left of every page; open tabs on the right.
-- **3. New.** At the top of the sidebar, a white disc and the word. Job, Quote and Task are made here (rule 44); what belongs to a record comes from its Add (rule 54).
+- **3. New.** At the top of the sidebar, a white disc and the word. A Job is made here (rule 44); what belongs to a record, a quote and a task among them, comes from its Add (rule 54).
 - **4. Search.** Under New, with ⌘K beside it. Finds any record; its last row asks Tiff.
 - **5. The eight places.** Home, Conversations, Jobs, Schedule, Documents, Library, Design, Team. The one you're on is white at 12% with its label in bold.
 - **6. Pinned and Recents.** Stay in the sidebar under the places; a job shows its colour dot.
@@ -72,7 +72,7 @@ These 54 rules are all decided. In phase 0 of the build plan they replace the 34
 - **41. Loading.** Nothing for half a second, then a skeleton shaped like what's coming.
 - **42. When something goes wrong.** A red dot and word, what it means for you, and what to do.
 - **43. Search.** Results by kind; the last row asks Tiff, with Enter.
-- **44. The New menu.** Job and Quote: the same on every page, and it never fills anything in. A task is words to Tiff, or a record's Add. The panel reaches out from the New button, dark, square where it leaves the panel.
+- **44. New.** Makes a Job, the same on every page, and fills nothing in. A quote and a task are made on the job, through its Add; a task is also words to Tiff.
 
 ### Motion, shape and the rest
 

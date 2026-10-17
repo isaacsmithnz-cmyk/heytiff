@@ -57,8 +57,6 @@ export type MenuProps = {
   align?: FloatAlign;
   /** the list's id, for a trigger's `aria-controls` */
   id?: string;
-  /** "ink" for New's panel (rule 44): dark, square where it leaves the sidebar */
-  tone?: "white" | "ink";
 };
 
 export function Menu(props: MenuProps) {
@@ -68,7 +66,7 @@ export function Menu(props: MenuProps) {
 
 const first = (list: readonly MenuItem[]) => list.find((i) => !i.disabled)?.key ?? null;
 
-function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, kind = "menu", filter, matchWidth, align, id, tone = "white" }: MenuProps) {
+function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, kind = "menu", filter, matchWidth, align, id }: MenuProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const filterRef = useRef<HTMLInputElement>(null);
@@ -172,7 +170,7 @@ function MenuPanel({ anchor, onClose, onSelect, items, label, chosen, kind = "me
   return (
     <div
       ref={panelRef}
-      className={`pt-menu${tone === "ink" ? " pt-menu--ink" : ""}${overModal ? " pt-menu--over-modal" : ""}${keyed ? " pt-menu--keys" : ""}`}
+      className={`pt-menu${overModal ? " pt-menu--over-modal" : ""}${keyed ? " pt-menu--keys" : ""}`}
       style={style}
       onKeyDown={onKeyDown}
     >

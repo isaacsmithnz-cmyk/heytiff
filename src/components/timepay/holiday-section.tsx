@@ -99,7 +99,7 @@ export function HolidaySection({
     });
   };
 
-  if (loading) return <p className="xp-note">Reading your holiday calendar…</p>;
+  if (loading) return <p className="xp-note">Reading your holiday calendar</p>;
   if (!data) return <p className="xp-note">{error ?? "Couldn't load the holiday calendar."}</p>;
 
   const { holidays, orgState, today } = data;

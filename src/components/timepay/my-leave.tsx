@@ -422,7 +422,7 @@ export function MyLeave({
                         </em>
                       </span>
                       <label className="fl-btn tiny">
-                        {uploading ? "Uploading…" : cert ? "Replace" : "Attach"}
+                        {uploading ? "Uploading the certificate" : cert ? "Replace" : "Attach"}
                         <input
                           type="file"
                           accept="image/*,application/pdf"

@@ -802,7 +802,7 @@ function DayEditor({
           {(dirty || busy) && (
             <button className="mts2-btn primary" disabled={busy || kind === null} onClick={commit}>
               <Icon name={busy ? "clock" : "check"} size={14} />
-              {busy ? "Saving…" : "Save day"}
+              {busy ? "Saving the day" : "Save day"}
             </button>
           )}
           {dirty && !busy && (

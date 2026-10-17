@@ -4,6 +4,7 @@ import { CommandPalette } from "./command-palette";
 import { RecordWindowsSlot } from "@/components/records/record-host";
 import { loadShell } from "@/lib/shell/data";
 import { todayInAu } from "@/lib/au-dates";
+import { newJobOffered } from "@/lib/workboard/new-job-offer";
 
 /* The three pieces of chrome that need to know who you are.
 
@@ -24,16 +25,18 @@ import { todayInAu } from "@/lib/au-dates";
    cannot receive a client function as a prop. */
 
 export async function ShellSidebar() {
-  const { user, orgName } = await loadShell();
-  return <Sidebar role={user.role} caps={user.caps} orgName={orgName} />;
+  const { user, orgId } = await loadShell();
+  /* New offers a Job where the board would: ServiceM8 takes new jobs from
+     this workspace and you may run the board */
+  const newJob = orgId ? await newJobOffered(orgId, user.caps.includes("workboard_manage")) : false;
+  return <Sidebar user={user} newJob={newJob} />;
 }
 
 export async function ShellTopbar() {
-  const { user } = await loadShell();
   /* The AU calendar date, read once here on the server so the topbar's clock
      paints with the frame instead of blank until hydration. Synchronous, so it
      adds nothing to what this slot already awaits. */
-  return <Topbar user={user} today={todayInAu()} />;
+  return <Topbar today={todayInAu()} />;
 }
 
 export async function ShellPalette() {

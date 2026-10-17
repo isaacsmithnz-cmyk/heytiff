@@ -333,7 +333,7 @@ export function CommandPalette({
   const choose = useCallback(
     (row: Row) => {
       onClose();
-      const searchbtn = document.querySelector<HTMLElement>(".topbar .searchbtn");
+      const searchbtn = document.querySelector<HTMLElement>(".side .fr-search");
       if (row.kind === "verb") {
         row.act();
       } else if (row.kind === "recent") {

@@ -238,7 +238,7 @@ infinite loop into a strobe.
 
 | Keyframes | Runs on | Why it loops |
 |---|---|---|
-| `pkSweep` ×3 | the route skeleton, the chrome skeleton, and the job card's summary while its read is out | a skeleton sweep: the space a screen is about to fill |
+| `pkSweep` ×2 | the route skeleton and the job card's summary while its read is out (v2's chrome skeleton is still, rule 41) | a skeleton sweep: the space a screen is about to fill |
 | `dsSweep` | the Studio's skeleton blocks | a skeleton sweep |
 | `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
 | `vmShimmer` | the reading bar while a scanned document is read | a skeleton sweep for a scan in progress |
@@ -277,7 +277,6 @@ this list the way it holds the loops: both ways, by name.
 | `plus` | `wb2-striprnd`, `wb2-addgo` | a note composer's commit at the end of its one-line field: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
 | `cornerDL` | `qt-send` | a composer's send, as the note composer's plus is: Tiff's reply box on the quote, Enter drawn in a grey square (Isaac, 2026-10-13: "the chat reply button can just be gray similar to what it looks like in Claude"). Its label is "Send", and Enter is the same press |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
-| `chevR` | `railtg` | the rail's handle, a chevron riding the seam between rail and content; the shell stands as it is |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
 | `chevL` | `hd-cal-nb` | the Home calendar's Earlier, his arrow either side of what is in view ("go with your recommendations", 2026-09-25, which kept his shapes): the range beside it is the word, the button is named Earlier, and it rests at the twelve months' edge |
 | `chevR` | `hd-cal-nb` | the Home calendar's Later, on the same terms as its Earlier |

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useHydrated } from "@/lib/use-hydrated";
-import { fmtAuTime, fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
+import { fmtAuTime, fmtAuWeekdayDateLong, todayInAu } from "@/lib/au-dates";
 
 /* The date and time, in the FRAME rather than on a page.
 
@@ -51,7 +51,8 @@ export function Clock({ today }: { today: string }) {
      an app left open overnight rolls over instead of insisting it is still
      yesterday. Before that it is the server's AU date, which the greeting and
      every chip on the page were derived from. */
-  const date = fmtAuWeekdayDayMonth(hydrated ? todayInAu(now) : today);
+  /* v2's header spells the day out, "Saturday 18 October", then the time */
+  const date = fmtAuWeekdayDateLong(hydrated ? todayInAu(now) : today);
 
   return (
     <div className="tbclock">

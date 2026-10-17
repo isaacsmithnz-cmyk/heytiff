@@ -1,17 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
+import { useContext, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "./icon";
 import { Chevron } from "../logo";
-import { navGroupsFor, isActive } from "./nav";
-import {
-  railCollapsed,
-  railServerSnapshot,
-  subscribeRail,
-  toggleRail,
-} from "./rail-state";
+import { PLACES, STILL_TO_MOVE, YOURS, placeOn, placesFor, type Place } from "./places";
+import { useCommandPalette } from "./command-palette-context";
+import { WindowsContext, useRecords } from "@/components/records/records-context";
+import { NewJobModal } from "@/components/workboard/board/new-job-modal";
+import { Initials } from "@/components/parts/initials";
+import { Menu, type MenuItem } from "@/components/parts/menu";
 import type { Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
 
@@ -19,115 +18,165 @@ export type ShellUser = {
   name: string;
   roleLabel: string;
   initials: string;
-  /** org role — for the role-intrinsic Admin entry */
+  /** org role — for the role-intrinsic Settings entry */
   role: Role | null;
-  /** resolved capabilities; drives nav visibility. Routes gate themselves too. */
+  /** resolved capabilities; drives what the sidebar offers. Routes gate themselves too. */
   caps: readonly Capability[];
 };
 
-export function Sidebar({
-  role,
-  caps,
-  orgName = null,
-}: {
-  role: Role | null;
-  caps: readonly Capability[];
-  /** trading name from org settings; null (unset) hides the chip */
-  orgName?: string | null;
-}) {
+/* THE SIDEBAR (docs/design.md rules 1 and 3 to 7). Ink, top to bottom:
+   the wordmark, New, Search, the places, Pinned and Recents, and your name.
+   It doesn't fold (rule 27), so the rail's collapse control is gone. */
+export function Sidebar({ user, newJob = false }: { user: ShellUser; newJob?: boolean }) {
   const pathname = usePathname();
-  const groups = navGroupsFor({ caps: new Set(caps), role });
-  /* collapsed = the 64px icon rail. CSS keys off html[data-rail] (set before
-     paint by the layout's boot script); React reads it only for the toggle's
-     label and the items' hover titles. */
-  const rail = useSyncExternalStore(subscribeRail, railCollapsed, railServerSnapshot);
+  const viewer = { caps: new Set(user.caps), role: user.role };
+  const places = placesFor(PLACES, viewer);
+  const moving = placesFor(STILL_TO_MOVE, viewer);
+  const { open: openSearch } = useCommandPalette();
 
   return (
-    <>
-    <aside className="side">
-
-      <div className="brand">
-        <div className="ht-brandcol">
-          <div className="ht-logo">
-            <Chevron size={40} />
-            <span className="ht-wm">
-              Hey<span>Tiff</span>
-            </span>
-          </div>
-          {/* Whose account this is — the trading name from Organisation
-              settings, chipped under the wordmark. A chip rather than a line of
-              text because the two names are not the same kind of thing: HeyTiff
-              is the software, this is the business using it, and a bare line
-              underneath reads as a tagline for the word above it.
-
-              The uploaded logo used to render here in place of a × glyph, and
-              could not: what a business uploads is a LETTERHEAD — the one in
-              prod is 3780×1064 — and a 224px rail has nowhere to put a wordmark
-              that wide except a 40px box, where it came out 9px tall in its own
-              dark ink on a near-black rail. The logo belongs on the surfaces a
-              customer receives, which is where it is (org/letterhead.tsx). */}
-          {orgName ? (
-            <span className="ht-orgpill" title={orgName}>
-              {orgName}
-            </span>
-          ) : null}
-        </div>
+    <aside className="side fr-side" aria-label="Sidebar">
+      <div className="fr-brand">
+        <Chevron size={24} />
+        <span className="fr-wm">HeyTiff</span>
       </div>
 
-      <div className="nav no-sb">
-        {groups.map((group) => (
-          /* THE GROUP HEADING IS GONE — the word is the group's ACCESSIBLE
-             NAME now, and a hairline says where one list ends.
+      <NewButton newJob={newJob} />
 
-             WORKSPACE / PERSONAL / OPERATIONS cost 31px each on a rail that
-             does not fit: an owner's nav needs 999px and a 900px window shows
-             733 of it, so the bottom of Operations — Admin included — sat
-             below a fold with no scrollbar to admit it (`.nav` is `.no-sb`).
-             Three headings, three group gaps and the row padding were 293px of
-             that, and these were the cheapest of the three: the stylesheet
-             already called them the least readable text in the app at 2.53:1,
-             and every word they said the icons below them say again.
+      <button type="button" className="fr-row fr-search" onClick={openSearch}>
+        <Icon name="search" size={18} />
+        <span className="fr-lbl">Search</span>
+        <kbd className="fr-kbd" aria-label="Command K">⌘K</kbd>
+      </button>
 
-             `role="group"` + `aria-label` keeps the grouping for anyone
-             listening to it — what leaves is the drawn text, not the
-             structure. */
-          <div className="navgrp" key={group.label} role="group" aria-label={group.label}>
-            {group.items.map((n) => {
-              const on = isActive(n, pathname);
-              return (
-                <Link
-                  key={n.key}
-                  href={n.href}
-                  className={`ni${on ? " on" : ""}`}
-                  /* collapsed rows are icon-only — the hover gives the word
-                     back; expanded rows already wear it, so no tooltip */
-                  title={rail ? n.label : undefined}
-                >
-                  <span className="nicon">
-                    <Icon name={n.icon} size={16} />
-                  </span>
-                  <span className="nlbl">{n.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+      <nav className="fr-places" aria-label="Places">
+        {places.map((p) => (
+          <PlaceRow key={p.key} place={p} on={placeOn(p, pathname)} />
         ))}
-      </div>
+        {moving.length > 0 && <div className="fr-hair" role="separator" />}
+        {moving.map((p) => (
+          <PlaceRow key={p.key} place={p} on={placeOn(p, pathname)} />
+        ))}
+      </nav>
 
+      <Recents />
+
+      <YourName user={user} viewer={viewer} />
     </aside>
-    {/* the rail's two sizes — one control, a handle riding the SEAM between
-        rail and content. It lives outside the aside: .side clips at its own
-        edge (overflow:hidden contains the glow), which would cut the
-        straddling chip in half. */}
-    <button
-      type="button"
-      className="railtg"
-      onClick={toggleRail}
-      aria-label={rail ? "Expand navigation" : "Collapse navigation"}
-      title={rail ? "Expand navigation" : "Collapse navigation"}
-    >
-      <Icon name={rail ? "chevR" : "chevL"} size={15} />
-    </button>
+  );
+}
+
+function PlaceRow({ place, on }: { place: Place; on: boolean }) {
+  return (
+    <Link href={place.href} className={`fr-row${on ? " on" : ""}`} aria-current={on ? "page" : undefined}>
+      <Icon name={place.icon} size={18} />
+      <span className="fr-lbl">{place.label}</span>
+    </Link>
+  );
+}
+
+/* NEW (rules 3 and 44): a white disc and the word. Job, Quote and Task are
+   made here; until step 4 builds the one form for each, only Job has a form
+   to open, so only Job is offered. The panel is dark and square where it
+   leaves the sidebar. */
+function NewButton({ newJob }: { newJob: boolean }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [making, setMaking] = useState<"job" | null>(null);
+  if (!newJob) return null;
+  const items: MenuItem[] = [{ key: "job", label: "Job", lead: <Icon name="folder" size={16} /> }];
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        className="fr-new"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="fr-newdisc" aria-hidden>
+          <Icon name="plus" size={14} />
+        </span>
+        New
+      </button>
+      <Menu
+        anchor={ref}
+        open={open}
+        onClose={() => setOpen(false)}
+        onSelect={(key) => {
+          setOpen(false);
+          if (key === "job") setMaking("job");
+        }}
+        items={items}
+        label="New"
+      />
+      {making === "job" && <NewJobModal onClose={() => setMaking(null)} />}
     </>
+  );
+}
+
+/* RECENTS (rule 6): the records opened lately, newest first. Pinned joins
+   them when pins have a home of their own. */
+function Recents() {
+  const host = useContext(WindowsContext);
+  const { open } = useRecords();
+  const recent = host?.recent ?? [];
+  if (recent.length === 0) return null;
+  return (
+    <section className="fr-group" aria-label="Recents">
+      <h2 className="fr-grouphead">Recents</h2>
+      {recent.map((r) => (
+        <button key={r.key} type="button" className="fr-row fr-rec" onClick={() => open(r.ref)}>
+          <Icon name="folder" size={16} />
+          <span className="fr-lbl">
+            {r.title}
+            {r.sub ? `, ${r.sub}` : ""}
+          </span>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+/* YOUR NAME (rule 7): at the foot. Your card, timesheet, leave, expense
+   claims, Reports and Settings, then Sign out. */
+function YourName({ user, viewer }: { user: ShellUser; viewer: { caps: ReadonlySet<Capability>; role: Role | null } }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const yours = placesFor(YOURS, viewer);
+  const items: MenuItem[] = [
+    ...yours.map((p) => ({ key: p.key, label: p.label, lead: <Icon name={p.icon} size={16} /> })),
+    { key: "signout", label: "Sign out", lead: <Icon name="logout" size={16} /> },
+  ];
+  const choose = (key: string) => {
+    setOpen(false);
+    /* Sign out is a real navigation: the auth route clears the session */
+    if (key === "signout") window.location.assign("/auth/logout");
+    else {
+      const p = yours.find((y) => y.key === key);
+      if (p) router.push(p.href);
+    }
+  };
+  return (
+    <div className="fr-me">
+      <button
+        ref={ref}
+        type="button"
+        className="fr-metrig"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Initials name={user.name} size={32} />
+        <span className="fr-mewho">
+          <b>{user.name}</b>
+          <em>{user.roleLabel}</em>
+        </span>
+        <Icon name="chevUD" size={16} />
+      </button>
+      <Menu anchor={ref} open={open} onClose={() => setOpen(false)} onSelect={choose} items={items} label="Your name" matchWidth />
+    </div>
   );
 }

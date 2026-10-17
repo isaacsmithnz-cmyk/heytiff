@@ -1,139 +1,102 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect, useSyncExternalStore } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "./icon";
+import { Fade } from "@/components/parts/fade";
 import { Clock } from "./clock";
 import { Bell } from "./bell";
 import { TiffButton } from "@/components/notes/tiff-button";
-import type { ShellUser } from "./sidebar";
+import { NAV } from "./nav";
+import { PLACES, STILL_TO_MOVE, YOURS } from "./places";
 import { useCommandPalette } from "./command-palette-context";
+import { arrive, choose, closeTab, newTab, subscribeTabs, tabsServerSnapshot, tabsSnapshot } from "./open-tabs";
 
-/** What the search finds, for this viewer, in a few words. */
-function searchSaid(caps: ShellUser["caps"]): string {
-  if (caps.includes("workboard")) return "Find a job, client or screen…";
-  if (caps.includes("team")) return "Find a person or screen…";
-  return "Jump to a screen…";
+/* What a tab is called, and its glyph: the place or screen whose address
+   is the longest start of the page's. */
+const NAMED = [
+  ...PLACES.map((p) => ({ href: p.href, label: p.label, icon: p.icon })),
+  ...STILL_TO_MOVE.map((p) => ({ href: p.href, label: p.label, icon: p.icon })),
+  ...YOURS.map((p) => ({ href: p.href, label: p.label, icon: p.icon })),
+  ...NAV.map((n) => ({ href: n.href, label: n.label, icon: n.icon })),
+];
+export function tabName(href: string): { label: string; icon: string } {
+  const path = href.split(/[?#]/)[0];
+  let best: { href: string; label: string; icon: string } | null = null;
+  for (const n of NAMED) {
+    if ((path === n.href || path.startsWith(n.href + "/")) && (!best || n.href.length > best.href.length)) best = n;
+  }
+  return best ?? { label: "Page", icon: "file" };
 }
 
-export function Topbar({ user, today }: { user: ShellUser; today: string }) {
-  /* The opener comes from context, not a prop: this component is rendered as a
-     SERVER slot (it needs the viewer's name and role), and a server slot can't
-     be handed a client callback. */
-  const { open: onOpenCommand } = useCommandPalette();
-  const meRef = useRef<HTMLDivElement>(null);
+/* THE HEADER (rule 2): the date and the time together on the left of every
+   page, open tabs on the right. Tiff's button and the bell sit after the
+   tabs until step 5 gives them their v2 homes. */
+export function Topbar({ today }: { today: string }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { open: openSearch } = useCommandPalette();
+  const { tabs, on } = useSyncExternalStore(subscribeTabs, tabsSnapshot, tabsServerSnapshot);
 
-  /* Store the route the menu was opened on rather than a plain boolean, so
-     navigating away closes it by construction — no setState-in-effect. */
-  const [openedAt, setOpenedAt] = useState<string | null>(null);
-  const menuOpen = openedAt === pathname;
-  const closeMenu = () => setOpenedAt(null);
-
-  // close on outside click / Escape
   useEffect(() => {
-    if (!menuOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!meRef.current?.contains(e.target as Node)) setOpenedAt(null);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenedAt(null);
-    };
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
+    arrive(pathname);
+  }, [pathname]);
+
+  const go = (href: string | null) => {
+    if (href && href !== pathname) router.push(href);
+  };
 
   return (
-    <header className="topbar" id="fg-topbar">
-      <button className="searchbtn" onClick={onOpenCommand} type="button">
-        <span className="si">
-          <Icon name="search" size={18} />
-        </span>
-        {/* SAY WHAT IT DOES. This read "Search workspaces, tools, or ask Tiff"
-            and promised three things it did not do. It then said "Jump to a
-            screen…", which was true until the palette learned to find jobs,
-            clients and people, open a job where you are, and hand your words
-            to Tiff. It says what it finds for this viewer, as the palette's
-            own box does. */}
-        <div className="sf">{searchSaid(user.caps)}</div>
-        <span className="kbd">
-          <Icon name="command" size={10} /> K
-        </span>
-      </button>
-
-      <div className="tbr">
-        {/* The when, then the doing, then you. The clock is not a control, so
-            it sits outside the pair below and the existing hairline separates
-            them — the same divider already doing the same job before the
-            avatar. */}
-        <Clock today={today} />
-        <span className="sep" />
-        {/* Left of the bell, deliberately: the two controls on this side are
-            "say something" and "something needs you", and the one you reach
-            for on purpose sits before the one that interrupts you. */}
+    <header className="topbar fr-head" id="fg-topbar">
+      <Clock today={today} />
+      <div className="fr-tabs" role="tablist" aria-label="Open tabs">
+        {tabs.map((t) => {
+          const name = t.blank ? { label: "New tab", icon: "search" } : tabName(t.href);
+          const here = t.id === on;
+          return (
+            <div key={t.id} className={`fr-tab${here ? " on" : ""}`}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={here}
+                className="fr-tabgo"
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey) {
+                    window.open(t.href, "_blank", "noopener");
+                    return;
+                  }
+                  go(choose(t.id));
+                }}
+                onAuxClick={(e) => {
+                  if (e.button === 1) window.open(t.href, "_blank", "noopener");
+                }}
+              >
+                <Icon name={name.icon} size={16} />
+                <Fade className="fr-tablbl">{name.label}</Fade>
+              </button>
+              {tabs.length > 1 && (
+                <button type="button" className="fr-tabx" aria-label={`Close ${name.label}`} onClick={() => go(closeTab(t.id))}>
+                  <Icon name="x" size={14} />
+                </button>
+              )}
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          className="fr-newtab"
+          onClick={() => {
+            newTab(pathname);
+            openSearch();
+          }}
+        >
+          <Icon name="plus" size={16} />
+          New tab
+        </button>
+      </div>
+      <div className="fr-headend">
         <TiffButton />
         <Bell />
-        <span className="sep" />
-        <div className="me-top" ref={meRef}>
-          <button
-            className={`me-trigger${menuOpen ? " on" : ""}`}
-            type="button"
-            onClick={() => setOpenedAt((o) => (o === pathname ? null : pathname))}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-          >
-            <span className="av">
-              <span className="ring">
-                <span className="inner">{user.initials}</span>
-              </span>
-            </span>
-            <span className="mk">
-              <b>{user.name}</b>
-              <em>{user.roleLabel}</em>
-            </span>
-            <span className="me-gear">
-              <Icon name="settings" size={17} />
-            </span>
-          </button>
-
-          {menuOpen && (
-            <div className="me-menu" role="menu">
-              <Link
-                href="/dashboard/profile"
-                className="me-item"
-                role="menuitem"
-                onClick={closeMenu}
-              >
-                <span className="mi">
-                  <Icon name="user" size={16} />
-                </span>
-                <span className="mk2">
-                  {/* No "My" in nav labels — the menu hangs off your own
-                      avatar and name, so it's already yours. The possessive
-                      survives only in page headings (the profile page's
-                      breadcrumb reads "My profile"), where it distinguishes
-                      your card from Team / Staff / someone-else. */}
-                  <b>Profile</b>
-                  <em>Your staff card &amp; details</em>
-                </span>
-              </Link>
-              <div className="me-div" />
-              <a href="/auth/logout" className="me-item danger" role="menuitem">
-                <span className="mi">
-                  <Icon name="logout" size={16} />
-                </span>
-                <span className="mk2">
-                  <b>Sign out</b>
-                </span>
-              </a>
-            </div>
-          )}
-        </div>
       </div>
     </header>
   );

@@ -1276,11 +1276,10 @@ function Editor({
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  /* The rail's collapse belongs to the CANVAS: the seam handle shows, and a
-     remembered data-rail takes effect, only while the editor is open (this
-     attribute). Every other screen keeps the full rail — a collapsed strip
-     with no handle there would have stranded people. Unmount lifts it, so
-     leaving the editor restores the frame on its own. */
+  /* The editor says it is open, for the styles that dress the frame round
+     the canvas. Unmount lifts it, so leaving the editor restores the frame
+     on its own. (The sidebar's canvas-only collapse went with v2's rule 27:
+     the sidebar doesn't fold.) */
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-ds-canvas", "on");

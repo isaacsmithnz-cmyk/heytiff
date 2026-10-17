@@ -1,179 +1,142 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { Sidebar } from "../sidebar";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { Sidebar, type ShellUser } from "../sidebar";
+import { CommandPaletteProvider } from "../command-palette-context";
 import { resolve } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
 
-/* Render as a real role would resolve — capabilities come from the same
-   resolver the server uses, so these tests track the real defaults. */
-const as = (role: Role, orgName: string | null = null) => (
-  <Sidebar role={role} caps={[...resolve(role)]} orgName={orgName} />
-);
+/* The sidebar, v2 (docs/design.md rules 1, 3 to 7 and 27): the wordmark,
+   New, Search, the places, Recents, and your name at the foot. */
 
+const push = jest.fn();
 jest.mock("next/navigation", () => ({
-  usePathname: () => "/dashboard",
+  usePathname: () => "/dashboard/team",
+  useRouter: () => ({ push }),
+}));
+/* New's Job opens the board's own form, which reaches server actions;
+   stubbed so this suite stays about the sidebar. */
+jest.mock("@/components/workboard/board/new-job-modal", () => ({
+  NewJobModal: () => <div role="dialog" aria-label="New job" />,
 }));
 
-// auto-cleanup isn't wired in this jest setup; without this, earlier renders
-// (owner rails containing "Admin") leak into later queryByText assertions
-afterEach(cleanup);
-
-describe("Sidebar — no standing 'look at me' marks", () => {
-  it("draws no pulsing dot on any row, for any role", () => {
-    /* The Library carried a hard-coded `dot: true` from the day it shipped: a teal
-       dot that pulsed on the rail forever, with nothing behind it that could
-       ever turn it off. The `dot` field is gone from NavItem, so this can only
-       come back deliberately — and it should come back with a source of truth,
-       not a boolean. */
-    for (const role of ["staff", "admin", "owner"] as Role[]) {
-      const { container } = render(as(role));
-      expect(container.querySelector(".pdot")).toBeNull();
-      cleanup();
-    }
-  });
+const userAs = (role: Role, caps = [...resolve(role)]): ShellUser => ({
+  name: "Isaac Smith",
+  initials: "IS",
+  roleLabel: role === "owner" ? "Owner" : role === "admin" ? "Admin" : "Staff",
+  role,
+  caps,
 });
 
-describe("Sidebar — the business chip", () => {
-  it("chips the trading name under the wordmark when set", () => {
-    const { container } = render(as("owner", "Smith Air Conditioning"));
-    const chip = container.querySelector(".ht-orgpill");
-    expect(chip).not.toBeNull();
-    expect(chip?.textContent).toBe("Smith Air Conditioning");
-    // the chip wraps rather than truncating, and `overflow-wrap:anywhere` can
-    // wrap mid-word — the hover gives the name back unbroken
-    expect(chip?.getAttribute("title")).toBe("Smith Air Conditioning");
-  });
+const draw = (user: ShellUser, newJob = false) =>
+  render(
+    <CommandPaletteProvider>
+      <Sidebar user={user} newJob={newJob} />
+    </CommandPaletteProvider>,
+  );
 
-  it("renders no chip at all while the org has no trading name", () => {
-    const { container } = render(as("owner"));
-    expect(container.querySelector(".ht-orgpill")).toBeNull();
-  });
-
-  it("renders no chip when the prop is omitted", () => {
-    const { container } = render(as("owner"));
-    expect(container.querySelector(".ht-orgpill")).toBeNull();
-  });
-
-  it("keeps the wordmark regardless", () => {
-    render(as("owner"));
-    expect(screen.getByText("Hey")).toBeTruthy();
-    expect(screen.getByText("Tiff")).toBeTruthy();
-  });
-
-  /* THE ORG LOGO DOES NOT BELONG IN THE RAIL, and this is the guard.
-
-     It was rendered here once, in a 40×40 box where the × had been. What a
-     business actually uploads is a letterhead — the artwork in prod is
-     3780×1064 — so `object-fit:contain` drew it 9px tall, in the near-black
-     ink a letterhead is drawn in, on a near-black rail. It read as an empty
-     tile with the business name printed underneath it a second time.
-
-     224px of rail has nowhere to put a wordmark that wide. The logo renders on
-     the surfaces a customer receives (components/org/letterhead.tsx), where
-     there is a document's width to give it. */
-  it("never renders the org logo in the rail, however wide the name", () => {
-    const { container } = render(
-      <Sidebar
-        role="owner"
-        caps={[...resolve("owner")]}
-        orgName="Diamond Air Solutions"
-      />
-    );
-    // the Chevron is an inline <svg>; an <img> here could only be the logo
-    expect(container.querySelector(".brand img")).toBeNull();
-    expect(container.querySelector(".ht-orgpill")?.textContent).toBe(
-      "Diamond Air Solutions"
-    );
-  });
+afterEach(() => {
+  cleanup();
+  push.mockReset();
 });
 
-describe("Sidebar — role-gated nav", () => {
-  it("staff see no Operations entries, but keep their own things", () => {
-    render(as("staff"));
-    expect(screen.queryByText("Team")).toBeNull();
-    expect(screen.queryByText("Time & Pay")).toBeNull();
-    expect(screen.queryByText("Admin")).toBeNull();
-    expect(screen.queryByText("Assets")).toBeNull(); // the register is admin+
-    /* One row, and it carries the "my" itself now that the group headings are
-       gone. Vehicle, Timesheet and the rest are FACES of it — they belong to
-       ⌘K and to the card's tab strip, never to the rail. */
-    expect(screen.getByText("Me")).toBeTruthy();
-    expect(screen.queryByText("Vehicle")).toBeNull();
-    expect(screen.getByText("Toolbox")).toBeTruthy();
+const places = () =>
+  within(screen.getByRole("navigation", { name: "Places" }))
+    .getAllByRole("link")
+    .map((a) => a.textContent);
+
+describe("the sidebar's top", () => {
+  it("wears HeyTiff in one colour, with no business chip and no logo", () => {
+    const { container } = draw(userAs("owner"));
+    const wm = container.querySelector(".fr-wm")!;
+    expect(wm.textContent).toBe("HeyTiff");
+    expect(wm.querySelector("span")).toBeNull();
+    expect(container.querySelector("img")).toBeNull();
   });
 
-  it("admins get Team, Time & Pay and the Admin section (its items gate inside)", () => {
-    render(as("admin"));
-    expect(screen.getByText("Team")).toBeTruthy();
-    expect(screen.getByText("Time & Pay")).toBeTruthy();
-    expect(screen.getByText("Admin")).toBeTruthy();
+  it("offers Search with ⌘K under New", () => {
+    draw(userAs("staff"));
+    expect(screen.getByRole("button", { name: /Search/ })).toHaveTextContent("⌘K");
   });
 
-  it("owners get the full rail", () => {
-    render(as("owner", "Smith Air"));
-    for (const label of ["Home", "Workboard", "Toolbox", "Design", "Library", "Me", "Team", "Time & Pay", "Assets", "Admin"]) {
-      expect(screen.getByText(label)).toBeTruthy();
-    }
-  });
-});
-
-describe("Sidebar — the groups are drawn, not written", () => {
-  /* WORKSPACE / PERSONAL / OPERATIONS came off the rail: three headings at
-     31px each, on a list that needed 999px of nav inside a 733px window. The
-     grouping survives as an accessible name and a hairline; the drawn words do
-     not, and a `.navlbl` back in this markup would be the height coming back
-     with them. */
-  it("names each group for assistive tech without drawing the word", () => {
-    const { container } = render(as("owner"));
-    expect(container.querySelector(".navlbl")).toBeNull();
-    for (const label of ["Workspace", "Personal", "Operations"]) {
-      expect(screen.queryByText(label)).toBeNull();
-      expect(screen.getByRole("group", { name: label })).toBeTruthy();
-    }
-  });
-});
-
-describe("Sidebar — a granted capability shows its entry", () => {
-  /* The gap this closes: during the signed-in walkthrough, granting an admin
-     `financials` opened the Rate Calculator ROUTE but no nav entry appeared,
-     because the sidebar still filtered by role. */
-  it("reveals Team for a staff member granted `team`", () => {
-    render(<Sidebar role="staff" caps={[...resolve("staff", { team: true })]} />);
-    expect(screen.getByText("Team")).toBeTruthy();
-    expect(screen.queryByText("Time & Pay")).toBeNull(); // nothing else leaked in
-  });
-
-  it("hides Toolbox when it is revoked, even though every role has it by default", () => {
-    render(<Sidebar role="owner" caps={[...resolve("owner")]} />);
-    expect(screen.getByText("Toolbox")).toBeTruthy();
+  it("shows New only where a Job can be made from it", () => {
+    draw(userAs("owner"));
+    expect(screen.queryByRole("button", { name: "New" })).toBeNull();
     cleanup();
-    // an explicit revoke is respected for non-owners
-    render(<Sidebar role="admin" caps={[...resolve("admin", { toolbox: false })]} />);
-    expect(screen.queryByText("Toolbox")).toBeNull();
-    expect(screen.getByText("Design")).toBeTruthy();
+    draw(userAs("owner"), true);
+    expect(screen.getByRole("button", { name: "New" })).toHaveAttribute("aria-haspopup", "menu");
   });
 });
 
-describe("Sidebar — the rail's two sizes", () => {
-  afterEach(() => {
-    document.documentElement.removeAttribute("data-rail");
-    window.localStorage.clear();
+describe("the places (rule 5)", () => {
+  it("gives everyone Home, and each place to whoever holds it", () => {
+    draw(userAs("staff", []));
+    expect(places()).toEqual(["Home"]);
+    cleanup();
+    draw(userAs("owner"));
+    expect(places().slice(0, 5)).toEqual(["Home", "Jobs", "Library", "Design", "Team"]);
   });
 
-  it("the foot toggle collapses to the rail, remembers it, and expands back", () => {
-    render(as("owner"));
-    fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
-    expect(document.documentElement.hasAttribute("data-rail")).toBe(true);
-    expect(window.localStorage.getItem("ht-rail")).toBe("1");
-    /* collapsed rows are icon-only, so each grows a hover title giving the
-       word back — and the same control now reads as Expand */
-    expect(screen.getByRole("link", { name: "Home" }).getAttribute("title")).toBe("Home");
-    fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
-    expect(document.documentElement.hasAttribute("data-rail")).toBe(false);
-    expect(window.localStorage.getItem("ht-rail")).toBe("0");
+  it("marks the place you're on", () => {
+    draw(userAs("owner"));
+    const team = screen.getByRole("link", { name: "Team" });
+    expect(team).toHaveAttribute("aria-current", "page");
+    expect(team).toHaveClass("on");
+    expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
   });
 
-  it("expanded rows carry no tooltip — the label is already worn", () => {
-    render(as("owner"));
-    expect(screen.getByRole("link", { name: "Home" }).getAttribute("title")).toBeNull();
+  it("keeps today's screens that haven't moved yet, after a hairline", () => {
+    draw(userAs("owner"));
+    expect(places()).toEqual(expect.arrayContaining(["Toolbox", "Time & Pay", "Assets"]));
+    expect(document.querySelector(".fr-places .fr-hair")).not.toBeNull();
+  });
+
+  it("hides a screen when its capability is revoked", () => {
+    const caps = [...resolve("staff")].filter((c) => c !== "toolbox");
+    draw(userAs("staff", caps));
+    expect(places()).not.toContain("Toolbox");
+  });
+
+  it("doesn't fold: no collapse control (rule 27)", () => {
+    draw(userAs("owner"));
+    expect(screen.queryByRole("button", { name: /collapse|expand/i })).toBeNull();
+  });
+});
+
+describe("your name (rule 7)", () => {
+  it("opens your card, time, leave, claims, Reports and Settings, then Sign out", () => {
+    draw(userAs("owner", [...resolve("owner")]));
+    act(() => screen.getByRole("button", { name: /Isaac Smith/ }).click());
+    const menu = screen.getByRole("menu", { name: "Your name" });
+    expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual([
+      "Your card",
+      "Timesheet",
+      "Leave",
+      "Expense claims",
+      "Reports",
+      "Settings",
+      "Sign out",
+    ]);
+  });
+
+  it("keeps Settings from staff", () => {
+    draw(userAs("staff"));
+    act(() => screen.getByRole("button", { name: /Isaac Smith/ }).click());
+    const items = within(screen.getByRole("menu", { name: "Your name" })).getAllByRole("menuitem");
+    expect(items.map((i) => i.textContent)).not.toContain("Settings");
+  });
+
+  it("goes where you pick", () => {
+    draw(userAs("staff"));
+    act(() => screen.getByRole("button", { name: /Isaac Smith/ }).click());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Leave" }));
+    expect(push).toHaveBeenCalledWith("/dashboard/my-leave");
+  });
+});
+
+describe("New", () => {
+  it("makes a Job with the board's own form", () => {
+    draw(userAs("owner"), true);
+    act(() => screen.getByRole("button", { name: "New" }).click());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Job" }));
+    expect(screen.getByRole("dialog", { name: "New job" })).toBeInTheDocument();
   });
 });

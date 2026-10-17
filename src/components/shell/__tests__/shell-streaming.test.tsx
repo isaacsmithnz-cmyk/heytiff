@@ -59,7 +59,7 @@ it("the fallback chrome occupies the sidebar and topbar slots", () => {
   expect(document.querySelector("aside.side")).toBeInTheDocument();
   expect(document.querySelector("header.topbar")).toBeInTheDocument();
   // the wordmark is knowable without a database, so it is real, not a grey block
-  expect(screen.getByText("Hey")).toBeInTheDocument();
+  expect(screen.getByText("HeyTiff")).toBeInTheDocument();
 });
 
 /* The skeleton chrome is scenery: it must not offer controls that would do

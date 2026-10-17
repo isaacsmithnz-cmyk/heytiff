@@ -38,7 +38,6 @@ function rule(selector: string): string {
 }
 
 const PANEL = ".fg .topbar .bell-panel";
-const USER_MENU = ".fg .topbar .me-menu";
 
 /* BOTH popovers that hang off the topbar, checked as a SET rather than one at
    a time. The bell panel copied its glass from the user menu, so the defect
@@ -51,8 +50,11 @@ const USER_MENU = ".fg .topbar .me-menu";
 
    So the list is the guard. Anything else that hangs off this row belongs in
    it, and a new popover that copies the glass fails here rather than on
-   somebody's screen a month later. */
-const TOPBAR_POPOVERS = [PANEL, USER_MENU];
+   somebody's screen a month later.
+
+   v2 moved the user menu to your name at the sidebar's foot, where it is the
+   Menu part: white and opaque on any ground (parts/fields.css). */
+const TOPBAR_POPOVERS = [PANEL];
 
 it.each(TOPBAR_POPOVERS)("gives %s a ground that does not move with what is behind it", (sel) => {
   const bg = rule(sel).match(/(?:^|;)\s*background:([^;]+)/)?.[1]?.trim();
@@ -75,7 +77,7 @@ it.each(TOPBAR_POPOVERS)("carries no backdrop filter on %s — the same mistake 
   expect(rule(sel)).not.toMatch(/backdrop-filter/);
 });
 
-it.each([`${PANEL.replace(".bell-panel", ".bp-main")} em`, `${USER_MENU.replace(".me-menu", ".me-item")} .mk2 em`])(
+it.each([`${PANEL.replace(".bell-panel", ".bp-main")} em`])(
   "keeps %s on the shared token rather than a private lighter ink",
   (sel) => {
     /* The other way to "fix" a contrast miss is to hand one component its own

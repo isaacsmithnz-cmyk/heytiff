@@ -2,7 +2,6 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { Topbar } from "../topbar";
 import { CommandPaletteProvider } from "../command-palette-context";
-import type { ShellUser } from "../sidebar";
 import { actionRequiredItems } from "@/app/actions/action-required";
 import { acknowledgeTask, myNewAssignments } from "@/app/actions/assignments";
 import type { NewAssignment } from "@/lib/dashboard/assignments";
@@ -10,7 +9,7 @@ import { myDueReminders, snoozeReminder } from "@/app/actions/reminders";
 import { completeTask } from "@/app/actions/dashboard";
 import type { ActionChip } from "@/lib/dashboard/chips";
 import type { DueReminder } from "@/lib/dashboard/reminders";
-import { fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
+import { fmtAuWeekdayDateLong, todayInAu } from "@/lib/au-dates";
 
 /* The bell.
 
@@ -31,7 +30,7 @@ jest.mock("@/components/notes/tiff-button", () => ({
   TiffButton: () => <button aria-label="Ask or tell Tiff" />,
 }));
 
-jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));
+jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard", useRouter: () => ({ push: jest.fn() }) }));
 jest.mock("@/app/actions/action-required", () => ({ actionRequiredItems: jest.fn() }));
 
 /* The bell reaches two more "use server" modules since reminders joined it —
@@ -72,18 +71,10 @@ const chip = (n: number, over: Partial<ActionChip> = {}): ActionChip => ({
 
 const chips = (n: number) => Array.from({ length: n }, (_, i) => chip(i + 1));
 
-const user: ShellUser = {
-  name: "Jordan Mills",
-  initials: "JM",
-  roleLabel: "Technician",
-  role: "staff",
-  caps: [],
-};
-
 const draw = () =>
   render(
     <CommandPaletteProvider>
-      <Topbar user={user} today="2026-08-09" />
+      <Topbar today="2026-08-09" />
     </CommandPaletteProvider>,
   );
 
@@ -139,16 +130,48 @@ describe("the Tiff button", () => {
      is the only place that is always empty, and within it the order is
      deliberate: the thing you reach for on purpose sits before the thing that
      interrupts you. */
-  it("sits in the topbar, immediately left of the bell", async () => {
+  it("sits in the header, immediately left of the bell", async () => {
     itemsMock.mockResolvedValue([]);
     draw();
 
     const tiff = document.querySelector('[aria-label^="Ask or tell Tiff"]') as HTMLElement;
     expect(tiff).not.toBeNull();
-    expect(tiff.closest(".tbr")).not.toBeNull();
+    expect(tiff.closest(".fr-headend")).not.toBeNull();
     /* Order, not just membership — "left of notifications" is the ask. */
     expect(tiff.compareDocumentPosition(bell()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await act(async () => {});
+  });
+});
+
+/* ── OPEN TABS (rules 10 and 11) ─────────────────────────────────────────
+   The store's own rules are pinned in open-tabs.test; these pin what the
+   header draws from it. */
+describe("open tabs", () => {
+  beforeEach(() => {
+    itemsMock.mockResolvedValue([]);
+    window.sessionStorage.clear();
+  });
+
+  it("puts the date and time first and the tabs after them, on the right", async () => {
+    draw();
+    const clock = document.querySelector(".tbclock") as HTMLElement;
+    const tabs = screen.getByRole("tablist", { name: "Open tabs" });
+    expect(clock.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await act(async () => {});
+  });
+
+  it("names the tab for the page you're on, and offers no cross on the only one", async () => {
+    draw();
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Home" })).toHaveAttribute("aria-selected", "true"));
+    expect(screen.queryByRole("button", { name: "Close Home" })).toBeNull();
+  });
+
+  it("opens Search in a new tab", async () => {
+    draw();
+    await waitFor(() => screen.getByRole("tab", { name: "Home" }));
+    act(() => screen.getByRole("button", { name: "New tab" }).click());
+    expect(screen.getByRole("tab", { name: "New tab" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Close Home" })).toBeInTheDocument();
   });
 });
 
@@ -275,7 +298,7 @@ describe("the bell", () => {
     draw();
     await waitFor(() => expect(itemsMock).toHaveBeenCalled());
     expect(bell().querySelector(".d")).toBeNull();
-    expect(screen.getByText("Jordan Mills")).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Open tabs" })).toBeInTheDocument();
   });
 });
 
@@ -298,13 +321,13 @@ describe("the clock", () => {
        test below, where `hydrated` is false. */
     render(
       <CommandPaletteProvider>
-        <Topbar user={user} today="2020-01-01" />
+        <Topbar today="2020-01-01" />
       </CommandPaletteProvider>,
     );
     const clock = document.querySelector(".tbclock") as HTMLElement;
     expect(clock).not.toBeNull();
-    expect(clock.querySelector("em")?.textContent).toBe(fmtAuWeekdayDayMonth(todayInAu()));
-    expect(clock.querySelector("em")?.textContent).not.toBe("Wed 1 Jan");
+    expect(clock.querySelector("em")?.textContent).toBe(fmtAuWeekdayDateLong(todayInAu()));
+    expect(clock.querySelector("em")?.textContent).not.toBe("Wednesday 1 January");
   });
 
   it("emits NO time on the server — the whole reason it is split", () => {
@@ -315,10 +338,10 @@ describe("the clock", () => {
        regression. */
     const html = renderToString(
       <CommandPaletteProvider>
-        <Topbar user={user} today="2026-08-09" />
+        <Topbar today="2026-08-09" />
       </CommandPaletteProvider>,
     );
-    expect(html).toContain("Sun 9 Aug");
+    expect(html).toContain("Sunday 9 August");
     expect(html).not.toMatch(/\d{1,2}:\d{2}\s*(am|pm)/i);
   });
 
@@ -335,7 +358,8 @@ describe("the clock", () => {
     draw();
     const clock = document.querySelector(".tbclock") as HTMLElement;
     const tiff = document.querySelector('[aria-label^="Ask or tell Tiff"]') as HTMLElement;
-    expect(clock.closest(".tbr")).not.toBeNull();
+    expect(clock.closest(".fr-head")).not.toBeNull();
+    expect(clock.closest(".fr-headend")).toBeNull();
     expect(clock.compareDocumentPosition(tiff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(clock.querySelector("button")).toBeNull();
   });

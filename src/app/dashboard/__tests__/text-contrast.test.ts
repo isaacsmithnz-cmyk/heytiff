@@ -444,48 +444,8 @@ describe("quiet text on the dark chrome", () => {
     expect(short).toEqual([]);
   });
 
-  /* THE HOVER THAT MADE IT WORSE — the one a resting scan can never see.
-
-     The dark-frame block restyles five things on the search button: `.sf`,
-     `:hover .sf`, `.si`, `:hover .si` and `.kbd`. It missed `:hover .kbd`, so
-     the light-shell rule — `color:var(--ok-t)`, a green picked to be read on
-     WHITE — survived at (0,4,0) against the dark override's (0,3,0), which it
-     beats whatever the source order. And hovering LIFTS the ground, so the
-     state meant to clarify the control took the ⌘K chip from 5.67 to 2.42.
-
-     Asserted structurally as well as numerically: a `:hover` twin must EXIST
-     in the dark block, because the failure was an absence, and an absence is
-     what a colour check cannot see. */
-  it("gives the search chip a dark-frame hover, and it clears on the lifted ground", () => {
-    const dark = CSS.slice(CSS.indexOf("/* topbar controls restyled to read on black */"));
-    const rule = dark.match(/\.fg \.searchbtn:hover \.kbd \{([^}]*)\}/);
-    expect(rule).not.toBeNull();
-
-    const bgRaw = rule![1]!.match(/background: *([^;]+)/)?.[1]?.trim();
-    const fgRaw = rule![1]!.match(/(?<!-)color: *([^;]+)/)?.[1]?.trim();
-    expect(bgRaw).toBeTruthy();
-    expect(fgRaw).toBeTruthy();
-    /* a literal or a token (the chrome wears the on-ink tokens since the
-       sweep); `hex()` wants six digits and the sheet writes `#fff`, expanded
-       here rather than in the sheet */
-    const long = (h: string) =>
-      h.length === 4 ? "#" + [...h.slice(1)].map((c) => c + c).join("") : h;
-    const rgbaOf = (raw: string): [number, number, number, number] => {
-      const t = raw.match(/^var\(--([a-z0-9-]+)\)$/i);
-      const v = t ? token(t[1]!) : raw;
-      const m = v.match(/rgba?\((\d+), *(\d+), *(\d+)(?:, *([\d.]+))?\)/);
-      if (m) return [+m[1]!, +m[2]!, +m[3]!, m[4] === undefined ? 1 : +m[4]];
-      return [...(hex(long(v)) as [number, number, number]), 1];
-    };
-    const bg = rgbaOf(bgRaw!);
-    const fg = rgbaOf(fgRaw!);
-
-    // the hovered field lifts the ground before the chip's own tint lands on it
-    const lifted = over(WHITE, 0.09, CHROME);
-    const chip = over(bg.slice(0, 3), bg[3], lifted);
-    const ink = over(fg.slice(0, 3), fg[3], chip);
-    expect(ratio(ink, chip)).toBeGreaterThanOrEqual(4.5);
-  });
+  /* The search chip's hover on the dark top bar was checked here until v2
+     moved Search into the sidebar as a plain row (rule 4), white on the ink. */
 
   it("proves the light-shell green could not survive being reused on black", () => {
     const lifted = over(WHITE, 0.09, CHROME);

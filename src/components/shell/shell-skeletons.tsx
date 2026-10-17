@@ -1,5 +1,4 @@
 import { Chevron } from "../logo";
-import { Icon } from "./icon";
 
 /* What the frame holds while it is still finding out who you are.
 
@@ -15,29 +14,16 @@ import { Icon } from "./icon";
 
 export function SidebarSkeleton() {
   return (
-    <aside className="side" aria-hidden="true">
-      <div className="glow" />
-      <div className="brand">
-        <div className="ht-brandcol">
-          <div className="ht-logo">
-            <Chevron size={40} />
-            <span className="ht-wm">
-              Hey<span>Tiff</span>
-            </span>
-          </div>
-        </div>
+    <aside className="side fr-side" aria-hidden="true">
+      <div className="fr-brand">
+        <Chevron size={24} />
+        <span className="fr-wm">HeyTiff</span>
       </div>
-      <div className="nav no-sb">
-        {[4, 3, 3].map((count, g) => (
-          <div className="navgrp" key={g}>
-            {Array.from({ length: count }, (_, i) => (
-              <div className="ni" key={i}>
-                <span className="nicon">
-                  <i className="sk-dark sk-navicon" />
-                </span>
-                <i className="sk-dark sk-navtext" />
-              </div>
-            ))}
+      <div className="fr-places">
+        {Array.from({ length: 7 }, (_, i) => (
+          <div className="fr-row" key={i}>
+            <i className="fr-sk fr-sk-icon" />
+            <i className="fr-sk fr-sk-word" />
           </div>
         ))}
       </div>
@@ -45,45 +31,11 @@ export function SidebarSkeleton() {
   );
 }
 
+/* The header holds the date's place; the tabs arrive with the page. */
 export function TopbarSkeleton() {
   return (
-    <header className="topbar" id="fg-topbar">
-      {/* The search button is real and useful before we know who you are —
-          but it opens a palette whose entries are capability-filtered, so it
-          stays inert until the real topbar swaps in. */}
-      <div className="searchbtn" aria-hidden="true">
-        <span className="si">
-          <Icon name="search" size={18} />
-        </span>
-        <div className="sf">Search workspaces, tools, or ask Tiff…</div>
-      </div>
-      <div className="tbr" aria-hidden="true">
-        {/* The clock's two lines, held open: the real one arrives with a date
-            already in it, so without this the whole control cluster slides
-            when the chrome resolves. */}
-        <div className="tbclock">
-          <i className="sk-dark sk-time" />
-          <i className="sk-dark sk-date" />
-        </div>
-        <span className="sep" />
-        <span className="bell">
-          <Icon name="bell" size={20} />
-        </span>
-        <span className="sep" />
-        <div className="me-top">
-          <div className="me-trigger">
-            <span className="av">
-              <span className="ring">
-                <span className="inner" />
-              </span>
-            </span>
-            <span className="mk">
-              <i className="sk-dark sk-name" />
-              <i className="sk-dark sk-role" />
-            </span>
-          </div>
-        </div>
-      </div>
+    <header className="topbar fr-head" id="fg-topbar" aria-hidden="true">
+      <i className="fr-sk fr-sk-date" />
     </header>
   );
 }

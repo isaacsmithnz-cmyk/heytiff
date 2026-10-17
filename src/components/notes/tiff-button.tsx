@@ -143,8 +143,9 @@ export function TiffButton({ where = "topbar", room, day }: { where?: Where; roo
       }}
     >
       <span className="tiffbtn-burst" aria-hidden="true" />
-      {/* The frame is ink and a sheet is paper; the mark dresses for it. */}
-      <TiffMark ground={where === "topbar" ? "ink" : "paper"} />
+      {/* v2: the header is on the white page (rule 2), so every Tiff button
+          stands on paper and the mark is black (rule 8). */}
+      <TiffMark ground="paper" />
     </button>
   );
 }

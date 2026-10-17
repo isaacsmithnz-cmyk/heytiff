@@ -3,13 +3,17 @@
 
 type Store = typeof import("../open-tabs");
 
-function fresh(): Store {
+async function load(): Promise<Store> {
   let mod!: Store;
-  window.sessionStorage.clear();
-  jest.isolateModules(() => {
-    mod = require("../open-tabs");
+  await jest.isolateModulesAsync(async () => {
+    mod = await import("../open-tabs");
   });
   return mod;
+}
+
+async function fresh(): Promise<Store> {
+  window.sessionStorage.clear();
+  return load();
 }
 
 const hrefs = (s: Store) => s.tabsSnapshot().tabs.map((t) => t.href);
@@ -19,15 +23,15 @@ const onHref = (s: Store) => {
 };
 
 describe("open tabs", () => {
-  it("opens with one tab holding the page you're on, and moving moves it", () => {
-    const s = fresh();
+  it("opens with one tab holding the page you're on, and moving moves it", async () => {
+    const s = await fresh();
     s.arrive("/dashboard");
     s.arrive("/dashboard/team");
     expect(hrefs(s)).toEqual(["/dashboard/team"]);
   });
 
-  it("fills a new tab with the next page, leaving the first where it was", () => {
-    const s = fresh();
+  it("fills a new tab with the next page, leaving the first where it was", async () => {
+    const s = await fresh();
     s.arrive("/dashboard");
     s.newTab("/dashboard");
     s.arrive("/dashboard/team");
@@ -35,8 +39,8 @@ describe("open tabs", () => {
     expect(onHref(s)).toBe("/dashboard/team");
   });
 
-  it("never shows one page in two tabs: going to it switches to its tab", () => {
-    const s = fresh();
+  it("never shows one page in two tabs: going to it switches to its tab", async () => {
+    const s = await fresh();
     s.arrive("/dashboard");
     s.newTab("/dashboard");
     s.arrive("/dashboard/team");
@@ -45,8 +49,8 @@ describe("open tabs", () => {
     expect(onHref(s)).toBe("/dashboard");
   });
 
-  it("drops a new tab you left before it held anything", () => {
-    const s = fresh();
+  it("drops a new tab you left before it held anything", async () => {
+    const s = await fresh();
     s.arrive("/dashboard");
     s.newTab("/dashboard");
     const first = s.tabsSnapshot().tabs[0].id;
@@ -54,8 +58,8 @@ describe("open tabs", () => {
     expect(hrefs(s)).toEqual(["/dashboard"]);
   });
 
-  it("closing the tab you're on shows its neighbour", () => {
-    const s = fresh();
+  it("closing the tab you're on shows its neighbour", async () => {
+    const s = await fresh();
     s.arrive("/dashboard");
     s.newTab("/dashboard");
     s.arrive("/dashboard/team");
@@ -64,8 +68,8 @@ describe("open tabs", () => {
     expect(hrefs(s)).toEqual(["/dashboard"]);
   });
 
-  it("closing another tab leaves you where you are", () => {
-    const s = fresh();
+  it("closing another tab leaves you where you are", async () => {
+    const s = await fresh();
     s.arrive("/dashboard");
     s.newTab("/dashboard");
     s.arrive("/dashboard/team");
@@ -74,15 +78,12 @@ describe("open tabs", () => {
     expect(onHref(s)).toBe("/dashboard/team");
   });
 
-  it("keeps the tabs through a reload of the page", () => {
-    const s = fresh();
+  it("keeps the tabs through a reload of the page", async () => {
+    const s = await fresh();
     s.arrive("/dashboard");
     s.newTab("/dashboard");
     s.arrive("/dashboard/team");
-    let again!: Store;
-    jest.isolateModules(() => {
-      again = require("../open-tabs");
-    });
+    const again = await load();
     expect(hrefs(again)).toEqual(["/dashboard", "/dashboard/team"]);
   });
 });

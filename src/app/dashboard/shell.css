@@ -54,90 +54,6 @@
    were never on screen. */
 .fg .gridbg { position:absolute; inset:0; z-index:0; pointer-events:none; }
 
-/* ============================ SIDEBAR ============================ */
-.fg .side { position:relative; z-index:30; display:flex; flex-direction:column; width:224px; flex:0 0 224px; height:100%;
-  background:var(--ink); color:var(--paper); overflow:hidden; }
-/* the rail's teal corner glow lived here until 2026-09-10; the frame is still
-   now (frame-still.test.ts) */
-.fg .brand { display:flex; align-items:center; gap:16px; padding:clamp(24px, 4vh - 4px, 38px) 24px clamp(18px, 3vh - 4px, 28px); position:relative; z-index:10; }
-.fg .ht-logo { display:flex; align-items:center; gap:2px; }
-.fg .ht-logo svg { transition:transform var(--t-move) var(--ease); }
-.fg .ht-logo:hover svg { }
-.fg .ht-wm { font-size:24px; font-weight:700; letter-spacing:-0.035em; line-height:1; color:var(--paper); }
-.fg .ht-wm span { color:var(--wordmark); }
-/* The business using HeyTiff — trading name from Organisation settings, as a
-   chip under the wordmark. Additive only: the brand row's layout and
-   animations are untouched.
-
-   Ink is the rail's own de-emphasis, and the fill is quiet enough not to cost
-   it: white at .5 reads 5.30:1 on bare --ink and 5.30:1 again over this fill,
-   because the wash lifts the glyphs and the ground by the same amount. Do not
-   brighten the fill without re-measuring — at .06 there is no headroom being
-   spent, at .12 there is. */
-.fg .ht-brandcol { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; }
-/* Wraps rather than truncates: a long trading name uses a second line inside
-   the chip rather than turning into an ellipsis. The padding is wider than a
-   chip this size needs so a wrapped line still clears the stadium — at two
-   lines the radius is ~18px and the top line is inset ~6px by the curve.
-   1px less on the right pays back the trailing letter-spacing, which otherwise
-   parks a single-line chip 1.4px off its own centre. */
-.fg .ht-orgpill { max-width:100%; padding:4px 12px 4px 12px; border-radius:999px;
-  background:var(--on-ink-tint); font-size:12px; font-weight:500; line-height:1.35; text-align:center; color:var(--on-ink-q);
-  overflow-wrap:anywhere; }
-.fg .ht-logo .htmk-p1, .fg .ht-logo .htmk-p2 { stroke-dasharray:1; }
-/* 0=fully drawn, 1=undrawn. Hold 30s drawn, undraw slowly, redraw, hold 30s, loop. */
-/* THE OLD SIDEBAR FOOTER IS GONE — `.sfoot`, `.pro*`, `.me*` — and so is the
-   brand lockup it sat under (`.brand .logo/.bt/.bs`). The user chip moved to
-   the topbar (`.me-top`, `.me-item`) and the brand row is `.ht-logo` +
-   `.ht-orgx` now; not one of those classes is rendered by anything in src.
-
-   THEY WERE NOT HARMLESS. `.fg .me` (0,2,0) matched `<span class="nb-at me">`
-   — the notices board's chip for a mention OF YOU — and gave an inline word
-   inside a paragraph `display:flex`, `gap:16px` and `cursor:pointer`. Only its
-   `padding` was overridden, by `.fg .nb-at.me` (0,3,0) at the mention rule.
-   This is the second time this sheet has been bitten by exactly that; see the
-   `.ni .pdot` note above, which says so in as many words.
-
-   They were also four of the seventeen white-alpha values the contrast sweep
-   below had to reason about, on a surface where only three were real. */
-.fg .nav { flex:1; overflow-y:auto; padding:12px 16px 16px; position:relative; z-index:10; }
-/* THE RAIL HAS TO FIT — AND THEN IT HAS TO FILL. It never fit: 13 rows and
-   three headings needed 999px of nav plus a 167px brand block, so a 900px
-   window hid 266px of it and a 13" laptop hid 366 — the whole Operations
-   group, Admin included, below a fold that `.no-sb` makes invisible (Isaac,
-   2026-08-23). The compact sizes bought that back: headings and their gaps
-   −93, row padding and margins −144, the brand block −44. The hairline
-   replaces three words with one line and the grouping survives as
-   `aria-label` (sidebar.tsx).
-
-   But a floor worn as a uniform is its own bug: on a 1080p screen the same
-   compaction parked the rail ~300px above the bottom of a frame it used to
-   fill (Isaac, 2026-08-23, second walk). So every vertical in the rail is a
-   clamp on vh now — `.fg` is `position:fixed; inset:0`, so 1vh IS 1% of the
-   frame. The floors are the compact sizes and hold to a 720px window
-   (709px of rail, measured); the ceilings land the rows back at their
-   original 56px by ~1080. Between the two it breathes continuously, and the
-   sum of the slopes is ~0.58vh per vh — the window always grows faster than
-   the rail, so no height between floor and ceiling can reopen the fold.
-   Change a coefficient and re-check that sum, not just the endpoints. */
-.fg .navgrp + .navgrp { margin-top:clamp(14px, 2.8vh - 8px, 26px); padding-top:clamp(14px, 2.8vh - 8px, 26px); border-top:1px solid var(--on-ink-line); }
-/* `.navlbl` LIVED HERE — WORKSPACE / PERSONAL / OPERATIONS, at 2.53:1 until
-   the contrast sweep lifted them to `--on-ink-q`. The rule is gone with the
-   markup rather than left behind: a dead selector on this sheet is one shadow
-   away from matching something else, which is exactly how `.fg .me` and
-   `.ni .pdot` bit it twice already. `.sk-navlbl` went with it. */
-.fg .ni { position:relative; width:100%; display:flex; align-items:center; gap:12px; padding:clamp(9px, 1.5vh - 2px, 13px) 16px; border-radius:16px; overflow:hidden; transition:background var(--t-fast) var(--ease); margin-bottom:clamp(2px, 1vh - 4px, 6px); }
-.fg .ni:hover { background:var(--on-ink-tint); }
-.fg .ni .nicon { position:relative; z-index:10; display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:10px; background:rgba(255,255,255,.03); color:rgba(255,255,255,.4); transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .ni:hover .nicon { color:rgba(255,255,255,.9); }
-/* THE ACTIVE ITEM IS WHITE. It was the teal icon with a 15px glow and a 2px
-   teal bar down the item's edge (.nibg); docs/design.md, 2026-09-10: ink and
-   paper, and on the rail that is paper. A hover changes one thing, a colour,
-   and slides nothing — the 4px nudge and the 1.1 scale went with the glow. */
-.fg .ni.on .nicon { background:var(--paper); color:var(--ink); }
-.fg .ni .nlbl { position:relative; z-index:10; font-size:14px; font-weight:700; color:var(--on-ink-q); transition:color var(--t-fast) var(--ease); }
-.fg .ni:hover .nlbl { color:var(--paper); }
-.fg .ni.on .nlbl { color:var(--paper); }
 /* `.ni .pdot` lived here — the sidebar's hard-coded "new" pulse. Deleted with
    the `dot` field it rendered (see nav.ts); left behind it would be dead CSS
    waiting to shadow something, which this stylesheet has been bitten by before.
@@ -145,39 +61,6 @@
    the honest kind — it stops when the recording does. */
 @keyframes fgPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-/* ── the rail's second size — a CANVAS-ONLY behaviour ────────────────────
-   The collapse and its handle exist for the drawing room: both key on
-   `html[data-ds-canvas]`, stamped while the studio editor is mounted.
-   Everywhere else the rail stands full and carries no handle — a collapsed
-   strip on Workboard with no way back would strand people. `data-rail`
-   (the remembered preference, set pre-paint by the boot script) only takes
-   effect in that context: leave the editor and the frame restores itself,
-   come back and the room is yours again. */
-.fg .side { transition:width var(--t-move) var(--ease), flex-basis var(--t-move) var(--ease); }
-html[data-rail][data-ds-canvas] .fg .side { width:44px; flex:0 0 44px; }
-html[data-rail][data-ds-canvas] .fg .brand,
-html[data-rail][data-ds-canvas] .fg .nav { display:none; } /* the skeleton rows live in .nav and fold with it */
-/* the size toggle: a dark chevron chip SITTING ON THE BLACK, vertically
-   centred against the rail's inner edge — where a drawer says "pull here".
-   It stays outside .side only for positioning freedom (it tracks the rail's
-   width through the same curve); the treatment is the frame's own — ink at
-   the dark-chrome graphic floor, lifting to full white on a soft wash.
-   Hidden outside the canvas context, and in fullscreen (which removes the
-   whole frame) via the :not guard. */
-.fg .railtg { position:absolute; z-index:40; top:50%; left:192px;                          
-  width:26px; height:26px; transform:translateY(-50%);
-  display:none; align-items:center; justify-content:center; border-radius:999px;
-  background:transparent; color:rgba(255,255,255,.45);
-  transition:left var(--t-move) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-html[data-ds-canvas]:not([data-ds-display]) .fg .railtg { display:flex; }
-.fg .railtg:hover { color:var(--paper); background:var(--on-ink-tint); }
-.fg .railtg:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-/* the arrow leans the way the rail will move — in on hover-to-close, out on
-   hover-to-open — so the chip explains itself before the click */
-.fg .railtg svg { transition:transform var(--t-move) var(--ease); }
-.fg .railtg:hover svg { }
-html[data-rail][data-ds-canvas] .fg .railtg { left:9px; /* centred in the 44px strip */ }
-html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* note: the studio toolbar's own width concessions live in studio.css — the
    kbd chips and group labels yield below 1600px so the bar and the Next chip
    share one row even beside the full 224px rail */
@@ -191,14 +74,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .topbar { height:80px; flex:0 0 80px; display:flex; align-items:center; justify-content:space-between; padding:0 32px;
   z-index:20; }
 .fg .topbar.hide { display:none; }
-.fg .searchbtn { position:relative; flex:1; max-width:512px; text-align:left; }
-.fg .searchbtn .si { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color var(--t-fast) var(--ease); pointer-events:none; }
-.fg .searchbtn:hover .si { color:var(--ink); }
-.fg .searchbtn .sf { width:100%; padding:12px 48px; background:var(--on-ink-tint-2); border:1px solid var(--line); border-radius:var(--r-card); font-size:14px; font-weight:500; color:var(--gray400); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .searchbtn:hover .sf { border-color:var(--line); background:var(--paper); }
-.fg .searchbtn .kbd { position:absolute; right:16px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--gray400); font-family:var(--mono); background:var(--tint-2); padding:4px 8px; border-radius:var(--r-control); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .searchbtn:hover .kbd { background:var(--tint); color:var(--ink); }
-.fg .tbr { display:flex; align-items:center; gap:24px; }
+
 /* THE FRAME'S CLOCK — the date that used to be a pill inside the home hero,
    now ambient chrome with a time beside it. Mirrors `.me-top .mk` at the other
    end of the bar (a strong line over a quiet one), so the row reads as
@@ -230,7 +106,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    recognise. `.topbar` and `.tbr` are both `overflow:visible` and the gap to the
    separator is 24px, so the 4px overhang has room. */
 .fg .bell .d { position:absolute; top:-5px; right:-5px; min-width:18px; height:18px; padding:0 4px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--bad); border:2px solid var(--paper); color:var(--paper); font-size:12px; font-weight:700; line-height:1; }
-.fg .tbr .sep { width:1px; height:32px; background:var(--tint-2); }
+
 
 /* BOTH EDGES, OR EVERY SCREEN IN THE APP SITS OFF ITS OWN CENTRE.
 
@@ -521,57 +397,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .dchip.warn { color:var(--warn-t); }
 .fg .dchip.bad { color:var(--bad-t); }
 
-/* user moved to top-right of header — the whole block is the menu trigger */
-.fg .topbar .me-top { position:relative; display:flex; align-items:center; }
-.fg .topbar .me-trigger { display:flex; align-items:center; gap:12px; padding:0; background:none; border:0; text-align:left; cursor:pointer; }
-.fg .topbar .me-top .mk { min-width:0; }
-.fg .topbar .me-top .mk b { display:block; font-size:14px; font-weight:700; color:var(--paper); line-height:1.1; }
-/* the signed-in role — "Owner" — at 4.46 */
-.fg .topbar .me-top .mk em { display:block; font-style:normal; font-size:12px; color:var(--on-ink-q); font-family:var(--mono); }
-.fg .topbar .me-top .av { position:relative; display:block; width:38px; height:38px; flex:0 0 auto; }
-/* a hairline ring, not the blue-to-teal gradient it wore, and no status dot:
-   the dot had no state behind it. docs/design.md, 2026-09-10. */
-.fg .topbar .me-top .av .ring { display:block; width:38px; height:38px; border-radius:50%; box-sizing:border-box; border:1px solid var(--on-ink-line); }
-.fg .topbar .me-top .av .inner { width:100%; height:100%; border-radius:50%; background:var(--ink); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--paper); }
-.fg .topbar .me-gear { width:42px; height:42px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--on-ink-q); background:var(--on-ink-tint); border:1px solid var(--on-ink-line); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .topbar .me-trigger:hover .me-gear { color:var(--paper); background:var(--on-ink-tint); }
-.fg .topbar .me-trigger.on .me-gear { color:var(--paper); background:var(--on-ink-tint); }
-
-/* user dropdown — absolute inside .me-top, NOT fixed (the .page.in will-change
-   trap breaks position:fixed in this shell; the topbar sits outside .page).
-
-   THE GROUND IS OPAQUE. Same fix, same reason, as the bell panel beside it —
-   and this menu is where the bug was BORN, since the panel copied the glass
-   from here.
-
-   A translucent ground is not a ground: it is 8% of whatever is behind it.
-   The assumption that spared this menu when the panel was fixed — "it opens
-   over the topbar and the sidebar, not the card" — was simply WRONG, and
-   measuring it took thirty seconds where believing it took none. The topbar is
-   80px tall and this menu drops to y=204: **124 of its 133px hang over the
-   light content card**, so the lift applies to the WHOLE menu rather than its
-   bottom edge. Ground rgb(32,33,38) instead of rgb(13,14,19), and "Your staff
-   card & details" — `--on-ink-q`, calibrated for #050505 — measured 5.04 at
-   rest and **4.44 on hover**, where the .08 white tint lifts the ground a
-   second time. Under AA, on prod, on the menu every single person opens.
-
-   #0d0e13 is what .92 composited to over the shell's own floor, so it looks
-   identical where it already looked right: 5.34 at rest, 5.03 hovered, on any
-   backdrop. `backdrop-filter` goes with it — at 92% it was invisible (swapped
-   out on prod and compared) and dead CSS in this file has styled things by
-   accident before. */
-.fg .topbar .me-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:var(--z-overlay); width:250px; padding:8px; border-radius:var(--r-card); background:var(--ink2); border:1px solid var(--on-ink-line); box-shadow:var(--shadow-overlay); animation:meMenuIn .16s ease both; }
 @keyframes meMenuIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
-.fg .topbar .me-item { display:flex; align-items:center; gap:12px; width:100%; padding:8px 12px; border-radius:var(--r-button); color:var(--paper); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .topbar .me-item:hover { background:var(--on-ink-tint); color:var(--paper); }
-.fg .topbar .me-item .mi { display:flex; align-items:center; justify-content:center; width:32px; height:32px; flex:0 0 auto; border-radius:var(--r-button); background:var(--on-ink-tint); }
-.fg .topbar .me-item .mk2 { min-width:0; }
-.fg .topbar .me-item .mk2 b { display:block; font-size:13px; font-weight:700; line-height:1.2; }
-/* the same role, inside the open user menu — 3.71 */
-.fg .topbar .me-item .mk2 em { display:block; font-style:normal; font-size:12px; color:var(--on-ink-q); }
-.fg .topbar .me-item.danger:hover { background:var(--bad-tint); color:#ff6b8a; }
-.fg .topbar .me-item.danger:hover .mi { background:var(--bad-tint); }
-.fg .topbar .me-div { height:1px; margin:4px 8px; background:var(--on-ink-tint); }
+
 .fg .topbar .sep { width:1px; height:30px; background:var(--on-ink-tint); }
 
 .fg .emptybox { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:72px 16px; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); }
@@ -735,10 +562,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    cross-fade it in/out. It's absolute + pointer-events:none, so it costs no layout. */
 .fg .gridbg { opacity:0; transition:opacity var(--t-fast) var(--ease); }
 
-/* sidebar melts into the frame (no own background — the root's ink shows
-   through so the frame reads as one piece; its edge hairline and its shadow,
-   which this rule used to cancel, are gone from the rule above). */
-.fg .side { background:transparent; }
 
 /* top header becomes part of the black frame */
 .fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; padding:0 24px; position:relative; }
@@ -752,30 +575,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    topbar's children keep their own stacking context, as they did above it. */
 .fg .topbar > * { position:relative; z-index:1; }
 
-/* topbar controls restyled to read on black */
-.fg .searchbtn .sf { background:var(--on-ink-tint); border-color:var(--on-ink-line); color:var(--on-ink-q);  box-shadow:none; }
-.fg .searchbtn:hover .sf { background:var(--on-ink-tint); border-color:var(--on-ink-line); }
-.fg .searchbtn .si { color:var(--on-ink-q); }
-.fg .searchbtn:hover .si { color:var(--paper); }
-.fg .searchbtn .kbd { background:var(--on-ink-tint); color:var(--on-ink-q); }
-/* THE ONE PAIR IN THIS BLOCK THAT WAS NEVER GIVEN ITS DARK TWIN, and the miss
-   only shows on hover — so it is invisible to a screenshot, and to any scan of
-   the resting page.
-
-   `.fg .searchbtn:hover .kbd` up in the light-shell section is (0,4,0) and
-   sets `color:var(--ok-t)` — a green chosen to be read on WHITE. The dark
-   override on the line above is (0,3,0), so it loses on hover no matter what
-   order the rules are in, and the ⌘K chip reverts to light-ground ink on a
-   near-black tint. Worse, hovering LIFTS the ground (`.sf` goes .05 → .09
-   white), so the state that is supposed to make the control clearer takes it
-   from 5.67 at rest to **2.42**.
-
-   Every other control here got its twin — `.sf`, `:hover .sf`, `.si`,
-   `:hover .si`, `.kbd`. This is the fifth of five, added late. */
-.fg .searchbtn:hover .kbd { background:var(--on-ink-tint-2); color:var(--paper); }
-.fg .bell { background:var(--on-ink-tint); border:1px solid var(--on-ink-line); color:var(--paper); }
-.fg .bell:hover { background:var(--on-ink-tint); color:var(--paper);  box-shadow:none; }
-.fg .bell .d { border-color:var(--ink); }
+/* v2: the header is on the white page, so the bell sits on white until step 5 moves its count to Home */
+.fg .bell { padding:8px; border-radius:var(--r-button); background:var(--white); border:1px solid var(--edge); color:var(--ink); }
+.fg .bell:hover { background:var(--hov); color:var(--ink); box-shadow:none; }
+.fg .bell .d { border-color:var(--white); }
 
 /* ===== THE BELL'S PANEL — notifications where you already are =============
 
@@ -797,7 +600,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    button and the clock and stops well short of the sidebar at every width the
    app is used at. */
 .fg .topbar .bell-top { position:relative; display:flex; align-items:center; }
-.fg .bell.on { background:var(--on-ink-tint); color:var(--paper); }
+.fg .bell.on { background:var(--sel); color:var(--ink); }
 /* THE GROUND IS OPAQUE, AND THAT IS THE WHOLE POINT.
 
    This was `rgba(14,15,20,.92)` + `backdrop-filter`, copied from the user menu.
@@ -959,33 +762,99 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .topbar .bp-snzopt { flex:1 1 0; padding:8px 4px; border:1px solid var(--on-ink-line); border-radius:var(--r-button); background:none; color:var(--paper); font:inherit; font-size:12px; font-weight:700; cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .topbar .bp-snzopt:hover { background:var(--on-ink-tint); border-color:var(--on-ink-line); color:var(--paper); }
 
-/* the light content well, inset so the dark frame shows across top / right / bottom */
-.fg .main { padding:0 16px 16px 0; }
 /* THE DOCK — the cards set aside (components/records/record-dock). A row of
    the dark frame under the page, there only while something waits in it, so
    it never covers the page. The frame's own words and hairline; a card in it
    is a thing you tap, so it keeps a hairline and the button radius (law 26),
    and letting it go is a close cross (law 25). */
-.fg .rw-dock { flex:none; display:flex; align-items:center; gap:8px; min-width:0; padding:8px 0 0; }
-.fg .rw-dkl { flex:none; font-size:13px; font-weight:500; color:var(--on-ink-q); }
-.fg .rw-dk { display:flex; align-items:center; min-width:0; max-width:320px; border:1px solid var(--on-ink-line); border-radius:var(--r-button); }
+.fg .rw-dock { flex:none; display:flex; align-items:center; gap:8px; min-width:0; padding:8px 32px 12px; border-top:1px solid var(--line); }
+.fg .rw-dkl { flex:none; font-size:13px; font-weight:500; color:var(--q); }
+.fg .rw-dk { display:flex; align-items:center; min-width:0; max-width:320px; border:1px solid var(--edge); border-radius:var(--r-button); }
 .fg .rw-dko { display:flex; align-items:center; gap:8px; min-width:0; height:32px; padding:0 8px 0 12px; border:0; border-radius:var(--r-button);
-  background:none; color:var(--paper); font:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+  background:none; color:var(--ink); font:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
 .fg .rw-dko b { flex:none; white-space:nowrap; }
-.fg .rw-dko span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:var(--on-ink-q); }
-.fg .rw-dko:hover { background:var(--on-ink-tint-2); }
+.fg .rw-dko span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:var(--q); }
+.fg .rw-dko:hover { background:var(--hov); }
 .fg .rw-dkx { flex:none; display:grid; place-items:center; width:32px; height:32px; border:0; border-radius:var(--r-button);
-  background:none; color:var(--on-ink-q); cursor:pointer; transition:color var(--t-fast) var(--ease); }
-.fg .rw-dkx:hover { color:var(--paper); }
-.fg .outlet {
-  background:#EDEFF4;
-  border-radius:16px;   /* top-left 40px = same as the home hero card */
-  background-image:radial-gradient(circle at 1px 1px, rgba(40,38,70,.05) 1px, transparent 0);
-  background-size:26px 26px;
-}
+  background:none; color:var(--q); cursor:pointer; transition:color var(--t-fast) var(--ease); }
+.fg .rw-dkx:hover { color:var(--ink); }
+/* v2: the page is plain white (rule 1); the grey well and its dot grid went with the frame */
+.fg .outlet { background:var(--white); }
 
 /* the page sits flush; its own top padding gives breathing room under the header */
 .fg .page { background:transparent; }
+
+/* ============================ THE FRAME, v2 ============================
+   docs/design.md rules 1 to 7 and 10 to 11. The ink sidebar on the left and
+   a plain white page beside it. The page curls into the ink at its top left,
+   and the ink curls back into the page at the sidebar's foot: 40 each, square
+   everywhere else. The header (the date and time, then open tabs) is part of
+   the white page, not the ink. */
+.fg .main { background:var(--white); border-top-left-radius:var(--r-page); }
+/* the foot's curl: white under the sidebar's rounded corner */
+.fg .main::before { content:""; position:absolute; left:calc(-1 * var(--r-page)); bottom:0; width:var(--r-page); height:var(--r-page); background:var(--white); z-index:-1; pointer-events:none; }
+.fg .side.fr-side { position:relative; z-index:30; height:100%; box-sizing:border-box; width:256px; flex:0 0 256px; background:var(--ink); border-bottom-right-radius:var(--r-page); display:flex; flex-direction:column; gap:2px; padding:24px 8px 12px; overflow-y:auto; scrollbar-width:none; }
+.fg .side.fr-side::-webkit-scrollbar { display:none; }
+
+.fg .fr-brand { display:flex; align-items:center; gap:8px; padding:4px 12px 16px; color:var(--white); }
+.fg .fr-wm { font-size:20px; font-weight:700; line-height:28px; letter-spacing:-0.02em; }
+
+/* a row: places, Search, Pinned and Recents all share it */
+.fg .side .fr-row { display:flex; align-items:center; gap:12px; width:100%; min-height:36px; padding:0 12px; border-radius:var(--r-button); color:var(--white); font-size:14px; font-weight:500; line-height:20px; text-decoration:none; text-align:left; transition:background-color var(--t-fast) ease-out; }
+.fg .side .fr-row:hover { background:var(--on-ink-tint); }
+.fg .side .fr-row.on { background:var(--on-ink-tint-2); font-weight:700; }
+.fg .side .fr-row:focus-visible, .fg .side .fr-new:focus-visible, .fg .side .fr-metrig:focus-visible { outline:none; box-shadow:var(--ring-ink); }
+.fg .side .fr-row svg { flex:0 0 auto; color:var(--white); }
+/* rule 50: a label that doesn't fit fades. The box runs to the row's end, so a label that fits ends before the fade starts. */
+.fg .fr-lbl { flex:1; min-width:0; white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+.fg .fr-kbd { font:inherit; font-size:13px; font-weight:500; color:var(--on-ink-q); }
+
+/* New (rule 3): a white disc and the word */
+.fg .side .fr-new { display:flex; align-items:center; gap:12px; width:100%; min-height:36px; padding:0 8px; border-radius:var(--r-button); color:var(--white); font-size:14px; font-weight:600; transition:background-color var(--t-fast) ease-out; }
+.fg .side .fr-new:hover { background:var(--on-ink-tint); }
+.fg .fr-newdisc { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--white); color:var(--ink); }
+
+.fg .fr-places { display:flex; flex-direction:column; gap:2px; margin-top:12px; }
+.fg .fr-hair { height:1px; margin:8px 12px; background:var(--on-ink-tint-2); }
+
+.fg .fr-group { display:flex; flex-direction:column; gap:2px; margin-top:16px; }
+.fg .fr-grouphead { margin:0; padding:4px 12px; font-size:13px; font-weight:500; line-height:18px; color:var(--on-ink-q); }
+
+/* your name (rule 7), at the foot */
+.fg .fr-me { margin-top:auto; padding-top:12px; }
+.fg .side .fr-metrig { display:flex; align-items:center; gap:12px; width:100%; padding:8px 12px; border-radius:var(--r-button); color:var(--white); text-align:left; transition:background-color var(--t-fast) ease-out; }
+.fg .side .fr-metrig:hover { background:var(--on-ink-tint); }
+.fg .fr-metrig .pt-initials { background:var(--white); color:var(--ink); }
+.fg .fr-mewho { flex:1; min-width:0; display:flex; flex-direction:column; }
+.fg .fr-mewho b { font-size:14px; font-weight:600; line-height:20px; }
+.fg .fr-mewho em { font-style:normal; font-size:13px; font-weight:500; line-height:18px; color:var(--on-ink-q); }
+
+/* the header (rule 2), on the white page */
+.fg .topbar.fr-head { height:72px; flex:0 0 72px; gap:24px; padding:0 32px; background:var(--white); border-top-left-radius:var(--r-page); justify-content:flex-start; }
+.fg .fr-head .tbclock { flex-direction:row-reverse; align-items:baseline; gap:12px; }
+.fg .fr-head .tbclock b, .fg .fr-head .tbclock em { font-size:16px; line-height:24px; color:var(--ink); }
+.fg .fr-head .tbclock em { font-weight:600; }
+.fg .fr-head .tbclock b { min-width:0; font-weight:500; color:var(--q); }
+/* the frame's skeletons: still blocks, nothing looping (rule 41) */
+.fg .fr-sk { display:block; border-radius:var(--r-control); background:var(--on-ink-tint-2); }
+.fg .fr-sk-icon { width:18px; height:18px; }
+.fg .fr-sk-word { width:96px; height:12px; }
+.fg .fr-head .fr-sk-date { width:200px; height:16px; background:var(--soft); }
+
+/* open tabs (rules 10 and 11): a thin outline each, the one you're on in ink */
+.fg .fr-tabs { flex:1; min-width:0; display:flex; align-items:center; justify-content:flex-end; gap:8px; overflow:hidden; }
+.fg .fr-tab { display:flex; align-items:center; min-width:0; max-width:200px; height:32px; border:1px solid var(--edge); border-radius:var(--r-button); color:var(--q); transition:border-color var(--t-fast) ease-out; }
+.fg .fr-tab:hover { border-color:var(--ink); }
+.fg .fr-tab.on { border-color:var(--ink); color:var(--ink); }
+.fg .fr-tab button.fr-tabgo { display:flex; align-items:center; gap:8px; min-width:0; height:100%; padding:0 4px 0 12px; font-size:14px; font-weight:500; color:inherit; border-radius:var(--r-button); }
+.fg .fr-tab:not(:has(.fr-tabx)) button.fr-tabgo { padding-right:12px; }
+.fg .fr-tablbl { min-width:0; }
+.fg .fr-tab button.fr-tabx { display:flex; align-items:center; justify-content:center; width:28px; height:100%; color:inherit; border-radius:var(--r-button); }
+.fg .fr-tab button:focus-visible, .fg .fr-head button.fr-newtab:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .fr-head button.fr-newtab { display:flex; align-items:center; gap:8px; flex:0 0 auto; height:32px; padding:0 8px; font-size:14px; font-weight:500; color:var(--q); border-radius:var(--r-button); transition:color var(--t-fast) ease-out; }
+.fg .fr-head button.fr-newtab:hover { color:var(--ink); }
+.fg .fr-headend { display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+
 
 /* ===== HeyTiff · Staff Profile — edit profile, in the app design language ===== */
 
@@ -5051,26 +4920,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg a.stat { text-decoration:none; color:inherit; transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg a.stat:hover { }
 
-/* ---------------- shell chrome skeletons ----------------
-   The sidebar/topbar placeholders that Cache Components prerenders into the
-   static shell. On the dark chrome, so they are light-on-dark rather than the
-   page's dark-on-light `.pk-*` blocks. */
-.fg .sk-dark { display:block; border-radius:6px; background:rgba(255,255,255,.07);
-  animation:pkSweep 1.6s ease-in-out infinite;
-  background-image:linear-gradient(100deg, rgba(255,255,255,.05) 30%, rgba(255,255,255,.11) 50%, rgba(255,255,255,.05) 70%);
-  background-size:200% 100%; }
-.fg .sk-navicon { width:16px; height:16px; border-radius:6px; }
-.fg .sk-navtext { width:88px; height:10px; }
-.fg .sk-name { width:96px; height:11px; margin-bottom:4px; }
-.fg .sk-role { width:52px; height:9px; }
-/* 66px is not a guess — it is the real clock's `min-width`, so the control
-   cluster does not step sideways when the chrome swaps in behind it. */
-.fg .sk-time { width:66px; height:12px; margin-bottom:4px; }
-.fg .sk-date { width:52px; height:9px; }
-.fg .topbar .searchbtn[aria-hidden="true"],
-.fg .topbar .tbr[aria-hidden="true"] .bell,
-.fg .topbar .tbr[aria-hidden="true"] .me-trigger { cursor:default; }
-@media (prefers-reduced-motion:reduce) { .fg .sk-dark { animation:none; } }
 
 /* ── Workboard (.wb-*) ─────────────────────────────────────────────────────
    The projects & maintenance board. Two lives, one markup: the normal page,
@@ -9135,12 +8984,12 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tiffbtn-sheet { --tb:30px; }
 /* at the end of an entry box and of the modal's reply box, beside a 36px Save */
 .tiffbtn-box { --tb:36px; }
-.tiffbtn-sheet, .tiffbtn-box, .tiffmk-paper {
+.tiffbtn-topbar, .tiffbtn-sheet, .tiffbtn-box, .tiffmk-paper {
   --tiffbtn-sheen:color-mix(in srgb, var(--paper) 90%, transparent); --tiffbtn-sheen-hi:var(--paper);
   --tiffbtn-burst:color-mix(in srgb, var(--mark-blue) 70%, transparent); }
 /* after the paper skin, so a box's button on ink (the Tiff modal's dock) and
    the modal's header mark take the frame's */
-.tiffbtn-topbar, .tiffbtn-onink, .tiffmk-ink {
+.tiffbtn-onink, .tiffmk-ink {
   --tiffbtn-sheen:color-mix(in srgb, var(--mark-teal) 85%, transparent); --tiffbtn-sheen-hi:var(--mark-core);
   --tiffbtn-burst:color-mix(in srgb, var(--mark-core) 90%, transparent); }
 .tiffbtn:active { transform:translateY(1px); }
@@ -9267,7 +9116,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tiffkey .tiffmk .tiffbtn-gim-a .tiffbtn-arc { --k:.94; }
 .tiffkey .tiffmk .tiffbtn-gim-b .tiffbtn-arc { --k:.82; }
 
-@media (max-width:760px) { .fg .tbr { gap:12px; } }
 @media (prefers-reduced-motion:reduce) {
   /* Every loop above stops by name, and the button holds one still pose that
      still reads as the object: the mark leaning, the rings tipped. */

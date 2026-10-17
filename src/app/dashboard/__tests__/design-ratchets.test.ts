@@ -88,12 +88,16 @@ function offScaleRadii(): number {
    The second pass reads the value, not the property, so a drop-shadow parked
    in a custom property counts where it is written; `backdrop-filter` and the
    prefixed spellings come along for free. One declaration is one hit on both
-   passes: a comma-list of shadows is one decision. */
+   passes: a comma-list of shadows is one decision.
+
+   `var(--shadow-overlay)` is the one shadow itself (rule 36), so it
+   is not counted, as the ring token is not (18 October 2026, v2's parts:
+   the Dialog part wears it and the count fell 48 → 13). */
 function shadows(css = CSS): number {
   let n = 0;
   for (const m of css.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
     const v = m[1].trim();
-    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--ring/.test(v)) n++;
+    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--(?:ring|shadow-overlay\)$)/.test(v)) n++;
   }
   for (const _ of css.matchAll(/[\w-]+\s*:\s*[^;}]*drop-shadow\([^;}]*/g)) n++;
   return n;
@@ -516,7 +520,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      Isaac agreed to the re-base; docs/design.md names the two that stay (the
      photo thumbnail's star, the Studio's close-ready vertex) and records that
      the donut's three go with the Studio's new design. */
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 48 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 13 },
   { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: () => leftBars(outside("bars at the left edge")), baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens; his are named below", now: () => tailwindHexes(outside("Tailwind palette hexes")), baseline: 0 },

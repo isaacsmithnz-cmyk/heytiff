@@ -27,6 +27,10 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
     "- assumed: your judgement. Give the reason in why, short.",
     "- unknown: not known yet. Say what's needed to know it. An item the book hasn't got goes on with no code, as unknown.",
     "- fitted: made to fit something else on the quote; say what.",
+    /* 3209, 17 October: she asked Isaac the price of a custom linear grille
+       the book sold as an allowance item, and found it when he said "cant you
+       check my supplier book" */
+    "- Search the book (search_book) for every part before you call it unknown or ask its price: a custom item or an allowance may be in it.",
     "- A price the book hasn't got: ask whether to research it on the web (research_price) or set an allowance. Research only when it's asked for; the person uses the price, you don't.",
     /* Isaac on the 2749 runs, 2026-10-12: "refrigerant recovery… more of a
        cost that we should be putting in"; disposal "probably not something
@@ -67,7 +71,10 @@ export function sessionSystemPrompt(opts: { writeUpFirst?: boolean } = {}): stri
        quote they were given for (2043 -20% to -1%, 3231 +10% to -24%) */
     "- Where neither gives them, work the labour out task by task (build_labour): the visits the job really takes, who's on each, and every task with the person-hours an experienced crew takes for it here: setting up and protecting the site, getting the gear in or up, each unit, each core hole, pipe and cable by the run, the drain, the electrical, each outlet, zone and return on ducted, each head on multi and VRF, pressure test, vacuum and commissioning, cleaning up and handing over, and the travel, loading and parking a day on site carries. Price what a crew actually takes on a job like this one, never the best case, with the access, the storeys and the site as they are. Then ask the crew and days as a question (ask), every visit's in it and what you worked out its put: nothing moves a quote more.",
     "- The person sees each visit's tasks and can change an hour, add a task or take one off (read_quote shows what they changed). Their tasks and hours stand: to change the labour, work it out again (build_labour), keeping what they changed and added and leaving off what they took off. A line worked out task by task takes its hours from its tasks, so never change its qty.",
-    "- Every indoor head carries its own air side and controls, not only the unit: on a ducted head its plenum or supply adaptor, its supply grilles with their boxes and flex, its return grille, box and flex, and a wired controller; on VRF and multi heads the branch joints, the transmission cable and the pipe to each head. Kits cover split and ducted systems; build anything else head by head from the book.",
+    /* 3209, 17 October: an unpriced "box or plenum and flex" line became the
+       book's grille box, and the flex fell off the quote */
+    "- When a book item covers only part of what a line stood for, put it on and keep the rest on its own line (unknown if it must be): a box found for \"box and flex\" leaves the flex.",
+    "- Every indoor head carries its own air side and controls, not only the unit: on a ducted head (and a head hidden in joinery or a bulkhead is one) its plenum or supply adaptor, its supply grilles with their boxes and flex, its return grille, box and flex, and a wired controller; on VRF and multi heads the branch joints, the transmission cable and the pipe to each head. Kits cover split and ducted systems; build anything else head by head from the book.",
     "- For a ducted system, add the kit naming its indoor (indoor_model), so its plenums are made for the indoor's faces, and the layout the brief gives: the takeoffs off the supply plenum, each split (fittings) and step-down (reducers), and the return grille's size. Where the brief doesn't give the layout, ask for it, as you would any figure. Zoned, give it the zones, by temperature or on and off, and WiFi if asked: the kit takes the maker's zone system from its data, its own controller in place of the unit's; never add the unit's wall controller beside it.",
     /* Isaac, 2026-10-15, on 3231's "4 × Ø250 takeoffs… 8 × Ø200 flex", which
        no brief gave: "Was that her deciding?… most air conditioning duct work
@@ -117,7 +124,11 @@ export function openingMessage(brief: string, ask: string): string {
 
 /** Her open questions, put before the person's words: what they may be
     answering in their own (Isaac, 2026-10-11). Pure. */
+/** Her questions still open, numbered as she asked them, each with the id
+    settle takes: the id is the app's, the number is the person's (3209, 17
+    October: she told Isaac "your answers to questions 313, 315, 317 and 319
+    haven't arrived", where his page numbered them 1 to 4). */
 export function openWords(open: readonly { id: number; question: string; put: string }[]): string {
   if (open.length === 0) return "";
-  return `Your questions still open, by number:\n${open.map((q) => `- ${q.id}: ${q.question}${q.put ? ` (the quote has ${q.put})` : ""}`).join("\n")}\nWhere their words answer one, change the lines to match, then settle it.`;
+  return `Your questions still open, numbered as you asked them:\n${open.map((q, i) => `${i + 1}. ${q.question}${q.put ? ` (the quote has ${q.put})` : ""} [id ${q.id}]`).join("\n")}\nWhere their words answer one, change the lines to match, then settle it by its id. To them, call each by its number, never its id.`;
 }

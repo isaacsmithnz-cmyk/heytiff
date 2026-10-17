@@ -441,7 +441,7 @@ describe("surfaces.css", () => {
   it("names every class pt- and the part", () => {
     const classes = [...css.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]!);
     expect(classes.length).toBeGreaterThan(10);
-    for (const c of classes) expect(c).toMatch(/^pt-(dialog|scrim|toast|toasts|vtab|vtabs|stab|stabs|tray|tabs)(-|$)/);
+    for (const c of classes) expect(c).toMatch(/^pt-(dialog|scrim|toast|toasts|vtab|vtabs|stab|stabs|tray|tabs|tip)(-|$)/);
   });
 
   it("keeps to the scales: type, weights, spacing, corners, layers, motion", () => {
@@ -523,5 +523,38 @@ describe("surfaces.css", () => {
     expect(toast).toMatch(/background:\s*var\(--ink\)/);
     expect(toast).toMatch(/color:\s*var\(--white\)/);
     expect(toast).toMatch(/border-radius:\s*var\(--r-button\)/);
+  });
+});
+
+describe("Tooltip", () => {
+  // imported here so the rest of the suite stays as it was written
+  const { Tooltip } = jest.requireActual("../tooltip") as typeof import("../tooltip");
+
+  it("describes the control it names, and never labels it", () => {
+    render(
+      <Tooltip label="Close the card">
+        <button type="button" aria-label="Close" />
+      </Tooltip>,
+    );
+    const btn = screen.getByRole("button", { name: "Close" });
+    const tip = screen.getByRole("tooltip");
+    expect(tip).toHaveTextContent("Close the card");
+    expect(btn).toHaveAttribute("aria-describedby", tip.id);
+    expect(btn).toHaveAccessibleDescription("Close the card");
+    expect(btn).not.toHaveAttribute("title");
+  });
+
+  it("keeps a description the control already had", () => {
+    render(
+      <>
+        <p id="own">Saved a minute ago</p>
+        <Tooltip label="Save the visit">
+          <button type="button" aria-describedby="own">
+            Save
+          </button>
+        </Tooltip>
+      </>,
+    );
+    expect(screen.getByRole("button", { name: "Save" }).getAttribute("aria-describedby")).toMatch(/^own \S+$/);
   });
 });

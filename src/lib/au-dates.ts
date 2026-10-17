@@ -51,10 +51,21 @@ export function parseAuDate(input: string): string | null {
 const AU_ANCHOR_TZ = "Australia/Sydney";
 
 /** Today's calendar date in AU, as ISO yyyy-mm-dd. */
-export function todayInAu(now: Date = new Date()): string {
+/** A zone a workspace names, if Intl knows it; the AU anchor otherwise. */
+export function zoneOr(tz: string | null | undefined): string {
+  if (!tz) return AU_ANCHOR_TZ;
+  try {
+    new Intl.DateTimeFormat("en-AU", { timeZone: tz });
+    return tz;
+  } catch {
+    return AU_ANCHOR_TZ;
+  }
+}
+
+export function todayInAu(now: Date = new Date(), tz?: string | null): string {
   // en-CA formats as yyyy-mm-dd, which is exactly the ISO date we want
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: AU_ANCHOR_TZ,
+    timeZone: zoneOr(tz),
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -199,9 +210,9 @@ export function auMinutesNow(now: Date = new Date()): number {
    Takes `now` rather than reading the wall clock itself so the caller — which
    is a component that re-renders on a timer — owns the tick, and so the format
    can be tested without mocking Date. */
-export function fmtAuTime(now: Date = new Date()): string {
+export function fmtAuTime(now: Date = new Date(), tz?: string | null): string {
   return new Intl.DateTimeFormat("en-AU", {
-    timeZone: AU_ANCHOR_TZ,
+    timeZone: zoneOr(tz),
     hour: "numeric",
     minute: "2-digit",
     hour12: true,

@@ -19,7 +19,10 @@ import { fmtAuTime, fmtAuWeekdayDateLong, todayInAu } from "@/lib/au-dates";
    minute only appears once there is a browser to own it. The slot reserves its
    width in CSS, so nothing reflows when it lands. */
 
-export function Clock({ today }: { today: string }) {
+/* v2 (the review, step 3): the clock is on the WORKSPACE's time zone, the
+   one its ServiceM8 account keeps, not Sydney's; a workspace without one
+   keeps the AU anchor. */
+export function Clock({ today, tz = null }: { today: string; tz?: string | null }) {
   const hydrated = useHydrated();
 
   /* Computed during render on the server too, and thrown away there unread —
@@ -52,11 +55,11 @@ export function Clock({ today }: { today: string }) {
      yesterday. Before that it is the server's AU date, which the greeting and
      every chip on the page were derived from. */
   /* v2's header spells the day out, "Saturday 18 October", then the time */
-  const date = fmtAuWeekdayDateLong(hydrated ? todayInAu(now) : today);
+  const date = fmtAuWeekdayDateLong(hydrated ? todayInAu(now, tz) : today);
 
   return (
     <div className="tbclock">
-      <b>{hydrated ? fmtAuTime(now) : ""}</b>
+      <b>{hydrated ? fmtAuTime(now, tz) : ""}</b>
       <em>{date}</em>
     </div>
   );

@@ -32,7 +32,7 @@ export function tabName(href: string): { label: string; icon: string } {
 /* THE HEADER (rule 2): the date and the time together on the left of every
    page, open tabs on the right. Tiff's button and the bell sit after the
    tabs until step 5 gives them their v2 homes. */
-export function Topbar({ today }: { today: string }) {
+export function Topbar({ today, tz = null }: { today: string; tz?: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const { open: openSearch } = useCommandPalette();
@@ -48,7 +48,7 @@ export function Topbar({ today }: { today: string }) {
 
   return (
     <header className="topbar fr-head" id="fg-topbar">
-      <Clock today={today} />
+      <Clock today={today} tz={tz} />
       <div className="fr-tabs" role="tablist" aria-label="Open tabs">
         {tabs.map((t) => {
           const name = t.blank ? { label: "New tab", icon: "search" } : tabName(t.href);

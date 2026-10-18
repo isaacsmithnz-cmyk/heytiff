@@ -630,6 +630,55 @@ export async function listJobSwms(orgId: string, jobUuid: string, viewerStaffId:
     .eq("sm8_job_uuid", jobUuid)
     .order("created_at", { ascending: true });
   const ids = ((swmsRows ?? []) as { id: string }[]).map((r) => r.id);
+  return summariseSwms(orgId, ids, open, viewerStaffId);
+}
+
+/** How many SWMS the Documents list reads, newest first. */
+const ORG_SWMS_CAP = 300;
+
+/** A SWMS as the Documents list shows it: the job card's summary, with the
+    job it is on and whether it was written for an install or a service. */
+export type OrgSwmsSummary = SwmsSummary & { jobUuid: string; kind: "install" | "service" };
+
+/** Every SWMS in the workspace, newest first, read as the job card reads
+    each one (listJobSwms): the same chain, the same sign-ons carried through
+    a correction, the same issues. It is read for nobody in particular, so no
+    row offers a sign-on; the sign-on screen decides that for whoever opens it. */
+export async function listOrgSwms(orgId: string): Promise<OrgSwmsSummary[]> {
+  const { data: swmsRows } = await supabaseAdmin
+    .from("swms")
+    .select("id, sm8_job_uuid")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false })
+    .limit(ORG_SWMS_CAP);
+  const rows = (swmsRows ?? []) as { id: string; sm8_job_uuid: string }[];
+  const summaries = await summariseSwms(
+    orgId,
+    rows.map((r) => r.id),
+    false,
+    null,
+  );
+  if (!summaries.length) return [];
+  const jobOf = new Map(rows.map((r) => [r.id, r.sm8_job_uuid]));
+  const { data: kindRows } = await supabaseAdmin
+    .from("swms_versions")
+    .select("id, kind:answers->>kind")
+    .eq("org_id", orgId)
+    .in(
+      "id",
+      summaries.map((s) => s.versionId),
+    );
+  const kinds = new Map(((kindRows ?? []) as { id: string; kind: string | null }[]).map((k) => [k.id, k.kind]));
+  return summaries.map((s) => ({
+    ...s,
+    jobUuid: jobOf.get(s.swmsId) ?? "",
+    kind: kinds.get(s.versionId) === "service" ? "service" : "install",
+  }));
+}
+
+/** These SWMS at their latest versions, in the order given, with who's still
+    to sign: the job card's read and the Documents list's are this one engine. */
+async function summariseSwms(orgId: string, ids: string[], open: boolean, viewerStaffId: string | null): Promise<SwmsSummary[]> {
   if (!ids.length) return [];
 
   const chain = await loadChains(orgId, ids);

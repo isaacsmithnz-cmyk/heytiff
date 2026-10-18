@@ -64,8 +64,8 @@ describe("SettingsIndex", () => {
       "/dashboard/admin/integrations",
       /* every document and message the business sends from fixed wording */
       "/dashboard/admin/templates",
-      /* anything somebody asks to have on company letterhead */
-      "/dashboard/admin/letters",
+      /* anything somebody asks to have on company letterhead: Documents' Letters view */
+      "/dashboard/documents?view=letter",
       /* quoting's own settings, not the calculator's (financials, like the calculator) */
       "/dashboard/admin/quoting",
       /* the business's own price book: suppliers, prices, preferred items */
@@ -92,7 +92,7 @@ describe("SettingsIndex", () => {
 
   it("gives an ungranted admin the knowledge queue and nothing gated", () => {
     render(<SettingsIndex isOwner={false} canFinancials={false} kbQueueCount={0} />);
-    expect(linkHrefs()).toEqual(["/dashboard/admin/templates", "/dashboard/admin/letters", "/dashboard/admin/knowledge"]);
+    expect(linkHrefs()).toEqual(["/dashboard/admin/templates", "/dashboard/documents?view=letter", "/dashboard/admin/knowledge"]);
     expect(screen.queryByText("Rate Calculator")).not.toBeInTheDocument();
     expect(screen.queryByText("Organisation")).not.toBeInTheDocument();
     expect(screen.getByText("3 settings")).toBeInTheDocument();

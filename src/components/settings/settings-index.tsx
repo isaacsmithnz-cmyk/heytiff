@@ -19,6 +19,7 @@ import { RowList, Row } from "@/components/parts/row";
 import { StateWord } from "@/components/parts/state";
 import { ScreenPanel } from "@/components/shell/screen-band";
 import { SettingsHead } from "./settings-head";
+import { lettersHref } from "@/lib/letters/letter";
 
 export type SettingsViewer = {
   /** owner-intrinsic: organisation settings, plus the owner-only tools */
@@ -75,10 +76,12 @@ export const SECTIONS: SettingsGroup[] = [
       },
       {
         /* anything somebody asks to have on company letterhead; each admin
-           sees the letters they wrote or sign, the owner all of them */
+           sees the letters they wrote or sign, the owner all of them. The
+           list is Documents' Letters view now, so the row goes straight
+           there rather than through the old address. */
         title: "Letters",
         sub: "Employment, references and anything else on your letterhead",
-        href: "/dashboard/admin/letters",
+        href: lettersHref,
         show: anyone,
       },
     ],

@@ -79,6 +79,17 @@ describe("4 weeks", () => {
   });
 });
 
+describe("Month", () => {
+  it("is the month's weekdays, and steps a month", () => {
+    const days = daysFor("month", "2026-11-18");
+    expect(days[0]).toBe("2026-11-02");
+    expect(days[days.length - 1]).toBe("2026-11-30");
+    expect(days).toHaveLength(21);
+    expect(stepDay("month", "2026-11-18", 1)).toBe("2026-12-01");
+    expect(stepDay("month", "2026-01-10", -1)).toBe("2025-12-01");
+  });
+});
+
 describe("the words", () => {
   it("says times the board's way", () => {
     expect(clockWord(540)).toBe("9");

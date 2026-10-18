@@ -144,7 +144,8 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
 
   const go = (view: ScheduleView, day: string) => router.push(`/dashboard/schedule?view=${view}&day=${day}`);
   const week = data.view === "week";
-  const weeks = data.view === "weeks";
+  const month = data.view === "month";
+  const weeks = data.view === "weeks" || month;
   const jobsOn = new Set(board.people.flatMap((p) => p.days.flatMap((d) => d.blocks.map((b) => b.jobUuid)))).size;
 
   useEffect(() => {
@@ -216,7 +217,9 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
 
   const booked = data.capacity.reduce((n, d) => n + d.bookedMinutes, 0);
   const crew = data.capacity.reduce((n, d) => n + d.capacityMinutes, 0);
-  const fact = weeks
+  const fact = month
+    ? `${monthOf(data.days[0])} ${data.days[0].slice(0, 4)}${crew > 0 ? `, ${Math.round((booked / crew) * 100)}% booked` : ""}`
+    : weeks
     ? `4 weeks from ${dayNum(board.days[0] ?? data.days[0])} ${monthOf(data.days[0])}${crew > 0 ? `, ${Math.round((booked / crew) * 100)}% booked` : ""}`
     : week ? `Week of ${dayNum(board.days[0])} ${monthOf(board.days[0])}, ${jobsOn} jobs` : `${longDay(data.day)}, ${jobsOn} jobs`;
 
@@ -244,13 +247,14 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
             { value: "day", label: "Day" },
             { value: "week", label: "Week" },
             { value: "weeks", label: "4 weeks" },
+            { value: "month", label: "Month" },
           ]}
           value={data.view}
           onChange={(v) => go(v, data.day)}
         />
         <div className="sc-pager">
           <IconButton glyph="earlier" label="Earlier" size={32} onClick={() => go(data.view, stepDay(data.view, data.day, -1))} />
-          <b>{weeks ? weekLabel(data.days) : week ? weekLabel(board.days) : longDay(data.day)}</b>
+          <b>{month ? `${monthOf(data.days[0])} ${data.days[0].slice(0, 4)}` : weeks ? weekLabel(data.days) : week ? weekLabel(board.days) : longDay(data.day)}</b>
           <IconButton glyph="later" label="Later" size={32} onClick={() => go(data.view, stepDay(data.view, data.day, 1))} />
         </div>
         <Button kind="second" size={32} onClick={() => go(data.view, data.today)}>
@@ -537,11 +541,15 @@ function WeeksGrid({ data, open }: { data: SchedulePage; open: (day: string) => 
   return (
     <div className="sc-weeks">
       <div className="sc-wkh">
-        {data.days.slice(0, 5).map((d) => (
-          <b key={d}>{weekdayWord(d)}</b>
+        {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((w) => (
+          <b key={w}>{w}</b>
         ))}
       </div>
       <div className="sc-wkgrid">
+        {/* a month starts on its first weekday's column */}
+        {Array.from({ length: (new Date(`${data.days[0]}T00:00:00Z`).getUTCDay() + 6) % 7 }, (_, i) => (
+          <span key={`lead${i}`} aria-hidden="true" />
+        ))}
         {data.days.map((d, i) => {
           const c = byDay.get(d);
           const newMonth = i === 0 || monthOf(d) !== monthOf(data.days[i - 1]);

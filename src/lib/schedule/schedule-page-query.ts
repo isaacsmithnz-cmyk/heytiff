@@ -66,7 +66,7 @@ async function mayPressBookings(): Promise<boolean> {
 export function readScheduleParams(params: Record<string, string | string[] | undefined>, today: string): { view: ScheduleView; day: string } {
   const one = (k: string) => (typeof params[k] === "string" ? (params[k] as string) : undefined);
   const asked = one("view");
-  const view: ScheduleView = asked === "week" || asked === "weeks" ? asked : "day";
+  const view: ScheduleView = asked === "week" || asked === "weeks" || asked === "month" ? asked : "day";
   let day = isDay(one("day")) ? one("day")! : today;
   /* a weekend asked for the day view shows the Monday after */
   if (view === "day" && isWeekend(day)) day = stepDay("day", day, 1);
@@ -82,14 +82,16 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
   const { view, day } = readScheduleParams(params, today);
   const days = daysFor(view, day);
 
-  /* 4 weeks: the capacity window's read, and nothing else (no Jobs panel) */
-  if (view === "weeks") {
-    const window = await loadCapacityWindow(orgId, days[0]);
+  /* 4 weeks and Month: the capacity window's read, and nothing else (no
+     Jobs panel). A month runs past one window's 28 days, so it reads two. */
+  if (view === "weeks" || view === "month") {
+    const starts = [days[0], ...(daysFrom(days[0], CAPACITY_WINDOW_DAYS + 1)[CAPACITY_WINDOW_DAYS] <= days[days.length - 1] ? [daysFrom(days[0], CAPACITY_WINDOW_DAYS + 1)[CAPACITY_WINDOW_DAYS]] : [])];
+    const windows = await Promise.all(starts.map((s) => loadCapacityWindow(orgId, s)));
     const all = capacityWindow({
-      days: daysFrom(days[0], CAPACITY_WINDOW_DAYS),
-      activities: window.activities,
-      allocation: window.allocation,
-      staffNames: new Map(window.staffNames),
+      days: starts.flatMap((s) => daysFrom(s, CAPACITY_WINDOW_DAYS)),
+      activities: windows.flatMap((w) => w.activities),
+      allocation: windows[0].allocation,
+      staffNames: new Map(windows.flatMap((w) => w.staffNames)),
     });
     const shown = new Set(days);
     return { view, day, today, days, payloads: [], jobs: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), profiles: {}, canTeam: false };

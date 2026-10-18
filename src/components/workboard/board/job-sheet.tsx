@@ -1,7 +1,7 @@
 "use client";
 
 import { projectHref } from "@/lib/shell/links";
-import { Fragment, useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { Fragment, Suspense, lazy, useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { OverlayWhileOpen } from "@/components/overlay/use-overlay";
@@ -249,6 +249,11 @@ const paperPages = (paper: JobPaper): JobMediaItem[] =>
     sign-on door already stand down for. */
 const SWMS_CLOSED = new Set(["Completed", "Unsuccessful"]);
 
+/* ADD › COST (rule 54) opens Claim an expense over the job as "Add a cost"
+   (components/making/expense-form): a job's cost is an expense claim. Loaded
+   when it is first asked for, as the form's readers and actions are its own. */
+const ExpenseForm = lazy(() => import("@/components/making/expense-form").then((m) => ({ default: m.ExpenseForm })));
+
 /** Where a quote is made, as the Quote section's own link goes: a quote
     not started yet starts with Tiff. */
 const quotePage = (job: string, started: boolean) =>
@@ -437,6 +442,8 @@ export function JobSheet({
   const addRef = useRef<HTMLButtonElement>(null);
   const [adding, setAdding] = useState(false);
   const [taskAsk, setTaskAsk] = useState(0);
+  /* Add › Cost's form, open over the job */
+  const [costing, setCosting] = useState(false);
   /* WHERE THE QUOTE STANDS, for Add's Quote, which reads Variation once a
      quote is accepted: the Quote section's own read, asked the first time
      the reader reaches for Add. Undefined until it lands, null when it
@@ -1591,7 +1598,7 @@ export function JobSheet({
         else openStep("quoted");
         return;
       case "cost":
-        router.push("/dashboard/my-expenses");
+        setCosting(true);
         return;
       case "swms":
         go("compliance");
@@ -2202,6 +2209,26 @@ export function JobSheet({
           parentNumber={cardNumber}
           onClose={() => setOpenClaim(null)}
         />
+      )}
+
+      {/* Add › Cost: the expense claim, with this job filled in. A claim
+          links a project, a visit or an agreement, never a ServiceM8 job, so
+          the job is named in the claim's words, as the cost lane names it
+          (lib/workboard/note-cost-file, `costDescription`). */}
+      {costing && (
+        <Suspense fallback={null}>
+          <ExpenseForm
+            job={{
+              /* a visit or a project row links; a ServiceM8 job is named */
+              kind: row.kind === "sm8" ? "sm8" : row.kind,
+              id: row.kind === "sm8" ? (cardId ?? row.id) : row.id,
+              label: [cardNumber ? `Job ${cardNumber}` : "Job", detail?.clientName ?? row.clientName, detail?.suburb ?? row.suburb]
+                .filter(Boolean)
+                .join(", "),
+            }}
+            onClose={() => setCosting(false)}
+          />
+        </Suspense>
       )}
 
       {/* The SWMS wizard — same portal, over the card. Keyed by what it opened

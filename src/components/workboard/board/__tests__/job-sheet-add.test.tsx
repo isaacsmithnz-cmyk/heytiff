@@ -77,6 +77,21 @@ jest.mock("@/components/swms/swms-wizard", () => ({
 jest.mock("@/components/certs/cert-wizard", () => ({
   CertWizard: () => <div role="dialog" aria-label="New certificate" />,
 }));
+/* Add › Cost's form is its own suite's (making/__tests__/expense-form):
+   here, that Add opens it over the job, with the job filled in */
+const costForm = jest.fn();
+jest.mock("@/components/making/expense-form", () => ({
+  ExpenseForm: (p: { job: unknown; onClose: () => void }) => {
+    costForm(p);
+    return (
+      <div role="dialog" aria-label="Add a cost">
+        <button type="button" onClick={p.onClose}>
+          Cancel
+        </button>
+      </div>
+    );
+  },
+}));
 
 import { JobSheet } from "../job-sheet";
 
@@ -304,10 +319,16 @@ describe("the job card's Add", () => {
       await waitFor(() => expect(box).toHaveFocus());
     });
 
-    it("Cost opens the expense claim", async () => {
+    it("Cost opens Add a cost over the job, the ServiceM8 job filled in to be named in its words", async () => {
       await open();
       await pick("Cost");
-      expect(push).toHaveBeenCalledWith("/dashboard/my-expenses");
+      expect(await screen.findByRole("dialog", { name: "Add a cost" })).toBeInTheDocument();
+      expect(push).not.toHaveBeenCalled();
+      expect(costForm).toHaveBeenLastCalledWith(
+        expect.objectContaining({ job: { kind: "sm8", id: JOB, label: "Job 3400, Sample Client Pty Ltd, Rose Bay" } }),
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByRole("dialog", { name: "Add a cost" })).toBeNull();
     });
 
     it("SWMS opens Compliance and the SWMS wizard", async () => {

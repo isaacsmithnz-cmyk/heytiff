@@ -25,7 +25,7 @@ jest.mock("@/components/jobs/job-page", () => ({ JobPage: () => null }));
 
 import JobPageRoute from "../jobs/[id]/page";
 
-type Props = { row: { id: string }; section: string; manage: boolean; moneyVisible: boolean };
+type Props = { row: { id: string }; section: string; manage: boolean; moneyVisible: boolean; add: string | null };
 const visit = async (id: string, search: Record<string, string | string[] | undefined> = {}) =>
   (await JobPageRoute({ params: Promise.resolve({ id }), searchParams: Promise.resolve(search) })) as { props: Props };
 
@@ -87,5 +87,14 @@ describe("?tab=", () => {
     expect((await visit("j-3209", { tab: "billing" })).props.section).toBe("overview");
     held = new Set(["workboard", "workboard_money"]);
     expect((await visit("j-3209", { tab: "billing" })).props.section).toBe("billing");
+  });
+});
+
+describe("?add=", () => {
+  it("hands Make a document's SWMS or Certificate to the page, and nothing else", async () => {
+    expect((await visit("j-3209", { tab: "documents", add: "swms" })).props).toMatchObject({ section: "documents", add: "swms" });
+    expect((await visit("j-3209", { tab: "documents", add: "certificate" })).props).toMatchObject({ add: "certificate" });
+    expect((await visit("j-3209", { add: "quote" })).props).toMatchObject({ add: null });
+    expect((await visit("j-3209")).props).toMatchObject({ add: null });
   });
 });

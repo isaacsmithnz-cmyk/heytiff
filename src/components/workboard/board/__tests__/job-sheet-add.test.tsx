@@ -3,7 +3,7 @@
    the band. Each item is a door to the flow the card already has, behind
    that flow's own check, and an item the reader may not use is not there. */
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobBookings, JobCardRead, JobRecordRead } from "@/app/actions/workboard";
@@ -344,5 +344,33 @@ describe("the job card's Add", () => {
       expect(screen.getByRole("tab", { name: "Compliance" })).toHaveAttribute("aria-selected", "true");
       expect(await screen.findByRole("dialog", { name: "New certificate" })).toBeInTheDocument();
     });
+  });
+});
+
+/* Documents' Make a document lands on the job's page asking for one (v2) */
+describe("a page that arrives asking for a SWMS or a certificate", () => {
+  const page = (add: "swms" | "certificate") => ({ section: "documents" as const, onSection: noop, actions: [], onAction: noop, add });
+
+  it("opens the SWMS wizard once the job's papers are read, as Add › SWMS does", async () => {
+    render(<JobSheet row={row()} {...props} page={page("swms")} />);
+    expect(await screen.findByRole("dialog", { name: "New SWMS" })).toBeInTheDocument();
+  });
+
+  it("opens the certificate wizard, as Add › Certificate does", async () => {
+    render(<JobSheet row={row()} {...props} page={page("certificate")} />);
+    expect(await screen.findByRole("dialog", { name: "New certificate" })).toBeInTheDocument();
+  });
+
+  it("opens no SWMS once ServiceM8 has the job closed, as Add offers none", async () => {
+    readMirrorJob.mockResolvedValue({ detail: detail({ status: "Completed" }), focusRemoteId: null });
+    const { listSwmsForJob } = jest.requireMock("@/app/actions/swms") as { listSwmsForJob: jest.Mock };
+    render(<JobSheet row={row()} {...props} page={page("swms")} />);
+    await waitFor(() => expect(readMirrorJob).toHaveBeenCalled());
+    await waitFor(() => expect(listSwmsForJob).toHaveBeenCalledWith(JOB));
+    /* both reads answered, and the page rendered again with them */
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(screen.queryByRole("dialog", { name: "New SWMS" })).toBeNull();
   });
 });

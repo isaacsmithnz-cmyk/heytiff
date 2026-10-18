@@ -31,11 +31,14 @@ export function JobPage({
   section: first,
   manage,
   moneyVisible,
+  add = null,
 }: {
   row: AllJobRow;
   section: JobSection;
   manage: boolean;
   moneyVisible: boolean;
+  /** `?add=`: Documents' Make a document asked for a SWMS or a certificate */
+  add?: "swms" | "certificate" | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -58,6 +61,15 @@ export function JobPage({
   useEffect(() => {
     remember?.({ key: recordKey({ kind: "job", id: row.id }), ref: { kind: "job", id: row.id }, title, sub });
   }, [remember, row.id, title, sub]);
+
+  /* `?add=` is asked once: the address drops it, so a reload or a copied
+     link opens the job, not the wizard again */
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("add")) return;
+    url.searchParams.delete("add");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   const pins = useSyncExternalStore(subscribePins, pinsSnapshot, pinsServerSnapshot);
   const pinned = isPinned(pins, ref);
@@ -97,7 +109,7 @@ export function JobPage({
           manage={manage}
           moneyVisible={moneyVisible}
           initialTab={SECTION_FACES[first][0]}
-          page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key) }}
+          page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key), add }}
           /* a page has nothing to close */
           onClose={() => undefined}
           /* New agreement opens over the page (rule 51), the job filled in */

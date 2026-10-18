@@ -295,6 +295,9 @@ export type JobSheetPage = {
       it, copy the link (rule 53) */
   actions: readonly MenuItem[];
   onAction: (key: string) => void;
+  /** Arrived from Documents' Make a document (`?add=`): do what Add › SWMS
+      or Add › Certificate does, once the job's papers are read. */
+  add?: "swms" | "certificate" | null;
 };
 
 export function JobSheet({
@@ -1604,6 +1607,21 @@ export function JobSheet({
         return;
     }
   };
+
+  /* MAKE A DOCUMENT, FROM DOCUMENTS (v2): the page arrives on Documents
+     asking for a SWMS or a certificate, and once the job's papers are read
+     it does what Add does: the wizard for the job's first, its row (with
+     Revise or Reissue) when it has one, and no SWMS once ServiceM8 has the
+     job closed, as Add offers none then. Asked once, while rendering, the
+     way a prop's change is taken in, so no effect sets state. */
+  const [addAsked, setAddAsked] = useState<"swms" | "certificate" | null>(page?.add ?? null);
+  if (addAsked === "swms" && swms !== null && detail !== null) {
+    setAddAsked(null);
+    if (swms.length === 0 && !SWMS_CLOSED.has(detail.status ?? "")) setSwmsWizard({ revise: null });
+  } else if (addAsked === "certificate" && certs !== null) {
+    setAddAsked(null);
+    if (certs.length === 0) setCertWizard({ reissue: null });
+  }
 
   /* Up and down walk the rail, as a vertical tab list does. */
   const railKey = (e: React.KeyboardEvent, i: number) => {

@@ -54,5 +54,9 @@ export default async function JobPageRoute({
   const row = await openMirrorJob(target.parentRemoteId);
   if (!row) notFound();
 
-  return <JobPage row={row} section={section} manage={manage} moneyVisible={moneyVisible} />;
+  /* `?add=`: Documents' Make a document, asking for what Add › SWMS or Add ›
+     Certificate does; anything else asks for nothing */
+  const add = search.add === "swms" || search.add === "certificate" ? search.add : null;
+
+  return <JobPage row={row} section={section} manage={manage} moneyVisible={moneyVisible} add={add} />;
 }

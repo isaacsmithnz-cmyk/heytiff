@@ -113,6 +113,35 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
     return profile ? () => setDaysOff({ profile, name: row.name }) : undefined;
   };
 
+  /* DISPLAY: the Workboard's display mode, on the Schedule (overview-screen
+     says why it is the document that goes fullscreen, the frame hidden by an
+     attribute on <html>): for the wall, refreshed every minute, left with
+     Close display or the browser's own Esc. */
+  const [display, setDisplay] = useState(false);
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement) setDisplay(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  useEffect(() => {
+    if (!display) return;
+    const root = document.documentElement;
+    root.setAttribute("data-wb-display", "on");
+    const t = setInterval(() => router.refresh(), 60_000);
+    return () => {
+      clearInterval(t);
+      root.removeAttribute("data-wb-display");
+      if (document.fullscreenElement) void document.exitFullscreen?.()?.catch(() => {});
+    };
+  }, [display, router]);
+  const toDisplay = () => {
+    setDisplay(true);
+    /* a refused request backs the mode out: chromeless in a window is a trap */
+    void document.documentElement.requestFullscreen?.()?.catch(() => setDisplay(false));
+  };
+
   const go = (view: ScheduleView, day: string) => router.push(`/dashboard/schedule?view=${view}&day=${day}`);
   const week = data.view === "week";
   const weeks = data.view === "weeks";
@@ -196,6 +225,17 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
       <header className="sc-head">
         <h1 className="sc-h1">Schedule</h1>
         <span className="sc-fact">{fact}</span>
+        <span className="sc-headacts">
+          {display ? (
+            <Button kind="second" size={36} icon="x" onClick={() => setDisplay(false)}>
+              Close display
+            </Button>
+          ) : (
+            <Button kind="second" size={36} icon="maximize" onClick={toDisplay}>
+              Open display
+            </Button>
+          )}
+        </span>
       </header>
       <div className="sc-bar">
         <Tray

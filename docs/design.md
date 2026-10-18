@@ -244,7 +244,6 @@ infinite loop into a strobe.
 | `vmShimmer` | the reading bar while a scanned document is read | a skeleton sweep for a scan in progress |
 | `tkShim` ×2 | the ask bar while a question is out; a library shelf while it is searched | a sweep on the thing being searched |
 | `tkSpin` | the ask bar's send glyph while a question is out | a spinner in the control you pressed |
-| `tkSlide` | the library's progress bar when it cannot say how far | a spinner, drawn as a bar |
 | `tkFlow` ×2 | a lane of the research trace, out to a shelf being searched and back from the shelf the answer is drawn from | a spinner, drawn as a pulse along the line that is waiting |
 | `tkCaret` | the last paragraph of an answer still streaming | a caret: "is that all of it" |
 | `wb2CursorBlink` | the board's answer while it streams | a caret |

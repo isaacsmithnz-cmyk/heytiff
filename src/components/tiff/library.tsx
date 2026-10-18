@@ -1,18 +1,27 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { Tooltip } from "@/components/parts/tooltip";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { Button, IconButton } from "@/components/parts/button";
+import { Chooser } from "@/components/parts/chooser";
+import { ConfirmDialog } from "@/components/parts/dialog";
+import { Fade } from "@/components/parts/fade";
+import { TextInput } from "@/components/parts/field";
+import { Menu, type MenuItem } from "@/components/parts/menu";
+import { Empty } from "@/components/parts/states";
+import { StateWord, type Tone } from "@/components/parts/state";
+import { ViewTabs } from "@/components/parts/tabs";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
 import { UploadDrawer } from "./upload-drawer";
-import { TagPicker, TagPills } from "./tag-picker";
+import { TagPicker } from "./tag-picker";
 import { TagManager } from "./tag-manager";
 import { DocSearch } from "./doc-search";
+import { allTools, toolBadge, toolMatches } from "@/components/toolbox/tools";
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 import { deleteKbDoc, retryKbDoc, updateKbDocMeta } from "@/app/actions/kb";
 import { filterByTags, KB_TAG_PILLS_SHOWN, type KbTagRef } from "@/lib/tiff/tags";
@@ -24,12 +33,18 @@ import type { KbDocRow } from "@/lib/tiff/query";
 import type { KbQuota } from "@/lib/tiff/quota";
 import type { KbLargeAllowance } from "@/lib/tiff/files";
 
-/* The library — what Tiff has read, and what it hasn't yet.
+/* THE LIBRARY (v2, step 5; no board, so built from docs/design.md and the
+   v2 screens already built: Jobs' list, a vehicle's page, Schedule). The
+   head is the title, one grey line of facts and the buttons on the right;
+   the views are soft tabs (rule 29), one per category with its count, and
+   Toolbox, the field tools' shelf (6-revisions.md, 20); the search sits on
+   the head's line as Jobs has it; then the documents as a table, a row per
+   document (rule 39), its state as a word (rule 17).
 
    A DOCUMENT'S STATE IS THE POINT OF THIS SCREEN, not a decoration on it. A
    row that isn't `ready` cannot be cited yet, so every row says where it is:
    how far through the reading it is, that it ran out of the month's pages, or
-   why it failed and what to press. The brief's §4C distinction, made visible.
+   why it failed and what to press.
 
    THE LOOP RUNS FROM HERE. There is no queue on the server (Hobby allows one
    cron a day), so this page is what drives ingestion: it adopts anything the
@@ -40,7 +55,11 @@ import type { KbLargeAllowance } from "@/lib/tiff/files";
    THE STAFF VARIANT IS ABSENT, NOT DISABLED. Without `tiff_manage` there is no
    Add button, no row actions and no quota line anywhere in the markup: a greyed
    control is an invitation to ask why, and this is a read surface for staff by
-   design. Every action re-checks the capability server-side regardless. */
+   design. Every action re-checks the capability server-side regardless.
+
+   The view and the tags ride in the address (`?cat=`, `?view=toolbox`,
+   `?tag=`), written with replaceState as they change, as Jobs does, so an
+   open tab holds them and the links into the library still land. */
 
 /* Both extras are attached by the page rather than by lib/tiff/query.ts, for
    the same reason: they are separate reads joined in TypeScript, and a row's
@@ -54,9 +73,14 @@ export type KbQuotaView = Omit<KbQuota, "pagesAllowed" | "pagesRemaining"> & {
   pagesAllowed: number | null;
 };
 
+/** All, a category, or the field tools' shelf. */
+export type LibraryView = "all" | KbCategoryKey | "toolbox";
+
 const n = (v: number) => v.toLocaleString("en-AU");
 
 const plural = (count: number, one: string, many = `${one}s`) => (count === 1 ? one : many);
+
+const PANEL = "lb2-panel";
 
 /** What a row says about itself right now — the live loop wins over the row
     the server rendered, which is a batch behind the moment work starts. */
@@ -110,6 +134,81 @@ function metaLine(d: KbLibraryDoc): string {
   return bits.join(", ");
 }
 
+/** The row's tags as words (pills are only for a person's name, rule 47):
+    the first few, then how many more. */
+function tagLine(tags: readonly KbTagRef[]): string {
+  if (tags.length === 0) return "";
+  const shown = tags.slice(0, KB_TAG_PILLS_SHOWN).map((t) => t.label);
+  const more = tags.length - shown.length;
+  if (more > 0) return `Tagged ${shown.join(", ")} and ${more} more`;
+  if (shown.length === 1) return `Tagged ${shown[0]}`;
+  return `Tagged ${shown.slice(0, -1).join(", ")} and ${shown.at(-1)}`;
+}
+
+/** The state of a document as a word in its colour (rule 17). */
+function stateOf(state: RowState, ocr: OcrView): { tone: Tone; word: string } {
+  if (state.status === "processing") {
+    const known = state.pageCount !== null && state.pageCount > 0;
+    return {
+      tone: "info",
+      word: known
+        ? `Reading ${n(state.pagesDone)} of ${n(state.pageCount as number)} pages`
+        : "Reading the document",
+    };
+  }
+  if (state.status === "paused")
+    return {
+      tone: "look",
+      word: state.resetsOn ? `Out of pages — resumes ${fmtAuDayMonth(state.resetsOn)}` : "Out of pages this month",
+    };
+  if (state.status === "failed") return { tone: "wrong", word: state.error || "Couldn't be read" };
+  if (state.status === "uploading") return { tone: "info", word: "Uploading the document" };
+
+  /* A vision run in flight says so where the caveat was, rather than beside
+     it: the word is the row's one status line. */
+  if (ocr.reading) return { tone: "info", word: `Reading ${n(ocr.left)} scanned ${plural(ocr.left, "page")}` };
+  if (ocr.result?.status === "failed") return { tone: "wrong", word: ocr.result.error || "Those pages couldn't be read." };
+  if (ocr.result?.status === "paused")
+    return {
+      tone: "look",
+      word: ocr.result.resetsOn
+        ? `Out of pages — try again ${fmtAuDayMonth(ocr.result.resetsOn)}`
+        : "Out of pages this month",
+    };
+
+  /* A run that read the pages and found nothing on them. Said out loud,
+     because the alternative is the caveat coming back unchanged with no sign
+     anything happened — and against the real library this is the COMMON
+     outcome: most pages with no text layer are a divider, a full-bleed photo
+     or a blank back cover. */
+  if (ocr.result?.status === "ready" && ocr.result.pagesRead === 0 && ocr.left > 0)
+    return {
+      tone: "look",
+      word: `${n(ocr.left)} ${plural(ocr.left, "page")} with nothing readable on ${plural(ocr.left, "it", "them")}`,
+    };
+
+  /* Usable, but not all of it: a caveat needs a look, it isn't good news. */
+  if (ocr.left > 0) return { tone: "look", word: `${n(ocr.left)} ${plural(ocr.left, "page")} unreadable — scanned images` };
+
+  if (ocr.result && ocr.result.pagesRead > 0)
+    return { tone: "good", word: `Read ${n(ocr.result.pagesRead)} scanned ${plural(ocr.result.pagesRead, "page")}` };
+
+  return { tone: "good", word: "Ready" };
+}
+
+/** The view and the tags, into the address, as Jobs writes its own. */
+function writeAddress(view: LibraryView, tagSlugs: readonly string[]) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("cat");
+  url.searchParams.delete("view");
+  url.searchParams.delete("tag");
+  if (view === "toolbox") url.searchParams.set("view", "toolbox");
+  else if (view !== "all") url.searchParams.set("cat", view);
+  for (const s of tagSlugs) url.searchParams.append("tag", s);
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 /* ── the page ────────────────────────────────────────────────────────────── */
 
 export function Library({
@@ -119,11 +218,13 @@ export function Library({
   isOwner = false,
   unembedded = 0,
   initialCategory = null,
+  initialView = null,
   tags = [],
   tagUsage = {},
   initialTagIds = [],
   initialDocId = null,
   large = null,
+  toolbox = null,
 }: {
   docs: KbLibraryDoc[];
   quota?: KbQuotaView | null;
@@ -134,8 +235,10 @@ export function Library({
       say. */
   unembedded?: number;
   initialCategory?: KbCategoryKey | null;
+  /** From `?view=toolbox`: the field tools' shelf, for someone who holds it. */
+  initialView?: "toolbox" | null;
   /** Every tag the org has, including ones nothing wears yet — the picker
-      offers those, and the rail hides them. */
+      offers those, and the filter hides them. */
   tags?: KbTagRef[];
   /** tagId → documents wearing it. Only the manage sheet needs it. */
   tagUsage?: Record<string, number>;
@@ -146,35 +249,36 @@ export function Library({
   initialDocId?: string | null;
   /** What this person may bring in over 50 MB this month (null: nothing). */
   large?: KbLargeAllowance;
+  /** The Toolbox shelf, for a viewer who holds `toolbox`: the yard's date
+      ages the tools' New out. Null: no shelf. */
+  toolbox?: { today: string } | null;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [cat, setCat] = useState<KbCategoryKey | null>(initialCategory);
+  const [view, setViewState] = useState<LibraryView>(
+    initialView === "toolbox" && toolbox ? "toolbox" : (initialCategory ?? "all"),
+  );
   const [tagIds, setTagIds] = useState<string[]>(initialTagIds);
   const [drawer, setDrawer] = useState(false);
   const [managing, setManaging] = useState(false);
+  const [tagMenu, setTagMenu] = useState(false);
+  const tagRef = useRef<HTMLButtonElement>(null);
   const [editing, setEditing] = useState<KbLibraryDoc | null>(null);
   const [deleting, setDeleting] = useState<KbLibraryDoc | null>(null);
   /* `?doc=` opens the document's own search panel on arrival — the same panel
-     its row title opens, so a link from elsewhere in the app lands exactly
-     where a click here would. Seeded in the initialiser rather than an effect:
-     the panel is open on the first paint, not after one without it. */
+     its row opens, so a link from elsewhere in the app lands exactly where a
+     click here would. Seeded in the initialiser rather than an effect: the
+     panel is open on the first paint, not after one without it. */
   const [searching, setSearching] = useState<KbLibraryDoc | null>(
     () => docs.find((d) => d.id === initialDocId) ?? null,
   );
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
 
-  /* PARKED DOCUMENTS RESUME THEMSELVES, which is what three screens have
-     always said they do ("Out of pages — resumes 1 Oct", "it resumes on its
-     own"). Nothing ever restarted one: the queue took `processing` rows only,
-     the ingest route has always accepted a paused document and re-planned it,
-     and the two never met. So a manual that ran out of pages mid-read sat out
-     of every answer until a manager noticed the row and pressed Resume — and
-     staff, who have no button, were told it would come back by itself.
-
-     The allowance is the condition, not the date: `pagesRemaining` is what the
-     ingest loop itself checks, so queueing on anything else would park them
-     again on the first batch. */
+  /* PARKED DOCUMENTS RESUME THEMSELVES, which is what the screens have
+     always said they do ("Out of pages — resumes 1 Oct"). The allowance is the
+     condition, not the date: `pagesRemaining` is what the ingest loop itself
+     checks, so queueing on anything else would park them again on the first
+     batch. */
   const hasPages = quota ? quota.pagesAllowed === null || quota.pagesUsed < quota.pagesAllowed : false;
   const processing = useMemo(
     () =>
@@ -188,51 +292,59 @@ export function Library({
   const ingest = useKbIngest(processing);
   const ocr = useKbOcr();
 
-  /* Seeded FROM `KB_CATEGORIES` rather than by hand: the literal here listed
-     four keys and the field category made five, so every field note tallied
-     `undefined + 1` and its chip read "NaN". A count is derived from the list
-     of categories, so it should be built from that list. */
+  /* Seeded FROM `KB_CATEGORIES` rather than by hand: a literal of four keys
+     beside a list of five once made the field notes' count read "NaN". */
   const counts = useMemo(() => {
     const c = Object.fromEntries(KB_CATEGORIES.map((k) => [k.key, 0])) as Record<KbCategoryKey, number>;
     for (const d of docs) c[d.category] = (c[d.category] ?? 0) + 1;
     return c;
   }, [docs]);
 
-  /* Tag counts are over the WHOLE library, exactly like the category counts
-     above — not over what's currently on screen. A number that changed every
-     time another chip was pressed would make the rail unreadable while you
-     were using it, and the empty state below names the filters when a
-     combination finds nothing. */
+  /* Tag counts are over the WHOLE library, like the views' counts — a number
+     that changed every time another filter went on would be unreadable while
+     you were using it. */
   const tagCounts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const d of docs) for (const t of d.tags ?? []) c[t.id] = (c[t.id] ?? 0) + 1;
     return c;
   }, [docs]);
 
-  /* THE RAIL IS NOT THE TAG LIST. An org starts with fifty seeded tags and a
-     library with six documents in it; showing all fifty as filters would bury
-     the four that would actually do something. A tag nothing wears is offered
-     in the PICKER and hidden here — unless it's currently selected, because a
-     chip that removed itself the moment it emptied the list could never be
-     pressed again to undo. */
-  const railTags = useMemo(
+  /* THE FILTER IS NOT THE TAG LIST. An org starts with fifty seeded tags and a
+     library with six documents; a tag nothing wears is offered in the PICKER
+     and hidden here — unless it's on, because a tag that removed itself the
+     moment it emptied the list could never be pressed again to undo. */
+  const filterTags = useMemo(
     () => tags.filter((t) => (tagCounts[t.id] ?? 0) > 0 || tagIds.includes(t.id)),
     [tags, tagCounts, tagIds]
   );
 
   const matches = useMemo(() => filterKbDocs(docs, query), [docs, query]);
   const tagged = useMemo(() => filterByTags(matches, tagIds), [matches, tagIds]);
-  const visible = useMemo(() => (cat ? tagged.filter((d) => d.category === cat) : tagged), [tagged, cat]);
+  const visible = useMemo(
+    () => (view === "all" || view === "toolbox" ? tagged : tagged.filter((d) => d.category === view)),
+    [tagged, view]
+  );
 
-  const sections = KB_CATEGORIES.filter((c) => (cat ? c.key === cat : visible.some((d) => d.category === c.key)));
+  const tools = useMemo(() => (toolbox ? allTools() : []), [toolbox]);
+  const shownTools = tools.filter(({ tool }) => toolMatches(tool, query));
 
-  const toggleTag = (id: string) =>
-    setTagIds((list) => (list.includes(id) ? list.filter((v) => v !== id) : [...list, id]));
+  const slugsOf = (ids: readonly string[]) =>
+    ids.map((id) => tags.find((t) => t.id === id)?.slug).filter(Boolean) as string[];
+
+  const setView = (next: LibraryView) => {
+    setViewState(next);
+    writeAddress(next, slugsOf(tagIds));
+  };
+  const setTags = (next: string[]) => {
+    setTagIds(next);
+    writeAddress(view, slugsOf(next));
+  };
+  const toggleTag = (id: string) => setTags(tagIds.includes(id) ? tagIds.filter((v) => v !== id) : [...tagIds, id]);
 
   const filtering = query.trim().length > 0 || tagIds.length > 0;
   const clearFilters = () => {
     setQuery("");
-    setTagIds([]);
+    setTags([]);
   };
 
   const setRowError = (id: string, message: string | null) =>
@@ -243,261 +355,292 @@ export function Library({
       return next;
     });
 
-  /* "Ask Tiff about this document" (brief §4D) — a document hands the composer
-     the opening of a sentence and gets out of the way. The prefill travels in
-     session storage rather than the URL because it is the start of somebody's
-     question, and a question doesn't belong in a link or a history entry. It
-     is offered to anyone who can see the row: reading the library and asking
-     about it are the same permission, and `tiff_manage` is about changing it. */
+  /* "Ask Tiff about this document" — a document hands the composer itself and
+     gets out of the way. The scope travels in session storage rather than the
+     URL because it is the start of somebody's question, and a question
+     doesn't belong in a link or a history entry. Offered to anyone who can
+     see the row: reading the library and asking about it are the same
+     permission, and `tiff_manage` is about changing it. */
   const askAbout = (d: KbLibraryDoc) => {
     writeAskScope({ docId: d.id, title: d.title });
     router.push("/dashboard/tiff");
   };
 
   const zero = docs.length === 0;
+  const inToolbox = view === "toolbox";
+
+  const items = [
+    { key: "all", label: "All", count: docs.length },
+    ...KB_CATEGORIES.map((c) => ({ key: c.key, label: c.label, count: counts[c.key] ?? 0 })),
+    ...(toolbox ? [{ key: "toolbox", label: "Toolbox", count: tools.length }] : []),
+  ];
+
+  const tagWord =
+    tagIds.length === 0
+      ? "Tags"
+      : tagIds.length === 1
+        ? (tags.find((t) => t.id === tagIds[0])?.label ?? "1 tag")
+        : `${tagIds.length} tags`;
+  const tagItems: MenuItem[] = filterTags.map((t) => ({
+    key: t.id,
+    label: t.label,
+    lead: tagIds.includes(t.id) ? <Icon name="check" size={16} /> : <span className="lb2-nolead" />,
+    count: n(tagCounts[t.id] ?? 0),
+  }));
+
+  /* the fact line: what is here, then, for a manager, the month's pages */
+  const fact = zero
+    ? "Nothing here yet. Tiff answers from what you upload."
+    : `${n(docs.length)} ${plural(docs.length, "document")} Tiff can read.`;
+  const pages =
+    canManage && quota
+      ? quota.pagesAllowed === null
+        ? "Unlimited pages"
+        : `${n(quota.pagesUsed)} of ${n(quota.pagesAllowed)} pages this month, resets ${fmtAuDayMonth(quota.resetsOn)}`
+      : null;
 
   return (
-    /* Paper to the frame, the title in the band and the way back to Tiff on
-       its own line above it — the Workboard's frame (2026-09-20). The count,
-       the quota and the embedding gap follow the band: they are facts about
-       what is in the library, not a subtitle of the screen. The two head
-       buttons wear the band's own 36px `.pbtn` — `.tk-btn` is 44 and would
-       be the tallest thing on the row. */
-    <div className="page in full">
-      <div className="wrap">
-        <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/tiff" className="kbcrumb">
-                <Icon name="chevL" size={14} />
-                Library
-              </Link>
-            }
-            title="All documents"
-            /* on the empty library the CTA belongs to the sell below, which is
-               the whole screen — two Add buttons on one page is one too many */
-            tools={
-              canManage && !zero ? (
+    <div className="page in">
+      <div className="wrap lb2">
+        <header className="lb2-head">
+          <div className="lb2-id">
+            <h1 className="lb2-title">Library</h1>
+            <p className="lb2-fact">
+              <span>{fact}</span>
+              {pages && (
                 <>
-                  <button type="button" className="pbtn ghost" onClick={() => setManaging(true)}>
-                    <Icon name="tag" size={15} />
-                    Tags
-                  </button>
-                  <button type="button" className="pbtn primary" onClick={() => setDrawer(true)}>
-                    <Icon name="plus" size={16} />
-                    Add documents
-                  </button>
+                  {" "}
+                  <span>{pages}</span>
                 </>
-              ) : null
-            }
-          />
-          <ScreenPanel>
-            <p className="tk-sub">
-              {zero
-                ? "Nothing here yet — Tiff answers from what you upload."
-                : `${n(docs.length)} ${plural(docs.length, "document")} Tiff can read`}
+              )}
             </p>
-            {canManage && quota && (
-              <p className="tk-quota">
-                <Icon name="layers" size={14} />
-                {quota.pagesAllowed === null
-                  ? "Unlimited pages"
-                  : `${n(quota.pagesUsed)} of ${n(quota.pagesAllowed)} pages this month, resets ${fmtAuDayMonth(quota.resetsOn)}`}
-              </p>
+          </div>
+          <div className="lb2-acts">
+            {/* Asking the library is Tiff's: today's ask page, with its
+                sources, its research and its saved threads */}
+            <Button kind="second" href="/dashboard/tiff" icon={<TiffGlyph quiet />}>
+              Ask the Library
+            </Button>
+            {/* on the empty library the main button belongs to the empty
+                state, which is the whole screen — two Adds on one page is one
+                too many */}
+            {canManage && !zero && (
+              <>
+                <Button kind="second" icon="tag" onClick={() => setManaging(true)}>
+                  Edit tags
+                </Button>
+                <Button kind="main" icon="plus" onClick={() => setDrawer(true)}>
+                  Add a document
+                </Button>
+              </>
             )}
-            {canManage && unembedded > 0 && <EmbedGap count={unembedded} />}
+          </div>
+        </header>
 
-        {!zero && (
-          <div className="tk-tools">
-            <div className="tk-search">
-              <Icon name="search" size={18} />
-              <input
-                placeholder="Search documents"
-                aria-label="Search documents"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-            <div className="tk-chips">
-              <button
-                type="button"
-                className={`tk-chip${cat === null ? " on" : ""}`}
-                aria-pressed={cat === null}
-                onClick={() => setCat(null)}
-              >
-                All
-                <em>{n(docs.length)}</em>
-              </button>
-              {KB_CATEGORIES.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  className={`tk-chip${cat === c.key ? " on" : ""}`}
-                  aria-pressed={cat === c.key}
-                  style={{ "--tkc": c.color } as React.CSSProperties}
-                  onClick={() => setCat(cat === c.key ? null : c.key)}
-                >
-                  <span className="tk-dot" style={{ background: c.color }} />
-                  {c.label}
-                  {/* `?? 0` so a shelf the caller's payload predates renders
-                      as empty rather than crashing the library — the exact
-                      seam the field shelf crossed when it arrived. */}
-                  <em>{n(counts[c.key] ?? 0)}</em>
-                </button>
-              ))}
-            </div>
+        {canManage && unembedded > 0 && <EmbedGap count={unembedded} />}
 
-            {/* THE SECOND AXIS, ON ITS OWN LINE. Category answers "what kind
-                of document"; a tag answers "whose gear, which system". Mixed
-                into one rail they would read as alternatives to each other,
-                and pressing one of each is the normal case. */}
-            {railTags.length > 0 && (
-              <div className="tk-trail">
-                <span className="tk-tlbl">
-                  <Icon name="tag" size={13} />
-                  Tags
-                </span>
-                <div className="tk-chips">
-                  {railTags.map((t) => {
-                    const on = tagIds.includes(t.id);
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        className={`tk-chip tag${on ? " on" : ""}`}
-                        aria-pressed={on}
-                        style={{ "--tkc": t.color } as React.CSSProperties}
-                        onClick={() => toggleTag(t.id)}
-                      >
-                        <span className="tk-dot" style={{ background: t.color }} />
-                        {t.label}
-                        <em>{n(tagCounts[t.id] ?? 0)}</em>
-                      </button>
-                    );
-                  })}
+        {(!zero || toolbox) && (
+          <div className="lb2-bar">
+            <ViewTabs
+              ariaLabel="Views of the library"
+              idPrefix="lb2-view"
+              panelPrefix={PANEL}
+              current={view}
+              onGo={(key) => setView(key as LibraryView)}
+              items={items}
+            />
+            <div className="lb2-tools">
+              {!inToolbox && filterTags.length > 0 && (
+                <>
+                  <Button
+                    ref={tagRef}
+                    kind="second"
+                    size={36}
+                    icon="tag"
+                    aria-haspopup="menu"
+                    aria-expanded={tagMenu}
+                    aria-label={tagIds.length ? `Tags: ${tagWord}` : "Tags"}
+                    onClick={() => setTagMenu((o) => !o)}
+                  >
+                    {tagWord}
+                    <span className="lb2-chev" aria-hidden="true">
+                      <Icon name="chevD" size={16} />
+                    </span>
+                  </Button>
+                  <Menu
+                    open={tagMenu}
+                    anchor={tagRef}
+                    onClose={() => setTagMenu(false)}
+                    onSelect={(key) => toggleTag(key)}
+                    items={tagItems}
+                    label="Narrow by tag"
+                    filter={tagItems.length > 8}
+                    align="end"
+                  />
                   {tagIds.length > 0 && (
-                    <button type="button" className="tk-tclr" onClick={() => setTagIds([])}>
+                    <Button kind="quiet" onClick={() => setTags([])}>
                       Clear tags
-                    </button>
+                    </Button>
+                  )}
+                </>
+              )}
+              {(!zero || inToolbox) && (
+                <div className="lb2-search" role="search">
+                  <span className="lb2-search-icon" aria-hidden="true">
+                    <Icon name="search" size={16} />
+                  </span>
+                  <TextInput
+                    className="lb2-search-input"
+                    aria-label={inToolbox ? "Search tools" : "Search documents"}
+                    placeholder={inToolbox ? "Search tools" : "Search documents"}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape" && query) setQuery("");
+                    }}
+                  />
+                  {query && (
+                    <IconButton glyph="clear" label="Clear the search box" size={32} className="lb2-search-clear" onClick={() => setQuery("")} />
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div role="tabpanel" id={`${PANEL}-${view}`} aria-labelledby={`lb2-view-${view}`} className="lb2-panel">
+          {inToolbox && toolbox ? (
+            shownTools.length === 0 ? (
+              <Empty
+                what={`No tools match “${query.trim()}”`}
+                action={
+                  <Button kind="second" onClick={() => setQuery("")}>
+                    Clear the search
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="lb2-table lb2-table--tools">
+                <div className="lb2-row lb2-row--head" aria-hidden="true">
+                  <span className="lb2-cell">Tool</span>
+                  <span className="lb2-cell">Kind</span>
+                  <span className="lb2-cell">Added</span>
+                  <span className="lb2-cell">State</span>
+                </div>
+                <ul className="lb2-rows" aria-label={`Toolbox, ${shownTools.length} ${plural(shownTools.length, "tool")}`}>
+                  {shownTools.map(({ tool, cat }) => {
+                    const badge = toolBadge(tool, toolbox.today);
+                    return (
+                      <li key={tool.href} className="lb2-row lb2-row--open">
+                        <span className="lb2-cell lb2-name">
+                          <Link href={tool.href} className="lb2-hit">
+                            <Fade className="lb2-doc">{tool.name}</Fade>
+                          </Link>
+                          <Fade className="lb2-sub">{tool.desc}</Fade>
+                        </span>
+                        <span className="lb2-cell lb2-q">
+                          <Fade>{cat.title}</Fade>
+                        </span>
+                        <span className="lb2-cell lb2-q lb2-num">{tool.addedOn ? fmtAuDayMonth(tool.addedOn) : ""}</span>
+                        <span className="lb2-cell lb2-state">{badge && <StateWord tone="info">{badge}</StateWord>}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
-            )}
-          </div>
-        )}
-
-        {zero ? (
-          <EmptyLibrary canManage={canManage} onAdd={() => setDrawer(true)} />
-        ) : visible.length === 0 && filtering ? (
-          /* One empty state for both filters, because they combine: "Daikin"
-             AND "VRV" AND the word "chiller" can each be perfectly good on
-             their own and find nothing together, and a message that named only
-             the search box would send somebody hunting for a typo that isn't
-             there. */
-          <div className="tk-empty small">
-            <h2>
-              {query.trim() && tagIds.length > 0
-                ? `Nothing matches “${query.trim()}” with those tags`
-                : query.trim()
-                  ? `No documents match “${query.trim()}”`
-                  : "No documents wear all of those tags"}
-            </h2>
-            {/* why nothing matched belongs to the empty result it explains, not under the title (law 15) */}
-            {!query.trim() && tagIds.length > 1 && (
-              <p>Tags narrow together — a document has to wear every one you&apos;ve picked.</p>
-            )}
-            <button type="button" className="tk-btn ghost" onClick={clearFilters}>
-              {query.trim() && tagIds.length > 0
-                ? "Clear the filters"
-                : query.trim()
-                  ? "Clear the search"
-                  : "Clear the tags"}
-            </button>
-          </div>
-        ) : (
-          <div className="tk-list stgp">
-            {sections.map((c) => {
-              const rows = visible.filter((d) => d.category === c.key);
-              return (
-                <section
-                  key={c.key}
-                  className="tk-cat"
-                  style={{ "--sc": `${c.color}1f`, "--tkc": c.color } as React.CSSProperties}
-                >
-                  <div className="tk-cin">
-                    <header className="tk-chd">
-                      <div className="tk-cic" style={{ color: c.color }}>
-                        <Icon name={c.icon} size={18} />
-                      </div>
-                      <div>
-                        <h2>{c.label}</h2>
-                        <p>
-                          {counts[c.key] === 0
-                            ? c.blurb
-                            : `${n(rows.length)} ${plural(rows.length, "document")}, ${c.blurb}`}
-                        </p>
-                      </div>
-                    </header>
-
-                    {rows.length === 0 ? (
-                      <div className="tk-note">
-                        {counts[c.key] === 0 ? (
-                          <>
-                            <b>Nothing in this category yet.</b>
-                            {/* The blurb is a description, not a noun phrase —
-                                splicing it in produced "Tiff can't answer how
-                                we do things here questions". */}
-                            <span>
-                              {canManage
-                                ? "Tiff can't answer from this category until something lands in it."
-                                : "Ask a manager to add the company's manuals for this category."}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <b>No matches in {c.label}.</b>
-                            <span>{n(counts[c.key])} here, none matching your search.</span>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      rows.map((d) => (
-                        <DocRow
-                          key={d.id}
-                          doc={d}
-                          state={rowState(d, ingest.progress[d.id], quota)}
-                          ocr={ocrView(d, ocr.progress[d.id], ocr.running)}
-                          colour={c.color}
-                          canManage={canManage}
-                          isOwner={isOwner}
-                          error={rowErrors[d.id]}
-                          activeTagIds={tagIds}
-                          onPickTag={toggleTag}
-                          onOpen={() => setSearching(d)}
-                          onAsk={() => askAbout(d)}
-                          onEdit={() => setEditing(d)}
-                          onDelete={() => setDeleting(d)}
-                          onRetry={async () => {
-                            setRowError(d.id, null);
-                            const res = await retryKbDoc(d.id);
-                            if (!res.ok) {
-                              setRowError(d.id, res.error);
-                              return;
-                            }
-                            ingest.start([d.id]);
-                            router.refresh();
-                          }}
-                          onRead={() => ocr.read(d.id)}
-                        />
-                      ))
-                    )}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        )}
-          </ScreenPanel>
+            )
+          ) : zero ? (
+            <Empty
+              what="Tiff can only answer from what’s here"
+              line={
+                canManage
+                  ? "Upload the manuals, fault-code books, datasheets and SOPs your team already relies on: Installation documents, Service documents, Manufacturer specs and Company SOPs. Tiff reads every page, then answers with the page she read it from."
+                  : "Ask a manager to add the company’s manuals: Installation documents, Service documents, Manufacturer specs and Company SOPs."
+              }
+              action={
+                canManage ? (
+                  <Button kind="main" icon="plus" onClick={() => setDrawer(true)}>
+                    Add a document
+                  </Button>
+                ) : null
+              }
+            />
+          ) : visible.length === 0 && view !== "all" && counts[view as KbCategoryKey] === 0 ? (
+            /* a category with nothing in it says what belongs in it (rule 40) */
+            <Empty
+              what={`Nothing in ${KB_CATEGORIES.find((c) => c.key === view)?.label ?? "this category"} yet`}
+              line={
+                canManage
+                  ? `${KB_CATEGORIES.find((c) => c.key === view)?.blurb ?? ""}. Tiff can't answer from this category until something lands in it.`
+                  : "Ask a manager to add the company’s manuals for this category."
+              }
+              action={
+                canManage && view !== "field" ? (
+                  <Button kind="main" icon="plus" onClick={() => setDrawer(true)}>
+                    Add a document
+                  </Button>
+                ) : null
+              }
+            />
+          ) : visible.length === 0 && filtering ? (
+            /* One empty state for both filters, because they combine: "Daikin"
+               AND "VRV" AND the word "chiller" can each be perfectly good on
+               their own and find nothing together. */
+            <Empty
+              what={
+                query.trim() && tagIds.length > 0
+                  ? `Nothing matches “${query.trim()}” with those tags`
+                  : query.trim()
+                    ? `No documents match “${query.trim()}”`
+                    : "No documents wear all of those tags"
+              }
+              line={!query.trim() && tagIds.length > 1 ? "Tags narrow together: a document has to wear every one you’ve picked." : undefined}
+              action={
+                <Button kind="second" onClick={clearFilters}>
+                  {query.trim() && tagIds.length > 0 ? "Clear the filters" : query.trim() ? "Clear the search" : "Clear the tags"}
+                </Button>
+              }
+            />
+          ) : (
+            <div className={`lb2-table${view === "all" ? " lb2-table--kind" : ""}${canManage ? " lb2-table--manage" : ""}`}>
+              <div className="lb2-row lb2-row--head" aria-hidden="true">
+                <span className="lb2-cell">Document</span>
+                {view === "all" && <span className="lb2-cell">Kind</span>}
+                <span className="lb2-cell">Added</span>
+                <span className="lb2-cell">State</span>
+                <span className="lb2-cell" />
+              </div>
+              <ul className="lb2-rows" aria-label={`${items.find((i) => i.key === view)?.label ?? "All"}, ${visible.length} ${plural(visible.length, "document")}`}>
+                {visible.map((d) => (
+                  <DocRow
+                    key={d.id}
+                    doc={d}
+                    showKind={view === "all"}
+                    state={rowState(d, ingest.progress[d.id], quota)}
+                    ocr={ocrView(d, ocr.progress[d.id], ocr.running)}
+                    canManage={canManage}
+                    isOwner={isOwner}
+                    error={rowErrors[d.id]}
+                    onOpen={() => setSearching(d)}
+                    onAsk={() => askAbout(d)}
+                    onEdit={() => setEditing(d)}
+                    onDelete={() => setDeleting(d)}
+                    onRetry={async () => {
+                      setRowError(d.id, null);
+                      const res = await retryKbDoc(d.id);
+                      if (!res.ok) {
+                        setRowError(d.id, res.error);
+                        return;
+                      }
+                      ingest.start([d.id]);
+                      router.refresh();
+                    }}
+                    onRead={() => ocr.read(d.id)}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
@@ -517,7 +660,7 @@ export function Library({
         <EditModal doc={editing} tags={tags} onClose={() => setEditing(null)} />
       )}
       {deleting && canManage && isOwner && (
-        <DeleteModal doc={deleting} onClose={() => setDeleting(null)} />
+        <DeleteDialog doc={deleting} onClose={() => setDeleting(null)} />
       )}
       {/* No `canManage` — searching a document is reading it, and the whole
           library is a read surface for staff. */}
@@ -531,13 +674,12 @@ export function Library({
 /* One quiet line, not a banner. Nothing is broken: these passages are stored,
    cited and found by keyword — they are only missing from the leg that matches
    what somebody MEANT, which is a thing to fix when convenient rather than an
-   alarm. It sits under the quota line because it is the same kind of fact.
+   alarm.
 
    THE RATE LIMIT IS NAMED, because it is the only version of this a person can
    act on: an account with no payment method on the Voyage billing page gets 3
-   requests a minute, which is what left the passages behind in the first
-   place. Saying "try again later" without saying why would guarantee a second
-   afternoon of diagnosis. */
+   requests a minute. Saying "try again later" without saying why would
+   guarantee a second afternoon of diagnosis. */
 function EmbedGap({ count }: { count: number }) {
   const fill = useKbBackfill(count);
   const total = fill.done + fill.remaining;
@@ -547,65 +689,29 @@ function EmbedGap({ count }: { count: number }) {
   if (!fill.running && fill.remaining <= 0) return null;
 
   return (
-    <p className="tk-gap">
-      <Icon name="sync" size={14} />
+    <p className="lb2-gap">
       {fill.running ? (
         <span>{`Filling in ${n(fill.done)} of ${n(total)} passages`}</span>
       ) : fill.stopped === "rate-limited" ? (
         <span>
-          Voyage is rate-limiting — this account is capped at 3 requests a minute until a payment
+          Voyage is rate-limiting: this account is capped at 3 requests a minute until a payment
           method is added. Try again later, or add one.
         </span>
       ) : fill.stopped === "unconfigured" ? (
         <span>Semantic search isn&rsquo;t switched on, so there&rsquo;s nothing to fill these in with.</span>
       ) : fill.stopped === "failed" ? (
-        <span>That didn&rsquo;t finish — {n(fill.remaining)} still to go.</span>
+        <span>That didn&rsquo;t finish. {n(fill.remaining)} still to go.</span>
       ) : (
         <span>
           {`${n(count)} ${plural(count, "passage")} ${count === 1 ? "isn't" : "aren't"} searchable by meaning yet`}
         </span>
       )}
       {!fill.running && fill.stopped !== "unconfigured" && (
-        <button type="button" className="tk-gapb" onClick={fill.start}>
+        <Button kind="quiet" size={32} onClick={fill.start}>
           {fill.stopped ? "Try again" : "Fill these in"}
-        </button>
+        </Button>
       )}
     </p>
-  );
-}
-
-/* ── the day-1 state: sell the reason before the button ──────────────────── */
-
-function EmptyLibrary({ canManage, onAdd }: { canManage: boolean; onAdd: () => void }) {
-  return (
-    <div className="tk-empty stgp">
-      <div className="tk-eic">
-        <Icon name="library" size={30} />
-      </div>
-      <h2>Tiff can only answer from what&rsquo;s here</h2>
-      <p>
-        Upload the manuals, fault-code books, datasheets and SOPs your team already relies on. Tiff
-        reads every page, then answers questions with the page it read them from — so the answer is
-        the manual&rsquo;s, not a guess.
-      </p>
-      <div className="tk-egrid">
-        {KB_CATEGORIES.map((c) => (
-          <div key={c.key} className="tk-ecard" style={{ "--tkc": c.color } as React.CSSProperties}>
-            <span className="tk-dot" style={{ background: c.color }} />
-            <b>{c.label}</b>
-            <em>{c.blurb}</em>
-          </div>
-        ))}
-      </div>
-      {canManage ? (
-        <button type="button" className="tk-btn primary" onClick={onAdd}>
-          <Icon name="plus" size={16} />
-          Add documents
-        </button>
-      ) : (
-        <p className="tk-ehint">Ask a manager to add the company&rsquo;s manuals.</p>
-      )}
-    </div>
   );
 }
 
@@ -613,14 +719,12 @@ function EmptyLibrary({ canManage, onAdd }: { canManage: boolean; onAdd: () => v
 
 function DocRow({
   doc,
+  showKind,
   state,
   ocr,
-  colour,
   canManage,
   isOwner,
   error,
-  activeTagIds,
-  onPickTag,
   onOpen,
   onAsk,
   onEdit,
@@ -629,14 +733,12 @@ function DocRow({
   onRead,
 }: {
   doc: KbLibraryDoc;
+  showKind: boolean;
   state: RowState;
   ocr: OcrView;
-  colour: string;
   canManage: boolean;
   isOwner: boolean;
   error?: string;
-  activeTagIds: string[];
-  onPickTag: (tagId: string) => void;
   onOpen: () => void;
   onAsk: () => void;
   onEdit: () => void;
@@ -645,238 +747,125 @@ function DocRow({
   onRead: () => void;
 }) {
   const [busy, start] = useTransition();
+  const [menu, setMenu] = useState(false);
+  const actRef = useRef<HTMLButtonElement>(null);
   const ready = state.status === "ready";
   const meta = metaLine(doc);
+  const tagsSaid = tagLine(doc.tags ?? []);
+  const said = stateOf(state, ocr);
+  const kind = KB_CATEGORIES.find((c) => c.key === doc.category)?.label ?? "";
+  const added = fmtAuDayMonth(auDayOf(doc.uploadedAt ?? doc.updatedAt));
+
+  /* OFFERED WHERE THE PROBLEM IS SAID, and only there. Reading scanned pages
+     appears at the moment somebody has just been told there are pages Tiff
+     couldn't read, and waits its turn while another document is being read:
+     one allowance, one run. Retry and Resume sit beside the word that says
+     why. Each is a manager's: staff read the library, managers spend it. */
+  const offerRead = canManage && ready && ocr.left > 0 && !ocr.reading && !ocr.spent;
   const readBtn = (
-    <button type="button" className="tk-abtn" disabled={ocr.waiting} onClick={onRead}>
-      <Icon name="file" size={14} />
+    <Button kind="second" size={32} disabled={ocr.waiting} onClick={onRead}>
       Read pages
-    </button>
+    </Button>
   );
+  const fix =
+    canManage && (state.status === "failed" || state.status === "paused") ? (
+      <Button kind="second" size={32} disabled={busy} onClick={() => start(async () => onRetry())}>
+        {state.status === "paused" ? "Resume" : "Retry"}
+      </Button>
+    ) : offerRead ? (
+      ocr.waiting ? (
+        <Tooltip label="Reading another document first">{readBtn}</Tooltip>
+      ) : (
+        readBtn
+      )
+    ) : null;
+
+  /* A manager's other doings sit in one Actions menu; staff have one thing to
+     do to a document, ask about it, so it is their row's one button. Asking
+     is only for a READY document: Tiff can't be asked about pages she hasn't
+     read yet. */
+  const actions: MenuItem[] = [
+    ...(ready ? [{ key: "ask", label: "Ask Tiff about it" }] : []),
+    { key: "edit", label: "Edit details" },
+    ...(isOwner ? [{ key: "remove", label: "Remove document", danger: true }] : []),
+  ];
 
   return (
-    <div className={`tk-row${ready ? " ready" : ""}`}>
-      <span className="tk-dot" style={{ background: ready ? colour : "#d1d5db" }} />
-
-      <div className="tk-rmain">
-        {/* THE TITLE OPENS THE DOCUMENT'S OWN PANEL, not the raw file.
-
-            It used to hand the browser a signed URL and get out of the way,
-            which put people in Chrome's PDF viewer — a viewer with no search
-            control anywhere on it, only a keyboard shortcut nobody is told
-            about. So "open the manual" now lands somewhere that can be
-            searched, with the PDF itself one press further on. The icon is a
-            magnifier rather than the out-arrow for the same reason: this no
-            longer leaves the app. */}
+    <li className={`lb2-row${ready ? " lb2-row--open" : ""}`}>
+      <span className="lb2-cell lb2-name">
+        {/* THE NAME OPENS THE DOCUMENT'S OWN PANEL, not the raw file: a place
+            that can be searched, with the PDF one press further on. Nothing
+            is indexed until the document has been read, so until then it is
+            not a thing to press. */}
         {ready ? (
-          <button type="button" className="tk-rt" onClick={onOpen}>
-            {doc.title}
-            <Icon name="search" size={14} />
+          <button type="button" className="lb2-hit" onClick={onOpen}>
+            <Fade className="lb2-doc">{doc.title}</Fade>
           </button>
         ) : (
-          <span className="tk-rt flat">{doc.title}</span>
+          <Fade className="lb2-doc">{doc.title}</Fade>
         )}
-        {meta && <em className="tk-rmeta">{meta}</em>}
-        {/* THE PILLS ARE THE FILTER, which is what earns them a place on a row
-            that already carries a title, a meta line and a status. A badge
-            that only repeated what the edit modal knows would be the second
-            column of decoration this screen has had to delete. */}
-        <TagPills
-          tags={doc.tags ?? []}
-          max={KB_TAG_PILLS_SHOWN}
-          activeIds={activeTagIds}
-          onPick={onPickTag}
-        />
-        {error && <p className="tk-rerr">{error}</p>}
-      </div>
-
-      {/* No kind badge, and no pill on a ready document.
-          Every row in this library is a PDF and most of them are ready, so
-          both were a column of identical labels saying nothing — and they
-          were what the one row that IS stuck had to compete with. A pill now
-          means "this needs you"; a row without one is working. */}
-      <div className="tk-rstate">
-        <StatusPill state={state} ocr={ocr} />
-      </div>
-
-      {/* only a READY document — Tiff can't be asked about pages it hasn't
-          read yet, and an affordance that leads to a shrug is worse than none */}
-      {ready && (
-        <button
-          type="button"
-          className="tk-ask tiffkey"
-          aria-label={`Ask Tiff about ${doc.title}`}
-          onClick={onAsk}
-        >
-          {/* the brand mark, not a sparkle — same call the composer made. The
-              sparkle is the badge every AI tool in the market is wearing, and
-              this button's whole promise is that the answer comes out of THIS
-              document rather than out of the air. */}
-          <TiffGlyph quiet />
-          Ask Tiff
-        </button>
+        {meta && <Fade className="lb2-sub">{meta}</Fade>}
+        {tagsSaid && <Fade className="lb2-sub">{tagsSaid}</Fade>}
+        {error && <span className="lb2-err">{error}</span>}
+      </span>
+      {showKind && (
+        <span className="lb2-cell lb2-q">
+          <Fade>{kind}</Fade>
+        </span>
       )}
-
-      {canManage && (
-        <div className="tk-acts">
-          {/* OFFERED WHERE THE PROBLEM IS SAID, and only there. A document with
-              no scanned pages never sees this — the whole point of an opt-in is
-              that it appears at the moment somebody has just been told there
-              are pages Tiff couldn't read, and nowhere else. It waits its turn
-              while another document is being read: one allowance, one run. */}
-          {ready && ocr.left > 0 && !ocr.reading && !ocr.spent && (
-            ocr.waiting ? (
-              <Tooltip label="Reading another document first">{readBtn}</Tooltip>
-            ) : (
-              readBtn
-            )
-          )}
-          {(state.status === "failed" || state.status === "paused") && (
-            <button
-              type="button"
-              className="tk-abtn"
-              disabled={busy}
-              onClick={() => start(async () => onRetry())}
+      <span className="lb2-cell lb2-q lb2-num">{added}</span>
+      <span className="lb2-cell lb2-state">
+        <StateWord tone={said.tone}>{said.word}</StateWord>
+      </span>
+      <span className="lb2-cell lb2-end">
+        {fix}
+        {canManage ? (
+          <>
+            <Button
+              ref={actRef}
+              kind="quiet"
+              size={32}
+              aria-haspopup="menu"
+              aria-expanded={menu}
+              aria-label={`Actions on ${doc.title}`}
+              onClick={() => setMenu((o) => !o)}
             >
-              {state.status === "paused" ? "Resume" : "Retry"}
-            </button>
-          )}
-          <button type="button" className="tk-abtn" aria-label={`Edit ${doc.title}`} onClick={onEdit}>
-            Edit
-          </button>
-          {isOwner && (
-            <button type="button" className="tk-abtn dan" aria-label={`Remove ${doc.title}`} onClick={onDelete}>
-              Remove
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+              Actions
+              <span className="lb2-chev" aria-hidden="true">
+                <Icon name="chevD" size={16} />
+              </span>
+            </Button>
+            <Menu
+              open={menu}
+              anchor={actRef}
+              onClose={() => setMenu(false)}
+              onSelect={(key) => {
+                if (key === "ask") onAsk();
+                else if (key === "edit") onEdit();
+                else if (key === "remove") onDelete();
+              }}
+              items={actions}
+              label={`Actions on ${doc.title}`}
+              align="end"
+            />
+          </>
+        ) : (
+          ready && (
+            <Button kind="quiet" size={32} icon={<TiffGlyph quiet />} aria-label={`Ask Tiff about ${doc.title}`} onClick={onAsk}>
+              Ask Tiff
+            </Button>
+          )
+        )}
+      </span>
+    </li>
   );
-}
-
-function StatusPill({ state, ocr }: { state: RowState; ocr: OcrView }) {
-  if (state.status === "processing") {
-    const known = state.pageCount !== null && state.pageCount > 0;
-    return (
-      <span className="tk-pill work">
-        <span>
-          {known
-            ? `Reading ${n(state.pagesDone)} of ${n(state.pageCount as number)} pages`
-            : "Reading the document"}
-        </span>
-        <span className={`tk-prog${known ? "" : " ind"}`} aria-hidden="true">
-          <i style={known ? { width: `${Math.min(100, (state.pagesDone / (state.pageCount as number)) * 100)}%` } : undefined} />
-        </span>
-      </span>
-    );
-  }
-
-  if (state.status === "paused") {
-    return (
-      <span className="tk-pill warn">
-        <Icon name="clock" size={13} />
-        {state.resetsOn
-          ? `Out of pages — resumes ${fmtAuDayMonth(state.resetsOn)}`
-          : "Out of pages this month"}
-      </span>
-    );
-  }
-
-  if (state.status === "failed") {
-    return (
-      <span className="tk-pill dan">
-        <Icon name="alert" size={13} />
-        {state.error || "Couldn't be read"}
-      </span>
-    );
-  }
-
-  if (state.status === "uploading") {
-    return (
-      <span className="tk-pill work">
-        Uploading the document
-      </span>
-    );
-  }
-
-  /* A vision run in flight says so where the caveat was, rather than beside
-     it: the pill is the row's one status line, and two of them competing is
-     what this screen deleted a column to avoid. */
-  if (ocr.reading) {
-    return (
-      <span className="tk-pill work">
-        {`Reading ${n(ocr.left)} scanned ${plural(ocr.left, "page")}`}
-      </span>
-    );
-  }
-
-  if (ocr.result?.status === "failed") {
-    return (
-      <span className="tk-pill dan">
-        <Icon name="alert" size={13} />
-        {ocr.result.error || "Those pages couldn't be read."}
-      </span>
-    );
-  }
-
-  if (ocr.result?.status === "paused") {
-    return (
-      <span className="tk-pill warn">
-        <Icon name="clock" size={13} />
-        {ocr.result.resetsOn
-          ? `Out of pages — try again ${fmtAuDayMonth(ocr.result.resetsOn)}`
-          : "Out of pages this month"}
-      </span>
-    );
-  }
-
-  /* A run that read the pages and found nothing on them. Said out loud,
-     because the alternative is the caveat coming back unchanged with no sign
-     anything happened — and against the real library this is the COMMON
-     outcome: most pages with no text layer are a divider, a full-bleed photo
-     or a blank back cover, not a scan of a page with words on it. Whoever
-     pressed the button has now learned the pages are empty, and the button
-     doesn't come back to invite them to pay for that twice. */
-  if (ocr.result?.status === "ready" && ocr.result.pagesRead === 0 && ocr.left > 0) {
-    return (
-      <span className="tk-pill warn">
-        <Icon name="alert" size={13} />
-        {`${n(ocr.left)} ${plural(ocr.left, "page")} with nothing readable on ${plural(ocr.left, "it", "them")}`}
-      </span>
-    );
-  }
-
-  /* Ready is the state almost every row is in, so saying it earns nothing and
-     costs the one row that needs attention its contrast. What survives is the
-     part of "ready" that ISN'T good news: pages Tiff could not read. A caveat
-     is amber, not green — the document is usable, but not all of it is. */
-  if (ocr.left > 0) {
-    return (
-      <span className="tk-pill warn">
-        <Icon name="alert" size={13} />
-        {`${n(ocr.left)} ${plural(ocr.left, "page")} unreadable — scanned images`}
-      </span>
-    );
-  }
-
-  /* A run that recovered every page it tried leaves nothing to caveat, and the
-     row would otherwise silently lose its pill with no sign anything happened.
-     Said once, until the next refresh replaces this row. */
-  if (ocr.result && ocr.result.pagesRead > 0) {
-    return (
-      <span className="tk-pill ok">
-        <Icon name="check" size={13} />
-        {`Read ${n(ocr.result.pagesRead)} scanned ${plural(ocr.result.pagesRead, "page")}`}
-      </span>
-    );
-  }
-
-  return null;
 }
 
 /* ── metadata, and removal ───────────────────────────────────────────────── */
 
+/* Today's edit form, kept as it is (its tag picker is styled for this modal),
+   with the category picked from the app's own chooser rather than a native
+   select. */
 function EditModal({
   doc,
   tags,
@@ -900,7 +889,8 @@ function EditModal({
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
   /* Written from somebody's note rather than uploaded: no shelf to move to,
-     and no file behind it. */
+     and no file behind it. The server refuses to file anything else as one,
+     so offering the other four would make every save fail. */
   const isFieldNote = doc.category === "field";
 
   const save = () =>
@@ -936,23 +926,16 @@ function EditModal({
               </span>
               <input className="fl-i" value={title} onChange={(e) => setTitle(e.target.value)} />
             </label>
-            {/* A FIELD NOTE HAS NO SHELF TO MOVE TO. It was written from
-                somebody's note, not uploaded, and the server refuses to file
-                anything else as one — so the picker offered five choices of
-                which four were refusals, and Save resent the unchanged
-                category and was refused by it. Every edit of a field note
-                failed, every time, on a field nobody had touched. */}
             {!isFieldNote && (
-              <label className="fl-f">
+              <div className="fl-f">
                 <span>Category</span>
-                <select className="fl-i" value={category} onChange={(e) => setCategory(e.target.value)}>
-                  {KB_CATEGORIES.filter((c) => c.key !== "field").map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <Chooser
+                  aria-label="Category"
+                  value={category}
+                  onChange={setCategory}
+                  options={KB_CATEGORIES.filter((c) => c.key !== "field").map((c) => ({ value: c.key, label: c.label }))}
+                />
+              </div>
             )}
             <label className="fl-f">
               <span>Source</span>
@@ -996,7 +979,9 @@ function EditModal({
   );
 }
 
-function DeleteModal({ doc, onClose }: { doc: KbLibraryDoc; onClose: () => void }) {
+/* Are you sure (rules 25 and 36): the red block only here, both buttons
+   naming what they do, and Keep it taking focus. */
+function DeleteDialog({ doc, onClose }: { doc: KbLibraryDoc; onClose: () => void }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
@@ -1012,37 +997,21 @@ function DeleteModal({ doc, onClose }: { doc: KbLibraryDoc; onClose: () => void 
       router.refresh();
     });
 
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div className="fl-ov" onClick={onClose}>
-      <div className="fl-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Remove document">
-        <div className="fl-mh">
-          <span>
-            <b>Remove “{doc.title}”?</b>
-            <em>Tiff stops quoting it from the moment it goes</em>
-          </span>
-          <button className="fl-x" aria-label="Close" onClick={onClose}>
-            <Icon name="x" size={16} />
-          </button>
-        </div>
-        <div className="fl-mb">
-          {error && <div className="fl-err">{error}</div>}
-          <p className="tk-confirm">
-            {doc.category === "field"
-              ? "This note and everything Tiff read out of it are deleted. Answers that used to cite it will stop doing so — there is no undo."
-              : "The file and everything Tiff read out of it are deleted. Answers that used to cite this document will stop doing so — there is no undo."}
-          </p>
-          <div className="fl-foot">
-            <button className="fl-btn ghost" onClick={onClose}>
-              Keep it
-            </button>
-            <button className="fl-btn danger arm" disabled={busy} onClick={remove}>
-              Remove “{doc.title}”
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body
+  return (
+    <ConfirmDialog
+      heading={`Remove “${doc.title}”?`}
+      confirm={`Remove “${doc.title}”`}
+      cancel="Keep it"
+      busy={busy}
+      onConfirm={remove}
+      onClose={onClose}
+    >
+      <p className="lb2-confirm">
+        {doc.category === "field"
+          ? "This note and everything Tiff read out of it are deleted. Answers that used to cite it will stop doing so, and there is no undo."
+          : "The file and everything Tiff read out of it are deleted. Answers that used to cite this document will stop doing so, and there is no undo."}
+      </p>
+      {error && <p className="lb2-confirm lb2-err">{error}</p>}
+    </ConfirmDialog>
   );
 }

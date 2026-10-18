@@ -92,6 +92,9 @@ export const ICON_PATHS: Record<string, string> = {
   arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   arrowDown: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
   clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  /* a day away on the timesheet (rule 21): a sun for leave, a plaster for sick */
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  plaster: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 6v12"/><path d="M18 6v12"/><path d="M10 10.01h.01"/><path d="M14 10.01h.01"/><path d="M10 14.01h.01"/><path d="M14 14.01h.01"/>',
   truck:
     '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
   fuel: '<line x1="3" x2="15" y1="22" y2="22"/><line x1="4" x2="14" y1="9" y2="9"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2 2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>',

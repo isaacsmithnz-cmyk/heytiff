@@ -130,11 +130,14 @@ export function Tray<T extends string>({
   value,
   onChange,
   ariaLabel,
+  disabled,
 }: {
   options: readonly TrayOption<T>[];
   value: T;
   onChange: (value: T) => void;
   ariaLabel: string;
+  /** while what it sets is saving */
+  disabled?: boolean;
 }) {
   return (
     <div className="pt-tray" role="radiogroup" aria-label={ariaLabel}>
@@ -150,6 +153,7 @@ export function Tray<T extends string>({
             aria-checked={on}
             tabIndex={reach ? 0 : -1}
             className="pt-tray-opt"
+            disabled={disabled}
             data-value={o.value}
             onClick={() => onChange(o.value)}
             onKeyDown={(e) => {

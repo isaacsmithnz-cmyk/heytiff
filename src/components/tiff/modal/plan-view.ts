@@ -35,7 +35,7 @@ export type PlanRowView = {
 };
 
 /** The lane's own word, where a row has no person to lead with. */
-const LEAD: Record<Exclude<PlanLane, "tasks">, string> = {
+const LEAD: Record<Exclude<PlanLane, "tasks" | "visits">, string> = {
   flags: "On the board",
   issueEntries: "Logged",
   bringItems: "Bring",
@@ -72,6 +72,16 @@ export function planView(
       const who = task.assigneeId ? staff.find((s) => s.id === task.assigneeId) : undefined;
       const when = whenOf(task.dueDate, task.remindTime);
       const text = when ? `${task.title.trim()}, ${when}` : task.title.trim();
+      if (who) return { ...base, lead: firstName(who.fullName), join: ", ", text, needs: false };
+      return { ...base, lead: "Who", join: " ", text, needs: asking };
+    }
+    if (row.lane === "visits") {
+      /* "**Lyle**, commissioning, Fri 14:00"; a visit with no clear time
+         says its day alone, and Tiff asks which time once the rest is in */
+      const visit = proposal.visits[row.index]!;
+      const who = visit.assigneeId ? staff.find((s) => s.id === visit.assigneeId) : undefined;
+      const when = whenOf(visit.day, visit.start);
+      const text = when ? `${visit.work.trim()}, ${when}` : visit.work.trim();
       if (who) return { ...base, lead: firstName(who.fullName), join: ", ", text, needs: false };
       return { ...base, lead: "Who", join: " ", text, needs: asking };
     }

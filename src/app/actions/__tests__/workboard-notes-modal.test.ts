@@ -244,6 +244,7 @@ const STAFF = [
 
 const EMPTY: NoteProposal = {
   tasks: [],
+  visits: [],
   bringItems: [],
   flags: [],
   progressBullets: [],
@@ -1684,7 +1685,9 @@ describe("tiff_modal_record.sql", () => {
 
   it("creates every function the actions call, and nobody but the service role may run them", () => {
     const src = readFileSync(join(process.cwd(), "src/app/actions/workboard-notes.ts"), "utf8");
-    const called = [...src.matchAll(/\.rpc\(\s*"(\w+)"/g)].map((m) => m[1]);
+    /* each function once, however many places call it (a visit's answer
+       and its Undo merge into the record the same way fileNote does) */
+    const called = [...new Set([...src.matchAll(/\.rpc\(\s*"(\w+)"/g)].map((m) => m[1]))];
     expect(called.sort()).toEqual(["workboard_note_add_kb", "workboard_note_file_record"]);
     for (const name of called) {
       expect(code).toContain(`create or replace function public.${name}(`);

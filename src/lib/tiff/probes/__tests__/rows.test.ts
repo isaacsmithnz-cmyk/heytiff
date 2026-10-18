@@ -3,6 +3,7 @@ import type { NoteProposal } from "@/lib/workboard/note-brain";
 
 const plan = (over: Partial<NoteProposal> = {}): NoteProposal => ({
   tasks: [],
+  visits: [],
   bringItems: [],
   flags: [],
   progressBullets: [],

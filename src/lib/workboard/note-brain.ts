@@ -7,7 +7,7 @@
    This module turns the sentence into a PROPOSAL of those things.
 
    THREE LANES, ONE CALL:
-     ACTION  tasks · bring-items · board flags
+     ACTION  tasks · visits to book (note-visit) · bring-items · board flags
      DATA    progress bullets · commissioning entries · recurring-issue log
              · plain_note, because a note is allowed to just be a note
      ASK     clarify, when intent or assignee is genuinely ambiguous —
@@ -38,6 +38,15 @@ import { HHMM, isRemindKind, type RemindKind } from "@/lib/dashboard/reminders";
 import { RECORD_IN_ENGLISH, RECORD_LANGUAGE } from "@/lib/lang/policy";
 import { englishProposal } from "./note-english";
 import { planRows, type PlanRow } from "./note-draft";
+import {
+  VISITS_MAX,
+  VISIT_PARTS,
+  isVisitPart,
+  visitDay,
+  visitMinutes,
+  visitStart,
+  type ProposedVisit,
+} from "./note-visit";
 import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 import { looksLikeName } from "@/lib/staff/aliases";
 import { logUsage } from "@/lib/tiff/usage";
@@ -147,6 +156,11 @@ export type ProposedKbEntry = { title: string; body: string };
 
 export type NoteProposal = {
   tasks: ProposedTask[];
+  /** A visit to book on the job (v2 step 6, slice B): "book commissioning
+      for Friday arvo". Booked through Book in's gate when it has a clear
+      time, asked first when it hasn't (note-visit). Empty on every proposal
+      stored before the lane. */
+  visits: ProposedVisit[];
   bringItems: string[];
   flags: ProposedFlag[];
   progressBullets: string[];
@@ -273,6 +287,24 @@ export const NOTE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    /* No nullable field: "" and 0 say not-said, as everywhere here (a
+       schema may carry at most 16 nullable fields). */
+    visits: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          work: str,
+          assignee_hint: str,
+          day: str,
+          start: str,
+          part: { type: "string", enum: [...VISIT_PARTS] },
+          minutes: { type: "integer" },
+        },
+        required: ["work", "assignee_hint", "day", "start", "part", "minutes"],
+        additionalProperties: false,
+      },
+    },
     bring_items: strArray,
     flags: {
       type: "array",
@@ -321,6 +353,7 @@ export const NOTE_SCHEMA = {
   },
   required: [
     "tasks",
+    "visits",
     "bring_items",
     "flags",
     "progress_bullets",
@@ -572,7 +605,9 @@ export function systemPrompt(ctx: NoteContext): string {
 
 /** THE SAME PROMPT IN TWO BLOCKS, and the split is for the bill. The rules
     ahead of the roster are the same bytes for every note from every person
-    (777 tokens, counted 2026-09-29), so the first block is marked for the
+    (777 tokens, counted 2026-09-29; the visits rule of 2026-10-18 added 329
+    characters, about 110 tokens by the same count's ratio, so about 890
+    until it is counted again), so the first block is marked for the
     prompt cache and a second note inside the hour reads it back at a
     twentieth of the price. Everything from `whoBlock` on names people, days and
     jobs and changes per note, so it rides after the mark.
@@ -608,6 +643,11 @@ const ROUTER_RULES = [
   "- tasks: someone must DO something later. 'Tell Lyle to order the",
   "  grilles' is a task for Lyle, not a note. Put the job's own details in",
   "  `detail` so the task stands alone when read next week.",
+  "- visits: a visit to book, 'book commissioning for Friday arvo'. `work`",
+  "  is what they'll do there; the person in `assignee_hint` as for a task;",
+  "  `day` as YYYY-MM-DD; `start` HH:MM only when a clock time is said,",
+  "  else empty, with the part of the day in `part`; `minutes` the length",
+  "  said, else 0. A visit is not also a task.",
   "- bring_items: something to physically bring next visit.",
   "- flags: a problem that should be visible on the board until handled.",
   "  urgent = someone is blocked or it is unsafe; warn = needs attention;",
@@ -956,6 +996,41 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     });
   }
 
+  /* VISITS, re-derived like tasks: the person resolved against the roster
+     and asked about the same way (two Lyles, or nobody here), the day a
+     real one, the start on Book in's grid, the length one it offers. A
+     visit with no work named is not a visit. */
+  const visits: ProposedVisit[] = [];
+  for (const v of Array.isArray(r.visits) ? r.visits : []) {
+    if (visits.length >= VISITS_MAX) break;
+    const row = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+    const work = clean(row.work, TITLE_MAX);
+    if (!work) continue;
+    const assigneeHint = clean(row.assignee_hint, TITLE_MAX);
+    const match = resolveAssignee(assigneeHint, ctx.staff, ctx.author?.id);
+    if (match.kind === "ambiguous" && !clarify) {
+      clarify = { question: `Which ${assigneeHint} did you mean?`, options: shortWhoLabels(match.names) };
+      escalated = true;
+    }
+    if (match.kind === "none" && ctx.askWho && !clarify) {
+      clarify = {
+        question: assigneeHint && looksLikeName(assigneeHint) ? `Who's ${assigneeHint}?` : `Who's going: ${work}?`,
+        options: [...(ctx.author ? ["Me"] : []), ...namesMentioned(said, ctx.staff, ctx.author?.id)],
+      };
+      escalated = true;
+    }
+    visits.push({
+      work,
+      assigneeId: match.kind === "one" ? match.id : null,
+      assigneeHint,
+      day: visitDay(row.day),
+      start: visitStart(row.start),
+      /* the part of the day is read only when no clock time was said */
+      part: isVisitPart(row.part) ? row.part : "day",
+      minutes: visitMinutes(row.minutes),
+    });
+  }
+
   const flags: ProposedFlag[] = [];
   for (const f of Array.isArray(r.flags) ? r.flags : []) {
     const row = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;
@@ -1009,6 +1084,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
      as it came. */
   return {
     tasks,
+    visits,
     bringItems: cleanList(r.bring_items, TITLE_MAX),
     flags,
     progressBullets: cleanList(r.progress_bullets, BODY_MAX),
@@ -1026,6 +1102,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
 export function isEmptyProposal(p: NoteProposal): boolean {
   return (
     p.tasks.length === 0 &&
+    p.visits.length === 0 &&
     p.bringItems.length === 0 &&
     p.flags.length === 0 &&
     p.progressBullets.length === 0 &&
@@ -1091,6 +1168,22 @@ export function rowLine(row: PlanRow, p: NoteProposal, staff: readonly NoteStaff
         .filter(Boolean)
         .join(" ");
       return `Task for ${who}: ${t.title}${when ? `, ${when}` : ""}`;
+    }
+    case "visits": {
+      const v = p.visits[row.index];
+      const who = v.assigneeId
+        ? (staff.find((s) => s.id === v.assigneeId)?.fullName ?? v.assigneeHint) || "someone"
+        : v.assigneeHint
+          ? `"${v.assigneeHint}" (matched to nobody)`
+          : "nobody yet";
+      const when = [
+        v.day || "no day",
+        v.start || `${v.part === "day" ? "" : `${v.part}, `}no clear time`,
+        v.minutes ? `${v.minutes} min` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return `Visit for ${who}: ${v.work}, ${when}`;
     }
     case "flags":
       return `Flag (${p.flags[row.index].severity}): ${row.text}`;

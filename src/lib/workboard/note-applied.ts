@@ -22,6 +22,8 @@
    reads (`v`, `checklistIds`, `picklistIds`, `issueBumps`, `textWrites`,
    `kbTitles`) are not journal groups and never pass through `record`. */
 
+import { visitsOf, type VisitMade } from "./note-visit";
+
 export const APPLIED_V = 2;
 
 /** The rows whose free text a note may append to, and the columns. Undo
@@ -63,6 +65,10 @@ export type AppliedRecord = {
   kbTitles: string[];
   jobNotes: string[];
   noteLines: string[];
+  /** The visits it made (v2 step 6, slice B): a booking through Book in,
+      or a task where it couldn't be one (note-visit). A visit that is a
+      task is in `taskIds` too, and goes with the tasks. */
+  visits: VisitMade[];
 };
 
 const strings = (v: unknown): string[] =>
@@ -120,8 +126,14 @@ export function appliedOf(raw: unknown): AppliedRecord {
     kbTitles: strings(r.kbTitles),
     jobNotes: strings(r.jobNotes),
     noteLines: strings(r.noteLines),
+    visits: visitsOf(r.visits),
   };
 }
+
+/** Its visits booked through Book in and not taken back since: what its
+    Undo cancels in ServiceM8 (takeBackBooking). */
+export const bookedVisits = (a: AppliedRecord): VisitMade[] =>
+  a.visits.filter((v) => !v.undone && v.rowIds.length > 0);
 
 /** The issues this note CREATED — the ones Undo deletes. A bump is put back
     instead, so it must never be in here. */
@@ -136,7 +148,7 @@ export function freshIssueIds(a: AppliedRecord): string[] {
    onto what landed. Counted from the record, never from the plan: a row that
    did not land is not a door. */
 
-export type NoteDoorKind = "tasks" | "flags" | "issues" | "bring" | "lines";
+export type NoteDoorKind = "tasks" | "visits" | "flags" | "issues" | "bring" | "lines";
 
 export type NoteDoor = {
   kind: NoteDoorKind;
@@ -156,6 +168,8 @@ export function doorsOf(a: AppliedRecord): NoteDoor[] {
     if (count > 0) doors.push({ kind, count, label, ids });
   };
   add("tasks", a.taskIds.length, `${plural(a.taskIds.length, "task", "tasks")} filed`, a.taskIds);
+  const booked = bookedVisits(a);
+  add("visits", booked.length, `${plural(booked.length, "visit", "visits")} booked`, booked.flatMap((v) => v.rowIds));
   add("flags", a.flagIds.length, `${plural(a.flagIds.length, "flag", "flags")} raised`, a.flagIds);
   add("issues", a.issueIds.length, `${plural(a.issueIds.length, "issue", "issues")} logged`, a.issueIds);
   add(
@@ -182,7 +196,8 @@ export function takesBack(a: AppliedRecord): boolean {
       a.checklistIds.length +
       a.picklistIds.length +
       a.textWrites.length +
-      a.kbIds.length >
+      a.kbIds.length +
+      bookedVisits(a).length >
     0
   );
 }
@@ -302,6 +317,7 @@ export function stillThere(a: AppliedRecord, now: FiledNow): AppliedRecord {
 export function undoSummary(a: AppliedRecord): string {
   const parts = [
     a.taskIds.length && plural(a.taskIds.length, "task", "tasks"),
+    bookedVisits(a).length && plural(bookedVisits(a).length, "visit", "visits"),
     a.flagIds.length && plural(a.flagIds.length, "flag", "flags"),
     a.issueIds.length && plural(a.issueIds.length, "issue", "issues"),
     a.bringItems.length && plural(a.bringItems.length, "thing to bring", "things to bring"),

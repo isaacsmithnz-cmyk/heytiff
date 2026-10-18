@@ -75,6 +75,7 @@ const SYSTEM = [
 export function recordStrings(p: NoteProposal): string[] {
   const out: string[] = [];
   for (const t of p.tasks) out.push(t.title, t.detail, t.dueHint);
+  for (const v of p.visits) out.push(v.work);
   out.push(...p.bringItems);
   for (const f of p.flags) out.push(f.message);
   out.push(...p.progressBullets);
@@ -113,6 +114,7 @@ export function withTranslations(
       detail: s(t.detail),
       dueHint: s(t.dueHint),
     })),
+    visits: p.visits.map((v) => ({ ...v, work: s(v.work) })),
     bringItems: p.bringItems.map(s),
     flags: p.flags.map((f) => ({ ...f, message: s(f.message) })),
     progressBullets: p.progressBullets.map(s),

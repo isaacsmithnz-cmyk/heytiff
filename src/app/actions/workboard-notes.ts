@@ -44,6 +44,7 @@ import {
 import {
   APPLIED_V,
   appliedOf,
+  bookedVisits,
   doorsOf,
   freshIssueIds,
   stillThere,
@@ -73,6 +74,27 @@ import {
   type Turn,
 } from "@/lib/workboard/note-turns";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { fmtTime } from "@/lib/integrations/sm8-booking-plan";
+import {
+  ANOTHER_TIME,
+  WHAT_TIME,
+  bookTaskDetail,
+  bookTaskTitle,
+  lengthOf,
+  startFromWords,
+  visitCards,
+  visitDayQuestion,
+  visitDoneLine,
+  visitQuestion,
+  visitRefusedLine,
+  visitUndoneLine,
+  workTitle,
+  type ProposedVisit,
+  type VisitCard,
+  type VisitMade,
+} from "@/lib/workboard/note-visit";
+import { bookVisit, crewStarts, visitRoute } from "@/lib/workboard/note-visit-book";
+import { takeBackBooking } from "./booking-sm8";
 import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 
 /* Smart Notes — capture, route, file, take back.
@@ -140,11 +162,17 @@ export type ApplyResult = { ok: true; summary: string } | { ok: false; error: st
     job, so the modal can file it straight back; a person is a reply. */
 export type FileAsk = {
   question: string;
-  options: { label: string; target?: NoteTarget }[];
+  /** `visit`: an answer to "which time?" (note-visit). The start it books,
+      or null for "Another time", which asks for one. Sent back to
+      `answerVisit` as its label, the words the button showed. */
+  options: { label: string; target?: NoteTarget; visit?: { index: number; start: string | null } }[];
 };
 
 export type FileResult =
-  | { ok: true; summary: string; doors: NoteDoor[]; turns: Turn[] }
+  /** `visits`: the cards of the visits it made, each with its own Undo
+      (`undoVisit`). `ask`: a visit with no clear time, asked once the rest
+      is filed (decision 13); its answer goes to `answerVisit`. */
+  | { ok: true; summary: string; doors: NoteDoor[]; turns: Turn[]; visits?: VisitCard[]; ask?: FileAsk }
   /** `turns` when it asked: the conversation with the question on the end. */
   | { ok: false; error: string; ask?: FileAsk; turns?: Turn[] };
 
@@ -1294,6 +1322,22 @@ export async function fileNote(
     const labels = [...(ctx.staffId ? ["Me"] : []), ...namesMentioned(said, staff, ctx.staffId)];
     return askFirst(ctx, note, turns, { question, options: labels.map((label) => ({ label })) });
   }
+  /* A visit with nobody going is asked about the same way; one with no
+     day has no free starts to offer, so its day is a reply too. */
+  const going = draft.visits.find((v) => v.on && !v.assigneeId);
+  if (going) {
+    const staff = await assignableStaff(ctx.orgId);
+    const labels = [...(ctx.staffId ? ["Me"] : []), ...namesMentioned(said, staff, ctx.staffId)];
+    return askFirst(ctx, note, turns, {
+      question: `Who's going: ${going.work.trim()}?`,
+      options: labels.map((label) => ({ label })),
+    });
+  }
+  const dayless = draft.visits.find((v) => v.on && !v.day);
+  if (dayless) {
+    const q = visitDayQuestion(dayless.work);
+    return askFirst(ctx, note, turns, { question: q.question, options: [] });
+  }
 
   const picked = await pickTarget(ctx, note, opts.retarget);
   if (!picked) return { ok: false, error: MOVED };
@@ -1333,19 +1377,66 @@ export async function fileNote(
     jobAsked && picked.moved
       ? trim(opts.answer, 300) || ((await targetLabel(ctx.orgId, target)) ?? "")
       : "";
+  /* THE VISITS, once the rest is in (v2 step 6, slice B): each with a clear
+     time is booked through Book in's gate, or made the task its gate says
+     it must be; each with no clear time is asked about, one at a time,
+     with the person's free starts that day (decision 13). */
+  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  const visitStaff = draft.visits.some((v) => v.on) ? await assignableStaff(ctx.orgId) : [];
+  const made: VisitMade[] = [];
+  const visitTaskIds: string[] = [];
+  const visitLines: string[] = [];
+  const asks: number[] = [];
+  for (const [index, v] of draft.visits.entries()) {
+    if (!v.on) continue;
+    const r = await makeVisit(ctx, note, target, v, index, v.start || null, today, visitStaff);
+    if ("made" in r) {
+      made.push(r.made);
+      if (r.made.taskId) visitTaskIds.push(r.made.taskId);
+      visitLines.push(r.line);
+    } else if ("refused" in r) {
+      visitLines.push(visitRefusedLine(v.work, r.refused));
+      /* refused at its time (taken, or past): offer the others that day */
+      if (r.askAgain) asks.push(index);
+    } else {
+      asks.push(index);
+    }
+  }
+  if (made.length) {
+    done.applied.visits = made;
+    if (visitTaskIds.length) done.applied.taskIds = [...appliedOf(done.applied).taskIds, ...visitTaskIds];
+  }
+  const ask = asks.length ? await visitAsk(ctx, target, plan.visits[asks[0]!]!, asks[0]!, today, visitStaff) : null;
+  /* "Done." only over something done: a note whose one row is a visit
+     still to be timed says the question alone */
+  const didSomething = takesBack(appliedOf(done.applied)) || made.length > 0 || !ask;
+
   const filed = withTurns(
     turns.length ? turns : [turn("you", note.transcript)],
     ...(jobWords ? [turn("you", jobWords)] : []),
-    turn("tiff", doneLine(plan.say)),
+    ...(didSomething ? [turn("tiff", doneLine(plan.say))] : []),
+    ...visitLines.map((l) => turn("tiff", l)),
+    ...(ask ? [turn("tiff", ask.question)] : []),
   );
+  const proposal = note.proposal as Record<string, unknown>;
   await supabaseAdmin
     .from("workboard_notes")
     .update({
       turns: filed,
       /* The job the answer carried: the note remembers where it ended up. */
       ...(picked.moved ? { target_kind: target.kind, target_id: target.id ?? null } : {}),
-      /* The question a job answered is answered: nothing is waiting on it. */
-      ...(plan.clarify ? { proposal: { ...(note.proposal as Record<string, unknown>), clarify: null } } : {}),
+      /* The question a job answered is answered: nothing is waiting on it.
+         A visit's "which time?" waits on the filed note, with the visits
+         still to time in the order they were said. */
+      ...(plan.clarify || ask
+        ? {
+            proposal: {
+              ...proposal,
+              clarify: ask ? { question: ask.question, options: ask.options.map((o) => o.label) } : null,
+              ...(ask ? { visitAsks: asks } : {}),
+            },
+          }
+        : {}),
     })
     .eq("org_id", ctx.orgId)
     .eq("id", noteId);
@@ -1364,7 +1455,307 @@ export async function fileNote(
   });
 
   refreshHome(target);
-  return { ok: true, summary: done.summary, doors: doorsOf(appliedOf(done.applied)), turns: filed };
+  return {
+    ok: true,
+    summary: done.summary,
+    doors: doorsOf(appliedOf(done.applied)),
+    turns: filed,
+    ...(made.length ? { visits: visitCards(made, today) } : {}),
+    ...(ask ? { ask } : {}),
+  };
+}
+
+/* ── VISITS (v2 step 6, slice B) ─────────────────────────────────────────
+
+   A visit said in a job's conversation. `fileNote` makes the ones with a
+   clear time and asks about the rest; `answerVisit` takes the answer;
+   `undoVisit` is a visit card's own Undo. Which way each goes, and the
+   booking itself, is note-visit-book's: Book in's own read, press and gate. */
+
+type VisitStep =
+  | { made: VisitMade; line: string }
+  | { refused: string; askAgain: boolean }
+  | { ask: true };
+
+/** Make one visit, or say why not: booked through Book in, or the task its
+    gate makes it (the speaker's "Book commissioning Friday" when they may
+    not book or there is no job; the person's own task at the visit's time
+    when bookings don't go to ServiceM8). With no `start` it asks, unless it
+    is the speaker's task, which needs no time. A task goes through the one
+    writer, `applyConfirmed`, like every other task a note makes. */
+async function makeVisit(
+  ctx: Ctx,
+  note: Pick<NoteRow, "id" | "transcript">,
+  target: NoteTarget,
+  v: ProposedVisit,
+  index: number,
+  start: string | null,
+  today: string,
+  staff: readonly NoteStaff[],
+): Promise<VisitStep> {
+  const route = await visitRoute(ctx.orgId, target, v.assigneeId);
+  const name = (staff.find((s) => s.id === v.assigneeId)?.fullName ?? v.assigneeHint).split(" ")[0] ?? "";
+  const base = {
+    index,
+    work: v.work,
+    staffId: v.assigneeId,
+    name,
+    day: v.day,
+    start: route.kind === "task" ? v.start : (start ?? ""),
+    minutes: lengthOf(v),
+    jobUuid: target.kind === "job" ? (target.id ?? null) : null,
+    rowIds: [] as string[],
+    taskId: null as string | null,
+    undone: false,
+  };
+
+  const asTask = async (task: ConfirmedNote["tasks"][number]): Promise<string | { error: string }> => {
+    const res = await applyConfirmed(ctx, note, { ...NO_ROWS, tasks: [task] }, target);
+    if (!res.ok) return { error: res.error };
+    return appliedOf(res.applied).taskIds[0] ?? { error: "That task couldn't be saved." };
+  };
+
+  if (route.kind === "task") {
+    if (!ctx.staffId) return { refused: "Your staff profile isn't set up yet.", askAgain: false };
+    const id = await asTask({
+      title: bookTaskTitle(v, today),
+      detail: bookTaskDetail(v, name, today),
+      assigneeId: ctx.staffId,
+      dueDate: null,
+    });
+    if (typeof id !== "string") return { refused: id.error, askAgain: false };
+    const made: VisitMade = { ...base, how: "task", taskId: id };
+    return { made, line: visitDoneLine(made, route.why, today) };
+  }
+
+  if (!start) return { ask: true };
+
+  if (route.kind === "heytiff") {
+    const id = await asTask({
+      title: workTitle(v.work),
+      detail: `A visit, ${lengthOf(v) % 60 === 0 ? `${lengthOf(v) / 60} h` : `${lengthOf(v)} min`}, in HeyTiff only.`,
+      assigneeId: v.assigneeId,
+      dueDate: v.day,
+      remindTime: start,
+      remindKind: "at",
+    });
+    if (typeof id !== "string") return { refused: id.error, askAgain: false };
+    const made: VisitMade = { ...base, how: "heytiff", taskId: id };
+    return { made, line: visitDoneLine(made, route.why, today) };
+  }
+
+  const booked = await bookVisit(route, v, start, `${note.id}:${index}:${v.day} ${start}`);
+  if (!booked.ok) return { refused: booked.error, askAgain: true };
+  const made: VisitMade = { ...base, how: booked.trial ? "trial" : "booked", rowIds: booked.rowIds };
+  return { made, line: visitDoneLine(made, null, today) };
+}
+
+/** A confirmation with no rows, for a visit's one task. */
+const NO_ROWS: ConfirmedNote = {
+  tasks: [],
+  bringItems: [],
+  flags: [],
+  progressBullets: [],
+  commissioningEntries: [],
+  issueEntries: [],
+};
+
+/** "Commissioning on Friday: which time? Lyle's free at both.", with the
+    person's free starts that day as answers, then "Another time". */
+async function visitAsk(
+  ctx: Ctx,
+  target: NoteTarget,
+  v: ProposedVisit,
+  index: number,
+  today: string,
+  staff: readonly NoteStaff[],
+): Promise<FileAsk> {
+  const route = await visitRoute(ctx.orgId, target, v.assigneeId);
+  const { starts, read } = route.kind === "task" ? { starts: [], read: false } : await crewStarts(ctx.orgId, route, v);
+  const name = (staff.find((s) => s.id === v.assigneeId)?.fullName ?? v.assigneeHint).split(" ")[0] ?? "";
+  const q = visitQuestion({ work: v.work, day: v.day, today, name, part: v.part, starts, read });
+  return {
+    question: q.question,
+    options: [
+      ...starts.map((start) => ({ label: fmtTime(start), visit: { index, start } })),
+      { label: ANOTHER_TIME, visit: { index, start: null } },
+    ],
+  };
+}
+
+/** The visits a filed note is still asking the time of, in order. */
+const visitAsksOf = (proposal: unknown): number[] => {
+  const raw = (proposal && typeof proposal === "object" ? proposal : {}) as Record<string, unknown>;
+  return Array.isArray(raw.visitAsks) ? raw.visitAsks.filter((i): i is number => Number.isInteger(i)) : [];
+};
+
+export type VisitResult =
+  | { ok: true; visit: VisitCard | null; turns: Turn[]; ask?: FileAsk }
+  /** `ask` when it still needs a time ("What time?") or offers others. */
+  | { ok: false; error: string; turns?: Turn[]; ask?: FileAsk };
+
+/** THE ANSWER TO "WHICH TIME?" — a tapped start ("2:00 pm") or typed words
+    ("half past three" won't do; "3:30" will). It books the visit the note
+    is asking about through the same gate `fileNote` would have, on the
+    filed note, and then asks about the next one if another waits.
+    "Another time", or words that name no time, are asked again: "What
+    time?". The author's own, as every answer on a note is. */
+export async function answerVisit(noteId: string, answer: string): Promise<VisitResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
+  if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
+
+  const note = await noteIn(ctx.orgId, noteId);
+  if (!note) return { ok: false, error: GONE };
+  if ((note.author_id ?? null) !== ctx.staffId) return { ok: false, error: NOT_YOURS };
+  if (note.status !== "applied") return { ok: false, error: SETTLED[note.status] ?? "That note isn't filed yet." };
+
+  const asks = visitAsksOf(note.proposal);
+  const plan = storedProposal(note.proposal);
+  const index = asks[0];
+  const v = index === undefined ? undefined : plan?.visits[index];
+  if (index === undefined || !v) return { ok: false, error: "There's no visit waiting on a time." };
+  const a = appliedOf(note.applied);
+  if (a.visits.some((m) => m.index === index && !m.undone)) return { ok: false, error: "That visit is booked already." };
+
+  const words = trim(answer, 300);
+  if (!words) return { ok: false, error: "Type an answer first." };
+  const turns = turnsOf(note.turns);
+  const target: NoteTarget = { kind: note.target_kind, id: note.target_id };
+  const save = async (next: Turn[], proposal?: Record<string, unknown>) => {
+    await supabaseAdmin
+      .from("workboard_notes")
+      .update({ turns: next, ...(proposal ? { proposal } : {}) })
+      .eq("org_id", ctx.orgId)
+      .eq("id", noteId)
+      .eq("status", "applied");
+  };
+
+  const start = startFromWords(words);
+  if (!start) {
+    const next = withTurns(turns, turn("you", words), turn("tiff", WHAT_TIME));
+    await save(next);
+    return { ok: false, error: WHAT_TIME, turns: next, ask: { question: WHAT_TIME, options: [] } };
+  }
+
+  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  const staff = await assignableStaff(ctx.orgId);
+  const step = await makeVisit(ctx, note, target, v, index, start, today, staff);
+  if (!("made" in step)) {
+    /* refused at that time: said, and asked again with the starts as they
+       read now */
+    const error = "refused" in step ? visitRefusedLine(v.work, step.refused) : WHAT_TIME;
+    const again = await visitAsk(ctx, target, v, index, today, staff);
+    const next = withTurns(turns, turn("you", words), turn("tiff", error), turn("tiff", again.question));
+    await save(next, {
+      ...(note.proposal as Record<string, unknown>),
+      clarify: { question: again.question, options: again.options.map((o) => o.label) },
+    });
+    return { ok: false, error, turns: next, ask: again };
+  }
+
+  /* the record, merged in the database as fileNote's is */
+  const visits = [...a.visits.filter((m) => m.index !== index), step.made];
+  await supabaseAdmin.rpc("workboard_note_file_record", {
+    p_org: ctx.orgId,
+    p_note: noteId,
+    p_applied: {
+      visits,
+      ...(step.made.taskId ? { taskIds: [...a.taskIds, step.made.taskId] } : {}),
+    },
+  });
+
+  const rest = asks.slice(1);
+  const ask = rest.length ? await visitAsk(ctx, target, plan!.visits[rest[0]!]!, rest[0]!, today, staff) : null;
+  const next = withTurns(
+    turns,
+    turn("you", words),
+    turn("tiff", step.line),
+    ...(ask ? [turn("tiff", ask.question)] : []),
+  );
+  await save(next, {
+    ...(note.proposal as Record<string, unknown>),
+    clarify: ask ? { question: ask.question, options: ask.options.map((o) => o.label) } : null,
+    visitAsks: rest,
+  });
+  refreshHome(target);
+  return { ok: true, visit: visitCards([step.made], today)[0] ?? null, turns: next, ...(ask ? { ask } : {}) };
+}
+
+/** A VISIT CARD'S OWN UNDO. A booking is taken back the way the job card's
+    Undo takes one back (takeBackBooking, with its gate and its refusals in
+    its own words); a visit that became a task goes as a note's task goes,
+    unless someone has acted on it. The rest of the note stands, and the
+    note's own Undo no longer counts it. */
+export async function undoVisit(noteId: string, index: number): Promise<UndoResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
+
+  const note = await noteIn(ctx.orgId, noteId);
+  if (!note) return { ok: false, error: GONE };
+  const mine = !!ctx.staffId && note.author_id === ctx.staffId;
+  if (!mine && !(await can("team"))) return { ok: false, error: UNDO.notYours };
+  if (note.status !== "applied") return { ok: false, error: note.status === "undone" ? UNDO.undone : UNDO.notFiled };
+
+  const a = appliedOf(note.applied);
+  const v = a.visits.find((m) => m.index === index);
+  if (!v) return { ok: false, error: UNDO.notFiled };
+  if (v.undone) return { ok: false, error: UNDO.undone, turns: turnsOf(note.turns) };
+
+  if (v.rowIds.length) {
+    for (const rowId of v.rowIds) {
+      const r = await takeBackBooking({ jobUuid: v.jobUuid ?? "", rowId });
+      if (!r.ok) return { ok: false, error: r.error };
+    }
+  } else if (v.taskId) {
+    const [{ data: row }, { data: acted }] = await Promise.all([
+      supabaseAdmin
+        .from("tasks")
+        .select("id, status, acknowledged_at")
+        .eq("org_id", ctx.orgId)
+        .eq("id", v.taskId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("task_events")
+        .select("task_id")
+        .eq("org_id", ctx.orgId)
+        .in("task_id", [v.taskId])
+        .in("kind", ACTED_KINDS)
+        .limit(1),
+    ]);
+    const t = row as { status: string; acknowledged_at: string | null } | null;
+    if (t && (t.status !== "open" || t.acknowledged_at != null || ((acted ?? []) as unknown[]).length > 0)) {
+      return { ok: false, error: UNDO.acted };
+    }
+    if (t) {
+      await supabaseAdmin
+        .from("tasks")
+        .delete()
+        .eq("org_id", ctx.orgId)
+        .in("id", [v.taskId])
+        .eq("status", "open")
+        .is("acknowledged_at", null);
+    }
+  }
+
+  await supabaseAdmin.rpc("workboard_note_file_record", {
+    p_org: ctx.orgId,
+    p_note: noteId,
+    p_applied: {
+      visits: a.visits.map((m) => (m.index === index ? { ...m, undone: true } : m)),
+      ...(v.taskId ? { taskIds: a.taskIds.filter((id) => id !== v.taskId) } : {}),
+    },
+  });
+  const summary = visitUndoneLine(v);
+  const turns = withTurns(turnsOf(note.turns), turn("tiff", summary));
+  await supabaseAdmin
+    .from("workboard_notes")
+    .update({ turns })
+    .eq("org_id", ctx.orgId)
+    .eq("id", noteId)
+    .eq("status", "applied");
+  refreshHome({ kind: note.target_kind, id: note.target_id });
+  return { ok: true, summary, turns };
 }
 
 /** Ask instead of filing, and KEEP THE QUESTION ON THE NOTE: Tiff's turn in
@@ -1572,6 +1963,17 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   const left = stillThere(a, found);
   if (takesBack(a) && !takesBack(left)) return { ok: false, error: UNDO.gone };
   if (await heldBySm8(ctx.orgId, note)) return { ok: false, error: UNDO.sm8 };
+
+  /* ITS VISITS' BOOKINGS FIRST, the way the job card's Undo takes one back
+     (takeBackBooking: its gate, its queue, its refusals in its own words).
+     They are ServiceM8's to refuse, so they go before anything here is
+     claimed: a refused one stops the Undo with nothing else taken back. */
+  for (const v of bookedVisits(a)) {
+    for (const rowId of v.rowIds) {
+      const r = await takeBackBooking({ jobUuid: v.jobUuid ?? "", rowId });
+      if (!r.ok) return { ok: false, error: r.error };
+    }
+  }
 
   /* ── claimed: only one Undo lands ── */
   const summary = undoSummary(left);

@@ -11550,30 +11550,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-dli:hover { background:var(--tint); }
 .fg .hd-cal-dli[data-fresh] { background:var(--hd-cal-ev-tint); }
 .fg .hd-cal-dlt { flex:1; min-width:0; overflow-wrap:anywhere; }
-/* THE EDIT FORM, in the panel's place (components/dashboard/home-cal-edit):
-   a label over each control, the controls 36px like the panel's action,
-   Save in its ink and the rest on paper with the page's rule. */
-.fg .hd-cal-ed { display:flex; flex-direction:column; gap:12px; }
-.fg .hd-cal-edf { display:flex; flex-direction:column; gap:4px; min-width:0; font-size:13px; font-weight:500;
-  color:var(--hd-body); }
-.fg .hd-cal-edr { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }
-/* Its fields: `.hd-cal-fi`, never Month's `.hd-cal-in`, the inner box of
-   every day cell, which a second rule of that name would dress as a field. */
-.fg .hd-cal-fi { box-sizing:border-box; width:100%; min-width:0; height:36px; padding:0 12px;
-  border:1px solid var(--hd-rule); border-radius:6px; background:var(--paper); font-family:inherit; font-size:14px;
-  font-weight:500; color:var(--hd-ink); }
-.fg textarea.hd-cal-fi { height:auto; padding:8px 12px; line-height:1.5; resize:vertical; }
-.fg .hd-cal-eda { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-.fg .hd-cal-edq { flex-basis:100%; font-size:14px; font-weight:600; color:var(--hd-ink); }
-.fg .hd-cal-edb { display:inline-flex; align-items:center; height:36px; padding:0 12px; border:1px solid var(--hd-rule);
-  border-radius:10px; background:var(--paper); font-size:14px; font-weight:600; color:var(--hd-ink); white-space:nowrap;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-edb:hover:not(:disabled) { background:var(--tint); }
-/* While a save or a delete is out its buttons rest, quieted by colour and
-   never by opacity: the one pressed says "Saving…" or "Deleting…", and that
-   word still has to be read (4.5:1, as the list's Today and the arrows). */
+/* A resting action, quieted by colour and never by opacity. */
 .fg .hd-cal-go:disabled { background:var(--tint-2); color:var(--q); cursor:default; }
-.fg .hd-cal-edb:disabled { color:var(--q); cursor:default; }
 /* THE KEY, at the foot of Year's panel. */
 .fg .hd-cal-key { display:flex; flex-direction:column; gap:8px; margin:auto 0 0; padding:16px 0 0; list-style:none;
   border-top:1px solid var(--hd-rule2); }
@@ -11590,9 +11568,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-vb:focus-visible, .fg .hd-cal-nb:focus-visible, .fg .hd-cal-today:focus-visible,
 .fg .hd-cal-filter:focus-visible, .fg .hd-cal-itt:focus-visible, .fg .hd-cal-ab:focus-visible,
 .fg .hd-cal-dr:focus-visible, .fg .hd-cal-mi:focus-visible, .fg .hd-cal-bar:focus-visible,
-.fg .hd-cal-yc:focus-visible, .fg .hd-cal-go:focus-visible, .fg .hd-cal-edb:focus-visible,
-.fg .hd-cal-day:focus-visible, .fg .hd-cal-qd:focus-visible, .fg .hd-cal-dli:focus-visible,
-.fg input.hd-cal-fi:focus-visible, .fg textarea.hd-cal-fi:focus-visible { outline:2px solid var(--hd-ink); outline-offset:2px; }
+.fg .hd-cal-yc:focus-visible, .fg .hd-cal-go:focus-visible,
+.fg .hd-cal-day:focus-visible, .fg .hd-cal-qd:focus-visible, .fg .hd-cal-dli:focus-visible { outline:2px solid var(--hd-ink); outline-offset:2px; }
 /* The panel's column, where focus is put after a delete, or after a thing
    is picked from a day's list: the same ring, inside its edge, since the
    column is its own scroller. */
@@ -12690,6 +12667,34 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .mk-money-trio { grid-template-columns:minmax(0,1fr); }
   .mk-money-rec { flex-wrap:wrap; }
 }
+/* ===== MAKING THINGS, THE TEAM'S (v2, step 4): Add an event, Write a
+   notice, Ask for leave (components/making/event-form, notice-form,
+   leave-form). In a dialog, so no `.fg`. ===== */
+/* a delete on the left of the foot, the rest on the right */
+.mk-team-first { margin-right:auto; }
+/* the foot's question, before a delete, with its answers */
+.mk-team-ask { flex:1; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; }
+.mk-team-askq { margin-right:auto; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+/* what the action refused, in its words (rule 42) */
+.mk-team-wrong { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--red-w); }
+/* a clock time that can be cleared: the wheel and its clear */
+.mk-team-time { display:flex; align-items:center; gap:4px; min-width:0; }
+.mk-team-time .pt-timefield { flex:1; }
+/* a line under a form: the leave's working days and what's available */
+.mk-team-line { margin:0; font-size:13px; line-height:18px; color:var(--q); }
+/* three across: From, To and Hours */
+.mk-team-three { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; align-items:start; }
+/* a list in a form: the poll's answers, the files */
+.mk-team-list { display:flex; flex-direction:column; gap:8px; margin:0; padding:0; list-style:none; }
+.mk-team-answer { display:flex; align-items:center; gap:4px; }
+.mk-team-answer .pt-input { flex:1; }
+.mk-team-file { display:flex; align-items:center; gap:12px; min-height:48px; padding:8px 0; border-bottom:1px solid var(--line); }
+.mk-team-list .mk-team-file:first-child { border-top:1px solid var(--line); }
+.mk-team-file-text { flex:1; min-width:0; display:flex; flex-direction:column; }
+.mk-team-file-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.mk-team-file-size { font-size:13px; line-height:18px; color:var(--q); }
+.mk-team-file img { width:40px; height:40px; object-fit:cover; border-radius:var(--r-control); }
+.mk-team-files { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
 
 /* ===== V2: A VEHICLE'S PAGE (v2, "A vehicle's own page", 18 October; the
    boards v2-board-vehicle-*; components/fleet/vehicle-page) =====

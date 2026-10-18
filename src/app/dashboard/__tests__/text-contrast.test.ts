@@ -938,19 +938,9 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
       () => [PAPER, fill(".fg .hd-cal-dli:hover"), fill(".fg .hd-cal-dli[data-fresh]")],
     ],
     ["the day chosen, in full", ".fg .hd-cal-dxt", () => [PAPER]],
-    /* The edit form (H22), on the panel's paper. */
-    ["a field's label", ".fg .hd-cal-edf", () => [PAPER]],
-    ["what a field holds", ".fg .hd-cal-fi", () => [fill(".fg .hd-cal-fi")]],
-    [
-      "a quiet button, at rest and under the pointer",
-      ".fg .hd-cal-edb",
-      () => [fill(".fg .hd-cal-edb"), fill(".fg .hd-cal-edb:hover:not(:disabled)")],
-    ],
-    ["the question before a delete", ".fg .hd-cal-edq", () => [PAPER]],
-    /* While a save or a delete is out, the pressed button says "Saving…"
-       or "Deleting…": quieted by colour, still read. */
-    ["Save, resting while it saves", ".fg .hd-cal-go:disabled", () => [fill(".fg .hd-cal-go:disabled")]],
-    ["a quiet button, resting while a change is out", ".fg .hd-cal-edb:disabled", () => [fill(".fg .hd-cal-edb")]],
+    /* The edit form is the event form now (components/making/event-form),
+       a dialog of the parts. The action, resting: quieted by colour, still read. */
+    ["the action, resting", ".fg .hd-cal-go:disabled", () => [fill(".fg .hd-cal-go:disabled")]],
   ])("the panel: %s", (_label, sel, grounds) => {
     expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
   });

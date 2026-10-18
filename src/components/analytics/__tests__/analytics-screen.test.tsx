@@ -1,6 +1,7 @@
-/* The analytics screen: the top line and the 180-day rule on real-shaped
-   figures, the two faces, the period kept in the URL, and what it says with
-   no ServiceM8 to read. */
+/* Reports (it was Analytics): the top line and the 180-day rule on
+   real-shaped figures, the faces, the period kept in the URL, and what it
+   says with no ServiceM8 to read. v2: the head, the soft tabs, the lost as a
+   table. */
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 const decideJob = jest.fn();
@@ -41,12 +42,36 @@ const data = analyse(
 describe("AnalyticsScreen", () => {
   it("leads with the win rate and counts the 60-day quotes as lost", () => {
     render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false }} period="12m" />);
-    expect(screen.getByRole("heading", { level: 1, name: "Analytics" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Reports" })).toBeInTheDocument();
     // 2 won of 4 decided: the Unsuccessful and the one past 180 days
-    expect(screen.getAllByText("50%")[0]).toHaveClass("an-big");
+    expect(screen.getAllByText("50%")[0]).toHaveClass("st2-rp-big");
     expect(screen.getByText("2 won of 4 decided quotes")).toBeInTheDocument();
     expect(screen.getByText("1 quote with no answer after 60 days counts as lost, $3,000 of work.")).toBeInTheDocument();
-    expect(screen.getByText(/Quotes on jobs raised 8 October 2025 to 7 October 2026/)).toBeInTheDocument();
+    // the dates are the head's fact line
+    expect(screen.getByText(/Quotes on jobs raised 8 October 2025 to 7 October 2026/)).toHaveClass("st2-facts");
+    expect(screen.getByRole("link", { name: "How jobs are counted" })).toHaveAttribute("href", "/dashboard/admin/analytics");
+  });
+
+  it("switches its three views as soft tabs, the count of jobs to decide said in words", () => {
+    render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false }} period="12m" />);
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((t) => t.className)).toEqual(["pt-vtab", "pt-vtab", "pt-vtab"]);
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /^To decide\W+\d+ jobs? waiting on an answer$/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "st2-rp-tab-quotes");
+  });
+
+  it("lays the lost out as a table: why, how many, how much work", () => {
+    render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false }} period="12m" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));
+    const table = screen.getByRole("table");
+    expect([...table.querySelectorAll("th")].map((h) => h.textContent)).toEqual(["Why", "Quotes", "Work"]);
+    const rows = [...table.querySelectorAll("tbody tr")].map((r) => [...r.querySelectorAll("td")].map((c) => c.textContent));
+    expect(rows).toEqual([
+      ["Marked Unsuccessful in ServiceM8", "1", "$8,000"],
+      ["No answer after 60 days, still a Quote in ServiceM8", "1", "$3,000"],
+    ]);
   });
 
   it("keeps the period in the URL, the chosen one marked", () => {
@@ -75,7 +100,15 @@ describe("AnalyticsScreen", () => {
   it("leads with Connect ServiceM8 when there is no copy to read", () => {
     render(<AnalyticsScreen state={{ kind: "standalone" }} period="12m" />);
     expect(screen.getByRole("link", { name: "Connect ServiceM8" })).toHaveAttribute("href", "/dashboard/admin/integrations/servicem8");
+    expect(screen.getByText("ServiceM8 isn't connected")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "12 months" })).not.toBeInTheDocument();
+    expect(document.querySelector(".st2-facts")).toBeNull();
+  });
+
+  it("says so, in red, when ServiceM8's copy couldn't be read", () => {
+    render(<AnalyticsScreen state={{ kind: "unread" }} period="12m" />);
+    expect(screen.getByText("ServiceM8's copy couldn't be read just now")).toBeInTheDocument();
+    expect(screen.getByText("Reload the page in a minute.")).toBeInTheDocument();
   });
 
   it("says on the Overview what waits on an answer, and the press goes to it", () => {

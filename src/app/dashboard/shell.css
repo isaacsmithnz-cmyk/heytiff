@@ -12485,7 +12485,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    buttons the Button part; what is here is the column, the two heads, the
    box in v2's dress, a row's time and tick, a line in its state's colour,
    and the count beside Home in the sidebar (decision 25). */
-.fg .wrap.hm { max-width:912px; padding:24px 32px 96px; display:flex; flex-direction:column; gap:32px; }
+.fg .wrap.hm { max-width:720px; padding:24px 32px 96px; display:flex; flex-direction:column; gap:32px; }
 .fg .hm-ask { display:flex; flex-direction:column; align-items:center; gap:16px; }
 .fg .hm-box { align-self:stretch; display:flex; flex-direction:column; gap:12px; padding:16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--white); transition:border-color var(--t-fast) var(--ease); }
 .fg .hm-box:focus-within { border-color:var(--ink); }

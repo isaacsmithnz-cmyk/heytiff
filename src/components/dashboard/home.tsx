@@ -89,7 +89,7 @@ function HomeToday({ view }: { view: TodayView }) {
 export function HomeScreen({ today, todo }: { today: TodayView; todo: TodoRow[] }) {
   const tiff = useTiff();
   return (
-    <div className="page in full">
+    <div className="page in">
       <div className="wrap hm">
         <h1 className="sr-only">Home</h1>
         <div className="hm-ask">

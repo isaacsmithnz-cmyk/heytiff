@@ -36,7 +36,6 @@ export const BOOKING_WORDS = {
   },
   /* The Book in panel on the job card's Visits face (PR D). */
   panel: {
-    title: "Book in job {number}",
     who: "Who",
     day: "Day",
     start: "Start",
@@ -46,7 +45,6 @@ export const BOOKING_WORDS = {
     addAnother: "Add another",
     remove: "Remove",
     book: "Book in",
-    bookMany: "Book {n} in",
     cancel: "Cancel",
     checking: "Checking ServiceM8…",
     readFailed: "HeyTiff couldn't check ServiceM8 just now, so it can't book. Try again in a moment.",

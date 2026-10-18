@@ -41,7 +41,6 @@ export type VisitJob = FormJob;
 export const visitJobLabel = (j: { number: string | null; clientName: string | null; suburb: string | null }) =>
   [j.number ? `Job ${j.number}` : "Job", j.clientName, j.suburb].filter(Boolean).join(", ");
 
-const P = BOOKING_WORDS.panel;
 const HEADING = "Book a visit";
 
 /** "07:30" on the wheel, "7:30 AM". */
@@ -92,7 +91,7 @@ function NoJob({ onPick, onClose }: { onPick: (j: VisitJob) => void; onClose: ()
       foot={
         <>
           <Button kind="second" onClick={onClose}>
-            {P.cancel}
+            {BOOKING_WORDS.panel.cancel}
           </Button>
           <Button kind="main" disabled>
             Book visit
@@ -142,7 +141,7 @@ function BookVisit({
   const { rows, ctx } = b;
   const many = rows.length > 1;
   const facts = ctx ? bookInFacts(ctx, job.uuid, rows, b.staffName) : null;
-  const who = (ctx?.staff ?? []).map((s) => ({ value: s.uuid, label: s.you ? P.you : s.name }));
+  const who = (ctx?.staff ?? []).map((s) => ({ value: s.uuid, label: s.you ? BOOKING_WORDS.panel.you : s.name }));
   const lengths = BOOKING_LENGTHS_MIN.map((m) => ({ value: String(m), label: fmtLength(m) }));
 
   return (
@@ -153,7 +152,7 @@ function BookVisit({
       foot={
         <>
           <Button kind="second" disabled={b.busy} onClick={onClose}>
-            {P.cancel}
+            {BOOKING_WORDS.panel.cancel}
           </Button>
           <Button kind="main" disabled={!b.complete || b.busy} aria-busy={b.busy || undefined} onClick={b.book}>
             {b.busy ? (many ? `Booking ${rows.length} visits` : "Booking the visit") : many ? `Book ${rows.length} visits` : "Book visit"}
@@ -166,24 +165,24 @@ function BookVisit({
 
         <div className="mk-job-visits" role="group" aria-label="Visits">
           <div className="mk-job-visitrow mk-job-visithead" aria-hidden="true">
-            <span className="pt-field-label">{P.who}</span>
-            <span className="pt-field-label">{P.day}</span>
-            <span className="pt-field-label">{P.start}</span>
-            <span className="pt-field-label">{P.length}</span>
+            <span className="pt-field-label">{BOOKING_WORDS.panel.who}</span>
+            <span className="pt-field-label">{BOOKING_WORDS.panel.day}</span>
+            <span className="pt-field-label">{BOOKING_WORDS.panel.start}</span>
+            <span className="pt-field-label">{BOOKING_WORDS.panel.length}</span>
           </div>
           {rows.map((r, i) => (
             <div className="mk-job-visitrow" key={r.id}>
               <Chooser
-                aria-label={P.who}
+                aria-label={BOOKING_WORDS.panel.who}
                 options={who}
                 value={r.staffUuid || null}
-                placeholder={P.pickWho}
+                placeholder={BOOKING_WORDS.panel.pickWho}
                 disabled={!ctx}
                 onChange={(v) => b.setRow(r.id, { staffUuid: v })}
               />
-              <DateField value={r.day || null} onChange={(iso) => b.setRow(r.id, { day: iso ?? "" })} today={ctx?.today} aria-label={P.day} />
+              <DateField value={r.day || null} onChange={(iso) => b.setRow(r.id, { day: iso ?? "" })} today={ctx?.today} aria-label={BOOKING_WORDS.panel.day} />
               <TimeField
-                label={P.start}
+                label={BOOKING_WORDS.panel.start}
                 value={toWheel(r.start)}
                 step={15}
                 onChange={(v) => {
@@ -191,10 +190,10 @@ function BookVisit({
                   if (hhmm) b.setRow(r.id, { start: hhmm });
                 }}
               />
-              <Chooser aria-label={P.length} options={lengths} value={String(r.minutes)} onChange={(v) => b.setRow(r.id, { minutes: Number(v) })} />
+              <Chooser aria-label={BOOKING_WORDS.panel.length} options={lengths} value={String(r.minutes)} onChange={(v) => b.setRow(r.id, { minutes: Number(v) })} />
               {i > 0 ? (
                 <Button kind="quiet" onClick={() => b.removeRow(r.id)}>
-                  {P.remove}
+                  {BOOKING_WORDS.panel.remove}
                 </Button>
               ) : (
                 <span />
@@ -212,7 +211,7 @@ function BookVisit({
           {rows.length < BOOKINGS_PER_PRESS && (
             <div>
               <Button kind="second" icon="plus" onClick={b.addRow}>
-                {P.addAnother}
+                {BOOKING_WORDS.panel.addAnother}
               </Button>
             </div>
           )}
@@ -220,7 +219,7 @@ function BookVisit({
 
         {(!ctx || facts) && (
           <div className="mk-job-facts">
-            {!ctx && !b.readErr && <div>{P.checking}</div>}
+            {!ctx && !b.readErr && <div>{BOOKING_WORDS.panel.checking}</div>}
             {b.readErr && (
               <div className="mk-job-says">
                 <StateWord tone="wrong">{b.readErr}</StateWord>
@@ -244,17 +243,17 @@ function BookVisit({
 
         {ctx && b.quote && (
           <div className="mk-job-facts">
-            <Tick label={P.makeWorkOrder} checked={b.makeWorkOrder} onChange={b.setMakeWorkOrder} />
-            <div>{b.makeWorkOrder ? P.quoteBecomes : P.quoteStays}</div>
+            <Tick label={BOOKING_WORDS.panel.makeWorkOrder} checked={b.makeWorkOrder} onChange={b.setMakeWorkOrder} />
+            <div>{b.makeWorkOrder ? BOOKING_WORDS.panel.quoteBecomes : BOOKING_WORDS.panel.quoteStays}</div>
           </div>
         )}
 
         {ctx && (b.complete || ctx.trial || ctx.hold || b.err) && (
           <div className="mk-job-facts">
             {b.complete && <div>{bookInConfirm(rows, b.staffName)}</div>}
-            {ctx.trial && <div>{P.trial}</div>}
-            {ctx.hold === "paused" && <div>{P.heldPaused}</div>}
-            {ctx.hold === "reconnect" && <div>{P.heldReconnect}</div>}
+            {ctx.trial && <div>{BOOKING_WORDS.panel.trial}</div>}
+            {ctx.hold === "paused" && <div>{BOOKING_WORDS.panel.heldPaused}</div>}
+            {ctx.hold === "reconnect" && <div>{BOOKING_WORDS.panel.heldReconnect}</div>}
             {b.err && (
               <div className="mk-job-says">
                 <StateWord tone="wrong">{b.err.text}</StateWord>

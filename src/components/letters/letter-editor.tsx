@@ -7,8 +7,9 @@ import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/r
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import { TableKit } from "@tiptap/extension-table";
-import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
+import { Button } from "@/components/parts/button";
 import { DateField } from "@/components/ui/date-field";
 import { LetterPaper } from "./letter-paper";
 import { deleteLetter, saveLetter, type LetterSaveResult } from "@/app/actions/letters";
@@ -238,22 +239,17 @@ export function LetterEditor({
     <div className="page in full lte">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href={lettersHref} className="int-back">
-                <Icon name="chevL" size={15} />
-                Letters
-              </Link>
-            }
-            title={titleOf(l) === "Untitled letter" && !l.id ? "New letter" : titleOf(l)}
+          <SettingsHead
+            back={{ href: lettersHref, label: "Letters" }}
+            heading={titleOf(l) === "Untitled letter" && !l.id ? "New letter" : titleOf(l)}
             tools={
               <>
-                <button type="button" className="pbtn ghost" disabled={!!busy} onClick={() => void download()}>
+                <Button kind="second" disabled={!!busy} onClick={() => void download()}>
                   {busy === "pdf" ? "Printing the PDF" : "Download PDF"}
-                </button>
-                <button type="button" className="pbtn" disabled={!!busy || !dirty} onClick={() => void save()}>
+                </Button>
+                <Button kind="main" disabled={!!busy || !dirty} onClick={() => void save()}>
                   {busy === "save" ? "Saving the letter" : "Save"}
-                </button>
+                </Button>
               </>
             }
           />

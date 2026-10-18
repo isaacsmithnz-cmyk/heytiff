@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
 import { saveQuoteSettings } from "@/app/actions/quote-settings";
 import { profitSharePct, sellCents, type ComponentKey } from "@/lib/quotes/components";
 import type { ComponentGroup, ComponentOffer, ComponentShortlist } from "@/lib/quotes/settings-query";
@@ -233,15 +232,7 @@ export function QuotingScreen({
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/admin" className="int-back">
-                <Icon name="chevL" size={15} />
-                Admin
-              </Link>
-            }
-            title="Quoting"
-          />
+          <SettingsHead heading="Quoting" />
           <ScreenPanel>
             {note && <div className={`int-note ${note.tone}`}>{note.text}</div>}
 

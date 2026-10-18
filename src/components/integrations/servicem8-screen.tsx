@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
+import { connectionFacts } from "@/components/integrations/integrations-index";
 import { auDayOf, fmtAuTime, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { useHydrated } from "@/lib/use-hydrated";
 import { providerById, SM8_SCOPES, SM8_WRITE_SCOPES, type ScopeEntry } from "@/lib/integrations/providers";
@@ -298,14 +299,10 @@ export function Servicem8Screen({
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/admin/integrations" className="int-back">
-                <Icon name="chevL" size={15} />
-                Integrations
-              </Link>
-            }
-            title="ServiceM8"
+          <SettingsHead
+            back={{ href: "/dashboard/admin/integrations", label: "Integrations" }}
+            heading="ServiceM8"
+            facts={connectionFacts(connection)}
           />
           <ScreenPanel>
           <div className="int-sm8">

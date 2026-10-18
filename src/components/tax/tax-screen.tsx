@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { BoardTabs } from "@/components/shell/board-tabs";
+import { SettingsHead } from "@/components/settings/settings-head";
 import { formatAbn } from "@/lib/fleet/receipt";
 import { fyIsCurrent, fyLabel } from "@/lib/tax/fy";
 import { TAX_CATEGORY_LABEL, type TaxItem, type TaxYear } from "@/lib/tax/item";
@@ -68,12 +68,7 @@ export function TaxScreen({
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="wb2-crumbline">
-            <Link href="/dashboard/admin" className="int-back">
-              <Icon name="chevL" size={15} />
-              Admin
-            </Link>
-          </div>
+          <SettingsHead heading="Tax &amp; EOFY" />
 
           {/* The year picker — the board's tab row, still links underneath:
               the year is in the URL, so one of these can be sent to an
@@ -81,7 +76,6 @@ export function TaxScreen({
               what the card strip already does everywhere else. */}
           <div className="wb2">
             <BoardTabs
-              lead={<h1 className="wb2-h1">Tax &amp; EOFY</h1>}
               label="Financial year"
               active={String(fy)}
               tabs={choices.map((y) => ({

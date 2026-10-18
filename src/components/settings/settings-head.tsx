@@ -19,12 +19,13 @@ export type Back = { href: string; label: string };
 export const TO_SETTINGS: Back = { href: "/dashboard/admin", label: "Settings" };
 
 export function SettingsHead({
-  title,
+  heading,
   facts,
   tools,
   back = TO_SETTINGS,
 }: {
-  title: ReactNode;
+  /** the page's name, its h1 (not `title`: a title is a tooltip) */
+  heading: ReactNode;
   /** the grey line under the title: a fact, or nothing */
   facts?: ReactNode;
   /** the main button, or a state word, on the right */
@@ -43,7 +44,7 @@ export function SettingsHead({
       <div className="st2-top">
         <div className="st2-id">
           <h1 className="st2-h1">
-            <Fade>{title}</Fade>
+            <Fade>{heading}</Fade>
           </h1>
           {facts != null && facts !== false && <p className="st2-facts">{facts}</p>}
         </div>

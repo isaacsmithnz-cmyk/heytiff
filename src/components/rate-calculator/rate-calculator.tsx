@@ -23,9 +23,14 @@ import {
   type RateCalcState,
 } from "./state";
 import { RC } from "./theme";
-import { Tooltip } from "@/components/parts/tooltip";
 import { money, rate0, gstOf } from "./format";
-import { HEALTH_COLORS, parseRate, RcIcon, WsEyebrow } from "./ui";
+import { parseRate, RcIcon, WsEyebrow } from "./ui";
+import { Button } from "@/components/parts/button";
+import { StateWord, type Tone } from "@/components/parts/state";
+import { SettingsHead } from "@/components/settings/settings-head";
+
+/** The engine's health, as a state word (rule 17). */
+const HEALTH_TONE: Record<string, Tone> = { danger: "wrong", warning: "look", success: "good", neutral: "info" };
 import { StaffStep, BusinessStep, VehiclesStep, RiskStep, ProfitStep } from "./steps";
 import { Overview } from "./overview";
 import { InsightsView } from "./insights";
@@ -360,7 +365,6 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
     pushUp();
   }, [s]);
   const { calc, health, steps, uplift, ready, missing } = runEngine(s);
-  const hc = HEALTH_COLORS[health.type] || HEALTH_COLORS.neutral;
   const overview = step === 5;
   const insights = step === 6;
   const StepBody = [StaffStep, BusinessStep, VehiclesStep, RiskStep, ProfitStep][step] || StaffStep;
@@ -433,20 +437,28 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
       {showRatesIntro && <RatesIntro s={s} patch={patch} onDone={() => setIntroOpen(false)} />}
       {showSettings && <SettingsPanel st={s} patch={patch} onClose={() => setShowSettings(false)} onReset={onReset} superOwned={superOwned} />}
 
-      {/* workspace header — mirrors the Design Studio topbar: accent chip, 23px title,
-          600-weight sub, transparent on the well */}
-      <div style={{ height: 70, flexShrink: 0, display: "flex", alignItems: "center", gap: 14, padding: "16px 24px 0", position: "relative", zIndex: 20 }}>
-        <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", alignItems: "center", gap: 13 }}>
-          <div style={{ fontFamily: RC.head, fontSize: 23, fontWeight: 700, letterSpacing: "-0.01em", color: RC.ink, lineHeight: 1, whiteSpace: "nowrap" }}>Rate Calculator</div>
-          <span style={{ width: 1, height: 22, background: "rgba(28,38,70,.12)", margin: "0 2px", flexShrink: 0 }} />
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 700, color: hc.fg, background: hc.bg, padding: "6px 13px", borderRadius: 100, whiteSpace: "nowrap", flexShrink: 0 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: hc.dot }} />{health.status}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {s.businessName && <span style={{ fontFamily: RC.head, fontSize: 12, fontWeight: 700, color: RC.label, background: "#fff", border: `1px solid rgba(10,12,20,.07)`, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>{s.businessName}</span>}
-          <Tooltip label="How to use" side="bottom"><button className="rca-iconbtn" onClick={() => setHelpOpen(true)} aria-label="How to use" style={{ fontWeight: 700, fontSize: 15 }}>?</button></Tooltip>
-          <Tooltip label="Settings" side="bottom"><button className="rca-iconbtn" onClick={() => setShowSettings(true)} aria-label="Settings"><RcIcon name="settings" size={16} /></button></Tooltip>
-        </div>
-      </div>
+      {/* the v2 settings head (it was the Studio-style workspace bar): the way
+          back to Settings, the title, the health as a state word and the
+          business's name on the grey line, and the two doors as words */}
+      <SettingsHead
+        heading="Rate Calculator"
+        facts={
+          <span className="st2-rc-facts">
+            <StateWord tone={HEALTH_TONE[health.type] ?? "info"}>{health.status}</StateWord>
+            {s.businessName && <span>{s.businessName}</span>}
+          </span>
+        }
+        tools={
+          <>
+            <Button kind="quiet" onClick={() => setHelpOpen(true)}>
+              How to use
+            </Button>
+            <Button kind="second" icon="settings" onClick={() => setShowSettings(true)}>
+              Settings
+            </Button>
+          </>
+        }
+      />
 
       {showBanner && !overview && !insights && reviewDue && <NotifBanner daysSince={daysSince} message={s.reviewState.message || null} onReview={() => { setShowBanner(false); setStep(0); }} onDismiss={() => setShowBanner(false)} />}
 

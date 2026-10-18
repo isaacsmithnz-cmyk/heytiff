@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
+import { connectionFacts } from "@/components/integrations/integrations-index";
 import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 import { providerById, XERO_SCOPES } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
@@ -104,14 +105,10 @@ export function XeroScreen({
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/admin/integrations" className="int-back">
-                <Icon name="chevL" size={15} />
-                Integrations
-              </Link>
-            }
-            title="Xero"
+          <SettingsHead
+            back={{ href: "/dashboard/admin/integrations", label: "Integrations" }}
+            heading="Xero"
+            facts={connectionFacts(connection)}
           />
           <ScreenPanel>
           <div style={{ maxWidth: 760 }}>

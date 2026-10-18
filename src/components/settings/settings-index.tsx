@@ -133,7 +133,7 @@ export function SettingsIndex(viewer: SettingsViewer) {
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <SettingsHead title="Settings" back={null} facts={`${count} ${count === 1 ? "setting" : "settings"}`} />
+          <SettingsHead heading="Settings" back={null} facts={`${count} ${count === 1 ? "setting" : "settings"}`} />
           <ScreenPanel>
             <div className="st2-groups">
               {groups.map((g) => {

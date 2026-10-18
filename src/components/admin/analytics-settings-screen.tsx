@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Icon } from "@/components/shell/icon";
-import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
+import { ScreenPanel } from "@/components/shell/screen-band";
+import { SettingsHead } from "@/components/settings/settings-head";
 import { saveAnalyticsSettings } from "@/app/actions/analytics-settings";
 import { LAPSE_AFTER_DAYS, QUOTE_LIKELY_FROM_CENTS, TENDER_AFTER_DAYS } from "@/lib/analytics/job-analytics";
 import {
@@ -127,15 +126,7 @@ export function AnalyticsSettingsScreen({
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <ScreenBand
-            crumb={
-              <Link href="/dashboard/admin" className="int-back">
-                <Icon name="chevL" size={15} />
-                Admin
-              </Link>
-            }
-            title="Analytics"
-          />
+          <SettingsHead heading="Reports" />
           <ScreenPanel>
             {note && <div className={`int-note ${note.tone}`}>{note.text}</div>}
             {!ready && <div className="int-note bad">These can&rsquo;t be kept until the database is updated for them.</div>}

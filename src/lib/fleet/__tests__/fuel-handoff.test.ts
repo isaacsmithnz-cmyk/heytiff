@@ -17,6 +17,9 @@ const note = {
   purchasedOn: "2026-07-31",
   paidWith: "own" as const,
   receiptDocumentId: "doc-77",
+  /* the fuel log's own reader read these in Claim an expense */
+  litres: "52.10",
+  note: "Pool ute",
 };
 
 beforeEach(() => sessionStorage.clear());
@@ -52,5 +55,7 @@ it("keeps an unreadable note usable, and never invents a payer", () => {
     purchasedOn: "",
     paidWith: "company",
     receiptDocumentId: null,
+    litres: "",
+    note: "",
   });
 });

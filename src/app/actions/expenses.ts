@@ -6,6 +6,8 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { todayInAu } from "@/lib/au-dates";
+import { jobCandidates } from "@/lib/dashboard/job-candidates";
+import type { JobCandidate } from "@/lib/workboard/note-match";
 import {
   buildClaim,
   canTransition,
@@ -151,6 +153,17 @@ function refresh() {
 const MAX_RECEIPTS = 3;
 
 /* ---------------- your own claim ---------------- */
+
+/** WHAT THE FORM NEEDS WHEN IT OPENS AWAY FROM YOUR EXPENSES: a job's Add ›
+    Cost opens Claim an expense over the job (rule 51), where the page has
+    neither. The open work a receipt can go on is the same `jobCandidates`
+    list My expenses loads (lib/me/page-data), and today is the AU calendar
+    day, the ceiling on a receipt's date. */
+export async function claimFormFacts(): Promise<{ today: string; jobs: JobCandidate[] }> {
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  return { today: todayInAu(), jobs: orgId ? await jobCandidates(orgId) : [] };
+}
 
 export async function submitClaim(
   input: Omit<ClaimInput, "job"> & {

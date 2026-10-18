@@ -1,120 +1,36 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { FaceSwitch } from "@/components/me/face-switch";
+import { Button } from "@/components/parts/button";
+import { ExpenseForm } from "@/components/making/expense-form";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
-import { uploadFile } from "@/lib/documents/upload-client";
-import { DateField } from "@/components/ui/date-field";
-import { JobPicker } from "./job-picker";
-import { targetOf } from "@/lib/workboard/note-draft";
 import type { JobCandidate } from "@/lib/workboard/note-match";
 import {
   CATEGORY_LABEL,
-  EXPENSE_CATEGORIES,
   type PaidWith,
   isCancellable,
   isOpen,
   owedTotal,
-  RECEIPT_ACCEPT,
-  RECEIPT_PDF_TYPE,
   STATUS_LABEL,
   type Claim,
-  type ExpenseCategory,
-  type JobLink,
 } from "@/lib/expenses/claim";
-import { cancelClaim, submitClaim, type ExpenseResult } from "@/app/actions/expenses";
-import { readExpenseReceipt, type ReadExpenseResult } from "@/app/actions/expense-ai";
-import { withCleanup } from "@/lib/ui/with-cleanup";
-import { writeFuelHandoff } from "@/lib/fleet/fuel-handoff";
-import { fileToUprightBase64 } from "@/lib/images/upright";
+import { cancelClaim, type ExpenseResult } from "@/app/actions/expenses";
 
 /* My expenses — money you spent on the job, and want back.
 
-   THE RECEIPT COMES FIRST, deliberately. Almost every claim starts as a photo
-   in someone's hand at the end of a job, so the primary action is "scan a
-   receipt" and the form arrives already filled in. Typing it by hand is
-   offered, but it is the fallback.
-
-   WHAT TIFF READS IS A DRAFT, NEVER A SUBMISSION. Every scanned figure lands
-   in an editable field the person confirms. These numbers become money paid to
-   them and a GST figure that may reach a BAS — Tiff does the typing, the human
-   does the deciding. A failed scan drops them into the same form, empty, and
-   nothing is lost.
-
-   THE FILE UPLOADS ON SUBMIT, not on scan. A scan the person abandons should
-   leave nothing behind in the bucket.
-
-   THE RECEIPT CAN BE ATTACHED AT ANY POINT, which it could not before: the
-   file input lived only on the start screen, so anyone who chose "Enter it
-   myself" was silently committed to a claim with no evidence on it — and the
-   approver, who is being asked for money, had nothing to look at. The form
-   carries its own attach row now.
-
-   ATTACHING FROM THE FORM DOES NOT RE-SCAN. By that point the person has
-   typed something; reading the file would overwrite their own figures with
-   Tiff's, which is the one direction this screen must never move in. Scanning
-   is what the start screen is for. */
+   THE FORM IS CLAIM AN EXPENSE (components/making/expense-form), the v2
+   form a job's Add › Cost opens too. It starts on the receipt, read by
+   today's reader, and keeps every rule this screen's own form had; this
+   screen is its door and the lists of what was filed. */
 
 const money = (n: number) => `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-/* HOW A JOB READS, in the same shape `resolveJobLink` will store — a label
-   that changed the moment you saved would look like the wrong job had been
-   picked. The one the SERVER builds is what ends up on the row; this is what
-   the person is looking at while they decide. */
-function describe(j: JobCandidate): string {
-  const named =
-    !j.clientName || j.clientName === j.label ? j.label || j.clientName : `${j.clientName}, ${j.label}`;
-  return j.jobNumber ? `#${j.jobNumber}, ${named}` : named;
-}
-
-/** A PDF has no thumbnail, so the strip names it instead of showing it. */
-const isPdf = (f: File) => f.type === RECEIPT_PDF_TYPE;
 
 /* "What am I owed" · "where's the docket for the thing on the card" · "did my
    claim get paid". Three questions, three faces — see the split below. */
 type XcFace = "claims" | "company" | "closed";
-
-type Draft = {
-  expenseDate: string;
-  description: string;
-  category: ExpenseCategory;
-  amount: string;
-  gstAmount: string;
-  supplier: string;
-  /** The job it was bought for, or null. Most spend is against no one job. */
-  job: JobLink | null;
-  /* Whose money. It is the first field in the form and the last thing the
-     submit button reads, because it decides what pressing that button MEANS —
-     asking to be paid back, or filing a docket for money already gone. */
-  paidWith: PaidWith;
-};
-
-/* The read laid over a blank draft. It sits out here, not in the scan's
-   try/catch, because React Compiler 1.0 cannot lower a value block — a `??`,
-   a ternary — inside a try and gives up on the whole component when it meets
-   one. Called from in there, it is still covered by the same catch. */
-const draftFromRead = (base: Draft, res: Extract<ReadExpenseResult, { ok: true }>): Draft => ({
-  ...base,
-  expenseDate: res.date ?? base.expenseDate,
-  description: res.description ?? "",
-  category: res.category ?? "materials",
-  amount: res.total !== null ? String(res.total) : "",
-  gstAmount: res.gst !== null ? String(res.gst) : "",
-  supplier: res.supplier ?? "",
-});
-
-const emptyDraft = (today: string, paidWith: PaidWith = "own"): Draft => ({
-  expenseDate: today,
-  description: "",
-  category: "materials",
-  amount: "",
-  gstAmount: "",
-  supplier: "",
-  job: null,
-  paidWith,
-});
 
 export function MyExpensesFace({
   claims,
@@ -134,69 +50,12 @@ export function MyExpensesFace({
   const router = useRouter();
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   /* One claim armed for cancellation at a time — same shape My leave and the
      team directory use. Arming a second forgets the first. */
   const [armed, setArmed] = useState<string | null>(null);
-  const [picking, setPicking] = useState(false);
   const [face, setFace] = useState<XcFace>("claims");
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  /* Object URLs are held until they're replaced or the claim is cleared —
-     without this the browser keeps every abandoned preview alive for the life
-     of the page. `attach` is the only place a preview is minted. */
-  const attach = (picked: File | null) => {
-    setPreview((old) => {
-      if (old) URL.revokeObjectURL(old);
-      return picked && !isPdf(picked) ? URL.createObjectURL(picked) : null;
-    });
-    setFile(picked);
-    if (!picked && fileRef.current) fileRef.current.value = "";
-  };
-
-  const reset = () => {
-    setDraft(null);
-    attach(null);
-    setError(null);
-    setPicking(false);
-  };
-
-  /* Attaching from INSIDE the form — no scan. See the header: by then the
-     person has typed something, and reading the file would overwrite their
-     figures with Tiff's. */
-  const onAttachOnly = (picked: File | undefined) => {
-    if (!picked) return;
-    setError(null);
-    attach(picked);
-  };
-
-  const onPick = async (picked: File | undefined) => {
-    if (!picked) return;
-    setError(null);
-    attach(picked);
-    setScanning(true);
-    await withCleanup(async () => {
-      try {
-        const img = await fileToUprightBase64(picked);
-        const res = await readExpenseReceipt(img.data, img.mediaType);
-        const base = emptyDraft(today, payer);
-        if (res.ok) {
-          setDraft(draftFromRead(base, res));
-        } else {
-          // A scan that couldn't read still leaves them with the receipt and a
-          // form — the file stays attached either way.
-          setDraft(base);
-          if (res.reason !== "no-key") setError("Couldn't read that receipt — fill it in below.");
-        }
-      } catch {
-        setDraft(emptyDraft(today));
-        setError("Couldn't read that receipt — fill it in below.");
-      }
-    }, () => setScanning(false));
-  };
+  /* Claim an expense, open over the screen */
+  const [claiming, setClaiming] = useState(false);
 
   const run = (action: () => Promise<ExpenseResult>, onOk?: () => void) => {
     setError(null);
@@ -208,99 +67,6 @@ export function MyExpensesFace({
       } else setError(res.error);
     });
   };
-
-  /* FUEL HAS ONE RECORD, AND IT IS THE VEHICLE'S.
-
-     A tank of diesel had two doors that knew nothing about each other: this
-     screen's Fuel category, which wrote a claim with no vehicle, no litres
-     and no odometer, and Log fuel on My vehicle, which writes the row the tax
-     export actually reads. Nothing linked them, so the same docket filed both
-     ways was deducted twice and — on a personal card — paid twice.
-
-     The door stays: a docket in somebody's hand at the end of a job is what
-     this screen is for. What changes is where it lands. Everything Tiff read
-     goes across, the photo with it, so the only things left to add are the
-     two the docket cannot say: the litres and the odometer. */
-  const toVehicle = () => {
-    if (!draft) return;
-    setError(null);
-    start(async () => {
-      let receiptDocumentId: string | null = null;
-      if (file) {
-        // stored as the LOG's paper, which is what it is about to become
-        const up = await uploadFile(file, "fuel_receipt");
-        if (!up.ok) {
-          setError(up.error);
-          return;
-        }
-        receiptDocumentId = up.file.documentId;
-      }
-      writeFuelHandoff({
-        cost: draft.amount,
-        gst: draft.gstAmount,
-        abn: "",
-        station: draft.supplier,
-        purchasedOn: draft.expenseDate,
-        paidWith: draft.paidWith === "company" ? "company" : "own",
-        receiptDocumentId,
-      });
-      router.push("/dashboard/my-vehicle");
-    });
-  };
-
-  const submit = () => {
-    if (!draft) return;
-    setError(null);
-    start(async () => {
-      let documentIds: string[] = [];
-      if (file) {
-        const up = await uploadFile(file, "receipt");
-        if (!up.ok) {
-          setError(up.error);
-          return;
-        }
-        documentIds = [up.file.documentId];
-      }
-      const company = draft.paidWith === "company";
-      const res = await submitClaim({
-        /* kind + id only. The label the person just read came from the
-           picker, but the one that gets STORED is built on the server from
-           the row it finds — see resolveJobLink. */
-        job: draft.job ? { kind: draft.job.kind, id: draft.job.id } : null,
-        expenseDate: draft.expenseDate,
-        description: draft.description,
-        category: draft.category,
-        amount: Number(draft.amount),
-        gstAmount: draft.gstAmount ? Number(draft.gstAmount) : null,
-        supplier: draft.supplier || null,
-        paidWith: draft.paidWith,
-        documentIds,
-      });
-      if (res.ok) {
-        reset();
-        /* Land on the face the thing you just filed lives on. Saving a card
-           receipt and being left staring at Claims — where it will never
-           appear — reads as the save having failed. */
-        setFace(company ? "company" : "claims");
-        router.refresh();
-      } else setError(res.error);
-    });
-  };
-
-  const set = (p: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...p } : d));
-
-  /* WHAT THE FORM ALREADY KNOWS, it stops asking the server. "Send for
-     approval" was enabled on a completely empty form, so the first thing a
-     person got back was a round trip and "Say what the expense was for" —
-     something the button could see before it was pressed. `buildClaim` still
-     re-checks every rule; this only stops the pointless trip. */
-  const missing = !draft
-    ? null
-    : !draft.description.trim()
-      ? "Say what it was for"
-      : !(Number(draft.amount) > 0)
-        ? "Add how much it cost"
-        : null;
 
   /* WHAT YOU ARE OWED. The same `owedTotal` the approver's queue and the
      Time & Pay stat tile have always used — it counts pending plus
@@ -321,7 +87,6 @@ export function MyExpensesFace({
      and the owed figure can never disagree about which rows count. */
   /* Which payer a NEW row starts as, read off the face you started from. */
   const payer: PaidWith = face === "company" ? "company" : "own";
-  const company = draft?.paidWith === "company";
 
   const cardReceipts = claims.filter((c) => c.paidWith === "company");
   const ownClaims = claims.filter((c) => c.paidWith === "own");
@@ -372,291 +137,16 @@ export function MyExpensesFace({
       <section id={`xcp-${face}`} role="tabpanel" aria-labelledby={`xct-${face}`} tabIndex={-1}>
           {(face === "claims" || face === "company") && (
             <>
-          {!draft ? (
-            /* THE FACE YOU ARE ON DECIDES WHOSE MONEY IT WAS.
-
-               The alternative was one door and a radio inside the form, and it
-               is the wrong shape for this field: get it wrong and either
-               somebody is permanently out of their own money or the business
-               is asked to pay twice for the same drill. Arriving from Company
-               card means you already answered it — the copy, the button and
-               the draft all say so, and the control is still there in the form
-               to change your mind. */
-            <div className="xc-start">
-              <span className="xc-ic">
-                <Icon name={face === "company" ? "card" : "receipt"} size={22} />
-              </span>
-              <div className="xc-startk">
-                <b>
-                  {face === "company"
-                    ? "File a receipt for something the company paid for"
-                    : "Claim something you paid for"}
-                </b>
-                {/* "— you check it before it goes" came off: the same hedge
-                    the agreement modal wore ("every field below is editable
-                    before anything is created"). The form appears filled and
-                    editable with a Send button under it; the sentence only
-                    taught you to distrust the fill. */}
-                <em>Photograph the receipt and Tiff fills the form in.</em>
-              </div>
-              <div className="xc-startb">
-                <button className="pbtn primary" onClick={() => fileRef.current?.click()} disabled={scanning}>
-                  <Icon name="cam" size={16} />
-                  {scanning ? "Reading the receipt" : "Scan a receipt"}
-                </button>
-                <button
-                  className="pbtn ghost"
-                  onClick={() => setDraft(emptyDraft(today, payer))}
-                  disabled={scanning}
-                >
-                  Enter it myself
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="card2">
-              <div className="c2h">
-                <div>
-                  <b>{company ? "New company-card receipt" : "New claim"}</b>
-                  <em>
-                    {company
-                      ? "Nobody has to approve this — the card already paid. It is the docket that was missing."
-                      : "Check everything before you send it — this is what gets approved."}
-                  </em>
-                </div>
-              </div>
-
-              {/* WHOSE MONEY — first, above everything, because it changes
-                  what every field under it is FOR. It is a duplicate of the
-                  door you came through on purpose: the door is how most people
-                  will answer it, and this is how anyone who came through the
-                  wrong one fixes that without losing what they have typed.
-
-                  A `.seg`, not a checkbox: "company card" and "I paid" are two
-                  named states of one question, and a lone tickbox reading
-                  "paid by the company" makes the OTHER answer the absence of
-                  an answer — which is the one that quietly costs somebody
-                  their own money. */}
-              <div className="xc-payer">
-                <span className="xc-payerk">Who paid for it?</span>
-                <div className="seg" role="radiogroup" aria-label="Who paid for it">
-                  {(
-                    [
-                      { key: "own", label: "I did" },
-                      { key: "company", label: "Company card" },
-                    ] as const
-                  ).map((o) => (
-                    <button
-                      key={o.key}
-                      type="button"
-                      role="radio"
-                      aria-checked={draft.paidWith === o.key}
-                      className={draft.paidWith === o.key ? "on" : undefined}
-                      disabled={busy}
-                      onClick={() => set({ paidWith: o.key })}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* WHICH JOB, if any. Optional and it has to stay optional: a
-                  new drill is the van's, not Tuesday's, and forcing a pick
-                  would either stop the capture or fill the column with the
-                  wrong answer.
-
-                  It picks from the same `jobCandidates` the Tiff modal's
-                  "Which job is this for?" answers come from, because "which
-                  job" read off two lists is how two lists stop agreeing about
-                  what an open job is. The picker itself was the note
-                  capture's, and came here with this form when that card went
-                  (./job-picker). */}
-              {jobs.length > 0 && (
-                <div className={"xc-job" + (draft.job ? " on" : "")}>
-                  <Icon name={draft.job ? "check" : "activity"} size={14} />
-                  <span className="xc-jobk">
-                    {draft.job ? (
-                      <>
-                        On <b>{draft.job.label}</b>
-                      </>
-                    ) : (
-                      "Not against a job"
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    className="wb2-capchange"
-                    onClick={() => setPicking(!picking)}
-                    aria-expanded={picking}
-                  >
-                    {draft.job ? "Change" : "Pick a job"}
-                  </button>
-                </div>
-              )}
-              {picking && (
-                <JobPicker
-                  options={jobs}
-                  noneLabel="Not for a job in particular"
-                  chosenId={draft.job?.id ?? null}
-                  onPick={(picked) => {
-                    /* The picker speaks "kind:id" and `targetOf` is the parser
-                       that goes with it. "" is its own "nothing in
-                       particular", and here it means this was not for a job. */
-                    const t = targetOf(picked);
-                    const hit = t && jobs.find((j) => j.kind === t.kind && j.id === t.id);
-                    set({ job: hit ? { kind: hit.kind, id: hit.id, label: describe(hit) } : null });
-                    setPicking(false);
-                  }}
-                  onClose={() => setPicking(false)}
-                />
-              )}
-
-              {/* THE RECEIPT, and the way to change it. There was no control
-                  here at all — the picker lived on the start screen and
-                  unmounted the moment a draft existed, so "Enter it myself"
-                  meant no receipt, ever. */}
-              <div className="xc-att">
-                {file ? (
-                  <>
-                    {preview ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img className="xc-prev" src={preview} alt="The receipt you're claiming" />
-                    ) : (
-                      // a PDF has nothing to show — name it instead
-                      <span className="xc-pdf">
-                        <Icon name="file" size={18} />
-                        {file.name}
-                      </span>
-                    )}
-                    <div className="xc-attb">
-                      <button className="pbtn ghost" onClick={() => fileRef.current?.click()} disabled={busy}>
-                        Replace
-                      </button>
-                      <button className="pbtn ghost" onClick={() => attach(null)} disabled={busy}>
-                        Remove
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <span className="xc-attk">
-                      <b>No receipt attached</b>
-                      <em>
-                        {company
-                          ? "The docket is the whole point of this one — without it the bank feed says a number and nothing else."
-                          : "A claim with the docket on it is the one that gets approved without a conversation."}
-                      </em>
-                    </span>
-                    <div className="xc-attb">
-                      <button className="pbtn" onClick={() => fileRef.current?.click()} disabled={busy}>
-                        <Icon name="upload" size={15} />
-                        Attach a receipt
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="xc-form">
-                <label className="xc-f">
-                  <span>What was it for</span>
-                  <input
-                    className="inp"
-                    value={draft.description}
-                    onChange={(e) => set({ description: e.target.value })}
-                    placeholder="Copper fittings and flux"
-                  />
-                </label>
-                <label className="xc-f">
-                  <span>Supplier</span>
-                  <input
-                    className="inp"
-                    value={draft.supplier}
-                    onChange={(e) => set({ supplier: e.target.value })}
-                    placeholder="Reece"
-                  />
-                </label>
-                {/* THE APP'S OWN PICKER, not the browser's. `date-field.tsx`
-                    opens with "Every date in HeyTiff is picked, never typed",
-                    and spells out why: `<input type="date">` renders a
-                    different control in every browser and, on a phone, a wheel
-                    that answers "what's the date" in whatever the OS locale
-                    says — dd/mm vs mm/dd, silently. This one sat directly
-                    beside the app's own styled Category select, on a form
-                    whose date decides which BAS period a GST figure lands in. */}
-                <label className="xc-f sm">
-                  <span>Date</span>
-                  <DateField
-                    value={draft.expenseDate || null}
-                    today={today}
-                    max={today}
-                    onChange={(iso) => set({ expenseDate: iso ?? "" })}
-                  />
-                </label>
-                <label className="xc-f sm">
-                  <span>Category</span>
-                  <select value={draft.category} onChange={(e) => set({ category: e.target.value as ExpenseCategory })}>
-                    {EXPENSE_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {CATEGORY_LABEL[c]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="xc-f sm">
-                  <span>Total paid</span>
-                  <input
-                    className="inp"
-                    inputMode="decimal"
-                    value={draft.amount}
-                    onChange={(e) => set({ amount: e.target.value })}
-                    placeholder="0.00"
-                  />
-                </label>
-                <label className="xc-f sm">
-                  <span>GST {draft.gstAmount ? "" : "(if shown)"}</span>
-                  <input
-                    className="inp"
-                    inputMode="decimal"
-                    value={draft.gstAmount}
-                    onChange={(e) => set({ gstAmount: e.target.value })}
-                    placeholder="—"
-                  />
-                </label>
-              </div>
-
-              <div className="xc-act">
-                {draft.category === "fuel" ? (
-                  <button className="pbtn primary" onClick={toVehicle} disabled={busy}>
-                    <Icon name="fuel" size={16} />
-                    {busy ? "Logging it on the vehicle" : "Log it on the vehicle"}
-                  </button>
-                ) : (
-                <button className="pbtn primary" onClick={submit} disabled={busy || !!missing}>
-                  {busy
-                    ? company
-                      ? "Saving the receipt"
-                      : "Sending for approval"
-                    : company
-                      ? "Save the receipt"
-                      : "Send for approval"}
-                </button>
-                )}
-                <button className="pbtn ghost" onClick={reset} disabled={busy}>
-                  Discard
-                </button>
-                {draft.category === "fuel" ? (
-                  <span className="xc-need">
-                    Fuel is logged on the vehicle — it takes the litres and the odometer with it,
-                    and raises the claim itself if you paid.
-                  </span>
-                ) : (
-                  missing && !busy && <span className="xc-need">{missing}</span>
-                )}
-              </div>
-            </div>
-          )}
+          {/* THE DOOR (rule 52): Claim an expense, over this screen.
+              THE FACE YOU ARE ON DECIDES WHOSE MONEY IT WAS: from Company
+              card it opens on the card, and the form's own tray is there to
+              change it. Get it wrong and either somebody is out of their own
+              money or the business is asked to pay twice. */}
+          <div className="mk-money-door">
+            <Button kind="main" icon={face === "company" ? "card" : "receipt"} onClick={() => setClaiming(true)}>
+              {face === "company" ? "File a card receipt" : "Claim an expense"}
+            </Button>
+          </div>
 
           {/* WHAT YOU ARE OWED, on the screen of the person owed it. The
               approver's queue has carried this figure all along, and so has
@@ -789,21 +279,22 @@ export function MyExpensesFace({
         </div>
       </div>
 
-      {/* ONE picker, mounted for the life of this face — outside the panel so
-          a Claims/Closed switch can't unmount it mid-pick. On the start screen
-          a file is scanned into a draft; once a draft exists it is attached
-          and nothing is overwritten. */}
-      <input
-        ref={fileRef}
-        type="file"
-        accept={RECEIPT_ACCEPT}
-        hidden
-        onChange={(e) => {
-          const picked = e.target.files?.[0];
-          if (draft) onAttachOnly(picked);
-          else void onPick(picked);
-        }}
-      />
+      {claiming && (
+        <ExpenseForm
+          payer={payer}
+          jobs={jobs}
+          today={today}
+          onClose={() => setClaiming(false)}
+          /* Land on the face the thing you just filed lives on. Saving a card
+             receipt and being left staring at Claims, where it will never
+             appear, reads as the save having failed. */
+          onSaved={(paid) => {
+            setFace(paid === "company" ? "company" : "claims");
+            router.refresh();
+          }}
+          onUndone={() => router.refresh()}
+        />
+      )}
     </>
   );
 }

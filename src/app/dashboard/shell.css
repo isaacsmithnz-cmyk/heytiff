@@ -4590,57 +4590,10 @@ button.fl-btn { font-size:14px; font-weight:700; }
    does the deciding. */
 .fg .xc-err { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); background:var(--bad-tint); color:var(--bad-t); font-size:14px; font-weight:600; line-height:1.45; }
 
-.fg .xc-start { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:24px; margin-bottom:24px; border-radius:var(--r-card); border:1.5px dashed var(--line); background:var(--tint); }
-.fg .xc-ic { flex:0 0 auto; width:48px; height:48px; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--ink); }
-.fg .xc-startk { flex:1 1 240px; min-width:0; }
-.fg .xc-startk b { display:block; font-size:16px; font-weight:700; }
-.fg .xc-startk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:4px; line-height:1.5; }
-.fg .xc-startb { display:flex; flex-wrap:wrap; gap:8px; flex:0 0 auto; }
-/* WHOSE MONEY — the form's first row, above the receipt, because it decides
-   what every field under it is for. Its own row rather than sharing one with
-   the fields: it is the only control here whose two answers mean two different
-   things happen when you press Send. */
-.fg .xc-payer { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
-.fg .xc-payerk { font-size:13px; font-weight:700; color:var(--gray500); }
-/* WHICH JOB — the form's line, and the row's. Same posture as the note
-   capture's job line had (`wb2-capjob`, which went with the old capture UI
-   on 2026-09-27), asking the same question with the same picker; `on` is the
-   answered state, and it is the only place a tint appears, because "against
-   a job" is a fact rather than a warning. */
-.fg .xc-job { display:flex; align-items:center; gap:8px; margin-bottom:16px; padding:8px 12px;
-  border-radius:var(--r-button); background:var(--tint); color:var(--gray500);
-  font-size:13px; font-weight:600; }
-.fg .xc-job.on { background:var(--tint); color:var(--ink); }
-/* `Icon` wraps its svg in a BARE span, so `> span` reached the glyph too and
-   gave a 14px icon a third of the row (measured, not guessed). The text says
-   which span it is. */
-.fg .xc-job > :first-child { flex:none; }
-.fg .xc-jobk { flex:1; min-width:0; }
-.fg .xc-job b { font-weight:700; color:var(--ink); }
 /* On a filed row it is one quiet line under the supplier, not a chip: a
    receipt has exactly one job and a chip would compete with the status. */
 .fg .xc-onjob { display:flex; align-items:center; gap:4px; margin:4px 0 0;
   font-size:12px; font-weight:600; color:var(--gray500); }
-
-/* The receipt strip — the thumbnail (or the PDF's name) plus the controls that
-   change it. The preview's own bottom margin moves to the strip, so the two
-   states leave the same gap above the form whether a file is attached or not. */
-.fg .xc-att { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; }
-.fg .xc-prev { display:block; max-height:220px; max-width:100%; border-radius:var(--r-card); border:1px solid var(--line); object-fit:contain; background:var(--tint); }
-.fg .xc-pdf { display:inline-flex; align-items:center; gap:8px; min-width:0; padding:12px 16px; border-radius:var(--r-card); border:1px solid var(--line); background:var(--tint); font-size:14px; font-weight:700; color:var(--ink); overflow-wrap:anywhere; }
-.fg .xc-pdf .i { flex:0 0 auto; color:var(--gray500); }
-.fg .xc-attk { flex:1 1 220px; min-width:0; }
-.fg .xc-attk b { display:block; font-size:14px; font-weight:700; }
-.fg .xc-attk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:4px; line-height:1.5; }
-.fg .xc-attb { display:flex; flex-wrap:wrap; gap:8px; flex:0 0 auto; margin-left:auto; }
-
-.fg .xc-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
-.fg .xc-f { display:flex; flex-direction:column; gap:4px; grid-column:span 2; }
-.fg .xc-f.sm { grid-column:span 1; }
-.fg .xc-f > span { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .xc-f select, .fg .xc-f input[type=date] { height:46px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font:inherit; font-size:14px; font-weight:600; color:var(--ink); }
-.fg .xc-act { display:flex; flex-wrap:wrap; gap:8px; }
-@media (max-width:560px){ .fg .xc-f.sm { grid-column:span 2; } }
 
 .fg .xc-list { display:flex; flex-direction:column; gap:8px; margin-top:24px; }
 .fg .xc-row { display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; padding:16px 16px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); }
@@ -4673,8 +4626,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-owedk { font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .xc-owed b { font-size:24px; font-weight:700; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .xc-owed em { flex:1 1 100%; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-/* Why Send is dark — the form saying what it wants rather than the server. */
-.fg .xc-need { align-self:center; font-size:13px; font-weight:600; color:var(--gray500); }
+
 
 .fg .xc-rec { font-size:12px; font-weight:700; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); }
 .fg .xc-cancel { font-size:12px; font-weight:700; color:var(--gray500); padding:2px 8px; border-radius:var(--r-control); transition:color var(--t-fast) var(--ease); }
@@ -5103,15 +5055,6 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    The centring translate has to be carried through every frame instead. */
 @keyframes wb2ModalIn { from { opacity:0; transform:translate(-50%,calc(-50% + 8px)); }
                         to   { opacity:1; transform:translate(-50%,-50%); } }
-/* A short drop for elements that sit where they already are. It had a twin,
-   `wb2DropIn`, that carried the capture card's centring translate in both
-   frames (`position:fixed; left:50%`); the job picker once borrowed that one
-   and, with `both` fill holding the last frame forever, was parked half its
-   own width to the left for good, the client name clipped out of view. The
-   twin went with the capture card (2026-09-27); nothing that is not centred
-   by transform should ever carry a translate in its last frame. */
-@keyframes wb2PickIn  { from { opacity:0; transform:translateY(-6px); }
-                        to   { opacity:1; transform:none; } }
 @keyframes wb2CardOut { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(-6px); } }
 .wb2-swap { animation:wb2CardIn .32s var(--ease) both; }
 
@@ -9197,36 +9140,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 @media (prefers-reduced-motion:reduce) { .wb2-recdot { animation:none; } }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap; }
 
-/* ── which job — confirm it, or search for the right one ──
-   The control sits ON the line it changes, not above it: "instead of saying
-   change it above, I'll hit the wrong one" (Isaac). And it's a SEARCH, not a
-   select — a select is a list you navigate past the answer, this is one you
-   narrow onto it. The capture card's job line was its first home; the
-   expense form's (components/expenses) is its one home since that card
-   went, 2026-09-27. */
-.wb2-capchange { margin-left:auto; flex:none; height:26px; padding:0 12px; border-radius:var(--r-pill);
-  border:1px solid rgba(5,5,5,.14); background:#fff; font:inherit; font-size:12px; font-weight:700;
-  color:var(--gray700); cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-capchange:hover { background:rgba(0,168,224,.07); border-color:var(--ink); color:var(--ink); }
-.wb2-capchange:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-jobpick { margin-top:8px; border:1px solid var(--wb2-line, var(--line)); border-radius:var(--r-card);
-  background:var(--paper); overflow:hidden;
-  animation:wb2PickIn .22s var(--ease) both; }
-.wb2-jobsearch { display:flex; align-items:center; gap:8px; padding:8px 12px;
-  border-bottom:1px solid var(--wb2-line2, var(--line)); color:var(--gray400); }
-.wb2-jobq { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:13px; font-weight:600;
-  color:var(--ink); }
-.wb2-jobq:focus { outline:none; }
-.wb2-jobq::-webkit-search-cancel-button { -webkit-appearance:none; }
-.wb2-joblist { max-height:230px; overflow-y:auto; overscroll-behavior:contain; padding:4px; }
-.wb2-jobopt { display:block; width:100%; text-align:left; padding:8px 8px; border:0; border-radius:var(--r-button);
-  background:none; font:inherit; font-size:13px; font-weight:600; color:var(--gray700); cursor:pointer;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-jobopt:hover { background:var(--info-tint); color:var(--ink); }
-.wb2-jobopt.on { background:var(--tint); color:var(--ink); font-weight:700; }
-.wb2-jobopt:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-joblist .wb2-hint { padding:8px; margin:0; }
-@media (prefers-reduced-motion:reduce) { .wb2-jobpick { animation:none; } }
 /* A quiet line under a row: when a note on my notes was made and how, and an
    entry's heading in the Library's queue. It was the review card's "said:"
    first, and outlived that card (2026-09-27). */
@@ -12753,6 +12666,30 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .mk-jobhits .mk-jobhit { display:block; width:100%; min-height:32px; padding:4px 8px; border:0; border-radius:var(--r-button); background:none; text-align:left; font:inherit; font-size:14px; line-height:20px; color:var(--ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
 .mk-jobhits .mk-jobhit:hover { background:var(--hov); }
 .mk-jobhits .mk-jobhit:focus-visible { outline:none; box-shadow:var(--ring); }
+
+/* ===== V2 FORMS, MONEY: Claim an expense and Add a cost (one form,
+   components/making/expense-form; boards form-10 and form-4) =====
+   The receipt first, in a dashed drop zone; then the receipt as a row, the
+   fields in pairs and threes, and fuel's own under a thin line. The door on
+   My expenses sits above the list. No `.fg`: the form portals to <body>. */
+.fg .mk-money-door { display:flex; margin-bottom:16px; }
+.mk-money-drop { display:flex; flex-direction:column; gap:12px; padding:24px; border:1px dashed var(--edge); border-radius:var(--r-card); transition:background-color var(--t-fast) var(--ease); }
+.mk-money-drop.mk-money-drop--over { background:var(--hov); }
+.mk-money-dropk { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.mk-money-dropb { display:flex; flex-wrap:wrap; gap:8px; }
+.mk-money-rec { display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); color:var(--q); }
+.mk-money-reck { flex:1; min-width:0; display:flex; flex-direction:column; }
+.mk-money-reck b { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
+.mk-money-reck em { font-size:13px; line-height:18px; font-weight:400; font-style:normal; color:var(--q); }
+.mk-money-recb { flex:none; display:flex; gap:4px; }
+.mk-money-trio { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; align-items:start; }
+.mk-money-fuel { display:flex; flex-direction:column; gap:16px; padding-top:24px; border-top:1px solid var(--line); }
+.mk-money-head { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.mk-money-need { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+@media (max-width:600px) {
+  .mk-money-trio { grid-template-columns:minmax(0,1fr); }
+  .mk-money-rec { flex-wrap:wrap; }
+}
 
 /* ===== V2: A VEHICLE'S PAGE (v2, "A vehicle's own page", 18 October; the
    boards v2-board-vehicle-*; components/fleet/vehicle-page) =====

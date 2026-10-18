@@ -185,10 +185,10 @@ export function LogModal({
   onClose: () => void;
 }) {
   const [vehicleId, setVehicleId] = useState(vehicle.id);
-  const [litres, setLitres] = useState("");
+  const [litres, setLitres] = useState(seed?.litres ?? "");
   const [cost, setCost] = useState(seed?.cost ?? "");
   const [odo, setOdo] = useState("");
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(seed?.note ?? "");
   /* Company card is the default because it is the common case AND the one that
      raises nothing extra — the path with a consequence has to be chosen. A
      docket handed over from My expenses already carries the answer. */

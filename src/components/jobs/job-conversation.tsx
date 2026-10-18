@@ -109,6 +109,7 @@ const LANE_ICON: Record<PlanRowView["lane"], string> = {
   commissioningEntries: "note",
   kbEntries: "library",
   calendar: "calendar",
+  visits: "calendar",
 };
 
 export function JobConversation({

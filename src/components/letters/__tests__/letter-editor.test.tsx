@@ -92,5 +92,5 @@ it("deletes after a second press, and goes back to the list", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Delete" }));
   await userEvent.click(screen.getByRole("button", { name: "Delete letter" }));
   await waitFor(() => expect(deleteLetter).toHaveBeenCalledWith("l-1"));
-  expect(push).toHaveBeenCalledWith("/dashboard/admin/letters");
+  expect(push).toHaveBeenCalledWith("/dashboard/documents?view=letter");
 });

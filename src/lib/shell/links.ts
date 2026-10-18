@@ -33,7 +33,10 @@ export const vehiclePageHref = (id: string, section?: string) =>
     name, is every job, visit, project and photo that names them. */
 export const clientHref = (name: string) => `/dashboard/workboard?q=${encodeURIComponent(name)}`;
 
-export const projectHref = (id: string) => `/dashboard/workboard/projects/${encodeURIComponent(id)}`;
+/** The projects, where a job is made a project (and so has a handover sheet). */
+export const projectsHref = "/dashboard/workboard/projects";
+
+export const projectHref = (id: string) =>`/dashboard/workboard/projects/${encodeURIComponent(id)}`;
 
 /** A maintenance visit opens on the board's Maintenance side with its sheet
     up (the page reads `?visit=`). */

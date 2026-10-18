@@ -12856,3 +12856,69 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .sc-whob:hover .sc-name { text-decoration:underline; text-underline-offset:3px; }
 .fg .sc-whob:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 .fg .sc-headacts { margin-left:auto; display:flex; gap:8px; }
+
+/* ===== V2: DOCUMENTS (v2, step 5; components/documents; the board
+   5-documents) =====
+   The title with what's been made beside it in grey, the search and Make a
+   document on the right; the kinds as soft tabs (rule 29) with By and Sort
+   beside them; then the table, a row per document (rule 39) under
+   hairlines, grouped by kind on All, and the Templates in a rail on the
+   right, a group under thin lines (rule 35). The parts draw the tabs, the
+   fields, the dots, the state words, the discs and the menu; these rules
+   only lay them out. Desktop at 1440 is the target. */
+.fg .dc2 { display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .dc2-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.fg .dc2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.fg .dc2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .dc2-made { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .dc2-tools { display:flex; align-items:center; gap:12px; flex:0 1 auto; min-width:0; }
+.fg .dc2-search { position:relative; display:flex; align-items:center; width:320px; min-width:0; }
+.fg .dc2-search-icon { position:absolute; left:12px; display:inline-flex; color:var(--q); pointer-events:none; }
+.fg .dc2-search .pt-input.dc2-search-input { padding-left:calc(12px + 16px + 8px); padding-right:calc(32px + 8px); }
+.fg .dc2-search .dc2-search-clear { position:absolute; right:2px; }
+.fg .dc2-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
+.fg .dc2-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.fg .dc2-picks { display:flex; align-items:center; gap:8px; }
+.fg .dc2-pick { position:relative; display:inline-flex; align-items:center; }
+/* the chooser's own word, inside its box on the left: "By Anyone" */
+.fg .dc2-pick-word { position:absolute; left:12px; font-size:14px; line-height:20px; font-weight:400; color:var(--q); pointer-events:none; }
+.fg .dc2-pick .pt-chooser.dc2-pick-ch { width:auto; min-width:176px; padding-left:calc(12px + 24px); }
+.fg .dc2-pick .pt-chooser.dc2-pick-ch--sort { padding-left:48px; }
+/* the list and the rail beside it */
+.fg .dc2-body { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:48px; align-items:start; }
+.fg .dc2-panel { min-width:0; }
+.fg .dc2-table { --dc2-cols:minmax(0,1.4fr) minmax(0,1.2fr) minmax(0,1.3fr) 112px 32px; min-width:0; }
+.fg .dc2-rows { margin:0; padding:0; list-style:none; }
+.fg .dc2-row { display:grid; grid-template-columns:var(--dc2-cols); align-items:center; gap:16px; padding:12px 8px; border-bottom:1px solid var(--line); color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
+.fg .dc2-row.dc2-row--head { padding-top:8px; padding-bottom:8px; }
+.fg .dc2-rows .dc2-row:hover { background:var(--hov); }
+.fg .dc2-rows .dc2-row:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .dc2-cell { display:flex; align-items:center; gap:8px; min-width:0; font-size:14px; line-height:20px; font-weight:400; }
+.fg .dc2-row--head .dc2-cell { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg .dc2-ic { display:inline-flex; flex:0 0 auto; color:var(--q); }
+.fg .dc2-name { font-weight:600; }
+.fg .dc2-quiet { color:var(--q); }
+/* the row's one dot is its job's: the state is the word alone, as the board draws it */
+.fg .dc2-state .pt-state .pt-dot { display:none; }
+.fg .dc2-state .pt-state { font-size:14px; line-height:20px; max-width:100%; min-width:0; }
+.fg .dc2-state .pt-state__word { min-width:0; }
+.fg .dc2-day { color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .dc2-by { justify-content:flex-end; }
+/* a kind's group on All: its name and count, Show all on the right */
+.fg .dc2-group-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:24px 8px 8px; border-bottom:1px solid var(--line); }
+.fg .dc2-group-h { margin:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .dc2-count { margin-left:4px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .dc2-showall { padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.fg .dc2-showall:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-button); }
+/* the Templates rail */
+.fg .dc2-rail { display:flex; flex-direction:column; min-width:0; }
+.fg .dc2-rail-h { margin:0; padding:8px 0 12px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .dc2-tpls { margin:0; padding:0; list-style:none; }
+.fg .dc2-tpl { display:flex; flex-direction:column; gap:2px; padding:12px 0; border-bottom:1px solid var(--line); color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
+.fg .dc2-tpl:hover { background:var(--hov); }
+.fg .dc2-tpl:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .dc2-tpl-name { font-size:14px; line-height:20px; font-weight:600; }
+.fg .dc2-tpl-line { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .dc2-tpl-line--look { color:var(--orange-w); font-weight:500; }
+.fg .dc2-tpl-line--good { color:var(--green-w); font-weight:500; }
+.fg .dc2-tpl-line--wrong { color:var(--red-w); font-weight:500; }

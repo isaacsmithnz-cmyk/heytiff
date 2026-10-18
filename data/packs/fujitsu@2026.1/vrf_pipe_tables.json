@@ -1,0 +1,523 @@
+[
+ {
+  "series": "AJT-LCLCH",
+  "pipe_sizing": {
+   "method": "size_by_downstream_kw",
+   "steps": [
+    {
+     "kw_max": 19.6,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 14,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 34,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    },
+    {
+     "index_max": 54,
+     "liquid_mm": 9.52,
+     "gas_mm": 19.05
+    }
+   ]
+  },
+  "downstream_not_larger": true,
+  "joint_selection": {
+   "steps": [
+    {
+     "kw_max": 19.6,
+     "part_ref": "UTP-AX054A"
+    }
+   ]
+  },
+  "header_selection": {
+   "steps": [
+    {
+     "branches_max": 6,
+     "kw_max": 28.0,
+     "part_ref": "UTR-H0906L"
+    },
+    {
+     "branches_max": 8,
+     "kw_max": 28.0,
+     "part_ref": "UTR-H0908L"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 80,
+   "max_farthest_actual_m": 50,
+   "max_after_first_joint_m": 40,
+   "max_lift_odu_above_m": 30,
+   "max_lift_odu_below_m": 30,
+   "max_lift_idu_idu_m": 15,
+   "min_odu_to_nearest_m": 5,
+   "min_odu_to_first_joint_m": 3
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "6.35": 21,
+      "9.52": 58
+     }
+    }
+   ],
+   "round_up_g": 10
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLCH",
+   "edition": "DV_J4ST070EF_08 (2024.11.25, GENERAL Partner Portal)",
+   "page": "f.06-18 (limits, actual pipe length); f.06-23 (Tables A, B, C; C > B → B); f.06-24 (separation tube, headers by total indoor kW); f.06-26, f.06-27 (additional charge, round up to 0.01 kg)"
+  }
+ },
+ {
+  "series": "AJT-LCLBH",
+  "pipe_sizing": {
+   "method": "size_by_downstream_kw",
+   "steps": [
+    {
+     "kw_max": 19.6,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 14,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 34,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    },
+    {
+     "index_max": 54,
+     "liquid_mm": 9.52,
+     "gas_mm": 19.05
+    }
+   ]
+  },
+  "downstream_not_larger": true,
+  "joint_selection": {
+   "steps": [
+    {
+     "kw_max": 19.6,
+     "part_ref": "UTP-AX054A"
+    }
+   ]
+  },
+  "header_selection": {
+   "steps": [
+    {
+     "branches_max": 6,
+     "kw_max": 28.0,
+     "part_ref": "UTR-H0906L"
+    },
+    {
+     "branches_max": 8,
+     "kw_max": 28.0,
+     "part_ref": "UTR-H0908L"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 80,
+   "max_farthest_actual_m": 50,
+   "max_after_first_joint_m": 40,
+   "max_lift_odu_above_m": 30,
+   "max_lift_odu_below_m": 30,
+   "max_lift_idu_idu_m": 15,
+   "min_odu_to_nearest_m": 5,
+   "min_odu_to_first_joint_m": 3
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "6.35": 21,
+      "9.52": 58
+     }
+    }
+   ],
+   "round_up_g": 10
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVS Design & Technical Manual AJT040-054LCLBH",
+   "edition": "DV_J4ST070EF_03 (GENERAL Partner Portal)",
+   "page": "f.06-18 (limits, actual pipe length); f.06-23 (Tables A, B, C; C > B → B); f.06-24 (separation tube, headers by total indoor kW); f.06-26, f.06-27 (additional charge, round up to 0.01 kg)"
+  }
+ },
+ {
+  "series": "AJT-LBLCH",
+  "pipe_sizing": {
+   "method": "size_by_downstream_kw",
+   "steps": [
+    {
+     "kw_max": 11.1,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    },
+    {
+     "kw_max": 23.2,
+     "liquid_mm": 9.52,
+     "gas_mm": 19.05
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 14,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 34,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    },
+    {
+     "index_max": 54,
+     "liquid_mm": 9.52,
+     "gas_mm": 19.05
+    }
+   ]
+  },
+  "downstream_not_larger": true,
+  "liquid_step_ups": [
+   {
+    "farthest_m_min": 90,
+    "odus": [
+     "AJT040LBLCH",
+     "AJT045LBLCH"
+    ],
+    "gas_mm": 19.05,
+    "roles": [
+     "main"
+    ]
+   }
+  ],
+  "joint_selection": {
+   "steps": [
+    {
+     "kw_max": 19.6,
+     "part_ref": "UTP-AX054A"
+    },
+    {
+     "kw_max": 28.0,
+     "part_ref": "UTP-AX090A"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 180,
+   "max_farthest_actual_m": 120,
+   "max_after_first_joint_m": 40,
+   "max_lift_odu_above_m": 50,
+   "max_lift_odu_below_m": 40,
+   "max_lift_idu_idu_m": 15,
+   "min_odu_to_nearest_m": 5,
+   "min_odu_to_first_joint_m": 3
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "6.35": 21,
+      "9.52": 58
+     }
+    }
+   ],
+   "round_up_g": 10
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IV Design & Technical Manual AJT040-054LBLCH",
+   "edition": "DV_J4T068EF_09 (GENERAL Partner Portal)",
+   "page": "f.06-18 (limits, actual pipe length); f.06-23 (Table A: condition 1 < 90 m = the connections, condition 2 ≥ 90 m gas 19.05); f.06-24 (Tables B, C; B > A → A, C > B → B); f.06-25 (separation tubes by total indoor kW; headers UTR-H0906L/H0908L printed without a kW, so no header_selection is written); f.06-27, f.06-28 (additional charge, round up to 0.01 kg)"
+  }
+ },
+ {
+  "series": "AJY-LBLBH",
+  "pipe_sizing": {
+   "method": "size_by_downstream_kw",
+   "steps": [
+    {
+     "kw_max": 11.1,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    },
+    {
+     "kw_max": 23.2,
+     "liquid_mm": 9.52,
+     "gas_mm": 19.05
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 14,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 34,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    },
+    {
+     "index_max": 54,
+     "liquid_mm": 9.52,
+     "gas_mm": 19.05
+    }
+   ]
+  },
+  "downstream_not_larger": true,
+  "liquid_step_ups": [
+   {
+    "farthest_m_min": 90,
+    "odus": [
+     "AJY040LBLBH",
+     "AJY045LBLBH"
+    ],
+    "gas_mm": 19.05,
+    "roles": [
+     "main"
+    ]
+   }
+  ],
+  "joint_selection": {
+   "steps": [
+    {
+     "kw_max": 19.6,
+     "part_ref": "UTP-AX054A"
+    },
+    {
+     "kw_max": 28.0,
+     "part_ref": "UTP-AX090A"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 180,
+   "max_farthest_actual_m": 120,
+   "max_after_first_joint_m": 40,
+   "max_lift_odu_above_m": 50,
+   "max_lift_odu_below_m": 40,
+   "max_lift_idu_idu_m": 15,
+   "min_odu_to_nearest_m": 5,
+   "min_odu_to_first_joint_m": 3
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "6.35": 21,
+      "9.52": 58
+     }
+    }
+   ],
+   "round_up_g": 10
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IV Design & Technical Manual AJY040-054LBLBH",
+   "edition": "DV_J4T068EF_03 (GENERAL Partner Portal)",
+   "page": "f.06-18 (limits, actual pipe length); f.06-23 (Table A: condition 1 < 90 m = the connections, condition 2 ≥ 90 m gas 19.05); f.06-24 (Tables B, C; B > A → A, C > B → B); f.06-25 (separation tubes by total indoor kW; headers UTR-H0906L/H0908L printed without a kW, so no header_selection is written); f.06-27, f.06-28 (additional charge, round up to 0.01 kg)"
+  }
+ },
+ {
+  "series": "AJY-LELBH",
+  "pipe_sizing": {
+   "method": "size_by_downstream_kw",
+   "steps": [
+    {
+     "kw_max": 11.1,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    },
+    {
+     "kw_max": 13.9,
+     "liquid_mm": 9.52,
+     "gas_mm": 19.05
+    },
+    {
+     "kw_max": 19.6,
+     "liquid_mm": 12.7,
+     "gas_mm": 19.05
+    },
+    {
+     "kw_max": 28.0,
+     "liquid_mm": 12.7,
+     "gas_mm": 22.22
+    },
+    {
+     "kw_max": 99999,
+     "liquid_mm": 12.7,
+     "gas_mm": 28.58
+    }
+   ]
+  },
+  "branch_sizing": {
+   "method": "size_by_downstream_index",
+   "steps": [
+    {
+     "index_max": 9,
+     "liquid_mm": 6.35,
+     "gas_mm": 9.52
+    },
+    {
+     "index_max": 18,
+     "liquid_mm": 6.35,
+     "gas_mm": 12.7
+    },
+    {
+     "index_max": 60,
+     "liquid_mm": 9.52,
+     "gas_mm": 15.88
+    },
+    {
+     "index_max": 90,
+     "liquid_mm": 9.52,
+     "gas_mm": 19.05
+    },
+    {
+     "index_max": 96,
+     "liquid_mm": 9.52,
+     "gas_mm": 22.22
+    }
+   ]
+  },
+  "downstream_not_larger": true,
+  "liquid_step_ups": [
+   {
+    "ratio_over_pct": 110,
+    "odus": [
+     "AJY090LELBH"
+    ],
+    "liquid_mm": 12.7,
+    "roles": [
+     "main"
+    ]
+   },
+   {
+    "to_first_joint_over_m": 70,
+    "odus": [
+     "AJY072LELBH",
+     "AJY090LELBH"
+    ],
+    "liquid_mm": 12.7,
+    "gas_mm": 22.22,
+    "roles": [
+     "main"
+    ]
+   }
+  ],
+  "branch_step_ups": [
+   {
+    "below_index": 12,
+    "own_over_m": 20,
+    "gas_mm": 12.7
+   }
+  ],
+  "joint_selection": {
+   "steps": [
+    {
+     "kw_max": 19.6,
+     "part_ref": "UTP-AX054A"
+    },
+    {
+     "kw_max": 28.0,
+     "part_ref": "UTP-AX090A"
+    },
+    {
+     "kw_max": 56.0,
+     "part_ref": "UTP-AX180A"
+    }
+   ]
+  },
+  "header_selection": {
+   "steps": [
+    {
+     "branches_max": 6,
+     "kw_max": 28.0,
+     "part_ref": "UTR-H0906L"
+    },
+    {
+     "branches_max": 8,
+     "kw_max": 28.0,
+     "part_ref": "UTR-H0908L"
+    },
+    {
+     "branches_max": 6,
+     "kw_max": 56.0,
+     "part_ref": "UTR-H1806L"
+    },
+    {
+     "branches_max": 8,
+     "kw_max": 56.0,
+     "part_ref": "UTR-H1808L"
+    }
+   ]
+  },
+  "limits": {
+   "max_total_m": 400,
+   "max_farthest_actual_m": 120,
+   "max_after_first_joint_m": 90,
+   "max_lift_odu_above_m": 50,
+   "max_lift_odu_below_m": 40,
+   "max_lift_idu_idu_m": 40,
+   "min_odu_to_nearest_m": 5,
+   "min_odu_to_first_joint_m": 3
+  },
+  "additional_charge": {
+   "method": "per_meter_by_liquid_size_by_farthest",
+   "bands": [
+    {
+     "farthest_m_max": null,
+     "rates": {
+      "6.35": 21,
+      "9.52": 58,
+      "12.7": 114
+     }
+    }
+   ],
+   "round_up_g": 10
+  },
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.06-18 (limits, actual pipe length; H2 50 m with the outdoor above, 40 m with it below — the lower is written); f.06-23 (Table A: standard = the connections, condition 1 ratio > 110 %, condition 2 ODU → first tube > 70 m); f.06-24 (Tables B, C and the 20 m note; B > A → A, C > B → B); f.06-25 (separation tubes, headers by total indoor kW); f.06-27, f.06-28 (additional charge, round up to 0.01 kg)"
+  }
+ }
+]

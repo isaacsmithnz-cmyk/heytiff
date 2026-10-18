@@ -53,7 +53,9 @@ export const PLACES: readonly Place[] = [
     under: ["/dashboard/swms", "/dashboard/admin/letters"],
     capability: "workboard",
   },
-  { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff", under: [], capability: "tiff" },
+  /* the Library lands on its documents (v2, step 5); asking it, today's
+     /dashboard/tiff, is still the Library's */
+  { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff/library", under: ["/dashboard/tiff"], capability: "tiff" },
   { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", under: [], capability: "studio" },
   /* Time & Pay and Assets moved into Team (its Timesheets, Leave, Expenses and Vehicles views); their old addresses still light it */
   { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: ["/dashboard/timepay", "/dashboard/assets", "/dashboard/vehicles"], capability: "team" },

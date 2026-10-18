@@ -105,4 +105,15 @@ describe("the sidebar's places (rules 5 and 7)", () => {
     expect(placeOn(team, "/dashboard/vehiclesx")).toBe(false);
     expect(STILL_TO_MOVE.some((p) => p.key === "assets" || p.key === "timepay")).toBe(false);
   });
+
+  /* the Library lands on its documents (v2), and asking it is still the Library's */
+  it("takes the Library to its documents, and lights it on the ask page too", () => {
+    const library = PLACES.find((p) => p.key === "library")!;
+    expect(library.href).toBe("/dashboard/tiff/library");
+    expect(placeOn(library, "/dashboard/tiff/library")).toBe(true);
+    expect(placeOn(library, "/dashboard/tiff")).toBe(true);
+    expect(placeOn(library, "/dashboard/tiffany")).toBe(false);
+    // the tools keep their own row until the Library takes them in
+    expect(placeOn(library, "/dashboard/toolbox")).toBe(false);
+  });
 });

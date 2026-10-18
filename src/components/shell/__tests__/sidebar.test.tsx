@@ -105,7 +105,10 @@ describe("the places (rule 5)", () => {
 
   it("keeps today's screens that haven't moved yet, after a hairline", () => {
     draw(userAs("owner"));
-    expect(places()).toEqual(expect.arrayContaining(["Toolbox", "Time & Pay", "Assets"]));
+    expect(places()).toEqual(expect.arrayContaining(["Workboard", "Toolbox"]));
+    /* Time & Pay and Assets moved into Team (19 October) */
+    expect(places()).not.toContain("Time & Pay");
+    expect(places()).not.toContain("Assets");
     expect(document.querySelector(".fr-places .fr-hair")).not.toBeNull();
   });
 

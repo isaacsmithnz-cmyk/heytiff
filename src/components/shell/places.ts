@@ -55,7 +55,8 @@ export const PLACES: readonly Place[] = [
   },
   { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff", under: [], capability: "tiff" },
   { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", under: [], capability: "studio" },
-  { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: [], capability: "team" },
+  /* Time & Pay and Assets moved into Team (its Timesheets, Leave, Expenses and Vehicles views); their old addresses still light it */
+  { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: ["/dashboard/timepay", "/dashboard/assets", "/dashboard/vehicles"], capability: "team" },
 ];
 
 /** Today's screens that keep a row until their v2 place takes them in. */
@@ -63,9 +64,6 @@ export const STILL_TO_MOVE: readonly Place[] = [
   /* the board keeps its row until Schedule (its day, its weeks, its display) is rebuilt */
   { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", under: [], capability: "workboard" },
   { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", under: [], capability: "toolbox" },
-  { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", under: [], capability: "timepay_all" },
-  /* a vehicle's own page lights Assets, where its register is, until Team takes the fleet in */
-  { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", under: ["/dashboard/vehicles"], capability: "assets_all" },
 ];
 
 /** Your name's menu (rule 7), in its order, then Sign out. */

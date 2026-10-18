@@ -97,11 +97,12 @@ describe("the sidebar's places (rules 5 and 7)", () => {
   });
 
   /* a vehicle is a page now (v2), and Assets, where its register is, says you're in it */
-  it("lights Assets on the register and on a vehicle's own page", () => {
-    const assets = STILL_TO_MOVE.find((p) => p.key === "assets")!;
-    expect(placeOn(assets, "/dashboard/assets")).toBe(true);
-    expect(placeOn(assets, "/dashboard/vehicles/v1")).toBe(true);
-    expect(placeOn(assets, "/dashboard/vehiclesx")).toBe(false);
-    expect(PLACES.some((p) => placeOn(p, "/dashboard/vehicles/v1"))).toBe(false);
+  it("lights Team on the old Time & Pay and Assets addresses and on a vehicle's own page", () => {
+    const team = PLACES.find((p) => p.key === "team")!;
+    expect(placeOn(team, "/dashboard/timepay")).toBe(true);
+    expect(placeOn(team, "/dashboard/assets")).toBe(true);
+    expect(placeOn(team, "/dashboard/vehicles/v1")).toBe(true);
+    expect(placeOn(team, "/dashboard/vehiclesx")).toBe(false);
+    expect(STILL_TO_MOVE.some((p) => p.key === "assets" || p.key === "timepay")).toBe(false);
   });
 });

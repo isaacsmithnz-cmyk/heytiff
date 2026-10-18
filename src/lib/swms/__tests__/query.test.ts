@@ -151,7 +151,7 @@ describe("raisedIssues", () => {
 /* Documents (v2): every SWMS in the workspace, read by the job card's engine */
 describe("listOrgSwms", () => {
   it("summarises each SWMS as the job card does, newest first, with its job and its kind", async () => {
-    mockDb.tables.swms_versions.find((v: { id: string }) => v.id === "w1").kind = "service";
+    Object.assign(mockDb.tables.swms_versions.find((v) => v.id === "w1")!, { kind: "service" });
     const all = await listOrgSwms(ORG);
     expect(all.map((s) => [s.swmsId, s.jobUuid, s.kind])).toEqual([
       ["s-2", "job-2", "service"],

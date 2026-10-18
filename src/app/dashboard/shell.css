@@ -9904,7 +9904,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    than left for the next person to trip over. */
 
 /* ── the KB curation queue ── */
-.fg .adm-badge { flex:none; margin-right:8px; color:var(--ink); font-size:14px; font-weight:500; }
 .wb2-kbqrow { display:grid; gap:8px; padding:16px 16px; border-bottom:1px solid var(--line); }
 .wb2-kbqrow:last-child { border-bottom:0; }
 .wb2-kbqhead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -12605,3 +12604,28 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .fg .lb2-head { flex-wrap:wrap; }
   .fg .lb2-search { width:240px; }
 }
+
+/* ===== V2: SETTINGS AND REPORTS (v2, the screens with no board, 18 October;
+   components/settings, components/analytics) =====
+   SETTINGS. The head every settings page wears (settings-head.tsx): the
+   way back to Settings above the title in ink (rule 26), the title at 24,
+   the grey fact line, the page's own button or state word on the right.
+   It sits where the band sat, in the band's 24px gutter, and the panel
+   under it keeps its line and its scroll. The index: each area's name on
+   the left, its rows on the right (rule 39), a thin line between areas. */
+.fg .st2-head { flex:none; display:flex; flex-direction:column; gap:8px; padding:24px 24px 16px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .st2-back { align-self:flex-start; display:inline-flex; align-items:center; gap:4px; margin-left:-4px; padding:2px 4px; border-radius:var(--r-button);
+  font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:none; transition:background-color var(--t-fast) var(--ease); }
+.fg .st2-back-word { text-decoration:underline; text-underline-offset:2px; }
+.fg .st2-back:hover { background-color:var(--hov); }
+.fg .st2-back:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .st2-top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; min-width:0; }
+.fg .st2-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.fg .st2-h1 { margin:0; min-width:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .st2-facts { margin:0; min-width:0; font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .st2-tools { flex:none; display:flex; align-items:center; gap:8px; }
+.fg .st2-groups { display:flex; flex-direction:column; gap:24px; min-width:0; }
+.fg .st2-group { display:grid; grid-template-columns:240px minmax(0,1fr); gap:32px; align-items:start; min-width:0; }
+.fg .st2-group + .st2-group { padding-top:24px; border-top:1px solid var(--line); }
+.fg .st2-gh { margin:0; padding-top:12px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .st2-group .pt-row { padding-block:12px; }

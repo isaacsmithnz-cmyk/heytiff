@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
-import { AdminIndex } from "@/components/admin/admin-index";
+import { SettingsIndex } from "@/components/settings/settings-index";
 import { hasMinRole } from "@/lib/roles";
 import { can, getDbRole } from "@/lib/permissions-server";
 import { countUnreviewedFieldNotes } from "@/lib/tiff/field-notes";
 
-/* The Admin SECTION is admin+ — "Staff: Admin section hidden entirely" per
+/* SETTINGS (it was Admin). The SECTION is admin+ — "Staff: Admin section hidden entirely" per
    docs/roles-and-permissions.md. Its ITEMS gate individually: the rate
    calculator needs `financials` — owner by default and grantable to an admin —
    while organisation settings and the owner tools are owner-INTRINSIC (co-owners
@@ -32,7 +32,7 @@ export default async function AdminPage() {
     orgId ? countUnreviewedFieldNotes(orgId) : Promise.resolve(0),
   ]);
   return (
-    <AdminIndex
+    <SettingsIndex
       isOwner={hasMinRole(role, "owner")}
       canFinancials={canFinancials}
       canJobMoney={canJobMoney}

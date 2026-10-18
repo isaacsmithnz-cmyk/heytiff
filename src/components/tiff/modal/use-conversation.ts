@@ -34,7 +34,7 @@ import { filesNothing } from "@/lib/workboard/note-draft";
 import type { NoteDoor, NoteDoorKind } from "@/lib/workboard/note-applied";
 import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type EarlierTurn, type TiffRoom } from "@/lib/workboard/note-turns";
 import { notedLine } from "@/lib/calendar/line";
-import { askLine, calendarRows, lastTiff, planView, tiffSince, type PlanRowView } from "./plan-view";
+import { askLine, calendarRows, lastTiff, planView, tiffSince, withVariationCards, type PlanRowView } from "./plan-view";
 import { quietLimit } from "./quiet";
 import { openRecordByName, type OpenResult } from "@/app/actions/tiff-open";
 import { openName, parseMove } from "@/lib/tiff/moves";
@@ -399,7 +399,8 @@ export function useConversation({
       changed.current = true;
       filed.current = [...filed.current, { noteId: n.id, ids: res.doors.flatMap((d) => d.ids) }];
       const gone = new Set(leave.current);
-      const rows = planView(n.proposal, n.staff, false).filter((row) => !gone.has(row.key));
+      /* a variation's row says what it became, and opens on the quote */
+      const rows = withVariationCards(planView(n.proposal, n.staff, false).filter((row) => !gone.has(row.key)), res.variations);
       return settle(() => {
         tiffSays(lastTiff(res.turns) || "Done.", "filed", {
           rows,

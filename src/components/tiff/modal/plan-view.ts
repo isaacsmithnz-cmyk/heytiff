@@ -2,6 +2,7 @@ import { planRows, type PlanLane } from "@/lib/workboard/note-draft";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import type { Turn } from "@/lib/workboard/note-turns";
 import type { LinePlanRow } from "@/lib/calendar/line";
+import type { VariationCard } from "@/lib/workboard/note-variation";
 
 /* WHAT TIFF WILL FILE, AS SHE SAYS IT — pure.
 
@@ -32,11 +33,14 @@ export type PlanRowView = {
   off?: boolean;
   /** A library entry waits for its own press ("Add to the Library"). */
   kb?: "ready" | "busy" | "added";
+  /** Once filed, where the thing it made opens: a variation's quote page. */
+  open?: string;
 };
 
 /** The lane's own word, where a row has no person to lead with. */
 const LEAD: Record<Exclude<PlanLane, "tasks" | "visits">, string> = {
   costs: "Cost",
+  variations: "Variation",
   flags: "On the board",
   issueEntries: "Logged",
   bringItems: "Bring",
@@ -94,6 +98,17 @@ export function planView(
       needs: false,
       ...(row.lane === "kbEntries" ? { kb: "ready" as const } : {}),
     };
+  });
+}
+
+/** The plan's rows once filed, with what a variation became laid over its
+    row: "Started variation 1: return grille in Bed 2", and the quote page
+    on it as the row's Open (note-variation). A task it became says so. */
+export function withVariationCards(rows: readonly PlanRowView[], cards: readonly VariationCard[] | undefined): PlanRowView[] {
+  if (!cards?.length) return [...rows];
+  return rows.map((r) => {
+    const card = r.lane === "variations" ? cards.find((c) => c.index === r.index) : undefined;
+    return card ? { ...r, text: card.title, ...(card.href ? { open: card.href } : {}) } : r;
   });
 }
 

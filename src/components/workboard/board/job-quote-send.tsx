@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { quoteSendOffered, sendQuoteToSm8, type QuoteSendAnswer } from "@/app/actions/quote-sm8";
+import { quoteSendOffered, sendQuoteToSm8, sendVariationToSm8, type QuoteSendAnswer, type VariationSendAnswer } from "@/app/actions/quote-sm8";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { NONE_ACCEPTED, NOT_APPROVED, type SendPlan } from "@/lib/quotes/sm8-send-plan";
 
@@ -138,3 +138,10 @@ function SendResult({ answer }: { answer: QuoteSendAnswer }) {
     </>
   );
 }
+
+/** AN ACCEPTED VARIATION TO SERVICEM8, as extra lines on the job (decision
+    21): the quote page presses it on accepting, and its rail again while it
+    hasn't all gone. Here beside the accepted quote's send, the one door the
+    page reaches the send's action by. */
+export const sendVariation = (job: string, option: number): Promise<VariationSendAnswer> =>
+  sendVariationToSm8(job, option).catch((): VariationSendAnswer => ({ ok: false, error: "HeyTiff couldn't send that. Nothing went; try again." }));

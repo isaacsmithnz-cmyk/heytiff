@@ -48,6 +48,7 @@ import {
   doorsOf,
   filedCosts,
   freshIssueIds,
+  startedOn,
   stillThere,
   takesBack,
   textKey,
@@ -116,6 +117,19 @@ import {
 import { claimCost, costRoute, readNoteReceipt, type ClaimJob } from "@/lib/workboard/note-cost-file";
 import { cancelClaim } from "./expenses";
 import { isCancellable, isExpenseStatus } from "@/lib/expenses/claim";
+import {
+  variationCards,
+  variationDoneLine,
+  variationRefusedLine,
+  variationTaskDetail,
+  variationTaskTitle,
+  variationUndoneLine,
+  type ProposedVariation,
+  type VariationCard,
+  type VariationMade,
+} from "@/lib/workboard/note-variation";
+import { startNoteVariation, variationRoute } from "@/lib/workboard/note-variation-start";
+import { VARIATION_KEPT, dropVariation, variationDraft } from "@/lib/quotes/lines-job-server";
 import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 
 /* Smart Notes — capture, route, file, take back.
@@ -194,7 +208,8 @@ export type FileResult =
       (`undoVisit`). `ask`: a visit with no clear time, asked once the rest
       is filed (decision 13); its answer goes to `answerVisit`. */
   /** `costs`: the cards of the costs it recorded, each with its own Undo
-      (`undoCost`). */
+      (`undoCost`). `variations`: the variations it started, each with Open
+      (the quote page on it) and its own Undo (`undoVariation`). */
   | {
       ok: true;
       summary: string;
@@ -202,6 +217,7 @@ export type FileResult =
       turns: Turn[];
       visits?: VisitCard[];
       costs?: CostCard[];
+      variations?: VariationCard[];
       ask?: FileAsk;
     }
   /** `turns` when it asked: the conversation with the question on the end. */
@@ -1415,7 +1431,9 @@ export async function fileNote(
   const { target } = picked;
   /* a cost is a cost ON a job: one said with no job asks which, as a flag does */
   const costsOn = draft.costs.some((c) => c.on);
-  if ((jobBound(draft) || costsOn) && (target.kind === "none" || !target.id)) {
+  /* and a variation is a change to a job's quote: the same */
+  const variationsOn = draft.variations.some((v) => v.on);
+  if ((jobBound(draft) || costsOn || variationsOn) && (target.kind === "none" || !target.id)) {
     const jobs = matchedJobs(said, await jobCandidates(ctx.orgId), 3);
     const ask: FileAsk = {
       question: WHICH_JOB,
@@ -1502,10 +1520,34 @@ export async function fileNote(
     if (costTaskIds.length) done.applied.taskIds = [...appliedOf(done.applied).taskIds, ...costTaskIds];
   }
 
+  /* THE VARIATIONS (v2 step 6, slice D): each started as a draft on the
+     job's accepted quote through the quote page's own action, behind its
+     money gate, or made the task its route says it must be
+     (note-variation-start). Decision 13: a price change is drafted, never
+     priced or sent from here. */
+  const money = variationsOn ? await can("financials") : false;
+  const varJob = variationsOn ? (jobLabel ?? (await targetLabel(ctx.orgId, target))) : null;
+  const variationsMade: VariationMade[] = [];
+  const variationTaskIds: string[] = [];
+  const variationLines: string[] = [];
+  for (const [index, v] of draft.variations.entries()) {
+    if (!v.on) continue;
+    const r = await makeVariation(ctx, note, target, v, index, { money, jobLabel: varJob });
+    if ("made" in r) {
+      variationsMade.push(r.made);
+      if (r.made.taskId) variationTaskIds.push(r.made.taskId);
+    }
+    variationLines.push(r.line);
+  }
+  if (variationsMade.length) {
+    done.applied.variations = variationsMade;
+    if (variationTaskIds.length) done.applied.taskIds = [...appliedOf(done.applied).taskIds, ...variationTaskIds];
+  }
+
   const ask = asks.length ? await visitAsk(ctx, target, plan.visits[asks[0]!]!, asks[0]!, today, visitStaff) : null;
   /* "Done." only over something done: a note whose one row is a visit
      still to be timed says the question alone */
-  const didSomething = takesBack(appliedOf(done.applied)) || made.length > 0 || costsMade.length > 0 || !ask;
+  const didSomething = takesBack(appliedOf(done.applied)) || made.length > 0 || costsMade.length > 0 || variationsMade.length > 0 || !ask;
 
   const filed = withTurns(
     turns.length ? turns : [turn("you", note.transcript)],
@@ -1513,6 +1555,7 @@ export async function fileNote(
     ...(didSomething ? [turn("tiff", doneLine(plan.say))] : []),
     ...visitLines.map((l) => turn("tiff", l)),
     ...costLines.map((l) => turn("tiff", l)),
+    ...variationLines.map((l) => turn("tiff", l)),
     ...(ask ? [turn("tiff", ask.question)] : []),
   );
   const proposal = note.proposal as Record<string, unknown>;
@@ -1559,6 +1602,7 @@ export async function fileNote(
     turns: filed,
     ...(made.length ? { visits: visitCards(made, today) } : {}),
     ...(costsMade.length ? { costs: costCards(costsMade) } : {}),
+    ...(variationsMade.length ? { variations: variationCards(variationsMade) } : {}),
     ...(ask ? { ask } : {}),
   };
 }
@@ -1999,6 +2043,113 @@ export async function undoCost(noteId: string, index: number): Promise<UndoResul
   return { ok: true, summary, turns };
 }
 
+/* ── VARIATIONS (v2 step 6, slice D) ─────────────────────────────────────
+
+   A change the client wants to the job's accepted quote, said in its
+   conversation. `fileNote` starts each as a draft; `undoVariation` is a
+   variation card's own Undo. Which way each goes, and the start itself, is
+   note-variation-start's: the quote page's own `startVariation` and gate. */
+
+type VariationStep = { made: VariationMade; line: string } | { line: string };
+
+/** Start one variation, or say why not: the draft on the accepted quote,
+    or the task its route makes it (no accepted quote, or no money access),
+    through the one writer like every other task a note makes. */
+async function makeVariation(
+  ctx: Ctx,
+  note: Pick<NoteRow, "id" | "transcript">,
+  target: NoteTarget,
+  v: ProposedVariation,
+  index: number,
+  input: { money: boolean; jobLabel: string | null },
+): Promise<VariationStep> {
+  const route = await variationRoute(ctx.orgId, target, input.money);
+  const base: VariationMade = { index, how: "started", why: null, what: v.what, jobUuid: route.jobUuid, n: null, option: null, taskId: null, undone: false };
+
+  if (route.kind === "task") {
+    if (!ctx.staffId) return { line: variationRefusedLine(v.what, "Your staff profile isn't set up yet.") };
+    const res = await applyConfirmed(
+      ctx,
+      note,
+      {
+        ...NO_ROWS,
+        tasks: [
+          {
+            title: variationTaskTitle(v.what, route.why),
+            detail: variationTaskDetail(route.why, input.jobLabel),
+            assigneeId: ctx.staffId,
+            dueDate: null,
+          },
+        ],
+      },
+      target,
+    );
+    const taskId = res.ok ? appliedOf(res.applied).taskIds[0] : undefined;
+    if (!taskId) return { line: variationRefusedLine(v.what, res.ok ? "That task couldn't be saved." : res.error) };
+    const made: VariationMade = { ...base, how: "task", why: route.why, taskId };
+    return { made, line: variationDoneLine(made) };
+  }
+
+  const started = await startNoteVariation(ctx.orgId, route.jobUuid, v.what, ctx.userId);
+  if (!started.ok) return { line: variationRefusedLine(v.what, started.error) };
+  const made: VariationMade = { ...base, n: started.n, option: started.option };
+  return { made, line: variationDoneLine(made) };
+}
+
+/** A VARIATION CARD'S OWN UNDO. A variation started is taken back as the
+    empty draft it still is (`dropVariation`: its copied lines off, each kept
+    in the quote's history, then its record); one changed, approved or sent
+    since stays, and says so. A variation that became a task goes as a
+    note's task goes, unless someone has acted on it. The rest of the note
+    stands, and the note's own Undo no longer counts it. */
+export async function undoVariation(noteId: string, index: number): Promise<UndoResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
+
+  const note = await noteIn(ctx.orgId, noteId);
+  if (!note) return { ok: false, error: GONE };
+  const mine = !!ctx.staffId && note.author_id === ctx.staffId;
+  if (!mine && !(await can("team"))) return { ok: false, error: UNDO.notYours };
+  if (note.status !== "applied") return { ok: false, error: note.status === "undone" ? UNDO.undone : UNDO.notFiled };
+
+  const a = appliedOf(note.applied);
+  const v = a.variations.find((m) => m.index === index);
+  if (!v) return { ok: false, error: UNDO.notFiled };
+  if (v.undone) return { ok: false, error: UNDO.undone, turns: turnsOf(note.turns) };
+
+  if (v.how === "started" && v.jobUuid && v.option !== null) {
+    /* the quote page's own gate: a variation is a money op there */
+    if (!(await can("financials"))) return { ok: false, error: VARIATION_MONEY };
+    const r = await dropVariation(ctx.orgId, v.jobUuid, v.option, ctx.userId);
+    /* one taken off the quote since is taken back already */
+    if (!r.ok && r.reason !== VARIATION_KEPT.gone) return { ok: false, error: r.reason };
+  } else if (v.taskId) {
+    if (!(await takeBackTask(ctx, v.taskId))) return { ok: false, error: UNDO.acted };
+  }
+
+  await supabaseAdmin.rpc("workboard_note_file_record", {
+    p_org: ctx.orgId,
+    p_note: noteId,
+    p_applied: {
+      variations: a.variations.map((m) => (m.index === index ? { ...m, undone: true } : m)),
+      ...(v.taskId ? { taskIds: a.taskIds.filter((id) => id !== v.taskId) } : {}),
+    },
+  });
+  const summary = variationUndoneLine(v);
+  const turns = withTurns(turnsOf(note.turns), turn("tiff", summary));
+  await supabaseAdmin
+    .from("workboard_notes")
+    .update({ turns })
+    .eq("org_id", ctx.orgId)
+    .eq("id", noteId)
+    .eq("status", "applied");
+  refreshHome({ kind: note.target_kind, id: note.target_id });
+  return { ok: true, summary, turns };
+}
+
+/** Why a variation's Undo is refused to someone without money access. */
+const VARIATION_MONEY = "Taking a variation back needs money access, as starting one does.";
+
 /** Ask instead of filing, and KEEP THE QUESTION ON THE NOTE: Tiff's turn in
     the conversation, so the diary's last line is the question and the reply
     that follows it reads as its answer, and the proposal's `clarify`, so the
@@ -2220,6 +2371,19 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   /* one cancelled in Expense claims since is taken back already */
   const claims = claimsNow.filter((r) => r.status !== "cancelled").map((r) => r.id);
 
+  /* ITS VARIATIONS, CHECKED BEFORE ANYTHING GOES: one changed, approved or
+     sent since is somebody's work now, and stops the Undo as a ticked task
+     does; one taken off the quote since is taken back already. Taken back
+     below, after the claims, as the empty drafts they still are. */
+  const varied = startedOn(a);
+  if (varied.length && !(await can("financials"))) return { ok: false, error: VARIATION_MONEY };
+  const drafts: VariationMade[] = [];
+  for (const v of varied) {
+    const d = await variationDraft(ctx.orgId, v.jobUuid!, v.option!);
+    if (d.state === "touched") return { ok: false, error: VARIATION_KEPT.touched };
+    if (d.state === "empty") drafts.push(v);
+  }
+
   /* ITS VISITS' BOOKINGS FIRST, the way the job card's Undo takes one back
      (takeBackBooking: its gate, its queue, its refusals in its own words).
      They are ServiceM8's to refuse, so they go before anything here is
@@ -2234,6 +2398,11 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   for (const id of claims) {
     const r = await cancelClaim(id);
     if (!r.ok) return { ok: false, error: r.error };
+  }
+  /* then its variations, each the empty draft it was checked to be */
+  for (const v of drafts) {
+    const r = await dropVariation(ctx.orgId, v.jobUuid!, v.option!, ctx.userId);
+    if (!r.ok && r.reason !== VARIATION_KEPT.gone) return { ok: false, error: r.reason };
   }
 
   /* ── claimed: only one Undo lands ── */

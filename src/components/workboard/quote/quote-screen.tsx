@@ -17,7 +17,7 @@ import type { FamilyMoney } from "@/lib/workboard/job-family";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import { JobMediaViewer } from "../board/job-media-viewer";
-import { JobQuoteSend } from "../board/job-quote-send";
+import { JobQuoteSend, sendVariation } from "../board/job-quote-send";
 import { useQuotePrice } from "./quote-parts";
 import { QuoteLinesFace, type QuoteStage } from "./quote-lines-face";
 import { ToastHost, useBoardToasts } from "../board/toasts";
@@ -64,6 +64,7 @@ export function QuoteScreen({
   moneyVisible,
   financials,
   start = false,
+  option = null,
 }: {
   job: string;
   detail: Detail;
@@ -71,6 +72,8 @@ export function QuoteScreen({
   financials: boolean;
   /** from the job card's Create a quote (?start=1): straight into the reply box */
   start?: boolean;
+  /** ?option=N: opened on that option, a variation Tiff started */
+  option?: number | null;
 }) {
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [family, setFamily] = useState<FamilyMoney | null>(null);
@@ -199,6 +202,8 @@ export function QuoteScreen({
               onOpenPaper={(item) => setPaper(item)}
               money={financials}
               start={start}
+              openAt={option}
+              sendVariation={(o) => sendVariation(job, o)}
             />
           ) : onLines === false ? (
             <div className="qp-wait">

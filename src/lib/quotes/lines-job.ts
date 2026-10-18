@@ -63,8 +63,52 @@ export type Variation = {
   startedBy: string;
   approvedAt: string | null;
   acceptedAt: string | null;
+  /** its lines sent to ServiceM8 on the original job (decision 21, Isaac,
+      2026-10-18): what went, on which job, so it can be shown and taken
+      back; absent until it has gone */
+  sm8?: VariationSent | null;
 };
 export const MAX_VARIATION_WHAT = 500;
+
+/** AN ACCEPTED VARIATION, ADDED TO THE JOB IN SERVICEM8 (Isaac, 2026-10-18,
+    decision 21: extra lines on the original job): when and by whom,
+    whether it was only a trial run, the job's number, how many lines it
+    was and how many went, and the uuid each line went under, the one a
+    take-back names. No money: the landing shows it to a tech too. */
+export type VariationSent = {
+  at: string;
+  by: string;
+  trial: boolean;
+  /** the job's number in ServiceM8, "3209"; null when the mirror has none */
+  jobNumber: string | null;
+  /** the lines the send was */
+  lines: number;
+  /** the lines ServiceM8 holds now */
+  sent: number;
+  /** each line's uuid in ServiceM8 */
+  lineUuids: string[];
+};
+
+/** Whether a variation's lines are all in ServiceM8, for real: nothing of
+    it goes again. */
+export const variationInSm8 = (v: Pick<Variation, "sm8">): boolean => !!v.sm8 && !v.sm8.trial && v.sm8.lines > 0 && v.sm8.sent >= v.sm8.lines;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function sentOf(raw: unknown): VariationSent | null {
+  const x = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  if (!x || typeof x.at !== "string" || !x.at) return null;
+  const count = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 500 ? v : 0);
+  return {
+    at: x.at,
+    by: said(x.by, 120),
+    trial: x.trial === true,
+    jobNumber: said(x.jobNumber, 40) || null,
+    lines: count(x.lines),
+    sent: count(x.sent),
+    lineUuids: (Array.isArray(x.lineUuids) ? x.lineUuids : []).filter((u): u is string => typeof u === "string" && UUID_RE.test(u)).slice(0, 500),
+  };
+}
 
 /** Units a compare holds beside its suggestions, at most. */
 export const MAX_COMPARED = 4;
@@ -124,7 +168,18 @@ export function byHandOf(draft: unknown): ByHand {
     const at = (k: string) => (typeof x[k] === "string" && x[k] ? (x[k] as string) : null);
     if (!Number.isInteger(n) || n < 1 || !Number.isInteger(option) || option < 1 || option > 19 || !Number.isInteger(of) || of < 0 || of === option) continue;
     if (variations.some((w) => w.option === option)) continue;
-    variations.push({ n, option, of, what: said(x.what, MAX_VARIATION_WHAT), startedAt: at("startedAt") ?? "", startedBy: said(x.startedBy, 120), approvedAt: at("approvedAt"), acceptedAt: at("acceptedAt") });
+    const sm8 = sentOf(x.sm8);
+    variations.push({
+      n,
+      option,
+      of,
+      what: said(x.what, MAX_VARIATION_WHAT),
+      startedAt: at("startedAt") ?? "",
+      startedBy: said(x.startedBy, 120),
+      approvedAt: at("approvedAt"),
+      acceptedAt: at("acceptedAt"),
+      ...(sm8 ? { sm8 } : {}),
+    });
   }
   const rawSent = o.sent && typeof o.sent === "object" ? (o.sent as Record<string, unknown>) : null;
   const sent = rawSent && typeof rawSent.at === "string" && rawSent.at ? { at: rawSent.at, by: said(rawSent.by, 120), trial: rawSent.trial === true } : null;
@@ -150,6 +205,35 @@ export function withVariation(b: ByHand, option: number, what: string, by: strin
     names,
     variations: [...b.variations, { n, option, of, what: said(what, MAX_VARIATION_WHAT), startedAt: now, startedBy: by, approvedAt: null, acceptedAt: null }],
   };
+}
+
+/** What a send of variation `option` to ServiceM8 did, kept on it. */
+export const withVariationSent = (b: ByHand, option: number, sent: VariationSent): ByHand => ({
+  ...b,
+  variations: b.variations.map((v) => (v.option === option ? { ...v, sm8: sent } : v)),
+});
+
+/** A variation taken back while it is still an empty draft (Tiff's Undo,
+    v2 step 6, slice D): its record and its name go. Its lines are the
+    caller's to take off. */
+export function withoutVariation(b: ByHand, option: number): ByHand {
+  const names = [...b.names];
+  if (option < names.length) names[option] = "";
+  while (names.length && !names[names.length - 1]) names.pop();
+  return { ...b, names, variations: b.variations.filter((v) => v.option !== option) };
+}
+
+/** Whether a variation is still the copy it was started as: never
+    approved, accepted or sent, and its lines the accepted option's, line
+    for line (a change made and put back counts as none). Only such a draft
+    is taken back. */
+export function variationUntouched(v: Variation, base: readonly QuoteLine[], varied: readonly QuoteLine[]): boolean {
+  if (v.approvedAt || v.acceptedAt || v.sm8) return false;
+  const key = (l: QuoteLine) =>
+    JSON.stringify([l.system, l.group, l.name, l.code, l.supplierKey, l.kind, l.qty, l.unit, l.costCents, l.sellCents, l.duct, l.estimate ?? false, l.visit ?? null]);
+  const a = base.map(key).sort();
+  const b = varied.map(key).sort();
+  return a.length === b.length && a.every((k, i) => k === b[i]);
 }
 
 /** A variation approved, or accepted by the client, now; marked again, it's taken off. */

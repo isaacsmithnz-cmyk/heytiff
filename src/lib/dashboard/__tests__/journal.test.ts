@@ -31,6 +31,7 @@ describe("describeApplied", () => {
       "bringItems",
       "visits",
       "costs",
+      "variations",
       "kbIds",
       "jobNotes",
       "noteLines",

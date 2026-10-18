@@ -111,6 +111,7 @@ const LANE_ICON: Record<PlanRowView["lane"], string> = {
   calendar: "calendar",
   visits: "calendar",
   costs: "receipt",
+  variations: "file",
 };
 
 export function JobConversation({
@@ -532,7 +533,8 @@ function Replies({ talk, who }: { talk: JobNoteTalk; who: string }) {
 /** Undo for a note's cards: the conversation's own, so its line follows. */
 type UndoAsk = { noteId: string; busy?: boolean; onUndo?: (noteId: string) => void };
 
-function MadeList({ cards, undo }: { cards: (Omit<MadeCard, "kind"> & { icon: string })[]; undo: UndoAsk | null }) {
+/** `open`: where the thing a card names opens, a variation's quote page. */
+function MadeList({ cards, undo }: { cards: (Omit<MadeCard, "kind"> & { icon: string; open?: string })[]; undo: UndoAsk | null }) {
   const one = cards.length === 1;
   const press = undo?.onUndo
     ? (
@@ -559,6 +561,11 @@ function MadeList({ cards, undo }: { cards: (Omit<MadeCard, "kind"> & { icon: st
               <Fade className="cv-result-name">{c.name}</Fade>
               <span className="cv-result-line">{c.line}</span>
             </span>
+            {c.open && (
+              <Button kind="quiet" size={32} href={c.open}>
+                Open
+              </Button>
+            )}
             {one && press}
           </li>
         ))}
@@ -587,7 +594,7 @@ function LiveTiff({
   const rows = (turn.rows ?? []).filter((r) => !r.off);
   const cards = turn.filed
     ? rows.length
-      ? rows.map((r) => ({ key: r.key, icon: LANE_ICON[r.lane], name: r.text, line: r.lead }))
+      ? rows.map((r) => ({ key: r.key, icon: LANE_ICON[r.lane], name: r.text, line: r.lead, ...(r.open ? { open: r.open } : {}) }))
       : (turn.doors ?? []).map((d) => ({ key: d.kind, icon: "check", name: d.label, line: "Filed on the job" }))
     : [];
   const quick = asking ? (turn.quick ?? []) : [];

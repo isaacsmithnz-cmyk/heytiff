@@ -3,6 +3,7 @@ import { isRemindKind, type RemindKind } from "@/lib/dashboard/reminders";
 import type { NoteProposal, ProposedTask, Severity } from "./note-brain";
 import { isVisitPart, visitDay, visitMinutes, visitStart, type ProposedVisit } from "./note-visit";
 import { costFields, costRowText, type ProposedCost } from "./note-cost";
+import { variationFields, type ProposedVariation } from "./note-variation";
 
 /* FROM A PROPOSAL TO WHAT GETS FILED — pure, and on both sides of the wire.
 
@@ -42,6 +43,10 @@ export type Draft = {
   /** Costs to record. Not filed by `toConfirmed`: `fileNote` files each
       through the expense form's own action, or asks first (note-cost). */
   costs: (ProposedCost & { on: boolean })[];
+  /** Variations to start. Not filed by `toConfirmed`: `fileNote` starts each
+      through the quote page's own `startVariation`, or makes the task its
+      gate says it must be (note-variation). */
+  variations: (ProposedVariation & { on: boolean })[];
   bringItems: { on: boolean; text: string }[];
   flags: { on: boolean; message: string; severity: string }[];
   progressBullets: { on: boolean; text: string }[];
@@ -76,6 +81,7 @@ export function toDraft(p: NoteProposal): Draft {
     })),
     visits: p.visits.map((v) => ({ ...v, on: true })),
     costs: p.costs.map((c) => ({ ...c, on: true })),
+    variations: p.variations.map((v) => ({ ...v, on: true })),
     bringItems: p.bringItems.map((text) => ({ on: true, text })),
     flags: p.flags.map((f) => ({ on: true, message: f.message, severity: f.severity })),
     progressBullets: p.progressBullets.map((text) => ({ on: true, text })),
@@ -168,6 +174,7 @@ export const PLAN_LANES = [
   "tasks",
   "visits",
   "costs",
+  "variations",
   "flags",
   "issueEntries",
   "bringItems",
@@ -192,6 +199,7 @@ export function planRows(p: NoteProposal): PlanRow[] {
   add("tasks", p.tasks.map((t) => t.title));
   add("visits", p.visits.map((v) => v.work));
   add("costs", p.costs.map(costRowText));
+  add("variations", p.variations.map((v) => v.what));
   add("flags", p.flags.map((f) => f.message));
   add("issueEntries", p.issueEntries.map((e) => e.body));
   add("bringItems", p.bringItems);
@@ -214,6 +222,7 @@ export function withoutRows(d: Draft, keys: readonly string[]): Draft {
     tasks: d.tasks.map((r) => ({ ...r })),
     visits: d.visits.map((r) => ({ ...r })),
     costs: d.costs.map((r) => ({ ...r })),
+    variations: d.variations.map((r) => ({ ...r })),
     bringItems: d.bringItems.map((r) => ({ ...r })),
     flags: d.flags.map((r) => ({ ...r })),
     progressBullets: d.progressBullets.map((r) => ({ ...r })),
@@ -298,10 +307,14 @@ export function storedProposal(raw: unknown): NoteProposal | null {
     return fields ? { ...fields, payerId: typeof c.payerId === "string" && c.payerId ? c.payerId : null } : null;
   });
 
+  /* and for variations: words to change, or none */
+  const variations = list<ProposedVariation>(r.variations, (v) => variationFields(v as { what: unknown }));
+
   return {
     tasks,
     visits,
     costs,
+    variations,
     bringItems: strs(r.bringItems),
     flags: list(r.flags, (f) =>
       str(f.message).trim()

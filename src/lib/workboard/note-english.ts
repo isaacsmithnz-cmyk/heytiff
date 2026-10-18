@@ -78,6 +78,8 @@ export function recordStrings(p: NoteProposal): string[] {
   for (const v of p.visits) out.push(v.work);
   /* what a cost was for; the supplier is a name, kept as said */
   for (const c of p.costs) out.push(c.whatFor);
+  /* what the client wants changed: the variation's words on the quote */
+  for (const v of p.variations) out.push(v.what);
   out.push(...p.bringItems);
   for (const f of p.flags) out.push(f.message);
   out.push(...p.progressBullets);
@@ -118,6 +120,7 @@ export function withTranslations(
     })),
     visits: p.visits.map((v) => ({ ...v, work: s(v.work) })),
     costs: p.costs.map((c) => ({ ...c, whatFor: s(c.whatFor) })),
+    variations: p.variations.map((v) => ({ ...v, what: s(v.what) })),
     bringItems: p.bringItems.map(s),
     flags: p.flags.map((f) => ({ ...f, message: s(f.message) })),
     progressBullets: p.progressBullets.map(s),

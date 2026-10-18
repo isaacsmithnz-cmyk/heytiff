@@ -125,7 +125,7 @@ describe("the schema", () => {
 
 describe("the prompt rule", () => {
   const head = systemBlocks(ctx)[0]!.text;
-  const rule = head.slice(head.indexOf("- costs:"), head.indexOf("- bring_items:"));
+  const rule = head.slice(head.indexOf("- costs:"), head.indexOf("- variations:"));
 
   it("is in the cached head, said once, short", () => {
     expect(head).toContain("- costs: money spent for the job, '$85 at Reece for fittings'.");

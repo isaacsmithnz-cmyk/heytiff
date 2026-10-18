@@ -16,6 +16,8 @@ export const QUOTE_WORDS = {
     asQuoteJob: "Quote: the job's description",
     asQuoteAdd: "Quote: line {name} added",
     asQuoteOff: "Quote: line {name} taken off",
+    /* an accepted variation, added to the job as its own lines (decision 21) */
+    variationAdd: "Variation: line {name} added",
   },
   /* A row's reason, stored filled. */
   row: {
@@ -54,7 +56,7 @@ export const QUOTE_WORDS = {
   },
   scope: {
     materials:
-      "Lets HeyTiff add, change and remove the lines on a job. HeyTiff only touches a job you send an accepted quote for: it puts the quote's lines on (one per option at its total, or every line when your customers see line items) and takes off the lines that were there.",
+      "Lets HeyTiff add, change and remove the lines on a job. HeyTiff only touches a job you send an accepted quote for: it puts the quote's lines on (one per option at its total, or every line when your customers see line items) and takes off the lines that were there. An accepted variation adds its own lines beside them and takes nothing off.",
   },
   kindWords: {
     quoteOne: "1 quote change",

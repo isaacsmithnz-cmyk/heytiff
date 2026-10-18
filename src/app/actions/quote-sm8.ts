@@ -28,11 +28,14 @@ import { sm8CallOf } from "@/lib/integrations/sm8-http";
 import { readSm8Raw } from "@/lib/integrations/sm8-write";
 import { sameEditDate } from "@/lib/integrations/sm8-note-plan";
 import { QUOTE_WORDS, quoteRows } from "@/lib/integrations/sm8-quote-plan";
-import { readSm8SendView, type SendAs } from "@/lib/quotes/sm8-send-server";
-import { markSent } from "@/lib/quotes/lines-job-server";
+import { readSm8SendView, readVariationSendView, type SendAs } from "@/lib/quotes/sm8-send-server";
+import { markSent, markVariationSent } from "@/lib/quotes/lines-job-server";
 import { planKey } from "@/lib/quotes/sm8-send-plan";
+import { INVOICE_AGAIN, variationRows, variationSentLine } from "@/lib/quotes/sm8-variation-plan";
+import type { Variation } from "@/lib/quotes/lines-job";
 import { queueAcceptedQuote } from "./sm8-quote-queue";
 import { quotesOnTrial } from "@/lib/integrations/sm8-quote-trial";
+import { createHash } from "node:crypto";
 
 const SEND_BUDGET_MS = 12_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -110,5 +113,85 @@ export async function sendQuoteToSm8(
     sent: rows.filter((r) => r.status === "sent").length,
     waiting: rows.filter((r) => r.status === "queued" || r.status === "sending").length,
     failed: rows.filter((r) => r.status === "failed" || r.status === "cancelled").map((r) => r.last_error ?? QUOTE_WORDS.row.refused),
+  };
+}
+
+/* AN ACCEPTED VARIATION, ADDED TO THE JOB IN SERVICEM8 (Isaac, 2026-10-18,
+   decision 21: extra lines on the original job). The quote page presses it
+   the moment a variation is marked accepted, and its rail offers it again
+   while it hasn't all gone. The accepted quote's own door, gates and queue
+   (`queueAcceptedQuote`, kind "quote"), with only lines added: the job
+   record is never written and no line comes off (sm8-variation-plan.ts).
+
+   ONCE. The press id is the variation's own, the same on every press (the
+   job, the option, when it was started), so each line is one queue row
+   for good: a line that went is "already" to every later press, and only
+   a line that failed or was a trial run goes again. A variation whose
+   lines all went for real queues nothing (variationInSm8). What went, on
+   which job and under which uuids, is kept on the variation. */
+
+export type VariationSendAnswer =
+  | { ok: true; trial: boolean; sent: number; lines: number; waiting: number; failed: string[]; invoiced: boolean; said: string }
+  | { ok: false; error: string };
+
+/** The variation's own press id: a uuid's shape, the same for every press
+    of this variation, and new for a variation started again in its place. */
+function variationPressId(orgId: string, jobUuid: string, v: Pick<Variation, "option" | "n" | "startedAt">): string {
+  const h = createHash("sha256").update(`variation:${orgId}:${jobUuid.toLowerCase()}:${v.option}:${v.n}:${v.startedAt}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+export async function sendVariationToSm8(jobUuid: string, option: number): Promise<VariationSendAnswer> {
+  const startedAt = Date.now();
+  const g = await gate();
+  if ("error" in g) return { ok: false, error: g.error };
+  if (!UUID.test(jobUuid) || !Number.isInteger(option) || option < 1 || option > 19) return { ok: false, error: QUOTE_WORDS.press.unqueued };
+
+  const view = await readVariationSendView(g.orgId, jobUuid, option);
+  if (!view.plan.ok || !view.variation) return { ok: false, error: view.plan.ok ? "That option isn't a variation." : view.plan.why };
+  const plan = view.plan;
+  const v = view.variation;
+
+  /* ServiceM8 as it is now: the job there, and live */
+  const access = await sm8AccessResult(g.orgId);
+  if (!access.ok) return { ok: false, error: QUOTE_WORDS.press.unreadable };
+  const liveJob = await readSm8Raw(sm8CallOf(access.access, "read"), "job", jobUuid);
+  if (!liveJob.ok) return { ok: false, error: QUOTE_WORDS.press.unreadable };
+  if (!liveJob.found || liveJob.active !== 1) return { ok: false, error: QUOTE_WORDS.row.gone };
+
+  const press = await sm8PressFromSession();
+  if (!press || press.orgId !== g.orgId) return { ok: false, error: QUOTE_WORDS.press.unqueued };
+  const q = await queueAcceptedQuote(press, variationPressId(g.orgId, jobUuid, v), jobUuid, variationRows(plan));
+  if (!q.ok) return q;
+  await settlePressedWrites(g.orgId, q.ids, { startedAt, budgetMs: SEND_BUDGET_MS });
+
+  /* every row of this variation, the ones an earlier press sent too */
+  const subjects = variationRows(plan).map((r) => `quote:${variationPressId(g.orgId, jobUuid, v)}:${r.key}`);
+  const { data } = await supabaseAdmin.from("sm8_writes").select("id, status, last_error, remote_uuid").eq("org_id", g.orgId).in("subject", subjects);
+  const rows = (data ?? []) as { id: string; status: string; last_error: string | null; remote_uuid: string | null }[];
+  if (rows.some((r) => r.status === "sent")) syncSm8AfterSend(g.orgId);
+  const trial = rows.length > 0 && rows.every((r) => r.status === "trial");
+  const sent = rows.filter((r) => r.status === "sent");
+  const waiting = rows.filter((r) => r.status === "queued" || r.status === "sending").length;
+  const record = {
+    at: new Date().toISOString(),
+    by: press.userId,
+    trial,
+    jobNumber: plan.jobNumber,
+    lines: plan.lines.length,
+    sent: sent.length,
+    /* the uuid each line went under: what a take-back names */
+    lineUuids: rows.flatMap((r) => (r.remote_uuid && r.status !== "cancelled" && r.status !== "failed" && r.status !== "trial" ? [r.remote_uuid] : [])),
+  };
+  await markVariationSent(g.orgId, jobUuid, option, record, press.userId).catch(() => null);
+  return {
+    ok: true,
+    trial,
+    sent: sent.length,
+    lines: plan.lines.length,
+    waiting,
+    failed: rows.filter((r) => r.status === "failed" || r.status === "cancelled").map((r) => r.last_error ?? QUOTE_WORDS.row.refused),
+    invoiced: plan.invoiced,
+    said: [variationSentLine({ sm8: record }) ?? "", plan.invoiced && !trial && sent.length > 0 ? INVOICE_AGAIN : ""].filter(Boolean).join(" "),
   };
 }

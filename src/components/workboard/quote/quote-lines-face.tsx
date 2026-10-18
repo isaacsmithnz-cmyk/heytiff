@@ -18,6 +18,8 @@ import type { QuoteNote } from "@/lib/templates/settings";
 import { buildProgress, type PlannedPart } from "@/lib/quotes/build-progress";
 import type { Variation } from "@/lib/quotes/lines-job";
 import { VariationPaper } from "./variation-paper";
+import { VariationSm8 } from "./variation-sm8";
+import type { VariationSendAnswer } from "@/app/actions/quote-sm8";
 import { VersionPaper } from "./version-paper";
 import type { QuoteVersion } from "@/lib/quotes/quote-versions";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
@@ -136,6 +138,8 @@ export function QuoteLinesFace({
   onOpenPaper,
   money: moneyGrant = true,
   start = false,
+  openAt = null,
+  sendVariation: sendVariationTo,
 }: {
   job: string;
   price: QuotePrice | null | undefined;
@@ -162,9 +166,14 @@ export function QuoteLinesFace({
   onPriced: () => void;
   /** opened from the job card to start the quote (?start=1): the reply box takes the keys */
   start?: boolean;
+  /** opened on this option (?option=N): a variation Tiff started */
+  openAt?: number | null;
+  /** an accepted variation's lines to ServiceM8 on the job (decision 21,
+      job-quote-send.tsx); without it, nothing is sent */
+  sendVariation?: (option: number) => Promise<VariationSendAnswer>;
 }) {
   const { view, post, reload } = useQuoteLines(job, true);
-  const [at, setAt] = useState(0);
+  const [at, setAt] = useState(openAt ?? 0);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   /* the proposal, previewed in place of the left (7.1) */
@@ -329,8 +338,22 @@ export function QuoteLinesFace({
     setBusy(false);
     if (!v?.ok) return setNote(v?.reason ?? "That didn't save. Try again.");
     onPriced();
-    if (op === "variation-accept" && accepting)
+    if (op === "variation-accept" && accepting) {
       onToast?.(v.onJob?.added ? "The variation's new work is on the job's task list, and its new parts on the materials list" : "The variation's new work is on the job's task list");
+      /* accepted: its lines go to ServiceM8 on the original job (decision 21) */
+      await sendVariation(option);
+    }
+  };
+  /* AN ACCEPTED VARIATION TO SERVICEM8, as extra lines on the job (Isaac,
+     2026-10-18, decision 21): pressed on accepting, and again from the rail
+     while it hasn't all gone; what went is kept on the variation */
+  const [variationSent, setVariationSent] = useState<{ option: number; error: string | null } | null>(null);
+  const sendVariation = async (option: number) => {
+    if (!sendVariationTo) return;
+    const a = await sendVariationTo(option).catch((): VariationSendAnswer => ({ ok: false, error: "HeyTiff couldn't send that. Nothing went; try again." }));
+    setVariationSent({ option, error: a.ok ? (a.failed[0] ?? null) : a.error });
+    reload();
+    if (a.ok && a.said) onToast?.(a.said);
   };
 
   const priced = price && price.ok && o ? o : null;
@@ -642,7 +665,14 @@ export function QuoteLinesFace({
           building={building}
           send={
             <>
-              {money && accepted.length > 0 && send}
+              {money && variation && (
+                <VariationSm8
+                  variation={variation}
+                  error={variationSent?.option === variation.option ? variationSent.error : null}
+                  onSend={() => sendVariation(variation.option)}
+                />
+              )}
+              {money && accepted.length > 0 && !variation && send}
               {money && accepted.length === 0 && view?.approved && sendQuote?.(reload)}
             </>
           }

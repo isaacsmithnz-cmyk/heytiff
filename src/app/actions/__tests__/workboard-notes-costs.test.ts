@@ -174,6 +174,7 @@ const EMPTY: NoteProposal = {
   tasks: [],
   visits: [],
   costs: [],
+  variations: [],
   bringItems: [],
   flags: [],
   progressBullets: [],

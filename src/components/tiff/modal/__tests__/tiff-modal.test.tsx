@@ -181,6 +181,7 @@ const proposal = (p: Record<string, unknown>) => ({
   tasks: [],
   visits: [],
   costs: [],
+  variations: [],
   bringItems: [],
   flags: [],
   progressBullets: [],

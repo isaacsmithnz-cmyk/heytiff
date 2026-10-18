@@ -8,7 +8,7 @@
 
    THREE LANES, ONE CALL:
      ACTION  tasks · visits to book (note-visit) · costs (note-cost)
-             · bring-items · board flags
+             · variations (note-variation) · bring-items · board flags
      DATA    progress bullets · commissioning entries · recurring-issue log
              · plain_note, because a note is allowed to just be a note
      ASK     clarify, when intent or assignee is genuinely ambiguous —
@@ -50,6 +50,7 @@ import {
 } from "./note-visit";
 import { COSTS_MAX, COST_CATEGORIES, GST_BASES, costFields, costRowLine, type ProposedCost } from "./note-cost";
 import { PAID_WITH } from "@/lib/expenses/claim";
+import { VARIATIONS_MAX, variationFields, variationRowLine, type ProposedVariation } from "./note-variation";
 import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 import { looksLikeName } from "@/lib/staff/aliases";
 import { logUsage } from "@/lib/tiff/usage";
@@ -169,6 +170,12 @@ export type NoteProposal = {
       first when it has no amount (note-cost). Empty on every proposal
       stored before the lane. */
   costs: ProposedCost[];
+  /** A change the client wants to the accepted quote (v2 step 6, slice
+      D): "the client wants a return grille added in Bed 2". Started as a
+      variation's draft through the quote page's own `startVariation`, never
+      priced or sent (note-variation). Empty on every proposal stored before
+      the lane. */
+  variations: ProposedVariation[];
   bringItems: string[];
   flags: ProposedFlag[];
   progressBullets: string[];
@@ -337,6 +344,15 @@ export const NOTE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    variations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { what: str },
+        required: ["what"],
+        additionalProperties: false,
+      },
+    },
     bring_items: strArray,
     flags: {
       type: "array",
@@ -387,6 +403,7 @@ export const NOTE_SCHEMA = {
     "tasks",
     "visits",
     "costs",
+    "variations",
     "bring_items",
     "flags",
     "progress_bullets",
@@ -639,9 +656,10 @@ export function systemPrompt(ctx: NoteContext): string {
 /** THE SAME PROMPT IN TWO BLOCKS, and the split is for the bill. The rules
     ahead of the roster are the same bytes for every note from every person
     (777 tokens, counted 2026-09-29; the visits rule of 2026-10-18 added 329
-    characters, about 110 tokens by the same count's ratio, and the costs
-    rule of the same day 266 more, about 90, so about 980 until
-    it is counted again), so the first block is marked for the
+    characters, about 110 tokens by the same count's ratio, the costs rule
+    of the same day 266 more, about 90, and the variations rule 133 more,
+    about 45, so about 1,025 until it is counted again), so the first
+    block is marked for the
     prompt cache and a second note inside the hour reads it back at a
     twentieth of the price. Everything from `whoBlock` on names people, days and
     jobs and changes per note, so it rides after the mark.
@@ -686,6 +704,8 @@ const ROUTER_RULES = [
   "  in dollars as said, else 0; `gst` only a GST figure said, else 0;",
   "  `gst_basis` plus for 'plus GST'; `day` only if said; `payer_hint`",
   "  only when someone else paid. A cost is not also a task.",
+  "- variations: the client wants the accepted quote changed, 'add a",
+  "  return grille in Bed 2'. `what` in a few words. Not also a task.",
   "- bring_items: something to physically bring next visit.",
   "- flags: a problem that should be visible on the board until handled.",
   "  urgent = someone is blocked or it is unsafe; warn = needs attention;",
@@ -1111,6 +1131,16 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     });
   }
 
+  /* VARIATIONS (note-variation): what the client wants changed, in a few
+     words; one a note. Whether the job has an accepted quote to vary, and
+     whether the speaker may start one, is the filer's to say. */
+  const variations: ProposedVariation[] = [];
+  for (const v of Array.isArray(r.variations) ? r.variations : []) {
+    if (variations.length >= VARIATIONS_MAX) break;
+    const fields = variationFields((v && typeof v === "object" ? v : {}) as { what: unknown });
+    if (fields) variations.push(fields);
+  }
+
   const flags: ProposedFlag[] = [];
   for (const f of Array.isArray(r.flags) ? r.flags : []) {
     const row = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;
@@ -1166,6 +1196,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     tasks,
     visits,
     costs,
+    variations,
     bringItems: cleanList(r.bring_items, TITLE_MAX),
     flags,
     progressBullets: cleanList(r.progress_bullets, BODY_MAX),
@@ -1185,6 +1216,7 @@ export function isEmptyProposal(p: NoteProposal): boolean {
     p.tasks.length === 0 &&
     p.visits.length === 0 &&
     p.costs.length === 0 &&
+    p.variations.length === 0 &&
     p.bringItems.length === 0 &&
     p.flags.length === 0 &&
     p.progressBullets.length === 0 &&
@@ -1276,6 +1308,8 @@ export function rowLine(row: PlanRow, p: NoteProposal, staff: readonly NoteStaff
           : "the speaker";
       return costRowLine(c, payer);
     }
+    case "variations":
+      return variationRowLine(p.variations[row.index]);
     case "flags":
       return `Flag (${p.flags[row.index].severity}): ${row.text}`;
     case "issueEntries":

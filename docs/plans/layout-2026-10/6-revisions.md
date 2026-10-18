@@ -73,7 +73,7 @@ These are my recommendations from 17 October. The build follows them; any he cha
 18. Agreements come from Jobs › Agreements, private notes live in Conversations › Only me, your vehicle sits on your card, events come from Schedule.
 19. The canvas's archive page stays until phase 5 is done.
 20. The Library keeps its name, with the field tools as a shelf.
-21. A variation goes to ServiceM8 as its own job, linked under the original. (Open: many trades add it as lines on the original job instead. Recording how the client agreed to a variation is also recommended.)
+21. ~~A variation goes to ServiceM8 as its own job, linked under the original.~~ **Answered 18 October: an approved variation goes to ServiceM8 as extra lines on the original job.** (Recording how the client agreed to a variation is still recommended.)
 22. Photos taken in HeyTiff go to the ServiceM8 job automatically.
 23. Photos are read at once when someone is waiting, overnight for photo search.
 24. No redirect pages; an old address lands on Home.

@@ -7,7 +7,8 @@
    This module turns the sentence into a PROPOSAL of those things.
 
    THREE LANES, ONE CALL:
-     ACTION  tasks · visits to book (note-visit) · bring-items · board flags
+     ACTION  tasks · visits to book (note-visit) · costs (note-cost)
+             · bring-items · board flags
      DATA    progress bullets · commissioning entries · recurring-issue log
              · plain_note, because a note is allowed to just be a note
      ASK     clarify, when intent or assignee is genuinely ambiguous —
@@ -47,6 +48,8 @@ import {
   visitStart,
   type ProposedVisit,
 } from "./note-visit";
+import { COSTS_MAX, COST_CATEGORIES, GST_BASES, costFields, costRowLine, type ProposedCost } from "./note-cost";
+import { PAID_WITH } from "@/lib/expenses/claim";
 import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 import { looksLikeName } from "@/lib/staff/aliases";
 import { logUsage } from "@/lib/tiff/usage";
@@ -161,6 +164,11 @@ export type NoteProposal = {
       time, asked first when it hasn't (note-visit). Empty on every proposal
       stored before the lane. */
   visits: ProposedVisit[];
+  /** A cost spent for the job (v2 step 6, slice C): "$85 at Reece for
+      fittings". Filed through the expense form's own action, or asked
+      first when it has no amount (note-cost). Empty on every proposal
+      stored before the lane. */
+  costs: ProposedCost[];
   bringItems: string[];
   flags: ProposedFlag[];
   progressBullets: string[];
@@ -242,6 +250,10 @@ export type NoteContext = {
       note by ("and the same for Smith St"), never more to file. Shaped and
       capped by `earlierTurns` before it gets here. */
   earlier?: readonly EarlierTurn[];
+  /** A receipt photo came with the note (v2 step 6, slice C): it is a cost,
+      and its figures are read off the photo by the receipt reader, not by
+      the router. Said after the cache mark, only when it is true. */
+  receipt?: boolean;
 };
 
 export type NoteBrainResult =
@@ -305,6 +317,26 @@ export const NOTE_SCHEMA = {
         additionalProperties: false,
       },
     },
+    /* None nullable either: 0 is no amount and no GST said, "" no day. */
+    costs: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          amount: { type: "number" },
+          gst: { type: "number" },
+          gst_basis: { type: "string", enum: [...GST_BASES] },
+          supplier: str,
+          what_for: str,
+          category: { type: "string", enum: [...COST_CATEGORIES] },
+          day: str,
+          paid_with: { type: "string", enum: [...PAID_WITH] },
+          payer_hint: str,
+        },
+        required: ["amount", "gst", "gst_basis", "supplier", "what_for", "category", "day", "paid_with", "payer_hint"],
+        additionalProperties: false,
+      },
+    },
     bring_items: strArray,
     flags: {
       type: "array",
@@ -354,6 +386,7 @@ export const NOTE_SCHEMA = {
   required: [
     "tasks",
     "visits",
+    "costs",
     "bring_items",
     "flags",
     "progress_bullets",
@@ -606,8 +639,9 @@ export function systemPrompt(ctx: NoteContext): string {
 /** THE SAME PROMPT IN TWO BLOCKS, and the split is for the bill. The rules
     ahead of the roster are the same bytes for every note from every person
     (777 tokens, counted 2026-09-29; the visits rule of 2026-10-18 added 329
-    characters, about 110 tokens by the same count's ratio, so about 890
-    until it is counted again), so the first block is marked for the
+    characters, about 110 tokens by the same count's ratio, and the costs
+    rule of the same day 266 more, about 90, so about 980 until
+    it is counted again), so the first block is marked for the
     prompt cache and a second note inside the hour reads it back at a
     twentieth of the price. Everything from `whoBlock` on names people, days and
     jobs and changes per note, so it rides after the mark.
@@ -648,6 +682,10 @@ const ROUTER_RULES = [
   "  `day` as YYYY-MM-DD; `start` HH:MM only when a clock time is said,",
   "  else empty, with the part of the day in `part`; `minutes` the length",
   "  said, else 0. A visit is not also a task.",
+  "- costs: money spent for the job, '$85 at Reece for fittings'. `amount`",
+  "  in dollars as said, else 0; `gst` only a GST figure said, else 0;",
+  "  `gst_basis` plus for 'plus GST'; `day` only if said; `payer_hint`",
+  "  only when someone else paid. A cost is not also a task.",
   "- bring_items: something to physically bring next visit.",
   "- flags: a problem that should be visible on the board until handled.",
   "  urgent = someone is blocked or it is unsafe; warn = needs attention;",
@@ -691,6 +729,7 @@ function noteFacts(ctx: NoteContext): string {
     ...(ctx.speak ? [sayBlock(), ""] : []),
     whenBlock(ctx),
     ...(room ? [`\n${room}`] : []),
+    ...(ctx.receipt ? ["\nA receipt photo came with this note: it is a cost, and its figures are read off the photo."] : []),
     ...(earlier ? [earlier] : []),
     ctx.targetLabel ? `\nThis note is about: ${ctx.targetLabel}.` : "",
     ctx.equipment?.length ? `Equipment on site: ${ctx.equipment.join(", ")}.` : "",
@@ -1031,6 +1070,47 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
     });
   }
 
+  /* COSTS, re-derived field by field (note-cost): an amount a claim can
+     hold, GST only as said, a real day. The payer is the speaker unless
+     someone else is named, resolved and asked about as a task's person is. */
+  const costs: ProposedCost[] = [];
+  for (const c of Array.isArray(r.costs) ? r.costs : []) {
+    if (costs.length >= COSTS_MAX) break;
+    const row = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+    const fields = costFields({
+      amount: row.amount,
+      gst: row.gst,
+      gstBasis: row.gst_basis,
+      supplier: row.supplier,
+      whatFor: row.what_for,
+      category: row.category,
+      day: row.day,
+      paidWith: row.paid_with,
+      payerHint: row.payer_hint,
+    });
+    if (!fields) continue;
+    const match = fields.payerHint ? resolveAssignee(fields.payerHint, ctx.staff, ctx.author?.id) : null;
+    if (match?.kind === "ambiguous" && !clarify) {
+      clarify = { question: `Which ${fields.payerHint} did you mean?`, options: shortWhoLabels(match.names) };
+      escalated = true;
+    }
+    /* a payer nobody here goes by is asked about only where it matters: a
+       company card owes nobody */
+    if (match?.kind === "none" && fields.paidWith === "own" && ctx.askWho && !clarify) {
+      clarify = {
+        question: `Who paid: ${fields.payerHint}?`,
+        options: [...(ctx.author ? ["Me"] : []), ...namesMentioned(said, ctx.staff, ctx.author?.id)],
+      };
+      escalated = true;
+    }
+    costs.push({
+      ...fields,
+      payerId: match?.kind === "one" && match.id !== ctx.author?.id ? match.id : null,
+      /* the speaker named as themselves is the speaker */
+      payerHint: match?.kind === "one" && match.id === ctx.author?.id ? "" : fields.payerHint,
+    });
+  }
+
   const flags: ProposedFlag[] = [];
   for (const f of Array.isArray(r.flags) ? r.flags : []) {
     const row = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;
@@ -1085,6 +1165,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
   return {
     tasks,
     visits,
+    costs,
     bringItems: cleanList(r.bring_items, TITLE_MAX),
     flags,
     progressBullets: cleanList(r.progress_bullets, BODY_MAX),
@@ -1103,6 +1184,7 @@ export function isEmptyProposal(p: NoteProposal): boolean {
   return (
     p.tasks.length === 0 &&
     p.visits.length === 0 &&
+    p.costs.length === 0 &&
     p.bringItems.length === 0 &&
     p.flags.length === 0 &&
     p.progressBullets.length === 0 &&
@@ -1184,6 +1266,15 @@ export function rowLine(row: PlanRow, p: NoteProposal, staff: readonly NoteStaff
         .filter(Boolean)
         .join(" ");
       return `Visit for ${who}: ${v.work}, ${when}`;
+    }
+    case "costs": {
+      const c = p.costs[row.index];
+      const payer = c.payerId
+        ? (staff.find((s) => s.id === c.payerId)?.fullName ?? c.payerHint) || "someone"
+        : c.payerHint
+          ? `"${c.payerHint}" (matched to nobody)`
+          : "the speaker";
+      return costRowLine(c, payer);
     }
     case "flags":
       return `Flag (${p.flags[row.index].severity}): ${row.text}`;

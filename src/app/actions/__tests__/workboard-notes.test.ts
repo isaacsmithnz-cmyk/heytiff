@@ -134,6 +134,7 @@ const rowsFor = (table: string): Record<string, unknown>[] =>
 const confirmed = (over: Record<string, unknown> = {}) => ({
   tasks: [],
   visits: [],
+  costs: [],
   bringItems: [],
   flags: [],
   progressBullets: [],
@@ -157,6 +158,7 @@ const proposalOf = (c: ConfirmedNote): NoteProposal => ({
     remindKind: t.remindKind === "by" ? "by" : "at",
   })),
   visits: [],
+  costs: [],
   bringItems: c.bringItems,
   flags: c.flags.map((f) => ({ message: f.message, severity: f.severity as Severity })),
   progressBullets: c.progressBullets,

@@ -42,6 +42,11 @@ import {
 
 export type ExpenseResult = { ok: true } | { ok: false; error: string };
 
+/** A submit says which row it made: Tiff's note router files a cost through
+    this same action and keeps the id, so the cost's Undo can cancel it
+    (actions/workboard-notes, v2 step 6, slice C). */
+export type SubmitResult = { ok: true; id: string } | { ok: false; error: string };
+
 /* WHICH JOB, RESOLVED HERE AND NOWHERE ELSE.
 
    The browser sends a kind and an id. Both are claims about somebody else's
@@ -153,7 +158,7 @@ export async function submitClaim(
     /** kind + id only — the label is built here, from the row. */
     job?: { kind: string; id: string } | null;
   }
-): Promise<ExpenseResult> {
+): Promise<SubmitResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
 
@@ -235,7 +240,7 @@ export async function submitClaim(
   }
 
   refresh();
-  return { ok: true };
+  return { ok: true, id: String((data as { id: string }).id) };
 }
 
 export async function cancelClaim(claimId: string): Promise<ExpenseResult> {

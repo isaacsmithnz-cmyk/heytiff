@@ -23,6 +23,7 @@
    `kbTitles`) are not journal groups and never pass through `record`. */
 
 import { visitsOf, type VisitMade } from "./note-visit";
+import { costsOf, type CostMade } from "./note-cost";
 
 export const APPLIED_V = 2;
 
@@ -69,6 +70,11 @@ export type AppliedRecord = {
       or a task where it couldn't be one (note-visit). A visit that is a
       task is in `taskIds` too, and goes with the tasks. */
   visits: VisitMade[];
+  /** The costs it recorded (v2 step 6, slice C): an expense claim or a
+      company-card receipt through the expense form's action, or a task
+      where it couldn't be the speaker's to file (note-cost). A cost that is
+      a task is in `taskIds` too, and goes with the tasks. */
+  costs: CostMade[];
 };
 
 const strings = (v: unknown): string[] =>
@@ -127,6 +133,7 @@ export function appliedOf(raw: unknown): AppliedRecord {
     jobNotes: strings(r.jobNotes),
     noteLines: strings(r.noteLines),
     visits: visitsOf(r.visits),
+    costs: costsOf(r.costs),
   };
 }
 
@@ -134,6 +141,10 @@ export function appliedOf(raw: unknown): AppliedRecord {
     Undo cancels in ServiceM8 (takeBackBooking). */
 export const bookedVisits = (a: AppliedRecord): VisitMade[] =>
   a.visits.filter((v) => !v.undone && v.rowIds.length > 0);
+
+/** Its costs filed as expense claims and not taken back since: what its
+    Undo cancels (cancelClaim). */
+export const filedCosts = (a: AppliedRecord): CostMade[] => a.costs.filter((c) => !c.undone && !!c.claimId);
 
 /** The issues this note CREATED — the ones Undo deletes. A bump is put back
     instead, so it must never be in here. */
@@ -148,7 +159,7 @@ export function freshIssueIds(a: AppliedRecord): string[] {
    onto what landed. Counted from the record, never from the plan: a row that
    did not land is not a door. */
 
-export type NoteDoorKind = "tasks" | "visits" | "flags" | "issues" | "bring" | "lines";
+export type NoteDoorKind = "tasks" | "visits" | "costs" | "flags" | "issues" | "bring" | "lines";
 
 export type NoteDoor = {
   kind: NoteDoorKind;
@@ -170,6 +181,8 @@ export function doorsOf(a: AppliedRecord): NoteDoor[] {
   add("tasks", a.taskIds.length, `${plural(a.taskIds.length, "task", "tasks")} filed`, a.taskIds);
   const booked = bookedVisits(a);
   add("visits", booked.length, `${plural(booked.length, "visit", "visits")} booked`, booked.flatMap((v) => v.rowIds));
+  const costs = filedCosts(a);
+  add("costs", costs.length, `${plural(costs.length, "cost", "costs")} recorded`, costs.map((c) => c.claimId!));
   add("flags", a.flagIds.length, `${plural(a.flagIds.length, "flag", "flags")} raised`, a.flagIds);
   add("issues", a.issueIds.length, `${plural(a.issueIds.length, "issue", "issues")} logged`, a.issueIds);
   add(
@@ -197,7 +210,8 @@ export function takesBack(a: AppliedRecord): boolean {
       a.picklistIds.length +
       a.textWrites.length +
       a.kbIds.length +
-      bookedVisits(a).length >
+      bookedVisits(a).length +
+      filedCosts(a).length >
     0
   );
 }
@@ -318,6 +332,7 @@ export function undoSummary(a: AppliedRecord): string {
   const parts = [
     a.taskIds.length && plural(a.taskIds.length, "task", "tasks"),
     bookedVisits(a).length && plural(bookedVisits(a).length, "visit", "visits"),
+    filedCosts(a).length && plural(filedCosts(a).length, "cost", "costs"),
     a.flagIds.length && plural(a.flagIds.length, "flag", "flags"),
     a.issueIds.length && plural(a.issueIds.length, "issue", "issues"),
     a.bringItems.length && plural(a.bringItems.length, "thing to bring", "things to bring"),

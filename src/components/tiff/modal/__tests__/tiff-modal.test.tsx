@@ -180,6 +180,7 @@ const task = (title: string, assigneeId: string | null, extra: Record<string, un
 const proposal = (p: Record<string, unknown>) => ({
   tasks: [],
   visits: [],
+  costs: [],
   bringItems: [],
   flags: [],
   progressBullets: [],

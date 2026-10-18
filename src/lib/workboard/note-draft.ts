@@ -2,6 +2,7 @@ import type { ConfirmedNote, NoteTarget } from "@/app/actions/workboard-notes";
 import { isRemindKind, type RemindKind } from "@/lib/dashboard/reminders";
 import type { NoteProposal, ProposedTask, Severity } from "./note-brain";
 import { isVisitPart, visitDay, visitMinutes, visitStart, type ProposedVisit } from "./note-visit";
+import { costFields, costRowText, type ProposedCost } from "./note-cost";
 
 /* FROM A PROPOSAL TO WHAT GETS FILED — pure, and on both sides of the wire.
 
@@ -38,6 +39,9 @@ export type Draft = {
   /** Visits to book. Not filed by `toConfirmed`: `fileNote` books each
       through Book in's gate, or asks first (note-visit). */
   visits: (ProposedVisit & { on: boolean })[];
+  /** Costs to record. Not filed by `toConfirmed`: `fileNote` files each
+      through the expense form's own action, or asks first (note-cost). */
+  costs: (ProposedCost & { on: boolean })[];
   bringItems: { on: boolean; text: string }[];
   flags: { on: boolean; message: string; severity: string }[];
   progressBullets: { on: boolean; text: string }[];
@@ -71,6 +75,7 @@ export function toDraft(p: NoteProposal): Draft {
       dueHint: t.dueHint,
     })),
     visits: p.visits.map((v) => ({ ...v, on: true })),
+    costs: p.costs.map((c) => ({ ...c, on: true })),
     bringItems: p.bringItems.map((text) => ({ on: true, text })),
     flags: p.flags.map((f) => ({ on: true, message: f.message, severity: f.severity })),
     progressBullets: p.progressBullets.map((text) => ({ on: true, text })),
@@ -162,6 +167,7 @@ export function targetOf(picked: string): NoteTarget | null {
 export const PLAN_LANES = [
   "tasks",
   "visits",
+  "costs",
   "flags",
   "issueEntries",
   "bringItems",
@@ -185,6 +191,7 @@ export function planRows(p: NoteProposal): PlanRow[] {
     texts.forEach((text, index) => rows.push({ key: `${lane}:${index}`, lane, index, text }));
   add("tasks", p.tasks.map((t) => t.title));
   add("visits", p.visits.map((v) => v.work));
+  add("costs", p.costs.map(costRowText));
   add("flags", p.flags.map((f) => f.message));
   add("issueEntries", p.issueEntries.map((e) => e.body));
   add("bringItems", p.bringItems);
@@ -206,6 +213,7 @@ export function withoutRows(d: Draft, keys: readonly string[]): Draft {
   const next: Draft = {
     tasks: d.tasks.map((r) => ({ ...r })),
     visits: d.visits.map((r) => ({ ...r })),
+    costs: d.costs.map((r) => ({ ...r })),
     bringItems: d.bringItems.map((r) => ({ ...r })),
     flags: d.flags.map((r) => ({ ...r })),
     progressBullets: d.progressBullets.map((r) => ({ ...r })),
@@ -284,9 +292,16 @@ export function storedProposal(raw: unknown): NoteProposal | null {
       : null,
   );
 
+  /* the same, for costs: every figure through the shaper's own checks */
+  const costs = list<ProposedCost>(r.costs, (c) => {
+    const fields = costFields(c as Parameters<typeof costFields>[0]);
+    return fields ? { ...fields, payerId: typeof c.payerId === "string" && c.payerId ? c.payerId : null } : null;
+  });
+
   return {
     tasks,
     visits,
+    costs,
     bringItems: strs(r.bringItems),
     flags: list(r.flags, (f) =>
       str(f.message).trim()

@@ -35,6 +35,7 @@ const P: NoteProposal = {
     },
   ],
   visits: [],
+  costs: [],
   bringItems: ["coil cleaner"],
   flags: [{ message: "Roof hatch seized", severity: "urgent" }],
   progressBullets: ["Belts swapped"],
@@ -157,6 +158,7 @@ describe("the draft rules", () => {
   const EMPTY: NoteProposal = {
     tasks: [],
     visits: [],
+    costs: [],
     bringItems: [],
     flags: [],
     progressBullets: [],

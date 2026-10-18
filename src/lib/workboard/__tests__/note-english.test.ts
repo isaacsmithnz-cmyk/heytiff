@@ -21,6 +21,7 @@ import type { NoteProposal } from "../note-brain";
 const EMPTY: NoteProposal = {
   tasks: [],
   visits: [],
+  costs: [],
   bringItems: [],
   flags: [],
   progressBullets: [],

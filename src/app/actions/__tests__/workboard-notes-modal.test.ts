@@ -245,6 +245,7 @@ const STAFF = [
 const EMPTY: NoteProposal = {
   tasks: [],
   visits: [],
+  costs: [],
   bringItems: [],
   flags: [],
   progressBullets: [],

@@ -9,6 +9,7 @@ import type { NoteProposal } from "@/lib/workboard/note-brain";
 const base: NoteProposal = {
   tasks: [],
   visits: [],
+  costs: [],
   bringItems: [],
   flags: [],
   progressBullets: [],

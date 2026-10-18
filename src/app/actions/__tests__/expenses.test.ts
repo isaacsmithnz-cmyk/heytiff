@@ -88,7 +88,7 @@ beforeEach(() => {
 
 describe("submitClaim", () => {
   it("writes the claim against the caller's own staff row", async () => {
-    expect(await submitClaim(goodClaim)).toEqual({ ok: true });
+    expect(await submitClaim(goodClaim)).toEqual({ ok: true, id: expect.any(String) });
     expect(insert).toHaveBeenCalledWith(
       "expense_claims",
       expect.objectContaining({ org_id: "org-1", staff_profile_id: "me", amount: 84.5 })

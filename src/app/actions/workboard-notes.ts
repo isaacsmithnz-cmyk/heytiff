@@ -46,6 +46,7 @@ import {
   appliedOf,
   bookedVisits,
   doorsOf,
+  filedCosts,
   freshIssueIds,
   stillThere,
   takesBack,
@@ -95,6 +96,26 @@ import {
 } from "@/lib/workboard/note-visit";
 import { bookVisit, crewStarts, visitRoute } from "@/lib/workboard/note-visit-book";
 import { takeBackBooking } from "./booking-sm8";
+import {
+  costCards,
+  costDoneLine,
+  costGap,
+  costQuestion,
+  costRefusedLine,
+  costTaskDetail,
+  costTaskTitle,
+  costUndoneLine,
+  effectiveCost,
+  receiptOf,
+  RECEIPT_COST,
+  type CostCard,
+  type CostMade,
+  type NoteReceipt,
+  type ProposedCost,
+} from "@/lib/workboard/note-cost";
+import { claimCost, costRoute, readNoteReceipt, type ClaimJob } from "@/lib/workboard/note-cost-file";
+import { cancelClaim } from "./expenses";
+import { isCancellable, isExpenseStatus } from "@/lib/expenses/claim";
 import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 
 /* Smart Notes — capture, route, file, take back.
@@ -172,7 +193,17 @@ export type FileResult =
   /** `visits`: the cards of the visits it made, each with its own Undo
       (`undoVisit`). `ask`: a visit with no clear time, asked once the rest
       is filed (decision 13); its answer goes to `answerVisit`. */
-  | { ok: true; summary: string; doors: NoteDoor[]; turns: Turn[]; visits?: VisitCard[]; ask?: FileAsk }
+  /** `costs`: the cards of the costs it recorded, each with its own Undo
+      (`undoCost`). */
+  | {
+      ok: true;
+      summary: string;
+      doors: NoteDoor[];
+      turns: Turn[];
+      visits?: VisitCard[];
+      costs?: CostCard[];
+      ask?: FileAsk;
+    }
   /** `turns` when it asked: the conversation with the question on the end. */
   | { ok: false; error: string; ask?: FileAsk; turns?: Turn[] };
 
@@ -337,7 +368,7 @@ async function resolveTarget(orgId: string, target: NoteTarget): Promise<NoteTar
 async function routingContext(
   ctx: Ctx,
   target: NoteTarget,
-  extra: Pick<NoteContext, "room" | "askWho" | "speak" | "earlier">,
+  extra: Pick<NoteContext, "room" | "askWho" | "speak" | "earlier" | "receipt">,
 ): Promise<{ note: NoteContext; staff: NoteStaff[] }> {
   const [staff, label, tz, history] = await Promise.all([
     assignableStaff(ctx.orgId),
@@ -369,6 +400,7 @@ async function routingContext(
       ...(extra.askWho ? { askWho: true } : {}),
       ...(extra.speak ? { speak: true } : {}),
       ...(extra.earlier?.length ? { earlier: extra.earlier } : {}),
+      ...(extra.receipt ? { receipt: true } : {}),
     },
   };
 }
@@ -388,13 +420,21 @@ async function routingContext(
     `before` is the modal's conversation ahead of these words, when Tiff has
     already answered or filed something in it: the router reads the new note
     by it and files nothing from it. Shaped here again (`earlierTurns`), as
-    the browser sent it. */
+    the browser sent it.
+
+    `receiptId` is a receipt photo sent with the words (v2 step 6, slice C):
+    a `documents` row of kind `receipt` the speaker uploaded, as the expense
+    form uploads one (`uploadFile(file, "receipt")`). It is read by today's
+    receipt reader while the router reads the words, and kept on the note's
+    proposal as `receipt`, so the cost lane files with the receipt's figures
+    and the photo on the claim (note-cost). */
 export async function routeNote(input: {
   transcript: string;
   target: NoteTarget;
   source?: "text" | "voice";
   room?: TiffRoom;
   before?: readonly EarlierTurn[];
+  receiptId?: string;
 }): Promise<RouteResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -431,13 +471,18 @@ export async function routeNote(input: {
   if (error || !data) return { ok: false, error: "Couldn't save that note." };
   const noteId = (data as { id: string }).id;
 
+  /* the receipt is read beside the words, never after them */
+  const receiptId = typeof input.receiptId === "string" ? input.receiptId.trim().slice(0, 64) : "";
+  const reading = receiptId ? readNoteReceipt(ctx.orgId, ctx.staffId, receiptId) : null;
   const routing = await routingContext(ctx, target, {
     room,
     askWho: true,
     speak: true,
     earlier: earlierTurns(input.before),
+    ...(receiptId ? { receipt: true } : {}),
   });
   const read = await readNote(transcript, routing.note);
+  const receipt = reading ? await reading : null;
 
   if (!read.ok) {
     /* The router failed, the note did not. Its words are filed as said —
@@ -458,11 +503,16 @@ export async function routeNote(input: {
     return { ok: false, error: read.error };
   }
 
-  const turns = withTurns([said], turn("tiff", read.proposal.say));
+  /* a photo that couldn't be found is said, never dropped in silence */
+  const turns = withTurns(
+    [said],
+    turn("tiff", read.proposal.say),
+    ...(receipt && !receipt.ok ? [turn("tiff", receipt.error)] : []),
+  );
   await supabaseAdmin
     .from("workboard_notes")
     .update({
-      proposal: read.proposal,
+      proposal: withNoteReceipt(read.proposal, receipt?.ok ? receipt.receipt : null),
       status: read.proposal.clarify ? "clarifying" : "pending",
       turns,
     })
@@ -472,6 +522,11 @@ export async function routeNote(input: {
   refresh(target);
   return { ok: true, noteId, proposal: read.proposal, staff: routing.staff, turns };
 }
+
+/** The proposal as it is stored, with the note's receipt beside its lanes
+    (as `visitAsks` sits): a reply routes the note again and must not lose it. */
+const withNoteReceipt = (p: NoteProposal, receipt: NoteReceipt | null): NoteProposal | (NoteProposal & { receipt: NoteReceipt }) =>
+  receipt ? { ...p, receipt } : p;
 
 async function targetLabel(orgId: string, target: NoteTarget): Promise<string | null> {
   if (target.kind === "project" && target.id) {
@@ -531,7 +586,13 @@ async function reread(
   talk: { turns: Turn[]; reply: Turn },
 ): Promise<RouteResult> {
   const target: NoteTarget = { kind: note.target_kind, id: note.target_id };
-  const routing = await routingContext(ctx, target, { room: roomOf(talk.turns), askWho: true, speak: true });
+  const receipt = receiptOf(note.proposal);
+  const routing = await routingContext(ctx, target, {
+    room: roomOf(talk.turns),
+    askWho: true,
+    speak: true,
+    ...(receipt ? { receipt: true } : {}),
+  });
   const read = await readNote(note.transcript, routing.note, follow);
   if (!read.ok) return { ok: false, error: read.error };
 
@@ -544,7 +605,7 @@ async function reread(
   const { data } = await supabaseAdmin
     .from("workboard_notes")
     .update({
-      proposal: read.proposal,
+      proposal: withNoteReceipt(read.proposal, receipt),
       status: read.proposal.clarify ? "clarifying" : "pending",
       turns,
     })
@@ -1338,11 +1399,23 @@ export async function fileNote(
     const q = visitDayQuestion(dayless.work);
     return askFirst(ctx, note, turns, { question: q.question, options: [] });
   }
+  /* A cost short of its amount, or said only before GST, is asked about
+     the same way, in words (v2 step 6, slice C). The receipt's figures
+     count first: a photo with the total on it needs no question. */
+  const receipt = receiptOf(note.proposal);
+  for (const [index, c] of draft.costs.entries()) {
+    if (!c.on) continue;
+    const owed = effectiveCost(c, index, receipt);
+    const gap = costGap(owed);
+    if (gap) return askFirst(ctx, note, turns, { question: costQuestion(owed, gap), options: [] });
+  }
 
   const picked = await pickTarget(ctx, note, opts.retarget);
   if (!picked) return { ok: false, error: MOVED };
   const { target } = picked;
-  if (jobBound(draft) && (target.kind === "none" || !target.id)) {
+  /* a cost is a cost ON a job: one said with no job asks which, as a flag does */
+  const costsOn = draft.costs.some((c) => c.on);
+  if ((jobBound(draft) || costsOn) && (target.kind === "none" || !target.id)) {
     const jobs = matchedJobs(said, await jobCandidates(ctx.orgId), 3);
     const ask: FileAsk = {
       question: WHICH_JOB,
@@ -1406,16 +1479,40 @@ export async function fileNote(
     done.applied.visits = made;
     if (visitTaskIds.length) done.applied.taskIds = [...appliedOf(done.applied).taskIds, ...visitTaskIds];
   }
+
+  /* THE COSTS (v2 step 6, slice C), each through the expense form's own
+     action, or made the task its route says it must be (note-cost-file).
+     Decision 13: a cost just happens; its amount was settled above. */
+  const costStaff = costsOn ? await assignableStaff(ctx.orgId) : [];
+  const jobLabel = costsOn ? await targetLabel(ctx.orgId, target) : null;
+  const costsMade: CostMade[] = [];
+  const costTaskIds: string[] = [];
+  const costLines: string[] = [];
+  for (const [index, c] of draft.costs.entries()) {
+    if (!c.on) continue;
+    const r = await makeCost(ctx, note, target, c, index, receipt, { today, staff: costStaff, jobLabel });
+    if ("made" in r) {
+      costsMade.push(r.made);
+      if (r.made.taskId) costTaskIds.push(r.made.taskId);
+    }
+    costLines.push(r.line);
+  }
+  if (costsMade.length) {
+    done.applied.costs = costsMade;
+    if (costTaskIds.length) done.applied.taskIds = [...appliedOf(done.applied).taskIds, ...costTaskIds];
+  }
+
   const ask = asks.length ? await visitAsk(ctx, target, plan.visits[asks[0]!]!, asks[0]!, today, visitStaff) : null;
   /* "Done." only over something done: a note whose one row is a visit
      still to be timed says the question alone */
-  const didSomething = takesBack(appliedOf(done.applied)) || made.length > 0 || !ask;
+  const didSomething = takesBack(appliedOf(done.applied)) || made.length > 0 || costsMade.length > 0 || !ask;
 
   const filed = withTurns(
     turns.length ? turns : [turn("you", note.transcript)],
     ...(jobWords ? [turn("you", jobWords)] : []),
     ...(didSomething ? [turn("tiff", doneLine(plan.say))] : []),
     ...visitLines.map((l) => turn("tiff", l)),
+    ...costLines.map((l) => turn("tiff", l)),
     ...(ask ? [turn("tiff", ask.question)] : []),
   );
   const proposal = note.proposal as Record<string, unknown>;
@@ -1461,6 +1558,7 @@ export async function fileNote(
     doors: doorsOf(appliedOf(done.applied)),
     turns: filed,
     ...(made.length ? { visits: visitCards(made, today) } : {}),
+    ...(costsMade.length ? { costs: costCards(costsMade) } : {}),
     ...(ask ? { ask } : {}),
   };
 }
@@ -1708,34 +1806,7 @@ export async function undoVisit(noteId: string, index: number): Promise<UndoResu
       if (!r.ok) return { ok: false, error: r.error };
     }
   } else if (v.taskId) {
-    const [{ data: row }, { data: acted }] = await Promise.all([
-      supabaseAdmin
-        .from("tasks")
-        .select("id, status, acknowledged_at")
-        .eq("org_id", ctx.orgId)
-        .eq("id", v.taskId)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("task_events")
-        .select("task_id")
-        .eq("org_id", ctx.orgId)
-        .in("task_id", [v.taskId])
-        .in("kind", ACTED_KINDS)
-        .limit(1),
-    ]);
-    const t = row as { status: string; acknowledged_at: string | null } | null;
-    if (t && (t.status !== "open" || t.acknowledged_at != null || ((acted ?? []) as unknown[]).length > 0)) {
-      return { ok: false, error: UNDO.acted };
-    }
-    if (t) {
-      await supabaseAdmin
-        .from("tasks")
-        .delete()
-        .eq("org_id", ctx.orgId)
-        .in("id", [v.taskId])
-        .eq("status", "open")
-        .is("acknowledged_at", null);
-    }
+    if (!(await takeBackTask(ctx, v.taskId))) return { ok: false, error: UNDO.acted };
   }
 
   await supabaseAdmin.rpc("workboard_note_file_record", {
@@ -1747,6 +1818,176 @@ export async function undoVisit(noteId: string, index: number): Promise<UndoResu
     },
   });
   const summary = visitUndoneLine(v);
+  const turns = withTurns(turnsOf(note.turns), turn("tiff", summary));
+  await supabaseAdmin
+    .from("workboard_notes")
+    .update({ turns })
+    .eq("org_id", ctx.orgId)
+    .eq("id", noteId)
+    .eq("status", "applied");
+  refreshHome({ kind: note.target_kind, id: note.target_id });
+  return { ok: true, summary, turns };
+}
+
+/** A task a visit or a cost became, taken back as a note's task goes:
+    unless someone has acted on it (ticked, answered, given or moved). False
+    when they have, and it stays. One that is gone already is taken back. */
+async function takeBackTask(ctx: Ctx, taskId: string): Promise<boolean> {
+  const [{ data: row }, { data: acted }] = await Promise.all([
+    supabaseAdmin
+      .from("tasks")
+      .select("id, status, acknowledged_at")
+      .eq("org_id", ctx.orgId)
+      .eq("id", taskId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("task_events")
+      .select("task_id")
+      .eq("org_id", ctx.orgId)
+      .in("task_id", [taskId])
+      .in("kind", ACTED_KINDS)
+      .limit(1),
+  ]);
+  const t = row as { status: string; acknowledged_at: string | null } | null;
+  if (t && (t.status !== "open" || t.acknowledged_at != null || ((acted ?? []) as unknown[]).length > 0)) return false;
+  if (t) {
+    await supabaseAdmin
+      .from("tasks")
+      .delete()
+      .eq("org_id", ctx.orgId)
+      .in("id", [taskId])
+      .eq("status", "open")
+      .is("acknowledged_at", null);
+  }
+  return true;
+}
+
+/* ── COSTS (v2 step 6, slice C) ──────────────────────────────────────────
+
+   A cost said in a job's conversation. `fileNote` records each once its
+   amount is known; `undoCost` is a cost card's own Undo. Which way each
+   goes, the receipt and the claim itself are note-cost-file's: the
+   expense form's own action and its rules. */
+
+type CostStep = { made: CostMade; line: string } | { line: string };
+
+/** Record one cost, or say why not: an expense claim or a company-card
+    receipt through `submitClaim`, with the receipt photo on the first; or
+    the task its route makes it (the payer's own "Claim $85.00 at Reece",
+    the speaker's "Log fuel: …"), through the one writer like every other
+    task a note makes. */
+async function makeCost(
+  ctx: Ctx,
+  note: Pick<NoteRow, "id" | "transcript">,
+  target: NoteTarget,
+  c: ProposedCost,
+  index: number,
+  receipt: NoteReceipt | null,
+  input: { today: string; staff: readonly NoteStaff[]; jobLabel: string | null },
+): Promise<CostStep> {
+  if (!ctx.staffId) return { line: costRefusedLine(c, "Your staff profile isn't set up yet.") };
+  const cost = effectiveCost(c, index, receipt);
+  const photo = index === RECEIPT_COST ? receipt : null;
+  const first = (id: string | null) => (input.staff.find((s) => s.id === id)?.fullName ?? "").split(" ")[0] ?? "";
+  const base: CostMade = {
+    index,
+    how: "claim",
+    why: null,
+    amount: cost.amount,
+    gst: cost.gst,
+    supplier: cost.supplier,
+    whatFor: cost.whatFor,
+    day: cost.day || input.today,
+    staffId: null,
+    name: "",
+    claimId: null,
+    taskId: null,
+    receiptId: photo?.documentId ?? null,
+    fromReceipt: !!photo?.read,
+    undone: false,
+  };
+  const unread = !!photo && !photo.read;
+  const route = costRoute(cost, ctx.staffId);
+
+  if (route.kind === "task") {
+    const made: CostMade = { ...base, how: "task", why: route.why, staffId: route.staffId, name: first(route.staffId) };
+    const res = await applyConfirmed(
+      ctx,
+      note,
+      {
+        ...NO_ROWS,
+        tasks: [
+          {
+            title: costTaskTitle(made, route.why),
+            detail: costTaskDetail(made, route.why, { job: input.jobLabel, saidBy: first(ctx.staffId), today: input.today }),
+            assigneeId: route.staffId,
+            dueDate: null,
+          },
+        ],
+      },
+      target,
+    );
+    const taskId = res.ok ? appliedOf(res.applied).taskIds[0] : undefined;
+    if (!taskId) return { line: costRefusedLine(cost, res.ok ? "That task couldn't be saved." : res.error) };
+    const filed = { ...made, taskId };
+    return { made: filed, line: costDoneLine(filed, c.amount, unread) };
+  }
+
+  /* the job the claim's column can hold; a ServiceM8 job is named in its words */
+  const job: ClaimJob =
+    target.id && (target.kind === "project" || target.kind === "visit" || target.kind === "agreement")
+      ? { kind: target.kind, id: target.id }
+      : null;
+  const res = await claimCost(cost, {
+    today: input.today,
+    job,
+    unlinkedJob: job ? null : input.jobLabel,
+    receiptId: photo?.documentId ?? null,
+  });
+  if (!res.ok) return { line: costRefusedLine(cost, res.error) };
+  const filed: CostMade = { ...base, how: cost.paidWith === "company" ? "company" : "claim", claimId: res.claimId };
+  return { made: filed, line: costDoneLine(filed, c.amount, unread) };
+}
+
+/** Why a cost's Undo is refused, beside Undo's own words. */
+const DECIDED = "That expense claim has been decided since, so nothing was taken back.";
+
+/** A COST CARD'S OWN UNDO. A claim is cancelled the way its author cancels
+    one in Expense claims (`cancelClaim`: their own, and only while nobody
+    has decided it; a company-card receipt at any time); a cost that became
+    a task goes as a note's task goes, unless someone has acted on it. The
+    rest of the note stands, and the note's own Undo no longer counts it. */
+export async function undoCost(noteId: string, index: number): Promise<UndoResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
+
+  const note = await noteIn(ctx.orgId, noteId);
+  if (!note) return { ok: false, error: GONE };
+  const mine = !!ctx.staffId && note.author_id === ctx.staffId;
+  if (!mine && !(await can("team"))) return { ok: false, error: UNDO.notYours };
+  if (note.status !== "applied") return { ok: false, error: note.status === "undone" ? UNDO.undone : UNDO.notFiled };
+
+  const a = appliedOf(note.applied);
+  const c = a.costs.find((m) => m.index === index);
+  if (!c) return { ok: false, error: UNDO.notFiled };
+  if (c.undone) return { ok: false, error: UNDO.undone, turns: turnsOf(note.turns) };
+
+  if (c.claimId) {
+    const r = await cancelClaim(c.claimId);
+    if (!r.ok) return { ok: false, error: r.error };
+  } else if (c.taskId) {
+    if (!(await takeBackTask(ctx, c.taskId))) return { ok: false, error: UNDO.acted };
+  }
+
+  await supabaseAdmin.rpc("workboard_note_file_record", {
+    p_org: ctx.orgId,
+    p_note: noteId,
+    p_applied: {
+      costs: a.costs.map((m) => (m.index === index ? { ...m, undone: true } : m)),
+      ...(c.taskId ? { taskIds: a.taskIds.filter((id) => id !== c.taskId) } : {}),
+    },
+  });
+  const summary = costUndoneLine(c);
   const turns = withTurns(turnsOf(note.turns), turn("tiff", summary));
   await supabaseAdmin
     .from("workboard_notes")
@@ -1964,6 +2205,21 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   if (takesBack(a) && !takesBack(left)) return { ok: false, error: UNDO.gone };
   if (await heldBySm8(ctx.orgId, note)) return { ok: false, error: UNDO.sm8 };
 
+  /* ITS COSTS' CLAIMS, CHECKED BEFORE ANYTHING GOES: a claim somebody has
+     approved or declined since is theirs now, and stops the Undo as a
+     ticked task does. Cancelled below, after the bookings, through the
+     expense form's own `cancelClaim`. */
+  const claimIds = filedCosts(a).map((c) => c.claimId!);
+  const { data: claimRows } = claimIds.length
+    ? await supabaseAdmin.from("expense_claims").select("id, status").eq("org_id", ctx.orgId).in("id", claimIds)
+    : { data: [] };
+  const claimsNow = (claimRows ?? []) as { id: string; status: string }[];
+  if (claimsNow.some((r) => r.status !== "cancelled" && !(isExpenseStatus(r.status) && isCancellable(r.status)))) {
+    return { ok: false, error: DECIDED };
+  }
+  /* one cancelled in Expense claims since is taken back already */
+  const claims = claimsNow.filter((r) => r.status !== "cancelled").map((r) => r.id);
+
   /* ITS VISITS' BOOKINGS FIRST, the way the job card's Undo takes one back
      (takeBackBooking: its gate, its queue, its refusals in its own words).
      They are ServiceM8's to refuse, so they go before anything here is
@@ -1973,6 +2229,11 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
       const r = await takeBackBooking({ jobUuid: v.jobUuid ?? "", rowId });
       if (!r.ok) return { ok: false, error: r.error };
     }
+  }
+  /* then its claims, each the way its author cancels one */
+  for (const id of claims) {
+    const r = await cancelClaim(id);
+    if (!r.ok) return { ok: false, error: r.error };
   }
 
   /* ── claimed: only one Undo lands ── */

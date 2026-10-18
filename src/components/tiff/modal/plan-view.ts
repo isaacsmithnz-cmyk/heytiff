@@ -36,6 +36,7 @@ export type PlanRowView = {
 
 /** The lane's own word, where a row has no person to lead with. */
 const LEAD: Record<Exclude<PlanLane, "tasks" | "visits">, string> = {
+  costs: "Cost",
   flags: "On the board",
   issueEntries: "Logged",
   bringItems: "Bring",

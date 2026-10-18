@@ -6,6 +6,7 @@ import { GATHER_MS } from "@/components/ui/dot-field";
 import { askBrain } from "@/lib/brain/ask-client";
 import { looksLikeMove, looksLikeQuestion } from "@/lib/brain/intent";
 import {
+  answerVisit,
   continueNote,
   dismissNote,
   fileNote,
@@ -19,6 +20,7 @@ import {
   type PublishKbResult,
   type RouteResult,
   type UndoResult,
+  type VisitResult,
 } from "@/app/actions/workboard-notes";
 import {
   fileCalendarLine,
@@ -94,7 +96,9 @@ export type Stage = "listening" | "editing" | "thinking" | "asking" | "answering
 
 export type Point = { x: number; y: number };
 
-export type QuickAnswer = { label: string; target?: NoteTarget };
+/** `visit`: an answer to "which time?" (the visit lane), sent to
+    `answerVisit` rather than as a reply. */
+export type QuickAnswer = { label: string; target?: NoteTarget; visit?: { index: number; start: string | null } };
 
 /** A door under Tiff's line: what a note filed, or what went on the calendar. */
 export type TurnDoor = Omit<NoteDoor, "kind"> & { kind: NoteDoorKind | "events" };
@@ -396,15 +400,21 @@ export function useConversation({
       filed.current = [...filed.current, { noteId: n.id, ids: res.doors.flatMap((d) => d.ids) }];
       const gone = new Set(leave.current);
       const rows = planView(n.proposal, n.staff, false).filter((row) => !gone.has(row.key));
-      return settle(() =>
+      return settle(() => {
         tiffSays(lastTiff(res.turns) || "Done.", "filed", {
           rows,
           doors: res.doors,
           noteId: n.id,
           undo: "ready",
           filed: true,
-        })
-      );
+        });
+        /* A visit with no clear time is asked once the rest is filed
+           (decision 13): "which time?", the person's free starts tapped. */
+        if (res.ask) {
+          n.waiting = true;
+          asks(n, res.ask.question, res.ask.options);
+        }
+      });
     }
     if (res.ask) {
       n.waiting = true;
@@ -938,8 +948,35 @@ export function useConversation({
     addTurn({ who: "you", text: q.label });
     think();
     /* the words you picked go too, so the note keeps them as your turn */
-    if (q.target) void file(n, { retarget: q.target, answer: q.label });
+    if (q.visit) void bookVisit(n, q.label);
+    else if (q.target) void file(n, { retarget: q.target, answer: q.label });
     else void reply(n, q.label);
+  };
+
+  /** "Which time?" answered: the visit is booked on the filed note, or she
+      asks again ("What time?"), or says why it couldn't be. */
+  const bookVisit = async (n: Note, words: string) => {
+    n.busy = true;
+    let r: VisitResult;
+    try {
+      r = await answerVisit(n.id, words);
+    } catch {
+      n.busy = false;
+      return settle(() => tiffSays(NOT_REACHED, "failed"));
+    }
+    n.busy = false;
+    const res = r;
+    if (!alive.current) return;
+    if (res.ok) changed.current = true;
+    const line = (res.turns ? lastTiff(res.turns) : "") || (res.ok ? "Booked." : res.error);
+    return settle(() => {
+      if (res.ask) {
+        n.waiting = true;
+        return asks(n, line || res.ask.question, res.ask.options);
+      }
+      n.waiting = false;
+      tiffSays(line, res.ok ? "filed" : "failed", res.ok && res.visit ? { noteId: n.id } : {});
+    });
   };
 
   /** A row's cross: off the plan, and named to the server on the next call. */

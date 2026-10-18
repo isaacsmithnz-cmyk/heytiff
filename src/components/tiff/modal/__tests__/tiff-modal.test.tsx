@@ -36,6 +36,7 @@ const undoNote = jest.fn();
 const keepWords = jest.fn();
 const publishNoteKb = jest.fn();
 const dismissNote = jest.fn();
+const answerVisit = jest.fn();
 const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
 jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
@@ -46,6 +47,7 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: (...a: unknown[]) => keepWords(...a),
   publishNoteKb: (...a: unknown[]) => publishNoteKb(...a),
   dismissNote: (...a: unknown[]) => dismissNote(...a),
+  answerVisit: (...a: unknown[]) => answerVisit(...a),
 }));
 const fileCalendarLine = jest.fn();
 const noteOnCalendarEvents = jest.fn();
@@ -347,6 +349,39 @@ describe("talking", () => {
     expect(within(d).queryByRole("button", { name: /^Clear Put the/ })).toBeNull();
     // and the dock is back as the reply box
     expect(within(d).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
+  });
+
+  /* v2 step 6, the visit lane: a visit with no clear time is asked once the
+     rest is filed (decision 13), and a tapped start books it. */
+  it("asks which time for a visit once the rest is filed, and a tapped start books it", async () => {
+    routeNote.mockResolvedValue(
+      routed({
+        say: "Lyle orders the grilles.",
+        tasks: [task("Order the grilles", LYLE.id, {})],
+      })
+    );
+    fileNote.mockResolvedValue({
+      ...filedOk,
+      ask: {
+        question: "Commissioning on Friday: which time? Lyle's free at both.",
+        options: [
+          { label: "2:00 pm", visit: { index: 0, start: "14:00" } },
+          { label: "3:30 pm", visit: { index: 0, start: "15:30" } },
+          { label: "Another time", visit: { index: 0, start: null } },
+        ],
+      },
+    });
+    answerVisit.mockResolvedValue({ ok: true, visit: { index: 0 }, turns: [{ who: "tiff", text: "Booked: commissioning, Lyle, Friday 2:00 to 4:00 pm." }] });
+    const user = await openModal();
+    await say(user, "Get Lyle to order the grilles, and book commissioning for Friday arvo");
+    await flush();
+
+    const d = dialog();
+    expect(within(convo()).getByText("Commissioning on Friday: which time? Lyle's free at both.")).toBeInTheDocument();
+    await user.click(within(d).getByRole("button", { name: "2:00 pm" }));
+    await flush();
+    expect(answerVisit).toHaveBeenCalledWith("n1", "2:00 pm");
+    expect(within(convo()).getByText("Booked: commissioning, Lyle, Friday 2:00 to 4:00 pm.")).toBeInTheDocument();
   });
 
   it("a read with nothing to file is not filed: the note is set aside and Tiff answers the words", async () => {

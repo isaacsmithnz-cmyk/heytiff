@@ -30,6 +30,7 @@ describe("describeApplied", () => {
       "issueIds",
       "bringItems",
       "visits",
+      "costs",
       "kbIds",
       "jobNotes",
       "noteLines",

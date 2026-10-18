@@ -34,6 +34,8 @@ const GROUPS: readonly (readonly [key: string, one: string, many: string, kind: 
   ["bringItems", "bring-item", "bring-items", "todo"],
   /* step 6's visit lane: a visit Tiff booked from the words (note-visit.ts) */
   ["visits", "visit booked", "visits booked", "kept"],
+  /* and its cost lane: a cost filed as an expense claim (note-cost.ts) */
+  ["costs", "cost claimed", "costs claimed", "kept"],
   ["kbIds", "knowledge entry", "knowledge entries", "kept"],
   ["jobNotes", "note on the job", "notes on the job", "kept"],
   ["noteLines", "line kept", "lines kept", "kept"],

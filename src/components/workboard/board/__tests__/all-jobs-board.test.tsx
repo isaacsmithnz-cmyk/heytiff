@@ -78,6 +78,8 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refre
    jsdom hasn't got. Mocked here so the board's own suite still boots. */
 const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
 jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
+/* the job page's Overview holds the Tiff modal's conversation, which reads the calendar's line actions */
+jest.mock("@/app/actions/calendar", () => ({ fileCalendarLine: jest.fn(), noteOnCalendarEvents: jest.fn(), undoCalendarLine: jest.fn() }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: jest.fn(async () => ({ ok: false, error: "no" })),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),

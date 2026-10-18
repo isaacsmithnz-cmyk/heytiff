@@ -12485,10 +12485,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* Overview: the stages line, then the summary and the diary, the customer beside */
 .fg .jp-over { display:flex; flex-direction:column; gap:16px; }
 .fg .jp-over[hidden] { display:none; }
-.fg .jp-overgrid { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:32px; align-items:start; }
-.fg .jp-overmain { display:flex; flex-direction:column; gap:24px; min-width:0; }
-.fg .jp-overside { display:flex; flex-direction:column; align-items:flex-start; gap:12px; min-width:0; }
-.fg .jp-overside .jcl-cust { align-self:stretch; margin-top:0; padding:0; border-top:0; }
 /* the stages line on the white page: the hover fill to point, the selected fill for the step that's open */
 .fg .jp-sheet .jcl-line { margin:0; }
 .fg .jp-sheet .jcl-step:hover { background:var(--hov); }
@@ -12496,7 +12492,69 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 @media (max-width:900px) {
   .fg .jp-top { flex-direction:column; }
   .fg .jp-acts { flex-wrap:wrap; }
-  .fg .jp-overgrid { grid-template-columns:minmax(0,1fr); }
+}
+
+/* ===== V2: A JOB'S OVERVIEW IS ITS CONVERSATION (v2, step 6, slice A; the
+   board JC-1; components/jobs/job-overview.tsx, job-conversation.tsx and
+   job-rail.tsx) =====
+   Left, the conversation: the turns wear the Conversations place's own
+   rules (`cv-msg`, `cv-meta`, `cv-text`, `cv-day`, `cv-result`, `cv-box`),
+   so a message reads the same in both places. It scrolls on its own, the
+   newest at the foot by the box, so the head and the stages line stay put.
+   What is here: the column and the rail, a voice note's card, the cards
+   for the diary's other entries, the answers Tiff offers, Undo, a lit note,
+   the box's Keep as typed, and the rail's three groups. */
+.fg .jc { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:48px; align-items:start; }
+.fg .jc-convo { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.fg .jc-scroll { min-height:240px; max-height:calc(100vh - 400px); overflow-y:auto; padding-right:8px; }
+.fg .jc-day { display:flex; flex-direction:column; gap:24px; }
+.fg .jc-foot { display:flex; flex-direction:column; gap:8px; }
+/* a voice note: a card round the words, saying where they came from */
+.fg .jc-voice { display:flex; flex-direction:column; gap:8px; padding:12px 16px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--paper); }
+.fg .jc-voice-head { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+/* a note an attention row sent you to: the selected fill behind it */
+.fg .cv-msg.jc-lit { margin:-8px; padding:8px; border-radius:var(--r-button); background:var(--sel); }
+/* a note's line and doors, the diary's own, under its words */
+.fg .jc-doors:empty { display:none; }
+.fg .jc-doors { display:flex; flex-direction:column; align-items:flex-start; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
+/* what Tiff made, and the diary's other entries: a card with its icon */
+.fg .jc-made-icon { flex:none; display:inline-flex; color:var(--q); }
+.fg .jc-event { display:flex; align-items:center; gap:12px; min-width:0; padding:12px 16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
+.fg .jc-event .cv-open { flex:none; padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.fg .jc-photos { display:flex; gap:4px; margin-top:8px; }
+.fg .jc-photos img,
+.fg .jc-photos .jc-photo-wait { width:48px; height:48px; border-radius:var(--r-control); object-fit:cover; background:var(--sel); }
+.fg .jc-photos .jc-photo-wait { display:inline-flex; align-items:center; justify-content:center; color:var(--q); }
+/* Undo: a link's dress, because it is a door back */
+.fg .cv-result .jc-undo,
+.fg .jc-undoall .jc-undo { flex:none; padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.fg .jc-undo:disabled { color:var(--q); cursor:default; }
+.fg .jc-undo:focus-visible,
+.fg .jc-event .cv-open:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
+.fg .jc-undoall { margin:0; }
+/* the answers Tiff offers while she waits on one: second buttons */
+.fg .jc-quick { display:flex; flex-wrap:wrap; gap:8px; }
+/* Keep as typed sits with Send on the right of the box */
+.fg .cv-boxbar .jc-keep { margin-left:auto; }
+.fg .cv-boxbar .jc-keep + .cv-send { margin-left:0; }
+/* the rail: groups under a thin line (rule 35) */
+.fg .jc-rail { display:flex; flex-direction:column; min-width:0; }
+.fg .jc-group { display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding:16px 0 24px; border-top:1px solid var(--line); }
+.fg .jc-h { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .jc-read { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .jc-cap { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .jc-tasks { display:flex; flex-direction:column; gap:12px; align-self:stretch; margin:0; padding:0; list-style:none; }
+.fg .jc-task { display:flex; flex-direction:column; min-width:0; }
+.fg .jc-task-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .jc-task-line { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .jc-what { margin:0; font-size:14px; line-height:20px; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+.fg .jc-what--folded { max-height:40px; overflow:hidden; -webkit-mask-image:linear-gradient(to bottom, var(--ink) 50%, transparent); mask-image:linear-gradient(to bottom, var(--ink) 50%, transparent); }
+.fg .jc-group .jc-more { padding:0; border:0; background:none; font:inherit; font-size:13px; line-height:18px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.fg .jc-more:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
+.fg .jc-cust .jcl-cust { align-self:stretch; margin-top:0; padding:0; border-top:0; }
+@media (max-width:900px) {
+  .fg .jc { grid-template-columns:minmax(0,1fr); gap:24px; }
+  .fg .jc-scroll { max-height:none; }
 }
 
 /* ===== JOBS, THE LIST (v2, step 5; components/jobs/jobs-list.tsx) =====

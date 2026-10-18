@@ -58,6 +58,8 @@ jest.mock("@/app/actions/job-photo-favourites", () => ({
 const push = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: jest.fn(async () => null) }));
+/* the job page's Overview holds the Tiff modal's conversation, which reads the calendar's line actions */
+jest.mock("@/app/actions/calendar", () => ({ fileCalendarLine: jest.fn(), noteOnCalendarEvents: jest.fn(), undoCalendarLine: jest.fn() }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: jest.fn(async () => ({ ok: false, error: "no" })),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),
@@ -315,13 +317,20 @@ describe("the job's sections are the card's faces", () => {
     expect(tabWords()).toEqual(["Overview", "Quote", "Visits", "Checklist", "Photos", "Documents"]);
   });
 
-  it("shows Overview as the stages line, the summary and the diary", async () => {
+  it("shows Overview as the stages line, the job's conversation and its rail (step 6, JC-1)", async () => {
     draw("overview");
     await ready();
     expect(jobTab("Overview")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("navigation", { name: "Where the job is up to" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Summary" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "Timeline" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "The job's conversation" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Tell Tiff about this job" })).toBeVisible();
+    const rail = screen.getByRole("complementary", { name: "About the job" });
+    expect(rail).toHaveTextContent("Where it’s up to");
+    expect(rail).toHaveTextContent("To do on this job");
+    expect(rail).toHaveTextContent("Next visit");
+    /* the card's own Summary and Timeline faces are the card's, not the page's */
+    expect(screen.queryByRole("region", { name: "Summary" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Timeline" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Photos" })).toBeNull();
   });
 

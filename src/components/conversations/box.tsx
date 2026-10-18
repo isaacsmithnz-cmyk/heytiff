@@ -37,6 +37,7 @@ export function CvBox({
   ranOut = false,
   boxRef,
   before,
+  extra,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -58,6 +59,8 @@ export function CvBox({
   boxRef?: Ref<HTMLTextAreaElement>;
   /** Anything the box carries above its words: the document it is scoped to. */
   before?: ReactNode;
+  /** A second way to press, beside the main button: a job's Keep as typed. */
+  extra?: ReactNode;
 }) {
   const listening = !!dict && (dict.recording || dict.transcribing);
   const empty = !value.trim();
@@ -106,6 +109,7 @@ export function CvBox({
         {dict && !dict.recording && (
           <IconButton glyph="mic" label="Speak instead of typing" size={36} disabled={dict.transcribing} onClick={dict.start} />
         )}
+        {extra}
         <Button
           kind="main"
           size={36}

@@ -112,6 +112,7 @@ import { syncedAgo, type Sm8Health } from "./sm8-chip";
 import { useHydrated } from "@/lib/use-hydrated";
 import type { ScheduleJobState } from "./schedule-tab";
 import { JobPageHead } from "@/components/jobs/job-page-head";
+import { JobOverview } from "@/components/jobs/job-overview";
 import { jobHue } from "@/lib/workboard/job-hue";
 import { SECTION_FACES, SECTION_LABEL, sectionOfFace, sectionsFor, stageWord, type JobSection } from "@/lib/jobs/job-sections";
 
@@ -347,7 +348,8 @@ export function JobSheet({
   onCreateAgreement: (row: AllJobRow, detail: MirrorJobDetail | null) => void;
   /** Follows the tracked chip to the board that already holds this job. */
   onOpenTracked: (tracked: NonNullable<AllJobRow["tracked"]>) => void;
-  onToast: (message: string) => void;
+  /** A few words, and an Undo where what was done can be put back. */
+  onToast: (message: string, undo?: () => void | Promise<void>) => void;
 }) {
   const router = useRouter();
   const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
@@ -2407,24 +2409,52 @@ export function JobSheet({
           <div className="wb2-jcbody jp-body" role="tabpanel" aria-labelledby={`jp-tab-${page.section}`}>
             {err && <div className="wb2-sherr">{err}</div>}
             {/* OVERVIEW: the stages line (6-revisions: it lives on Overview
-                only), the summary and the diary, and the customer beside */}
+                only), then the job's conversation and its rail (v2, step 6,
+                JC-1), the customer at the rail's foot */}
             <div className="jp-over" hidden={page.section !== "overview"}>
               <JobProgressLine steps={steps} open={step} onOpen={openStep} />
-              <div className="jp-overgrid">
-                <div className="jp-overmain">
-                  {faceSummary}
-                  {faceDiary}
-                </div>
-                <div className="jp-overside">
-                  <JobCustomer detail={detail} onEdit={customerEdit && cardId ? () => setEditingCustomer(true) : undefined} />
-                  {/* a tracked job wears its board, as the card's chip did */}
-                  {row.tracked && (
-                    <Button kind="quiet" size={32} onClick={() => onOpenTracked(row.tracked!)}>
-                      {row.tracked.kind === "visit" ? "Open it on the maintenance board" : "Open it on the projects board"}
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <JobOverview
+                cardId={cardId}
+                label={[cardNumber, detail?.clientName ?? row.clientName].filter(Boolean).join(" ") || undefined}
+                story={story}
+                loading={loading && !detail}
+                moneyVisible={moneyVisible}
+                summary={summary}
+                summaryPending={summaryPending}
+                detail={detail}
+                fallbackWhat={row.title}
+                diary={{
+                  onOpenClaim: setOpenClaim,
+                  onPhotos: () => go("photos"),
+                  onWrite: cardId ? writeNote : undefined,
+                  onRemoveNote: unwriteNote,
+                  sender,
+                  notesSm8,
+                  flags,
+                  flagsBusy,
+                  focusFlagged: flagFocus,
+                  replyFor,
+                  onReplyShown: () => setReplyFor(null),
+                  onReply: replyNote,
+                  onSendCopy: sendCopy,
+                  onTakeBack: takeBack,
+                  onMarkDone: markDone,
+                  onUndoDone: undoDone,
+                  onConfirm: confirmLink,
+                }}
+                onToast={onToast}
+                aside={
+                  <section className="jc-group jc-cust" aria-label="The customer">
+                    <JobCustomer detail={detail} onEdit={customerEdit && cardId ? () => setEditingCustomer(true) : undefined} />
+                    {/* a tracked job wears its board, as the card's chip did */}
+                    {row.tracked && (
+                      <Button kind="quiet" size={32} onClick={() => onOpenTracked(row.tracked!)}>
+                        {row.tracked.kind === "visit" ? "Open it on the maintenance board" : "Open it on the projects board"}
+                      </Button>
+                    )}
+                  </section>
+                }
+              />
             </div>
             {faceMoney}
             {faceVisits}

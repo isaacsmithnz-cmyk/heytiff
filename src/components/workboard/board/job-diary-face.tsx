@@ -101,11 +101,11 @@ const NONE_BUSY: ReadonlySet<string> = new Set();
 /** What notes to ServiceM8 hand the diary (two-way phase 2). */
 export type DiaryNotesSm8 = { trial: boolean; hold: SendHold; owner: boolean };
 
-type NoteEntry = Extract<StoryEntry, { kind: "note" }>;
+export type NoteEntry = Extract<StoryEntry, { kind: "note" }>;
 
 /** The handlers a note's doors call — each is the card's, which asks the
     server and answers with what now stands. */
-type Doors = {
+export type Doors = {
   sender: NoteSender | null;
   notesSm8: DiaryNotesSm8 | null;
   flags: Record<string, FlagState>;
@@ -323,19 +323,11 @@ function Pen({
   notesSm8: DiaryNotesSm8 | null;
   onConfirm?: Doors["onConfirm"];
 }) {
-  /* the card is drawn in the browser only (a portal), so storage is there
-     to read at once; blocked storage starts the box unticked */
-  const [also, setAlso] = useState(rememberedAlso);
-  const tick = (on: boolean) => {
-    setAlso(on);
-    rememberAlso(on);
-  };
+  const [also, tick] = useAlsoSm8();
   /* the id and the words it was last pressed with */
   const pen = useRef<{ id: string; words: string | null } | null>(null);
 
-  const ready = sender?.state === "ready";
-  const why = notesSm8 && sender && !ready ? senderSentence(sender) : null;
-  const sending = !!notesSm8 && ready && also;
+  const sending = !!notesSm8 && sender?.state === "ready" && also;
 
   const commit = () => {
     const words = draft.trim();
@@ -363,26 +355,62 @@ function Pen({
         onCommit={commit}
         placeholder="Write on the job, or say it"
       />
-      {notesSm8 && (
-        <div className="wb2-evreply">
-          <label className="wb2-flcheck">
-            <input type="checkbox" checked={ready && also} disabled={!ready} onChange={(e) => tick(e.target.checked)} />
-            {NOTE_WORDS.door.alsoInSm8}
-          </label>
-          {why && (
-            <div className="wb2-jcattsave">
-              <span className="wb2-evmeta">{why}</span>
-              {sender?.state === "confirm" && onConfirm && <ConfirmDoors onConfirm={onConfirm} />}
-              {notesSm8.owner && (
-                <a className="wb2-evdoor" href="/dashboard/admin/integrations/servicem8">
-                  {NOTE_WORDS.door.linkPeople}
-                </a>
-              )}
-            </div>
+      {notesSm8 && <AlsoSm8 also={also} onTick={tick} sender={sender} notesSm8={notesSm8} onConfirm={onConfirm} />}
+    </>
+  );
+}
+
+/** The pen's Also in ServiceM8 tick, remembered per person in this
+    browser: whether a note kept as typed goes to ServiceM8 too. The card
+    is drawn in the browser only (a portal), and the job's page draws the
+    tick only once the record read says notes are offered, so storage is
+    there to read at once; blocked storage starts the box unticked. */
+export function useAlsoSm8(): [boolean, (on: boolean) => void] {
+  const [also, setAlso] = useState(rememberedAlso);
+  const tick = (on: boolean) => {
+    setAlso(on);
+    rememberAlso(on);
+  };
+  return [also, tick];
+}
+
+/** Whether a note kept as typed goes to ServiceM8 too, said where notes
+    are offered: the tick, and while the viewer can't send yet, why, with
+    "Is <name> you?" and an owner's Link people. Shared with the job's
+    conversation, whose Keep as typed is this pen's path. */
+export function AlsoSm8({
+  also,
+  onTick,
+  sender,
+  notesSm8,
+  onConfirm,
+}: {
+  also: boolean;
+  onTick: (on: boolean) => void;
+  sender: NoteSender | null;
+  notesSm8: DiaryNotesSm8;
+  onConfirm?: Doors["onConfirm"];
+}) {
+  const ready = sender?.state === "ready";
+  const why = sender && !ready ? senderSentence(sender) : null;
+  return (
+    <div className="wb2-evreply">
+      <label className="wb2-flcheck">
+        <input type="checkbox" checked={ready && also} disabled={!ready} onChange={(e) => onTick(e.target.checked)} />
+        {NOTE_WORDS.door.alsoInSm8}
+      </label>
+      {why && (
+        <div className="wb2-jcattsave">
+          <span className="wb2-evmeta">{why}</span>
+          {sender?.state === "confirm" && onConfirm && <ConfirmDoors onConfirm={onConfirm} />}
+          {notesSm8.owner && (
+            <a className="wb2-evdoor" href="/dashboard/admin/integrations/servicem8">
+              {NOTE_WORDS.door.linkPeople}
+            </a>
           )}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -686,6 +714,51 @@ function NoteEv({
   const ours = entry.origin === "heytiff";
   const state: NoteState | null = ours ? (entry.state ?? null) : null;
   const flag = !ours && entry.sm8Uuid ? (doors.flags[entry.sm8Uuid] ?? null) : null;
+
+  return (
+    <Ev icon="edit" flag={flagged} innerRef={entryRef}>
+      <div className="wb2-evhd">
+        Note
+        {flag ? (
+          <i className={"wb2-chip" + (flag.tone ? ` ${CHIP_TONE[flag.tone]}` : "")}>{flag.text}</i>
+        ) : (
+          entry.actionRequired && <i className="wb2-chip warn">Action required</i>
+        )}
+        {entry.fromClaim && <i className="wb2-chip cat">{`#${entry.fromClaim}`}</i>}
+        {/* NAMED, NOT BADGED, and only on ours: "in HeyTiff" answers the
+            one question the merge raises — why this note is not in
+            ServiceM8 — and every other entry in the feed is theirs, so
+            labelling those would be a badge on the whole diary. Once one of
+            ours has a state, its line says where it is instead. */}
+        {ours && !state && <i className="wb2-chip blue">In HeyTiff</i>}
+      </div>
+      {entry.author && <div className="wb2-evmeta">{entry.author}</div>}
+      <div className="wb2-evcard">{withMentions(entry.text)}</div>
+      <NoteDoors entry={entry} doors={doors} replyOpen={replyOpen} onReplyOpen={onReplyOpen} />
+      {thread && thread.length > 0 && <div className="wb2-evthread">{thread}</div>}
+    </Ev>
+  );
+}
+
+/** A note's line and doors, under its words: where one of ours stands with
+    ServiceM8 and its sender's doors, Remove, Send to ServiceM8, a flag's
+    Mark done and its Undo, and Reply with its box. Shared with the job's
+    conversation (components/jobs/job-conversation), which draws the same
+    note as a message, so a note offers the same doors in both. */
+export function NoteDoors({
+  entry,
+  doors,
+  replyOpen,
+  onReplyOpen,
+}: {
+  entry: NoteEntry;
+  doors: Doors;
+  replyOpen: boolean;
+  onReplyOpen?: (on: boolean) => void;
+}) {
+  const ours = entry.origin === "heytiff";
+  const state: NoteState | null = ours ? (entry.state ?? null) : null;
+  const flag = !ours && entry.sm8Uuid ? (doors.flags[entry.sm8Uuid] ?? null) : null;
   /* a Mark done or its Undo is out on this flag: one press, one answer */
   const flagBusy = !!entry.sm8Uuid && doors.flagsBusy.has(entry.sm8Uuid);
   const { sender, notesSm8 } = doors;
@@ -719,24 +792,7 @@ function NoteEv({
   );
 
   return (
-    <Ev icon="edit" flag={flagged} innerRef={entryRef}>
-      <div className="wb2-evhd">
-        Note
-        {flag ? (
-          <i className={"wb2-chip" + (flag.tone ? ` ${CHIP_TONE[flag.tone]}` : "")}>{flag.text}</i>
-        ) : (
-          entry.actionRequired && <i className="wb2-chip warn">Action required</i>
-        )}
-        {entry.fromClaim && <i className="wb2-chip cat">{`#${entry.fromClaim}`}</i>}
-        {/* NAMED, NOT BADGED, and only on ours: "in HeyTiff" answers the
-            one question the merge raises — why this note is not in
-            ServiceM8 — and every other entry in the feed is theirs, so
-            labelling those would be a badge on the whole diary. Once one of
-            ours has a state, its line says where it is instead. */}
-        {ours && !state && <i className="wb2-chip blue">In HeyTiff</i>}
-      </div>
-      {entry.author && <div className="wb2-evmeta">{entry.author}</div>}
-      <div className="wb2-evcard">{withMentions(entry.text)}</div>
+    <>
       {state?.text && (
         <div className="wb2-evmeta">
           <StateLine as="span" line={{ word: state.text, tone: state.tone }} />
@@ -812,9 +868,7 @@ function NoteEv({
       {replyable && replyOpen && (
         <ReplyBox sourceNoteUuid={entry.sm8Uuid!} doors={doors} onClose={() => onReplyOpen?.(false)} />
       )}
-
-      {thread && thread.length > 0 && <div className="wb2-evthread">{thread}</div>}
-    </Ev>
+    </>
   );
 }
 

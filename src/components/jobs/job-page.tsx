@@ -106,7 +106,7 @@ export function JobPage({
             if (t.kind === "visit") records.open({ kind: "visit", id: t.id });
             else router.push(projectHref(t.id));
           }}
-          onToast={(m) => toast(m)}
+          onToast={(m, undo) => toast(m, undo)}
         />
       </div>
       <ToastHost toasts={toasts} onDismiss={dismiss} />

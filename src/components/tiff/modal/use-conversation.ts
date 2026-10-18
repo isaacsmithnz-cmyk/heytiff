@@ -1073,6 +1073,9 @@ export function useConversation({
     dropAim: () => setAimDropped(true),
     done,
     send,
+    /** The words in the composer were said, by a microphone the caller
+        holds (the job's conversation box): Send files them as voice. */
+    markSpoken: () => setSpoke(true),
     clear,
     fix,
     typeInstead,

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { can, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles";
+import { todayInAu } from "@/lib/au-dates";
 import { Library } from "@/components/tiff/library";
 import { asKbCategory } from "@/lib/tiff/files";
 import { countUnembedded } from "@/lib/tiff/backfill";
@@ -11,7 +12,7 @@ import { kbQuotaFor } from "@/lib/tiff/quota";
 import { kbLargeAllowance } from "@/lib/tiff/large";
 import { ensureKbSeedTags, kbTagsByDocument, kbTagsForOrg, kbTagUsage } from "@/lib/tiff/tags-query";
 
-/* The library. Deep-linkable leaf — same `tiff` gate as the assistant page:
+/* The library (v2: the Library place lands here). Deep-linkable leaf — same `tiff` gate as the assistant page:
    the capability is revocable, so every route checks for itself and not just
    the nav entry.
 
@@ -22,7 +23,9 @@ import { ensureKbSeedTags, kbTagsByDocument, kbTagsForOrg, kbTagUsage } from "@/
    RENDER, not what is allowed.
 
    `?cat=` is how the assistant's category cards arrive: the card you clicked
-   is the filter you land on. `?tag=` is the same idea on the second axis, and
+   is the filter you land on. `?view=toolbox` is the field tools' shelf,
+   for someone who holds `toolbox` (the same gate as /dashboard/toolbox and
+   every tool's page). `?tag=` is the same idea on the second axis, and
    repeatable — `?tag=daikin&tag=vrv` is a link to the Daikin VRV shelf.
 
    `?doc=` names ONE document and opens its search panel on arrival — how a
@@ -50,13 +53,14 @@ export default async function LibraryPage({
   const raw = Array.isArray(params.cat) ? params.cat[0] : params.cat;
   const rawTags = Array.isArray(params.tag) ? params.tag : params.tag ? [params.tag] : [];
   const rawDoc = Array.isArray(params.doc) ? params.doc[0] : params.doc;
+  const rawView = Array.isArray(params.view) ? params.view[0] : params.view;
 
   await ensureKbSeedTags(orgId);
 
   /* The passages stored without a vector. Counted only where a key exists:
      without one, EVERY chunk is null by design and the whole library would
      read as broken rather than as keyword-only. */
-  const [docs, quota, canManage, role, uploaders, unembedded, tags, docTags, tagUsage] =
+  const [docs, quota, canManage, role, uploaders, unembedded, tags, docTags, tagUsage, canToolbox] =
     await Promise.all([
       kbDocsForOrg(orgId),
       kbQuotaFor(orgId),
@@ -67,6 +71,7 @@ export default async function LibraryPage({
       kbTagsForOrg(orgId),
       kbTagsByDocument(orgId),
       kbTagUsage(orgId),
+      can("toolbox"),
     ]);
 
   /* The URL names tags by SLUG, not by id — a link that survives being pasted
@@ -109,6 +114,10 @@ export default async function LibraryPage({
       large={large}
       unembedded={unembedded}
       initialCategory={asKbCategory(raw)}
+      initialView={rawView === "toolbox" ? "toolbox" : null}
+      /* the yard's date, not the handset's — it decides which tools still
+         read New, as the Toolbox's own page does */
+      toolbox={canToolbox ? { today: todayInAu() } : null}
       /* resolved against the docs actually being rendered, so an id from
          another org — or one deleted since — opens nothing */
       initialDocId={docs.some((d) => d.id === rawDoc) ? String(rawDoc) : null}

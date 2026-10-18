@@ -32,7 +32,7 @@ import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
 import { AllJobsBoard } from "./board/all-jobs-board";
 import { JobMediaViewer } from "./board/job-media-viewer";
-import { NewJobModal } from "./board/new-job-modal";
+import { NewJobForm } from "@/components/making/new-job-form";
 import { showcaseMediaItem } from "./board/showcase-view";
 import { WorkSearchField, WorkSearchPanel, type PhotoSearchState } from "./board/work-search";
 
@@ -758,7 +758,7 @@ export function OverviewScreen({
        reach up. It is a class rather than an effect-set attribute so the first
        paint is already right. */
     <div className="page in full">
-      {newJob && <NewJobModal onClose={() => setNewJob(false)} />}
+      {newJob && <NewJobForm onClose={() => setNewJob(false)} />}
       <div className="wrap">
         <div className="stg">
           <div className="wb-board">

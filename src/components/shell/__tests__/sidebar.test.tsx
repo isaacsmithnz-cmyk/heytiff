@@ -24,8 +24,8 @@ jest.mock("@/components/making/task-form", () => ({
     return <div role="dialog" aria-label="New task" />;
   },
 }));
-jest.mock("@/components/workboard/board/new-job-modal", () => ({
-  NewJobModal: () => <div role="dialog" aria-label="New job" />,
+jest.mock("@/components/making/new-job-form", () => ({
+  NewJobForm: () => <div role="dialog" aria-label="New job" />,
 }));
 /* Home's count asks the server (app/actions/home-count); nothing to count
    unless a test says so. */

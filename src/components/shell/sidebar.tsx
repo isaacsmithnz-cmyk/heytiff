@@ -9,7 +9,7 @@ import { Chevron } from "../logo";
 import { PLACES, STILL_TO_MOVE, YOURS, placeOn, placesFor, type Place } from "./places";
 import { useCommandPalette } from "./command-palette-context";
 import { WindowsContext, useRecords } from "@/components/records/records-context";
-import { NewJobModal } from "@/components/workboard/board/new-job-modal";
+import { NewJobForm } from "@/components/making/new-job-form";
 import { TaskForm, type TaskJob } from "@/components/making/task-form";
 import { pageName, pageNamesServerSnapshot, pageNamesSnapshot, subscribePageNames } from "./page-names";
 import { pinsServerSnapshot, pinsSnapshot, seedPins, subscribePins } from "./pins-store";
@@ -90,7 +90,7 @@ function PlaceRow({ place, on }: { place: Place; on: boolean }) {
    here, the same on every page. It fills in only the record you're on:
    opened on a job's page, a task is for that job, and you can clear it, so
    from anywhere else it's a general task (Isaac, 18 October). A quote is
-   made on its job, through Add. Job is the board's own form, offered where
+   made on its job, through Add. Job is the New job form (making/new-job-form), the board's too, offered where
    ServiceM8 takes new jobs from this workspace. The panel is dark and
    square where it leaves the sidebar. */
 function NewButton({ newJob }: { newJob: boolean }) {
@@ -134,7 +134,7 @@ function NewButton({ newJob }: { newJob: boolean }) {
         label="New"
         tone="ink"
       />
-      {making === "job" && <NewJobModal onClose={() => setMaking(null)} />}
+      {making === "job" && <NewJobForm onClose={() => setMaking(null)} />}
       {making === "task" && <TaskForm job={job} onClose={() => setMaking(null)} />}
     </>
   );

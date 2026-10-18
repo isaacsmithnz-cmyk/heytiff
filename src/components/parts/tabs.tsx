@@ -138,15 +138,17 @@ export function Tray<T extends string>({
 }) {
   return (
     <div className="pt-tray" role="radiogroup" aria-label={ariaLabel}>
-      {options.map((o) => {
+      {options.map((o, i) => {
         const on = o.value === value;
+        /* nothing chosen yet: Tab still reaches the tray, on its first */
+        const reach = on || (i === 0 && !options.some((p) => p.value === value));
         return (
           <button
             key={o.value}
             type="button"
             role="radio"
             aria-checked={on}
-            tabIndex={on ? 0 : -1}
+            tabIndex={reach ? 0 : -1}
             className="pt-tray-opt"
             data-value={o.value}
             onClick={() => onChange(o.value)}

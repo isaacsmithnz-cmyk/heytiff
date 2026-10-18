@@ -479,7 +479,7 @@ describe("de-emphasis never multiplies text contrast", () => {
   /* `.dirtab` left this list with the control: the directory switches on
      `shell/view-tabs` now and the fat-tab rules are deleted, so there is no
      selector left to hold to the rule. */
-  it.each([".dirrow.off", ".dirrow.unclaimed"])("%s does not dim itself with opacity", (sel) => {
+  it.each([".dirrow.off", ".tm2-row--left", ".tm2-row--unclaimed"])("%s does not dim itself with opacity", (sel) => {
     const rule = code.match(new RegExp(`\\${sel}\\s*\\{([^}]*)\\}`));
     expect(rule).not.toBeNull();
     expect(rule![1]).not.toMatch(/(^|[^-])opacity: *0?\.\d/);

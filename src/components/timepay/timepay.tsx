@@ -401,6 +401,9 @@ function CompactRow({
   );
 }
 
+/** Time & Pay's own address for a pay period. */
+const timepayPeriodHref = (start: string) => `/dashboard/timepay?period=${start}`;
+
 export function TimePay({
   staff,
   week,
@@ -417,6 +420,8 @@ export function TimePay({
   xeroConnected,
   wageDrift = null,
   expenses = { owed: 0, pending: 0 },
+  periodHref = timepayPeriodHref,
+  expensesHref = "/dashboard/timepay/expenses",
 }: {
   staff: StaffWeek[];
   week: WeekCtx["week"];
@@ -445,6 +450,11 @@ export function TimePay({
   /** What's outstanding on expense claims. Resolved server-side and only when
       the viewer holds `financials` — the tile that shows it is money. */
   expenses?: { owed: number; pending: number };
+  /** Where another pay period is read. Team's Timesheets view keeps you on
+      Team; Time & Pay's own page is the default. */
+  periodHref?: (start: string) => string;
+  /** Where the Expenses tile goes, by the same rule. */
+  expensesHref?: string;
 }) {
   const router = useRouter();
   const ctx: WeekCtx = useMemo(() => ({ week, today, through }), [week, today, through]);
@@ -463,7 +473,7 @@ export function TimePay({
 
   const goPeriod = (i: number) => {
     const target = periods[i];
-    if (target) router.push(`/dashboard/timepay?period=${target.start}`);
+    if (target) router.push(periodHref(target.start));
   };
 
   const rows: Row[] = useMemo(
@@ -656,7 +666,7 @@ export function TimePay({
                 sub-line counts only what nobody has decided yet, because that
                 is the part that needs a person. */}
             {financials && (
-              <Link href="/dashboard/timepay/expenses" className="stat exp">
+              <Link href={expensesHref} className="stat exp">
                 <span className="si"><Icon name="receipt" size={18} /></span>
                 <div className="stk">
                   <div className="sv">{money0(expenses.owed)}</div>

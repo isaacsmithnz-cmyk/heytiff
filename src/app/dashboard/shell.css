@@ -352,7 +352,6 @@
 .fg .dname b a:hover { text-decoration:underline; text-underline-offset:2px; }
 .fg .dname b a:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:var(--r-control); }
 .fg .dname em { font-style:normal; font-size:12px; color:var(--q); display:block; }
-.fg .drole { font-size:14px; color:var(--gray500); font-weight:600; }
 .fg .dchip { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; color:var(--q); }
 .fg .dchip.ok { color:var(--ok-t); }
 .fg .dchip.warn { color:var(--warn-t); }
@@ -2730,8 +2729,7 @@
    every workspace. The width it freed goes to Name and Compliance, which are
    the two that get truncated. */
 .fg .dirhead, .fg .dirrow {display:grid; grid-template-columns:2.6fr 1.4fr 1.9fr 44px; gap:16px; align-items:center; padding:16px 24px; width:100%; text-align:left;}
-.fg .dname > span:not(.dav):not(.dofftag) {min-width:0; flex:1;}
-.fg .dofftag {flex:0 0 auto;}
+.fg .dname > span:not(.dav) {min-width:0; flex:1;}
 
 /* THE ROW BECOMES TWO ROWS BEFORE THE NAME RUNS OUT OF ROOM.
 
@@ -2766,14 +2764,7 @@
   .fg .dirrow:not(.flrow) {grid-template-columns:minmax(0,1fr) auto; gap:8px 12px; padding:12px 16px;}
   .fg .dirrow:not(.flrow) .dname {grid-column:1; grid-row:1;}
   .fg .dirrow:not(.flrow) .dmorewrap {grid-column:2; grid-row:1;}
-  .fg .dirrow:not(.flrow) .drole {grid-column:1; grid-row:2; font-size:13px;}
   .fg .dirrow:not(.flrow) .dchip {grid-column:2; grid-row:2; justify-self:end;}
-  /* the invite rows have the same shape and the same failure, and are Team's
-     alone — `.invrow` has exactly one call site */
-  .fg .invrow {grid-template-columns:minmax(0,1fr) auto; gap:8px 12px; padding:12px 16px;}
-  .fg .invrow .invwho {grid-column:1; grid-row:1;}
-  .fg .invrow .invrole {grid-column:2; grid-row:1; justify-self:end;}
-  .fg .invrow .invexp {grid-column:1/-1; grid-row:2;}
 }
 /* `.dirtabs` — the fat grey track with the sliding white pill — is GONE from
    here: Team and the Fleet register switch with `shell/view-tabs` on the
@@ -2811,15 +2802,10 @@
 
    Opacity cannot be tuned out of this. Against the tab strip's own ground,
    pure black at .5 measures 3.75 — there is no text colour that survives the
-   multiply. So the row says "not active" with a tinted ground and its own
-   `.dofftag` chip, both of which leave the text alone. */
+   multiply. So the row says "not active" with a tinted ground, which leaves
+   the text alone. */
 .fg .dirrow.off {background:var(--tint);}
 .fg .dirrow.off:hover {background:var(--tint);}
-/* Imported/pre-seeded, no login yet — present but visibly not arrived. Same
-   treatment as archived, its own class so the two states can ever diverge. */
-.fg .dirrow.unclaimed {background:var(--tint);}
-.fg .dirrow.unclaimed:hover {background:var(--tint);}
-.fg .dofftag {font-size:14px; font-weight:500; color:var(--q); margin-left:4px;}
 .fg .direm {display:none; padding:32px 24px; text-align:center; font-size:14px; font-weight:600; color:var(--q); border-top:1px solid var(--line);}
 /* directory — per-row actions menu */
 .fg .dmorewrap {position:relative; display:flex; justify-content:flex-end;}
@@ -2842,22 +2828,6 @@
    to beat `.dmenu button:hover`, hence the three classes. */
 .fg .dmenu button.danger.arm {background:var(--bad); color:var(--paper);}
 .fg .dmenu button.danger.arm .i {color:var(--paper);}
-.fg .invrow {display:grid; grid-template-columns:2.4fr 1.4fr 1.4fr auto; gap:16px; align-items:center; padding:12px 24px; border-top:1px solid var(--line);}
-.fg .invrow:first-child {border-top:none;}
-.fg .invwho {display:flex; align-items:center; gap:12px; min-width:0;}
-.fg .invav {width:40px; height:40px; border-radius:var(--r-button); flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--info-t); background:var(--tint);}
-.fg .invrow.expired .invav {color:var(--bad-t); background:var(--bad-tint);}
-/* A member with no staff card — a row that is not an invite, in a row shape
-   that is. Colour only: the four tracks, the paddings and the phone rules
-   are `.invrow`'s and this must not fork them. `.invexp` is already
-   --warn-t, so the state text needs nothing. */
-.fg .dirnocards {border-bottom:1px solid var(--line);}
-.fg .invrow.nocard .invav {color:var(--warn-t); background:rgba(164,75,8,.1);}
-.fg .invwho b {font-size:14px; font-weight:700; color:var(--ink); display:block;}
-.fg .invwho em {font-style:normal; font-size:12px; color:var(--q); display:block;}
-.fg .invrole {font-size:14px; color:var(--gray500); font-weight:600;}
-.fg .invexp {display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:700; color:var(--warn-t);}
-.fg .invrow.expired .invexp {color:var(--bad-t);}
 /* directory port shims — anchor items in the row menu + toggled empty state */
 .fg .dmenu a { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--r-button); font-size:14px; font-weight:600; color:var(--gray700); text-align:left; transition:background var(--t-fast) var(--ease); }
 .fg .dmenu a:hover { background:var(--tint); }
@@ -3003,8 +2973,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fl-btn.tiny { height:28px; padding:0 12px; font-size:12px; border-radius:var(--r-button); background:var(--paper); border:1px solid var(--line); color:var(--ink); }
 .fl-btn.tiny:hover { background:var(--tint); }
 /* .fl-btn.tiny is declared after .fl-btn.primary and repaints the background,
-   so a tiny primary would come out white — the same ordering trap the .invbtns
-   danger rule further down documents. Restated here rather than reordered,
+   so a tiny primary would come out white, the ordering trap a danger
+   button's rule hit too. Restated here rather than reordered,
    because .tiny's whole job is to overwrite the resting fill. */
 .fl-btn.tiny.primary { background:var(--press); border-color:transparent; color:var(--paper);  box-shadow:none; }
 .fl-btn.tiny.primary:hover { background:var(--press); color:var(--paper); }
@@ -3260,22 +3230,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .hol-sugmain em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); line-height:1.45; margin-top:2px; }
 .fg .hol-sugadd { display:flex; align-items:center; gap:4px; height:30px; padding:0 12px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:700; color:var(--gray700); }
 .fg .hol-sugadd:hover { border-color:var(--line); color:var(--ink); }
-
-/* ---- pending invites: link + renew/revoke (Team page, `invites` only) ----
-   The tools sit on their own line of the row's grid: CopyLink is a full-width
-   box by design, and squeezing a token into a table cell only ever truncates
-   the one thing you came for. */
-.fg .invtools { grid-column:1/-1; display:flex; align-items:flex-start; gap:12px; }
-.fg .invtools > div:first-child { flex:1; min-width:0; }
-.fg .invbtns { display:flex; gap:8px; flex:0 0 auto; margin-top:12px; }
-/* .fl-btn.tiny is declared after .fl-btn.danger, so on its own it would repaint
-   a revoke button neutral — the destructive one stays red until it's armed. */
-.fg .invbtns .fl-btn.danger { background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); }
-.fg .invbtns .fl-btn.danger.arm { background:var(--bad); border-color:var(--bad); color:var(--paper); }
-.fg .invmsg { padding:12px 24px; font-size:13px; font-weight:600; color:var(--bad-t); border-bottom:1px solid var(--line); }
-/* The same slot saying a letter went. --ok-t, not the page accent: this is
-   state, and state is never the accent (feedback: design-system state colours). */
-.fg .invmsg.ok { color:var(--ok-t); }
 
 /* invite modal — UNSCOPED: it portals to <body>, outside .fg (see .fl-ov) */
 .fl-err { background:var(--bad-tint); border:1px solid var(--bad); border-radius:var(--r-button); padding:8px 12px; margin-bottom:12px; font-size:13px; font-weight:600; color:var(--bad-t); }
@@ -12615,3 +12569,61 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .fg .ts2-day .ts2-times-cell { display:none; }
   .fg .ts2-ref { grid-template-columns:minmax(0,1fr); }
 }
+/* ===== TEAM, PEOPLE (v2, step 5; components/team/team-page.tsx, team-people.tsx) =====
+   The board "Team, People": the title with how many people in grey, the
+   search and Add a person on the right; the six views as soft tabs (rule 29)
+   with Show people who have left and Sort beside them; then a table, a row
+   per person (rule 39) under hairlines. The parts draw the tabs, the fields,
+   the discs, the dots and the state words; these rules lay them out. The
+   other five views are today's screens, framed here. 1440 is the target. */
+.fg .tm2 { display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .tm2-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.fg .tm2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.fg .tm2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .tm2-count { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .tm2-headacts { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex:1 1 auto; min-width:0; }
+.fg .tm2-search { position:relative; display:flex; align-items:center; flex:0 1 320px; min-width:0; }
+.fg .tm2-search-icon { position:absolute; left:12px; display:inline-flex; color:var(--q); pointer-events:none; }
+.fg .tm2-search .pt-input.tm2-search-input { padding-left:calc(12px + 16px + 8px); padding-right:calc(32px + 8px); }
+.fg .tm2-search .tm2-search-clear { position:absolute; right:2px; }
+.fg .tm2-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.fg .tm2-picks { display:flex; align-items:center; gap:16px; }
+.fg .tm2-picks .pt-tick { font-size:14px; line-height:20px; color:var(--ink); }
+.fg .tm2-pick { position:relative; display:inline-flex; align-items:center; }
+/* the chooser's own word, inside its box on the left: "Sort A to Z" */
+.fg .tm2-pick-word { position:absolute; left:12px; font-size:14px; line-height:20px; font-weight:400; color:var(--q); pointer-events:none; }
+.fg .tm2-pick .pt-chooser.tm2-pick-ch { width:auto; min-width:200px; padding-left:48px; }
+.fg .tm2-panel { min-width:0; }
+.fg .tm2-err { display:flex; align-items:center; gap:8px; margin:0 0 12px; font-size:14px; line-height:20px; color:var(--bad-t); }
+/* the table: a grid per row, so the head and the rows share the columns */
+.fg .tm2-table { --tm2-cols:minmax(0,1.6fr) minmax(0,1.5fr) 140px 120px 128px; min-width:0; }
+.fg .tm2-table.tm2-table--veh { --tm2-cols:minmax(0,1.6fr) minmax(0,1.5fr) minmax(0,1fr) 140px 120px 128px; }
+.fg .tm2-rows { margin:0; padding:0; list-style:none; }
+.fg .tm2-row { position:relative; display:grid; grid-template-columns:var(--tm2-cols); align-items:center; gap:16px; padding:12px 8px; border-bottom:1px solid var(--line); transition:background var(--t-fast) var(--ease); }
+.fg .tm2-row.tm2-row--head { padding-top:8px; padding-bottom:8px; }
+.fg .tm2-rows .tm2-row:hover { background:var(--hov); }
+.fg .tm2-rows .tm2-row:has(.tm2-name:focus-visible) { box-shadow:var(--ring); }
+/* less present in words, never in opacity (text-contrast.test.ts) */
+.fg .tm2-row--left { color:var(--q); }
+.fg .tm2-row--unclaimed { color:var(--q); }
+.fg .tm2-cell { display:flex; flex-direction:column; justify-content:center; min-width:0; font-size:14px; line-height:20px; font-weight:400; }
+.fg .tm2-row--head .tm2-cell { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg .tm2-who { flex-direction:row; align-items:center; justify-content:flex-start; gap:12px; }
+.fg .tm2-whotext { display:flex; flex-direction:column; min-width:0; }
+.fg .tm2-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); text-decoration:none; min-width:0; }
+/* the name is the link, and its shadow covers the row: a press anywhere opens the person */
+.fg a.tm2-name::after { content:""; position:absolute; inset:0; }
+.fg a.tm2-name:focus-visible { outline:none; }
+.fg .tm2-sub { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+.fg .tm2-papers.pt-state { font-size:14px; line-height:20px; max-width:100%; }
+.fg .tm2-papers .pt-dot { display:none; }
+.fg .tm2-invited { font-size:14px; line-height:20px; color:var(--q); }
+.fg .tm2-num { font-variant-numeric:tabular-nums; }
+.fg .tm2-act { position:relative; z-index:var(--z-raised); align-items:flex-end; }
+.fg .tm2-group { margin:24px 0 0; padding:0 8px 8px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); border-bottom:1px solid var(--line); }
+/* a member with no staff card, above the table */
+.fg .tm2-orphans { margin-bottom:24px; }
+.fg .tm2-orphan { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) 120px auto; align-items:center; gap:16px; padding:12px 8px; border-bottom:1px solid var(--line); }
+.fg .tm2-orphan-acts { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+/* Notices, framed: Write a notice stands over the board */
+.fg .tm2-tools { display:flex; justify-content:flex-end; margin-bottom:16px; }

@@ -1,129 +1,129 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth0 } from "@/lib/auth0";
-import { Icon } from "@/components/shell/icon";
-import { TeamDirectory } from "@/components/team/directory";
-import { AddPersonButton } from "@/components/team/person-form";
+import { TeamPage, type TeamPageData } from "@/components/team/team-page";
+import { Loading } from "@/components/parts/states";
 import { can, getCapabilities, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles-shared";
 import { invitableRoles } from "@/lib/permissions";
-import { listMembersWithoutCard, listPendingInvites, listStaff, staffCardsInUse } from "@/lib/staff/query";
+import { listMembersWithoutCard, listPendingInvites, listStaff } from "@/lib/staff/query";
 import { orgExpiryWindow } from "@/lib/org/query";
+import { loadTimepaySection } from "@/lib/timepay/section";
+import { loadFleetPage } from "@/lib/fleet/page-data";
+import { loadNoticeBoard } from "@/lib/dashboard/page-data";
+import { readTeamView, teamViewsFor } from "@/lib/team/views";
 
-// Capability-gated (`team`, default admin+): the directory exposes every staff
-// member's card. The nav entry is hidden for staff too, but this is the check
-// that actually enforces it.
-//
-// The directory never shows pay — listStaff selects identity columns only, so
-// a wage cannot leak here even by accident.
-//
-// Inviting lives here and nowhere else. WHICH roles this viewer may create is a
-// second question (invitableRoles: owner → admin or staff, a delegated inviter
-// → staff only), decided here and re-checked by the action. An empty list is
-// also the "can they invite at all" answer, so there's one gate, not two.
+/* TEAM (v2, step 5; the board "Team, People"). One place for the people
+   and what they hand in: People, Timesheets, Leave, Expenses, Vehicles and
+   Notices, as soft tabs under the title, with Add a person as the main
+   button.
 
-export default async function TeamPage() {
-  if (!(await can("team"))) redirect("/dashboard");
+   Every view is today's screen's read, under today's gate:
+   - People is the directory's (listStaff, listMembersWithoutCard,
+     listPendingInvites), and Team itself is gated on `team`, here, because
+     a leaf route is deep-linkable. The directory never shows pay: listStaff
+     selects identity columns only.
+   - Timesheets, Leave and Expenses are Time & Pay's one load
+     (loadTimepaySection), asked for only with `timepay_all`, which is what
+     today's /dashboard/timepay asks. Inside it `approvals` and `financials`
+     still decide what each face may do and see.
+   - Vehicles is the Fleet register (loadFleetPage), asked for only with
+     `assets_all`, Assets' gate.
+   - Notices is the noticeboard's own read, which everyone has.
 
+   Inviting: WHICH roles this viewer may create is decided here
+   (invitableRoles: owner gives admin or staff, a delegated inviter staff
+   only) and re-checked by the action. An empty list is also "can they
+   invite at all", so there is one gate, not two.
+
+   The view, and Timesheets' period, ride in the address. The wait is the
+   page's own Suspense, so a person's page under /dashboard/team/ never
+   waits behind this list's skeleton. */
+
+type Params = Promise<Record<string, string | string[] | undefined>>;
+
+async function TeamBody({ searchParams }: { searchParams: Params }) {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
 
-  const expiry = await orgExpiryWindow(orgId);
-  const [staff, orphans, actorRole, caps] = await Promise.all([
+  const params = await searchParams;
+  const period = typeof params.period === "string" ? params.period : undefined;
+
+  const [expiry, timepayAll, assetsAll] = await Promise.all([
+    orgExpiryWindow(orgId),
+    can("timepay_all"),
+    can("assets_all"),
+  ]);
+  const [staff, orphans, actorRole, caps, timepay, fleet, notices] = await Promise.all([
     listStaff(orgId, expiry.warnDays),
-    /* A member with no staff card is invisible in every panel on this page —
-       the directory reads cards, and the Pending tab reads unaccepted invites,
-       so somebody who accepted one and never got a card is in neither. Read
-       the roster directly and show them. */
+    /* A member with no staff card is invisible everywhere else on this page:
+       People reads cards, and the invites are unaccepted ones, so somebody
+       who accepted and never got a card is in neither. Read the roster
+       directly and show them. */
     listMembersWithoutCard(orgId),
     getDbRole(),
     getCapabilities(),
+    timepayAll ? loadTimepaySection(period) : Promise.resolve(null),
+    assetsAll ? loadFleetPage({ withRegister: true }) : Promise.resolve(null),
+    loadNoticeBoard(),
   ]);
-  const invitableAt = invitableRoles(actorRole, caps);
-  const canInvite = invitableAt.length > 0;
-  // tokens/ids ride along only when this viewer may act on them
+  const inviteRoles = invitableRoles(actorRole, caps);
+  const canInvite = inviteRoles.length > 0;
+  // tokens and ids ride along only when this viewer may act on them
   const pending = await listPendingInvites(orgId, { withLinks: canInvite });
 
-  /* WHICH CARDS MAY OFFER DELETE — owners only, and only a card nothing on the
-     records points at (a test account, someone added by mistake). A failed
-     read offers it on none. The owner's own card and any owner's never; the
-     action and the database refuse all of these again. */
-  const isOwner = hasMinRole(actorRole, "owner");
-  const inUse = isOwner ? await staffCardsInUse(orgId) : null;
-  const deletable = inUse
-    ? staff
-        .filter((s) => !inUse.has(s.id) && !s.isMaster && s.orgRole !== "owner" && s.userId !== session?.user?.sub)
-        .map((s) => s.id)
-    : [];
-
-  // Prefer the configured base URL; otherwise derive it from the incoming
-  // request so invite links are always correct in production (never localhost).
+  /* Prefer the configured base URL; otherwise derive it from the incoming
+     request so invite links are always right in production (never localhost). */
   const h = await headers();
   const host = h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "https";
-  const appUrl =
-    process.env.APP_BASE_URL ?? (host ? `${proto}://${host}` : "http://localhost:3000");
+  const appUrl = process.env.APP_BASE_URL ?? (host ? `${proto}://${host}` : "http://localhost:3000");
 
+  const register = fleet?.register ?? null;
+  const views = teamViewsFor({ timepay: !!timepay, fleet: !!register });
+
+  const data: TeamPageData = {
+    people: {
+      staff,
+      orphans,
+      pending,
+      canInvite,
+      inviteRoles,
+      appUrl,
+      // an owner may take back the seat of a member who never got a card
+      canRemoveMembers: hasMinRole(actorRole, "owner"),
+      /* The vehicle each person drives, from the register, only for a reader
+         who may see the register. Without it the column isn't drawn. */
+      vehicles: register
+        ? Object.fromEntries(
+            register.vehicles
+              .filter((v) => v.assignedTo && v.status !== "sold")
+              .map((v) => [v.assignedTo as string, [v.model || v.name || v.make, v.plate].filter(Boolean).join(" ")]),
+          )
+        : null,
+    },
+    timepay,
+    fleet: register && fleet ? { register, today: fleet.today, warnDays: fleet.warnDays } : null,
+    notices,
+    views,
+  };
+
+  return <TeamPage data={data} view={readTeamView(params.view, views)} />;
+}
+
+export default async function TeamRoute({ searchParams }: { searchParams: Params }) {
+  if (!(await can("team"))) redirect("/dashboard");
   return (
-    /* Paper to the frame, and the title and Add a person ride the tab band
-       inside the directory (2026-09-20, the Workboard's frame everywhere). */
-    <div className="page in full">
-      <div className="wrap">
-        <div className="stg">
-
-          {/* THE EMPTY BOX HID THE ONLY THINGS THAT COULD FILL IT.
-
-              It gated on `staff.length` alone — the count of staff CARDS — so a
-              workspace whose every member has no card (this feature's own worst
-              case) read "No staff yet" while people were signed into it, and a
-              workspace that had invited its first person could not reach the
-              Pending tab at all. That second one is a dead end the invite modal
-              points AT: when mail is unconfigured it says "copy the link from
-              the Pending invites tab", and in a brand-new org that tab was not
-              on screen. Empty means all three are empty. */}
-          {staff.length === 0 && orphans.length === 0 && pending.length === 0 ? (
-            /* Nobody on the books yet: there are no tabs to draw, so the
-               band is the title and the invite alone, and the empty box sits
-               in the panel under it. */
-            <div className="wb2">
-              <div className="wb2-vtabs">
-                <h1 className="wb2-h1">Team</h1>
-                {canInvite ? (
-                  <div className="wb2-vtcap">
-                    <div className="wb2-headtools">
-                      <AddPersonButton roles={invitableAt} />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <div className="wb2-card">
-                <div className="wb2-panel pad">
-                  <div className="emptybox">
-                    <span className="ei">
-                      <Icon name="users" size={24} />
-                    </span>
-                    <b>No staff yet</b>
-                    <em>Invite your team to start building staff profiles.</em>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <TeamDirectory
-              staff={staff}
-              orphans={orphans}
-              pending={pending}
-              canInvite={canInvite}
-              invite={canInvite ? <AddPersonButton roles={invitableAt} /> : null}
-              appUrl={appUrl}
-              inviteRoles={invitableAt}
-              canRemoveMembers={isOwner}
-              deletable={deletable}
-            />
-          )}
+    <Suspense
+      fallback={
+        <div className="tm2">
+          <Loading what="Loading the team" shape="rows" count={7} />
         </div>
-      </div>
-    </div>
+      }
+    >
+      <TeamBody searchParams={searchParams} />
+    </Suspense>
   );
 }

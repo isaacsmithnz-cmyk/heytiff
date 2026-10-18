@@ -75,7 +75,7 @@ describe("Add a person", () => {
     });
     expect(onClose).toHaveBeenCalled();
     expect(refresh).toHaveBeenCalled();
-    // the letter has gone: withdrawing it is the Pending tab's Revoke
+    // the letter has gone: withdrawing it is the invite row's Revoke
     expect(toast).toHaveBeenCalledWith("Invite sent to new@heytiff.co");
   });
 
@@ -185,7 +185,7 @@ describe("Add a person — what the letter did", () => {
 
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByText(/Invite created/)).toBeInTheDocument();
-    expect(screen.getByText(/Pending invites tab/)).toBeInTheDocument();
+    expect(screen.getByText(/their row on Team/)).toBeInTheDocument();
   });
 
   it("says so plainly where there is no mailer at all", async () => {

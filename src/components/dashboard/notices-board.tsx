@@ -700,6 +700,7 @@ export function NoticesBoard({
   today,
   staff,
   viewerStaffId,
+  embedded = false,
 }: {
   notices: BoardNotice[];
   canManage: boolean;
@@ -707,6 +708,9 @@ export function NoticesBoard({
   today: string;
   staff: MentionTarget[];
   viewerStaffId: string | null;
+  /** Team's Notices view: the board without its own page, band and way
+      back, Write a notice standing over it. Everything else is the board. */
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -767,6 +771,58 @@ export function NoticesBoard({
     onDeleteComment: (commentId) => run(() => deleteComment(commentId)),
   };
 
+  const board = (
+    <>
+      {error && <div className="tp-err">{error}</div>}
+      {writing && <NoticeForm today={today} notice={writing.notice} onClose={() => setWriting(null)} />}
+
+      {active.length === 0 ? (
+        <div className="emptybox">
+          <div className="ei">
+            <Icon name="bell" size={22} />
+          </div>
+          <b>Nothing on the board</b>
+          <em>
+            {canManage
+              ? "Write a notice and everyone will see it here."
+              : "Announcements from your team will appear here."}
+          </em>
+        </div>
+      ) : (
+        active.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)
+      )}
+
+      {archived.length > 0 && (
+        <>
+          <button
+            type="button"
+            className="nb-archtoggle"
+            aria-expanded={showArchive}
+            onClick={() => setShowArchive((v) => !v)}
+          >
+            <Icon name={showArchive ? "chevD" : "chevR"} size={14} />
+            Archived, {archived.length}
+          </button>
+          {showArchive && archived.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)}
+        </>
+      )}
+    </>
+  );
+
+  if (embedded)
+    return (
+      <div className="tm2-notices">
+        {canManage && (
+          <div className="tm2-tools">
+            <Button kind="second" icon="plus" disabled={pending} onClick={() => setWriting({ notice: null })}>
+              Write a notice
+            </Button>
+          </div>
+        )}
+        {board}
+      </div>
+    );
+
   return (
     /* Paper to the frame, the title in the band, and the way back on its own
        line above it — the Workboard's frame (2026-09-20). */
@@ -789,41 +845,7 @@ export function NoticesBoard({
               ) : null
             }
           />
-          <ScreenPanel>
-          {error && <div className="tp-err">{error}</div>}
-          {writing && <NoticeForm today={today} notice={writing.notice} onClose={() => setWriting(null)} />}
-
-          {active.length === 0 ? (
-            <div className="emptybox">
-              <div className="ei">
-                <Icon name="bell" size={22} />
-              </div>
-              <b>Nothing on the board</b>
-              <em>
-                {canManage
-                  ? "Write a notice and everyone will see it here."
-                  : "Announcements from your team will appear here."}
-              </em>
-            </div>
-          ) : (
-            active.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)
-          )}
-
-          {archived.length > 0 && (
-            <>
-              <button
-                type="button"
-                className="nb-archtoggle"
-                aria-expanded={showArchive}
-                onClick={() => setShowArchive((v) => !v)}
-              >
-                <Icon name={showArchive ? "chevD" : "chevR"} size={14} />
-                Archived, {archived.length}
-              </button>
-              {showArchive && archived.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)}
-            </>
-          )}
-          </ScreenPanel>
+          <ScreenPanel>{board}</ScreenPanel>
         </div>
       </div>
     </div>

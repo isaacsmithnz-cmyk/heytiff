@@ -31,7 +31,7 @@ import { ROLE_COPY, ROLE_ORDER, type Role } from "@/lib/roles-shared";
    re-resolves.
 
    Saving keeps you on Team with a toast. It has no Undo: the letter has
-   gone, and an invitation is withdrawn on the Pending tab, where its link
+   gone, and an invitation is withdrawn from its row in People, where its link
    is. A letter that did NOT go keeps the form open and says what to do. */
 
 /** Debounce for the resolution: one query per typed address, and the answer
@@ -58,7 +58,7 @@ function resolutionOf(found: InviteeLookup): { tone: "good" | "look"; text: stri
         text: found.name ? `${found.name} already has an account here.` : "That person already has an account here.",
       };
     case "pending":
-      return { tone: "look", text: "An invitation is already open for this address. Renew it from the Pending tab." };
+      return { tone: "look", text: "An invitation is already open for this address. Resend it from its row on Team." };
     case "ambiguous":
       return {
         tone: "look",
@@ -130,8 +130,8 @@ export function PersonForm({ roles, onClose, prefill }: { roles: string[]; onClo
       if (res.delivery && !res.delivery.sent) {
         setError(
           res.delivery.reason === "unconfigured"
-            ? "Invite created. Email isn't set up in this environment, so copy the link from the Pending invites tab."
-            : `Invite created, but the email to ${res.delivery.to} didn't send. Copy the link from the Pending invites tab.`,
+            ? "Invite created. Email isn't set up in this environment, so copy the link from their row on Team."
+            : `Invite created, but the email to ${res.delivery.to} didn't send. Copy the link from their row on Team.`,
         );
         router.refresh();
         return;

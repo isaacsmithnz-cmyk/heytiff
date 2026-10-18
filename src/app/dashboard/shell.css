@@ -3204,10 +3204,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    that card rather than floating as a rounded block above the whole thing. */
 .fg .lv-col .lv-form { margin:0; border:0; border-bottom:1px solid var(--line); border-radius:0; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
-.fg .lv-fnote { margin-top:12px; display:flex; }
 .fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); }
-.fg .lv-fmeta { display:flex; align-items:center; gap:16px; margin-top:12px; }
-.fg .lv-fmeta > span { flex:1; font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:start; }
 .fg .lv-col { border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
 .fg .lv-ch { padding:12px 16px; font-size:13px; font-weight:500; color:var(--gray700); background:var(--tint); border-bottom:1px solid var(--line); }
@@ -4475,30 +4472,12 @@ button.fl-btn { font-size:14px; font-weight:700; }
    them: the modal portals to <body> inside a display:contents `.fg`, so the
    design tokens and `.fg .inp` styles still reach it. */
 
-/* ---- My leave: the request calendar (components/timepay/my-leave.tsx) ----
-   The month grid is INLINE here, not a popover: choosing leave is choosing a
-   shape on a calendar — which days, how many of them, and which ones the
-   public holidays give back — and none of that reads off two date fields. The
-   fields stay beside it as the exact answer, and edit the same two dates. */
-/* Calendar beside fields when there is room for both. Inside `.lv-col` there
-   never is — that column is 1.4fr of a two-column grid — so it stacks, which is
-   the same shape the narrow-viewport rule below already defines. Stated by
-   CONTAINER rather than by viewport: the form moved into the column at every
-   width, so a media query would have missed it on a wide screen. */
 /* ---- medical certificates on a leave request ----
    Deliberately quiet. This is the most sensitive row in the app and it should
    read as a checklist item, not an alarm: an approver can approve without one,
-   and a person who hasn't seen a doctor yet is not doing anything wrong. */
-.fg .lv-cert { display:flex; align-items:center; gap:8px; margin-top:12px; padding:12px 12px; border-radius:var(--r-button); background:var(--paper); border:1px dashed var(--line); }
-.fg .lv-cert.on { border-style:solid; border-color:var(--ok-t); background:var(--ok-tint); }
-.fg .lv-cert svg { flex:0 0 auto; color:var(--gray400); }
-.fg .lv-cert.on svg { color:var(--ok-t); }
-.fg .lv-cert > span { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.fg .lv-cert b { font-size:13px; font-weight:700; color:var(--ink); overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .lv-cert em { font-size:12px; font-weight:600; font-style:normal; color:var(--gray500); line-height:1.45; }
-.fg .lv-cert label { flex:0 0 auto; cursor:pointer; }
-
-/* the same fact on a booked row, one line rather than a card */
+   and a person who hasn't seen a doctor yet is not doing anything wrong.
+   Asking for leave attaches one in its dialog (components/making/leave-form);
+   a booked row says whether it has one, on one line. */
 .fg .lv-reqcert { display:inline-flex; align-items:center; gap:4px; margin-top:4px; font-size:12px; font-weight:700; color:var(--warn-t); }
 .fg .lv-reqcert.on { color:var(--ok-t); }
 .fg .lv-reqcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
@@ -4510,30 +4489,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-pcert.on { color:var(--ok-t); }
 .fg .lv-pcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
 
-.fg .lv-cal { display:grid; grid-template-columns:300px minmax(0,1fr); gap:16px; align-items:start; }
-.fg .lv-col .lv-cal { grid-template-columns:minmax(0,1fr); }
-.fg .lv-col .lv-calside { max-width:340px; }
-.fg .lv-calside .cal { padding:12px 12px 12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); }
 .fg .lv-callegend { display:flex; align-items:center; gap:8px; margin:8px 2px 0; font-size:12px; font-weight:600; color:var(--gray500); }
-.fg .lv-legdot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
-.fg .lv-legdot.hol { background:var(--ink); color:var(--paper); }
-.fg .lv-calhint { margin:4px 2px 0; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .lv-calfields { display:flex; flex-direction:column; gap:12px; }
-.fg .lv-calfields .lv-fnote { margin-top:0; }
-/* THE LEAVE FORM'S row is a GRID, not a wrapping flex row — and only this one:
-   `.lv-frow` is shared with the holiday manager and the home tasks card.
-
-   Four fields whose grow-basis was 130px but whose CONTENTS (a select, two
-   date buttons) refuse to shrink below ~160, so three filled the line and
-   Hours dropped to one of its own — stretched across the whole form for a
-   three-character number. Even tracks put all four on one line and give the
-   number the same width as everything else. */
-.fg .lv-calfields .lv-frow { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:12px; }
-.fg .lv-cal .mts-f { min-width:0; }
-@media (max-width:860px){
-  .fg .lv-cal { grid-template-columns:minmax(0,1fr); }
-  .fg .lv-calside { max-width:340px; }
-}
 
 /* Address suggestions — the same plate as the calendar popover (.cal-pop),
    because they are the same object: a small white card that appears under a

@@ -42,8 +42,9 @@ async function sm8Board() {
 }
 
 /** `note`: a sentence to say beside a decision that landed — leave that
-    stays off the ServiceM8 board for a reason somebody can fix. */
-export type LeaveResult = { ok: true; note?: string } | { ok: false; error: string };
+    stays off the ServiceM8 board for a reason somebody can fix. `id`: the
+    request a new one made, which Ask for leave's Undo withdraws. */
+export type LeaveResult = { ok: true; note?: string; id?: string } | { ok: false; error: string };
 
 type Ctx = { orgId: string; staffId: string | null };
 
@@ -197,7 +198,7 @@ export async function requestLeave(input: {
     await adoptCertificate(ctx.orgId, ctx.staffId, String(created.id), input.certificateDocumentId);
 
   refresh();
-  return { ok: true };
+  return { ok: true, id: String(created.id) };
 }
 
 /** Attach a certificate to a request that already exists.

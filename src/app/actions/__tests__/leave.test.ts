@@ -109,7 +109,7 @@ describe("requesting leave", () => {
   it("needs no capability and books against your own record", async () => {
     caps = new Set();
     const res = await requestLeave({ kind: "annual", startDate: "2026-08-03", endDate: "2026-08-05", hours: 24 });
-    expect(res).toEqual({ ok: true });
+    expect(res).toEqual({ ok: true, id: "new-request" });
     expect(insert).toHaveBeenCalledWith(
       "leave_requests",
       expect.objectContaining({ staff_profile_id: "me", kind: "annual", hours: 24, status: "pending" }),

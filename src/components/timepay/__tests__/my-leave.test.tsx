@@ -1,32 +1,36 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MyLeave, balanceBars } from "../my-leave";
+import { WindowsContext } from "@/components/records/records-context";
+import { pickDate } from "@/components/ui/__tests__/fixtures/pick-date";
 import type { BalanceView, LeaveRequest } from "@/lib/timepay/leave";
 
-/* Booking leave is choosing a shape on a calendar.
+/* Asking for leave is choosing a span, and seeing what it costs.
 
-   These tests are all one question: does the grid and do the two fields say
-   the same thing, whichever one you touch — and does a public holiday inside
-   the span show up as a day you keep rather than one you spend. */
+   Ask for leave is a dialog over My leave now (components/making/leave-form,
+   the forms board's form 9): the type, From and To, the hours, a note, a
+   medical certificate when the span wants one, and the line that says what
+   the span spends — its working days, the public holidays inside it given
+   back by name, and what's available. The inline month grid it had is gone
+   with the board; the holidays it showed are still counted and named. */
 
-const requestLeave = jest.fn(async () => ({ ok: true as const }));
-const cancelLeave = jest.fn(async () => ({ ok: true as const }));
+const requestLeave = jest.fn(async (..._a: unknown[]) => ({ ok: true as const, id: "new-request" }));
+const cancelLeave = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
 
 jest.mock("@/app/actions/leave", () => ({
-  requestLeave: (...a: unknown[]) => requestLeave(...(a as [])),
-  cancelLeave: (...a: unknown[]) => cancelLeave(...(a as [])),
+  requestLeave: (...a: unknown[]) => requestLeave(...a),
+  cancelLeave: (...a: unknown[]) => cancelLeave(...a),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
 /* The certificate picker imports the shared upload client, which reaches a
    server action and pulls auth0 into jsdom — the suite fails to PARSE without
    this, nowhere near the line that caused it. Same trap as every other
    `"use server"` import in a component test. */
-jest.mock("@/lib/documents/upload-client", () => ({
-  uploadFile: jest.fn(async () => ({
-    ok: true,
-    file: { documentId: "doc-1", fileName: "certificate.pdf", mimeType: "application/pdf", sizeBytes: 1, previewUrl: null },
-  })),
+const uploadFile = jest.fn(async (..._a: unknown[]) => ({
+  ok: true as const,
+  file: { documentId: "doc-1", fileName: "certificate.pdf", mimeType: "application/pdf", sizeBytes: 1, previewUrl: null },
 }));
+jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a) }));
 
 const TODAY = "2026-07-20"; // a Monday
 // the first Monday in August — a real one-day-off shape to plan around
@@ -41,151 +45,84 @@ const ANNUAL: BalanceView = {
   available: 152,
 };
 
+const toast = jest.fn();
+
 function setup(over: Partial<React.ComponentProps<typeof MyLeave>> = {}) {
   const view = render(
-    <MyLeave
-      today={TODAY}
-      standard={7.6}
-      balances={[ANNUAL]}
-      requests={[] as LeaveRequest[]}
-      holidays={HOLIDAYS}
-      {...over}
-    />,
+    <WindowsContext.Provider value={{ toast } as never}>
+      <MyLeave
+        today={TODAY}
+        standard={7.6}
+        balances={[ANNUAL]}
+        requests={[] as LeaveRequest[]}
+        holidays={HOLIDAYS}
+        {...over}
+      />
+    </WindowsContext.Provider>,
   );
   const user = userEvent.setup();
-  /* the inline month grid, scoped: the From/To popovers draw the SAME
-     calendar, so an unscoped day lookup finds two of everything */
-  const side = () => view.container.querySelector<HTMLElement>(".lv-calside")!;
-  const grid = () => within(side());
-  const day = (name: string) => grid().getByRole("button", { name });
-  const shownMonth = () => side().querySelector(".cal-mo")!.textContent;
-  const nextMonth = () => user.click(grid().getByRole("button", { name: "Next month" }));
-  const field = (label: string) => screen.getByLabelText(label);
-  const openForm = () => user.click(screen.getByRole("button", { name: /Request leave/ }));
-  return { ...view, user, grid, day, shownMonth, nextMonth, field, openForm };
+  const form = () => within(screen.getByRole("dialog", { name: "Ask for leave" }));
+  const field = (label: string) => form().getByLabelText(label);
+  const openForm = () => user.click(screen.getByRole("button", { name: "Ask for leave" }));
+  const span = async (from: string, to: string) => {
+    await pickDate("From", from, form());
+    await pickDate("To", to, form());
+  };
+  return { ...view, user, form, field, openForm, span };
 }
 
-const meta = () => document.querySelector(".lv-fmeta > span")!.textContent;
+/** The line under the form: what the span costs. */
+const meta = () => document.querySelector(".mk-team-line")!.textContent;
 
 beforeEach(() => {
   requestLeave.mockClear();
+  cancelLeave.mockClear();
+  uploadFile.mockClear();
+  toast.mockClear();
 });
 
-describe("the calendar and the fields are one control", () => {
-  it("click, click draws the range and fills From and To", async () => {
-    const { user, day, field, openForm } = setup();
+describe("From and To", () => {
+  it("open on today, and a later From carries To along", async () => {
+    const { field, openForm } = setup();
     await openForm();
-
-    await user.click(day("Wednesday 22 July 2026"));
-    // the first click is a one-day range, not a half-drawn nothing
-    expect(field("From")).toHaveTextContent("22/07/2026");
-    expect(field("To")).toHaveTextContent("22/07/2026");
-
-    await user.click(day("Friday 24 July 2026"));
-    expect(field("From")).toHaveTextContent("22/07/2026");
-    expect(field("To")).toHaveTextContent("24/07/2026");
-    // and the days between are banded, which is the whole point of the grid
-    expect(day("Thursday 23 July 2026").className).toContain("rng");
-  });
-
-  it("orders the two clicks however they came", async () => {
-    const { user, day, field, openForm } = setup();
-    await openForm();
-
-    await user.click(day("Friday 24 July 2026"));
-    await user.click(day("Wednesday 22 July 2026")); // backwards
-    expect(field("From")).toHaveTextContent("22/07/2026");
-    expect(field("To")).toHaveTextContent("24/07/2026");
-  });
-
-  it("a third click starts a new range rather than stretching the old one", async () => {
-    const { user, day, field, openForm } = setup();
-    await openForm();
-
-    await user.click(day("Wednesday 22 July 2026"));
-    await user.click(day("Friday 24 July 2026"));
-    await user.click(day("Monday 27 July 2026"));
-
-    expect(field("From")).toHaveTextContent("27/07/2026");
-    expect(field("To")).toHaveTextContent("27/07/2026");
-    expect(day("Thursday 23 July 2026").className).not.toContain("rng");
-  });
-
-  it("moves the band when the From field is edited instead", async () => {
-    const { user, day, field, openForm } = setup();
-    await openForm();
-
-    await user.click(field("From"));
-    // the popover is its own calendar — pick inside it, not on the grid
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Thursday 30 July 2026" }),
-    );
-
+    expect(field("From")).toHaveTextContent("20/07/2026");
+    expect(field("To")).toHaveTextContent("20/07/2026");
+    await pickDate("From", "2026-07-30", within(screen.getByRole("dialog", { name: "Ask for leave" })));
     expect(field("From")).toHaveTextContent("30/07/2026");
-    expect(day("Thursday 30 July 2026").className).toContain("rng");
-  });
-
-  it("follows the From field into another month", async () => {
-    const { user, day, field, shownMonth, openForm } = setup();
-    await openForm();
-
-    await user.click(field("From"));
-    const pop = within(screen.getByRole("dialog"));
-    await user.click(pop.getByRole("button", { name: "Next month" }));
-    await user.click(pop.getByRole("button", { name: "Monday 10 August 2026" }));
-
-    // the grid paged itself, so the band is on screen rather than a month away
-    expect(shownMonth()).toBe("August 2026");
-    expect(day("Monday 10 August 2026").className).toContain("rng");
-  });
-
-  it("says which click it is waiting for", async () => {
-    const { user, day, openForm } = setup();
-    await openForm();
-    expect(screen.getByText("Pick the first day off, then the last")).toBeInTheDocument();
-
-    await user.click(day("Wednesday 22 July 2026"));
-    expect(screen.getByText("Now pick the last day off")).toBeInTheDocument();
-
-    await user.click(day("Friday 24 July 2026"));
-    expect(screen.getByText("Pick the first day off, then the last")).toBeInTheDocument();
+    expect(field("To")).toHaveTextContent("30/07/2026");
   });
 
   it("refuses days that have already been", async () => {
-    const { day, openForm } = setup();
+    const { user, field, openForm } = setup();
     await openForm();
-    expect(day("Sunday 19 July 2026")).toBeDisabled();
-    expect(day("Monday 20 July 2026")).toBeEnabled();
+    await user.click(field("From"));
+    const pop = within(screen.getByRole("dialog", { name: "Choose a date" }));
+    expect(pop.getByRole("button", { name: "Sunday 19 July 2026" })).toBeDisabled();
+    expect(pop.getByRole("button", { name: "Monday 20 July 2026" })).toBeEnabled();
+  });
+
+  it("keeps the hours a number, its placeholder the suggestion (decision 27)", async () => {
+    const { field, openForm, span } = setup();
+    await openForm();
+    await span("2026-07-22", "2026-07-24");
+    expect(field("Hours")).toHaveAttribute("type", "number");
+    expect(field("Hours")).toHaveAttribute("placeholder", "22.8");
   });
 });
 
 describe("public holidays inside the span", () => {
-  it("marks the holiday on the grid and names it", async () => {
-    const { grid, nextMonth, openForm } = setup();
-    await openForm();
-    await nextMonth();
-
-    const picnic = grid().getByRole("button", { name: "Monday 3 August 2026, Picnic Day" });
-    expect(picnic.className).toContain("hol");
-  });
-
   it("counts the working days and says which day it gave back", async () => {
-    const { user, day, nextMonth, openForm } = setup();
+    const { openForm, span } = setup();
     await openForm();
-    await nextMonth();
-
-    // Mon 3 Aug – Fri 7 Aug, with the Monday a public holiday. The grid names
-    // it in the cell itself, so the day you're clicking says what it is.
-    await user.click(day("Monday 3 August 2026, Picnic Day"));
-    await user.click(day("Friday 7 August 2026"));
-
+    // Mon 3 Aug – Fri 7 Aug, with the Monday a public holiday
+    await span("2026-08-03", "2026-08-07");
     expect(meta()).toContain("4 working days");
     expect(meta()).toContain("1 public holiday skipped (Picnic Day)");
     expect(meta()).toContain("152h available");
   });
 
   it("counts holidays it cannot name in a line", async () => {
-    const { user, day, nextMonth, openForm } = setup({
+    const { openForm, span } = setup({
       holidays: [
         { date: "2026-08-03", name: "Picnic Day" },
         { date: "2026-08-05", name: "Show Day" },
@@ -193,33 +130,26 @@ describe("public holidays inside the span", () => {
       ],
     });
     await openForm();
-    await nextMonth();
-    await user.click(day("Monday 3 August 2026, Picnic Day"));
-    await user.click(day("Friday 7 August 2026, Cup Day"));
-
+    await span("2026-08-03", "2026-08-07");
     expect(meta()).toContain("2 working days");
     expect(meta()).toContain("3 public holidays skipped");
     expect(meta()).not.toContain("Picnic Day");
   });
 
   it("says nothing about holidays when the span passes none", async () => {
-    const { user, day, openForm } = setup();
+    const { openForm, span } = setup();
     await openForm();
-    await user.click(day("Wednesday 22 July 2026"));
-    await user.click(day("Thursday 23 July 2026"));
-
-    expect(meta()).toContain("2 working days");
-    expect(meta()).not.toContain("public holiday");
+    await span("2026-07-22", "2026-07-23");
+    expect(meta()).toBe("2 working days, 152h available.");
   });
 });
 
-describe("submitting", () => {
-  it("sends the dates the calendar drew, with the suggested hours", async () => {
-    const { user, day, openForm } = setup();
+describe("sending", () => {
+  it("sends the dates with the suggested hours, keeps you on your leave, and Undo withdraws it", async () => {
+    const { user, form, openForm, span } = setup();
     await openForm();
-    await user.click(day("Wednesday 22 July 2026"));
-    await user.click(day("Friday 24 July 2026"));
-    await user.click(screen.getByRole("button", { name: /Submit request/ }));
+    await span("2026-07-22", "2026-07-24");
+    await user.click(form().getByRole("button", { name: "Send request" }));
 
     expect(requestLeave).toHaveBeenCalledWith({
       kind: "annual",
@@ -228,20 +158,66 @@ describe("submitting", () => {
       hours: 22.8, // 3 working days × 7.6
       note: undefined,
     });
+    expect(screen.queryByRole("dialog", { name: "Ask for leave" })).toBeNull();
+    expect(toast).toHaveBeenCalledWith("Leave requested", expect.any(Function));
+    await act(async () => toast.mock.calls[0][1]());
+    expect(cancelLeave).toHaveBeenCalledWith("new-request");
   });
 
   it("still lets the hours be overridden for a part day", async () => {
-    const { user, day, field, openForm } = setup();
+    const { user, form, field, openForm, span } = setup();
     await openForm();
-    await user.click(day("Wednesday 22 July 2026"));
-    // the suggestion is only ever the placeholder
+    await span("2026-07-22", "2026-07-22");
     expect(field("Hours")).toHaveAttribute("placeholder", "7.6");
     await user.type(field("Hours"), "4");
-    await user.click(screen.getByRole("button", { name: /Submit request/ }));
+    await user.type(field("Note"), "Dentist");
+    await user.click(form().getByRole("button", { name: "Send request" }));
 
     expect(requestLeave).toHaveBeenCalledWith(
-      expect.objectContaining({ startDate: "2026-07-22", endDate: "2026-07-22", hours: 4 }),
+      expect.objectContaining({ startDate: "2026-07-22", endDate: "2026-07-22", hours: 4, note: "Dentist" }),
     );
+  });
+
+  it("says why the request was refused, and stays open", async () => {
+    const { user, form, openForm } = setup();
+    await openForm();
+    requestLeave.mockResolvedValueOnce({ ok: false, error: "That's 8h more annual leave than you have available." } as never);
+    await user.click(form().getByRole("button", { name: "Send request" }));
+    expect(form().getByRole("alert")).toHaveTextContent("That's 8h more annual leave than you have available.");
+    expect(toast).not.toHaveBeenCalled();
+  });
+});
+
+describe("the type and the certificate", () => {
+  it("asks for a certificate only when this span of personal leave wants one, and sends it with the request", async () => {
+    const { user, form, openForm, span } = setup({ certAfterDays: 2 });
+    await openForm();
+    await span("2026-07-22", "2026-07-24");
+    expect(form().queryByText("Medical certificate")).toBeNull();
+    await user.click(form().getByRole("radio", { name: "Personal or carer's" }));
+    expect(form().getByText("Medical certificate")).toBeInTheDocument();
+    const input = screen.getByRole("dialog", { name: "Ask for leave" }).querySelector<HTMLInputElement>('input[type="file"]')!;
+    await user.upload(input, new File(["x"], "certificate.pdf", { type: "application/pdf" }));
+    expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "medical_certificate");
+    expect(form().getByRole("list", { name: "Medical certificate" })).toHaveTextContent("certificate.pdf");
+    expect(form().getByRole("button", { name: "Replace certificate" })).toBeInTheDocument();
+    await user.click(form().getByRole("button", { name: "Send request" }));
+    expect(requestLeave).toHaveBeenCalledWith(expect.objectContaining({ kind: "personal", certificateDocumentId: "doc-1" }));
+  });
+
+  it("never blocks a request on the certificate", async () => {
+    const { user, form, openForm, span } = setup({ certAfterDays: 2 });
+    await openForm();
+    await user.click(form().getByRole("radio", { name: "Personal or carer's" }));
+    await span("2026-07-22", "2026-07-24");
+    expect(form().getByRole("button", { name: "Send request" })).toBeEnabled();
+  });
+
+  it("says nothing about a balance for unpaid leave", async () => {
+    const { user, form, openForm } = setup();
+    await openForm();
+    await user.click(form().getByRole("radio", { name: "Unpaid leave" }));
+    expect(meta()).toBe("1 working day.");
   });
 });
 
@@ -273,44 +249,28 @@ describe("balanceBars", () => {
   });
 });
 
-describe("Request leave sits on the card it adds to", () => {
+describe("Ask for leave sits on the card it adds to (rule 52)", () => {
   it("is in the requests card header, not floating in the page header", () => {
     const { container } = setup();
     const head = container.querySelector(".lv-ch.act")!;
-    expect(within(head as HTMLElement).getByRole("button", { name: /Request leave/ })).toBeTruthy();
+    expect(within(head as HTMLElement).getByRole("button", { name: "Ask for leave" })).toBeTruthy();
     // and nothing action-shaped is left stranded in the page heading
     expect(container.querySelector(".v2head button")).toBeNull();
   });
 
-  /* ONE CONTROL AT A TIME, AND THE PANEL OPENS UNDER THE BUTTON. The form used
-     to render ABOVE `.lv-cols` while its trigger sat in a header most of the
-     way down the card — so pressing "Request leave" made a calendar appear
-     above the press and pushed the button itself out from under the cursor.
-     The header then read "Close" while the form's own control read "Cancel":
-     two buttons, one job, opposite ends of the thing they controlled. */
-  it("stands the trigger down while the form is open, leaving one way back", async () => {
-    const { user, openForm } = setup();
+  /* The form opens over the page (rule 51), so the button that opened it
+     stays where it was, and Cancel is the one way back. */
+  it("opens Ask for leave over the page, and Cancel closes it", async () => {
+    const { user, form, openForm } = setup();
     await openForm();
-    expect(screen.queryByRole("button", { name: /Request leave/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
-
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByRole("button", { name: /Request leave/ })).toBeTruthy();
-  });
-
-  it("opens the form inside the card it adds to, directly below the button", async () => {
-    const { container, openForm } = setup();
-    const col = () => container.querySelector(".lv-col") as HTMLElement;
-    const header = () => col().querySelector(".lv-ch.act") as HTMLElement;
-    // the trigger is in that header...
-    expect(within(header()).getByRole("button", { name: /Request leave/ })).toBeTruthy();
-    expect(col().querySelector(".lv-form")).toBeNull();
-
-    await openForm();
-    // ...and the form it opens is that header's next sibling, inside the same
-    // card, rather than a block above the whole two-column layout
-    expect(header().nextElementSibling).toHaveClass("lv-form");
-    expect(col().querySelector(".lv-form")).not.toBeNull();
+    expect(form().getByRole("heading", { name: "Ask for leave" })).toBeInTheDocument();
+    expect(form().getByRole("radiogroup", { name: "Type" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Annual leave" })).toHaveAttribute("aria-checked", "true");
+    // no native select (rule 34)
+    expect(screen.getByRole("dialog", { name: "Ask for leave" }).querySelector("select")).toBeNull();
+    await user.click(form().getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog", { name: "Ask for leave" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Ask for leave" })).toBeTruthy();
   });
 });
 

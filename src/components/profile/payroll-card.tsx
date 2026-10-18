@@ -3,7 +3,7 @@
 import { Icon } from "@/components/shell/icon";
 import { rebalance, splitFrom } from "@/lib/staff/cost-split";
 import { preValidate } from "@/lib/staff/pre-validate";
-import { SectionCard } from "./section-card";
+import { SectionCard, type GroupHead } from "./section-card";
 import { MoneyInput, Pct, PctInput, Seg, SelectInput, TextInput } from "./fields";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import type { PayFields, SaveSection } from "./types";
@@ -54,7 +54,10 @@ export function PayrollCard({
   rosteredWeek = null,
   onSave,
   startEditing = false,
+  group,
 }: {
+  /** drawn as a titled group with its own Edit, on Team's person page */
+  group?: GroupHead;
   pay: PayFields | null;
   /** What Time & Pay actually presumes onto this person's week, or null when
       there is no rostered week to state. */
@@ -85,13 +88,16 @@ export function PayrollCard({
 
   return (
     <SectionCard
-      variant="section"
-      title="Payroll"
+      variant={group ? "group" : "section"}
+      title={group?.title ?? "Payroll"}
+      editLabel={group?.editLabel}
       pill={
-        <span className="pill2 adminpill">
-          <Icon name="lock" size={11} />
-          Owner only
-        </span>
+        group ? undefined : (
+          <span className="pill2 adminpill">
+            <Icon name="lock" size={11} />
+            Owner only
+          </span>
+        )
       }
       values={values}
       onSave={(fields) => onSave("payroll", fields)}

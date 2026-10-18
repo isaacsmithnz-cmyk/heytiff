@@ -2,7 +2,7 @@
 
 import type { StaffProfile } from "@/lib/staff/profile";
 import { preValidate } from "@/lib/staff/pre-validate";
-import { SectionCard } from "./section-card";
+import { SectionCard, type GroupHead } from "./section-card";
 import { Field, TextArea } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 
@@ -25,7 +25,10 @@ export function QualificationsCard({
   profile,
   mode,
   onSave,
+  group,
 }: {
+  /** drawn as a titled group with its own Edit, on Team's person page */
+  group?: GroupHead;
   profile: StaffProfile | null;
   mode: ProfileMode;
   onSave: SaveSection;
@@ -41,7 +44,9 @@ export function QualificationsCard({
       // Left as the default framed card ON PURPOSE: this is the SECOND section
       // on the Compliance tab, so it genuinely has a name of its own to say —
       // the tab's title is already spoken for by the licence wall above it.
-      title="Other qualifications"
+      variant={group ? "group" : "card"}
+      title={group?.title ?? "Other qualifications"}
+      editLabel={group?.editLabel}
       values={values}
       onSave={(fields) => onSave("licences", fields)}
       validate={(fields) => preValidate(mode, "licences", fields)}

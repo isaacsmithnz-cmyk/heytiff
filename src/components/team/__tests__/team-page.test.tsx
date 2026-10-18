@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TeamPage, type TeamPageData } from "../team-page";
 import { WindowsContext } from "@/components/records/records-context";
@@ -251,7 +251,7 @@ describe("Team, People", () => {
   it("draws the Vehicle column only for a reader who may see the register", () => {
     setup();
     expect(screen.queryByText("Vehicle")).toBeNull();
-    document.body.innerHTML = "";
+    cleanup();
     setup({ vehicles: { a1: "Hilux XQG 41B" } });
     expect(screen.getByText("Vehicle")).toBeInTheDocument();
     expect(within(rowOf("Jordan Mills")).getByText("Hilux XQG 41B")).toBeInTheDocument();
@@ -401,7 +401,7 @@ describe("Team, a card nobody has claimed", () => {
     setup({ staff: UNCLAIMED, canInvite: true });
     expect(within(rowOf("Imported Dan")).getByRole("button", { name: "Invite to join" })).toBeInTheDocument();
     expect(within(rowOf("Jordan Mills")).queryByRole("button", { name: "Invite to join" })).toBeNull();
-    document.body.innerHTML = "";
+    cleanup();
     setup({ staff: UNCLAIMED, canInvite: false });
     expect(screen.queryByRole("button", { name: "Invite to join" })).toBeNull();
   });
@@ -442,7 +442,7 @@ describe("Team, a member with no staff card", () => {
   it("offers Remove only to an owner, and asks before it takes the seat back", async () => {
     setup({ staff: [], pending: [], orphans: [orphan] });
     expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
-    document.body.innerHTML = "";
+    cleanup();
     const { user } = setup({ staff: [], pending: [], orphans: [orphan], canRemoveMembers: true });
     await user.click(screen.getByRole("button", { name: "Remove" }));
     expect(removeMemberWithoutCard).not.toHaveBeenCalled();
@@ -460,7 +460,7 @@ describe("Team, a member with no staff card", () => {
   it("falls back to the address, then the sub, when nothing holds a real name", () => {
     setup({ staff: [], pending: [], orphans: [{ ...orphan, name: null }] });
     expect(screen.getByText("sam")).toBeInTheDocument();
-    document.body.innerHTML = "";
+    cleanup();
     setup({ staff: [], pending: [], orphans: [{ ...orphan, name: null, email: "" }] });
     expect(screen.getByText("auth0|orphan")).toBeInTheDocument();
     expect(screen.getByText("Unnamed account")).toBeInTheDocument();

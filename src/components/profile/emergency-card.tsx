@@ -4,7 +4,7 @@ import { requiredField } from "@/lib/staff/completeness";
 import { IdCard } from "@/components/cards/id-card";
 import { EMERGENCY_RELATIONSHIPS, type StaffProfile } from "@/lib/staff/profile";
 import { preValidate } from "@/lib/staff/pre-validate";
-import { SectionCard, type SectionBodyContext } from "./section-card";
+import { SectionCard, type GroupHead, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
@@ -30,7 +30,11 @@ export function EmergencyCard({
   startEditing,
   focusField,
   onSave,
+  group,
 }: {
+  /** drawn as a titled group with its own Edit, on Team's person page: the
+      rows read in both modes, since the plastic card is the phone's */
+  group?: GroupHead;
   profile: StaffProfile | null;
   mode: ProfileMode;
   org: string | null;
@@ -67,7 +71,7 @@ export function EmergencyCard({
      section — which is also how "+ Add" gets somewhere to live. */
   const body = ({ editing, draft, set, edit }: SectionBodyContext) => (
     <>
-      {!blank && !editing && (
+      {!blank && !editing && !group && (
         <IdCard
           variant="light"
           org={org}
@@ -91,7 +95,7 @@ export function EmergencyCard({
         />
       )}
 
-      {(blank || editing) && (
+      {(blank || editing || group) && (
       <DetailPanels>
         <DetailPanel title="In case of emergency" wide split>
           <Detail
@@ -163,8 +167,9 @@ export function EmergencyCard({
 
   return (
     <SectionCard
-      variant="section"
-      title="Emergency contact"
+      variant={group ? "group" : "section"}
+      title={group?.title ?? "Emergency contact"}
+      editLabel={group?.editLabel}
       values={values}
       startEditing={startEditing}
       focusField={focusField}

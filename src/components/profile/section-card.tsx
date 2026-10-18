@@ -68,6 +68,10 @@ export type SectionBodyContext = CardEditContext & {
 
 export type SectionVariant = "section" | "card" | "group";
 
+/** A card drawn as a titled group on a page of several (Team's person page):
+    its title, and its Edit's own words. */
+export type GroupHead = { title: string; editLabel?: string };
+
 /* WHERE A FORM GOES WHEN IT IS FINISHED WITH. The staff card has no tabs any
    more (2026-09-29): its sections open from the Overview's cards, straight
    into their forms, and a saved or cancelled form goes back to the Overview
@@ -97,6 +101,8 @@ export function SectionCard({
       in profile-screen. State, not an effect: the card is already fresh. */
   startEditing = false,
   focusField,
+  editLabel,
+  headExtra,
 }: {
   title: string;
   sub?: string;
@@ -141,6 +147,12 @@ export function SectionCard({
       too, and a default that changed its chrome would redesign a screen
       nobody asked about. */
   variant?: SectionVariant;
+  /** "group" only: the Edit's own words, a verb and a noun ("Edit details").
+      Left out, the button says Edit and names its group to a screen reader. */
+  editLabel?: string;
+  /** "group" only: another door on the group's head, before its Edit
+      (Work rights' Record a check). Hidden while the group is being edited. */
+  headExtra?: ReactNode;
 }) {
   const [draft, setDraft] = useState<Record<string, string> | null>(() =>
     startEditing && editable ? { ...values } : null
@@ -226,8 +238,10 @@ export function SectionCard({
       >
         <div className="pdlh jump">
           <span>{title}</span>
-          {editable && (
+          {pill}
+          {(editable || headExtra) && (
             <span className="acts">
+              {!editing && headExtra}
               {editing ? (
                 <>
                   <button className="pbtn ghost" type="button" data-cancel onClick={cancel}>
@@ -244,12 +258,16 @@ export function SectionCard({
                     {saving ? "Saving the changes" : "Save changes"}
                   </button>
                 </>
-              ) : (
+              ) : editable ? (
                 <button className="jumpb" type="button" data-edit onClick={startEdit}>
-                  Edit
-                  <span className="sr-only"> {title}</span>
+                  {editLabel ?? (
+                    <>
+                      Edit
+                      <span className="sr-only"> {title}</span>
+                    </>
+                  )}
                 </button>
-              )}
+              ) : null}
             </span>
           )}
         </div>
@@ -357,6 +375,7 @@ export function StaticCard({
   sub,
   pill,
   variant = "card",
+  headExtra,
   children,
 }: {
   title: string;
@@ -365,8 +384,23 @@ export function StaticCard({
   /** see the note on SectionCard's `variant` — "card" is what every caller
       outside the staff card still wants */
   variant?: SectionVariant;
+  /** "group" only: a door on the group's head */
+  headExtra?: ReactNode;
   children: ReactNode;
 }) {
+  if (variant === "group") {
+    return (
+      <div className="pdlcard psec-group" data-static>
+        <div className="pdlh jump">
+          <span>{title}</span>
+          {pill}
+          {headExtra && <span className="acts">{headExtra}</span>}
+        </div>
+        {children}
+      </div>
+    );
+  }
+
   if (variant === "section") {
     return (
       <div className="psec-body">

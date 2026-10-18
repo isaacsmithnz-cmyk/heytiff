@@ -1,65 +1,73 @@
 import { notFound, redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
-import { ProfileScreen } from "@/components/profile/profile-screen";
+import { PersonPage, type PersonPageData } from "@/components/team/person-page";
 import type { PermissionsCtx } from "@/components/profile/types";
+import type { StaffProfile } from "@/lib/staff/profile";
 import { assignedVehicleFor } from "@/lib/fleet/query";
-import {
-  can,
-  getCapabilities,
-  getOrgName,
-  getOrgState,
-  getOwnership,
-} from "@/lib/permissions-server";
+import { can, getCapabilities, getOrgName, getOrgState, getOwnership } from "@/lib/permissions-server";
 import {
   CAPABILITIES,
   canChangeRoleOf,
   canEditPermissionsOf,
   canSetCapability,
+  invitableRoles,
   resolve,
   type Capability,
 } from "@/lib/permissions";
-import {
-  getStaff,
-  listLicenceTerms,
-  listWorkRightsChecks,
-  permissionsOf,
-} from "@/lib/staff/query";
+import { hasMinRole } from "@/lib/roles-shared";
+import { getStaff, listLicenceTerms, listWorkRightsChecks, permissionsOf, staffCardsInUse } from "@/lib/staff/query";
 import { documentsForStaffLicences, documentsForWorkRights } from "@/lib/documents/query";
 import { signPhotoUrl } from "@/lib/staff/photo";
 import { getPaySettings, shiftDefaultsFor } from "@/lib/timepay/query";
-import { rosteredWeekHours } from "@/components/timepay/logic";
+import { derivedDayHours, normalHours, rosteredWeekHours } from "@/components/timepay/logic";
 import { classifyEmployment } from "@/lib/staff/employment";
+import { balancesFor } from "@/lib/timepay/leave-query";
+import { balanceView, type BalanceKind } from "@/lib/timepay/leave";
+import { sm8StaffLinkMap } from "@/lib/integrations/links";
+import { capacityRowFor } from "@/lib/workboard/capacity-query";
+import { readRegularDaysOff } from "@/lib/team/regular-days-off-query";
+import { todayInAu } from "@/lib/au-dates";
+import { orgExpiryWindow } from "@/lib/org/query";
+import { aliasesOf } from "@/lib/staff/aliases-query";
 import {
   addStaffLicence,
   attachStaffLicenceDocument,
   attachStaffWorkRightsDocument,
   clearStaffPhoto,
-  recordStaffWorkRightsCheck,
   recordStaffLicenceTerm,
+  recordStaffWorkRightsCheck,
   removeStaffLicence,
   removeStaffLicenceTerm,
   removeStaffWorkRightsCheck,
-  saveStaffSection,
   saveStaffAliases,
-  updateStaffLicence,
+  saveStaffSection,
   setStaffPhoto,
+  updateStaffLicence,
 } from "@/app/actions/staff";
-import type { StaffProfile } from "@/lib/staff/profile";
-import { todayInAu } from "@/lib/au-dates";
-import { orgExpiryWindow } from "@/lib/org/query";
-import { aliasesOf } from "@/lib/staff/aliases-query";
 
-/* One staff member's card, as an admin sees it.
+/* TEAM, A PERSON (v2, step 5; the board "Team, a person"). One page, three
+   columns of groups, an Edit on each (the staff card's own edit cycle, in
+   place). Today's card, every section and every gate:
 
-   Which sections render is decided HERE, from the viewer's capabilities, and
-   the matching server action re-checks the same rules — the card never shows
-   something the action would refuse, and never hides something by rendering
-   it disabled when it could simply be omitted.
+   - Which groups render is decided HERE, from the viewer's capabilities, and
+     the matching action re-checks the same rules. A group the viewer may not
+     have is OMITTED, never rendered and hidden: Pay needs `financials`, the
+     notes are never on your own page, Signature is only ever yours.
+   - Normal week reads Time & Pay's hours for the person (the org's, or their
+     own). Only you change your own (saveMyHours is yours alone); a manager
+     reads them. Counts toward the schedule is the Schedule's crew row, read
+     with `workboard` and switched with `workboard_manage`, found through the
+     person's ServiceM8 link (the crew is keyed on ServiceM8's people).
+   - Leave reads the person's balances with `timepay_all`, Time & Pay's gate,
+     and sets them with `team`, setLeaveBalance's. Only hours and dates go to
+     the page: no certificate leaves the server.
+   - Regular days off come with Team (`team`), their actions' gate.
+   - Deactivate and Reactivate are the personal section's `status`; Delete is
+     offered only to an owner, on a card nothing on the records points at.
 
-   Note what is NOT here: My pay. Someone else's rates are the Payroll card's
-   business, and that is gated on `financials`. */
+   Note what is NOT here: someone else's pay without `financials`. */
 
-export default async function StaffProfilePage({
+export default async function StaffPersonPage({
   params,
   searchParams,
 }: {
@@ -78,7 +86,6 @@ export default async function StaffProfilePage({
     getOwnership(),
     searchParams,
     getOrgName(),
-    // both ride the one cached membership read — no extra round trip
     getOrgState(),
     orgExpiryWindow(orgId),
   ]);
@@ -91,74 +98,88 @@ export default async function StaffProfilePage({
 
   const { row, profile, licences } = found;
   const isSelf = !!row.userId && row.userId === ownership.userId;
+  const today = todayInAu();
 
   const editable = canEditPermissionsOf(
     { role: ownership.role, userId: ownership.userId, caps },
-    { role: row.orgRole, userId: row.userId }
+    { role: row.orgRole, userId: row.userId },
   );
-  const settable = new Set<Capability>(
-    CAPABILITIES.filter((c) => canSetCapability(ownership.role, c))
-  );
-  const targetOverrides = row.userId ? await permissionsOf(orgId, row.userId) : null;
-  // derived from the register, never stored on the staff record
-  const assignedVehicle = await assignedVehicleFor(orgId, staffId);
-  // StaffRow carries no photo — the column is on the profile, and the link
-  // into a private bucket is minted per render
-  const photoUrl = await signPhotoUrl(profile.photo_url as string | null | undefined);
+  const settable = new Set<Capability>(CAPABILITIES.filter((c) => canSetCapability(ownership.role, c)));
+  const isOwner = hasMinRole(ownership.role, "owner");
+  const [workboard, manageCrew, timepayAll] = await Promise.all([can("workboard"), can("workboard_manage"), can("timepay_all")]);
 
-  /* The terms behind this person's tickets, their paperwork, and the REMINDERS
-     OF WHOEVER IS LOOKING — a manager's chips are their own tasks about
-     somebody else's ticket, so they resolve against the viewer's staff card,
-     not the subject's. */
   const licenceIds = licences.map((l) => l.id);
   const [
+    targetOverrides,
+    assignedVehicle,
+    photoUrl,
     licenceTerms,
     licenceDocuments,
     workRightsChecks,
     workRightsDocuments,
     aliases,
+    { settings },
+    defaults,
+    inUse,
+    links,
+    regularDaysOff,
+    leaveRead,
   ] = await Promise.all([
+    row.userId ? permissionsOf(orgId, row.userId) : Promise.resolve(null),
+    // derived from the register, never stored on the staff record
+    assignedVehicleFor(orgId, staffId),
+    // the link into a private bucket is minted per render
+    signPhotoUrl(profile.photo_url as string | null | undefined),
     listLicenceTerms(orgId, staffId),
     documentsForStaffLicences(orgId, licenceIds),
     listWorkRightsChecks(orgId, staffId),
     documentsForWorkRights(orgId, staffId),
     aliasesOf(orgId, staffId),
+    getPaySettings(orgId),
+    shiftDefaultsFor(orgId, [staffId]),
+    /* WHICH CARDS MAY OFFER DELETE: owners only, and only a card nothing on
+       the records points at. A failed read offers it on none. */
+    isOwner ? staffCardsInUse(orgId) : Promise.resolve(null),
+    workboard ? sm8StaffLinkMap(orgId) : Promise.resolve(new Map<string, string>()),
+    readRegularDaysOff(orgId, staffId),
+    timepayAll ? balancesFor(orgId, staffId) : Promise.resolve(null),
   ]);
 
-  /* Only for a viewer who can see the Payroll card, since that is the only
-     place it is shown — and it exists to keep the typed `contracted_hours`
-     honest about the week Time & Pay actually fills in. Both reads are
-     request-cached, so on a screen that already asked for either this is free.
-     See logic.ts::rosteredWeekHours for why the two numbers are separate. */
-  const rosteredWeek = canPay
-    ? await (async () => {
-        const [{ settings }, defaults] = await Promise.all([
-          getPaySettings(orgId),
-          shiftDefaultsFor(orgId, [staffId]),
-        ]);
-        return rosteredWeekHours(
-          settings,
-          { hours: defaults.hours.get(staffId), workDays: defaults.workDays.get(staffId) },
-          classifyEmployment(profile.employment_type as string | null | undefined)
-        );
+  /* The Schedule's crew row: ServiceM8's uuid for this person, through their link. */
+  const sm8Uuid = [...links.entries()].find(([, profileId]) => profileId === staffId)?.[0] ?? null;
+  const crew = workboard && sm8Uuid ? { ...(await capacityRowFor(orgId, sm8Uuid)), staffUuid: sm8Uuid } : null;
+
+  const own = { hours: defaults.hours.get(staffId), workDays: defaults.workDays.get(staffId) };
+  const hours = normalHours(settings, own.hours);
+  const employment = classifyEmployment(profile.employment_type as string | null | undefined);
+
+  const leave = leaveRead
+    ? (() => {
+        const cell = (kind: BalanceKind) => {
+          const b = leaveRead.balances.find((x) => x.kind === kind);
+          if (!b) return null;
+          const v = balanceView(b, leaveRead.requests);
+          return { available: v.available, balanceHours: v.balanceHours, asAt: v.asAt, source: v.source };
+        };
+        return {
+          annual: cell("annual"),
+          personal: cell("personal"),
+          coming: leaveRead.requests
+            .filter((r) => (r.status === "pending" || r.status === "approved") && r.endDate >= today)
+            .sort((a, b) => a.startDate.localeCompare(b.startDate))
+            .slice(0, 3)
+            .map((r) => ({ id: r.id, kind: r.kind, startDate: r.startDate, endDate: r.endDate, hours: r.hours, status: r.status })),
+        };
       })()
     : null;
 
-  const permissionsCtx: PermissionsCtx = {
+  const permissions: PermissionsCtx = {
     role: row.orgRole,
     caps: resolve(row.orgRole, targetOverrides),
     settable,
     canChangeRole: canChangeRoleOf(
-      {
-        role: ownership.role,
-        userId: ownership.userId,
-        primaryOwnerUserId: ownership.primaryOwnerUserId,
-      },
-      {
-        role: row.orgRole,
-        userId: row.userId ?? "",
-        primaryOwnerUserId: ownership.primaryOwnerUserId,
-      }
+      { role: ownership.role, userId: ownership.userId, primaryOwnerUserId: ownership.primaryOwnerUserId },
+      { role: row.orgRole, userId: row.userId ?? "", primaryOwnerUserId: ownership.primaryOwnerUserId },
     ),
     editable,
     lockedReason: editable
@@ -170,34 +191,58 @@ export default async function StaffProfilePage({
           : "Only an owner, or someone granted Permissions, can change access.",
   };
 
-  const sec = query.sec;
+  /* Only for a viewer who sees Pay: the week Time & Pay fills in, beside the
+     typed hours a week, so the two can be seen to agree. */
+  const rosteredWeek = canPay ? rosteredWeekHours(settings, own, employment) : null;
+
+  const data: PersonPageData = {
+    header: { ...row, photoUrl },
+    profile: profile as unknown as StaffProfile,
+    licences,
+    licenceTerms,
+    licenceDocuments: Object.fromEntries(licenceDocuments),
+    workRightsChecks,
+    workRightsDocuments,
+    vehicle: assignedVehicle,
+    today,
+    warnDays: expiry.warnDays,
+    org: orgName,
+    orgState,
+    aliases,
+    addressLookup: Boolean(process.env.GOOGLE_MAPS_API_KEY),
+    isSelf,
+    // omitted entirely without `financials`, not rendered and hidden
+    payroll: canPay ? profile : null,
+    rosteredWeek,
+    permissions,
+    // notes are written ABOUT someone; you don't read your own
+    notes: isSelf ? null : { notes: (profile.notes as string | null | undefined) ?? null },
+    week: {
+      start: hours.start,
+      end: hours.end,
+      days: own.workDays ?? settings.workDays,
+      perDay: derivedDayHours(hours.start, hours.end, settings),
+      breakMinutes: settings.breakMinutes,
+      breakPaid: settings.breakPaid,
+      weekHours: rosteredWeekHours(settings, own, employment),
+      ownHours: !!own.hours,
+      ownDays: own.workDays !== undefined,
+    },
+    crew,
+    canManageCrew: manageCrew,
+    linkedToSm8: !!sm8Uuid,
+    showCrew: workboard,
+    leave,
+    canSetBalances: caps.has("team"),
+    regularDaysOff,
+    deletable: !!inUse && !inUse.has(staffId) && !row.isMaster && row.orgRole !== "owner" && row.userId !== ownership.userId,
+    inviteRoles: invitableRoles(ownership.role, caps),
+    initialSec: typeof query.sec === "string" ? query.sec : undefined,
+  };
 
   return (
-    <ProfileScreen
-      mode="admin"
-      header={{ ...row, photoUrl }}
-      profile={profile as unknown as StaffProfile}
-      licences={licences}
-      licenceTerms={licenceTerms}
-      licenceDocuments={Object.fromEntries(licenceDocuments)}
-      workRightsChecks={workRightsChecks}
-      workRightsDocuments={workRightsDocuments}
-      vehicle={assignedVehicle}
-      today={todayInAu()}
-      warnDays={expiry.warnDays}
-      org={orgName}
-      orgState={orgState}
-      aliases={aliases}
-      initialSec={typeof sec === "string" ? sec : undefined}
-      // The configured/not-configured bit only — the key stays on the server.
-      addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
-      adminExtras={{
-        // omitted entirely without `financials` — not rendered-then-hidden
-        ...(canPay ? { payroll: profile, rosteredWeek } : {}),
-        permissions: permissionsCtx,
-        // notes are written ABOUT someone; you don't read your own
-        ...(isSelf ? {} : { notes: profile as { notes?: string | null } }),
-      }}
+    <PersonPage
+      data={data}
       actions={{
         onSave: saveStaffSection.bind(null, staffId),
         onSaveAliases: saveStaffAliases.bind(null, staffId),

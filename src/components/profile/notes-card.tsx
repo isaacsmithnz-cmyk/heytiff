@@ -2,7 +2,7 @@
 
 import { Icon } from "@/components/shell/icon";
 import { preValidate } from "@/lib/staff/pre-validate";
-import { SectionCard, StaticCard } from "./section-card";
+import { SectionCard, StaticCard, type GroupHead } from "./section-card";
 import { DetailPanel, DetailPanels } from "./detail";
 import { TextArea } from "./fields";
 import type { SaveSection } from "./types";
@@ -14,7 +14,11 @@ export function NotesCard({
   notes,
   onSave,
   startEditing = false,
+  group,
 }: {
+  /** drawn as a titled group with its own Edit, on Team's person page,
+      without the Flags placeholder (it has nothing behind it) */
+  group?: GroupHead;
   notes: { notes?: string | null } | null;
   onSave: SaveSection;
   /** opened from the Overview's Edit — the form, not the read view */
@@ -24,8 +28,9 @@ export function NotesCard({
   return (
     <>
       <SectionCard
-        variant="section"
-        title="Notes"
+        variant={group ? "group" : "section"}
+        title={group?.title ?? "Notes"}
+        editLabel={group?.editLabel}
         sub="Internal — visible to managers & admin"
         values={values}
         onSave={(fields) => onSave("notes", fields)}
@@ -63,6 +68,7 @@ export function NotesCard({
           section it rendered a second `.psechd` with no title, so "Things that
           need attention" sat under the notes panel reading as a caption for
           the notes. */}
+      {!group && (
       <StaticCard
         variant="card"
         title="Flags"
@@ -75,6 +81,7 @@ export function NotesCard({
           <em>This staff member is all clear.</em>
         </div>
       </StaticCard>
+      )}
     </>
   );
 }

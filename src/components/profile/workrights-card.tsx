@@ -7,7 +7,7 @@ import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { fmtDay } from "@/lib/format/day";
 import { licenceStatus } from "@/lib/staff/licence";
 import { preValidate } from "@/lib/staff/pre-validate";
-import { SectionCard, type SectionBodyContext } from "./section-card";
+import { SectionCard, type GroupHead, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { DateField, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
@@ -52,7 +52,11 @@ export function WorkRightsCard({
   lastChecked = null,
   onOpenChecks,
   onSave,
+  group,
 }: {
+  /** drawn as a titled group on Team's person page; the checks' door sits
+      on its head as Record a check */
+  group?: GroupHead;
   profile: StaffProfile | null;
   mode: ProfileMode;
   today: string;
@@ -249,8 +253,16 @@ export function WorkRightsCard({
 
   return (
     <SectionCard
-      variant="section"
-      title="Work rights"
+      variant={group ? "group" : "section"}
+      title={group?.title ?? "Work rights"}
+      editLabel={group?.editLabel}
+      headExtra={
+        group && onOpenChecks ? (
+          <button className="jumpb" type="button" onClick={onOpenChecks}>
+            Record a check
+          </button>
+        ) : undefined
+      }
       values={values}
       startEditing={startEditing}
       focusField={focusField}

@@ -12627,3 +12627,77 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tm2-orphan-acts { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
 /* Notices, framed: Write a notice stands over the board */
 .fg .tm2-tools { display:flex; justify-content:flex-end; margin-bottom:16px; }
+
+/* ===== TEAM, A PERSON (v2, step 5; components/team/person-page.tsx) =====
+   The board "Team, a person": the head (the photo or initials on a light
+   disc, the name, one grey line, the state as a word, Actions), then three
+   columns of groups under thin lines, all on one page. A group is the staff
+   card's own SectionCard in its "group" variant (`.pdlcard.psec-group`), so
+   these rules dress that vocabulary in v2 inside `.tm2-p` only: the 16/600
+   head with its quiet text door, label and value rows at 14, the sub-groups
+   at 14/600. Today's forms open in place, in their own fields. */
+.fg .tm2-p { gap:24px; }
+.fg .tm2-phead { display:flex; align-items:center; gap:16px; }
+.fg .tm2-pid { display:flex; flex-direction:column; gap:4px; flex:1 1 auto; min-width:0; }
+.fg .tm2-pname { display:flex; align-items:baseline; gap:12px; min-width:0; flex-wrap:wrap; }
+.fg .tm2-pname h1 { margin:0; min-width:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .tm2-photo { flex:0 0 auto; }
+.fg .tm2-photo .pphoto { width:56px; height:56px; border-radius:50%; }
+.fg .tm2-photo .pphoto .inn { border-radius:50%; }
+.fg .tm2-photo .pphoto.nophoto, .fg .tm2-photo .pphoto.nophoto .inn { background:var(--sel); color:var(--ink); font-size:16px; line-height:24px; font-weight:600; }
+.fg .tm2-cols { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:48px; align-items:start; }
+.fg .tm2-col { display:flex; flex-direction:column; gap:32px; min-width:0; }
+/* a group: its head on a thin line, its rows under it */
+.fg .tm2-p .pdlcard.psec-group { border-top:1px solid var(--line); padding-top:16px; }
+.fg .tm2-col > :first-child .pdlcard.psec-group, .fg .tm2-col > .pdlcard.psec-group:first-child { border-top:0; padding-top:0; }
+.fg .tm2-p .psec-group > .pdlh { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); min-height:32px; }
+.fg .tm2-p .psec-group .pdlh .jumpb { padding:4px 8px; margin-right:-8px; border-radius:var(--r-button); font-size:14px; line-height:20px; font-weight:600; color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
+.fg .tm2-p .psec-group .pdlh .jumpb:hover { background:var(--hov); }
+.fg .tm2-hcount { font-weight:400; color:var(--q); }
+/* the sub-groups inside a section's form (Identity, Contact, Employment, Uniform) */
+.fg .tm2-p .psec-group .pdlgrid { grid-template-columns:minmax(0,1fr); gap:16px; margin-top:8px; }
+.fg .tm2-p .psec-group .pdlgrid > .pdlcard { border-top:0; padding-top:0; }
+.fg .tm2-p .psec-group .pdlgrid .pdlh { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .tm2-p .psec-group .pdl.split { grid-template-columns:minmax(0,1fr); }
+.fg .tm2-p .pdl { gap:8px; }
+.fg .tm2-p .pdrow { grid-template-columns:128px minmax(0,1fr); gap:12px; }
+.fg .tm2-p .pdrow dt { font-size:14px; line-height:20px; font-weight:400; color:var(--q); }
+.fg .tm2-p .pdv, .fg .tm2-p .pdv.sm { font-size:14px; line-height:20px; font-weight:400; color:var(--ink); }
+.fg .tm2-p .pdnone { font-size:14px; line-height:20px; font-weight:400; color:var(--q); }
+.fg .tm2-p .padd { font-size:14px; line-height:20px; font-weight:500; }
+.fg .tm2-none { margin:8px 0 0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .tm2-link { display:inline-block; margin-top:8px; font-size:14px; line-height:20px; color:var(--ink); text-decoration:underline; text-underline-offset:2px; }
+.fg .tm2-link:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
+.fg .tm2-leave { display:block; }
+/* Licences and tickets: a row per ticket, Renew licence on one running out */
+.fg .tm2-licrows { margin:8px 0 0; padding:0; list-style:none; }
+.fg .tm2-licrow { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+.fg .tm2-licrow:last-child { border-bottom:0; }
+.fg .tm2-lictext { display:flex; flex-direction:column; min-width:0; }
+.fg .tm2-licname { padding:0; border:0; background:none; text-align:left; font:inherit; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); cursor:pointer; }
+.fg .tm2-licname:hover { text-decoration:underline; text-underline-offset:2px; }
+.fg .tm2-licname:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
+.fg .tm2-licline.pt-state { font-size:13px; line-height:18px; }
+.fg .tm2-licline .pt-dot { display:none; }
+/* Normal week: the days across, the hours under each */
+.fg .tm2-days { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); margin:8px 0; }
+.fg .tm2-day { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.fg .tm2-day dt { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .tm2-day dd { margin:0; min-height:20px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .tm2-p .tm2-sub { margin:0; }
+.fg .tm2-crew { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:12px; }
+.fg .tm2-crew .pt-chooser.tm2-dailych { width:auto; min-width:160px; }
+.fg .tm2-weekform { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
+.fg .tm2-weekclocks { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
+.fg .tm2-dows { display:flex; gap:4px; flex-wrap:wrap; }
+.fg .tm2-dow { height:32px; padding:0 8px; border:1px solid var(--edge); border-radius:var(--r-button); background:var(--white); font:inherit; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); cursor:pointer; transition:background var(--t-fast) var(--ease); }
+.fg .tm2-dow:hover { background:var(--hov); }
+.fg .tm2-dow[aria-pressed="true"] { background:var(--press); border-color:var(--press); color:var(--white); }
+.fg .tm2-dow:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tm2-formacts { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+@media (max-width:900px) {
+  .fg .tm2-cols { grid-template-columns:minmax(0,1fr); gap:32px; }
+}
+@media print {
+  .fg .tm2-p .jumpb, .fg .tm2-phead .pt-btn { display:none; }
+}

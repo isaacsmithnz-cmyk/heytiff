@@ -3,7 +3,7 @@
 import { Icon } from "@/components/shell/icon";
 import type { Capability } from "@/lib/permissions";
 import { ROLE_COPY, ROLE_ORDER, type Role } from "@/lib/roles-shared";
-import { SectionCard, StaticCard, type SectionBodyContext } from "./section-card";
+import { SectionCard, StaticCard, type GroupHead, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import type { PermissionsCtx, SaveSection } from "./types";
 
@@ -61,7 +61,10 @@ export function PermissionsCard({
   ctx,
   onSave,
   startEditing = false,
+  group,
 }: {
+  /** drawn as a titled group with its own Edit, on Team's person page */
+  group?: GroupHead;
   ctx: PermissionsCtx;
   onSave: SaveSection;
   /** opened from the Overview's Edit — the form, not the read view */
@@ -213,9 +216,9 @@ export function PermissionsCard({
   if (!ctx.editable) {
     return (
       <StaticCard
-        variant="section"
-        title="Permissions"
-        pill={pill}
+        variant={group ? "group" : "section"}
+        title={group?.title ?? "Permissions"}
+        pill={group ? undefined : pill}
       >
         {readOnlyBody}
       </StaticCard>
@@ -224,9 +227,10 @@ export function PermissionsCard({
 
   return (
     <SectionCard
-      variant="section"
-      title="Permissions"
-      pill={pill}
+      variant={group ? "group" : "section"}
+      title={group?.title ?? "Permissions"}
+      editLabel={group?.editLabel}
+      pill={group ? undefined : pill}
       values={values}
       onSave={(fields) => onSave("permissions", fields)}
       body={sectionBody}

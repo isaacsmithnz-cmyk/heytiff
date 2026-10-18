@@ -8,7 +8,7 @@ import { Icon } from "@/components/shell/icon";
 import { nameHue } from "@/lib/staff/avatar";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import { CopyLink } from "@/components/shell/copy-link";
-import { InviteModal } from "@/components/team/invite-modal";
+import { PersonForm } from "@/components/team/person-form";
 import { renewInvite, revokeInvite, type InviteResult } from "@/app/actions/invite";
 import { saveStaffSection } from "@/app/actions/staff";
 import { createCardForMember, deleteStaffCard, removeMemberWithoutCard } from "@/app/actions/members";
@@ -22,7 +22,7 @@ type Sort = "name" | "role" | "exp";
 export function TeamDirectory({
   staff,
   pending,
-  /** the Invite staff button, docked at the band's right end — the page owns
+  /** the Add a person button, docked at the band's right end — the page owns
       it because only the server knows which roles this viewer may invite */
   invite = null,
   /** memberships with no staff card — people the directory could not show at
@@ -595,7 +595,7 @@ export function TeamDirectory({
       </div>
 
       {invitee && (
-        <InviteModal
+        <PersonForm
           roles={inviteRoles}
           prefill={{
             // for an unclaimed card, StaffRow.email IS the contact_email the

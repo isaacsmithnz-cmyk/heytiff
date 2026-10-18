@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth0 } from "@/lib/auth0";
 import { Icon } from "@/components/shell/icon";
 import { TeamDirectory } from "@/components/team/directory";
-import { InviteButton } from "@/components/team/invite-modal";
+import { AddPersonButton } from "@/components/team/person-form";
 import { can, getCapabilities, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles-shared";
 import { invitableRoles } from "@/lib/permissions";
@@ -66,7 +66,7 @@ export default async function TeamPage() {
     process.env.APP_BASE_URL ?? (host ? `${proto}://${host}` : "http://localhost:3000");
 
   return (
-    /* Paper to the frame, and the title and Invite staff ride the tab band
+    /* Paper to the frame, and the title and Add a person ride the tab band
        inside the directory (2026-09-20, the Workboard's frame everywhere). */
     <div className="page in full">
       <div className="wrap">
@@ -92,7 +92,7 @@ export default async function TeamPage() {
                 {canInvite ? (
                   <div className="wb2-vtcap">
                     <div className="wb2-headtools">
-                      <InviteButton roles={invitableAt} />
+                      <AddPersonButton roles={invitableAt} />
                     </div>
                   </div>
                 ) : null}
@@ -115,7 +115,7 @@ export default async function TeamPage() {
               orphans={orphans}
               pending={pending}
               canInvite={canInvite}
-              invite={canInvite ? <InviteButton roles={invitableAt} /> : null}
+              invite={canInvite ? <AddPersonButton roles={invitableAt} /> : null}
               appUrl={appUrl}
               inviteRoles={invitableAt}
               canRemoveMembers={isOwner}

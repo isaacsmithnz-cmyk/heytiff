@@ -12,7 +12,7 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
 /* The pending rows now call server actions — mocked, never called for real.
    createInvite rides along because the row-level "Invite to join" opens the
-   real InviteModal, which imports it. */
+   real Add a person form (PersonForm), which imports it. */
 const renewInvite = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
 const revokeInvite = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
 const createInvite = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
@@ -372,17 +372,19 @@ describe("TeamDirectory unclaimed cards", () => {
     expect(screen.queryByRole("button", { name: /Invite to join/ })).not.toBeInTheDocument();
   });
 
-  it("the invite carries the card: modal prefilled, staffProfileId on the submit", async () => {
+  it("the invite carries the card: Add a person prefilled, staffProfileId on the submit", async () => {
     setupUnclaimed();
     await userEvent.click(menuButtonOf("Imported Dan"));
     await userEvent.click(screen.getByRole("button", { name: /Invite to join/ }));
 
+    // the same form as Team's Add a person (rule 52), the card filled in
+    const form = within(screen.getByRole("dialog", { name: "Add a person" }));
     // the claim is spelt out, the stale-able address is editable
-    expect(screen.getByText(/attaches to Imported Dan's card/)).toBeInTheDocument();
-    const email = screen.getByPlaceholderText("name@company.com") as HTMLInputElement;
+    expect(form.getByText(/attaches to Imported Dan's card/)).toBeInTheDocument();
+    const email = form.getByLabelText("Email address") as HTMLInputElement;
     expect(email.value).toBe("dan@acme.com");
 
-    await userEvent.click(screen.getByRole("button", { name: /Send invitation/ }));
+    await userEvent.click(form.getByRole("button", { name: "Send invite" }));
     expect(createInvite).toHaveBeenCalledWith({
       email: "dan@acme.com",
       role: "staff",

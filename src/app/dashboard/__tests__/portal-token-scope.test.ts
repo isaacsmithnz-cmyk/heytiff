@@ -65,6 +65,6 @@ describe("tokens used outside .fg are declared outside .fg", () => {
   it("the portalled modal really does reach for them", () => {
     const errRule = CSS.slice(CSS.indexOf("\n.fl-err"), CSS.indexOf("\n.fl-err") + 400);
     expect(errRule).toContain("var(--bad-t)");
-    expect(CSS).toMatch(/\n\.fl-res\.ok \{[^}]*var\(--ok-t\)/);
+    expect(CSS).toMatch(/\n\.dchip2\.ok \{[^}]*var\(--ok-t\)/);
   });
 });

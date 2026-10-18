@@ -17,6 +17,7 @@ import { bookJobIn, readBookInContext, takeBackBooking } from "@/app/actions/boo
 import { BOOKING_LENGTHS_MIN } from "@/lib/integrations/sm8-booking-plan";
 import { thrownWords } from "@/lib/stale-deploy";
 import type { PanelJob, SchedulePage } from "@/lib/schedule/schedule-page-query";
+import { RegularDaysOffForm } from "@/components/making/regular-days-off-form";
 import {
   DAY_JOB_MINUTES,
   MAX_DAYS,
@@ -105,6 +106,12 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
   const [at, setAt] = useState<{ staff: string; min: number; day: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [ask, setAsk] = useState<Ask | null>(null);
+  const [daysOff, setDaysOff] = useState<{ profile: string; name: string } | null>(null);
+  /** a person's name opens their regular days off, where they're linked and you look after the team */
+  const openDaysOff = (row: PersonRow) => {
+    const profile = data.canTeam ? data.profiles[row.staffUuid.toLowerCase()] : undefined;
+    return profile ? () => setDaysOff({ profile, name: row.name }) : undefined;
+  };
 
   const go = (view: ScheduleView, day: string) => router.push(`/dashboard/schedule?view=${view}&day=${day}`);
   const week = data.view === "week";
@@ -216,9 +223,9 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
           {weeks ? (
             <WeeksGrid data={data} open={(d) => go("day", d)} />
           ) : week ? (
-            <WeekRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} />
+            <WeekRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} />
           ) : (
-            <DayRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} />
+            <DayRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} nameDoor={openDaysOff} />
           )}
           {ask ? (
             <div className="sc-ask" role="alertdialog" aria-label="Some of those days">
@@ -255,11 +262,32 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
         </div>
         {weeks ? null : <JobsPanel jobs={data.jobs} canBook={data.canBook} held={held} week={week} pick={pick} setHeld={setHeld} />}
       </div>
+      {daysOff ? <RegularDaysOffForm staffProfileId={daysOff.profile} name={daysOff.name} today={data.today} onClose={() => setDaysOff(null)} /> : null}
     </div>
   );
 }
 
 /* ── the rows ── */
+
+/** A person's name: a door to their regular days off where there is one. */
+function Who({ row, line, door }: { row: PersonRow; line: string; door?: () => void }) {
+  const body = (
+    <>
+      <Initials name={row.name} beside size={32} />
+      <span className="sc-pn">
+        <Fade className="sc-name">{row.name}</Fade>
+        <em>{line}</em>
+      </span>
+    </>
+  );
+  return door ? (
+    <button type="button" className="sc-who sc-whob" onClick={door} aria-label={`${row.name}, regular days off`}>
+      {body}
+    </button>
+  ) : (
+    <div className="sc-who">{body}</div>
+  );
+}
 
 type RowsProps = {
   board: ReturnType<typeof boardOf>;
@@ -268,11 +296,12 @@ type RowsProps = {
   busy: string | null;
   setAt: (a: { staff: string; min: number; day: string } | null) => void;
   dropOn: (row: PersonRow, place: { min: number; day: string }) => void;
+  nameDoor: (row: PersonRow) => (() => void) | undefined;
 };
 
 const pct = (min: number, a: number, b: number) => ((min - a) / (b - a)) * 100;
 
-function DayRows({ board, held, at, busy, setAt, dropOn }: RowsProps) {
+function DayRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps) {
   const { stripStart: a, stripEnd: b } = board;
   const day = board.days[0];
   const hours: number[] = [];
@@ -302,13 +331,7 @@ function DayRows({ board, held, at, busy, setAt, dropOn }: RowsProps) {
         const dim = !!fit && (fit.kind === "busy" || fit.kind === "away");
         return (
           <div key={row.staffUuid} className={`sc-row${dim ? " sc-dim" : ""}${hot ? " sc-hot" : ""}`}>
-            <div className="sc-who">
-              <Initials name={row.name} beside size={32} />
-              <span className="sc-pn">
-                <Fade className="sc-name">{row.name}</Fade>
-                <em>{busy === row.staffUuid ? "Booking" : dayLine(d)}</em>
-              </span>
-            </div>
+            <Who row={row} line={busy === row.staffUuid ? "Booking" : dayLine(d)} door={nameDoor(row)} />
             <div
               className="sc-track"
               onDragOver={(e) => {
@@ -382,7 +405,7 @@ function weekBars(row: PersonRow): { key: string; first: number; last: number; b
   return out;
 }
 
-function WeekRows({ board, held, at, busy, setAt, dropOn }: RowsProps) {
+function WeekRows({ board, held, at, busy, setAt, dropOn, nameDoor }: RowsProps) {
   const days = board.days;
   const col = at && held ? days.indexOf(at.day) : -1;
   const span = held && col >= 0 ? workingDaysFrom(days[col], held.days) : [];
@@ -401,13 +424,7 @@ function WeekRows({ board, held, at, busy, setAt, dropOn }: RowsProps) {
         const dim = !!fit && fit.free.length === 0;
         return (
           <div key={row.staffUuid} className={`sc-wrow${dim ? " sc-dim" : ""}${hot ? " sc-hot" : ""}`}>
-            <div className="sc-who">
-              <Initials name={row.name} beside size={32} />
-              <span className="sc-pn">
-                <Fade className="sc-name">{row.name}</Fade>
-                <em>{busy === row.staffUuid ? "Booking" : weekLine(row)}</em>
-              </span>
-            </div>
+            <Who row={row} line={busy === row.staffUuid ? "Booking" : weekLine(row)} door={nameDoor(row)} />
             <div className="sc-cells">
               {days.map((d, i) => (
                 <div

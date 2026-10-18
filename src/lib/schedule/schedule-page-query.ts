@@ -17,6 +17,8 @@ import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { offersSend } from "@/lib/integrations/sm8-write-plan";
 import { BOOKINGS_OPEN_TO_MANAGERS } from "@/lib/integrations/sm8-booking-plan";
 import type { Hue, Tone } from "@/components/parts/state";
+import { awayOnDay, withRegular } from "@/lib/team/regular-days-off";
+import { readRegularDaysOff, sm8StaffByProfile } from "@/lib/team/regular-days-off-query";
 import { daysFor, isDay, isWeekend, stepDay, type ScheduleView } from "./board";
 
 /** A job the panel offers: a ServiceM8 job, which is what Book in books. */
@@ -44,6 +46,10 @@ export type SchedulePage = {
   canBook: boolean;
   /** the 4 weeks view: each weekday scored against the crew's hours */
   capacity: CapacityDay[];
+  /** ServiceM8 staff uuid (lower case) → their HeyTiff person, where linked */
+  profiles: Record<string, string>;
+  /** may set the team's regular days off */
+  canTeam: boolean;
 };
 
 const SM8 = "sm8:";
@@ -86,18 +92,23 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
       staffNames: new Map(window.staffNames),
     });
     const shown = new Set(days);
-    return { view, day, today, days, payloads: [], jobs: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)) };
+    return { view, day, today, days, payloads: [], jobs: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)), profiles: {}, canTeam: false };
   }
 
   const booking = sm8BookingsAllowed();
-  const [state, mayPress, list] = await Promise.all([
+  const [state, mayPress, list, rules, links, canTeam] = await Promise.all([
     booking ? readSm8WriteState(orgId) : Promise.resolve(null),
     booking ? mayPressBookings() : Promise.resolve(false),
     loadJobsList(),
+    readRegularDaysOff(orgId),
+    sm8StaffByProfile(orgId),
+    can("team"),
   ]);
-  const payloads = await Promise.all(
-    days.map((d) => loadScheduleDay(orgId, d, state ? { state, away: true } : { away: true })),
-  );
+  /* regular days off (TAFE, RDOs) laid over ServiceM8's own time off */
+  const payloads = (
+    await Promise.all(days.map((d) => loadScheduleDay(orgId, d, state ? { state, away: true } : { away: true })))
+  ).map((p) => ({ ...p, away: withRegular(p.away ?? [], awayOnDay(rules, p.dayISO, links)) }));
+  const profiles = Object.fromEntries([...links.entries()].map(([profile, sm8]) => [sm8.toLowerCase(), profile]));
 
   const jobs: PanelJob[] = (list?.rows ?? [])
     .filter((r) => r.key.startsWith(SM8))
@@ -123,5 +134,7 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
     jobs,
     canBook: !!state && offersSend(state, "booking") && mayPress,
     capacity: [],
+    profiles,
+    canTeam,
   };
 }

@@ -27,6 +27,7 @@ jest.mock("@/lib/workboard/schedule-query", () => ({ loadScheduleDay: jest.fn() 
 jest.mock("@/lib/integrations/sm8-writes", () => ({ readSm8WriteState: jest.fn() }));
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn() }));
 jest.mock("@/lib/workboard/capacity-query", () => ({ loadCapacityWindow: jest.fn() }));
+jest.mock("@/lib/team/regular-days-off-query", () => ({ readRegularDaysOff: jest.fn(), sm8StaffByProfile: jest.fn() }));
 
 const blk = (startMin: number, endMin: number, over: Partial<DayBlock> = {}): DayBlock => ({
   key: `${startMin}`,

@@ -41,7 +41,7 @@ describe("the sidebar's places (rules 5 and 7)", () => {
 
   it("offers a place only to someone who holds its capability", () => {
     expect(placesFor(PLACES, viewer([])).map((p) => p.key)).toEqual(["home"]);
-    expect(placesFor(PLACES, viewer(["workboard", "team"])).map((p) => p.key)).toEqual(["home", "jobs", "schedule", "team"]);
+    expect(placesFor(PLACES, viewer(["workboard", "team"])).map((p) => p.key)).toEqual(["home", "jobs", "schedule", "documents", "team"]);
     expect(placesFor(PLACES, viewer(["tiff"])).map((p) => p.key)).toEqual(["home", "conversations", "library"]);
   });
 
@@ -76,6 +76,24 @@ describe("the sidebar's places (rules 5 and 7)", () => {
     expect(placeOn(jobs, "/dashboard/workboard")).toBe(false);
     expect(placeOn(board, "/dashboard/workboard")).toBe(true);
     expect(placeOn(jobs, "/dashboard/jobsite")).toBe(false);
+  });
+
+  /* Documents is a page now (v2, step 5), after Schedule, behind the Workboard's gate */
+  it("puts Documents after Schedule, for whoever holds the Workboard", () => {
+    const keys = PLACES.map((p) => p.key);
+    expect(keys.indexOf("documents")).toBe(keys.indexOf("schedule") + 1);
+    const docs = PLACES.find((p) => p.key === "documents")!;
+    expect(docs).toMatchObject({ label: "Documents", icon: "file", href: "/dashboard/documents", capability: "workboard" });
+    expect(placesFor(PLACES, viewer(["tiff"])).some((p) => p.key === "documents")).toBe(false);
+  });
+
+  it("lights Documents on its list, a SWMS's sign-on and a letter", () => {
+    const docs = PLACES.find((p) => p.key === "documents")!;
+    expect(placeOn(docs, "/dashboard/documents")).toBe(true);
+    expect(placeOn(docs, "/dashboard/swms/v-1")).toBe(true);
+    expect(placeOn(docs, "/dashboard/admin/letters/l-1")).toBe(true);
+    expect(placeOn(docs, "/dashboard/admin/templates")).toBe(false);
+    expect(placeOn(docs, "/dashboard/documentsx")).toBe(false);
   });
 
   /* a vehicle is a page now (v2), and Assets, where its register is, says you're in it */

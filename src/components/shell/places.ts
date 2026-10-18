@@ -1,11 +1,10 @@
 /* THE SIDEBAR'S PLACES (docs/design.md rules 5 and 7).
 
    v2 has eight places: Home, Conversations, Jobs, Schedule, Documents,
-   Library, Design, Team. One of them has no page of their own until step 5
-   builds it (Documents), so until
-   then each place points at the screen that does its job today, and lights up
-   on every route that will move into it. A place with no screen yet is left
-   out rather than drawn as a dead row; it joins when its page lands.
+   Library, Design, Team. Each points at its own page, or at the screen that
+   does its job today until step 5 builds its page, and lights up on every
+   route that will move into it. A place with no screen yet is left out
+   rather than drawn as a dead row; it joins when its page lands.
 
    The screens v2 moves somewhere else (the Workboard into Schedule, Toolbox
    into the Library, Time & Pay and Assets into Team) keep a row of their own under the places until their
@@ -43,6 +42,17 @@ export const PLACES: readonly Place[] = [
   { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", under: ["/dashboard/my-notes"], capability: "tiff" },
   { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", under: [], capability: "workboard" },
   { key: "schedule", label: "Schedule", icon: "calendar", href: "/dashboard/schedule", under: [], capability: "workboard" },
+  /* the Workboard's gate, which is the SWMS', the certificates' and the
+     handover sheets' today; a SWMS's sign-on and a letter's editor are
+     Documents' too */
+  {
+    key: "documents",
+    label: "Documents",
+    icon: "file",
+    href: "/dashboard/documents",
+    under: ["/dashboard/swms", "/dashboard/admin/letters"],
+    capability: "workboard",
+  },
   { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff", under: [], capability: "tiff" },
   { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", under: [], capability: "studio" },
   { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: [], capability: "team" },

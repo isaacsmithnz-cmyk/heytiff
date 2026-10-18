@@ -98,7 +98,7 @@ const FLOOR = 1.1;
 const GROUNDS: Record<string, RGBA> = {
   "a white card": WHITE,
   "the outlet": ground([bgOf(".fg .outlet")]),
-  "the day panel": ground([bgOf(".fg .mts2-panel")]),
+  "the timesheet's day card": ground([bgOf(".fg .ts2-card")]),
   "a form well on the page": ground([bgOf(".fg .outlet"), bgOf(".fg .lv-form")]),
   // the sunk card is a tint since the vm fold, so it is composited on the modal's white
   "the vehicle modal's sunk card": ground([colour(token("vm-sunk"))]),
@@ -110,7 +110,6 @@ const GROUNDS: Record<string, RGBA> = {
    panel, a white card, the portalled sheet). Since v2's palette they are
    `--sel`, a tint, so they join the trays checked on every ground below. */
 const HOUSE: [string, string][] = [
-  [".fg .mts2-dsw", "worked / off, in the day's head"],
   [".fg .seg", "FaceSwitch and the profile Seg"],
   [".wb2-sheet .seg", "the diary filter in the portalled sheet"],
 ];

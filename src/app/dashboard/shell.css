@@ -1856,7 +1856,7 @@
    different teals.
 
    `--ok-t` defuses a second trap for free: `--teal-d` is repointed to #16a34a
-   inside `.tpr`/`.mts2`/`.lv-*`/`.tw`, and that value is 3.30 on white — still
+   inside `.tpr`/`.lv-*`/`.tw`, and that value is 3.30 on white — still
    failing. `--ok-t` is declared once, on `.fg`.
 
    ⚠ THE FALLBACK IS LOAD-BEARING HERE, more than anywhere else in the sheet.
@@ -2000,10 +2000,10 @@
    to the matching green at the same alphas; a variable can't reach inside an
    rgba() literal.
 
-   Scope is the Time & Pay surfaces only (`.tpr` admin + wizard, `.mts2` my
-   timesheet, `.lv-*` leave, `.tw` the time wheel). The sidebar, search and
+   Scope is the Time & Pay surfaces only (`.tpr` admin + wizard, `.lv-*`
+   leave, `.tw` the time wheel). The sidebar, search and
    every other screen keep the teal. */
-.fg .tpr, .fg .mts2, .fg .lv-cols, .fg .lv-col, .fg .tw {
+.fg .tpr, .fg .lv-cols, .fg .lv-col, .fg .tw {
   --teal: var(--day-std);
   --teal-d: var(--day-std-d);
   --teal-ink: var(--ok-t);
@@ -2040,8 +2040,8 @@
    leave chip on the team calendar, were the least readable text on the screen.
    `--ok-t` is the same hue taken down until it clears: 5.01 on this tint. The
    FILL is unchanged — this is a text rule. */
-.fg .tpr .dchip.ok, .fg .mts2 .dchip.ok,
-.fg .tpr .dchip2.ok, .fg .mts2 .dchip2.ok, .fg .lv-col .dchip2.ok {
+.fg .tpr .dchip.ok,
+.fg .tpr .dchip2.ok, .fg .lv-col .dchip2.ok {
   color: var(--ok-t);
 }
 /* THE PRIVATE PALETTE, AND THE THREE VALUES IN IT THAT WERE NEVER READABLE.
@@ -2082,7 +2082,6 @@
 .fg .tp-card > .wknav:first-child { margin-top:0; }
 /* the week's note and the content below it are separate thoughts — without
    this they read as one paragraph that happens to contain a day strip */
-.fg .tp-card > .mts2-cols { margin-top:16px; }
 .fg .tpr .wknav .arw { width:42px; height:42px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--gray500); background:var(--paper); border:1px solid var(--line); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .tpr .wknav .arw:hover { color:var(--ink); border-color:var(--ink); }
 .fg .tpr .wknav .range { font-size:20px; font-weight:700; white-space:nowrap; }
@@ -3104,16 +3103,13 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-offbtn { display:inline-flex; align-items:center; gap:4px; margin-left:auto; height:30px; padding:0 12px; border-radius:var(--r-button); background:var(--paper); border:1px solid var(--warn); font-size:12px; font-weight:700; color:var(--warn-t); transition:background-color var(--t-fast) var(--ease); }
 .fg .fl-offbtn:hover { background:var(--warn-tint); }
 
-/* ---- Time & Pay: My timesheet ----
-   Shared entry chrome. The screen's own layout is the `.mts2-*` block further
-   down; the period nav and status chip still come from `.tpr`. No money rules,
-   because there is no money on the screen. */
+/* ---- Time & Pay: shared entry chrome ----
+   The error line and the labelled fields My leave, the holidays section and
+   the sign-in email form still wear. My timesheet itself is v2 now, `.ts2-*`
+   at the foot of this sheet. */
 .fg .tp-err { font-size:13px; font-weight:600; color:var(--red-d,var(--bad-t)); margin:-6px 0 12px; }
 /* what kept approved leave off the ServiceM8 board: somebody's to fix, not an error */
 .fg .tp-err.warn { color:var(--warn-t); }
-.fg .mts-back { display:flex; gap:8px; align-items:flex-start; padding:12px 16px; border-radius:var(--r-card); background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); margin-bottom:16px; }
-.fg .mts-back b { display:block; font-size:13px; font-weight:700; }
-.fg .mts-back em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray700); margin-top:4px; }
 .fg .mts-f { display:flex; flex-direction:column; gap:4px; }
 .fg .mts-f span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .mts-f input, .fg .mts-f select { height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); min-width:120px; }
@@ -3134,9 +3130,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .tpr .crow .mini { flex-wrap:wrap; overflow:visible; }
 
 /* Multi-week periods (fortnight / month) read as week-rows. */
-.fg .mts-wh { display:flex; align-items:baseline; justify-content:space-between; padding:4px 2px 8px; }
-.fg .mts-wh span { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .mts-wh em { font-style:normal; font-size:13px; font-weight:700; color:var(--gray700); }
 .fg .tpr .dweek + .dweek { border-top:2px solid var(--line); }
 .fg .tpr .dwh { display:flex; align-items:baseline; justify-content:space-between; padding:8px 12px 4px; background:var(--tint); }
 .fg .tpr .dwh span { font-size:12px; font-weight:500; color:var(--gray400); }
@@ -3488,417 +3481,10 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* iOS shrink-wraps a date input to its content and left-aligns the text */
 .fg .inp.date::-webkit-date-and-time-value { text-align:left; }
 
-/* ---- My timesheet (.mts2-*) ----
-   The original staff-facing design's mechanics — a week strip of day chips
-   over a stack of day rows, one row expanding in place, a rail that totals the
-   period — wearing the current app language: white cards on #f0f0f2 hairlines,
-   16–24px radii, Jakarta, ink/teal. The day COLOURS are still the `.tpr`
-   palette (std teal, over amber, leave blue, sick red, ph violet, missing
-   red), because a colour has to mean the same thing here as it does on the
-   approver's screen — only the shape changed, from solid tiles to pills.
-
-   `.legend .sw.miss` stays below — it is now reached by both screens, since
-   this one renders the shared `<DayLegend/>` too. */
+/* The approver's key: a missing day is a dashed outline. (My timesheet's
+   own `.mts2-*` block went with its v2 rebuild; its rules are `.ts2-*` at
+   the foot of this sheet.) */
 .fg .tpr .legend .sw.miss { background:var(--paper); border:2px dashed var(--day-sick); }
-
-/* TWO COLUMNS AND TWO ROWS, and the second row is what fixed the shape.
-
-   The rail used to carry the whole right-hand side of this screen: the totals,
-   the submit button, the normal week, the month's public holidays and the
-   footnote of rules. That is five blocks in a 280px column, against a wide
-   column holding a strip of seven day tabs and one open day — so the narrow
-   side ran about twice the height of the wide one, and the bottom two thirds
-   of the main column was blank card.
-
-   The blocks are split by what they are FOR instead: the rail keeps the period
-   and the decision you make about it (what it comes to, and Submit), and the
-   reference material you only consult — the colour key, the holiday calendar,
-   the rules behind the figures — sits in `ref`, under the days it refers to.
-
-   `grid-template-areas` rather than a third column, because the DOM order is
-   main → rail → ref: that is exactly the order the one-column phone layout
-   wants (the week, then what it comes to, then the reference), so the stacked
-   case needs no `order` and no second source of truth about sequence. */
-/* THE WEEK'S ROW HUGS THE WEEK. The rail spans both rows, and a spanning item
-   taller than the rows it crosses shares its extra height out between them —
-   so opening My normal week pushed ~130px of air in under the day panel,
-   between the days and the key that explains their colours. A flexible second
-   row takes all of that slack, where it falls below the reference instead. */
-.fg .mts2-cols { display:grid; grid-template-columns:minmax(0,2fr) minmax(280px,1fr); gap:24px 24px;
-  align-items:start; grid-template-areas:"main rail" "ref rail"; grid-template-rows:auto 1fr; }
-.fg .mts2-main { grid-area:main; min-width:0; }
-.fg .mts2-rail { grid-area:rail; }
-.fg .mts2-ref  { grid-area:ref; min-width:0; }
-@media (max-width:960px){
-  .fg .mts2-cols { grid-template-columns:minmax(0,1fr); grid-template-areas:"main" "rail" "ref"; grid-template-rows:none; }
-}
-.fg .mts2-wk { margin-bottom:24px; }
-
-/* The reference row: the key across the top, then the holiday calendar. Both
-   are things you read, neither is a control, so they get the quiet end of the
-   card and none of the rail's width pressure. The pay rules used to sit here
-   too, as one grey line; they moved into the week's card, under the payroll
-   figures they explain. */
-.fg .mts2-ref { display:grid; grid-template-columns:minmax(240px,1fr) minmax(0,1.5fr); gap:12px 16px; align-items:start; }
-.fg .mts2-ref > .legend { grid-column:1 / -1; margin:0; }
-@media (max-width:720px){ .fg .mts2-ref { grid-template-columns:minmax(0,1fr); } }
-
-/* ---- the week: day tabs ----
-
-   ONE view of the days. There used to be a chip strip AND a vertical row per
-   day, which drew every day twice and put the editor in the copy rather than
-   in the thing you clicked. The strip is now the control: a card is a tab, the
-   selected tab loses its bottom edge and merges into the panel under it, and
-   the panel shows that day alone.
-
-   The colour is the day's STATE, from `dayClass` — the same classes the pill
-   and the approver's screen read, so a week's shape is legible without opening
-   anything. `--dc` carries it, set once per state and used by the top bar, the
-   tint and the selected ring, so a new state is one line rather than four. */
-/* A TRACK, not a row of folder tabs. These used to be tabs joined to the panel
-   below — which drew a hairline across the full width under all seven days,
-   and that line is what made the strip read as its own box sitting on the card
-   rather than part of it. The boards' Projects/Maintenance switcher had the
-   answer already: a tinted track, a white pill on the live one, and no join to
-   anything. Nothing here touches the panel now, so there is no seam to hide. */
-.fg .mts2-tabs { display:flex; gap:4px; align-items:stretch; padding:4px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); }
-/* THE RESTING DAY IS TINTED, THE OPEN ONE IS WHITE. This strip is itself a
-   tabs-on-a-card, and it now lives inside one — so if every day stayed white
-   the open day would be the only thing on the screen with nothing to be open
-   against, and the whole strip would dissolve into the surface behind it.
-   Tinting the resting days puts the contrast back where it carries meaning:
-   the white one is the day you have open. (The `.on` tint composites over
-   white deliberately — see the note below — which is why only the base moved.) */
-/* Each day is a seat in that track: no border, no fill of its own, the track
-   showing through. Only the open day is drawn. */
-.fg .mts2-tab { --dc:var(--day-empty); --dt:var(--day-empty-tint); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px 12px; border-radius:var(--r-button); background:none; border:0; transition:background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-/* the day's colour, inset so it reads inside the seat rather than as an edge
-   of it — at the old top:0 it would now sit on the pill's rounded corner */
-.fg .mts2-tab .cbar { position:absolute; left:12px; right:12px; top:5px; height:3px; border-radius:999px; background:var(--dc); }
-.fg .mts2-tab .cw { font-size:12px; font-weight:700; color:var(--gray400); }
-.fg .mts2-tab .cd { font-size:16px; font-weight:700; line-height:1; color:var(--ink); }
-.fg .mts2-tab .cs { font-size:12px; font-weight:700; color:var(--gray500); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; max-width:100%; }
-/* The tint is composited OVER WHITE, not laid on as a translucent background.
-   A translucent fill shows whatever is behind the card, and these cards sit on
-   the dark shell frame as often as on the light page — which turned the
-   selected day near-black. A gradient of the same colour onto an opaque white
-   background-color gives the intended tint wherever the strip lands. */
-/* the resting seat lifts under the pointer, it does not move — a seat that
-   translates out of its own track is the tell that this was once a tab */
-.fg .mts2-tab:not(.on):hover { background:color-mix(in srgb, var(--paper) 70%, transparent); }
-.fg .mts2-tab:focus-visible { outline:none;  box-shadow:var(--ring); }
-
-/* The day's state, one declaration each.
-
-   OVERTIME IS AMBER AND SHORT IS PINK — deliberately not the amber/yellow
-   pair they started as. Orange and yellow are neighbours on the wheel and at
-   3px of bar they read as each other, which is the one distinction on this
-   strip that has to survive a glance: a day you worked too long and a day you
-   worked too little are opposite problems.
-
-   Amber stays, because it is the overtime colour across the whole admin
-   screen — stat tiles, badges, pay bars. Short is the one that moved, and it
-   took four tries: this palette is CROWDED, and every obvious slot is spoken
-   for. Rejected, with reasons, so nobody re-litigates them:
-     yellow/gold   the original problem — reads as amber
-     sky blue      collides with leave
-     violet/plum   collides with public holiday
-     rose #db2777  too near sick's crimson — tried, rejected on sight
-     fuchsia       drifts into public-holiday violet
-     olive         fights the green of a normal day
-     slate/navy    reads as disabled, and off/empty are already grey
-   Pink works where rose didn't because it separates from crimson by
-   LIGHTNESS, not hue: #f472b6 beside #e0264f reads pink-vs-red at a glance,
-   where a deep rose beside it read as two reds. The pill keeps a dark ink
-   (#9d174d) so the label stays legible on the pale tint. */
-.fg .mts2-tab.std { --dc:var(--day-std-d); --dt:var(--day-std-tint); }
-.fg .mts2-tab.over { --dc:var(--day-over); --dt:var(--day-over-tint); }
-.fg .mts2-tab.under { --dc:var(--day-under); --dt:var(--day-under-tint); }
-.fg .mts2-tab.leave { --dc:var(--day-leave); --dt:var(--day-leave-tint); }
-.fg .mts2-tab.sick { --dc:var(--day-sick); --dt:var(--day-sick-tint); }
-.fg .mts2-tab.ph { --dc:var(--day-ph); --dt:var(--day-ph-tint); }
-/* MISSING IS NOT SICK, and it used to be exactly the same red bar. Both drew
-   #e0264f, so an unlogged Tuesday and a sick day were one colour — and the
-   legend underneath named only one of them, so the honest reading of a red bar
-   was "Sick". The approver's screen had this right all along: its `.tile.miss`
-   is a DASHED outline, because nothing is there. The bar borrows the same
-   idea — same red, broken stroke — so the two are told apart by shape at a
-   glance and the legend swatch (`.legend .sw.miss`) matches. */
-.fg .mts2-tab.miss { --dc:var(--day-sick); --dt:var(--day-sick-tint); }
-.fg .mts2-tab.miss .cbar { background:repeating-linear-gradient(90deg, var(--dc) 0 5px, transparent 5px 9px); }
-.fg .mts2-tab.off { --dc:var(--day-off); --dt:var(--day-off-tint); }
-.fg .mts2-tab.empty { --dc:var(--day-empty); --dt:var(--day-empty-tint); }
-
-/* A day you weren't rostered on and didn't work is background, not a to-do —
-   a weekend for most people, a Wednesday for a part-timer, EVERY empty day for
-   a casual. A day still ahead of itself is dimmed the same way; neither is
-   anything to act on yet. */
-/* nothing to draw: an undrawn seat in a tinted track already recedes, and the
-   dimmed labels below carry the rest. A darker fill here would have made the
-   days you can ignore the heaviest things in the strip. */
-/* DIMMED BY COLOUR, NOT BY MULTIPLY. `opacity:.45` on these three took the
-   weekday to 1.87, the summary to 1.96 and the date itself to 3.22 — on a TAB,
-   which is a control a person clicks to add a weekend shift, not decoration.
-   The date is where the hierarchy drop belongs (it is the only one of the
-   three that rests at full ink), and --gray500 is the quietest value that
-   still clears AA on the strip's own ground at 5.86. */
-.fg .mts2-tab.offroster.empty .cd, .fg .mts2-tab.ahead .cd { color:var(--gray500); font-weight:700; }
-/* TODAY is named by its weekday going ink, not by a ring the selected tab
-   also uses — two rings on one card is a puzzle, not a signal */
-.fg .mts2-tab.today .cw { color:var(--ink); }
-.fg .mts2-tab.today .cw::after { content:" ·"; color:var(--ink); }
-
-/* THE OPEN DAY IS THE PILL — the board switcher's thumb, wearing the day's own
-   tint. Still composited over an opaque white rather than laid on as a
-   translucent fill, for the reason in the note above: the strip sits on a
-   white card here and on the dark shell frame elsewhere. */
-.fg .mts2-tab.on { background-color:var(--paper); background-image:linear-gradient(var(--dt),var(--dt)); z-index:var(--z-raised); }
-/* the `opacity:1` counterweight here is gone with the `.45` it undid */
-.fg .mts2-tab.on .cbar { height:4px; }
-
-/* the panel the tabs open onto */
-/* DETACHED. It used to be welded to the strip — square top corners, pulled up
-   1px, its top border the line running under all seven days. Now it is its own
-   block below the track, tinted like every other block in the card, with the
-   white pill above it the only thing marking which day it belongs to. */
-/* the panel appears; it does not arrive (law 18) */
-.fg .mts2-panel { background:var(--tint); border-radius:var(--r-card); margin-top:8px; }
-.fg .mts2-phead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 16px 0; }
-.fg .mts2-pd { font-size:16px; font-weight:700; color:var(--ink); }
-
-/* ---- the legend ----
-   `.mts2-legend`/`.mts2-lg` are GONE: this screen renders the shared
-   `<DayLegend/>` now, which is `.legend`/`.lg`/`.sw` and is already styled
-   under `.fg .tpr` above — and this screen's root carries `tpr`. The private
-   block that used to live here was a second set of swatches for the same nine
-   states, which is how `under` ended up pink here and yellow there. It sits at
-   the FOOT of this screen rather than the head of the approver's — in the
-   reference row, whose grid places it, so there is no spacing to restate. */
-
-/* the day's kind — a word in the day's own ink, no fill, no box (law 26) */
-.fg .mts2-pill { display:inline-flex; align-items:center; font-size:14px; font-weight:500; white-space:nowrap; }
-.fg .mts2-pill.std { color:var(--ok-t); }
-.fg .mts2-pill.over { color:var(--warn-t); }
-.fg .mts2-pill.under { color:var(--day-under-d); }
-.fg .mts2-pill.leave { color:var(--info-t); }
-.fg .mts2-pill.sick { color:var(--bad-t); }
-.fg .mts2-pill.ph { color:var(--day-ph-d); }
-.fg .mts2-pill.miss { color:var(--bad-t); }
-.fg .mts2-pill.off { color:var(--q); }
-.fg .mts2-pill.empty { color:var(--q); }
-
-/* ---- the day panel's editor ---- */
-.fg .mts2-edit { padding:2px 16px 16px; }
-.fg .mts2-ehol { display:inline-flex; align-items:center; gap:4px; color:var(--day-ph-d); font-size:12px; font-weight:700; }
-
-/* why this day says what it says. A day filled in FOR you must never read as
-   one you logged — if it's wrong, you need to know before you submit it. */
-.fg .mts2-esrc { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12px; font-weight:700; color:var(--gray500); }
-.fg .mts2-esrc svg { color:var(--gray400); flex:none; }
-.fg .mts2-esrc.presumed { color:var(--ok-t); }
-.fg .mts2-esrc.presumed svg { color:var(--ok-t); }
-
-/* a day owned by another module — read it here, change it where it was booked */
-.fg .mts2-elock { display:flex; align-items:flex-start; gap:8px; margin-top:12px; padding:12px 12px; border-radius:var(--r-button); background:var(--tint); }
-.fg .mts2-elock svg { color:var(--gray500); margin-top:1px; flex:none; }
-.fg .mts2-elock b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .mts2-elock em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-/* `.mts2-ehint` is GONE, and so is the `.mts2-kinds.ask` ring that replaced
-   it. The hint was a sentence explaining a control four pixels away, which is
-   the screen admitting the control didn't read as unanswered; the ring said
-   it on the control instead. Neither is needed now: a day with no answer has
-   no switch to leave unanswered, only the two buttons for what it could
-   become. */
-/* The salaried "this day ran long" button sits directly in the panel, which
-   carries no padding of its own — `.mts2-elock` and `.mts2-edit` bring their
-   own insets, so a bare child lands flush against both edges. */
-.fg .mts2-panel > .mts2-ph-worked { margin:0 12px 12px; }
-.fg .mts2-ph-worked { margin-top:8px; height:34px; padding:0 12px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); font-size:13px; font-weight:700; color:var(--gray700); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .mts2-ph-worked:hover:not(:disabled) { border-color:var(--ink); color:var(--ink); }
-.fg .mts2-ph-worked:disabled { opacity:.5; cursor:default; }
-
-/* worked / off — the only choice a person makes on a day, in the place the
-   day's state was already being named.
-
-   `.mts2-kinds` IS GONE. It was a segmented control in the BODY of the panel,
-   below a pill at the top that named the very state it set: the same fact
-   twice, and the setting half sitting in the awkward half. Isaac, 2026-09-08:
-   "have a tab switcher in place of where it says overtime". So the pill is
-   the switch, and every reason the old one needed a ring, a seam and a pulse
-   goes with it — there is no unanswered state to announce, because a day with
-   no answer gets no switch at all, just the two buttons for what it could
-   become.
-
-   The tray is the house one (see segmented-tray-contrast.test.ts), at pill
-   scale so it sits in the head where a 26px pill used to. */
-.fg .mts2-dsw { display:inline-grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:4px;
-  padding:4px; border-radius:var(--r-button); background:var(--sel); border:1px solid var(--line); }
-.fg .mts2-dswb { display:inline-flex; align-items:center; justify-content:center; height:26px;
-  padding:0 12px; border-radius:var(--r-control); font-size:12px; font-weight:700; color:var(--gray700);
-  transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .mts2-dsw .mts2-dswb:hover:not(:disabled) { background:color-mix(in srgb, var(--paper) 75%, transparent); color:var(--ink); }
-.fg .mts2-dsw .mts2-dswb.on, .fg .mts2-dsw .mts2-dswb.on:hover { background:var(--paper); color:var(--ink); }
-.fg .mts2-dswb:focus-visible { outline:none;  box-shadow:var(--ring); }
-.fg .mts2-dswb:disabled { cursor:default; }
-
-/* TWO FIELDS, NOT TWO WHEELS SIDE BY SIDE. The pair was six scroll columns
-   told apart by an 11px label. These are two separate cards with air between
-   them — two facts about the day, each its own object — and only one of them
-   ever has a clock on screen. */
-.fg .mts2-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
-/* In the rail the two fields STACK: the card is ~280px wide, and two 19px
-   times side by side would crowd their own chevrons. Still one clock at a
-   time — this is My normal week using the day panel's own fields. */
-.fg .mts2-card .mts2-fields { grid-template-columns:1fr; }
-.fg .mts2-field { position:relative; }
-.fg .mts2-fieldhd { display:flex; align-items:center; justify-content:space-between; gap:12px;
-  width:100%; padding:12px 16px; text-align:left; border-radius:var(--r-button); background:var(--paper);
-  border:1px solid var(--line);
-  transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .mts2-fieldhd:hover:not(:disabled) { border-color:var(--q); }
-.fg .mts2-field.open .mts2-fieldhd { border-color:var(--ink);  box-shadow:var(--ring); }
-.fg .mts2-fieldhd:disabled { opacity:.55; cursor:default; }
-/* Icon wraps its svg in a bare span, so the flex item is the SPAN — a margin
-   on the svg inside it positions nothing. `justify-content` instead. */
-.fg .mts2-fieldhd > span:last-child { flex:none; display:inline-flex; color:var(--gray400); }
-.fg .mts2-fieldv { display:flex; flex-direction:column; gap:1px; min-width:0; }
-.fg .mts2-fieldl { font-size:12px; font-weight:700; color:var(--gray500); }
-.fg .mts2-fieldt { font-size:20px; font-weight:700; color:var(--ink);
-  font-variant-numeric:tabular-nums; }
-@media (max-width:640px) { .fg .mts2-fields { grid-template-columns:1fr; } }
-
-/* THE CLOCK DROPS, AND IT IS PORTALLED TO BODY — `.wb2-card` is
-   `overflow:hidden`, so anything absolutely positioned inside the panel is
-   sliced off at the card's edge. Which means NONE of these rules can be
-   scoped under `.fg`: the drop is not inside it. Tokens are written with the
-   literal beside them for the same reason, and the button ground rules
-   `.fg button` would have supplied are restated here. */
-.mts2-drop { position:fixed; z-index:var(--z-overlay); border-radius:var(--r-card); background:var(--paper);
-  border:1px solid var(--line); box-shadow:var(--shadow-overlay);
-  padding:8px; transform-origin:top center;
-  font-family:var(--font-jakarta), system-ui, sans-serif;
-  animation:mtsDrop .2s var(--ease); }
-.mts2-drop button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
-/* OK only — the field this hangs off already says what it is. It used to lead
-   with that name again, in capitals, directly under it. */
-.mts2-drophd { display:flex; align-items:center; justify-content:flex-end; gap:12px;
-  padding:2px 4px 8px; }
-.mts2-drop .mts2-ok { height:29px; padding:0 16px; border-radius:var(--r-button);
-  background:var(--ink); color:var(--paper); font-size:13px; font-weight:700; }
-@keyframes mtsDrop { from { opacity:0; transform:translateY(-6px) scaleY(.96); } to { opacity:1; transform:none; } }
-/* A clock with no room below its field stands above it instead, and grows up
-   out of the field rather than down away from it. */
-.mts2-drop.up { transform-origin:bottom center; animation-name:mtsDropUp; }
-@keyframes mtsDropUp { from { opacity:0; transform:translateY(6px) scaleY(.96); } to { opacity:1; transform:none; } }
-@media (prefers-reduced-motion:reduce) { .mts2-drop, .mts2-drop.up { animation:none; } }
-.fg .mts2-brk { display:flex; align-items:center; gap:8px; margin-top:12px; }
-.fg .mts2-brkl { font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid var(--line); border-radius:var(--r-button); padding:2px; }
-.fg .mts2-brkstep button { width:26px; height:26px; border-radius:var(--r-button); font-size:16px; font-weight:700; color:var(--gray500); }
-.fg .mts2-brkstep button:hover { background:var(--tint); color:var(--ink); }
-.fg .mts2-brkstep b { min-width:48px; text-align:center; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
-.fg .mts2-brkstep b em { font-style:normal; font-weight:700; color:var(--gray400); }
-/* `.mts2-gap` is GONE — it was a paragraph explaining why the two totals above
-   it disagreed, which the chips between them now do by splitting paid absence
-   out of the ×1.0 bucket. See the rail in my-timesheet.tsx. */
-/* the derived hours — this line IS the hours field */
-.fg .mts2-derv { display:flex; align-items:center; gap:8px; margin-top:12px; padding:8px 12px; border-radius:var(--r-button); background:var(--tint); color:var(--gray700); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
-.fg .mts2-derv b { font-size:14px; font-weight:700; color:var(--ink); }
-.fg .mts2-derv svg { color:var(--ink); }
-.fg .mts2-derv.bad { background:var(--bad-tint); color:var(--bad-t); }
-.fg .mts2-derv.bad svg { color:var(--bad-t); }
-/* a short day is not an error — it's a real day that the approver will look
-   at, so it's amber-flavoured rather than red */
-.fg .mts2-derv.short { background:var(--day-under-tint); color:var(--day-under-d); }
-.fg .mts2-derv.short svg { color:var(--day-under-d); }
-.fg .mts2-derv.off { background:var(--tint); color:var(--gray700); }
-.fg .mts2-derv.off svg { color:var(--gray500); }
-.fg .mts2-derv b { font-weight:700; }
-
-/* ---- the time wheels ----
-   The side-by-side wheel pair (.mts2-wheels) is GONE: it was capped so a
-   three-column wheel never spread across a wide panel, and it was the last
-   place on this screen setting a time with two wheels at once. Every time on
-   the screen is a field now, and its one wheel lives in the drop. */
-.fg .mts2-nh { margin-top:8px; }
-.fg .mts2-nh b { display:block; font-size:16px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .mts2-nh em { display:block; margin-top:4px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-.fg .mts2-nh em:first-of-type { color:var(--gray700); font-weight:700; }
-
-/* ---- which days are normal ----
-   A row of seven, because a working pattern is read as a shape: "Mon Tue Thu"
-   is a glance, a list of checkboxes is a paragraph. */
-.fg .mts2-dow, .fg .tpr .wz-dow { display:flex; gap:4px; margin-top:12px; }
-.fg .mts2-dowb, .fg .tpr .wz-dowb { flex:1 1 0; height:34px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:700; color:var(--gray400); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .mts2-dowb:hover, .fg .tpr .wz-dowb:hover { border-color:var(--ink); color:var(--gray700); }
-.fg .mts2-dowb.on, .fg .tpr .wz-dowb.on { background:var(--ink); border-color:var(--ink); color:var(--paper); }
-.fg .mts2-dowb:disabled { opacity:.45; pointer-events:none; }
-
-/* ---- when I can't work (casuals) ---- */
-.fg .mts2-ulist { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
-.fg .mts2-u { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--r-button); background:var(--tint); }
-.fg .mts2-u b { display:block; font-size:13px; font-weight:700; color:var(--ink); }
-.fg .mts2-u em { display:block; margin-top:1px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-.fg .mts2-ux { margin-left:auto; display:flex; width:26px; height:26px; align-items:center; justify-content:center; border-radius:var(--r-control); color:var(--gray400); flex:none; }
-.fg .mts2-ux:hover { background:var(--bad-tint); color:var(--bad-t); }
-.fg .mts2-udates { display:flex; gap:8px; margin-top:12px; }
-.fg .mts2-udates .mts-f { flex:1 1 0; min-width:0; }
-.fg .mts2-unote { margin-top:8px; }
-.fg .mts2-uerr { margin-top:8px; padding:8px 12px; border-radius:var(--r-button); background:var(--bad-tint); color:var(--bad-t); font-size:12px; font-weight:700; }
-.fg .mts2-unote-p { margin:12px 0 0; font-size:12px; font-weight:600; line-height:1.5; color:var(--gray400); }
-.fg .mts2-pay { display:flex; align-items:center; gap:8px; margin-top:8px; padding:0 2px; }
-.fg .mts2-payl { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .mts2-paych { font-size:13px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
-.fg .mts2-paych b { font-weight:700; color:var(--ink); }
-.fg .mts2-eacts { display:flex; gap:8px; margin-top:16px; }
-.fg .mts2-btn { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 16px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); font-size:13px; font-weight:700; color:var(--gray700); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .mts2-btn:hover { border-color:var(--ink); color:var(--ink); }
-.fg .mts2-btn.primary { background:var(--press); border-color:var(--press); color:var(--paper); }
-.fg .mts2-btn.primary svg { color:var(--paper); }
-.fg .mts2-btn:disabled { opacity:.45; pointer-events:none; }
-
-/* ---- the rail ---- */
-.fg .mts2-rail { display:flex; flex-direction:column; gap:12px; position:sticky; top:0; align-self:start; }
-@media (max-width:960px){ .fg .mts2-rail { position:static; } }
-/* Rail cards are BLOCKS IN A CARD now — see the .tpr .stat note for the
-   reasoning. White tiles lifted off a grey page; on the board's white card a
-   white tile is its own 1px border and a shadow with nothing to fall on. */
-.fg .mts2-card { background:var(--tint); border:1px solid var(--line); border-radius:var(--r-card); padding:16px; }
-.fg .mts2-ch { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:500; color:var(--gray400); }
-/* `.mts2-range` is gone with the line it styled — the period is named once,
-   in `.wknav`, beside the arrows that change it. This card printed it a second
-   time, next to nothing that could act on it. */
-.fg .mts2-tot { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
-.fg .mts2-t { padding:12px 12px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); }
-.fg .mts2-t b { display:block; font-size:24px; font-weight:700; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .mts2-t em { display:block; font-style:normal; margin-top:4px; font-size:12px; font-weight:700; color:var(--gray500); }
-/* the rate buckets: words with air between them, not chips (law 26) */
-.fg .mts2-bk { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:8px; }
-.fg .mts2-bkc { font-size:12px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
-/* The bucket that pays but wasn't worked — the gap between the two tiles
-   above, which used to be a sentence. Tinted so the eye can see WHICH chip is
-   the one that only lands on the right-hand total. */
-.fg .mts2-bkc.absence { color:var(--info-t); }
-.fg .mts2-sub { margin-top:12px; font-size:12px; font-weight:600; color:var(--gray500); line-height:1.45; }
-.fg .tpr .mts2-submit { width:100%; justify-content:center; height:46px; margin-top:12px; }
-.fg .tpr .mts2-submit:disabled { opacity:.45; pointer-events:none; }
-.fg .mts2-none { margin-top:12px; font-size:13px; font-weight:600; color:var(--gray400); }
-.fg .mts2-hlist { display:flex; flex-direction:column; margin-top:8px; }
-.fg .mts2-h { display:flex; align-items:baseline; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); }
-.fg .mts2-h:last-child { border-bottom:none; }
-.fg .mts2-h b { min-width:22px; font-size:13px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .mts2-h em { font-style:normal; font-size:13px; font-weight:600; color:var(--gray700); }
-.fg .mts2-hlink { display:inline-flex; align-items:center; gap:4px; margin-top:12px; font-size:12px; font-weight:700; color:var(--ink); }
-.fg .mts2-hlink:hover { text-decoration:underline; }
-.fg .mts2-card .mts-hols { margin-top:12px; }
-/* THE PAY RULES, AS LABELS AND VALUES, under the payroll figures they explain.
-   They were one grey line of dot-joined fragments beside the holiday calendar,
-   a column away from anything they governed. A group you read: a hairline
-   above it and no box of its own. */
-.fg .mts2-rules { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; margin:12px 0 0; padding:12px 0 0; border-top:1px solid var(--line); font-size:12px; line-height:1.4; }
-.fg .mts2-rules > div { display:contents; }
-.fg .mts2-rules dt { font-weight:500; color:var(--q); }
-.fg .mts2-rules dd { margin:0; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
 
 /* ===== The time wheel — a clock you scroll, never one you type =====
 
@@ -3911,38 +3497,27 @@ button.fl-btn { font-size:14px; font-weight:700; }
    screen reader. The centre line is a marker, not a hit target — clicking the
    option is what selects it, and pointer-events:none keeps the marker out of
    the way of the thing underneath it. */
-/* THE WHEEL HAS TO REACH THE PORTAL. Every rule below is written for `.fg`
-   AND for `.mts2-drop`, because the day panel's clock is portalled to <body>
-   to escape `.wb2-card`'s `overflow:hidden` — and a `.fg`-scoped rule does not
-   follow it there. Without the second selector the wheel renders as three
-   unstyled lists of bare digits, which is what it did the first time this was
-   pointed at the real screen. Same specificity, so nothing about the in-page
-   wheel moves. See [[project-fg-scoped-tokens-portal]]. */
-.fg .tw, .mts2-drop .tw { border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); padding:8px 12px 12px; }
-.fg .tw-head, .mts2-drop .tw-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-.fg .tw-title, .mts2-drop .tw-title { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .tw-val, .mts2-drop .tw-val { font-size:14px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .tw-cols, .mts2-drop .tw-cols { display:flex; gap:4px; margin-top:8px; position:relative; }
+/* A wheel in a portal (the TimeField part's panel) is dressed by the parts'
+   own sheet; these rules are the in-page wheel's, the Time & Pay wizard's. */
+.fg .tw { border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); padding:8px 12px 12px; }
+.fg .tw-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.fg .tw-title { font-size:12px; font-weight:500; color:var(--gray400); }
+.fg .tw-val { font-size:14px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .tw-cols { display:flex; gap:4px; margin-top:8px; position:relative; }
 /* The centre line the chosen option sits on. Measured from the BOTTOM, not
    from 50%: the column is a label of uncertain height stacked on a scroll box
    of exactly 132px, so half the COLUMN is not half the SCROLL. 132/2 − 34/2 =
    49 puts it dead on the row the wheel snaps to. */
-.fg .tw-cols::before, .mts2-drop .tw-cols::before { content:""; position:absolute; left:0; right:0; bottom:49px; height:34px; border-radius:var(--r-button); background:var(--tint-2); pointer-events:none; }
-.fg .tw-col, .mts2-drop .tw-col { flex:1 1 0; min-width:0; }
-.fg .tw-lab, .mts2-drop .tw-lab { display:block; font-size:12px; font-weight:500; color:var(--gray400); text-align:center; margin-bottom:4px; }
-.fg .tw-scroll, .mts2-drop .tw-scroll { height:132px; overflow-y:auto; scroll-snap-type:y proximity; padding:49px 0; scrollbar-width:none; }
-.fg .tw-scroll::-webkit-scrollbar, .mts2-drop .tw-scroll::-webkit-scrollbar { width:0; }
-.fg .tw-opt, .mts2-drop .tw-opt { display:block; width:100%; height:34px; border-radius:var(--r-button); scroll-snap-align:center; font-size:14px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .tw-opt:hover, .mts2-drop .tw-opt:hover { background:var(--tint); color:var(--gray700); }
-.fg .tw-opt.on, .mts2-drop .tw-opt.on { color:var(--ink); font-weight:700; font-size:16px; }
-.fg .tw-opt:focus-visible, .mts2-drop .tw-opt:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
-.fg .tw-opt:disabled, .mts2-drop .tw-opt:disabled { pointer-events:none; opacity:.5; }
-/* …and the drop's own overrides come AFTER them. Same specificity as the
-   shared block above, so the tie is broken by source order: written earlier,
-   the wheel got its card border and padding back inside a card that is
-   already a card. */
-.mts2-drop .tw { width:100%; border:0; padding:0; }
-.mts2-drop .tw-head { display:none; }
+.fg .tw-cols::before { content:""; position:absolute; left:0; right:0; bottom:49px; height:34px; border-radius:var(--r-button); background:var(--tint-2); pointer-events:none; }
+.fg .tw-col { flex:1 1 0; min-width:0; }
+.fg .tw-lab { display:block; font-size:12px; font-weight:500; color:var(--gray400); text-align:center; margin-bottom:4px; }
+.fg .tw-scroll { height:132px; overflow-y:auto; scroll-snap-type:y proximity; padding:49px 0; scrollbar-width:none; }
+.fg .tw-scroll::-webkit-scrollbar { width:0; }
+.fg .tw-opt { display:block; width:100%; height:34px; border-radius:var(--r-button); scroll-snap-align:center; font-size:14px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.fg .tw-opt:hover { background:var(--tint); color:var(--gray700); }
+.fg .tw-opt.on { color:var(--ink); font-weight:700; font-size:16px; }
+.fg .tw-opt:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
+.fg .tw-opt:disabled { pointer-events:none; opacity:.5; }
 /* the wizard's own wheels sit side by side under a menu heading */
 .fg .tpr .wz-wheels { display:flex; flex-wrap:wrap; gap:8px; }
 .fg .tpr .wz-wheels .tw { flex:1 1 150px; }
@@ -12922,3 +12497,121 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .dc2-tpl-line--look { color:var(--orange-w); font-weight:500; }
 .fg .dc2-tpl-line--good { color:var(--green-w); font-weight:500; }
 .fg .dc2-tpl-line--wrong { color:var(--red-w); font-weight:500; }
+/* ===== V2: YOUR TIMESHEET (v2, step 5; the board 6-timesheet;
+   components/timepay/my-timesheet.tsx) =====
+   Your name › Timesheet. The title with when the sheet sends and Send on
+   the right; the period's ‹ › with its state as a word, and the normal week
+   as a fact; then the week, a row per day under hairlines (a dot and the
+   hours for a day worked, a small white card with a sun or a plaster for a
+   day away, rule 21), what it comes to (the one big figure), the key, and
+   the pay rules and the month's public holidays. On the right the day you
+   opened, a card (rule 35): Worked or Off in a tray, Started and Finished on
+   the wheel, the break and the hours, the payroll lines, Save day. The parts
+   draw the buttons, the tray, the fields and the dots; these rules lay them
+   out. Desktop at 1440 is the target. */
+.fg .wrap.ts2 { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:16px; font-family:var(--font); color:var(--ink); }
+.fg .ts2-head { display:flex; align-items:center; justify-content:space-between; gap:24px; min-width:0; }
+.fg .ts2-h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .ts2-send { display:flex; align-items:center; gap:12px; min-width:0; }
+.fg .ts2-sub { margin:0; max-width:480px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); text-align:right; }
+.fg .ts2-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.fg .ts2-pager { display:inline-flex; align-items:center; gap:4px; }
+.fg .ts2-range { padding:0 4px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .ts2-year { font-weight:400; color:var(--q); }
+.fg .ts2-status { margin-left:12px; }
+.fg .ts2-fact { margin:0; display:flex; align-items:center; gap:4px; flex-wrap:wrap; font-size:14px; line-height:20px; color:var(--q); }
+.fg .ts2-cols { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:48px; align-items:start; }
+.fg .ts2-main, .fg .ts2-rail { display:flex; flex-direction:column; gap:24px; min-width:0; }
+/* sent back: the manager's question above the rows */
+.fg .ts2-back { display:flex; flex-direction:column; gap:4px; padding-bottom:16px; border-bottom:1px solid var(--line); }
+.fg .ts2-back-q { margin:0; font-size:16px; line-height:24px; color:var(--ink); }
+/* the week: a row per day, the head and the rows sharing the columns */
+.fg .ts2-table { --ts2-cols:96px 24px 56px minmax(0,1.1fr) minmax(0,1fr); min-width:0; }
+.fg .ts2-days { display:flex; flex-direction:column; }
+.fg .ts2-day { display:grid; grid-template-columns:var(--ts2-cols); align-items:center; gap:16px; width:100%; min-height:48px; padding:12px; border-bottom:1px solid var(--line); text-align:left; font-size:14px; line-height:20px; font-weight:400; color:var(--ink); }
+.fg .ts2-day.ts2-day--head { min-height:0; padding-top:8px; padding-bottom:8px; font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.fg button.ts2-day { cursor:pointer; background:none; transition:background-color var(--t-fast) var(--ease); }
+.fg button.ts2-day:hover { background:var(--hov); }
+.fg button.ts2-day.ts2-day--on { background:var(--sel); border-radius:var(--r-button); }
+.fg button.ts2-day:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .ts2-dayname { font-weight:600; }
+.fg .ts2-mark { display:inline-flex; align-items:center; justify-content:center; }
+.fg .ts2-num { text-align:right; font-weight:500; font-variant-numeric:tabular-nums; }
+.fg .ts2-times-cell { min-width:0; font-variant-numeric:tabular-nums; }
+.fg .ts2-what { min-width:0; }
+.fg .ts2-quiet { color:var(--q); }
+.fg .ts2-word { font-size:14px; line-height:20px; font-weight:500; color:var(--q); }
+.fg .ts2-word.ts2-word--look { color:var(--orange-w); }
+.fg .ts2-word.ts2-word--wrong { color:var(--red-w); }
+.fg .ts2-word.ts2-word--good { color:var(--green-w); }
+.fg .ts2-wh { display:flex; align-items:baseline; justify-content:space-between; padding:16px 12px 8px; font-size:13px; line-height:18px; font-weight:600; color:var(--ink); }
+.fg .ts2-wh-h { font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+/* a day away: a small white card with its symbol; no entry, a ring in the key */
+.fg .ts2-away { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border:1px solid var(--edge); border-radius:var(--r-control); background:var(--white); color:var(--ink); }
+.fg .ts2-nomark { display:inline-block; width:8px; height:8px; border:1px solid var(--edge); border-radius:50%; }
+/* what the week comes to: the one big figure, and the figures beside it */
+.fg .ts2-sum { display:flex; align-items:flex-end; gap:48px; flex-wrap:wrap; }
+.fg .ts2-big { display:flex; flex-direction:column; gap:4px; }
+.fg .ts2-big-l { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .ts2-big-v { font-size:32px; line-height:40px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .ts2-figs { display:flex; flex-wrap:wrap; gap:32px; margin:0; }
+.fg .ts2-figs > div { display:flex; flex-direction:column; gap:4px; }
+.fg .ts2-figs dt { font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .ts2-figs dd { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .ts2-key { display:flex; flex-wrap:wrap; gap:8px 24px; margin:0; padding:0; list-style:none; }
+.fg .ts2-key-item { display:inline-flex; align-items:center; gap:8px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+/* the pay rules and the month's public holidays, groups under a line */
+.fg .ts2-ref { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:32px; padding-top:24px; border-top:1px solid var(--line); }
+.fg .ts2-group { display:flex; flex-direction:column; align-items:stretch; gap:8px; min-width:0; }
+.fg .ts2-gh { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .ts2-rules { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 16px; margin:0; font-size:13px; line-height:18px; }
+.fg .ts2-rules > div { display:contents; }
+.fg .ts2-rules dt { font-weight:500; color:var(--q); }
+.fg .ts2-rules dd { margin:0; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .ts2-hols, .fg .ts2-blocks { display:flex; flex-direction:column; margin:0; padding:0; list-style:none; }
+.fg .ts2-hols li { display:flex; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:20px; }
+.fg .ts2-hols b { min-width:24px; font-weight:600; font-variant-numeric:tabular-nums; }
+.fg .ts2-hols.ts2-hols--year b { min-width:112px; }
+.fg .ts2-blocks li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
+.fg .ts2-block-t { display:flex; flex-direction:column; min-width:0; font-size:14px; line-height:20px; }
+.fg .ts2-note, .pt-dialog .ts2-note { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+/* the open day, a card */
+.fg .ts2-card { padding:24px; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--white); }
+.fg .ts2-card-body { display:flex; flex-direction:column; gap:16px; }
+.fg .ts2-card-head { display:flex; flex-direction:column; align-items:flex-start; gap:12px; }
+.fg .ts2-card-title { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.fg .ts2-card-h { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .ts2-card-hol { margin:0; display:inline-flex; align-items:center; gap:4px; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .ts2-times, .pt-dialog .ts2-times { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.fg .ts2-fig { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.fg .ts2-fig-l { font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
+.fg .ts2-fig-v { display:flex; align-items:center; min-height:36px; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .ts2-fig-v.ts2-fig-v--plain { font-size:14px; line-height:20px; font-weight:400; }
+.fg .ts2-pay { display:flex; flex-direction:column; gap:4px; margin:0; padding-top:12px; border-top:1px solid var(--line); }
+.fg .ts2-pay > div { display:flex; justify-content:space-between; gap:12px; font-size:13px; line-height:18px; }
+.fg .ts2-pay dt { font-weight:500; color:var(--q); }
+.fg .ts2-pay dd { margin:0; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .ts2-pay .ts2-pay-total dt { color:var(--ink); }
+.fg .ts2-lock { display:flex; flex-direction:column; gap:4px; }
+.fg .ts2-lock b { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .ts2-acts { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+.fg .ts2-acts.ts2-acts--start { justify-content:flex-start; }
+/* the two dialogs, portalled out of .fg: your normal week, and the days a
+   casual can't work */
+.ts2-form { display:flex; flex-direction:column; gap:16px; }
+.ts2-dow { display:flex; gap:4px; }
+.ts2-dow .ts2-dowb { width:44px; height:36px; padding:0; border:1px solid var(--edge); border-radius:var(--r-button); background:var(--white); font:inherit; font-size:14px; line-height:20px; font-weight:600; color:var(--q); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.ts2-dow .ts2-dowb:hover { background:var(--hov); }
+.ts2-dow .ts2-dowb[aria-pressed="true"] { background:var(--sel); color:var(--ink); }
+.ts2-dow .ts2-dowb:focus-visible { outline:none; box-shadow:var(--ring); }
+.ts2-dow .ts2-dowb:disabled { cursor:default; }
+@media (max-width:1100px) {
+  .fg .ts2-cols { grid-template-columns:minmax(0,1fr); }
+  .fg .ts2-head { flex-wrap:wrap; }
+}
+@media (max-width:720px) {
+  .fg .wrap.ts2 { padding:16px 16px 48px; }
+  .fg .ts2-table { --ts2-cols:64px 24px 40px minmax(0,1fr); }
+  .fg .ts2-day .ts2-times-cell { display:none; }
+  .fg .ts2-ref { grid-template-columns:minmax(0,1fr); }
+}

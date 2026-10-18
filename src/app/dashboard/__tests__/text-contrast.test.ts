@@ -178,7 +178,7 @@ function scoped(selectorStart: string, name: string): string {
   return alias ? token(alias[1]!) : raw;
 }
 
-const TP_VARS = ".fg .tpr, .fg .mts2, .fg .lv-cols";
+const TP_VARS = ".fg .tpr, .fg .lv-cols";
 const TP_PRIVATE = ".fg .tpr { font-variant-numeric";
 
 describe("Time & Pay ink on a solid brand fill", () => {
@@ -493,16 +493,17 @@ describe("de-emphasis never multiplies text contrast", () => {
                                    empty day, 2.89 on a sick one, and 4.17/4.45/
                                    4.47 on the three otherwise clear
        .mts2-tab.* .cd      .45  → 1.87 / 1.96 / 3.22, on a TAB you click
+                                   (My timesheet's strip; gone with its v2
+                                   rebuild, whose rows dim nothing)
        .bkt.zero .rchip     .3   → 1.72, on the chip naming the rate
        .crow.done           .9   → 4.42 and 3.37, for a 10% dim nobody reads as
                                    a signal anyway
 
      `:disabled` is deliberately NOT in this list: WCAG exempts inactive
-     components, and `.mts2-btn:disabled` (4.46 on the primary) is the one pair
+     components, and `.mts2-btn:disabled` (4.46 on the primary) was the one pair
      on either screen still under 4.5. Left as a decision, not an oversight. */
   it.each([
     [".tile .wd", /\.tile \.wd\s*\{([^}]*)\}/],
-    [".mts2-tab.offroster / .ahead labels", /\.mts2-tab\.offroster\.empty \.cd[^{]*\{([^}]*)\}/],
     [".bkt.zero .rchip", /\.bkt\.zero \.rchip\s*\{([^}]*)\}/],
   ])("%s dims by colour, not by multiply", (_name, re) => {
     const rule = code.match(re);

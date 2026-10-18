@@ -1,8 +1,8 @@
 /* THE SIDEBAR'S PLACES (docs/design.md rules 5 and 7).
 
    v2 has eight places: Home, Conversations, Jobs, Schedule, Documents,
-   Library, Design, Team. Two of them have no page of their own until step 5
-   builds it (Schedule and Documents), so until
+   Library, Design, Team. One of them has no page of their own until step 5
+   builds it (Documents), so until
    then each place points at the screen that does its job today, and lights up
    on every route that will move into it. A place with no screen yet is left
    out rather than drawn as a dead row; it joins when its page lands.
@@ -42,6 +42,7 @@ export const PLACES: readonly Place[] = [
   /* a job's own page (step 5) lights Jobs before the list has a page */
   { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", under: ["/dashboard/my-notes"], capability: "tiff" },
   { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", under: [], capability: "workboard" },
+  { key: "schedule", label: "Schedule", icon: "calendar", href: "/dashboard/schedule", under: [], capability: "workboard" },
   { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff", under: [], capability: "tiff" },
   { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", under: [], capability: "studio" },
   { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: [], capability: "team" },

@@ -41,7 +41,7 @@ describe("the sidebar's places (rules 5 and 7)", () => {
 
   it("offers a place only to someone who holds its capability", () => {
     expect(placesFor(PLACES, viewer([])).map((p) => p.key)).toEqual(["home"]);
-    expect(placesFor(PLACES, viewer(["workboard", "team"])).map((p) => p.key)).toEqual(["home", "jobs", "team"]);
+    expect(placesFor(PLACES, viewer(["workboard", "team"])).map((p) => p.key)).toEqual(["home", "jobs", "schedule", "team"]);
     expect(placesFor(PLACES, viewer(["tiff"])).map((p) => p.key)).toEqual(["home", "conversations", "library"]);
   });
 

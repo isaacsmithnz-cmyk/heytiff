@@ -12743,3 +12743,85 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .mk-records-grid, .mk-records-grid--2 { grid-template-columns:minmax(0,1fr); }
   .mk-records-jobrow { flex-direction:column; align-items:stretch; }
 }
+
+/* ===== V2: SCHEDULE (v2, step 5; 6-revisions.md, 18 October; boards
+   schedule-v8-*; components/schedule/schedule-board). A row per person,
+   time across, for a day or a working week, and Jobs on the right. A job
+   picked up lights its hours in each free person's row (.sc-fit); someone
+   booked or away for them fades (.sc-dim). Blocks wear their job's hue, as
+   the Jobs list's dots do; blue carries white words. ===== */
+.fg .wrap.sc { max-width:none; padding:24px 32px 48px; display:flex; flex-direction:column; gap:16px; }
+.fg .sc-head { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.fg .sc-h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .sc-fact { font-size:14px; line-height:20px; color:var(--q); }
+.fg .sc-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.fg .sc-pager { display:inline-flex; align-items:center; gap:4px; }
+.fg .sc-pager b { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); padding:0 4px; font-variant-numeric:tabular-nums; }
+.fg .sc-body { display:flex; align-items:flex-start; gap:24px; min-width:0; }
+.fg .sc-board { position:relative; flex:1 1 auto; min-width:0; }
+.fg .sc-who { width:152px; flex:none; display:flex; align-items:center; gap:8px; padding:8px 8px 8px 0; min-width:0; }
+.fg .sc-pn { min-width:0; display:flex; flex-direction:column; }
+.fg .sc-name { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .sc-pn em { font-style:normal; font-size:12px; line-height:16px; font-weight:500; color:var(--q); white-space:nowrap; }
+/* the day: an axis, then a row per person */
+.fg .sc-axis { position:relative; height:24px; margin-left:152px; border-bottom:1px solid var(--line); }
+.fg .sc-axis span { position:absolute; bottom:4px; transform:translateX(-50%); font-size:12px; line-height:16px; font-weight:500; color:var(--q); white-space:nowrap; }
+.fg .sc-axis span:first-child { transform:none; }
+.fg .sc-row { display:flex; align-items:stretch; min-height:64px; border-bottom:1px solid var(--line); }
+.fg .sc-track { position:relative; flex:1 1 auto; min-width:0; }
+.fg .sc-holding .sc-track, .fg .sc-holding .sc-cell { cursor:copy; }
+.fg .sc-vl { position:absolute; top:0; bottom:0; border-left:1px solid var(--line); }
+.fg .sc-after { position:absolute; top:0; bottom:0; right:0; background:var(--soft); }
+.fg .sc-blk, .fg .sc-away, .fg .sc-fit { position:absolute; top:8px; bottom:8px; box-sizing:border-box; padding:4px 8px; border-radius:var(--r-button); display:flex; flex-direction:column; justify-content:center; min-width:0; overflow:hidden; }
+.fg .sc-blk { color:var(--ink); text-decoration:none; }
+.fg .sc-blk:focus-visible, .fg .sc-wbar:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+.fg .sc-bn { font-size:13px; line-height:18px; font-weight:600; }
+.fg .sc-bl { font-size:12px; line-height:16px; font-weight:500; }
+.fg .sc-blk--red { background:var(--red); }
+.fg .sc-blk--orange { background:var(--orange); }
+.fg .sc-blk--yellow { background:var(--yellow); }
+.fg .sc-blk--green { background:var(--green); }
+.fg .sc-blk--blue { background:var(--press); color:var(--white); }
+.fg .sc-blk--purple { background:var(--purple); }
+.fg .sc-blk--pink { background:var(--pink); }
+.fg .sc-blk--grey { background:var(--sel); }
+.fg .sc-away { left:0; right:0; background:var(--soft); color:var(--q); font-size:13px; line-height:18px; align-items:center; }
+.fg .sc-fit { font-size:12px; line-height:16px; font-weight:600; pointer-events:none; }
+.fg .sc-fit.sc-ok { background:var(--sel); box-shadow:inset 0 0 0 2px var(--ink); color:var(--ink); }
+.fg .sc-fit.sc-part { background:transparent; color:var(--warn-t); }
+.fg .sc-hot .sc-fit.sc-ok { background:var(--yellow); }
+.fg .sc-dim .sc-who, .fg .sc-dim .sc-blk, .fg .sc-dim .sc-wbar { opacity:.45; }
+/* the week: a row per person, a column per day, a job over days one bar */
+.fg .sc-week { display:flex; flex-direction:column; }
+.fg .sc-wh { display:grid; grid-template-columns:152px repeat(5, minmax(0,1fr)); border-bottom:1px solid var(--line); }
+.fg .sc-wh b { padding:8px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); border-left:1px solid var(--line); }
+.fg .sc-wrow { display:grid; grid-template-columns:152px minmax(0,1fr); border-bottom:1px solid var(--line); min-height:64px; }
+.fg .sc-cells { position:relative; display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); grid-auto-flow:row dense; gap:4px 0; padding:8px 0; align-content:start; }
+.fg .sc-cell { border-left:1px solid var(--line); margin:-8px 0; }
+.fg .sc-wbar { position:relative; margin:0 4px; box-sizing:border-box; padding:4px 8px; border-radius:var(--r-button); display:flex; flex-direction:column; min-width:0; color:var(--ink); text-decoration:none; }
+.fg .sc-awayb { background:var(--soft); color:var(--q); font-size:13px; line-height:18px; }
+.fg .sc-fitw { font-size:12px; line-height:16px; font-weight:600; pointer-events:none; }
+.fg .sc-fitw.sc-ok { background:var(--sel); box-shadow:inset 0 0 0 2px var(--ink); }
+.fg .sc-fitw.sc-part { background:transparent; box-shadow:inset 0 0 0 1px var(--edge); color:var(--warn-t); }
+.fg .sc-hot .sc-fitw.sc-ok { background:var(--yellow); }
+/* the question when someone is away for some of the days */
+.fg .sc-ask { position:absolute; top:48px; right:16px; width:360px; display:flex; flex-direction:column; gap:12px; padding:16px; border-radius:var(--r-card); background:var(--white); box-shadow:var(--shadow-overlay); }
+.fg .sc-ask p { margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .sc-askacts { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+/* Jobs, on the right */
+.fg .sc-panel { width:320px; flex:none; display:flex; flex-direction:column; gap:12px; padding-left:24px; border-left:1px solid var(--line); }
+.fg .sc-panel .pt-tray { align-self:flex-start; }
+.fg .sc-h2 { margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .sc-off { margin:0; font-size:13px; line-height:18px; color:var(--q); }
+.fg .sc-held { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px; border-radius:var(--r-card); background:var(--sel); }
+.fg .sc-heldn { flex:1 1 100%; display:flex; align-items:center; gap:8px; min-width:0; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .sc-jobs { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.fg .sc-job { all:unset; box-sizing:border-box; width:100%; display:flex; align-items:flex-start; gap:8px; padding:8px; border-bottom:1px solid var(--line); border-radius:var(--r-button); cursor:grab; }
+.fg .sc-job .pt-dot { margin-top:8px; flex:none; }
+.fg .sc-job:hover { background:var(--hov); }
+.fg .sc-job:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
+.fg .sc-job[disabled] { cursor:default; }
+.fg .sc-job.sc-picked { background:var(--sel); }
+.fg .sc-jt { min-width:0; flex:1 1 auto; display:flex; flex-direction:column; }
+.fg .sc-jn { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .sc-jl { font-size:12px; line-height:16px; color:var(--q); }

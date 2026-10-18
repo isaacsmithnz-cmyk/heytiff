@@ -14,7 +14,10 @@ import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 import { jobHue } from "@/lib/workboard/job-hue";
 import type { Hue } from "@/components/parts/state";
 
-export type ScheduleView = "day" | "week";
+export type ScheduleView = "day" | "week" | "weeks";
+
+/** The 4 weeks view: how many weeks, from the Monday of the week asked for. */
+export const WEEKS_SHOWN = 4;
 
 /** The strip: 7 am to 5 pm. A booking outside it still widens it. */
 export const STRIP_START = 7 * 60;
@@ -55,13 +58,18 @@ export function weekOf(day: string): string[] {
   return [0, 1, 2, 3, 4].map((i) => addDays(monday, i));
 }
 
-/** The days the board shows. */
+/** The days the board shows: the 4 weeks view's are its weekdays, Monday on. */
 export function daysFor(view: ScheduleView, day: string): string[] {
+  if (view === "weeks") {
+    const monday = weekOf(day)[0];
+    return Array.from({ length: WEEKS_SHOWN }, (_, w) => weekOf(addDays(monday, 7 * w))).flat();
+  }
   return view === "week" ? weekOf(day) : [day];
 }
 
 /** Earlier and Later: a weekday at a time, or a week. */
 export function stepDay(view: ScheduleView, day: string, dir: 1 | -1): string {
+  if (view === "weeks") return addDays(weekOf(day)[0], 7 * WEEKS_SHOWN * dir);
   if (view === "week") return addDays(weekOf(day)[0], 7 * dir);
   let d = addDays(day, dir);
   while (isWeekend(d)) d = addDays(d, dir);
@@ -294,3 +302,14 @@ export function listDays(days: readonly string[]): string {
   const w = days.map(weekdayWord);
   return w.length <= 1 ? (w[0] ?? "") : `${w.slice(0, -1).join(", ")} and ${w[w.length - 1]}`;
 }
+
+/** How full a day is, as a word (the 4 weeks board): Room under 85%, Full to
+    100%, Over past it. No crew hours, no word. */
+export function fillWord(fillPct: number | null, over: boolean): "Room" | "Full" | "Over" | null {
+  if (fillPct === null) return null;
+  if (over) return "Over";
+  return fillPct >= 85 ? "Full" : "Room";
+}
+
+/** "18 h", "7.5 h" */
+export const hoursWord = (minutes: number) => `${Math.round((minutes / 60) * 2) / 2} h`;

@@ -9,6 +9,8 @@ import { can, getDbRole } from "@/lib/permissions-server";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { loadScheduleDay, type SchedulePayload } from "@/lib/workboard/schedule-query";
+import { loadCapacityWindow } from "@/lib/workboard/capacity-query";
+import { CAPACITY_WINDOW_DAYS, capacityWindow, daysFrom, type CapacityDay } from "@/lib/workboard/capacity";
 import { loadJobsList } from "@/lib/workboard/jobs-list-query";
 import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
@@ -40,6 +42,8 @@ export type SchedulePage = {
   jobs: PanelJob[];
   /** Book in is offered here and the viewer may press it */
   canBook: boolean;
+  /** the 4 weeks view: each weekday scored against the crew's hours */
+  capacity: CapacityDay[];
 };
 
 const SM8 = "sm8:";
@@ -55,7 +59,8 @@ async function mayPressBookings(): Promise<boolean> {
 
 export function readScheduleParams(params: Record<string, string | string[] | undefined>, today: string): { view: ScheduleView; day: string } {
   const one = (k: string) => (typeof params[k] === "string" ? (params[k] as string) : undefined);
-  const view: ScheduleView = one("view") === "week" ? "week" : "day";
+  const asked = one("view");
+  const view: ScheduleView = asked === "week" || asked === "weeks" ? asked : "day";
   let day = isDay(one("day")) ? one("day")! : today;
   /* a weekend asked for the day view shows the Monday after */
   if (view === "day" && isWeekend(day)) day = stepDay("day", day, 1);
@@ -70,6 +75,19 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
   const today = todayInZone(await getSm8Timezone(orgId));
   const { view, day } = readScheduleParams(params, today);
   const days = daysFor(view, day);
+
+  /* 4 weeks: the capacity window's read, and nothing else (no Jobs panel) */
+  if (view === "weeks") {
+    const window = await loadCapacityWindow(orgId, days[0]);
+    const all = capacityWindow({
+      days: daysFrom(days[0], CAPACITY_WINDOW_DAYS),
+      activities: window.activities,
+      allocation: window.allocation,
+      staffNames: new Map(window.staffNames),
+    });
+    const shown = new Set(days);
+    return { view, day, today, days, payloads: [], jobs: [], canBook: false, capacity: all.filter((d) => shown.has(d.dayISO)) };
+  }
 
   const booking = sm8BookingsAllowed();
   const [state, mayPress, list] = await Promise.all([
@@ -104,5 +122,6 @@ export async function loadSchedulePage(params: Record<string, string | string[] 
     payloads,
     jobs,
     canBook: !!state && offersSend(state, "booking") && mayPress,
+    capacity: [],
   };
 }

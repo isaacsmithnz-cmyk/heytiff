@@ -3,6 +3,9 @@ import {
   clockWord,
   dayLine,
   daysFit,
+  daysFor,
+  fillWord,
+  hoursWord,
   fitOf,
   fitWord,
   lengthWord,
@@ -23,6 +26,7 @@ jest.mock("@/lib/workboard/jobs-list-query", () => ({ loadJobsList: jest.fn() })
 jest.mock("@/lib/workboard/schedule-query", () => ({ loadScheduleDay: jest.fn() }));
 jest.mock("@/lib/integrations/sm8-writes", () => ({ readSm8WriteState: jest.fn() }));
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn() }));
+jest.mock("@/lib/workboard/capacity-query", () => ({ loadCapacityWindow: jest.fn() }));
 
 const blk = (startMin: number, endMin: number, over: Partial<DayBlock> = {}): DayBlock => ({
   key: `${startMin}`,
@@ -53,6 +57,24 @@ describe("the days", () => {
   it("a weekend asked for the day view shows the Monday after; a bad day is today", () => {
     expect(readScheduleParams({ day: "2026-10-24" }, "2026-10-21")).toEqual({ view: "day", day: "2026-10-26" });
     expect(readScheduleParams({ view: "week", day: "nope" }, "2026-10-21")).toEqual({ view: "week", day: "2026-10-21" });
+  });
+});
+
+describe("4 weeks", () => {
+  it("is twenty weekdays from the Monday, and steps four weeks", () => {
+    const days = daysFor("weeks", "2026-10-21");
+    expect(days).toHaveLength(20);
+    expect(days[0]).toBe("2026-10-19");
+    expect(days[19]).toBe("2026-11-13");
+    expect(stepDay("weeks", "2026-10-21", 1)).toBe("2026-11-16");
+  });
+  it("says Room under 85%, Full to 100%, Over past it, and nothing without crew hours", () => {
+    expect(fillWord(84, false)).toBe("Room");
+    expect(fillWord(85, false)).toBe("Full");
+    expect(fillWord(100, false)).toBe("Full");
+    expect(fillWord(101, true)).toBe("Over");
+    expect(fillWord(null, false)).toBeNull();
+    expect(hoursWord(450)).toBe("7.5 h");
   });
 });
 

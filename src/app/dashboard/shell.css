@@ -12825,3 +12825,20 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .sc-jt { min-width:0; flex:1 1 auto; display:flex; flex-direction:column; }
 .fg .sc-jn { font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
 .fg .sc-jl { font-size:12px; line-height:16px; color:var(--q); }
+/* Schedule, 4 weeks: each weekday's booked hours against the crew's, as a
+   word (Room under 85%, Full to 100%, Over past it); a day opens its Day */
+.fg .sc-weeks { display:flex; flex-direction:column; gap:8px; }
+.fg .sc-wkh, .fg .sc-wkgrid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:8px; }
+.fg .sc-wkh b { padding:0 4px; font-size:14px; line-height:20px; font-weight:600; color:var(--ink); }
+.fg .sc-wk { all:unset; box-sizing:border-box; min-height:120px; display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:12px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--white); cursor:pointer; }
+.fg .sc-wk:hover { background:var(--hov); }
+.fg .sc-wk:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+.fg .sc-wk.sc-wktoday { border-color:var(--ink); }
+.fg .sc-wkd { font-size:16px; line-height:24px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .sc-wkh2 { font-size:13px; line-height:18px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .sc-wkj { margin-top:auto; font-size:12px; line-height:16px; color:var(--q); }
+.fg .sc-wkbar { align-self:stretch; height:4px; border-radius:var(--r-control); background:var(--sel); overflow:hidden; }
+.fg .sc-wkfill { display:block; height:100%; background:var(--q); }
+.fg .sc-wkfill.sc-wk--room { background:var(--green); }
+.fg .sc-wkfill.sc-wk--full { background:var(--orange); }
+.fg .sc-wkfill.sc-wk--over { background:var(--red); }

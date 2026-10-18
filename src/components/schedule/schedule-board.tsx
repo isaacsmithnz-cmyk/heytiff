@@ -37,6 +37,8 @@ import {
   toHHMM,
   weekLine,
   weekdayWord,
+  fillWord,
+  hoursWord,
   workingDaysFrom,
   type DayBlock,
   type Fit,
@@ -106,6 +108,7 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
 
   const go = (view: ScheduleView, day: string) => router.push(`/dashboard/schedule?view=${view}&day=${day}`);
   const week = data.view === "week";
+  const weeks = data.view === "weeks";
   const jobsOn = new Set(board.people.flatMap((p) => p.days.flatMap((d) => d.blocks.map((b) => b.jobUuid)))).size;
 
   useEffect(() => {
@@ -175,7 +178,11 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
     setAsk({ row, days, ...fit });
   };
 
-  const fact = week ? `Week of ${dayNum(board.days[0])} ${monthOf(board.days[0])}, ${jobsOn} jobs` : `${longDay(data.day)}, ${jobsOn} jobs`;
+  const booked = data.capacity.reduce((n, d) => n + d.bookedMinutes, 0);
+  const crew = data.capacity.reduce((n, d) => n + d.capacityMinutes, 0);
+  const fact = weeks
+    ? `4 weeks from ${dayNum(board.days[0] ?? data.days[0])} ${monthOf(data.days[0])}${crew > 0 ? `, ${Math.round((booked / crew) * 100)}% booked` : ""}`
+    : week ? `Week of ${dayNum(board.days[0])} ${monthOf(board.days[0])}, ${jobsOn} jobs` : `${longDay(data.day)}, ${jobsOn} jobs`;
 
   return (
     <div className="wrap sc">
@@ -189,13 +196,14 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
           options={[
             { value: "day", label: "Day" },
             { value: "week", label: "Week" },
+            { value: "weeks", label: "4 weeks" },
           ]}
           value={data.view}
           onChange={(v) => go(v, data.day)}
         />
         <div className="sc-pager">
           <IconButton glyph="earlier" label="Earlier" size={32} onClick={() => go(data.view, stepDay(data.view, data.day, -1))} />
-          <b>{week ? weekLabel(board.days) : longDay(data.day)}</b>
+          <b>{weeks ? weekLabel(data.days) : week ? weekLabel(board.days) : longDay(data.day)}</b>
           <IconButton glyph="later" label="Later" size={32} onClick={() => go(data.view, stepDay(data.view, data.day, 1))} />
         </div>
         <Button kind="second" size={32} onClick={() => go(data.view, data.today)}>
@@ -205,7 +213,9 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
 
       <div className="sc-body">
         <div className={`sc-board${held ? " sc-holding" : ""}`}>
-          {week ? (
+          {weeks ? (
+            <WeeksGrid data={data} open={(d) => go("day", d)} />
+          ) : week ? (
             <WeekRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} />
           ) : (
             <DayRows board={board} held={held} at={at} busy={busy} setAt={setAt} dropOn={dropOn} />
@@ -243,7 +253,7 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
             </div>
           ) : null}
         </div>
-        <JobsPanel jobs={data.jobs} canBook={data.canBook} held={held} week={week} pick={pick} setHeld={setHeld} />
+        {weeks ? null : <JobsPanel jobs={data.jobs} canBook={data.canBook} held={held} week={week} pick={pick} setHeld={setHeld} />}
       </div>
     </div>
   );
@@ -457,6 +467,53 @@ function WeekRows({ board, held, at, busy, setAt, dropOn }: RowsProps) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/* ── 4 weeks: how full each weekday is ── */
+
+const FILL_TONE = { Room: "good", Full: "look", Over: "wrong" } as const;
+
+function WeeksGrid({ data, open }: { data: SchedulePage; open: (day: string) => void }) {
+  const byDay = new Map(data.capacity.map((d) => [d.dayISO, d]));
+  return (
+    <div className="sc-weeks">
+      <div className="sc-wkh">
+        {data.days.slice(0, 5).map((d) => (
+          <b key={d}>{weekdayWord(d)}</b>
+        ))}
+      </div>
+      <div className="sc-wkgrid">
+        {data.days.map((d, i) => {
+          const c = byDay.get(d);
+          const newMonth = i === 0 || monthOf(d) !== monthOf(data.days[i - 1]);
+          const word = c ? fillWord(c.fillPct, c.over) : null;
+          const pctFull = c && c.fillPct !== null ? Math.min(c.fillPct, 100) : 0;
+          return (
+            <button key={d} type="button" className={`sc-wk${d === data.today ? " sc-wktoday" : ""}`} onClick={() => open(d)} aria-label={`${longDay(d)}, open the day`}>
+              <span className="sc-wkd">
+                {dayNum(d)}
+                {newMonth ? ` ${monthOf(d).slice(0, 3)}` : ""}
+              </span>
+              {c && c.capacityMinutes > 0 ? (
+                <>
+                  <span className="sc-wkh2">
+                    {hoursWord(c.bookedMinutes)} of {hoursWord(c.capacityMinutes)}
+                  </span>
+                  <span className="sc-wkbar" aria-hidden="true">
+                    <i className={`sc-wkfill${word ? ` sc-wk--${word.toLowerCase()}` : ""}`} style={{ width: `${pctFull}%` }} />
+                  </span>
+                  {word ? <StateWord tone={FILL_TONE[word]}>{word}</StateWord> : null}
+                  <span className="sc-wkj">{c.jobs === 1 ? "1 job" : `${c.jobs} jobs`}</span>
+                </>
+              ) : (
+                <span className="sc-wkj">No crew hours</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

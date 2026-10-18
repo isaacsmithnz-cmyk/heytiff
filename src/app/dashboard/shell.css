@@ -11867,20 +11867,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-histbody { display:flex; flex-direction:column; gap:8px; padding:2px 0 12px; }
 .vm-inset { background:var(--paper); border:1px solid var(--vm-line2); border-radius:var(--r-button); padding:8px 12px; }
 
-/* ---- add / edit vehicle ---- */
-.vm-photo.static { cursor:default; }
-.vm-form { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px 12px; }
+/* ---- the logging screen's fields (add / edit vehicle is Add a vehicle's
+   form now, in the v2 forms block) ---- */
 .vm-ffield.wide { grid-column:span 2; }
 .vm-ffield.wide3 { grid-column:1 / -1; }
-.vm-hint { font-style:normal; font-size:12px; color:var(--vm-muted); line-height:1.35; }
-.vm-input.mono { text-transform:uppercase; }
 .vm-textarea { min-height:72px; resize:vertical; line-height:1.4; }
-.vm-quiet { flex-direction:row; align-items:center; gap:8px; font-size:13px; color:var(--q); }
-.vm-attachbtn { display:inline-flex; align-items:center; gap:8px; align-self:flex-start; font-size:13px; font-weight:700; color:var(--ink); padding:0; }
-.vm-attachbtn:hover { color:var(--ink); }
-.vm-attachbtn:disabled { color:var(--vm-muted); cursor:default; }
-.vm-attached { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--ink); }
-.vm-attached i { font-style:normal; font-weight:600; color:var(--vm-muted); }
 
 /* ---- vehicle modal: financials ---- */
 .vm-value { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; border-radius:var(--r-card); padding:16px 16px; background:var(--vm-ok-bg); border:1px solid var(--vm-ok-line); }

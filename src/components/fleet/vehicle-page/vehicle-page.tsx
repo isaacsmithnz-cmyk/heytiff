@@ -48,7 +48,7 @@ import { Documents, Fuel, Issues, Kilometres, Money, Overview, Service, type Doo
      resolved), a renewal and the money each open today's own screen of the
      vehicle card (vehicle-modal/), one at a time (`single`), and close back
      to the page;
-   - Edit details and Edit schedule open today's vehicle form, the rego
+   - Edit details and Edit schedule open Add a vehicle's form filled in, the rego
      read by Tiff included; Correct entry opens today's correction;
    - the driver, the status and the photo go through the same actions the
      card's controls call; Remove vehicle asks first, then calls the same
@@ -436,10 +436,6 @@ export function VehiclePage({
           initial={full}
           staff={staff}
           today={data.today}
-          onSave={(v, invoiceId) => {
-            fleet.saveVehicle(v, invoiceId);
-            setOver({ t: "none" });
-          }}
           onClose={() => setOver({ t: "none" })}
         />
       )}

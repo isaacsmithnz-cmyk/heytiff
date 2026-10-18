@@ -17,6 +17,8 @@ jest.mock("@/app/actions/fleet-ai", () => ({
   readRenewalDocument: jest.fn(async () => ({ ok: false, reason: "no-key" })),
   readRegoCertificate: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));
+/* The register's vehicle form saves through the fleet action itself (rule 51). */
+jest.mock("@/app/actions/fleet", () => ({ saveVehicle: jest.fn(), removeVehicle: jest.fn() }));
 
 /* Renewals (issue #509, slice 2). The screens themselves are tested in
    vehicle-modal/__tests__; what stays here is the rule the register and the

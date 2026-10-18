@@ -65,7 +65,7 @@ jest.mock("../../vehicle-modal", () => {
   };
 });
 jest.mock("../../vehicle-modal/vehicle-form", () => ({
-  VehicleForm: (p: { initial: Vehicle }) => <p>{`Today's vehicle form for ${p.initial.name}`}</p>,
+  VehicleForm: (p: { initial: Vehicle }) => <p>{`The vehicle form, filled in for ${p.initial.name}`}</p>,
 }));
 jest.mock("../../modals", () => ({
   EditLogModal: (p: { log: VehicleLog; onSave: (x: object) => void }) => (
@@ -351,7 +351,7 @@ describe("Add", () => {
     expect(screen.getByText("Screen ctp, alone")).toBeInTheDocument();
     await user().click(within(opened()!).getByRole("button", { name: "Back" }));
     await user().click(screen.getByRole("button", { name: "Edit details" }));
-    expect(screen.getByText("Today's vehicle form for Hilux")).toBeInTheDocument();
+    expect(screen.getByText("The vehicle form, filled in for Hilux")).toBeInTheDocument();
   });
 
   it("Correct entry opens today's correction over the entry, and returns to it", async () => {

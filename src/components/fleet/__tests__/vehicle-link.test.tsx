@@ -214,3 +214,26 @@ describe("the register's own doors still work beside a link", () => {
     expect(heading("Log service")).toBeInTheDocument();
   });
 });
+
+/* THE DOORS TO ADD A VEHICLE (rule 52): the register's Add vehicle opens the
+   form on the certificate, and a row's Edit vehicle opens the same form
+   filled in. */
+describe("Add a vehicle's doors on the register", () => {
+  it("Add vehicle opens the form, empty, on the rego certificate", async () => {
+    render(assets(null));
+    await userEvent.click(screen.getByRole("button", { name: "Add vehicle" }));
+    const form = screen.getByRole("dialog", { name: "Add a vehicle" });
+    expect(within(form).getByText("Drop the rego certificate here, a photo or a PDF")).toBeInTheDocument();
+    expect(within(form).getByLabelText("Rego plate")).toHaveValue("");
+  });
+
+  it("a row's Edit vehicle opens the same form with that vehicle filled in", async () => {
+    render(assets(null));
+    const row = screen.getByText("SPARE UTE").closest(".flrow") as HTMLElement;
+    await userEvent.click(within(row).getByRole("button", { name: "Actions" }));
+    await userEvent.click(within(row).getByRole("button", { name: /Edit vehicle/ }));
+    const form = screen.getByRole("dialog", { name: "Edit SPARE UTE" });
+    expect(within(form).getByLabelText("Rego plate")).toHaveValue("V2");
+    expect(within(form).getByLabelText("Model")).toHaveValue("Hiace");
+  });
+});

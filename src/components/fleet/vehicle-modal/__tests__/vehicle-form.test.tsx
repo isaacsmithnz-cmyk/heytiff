@@ -1,14 +1,17 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RenewalInput } from "@/app/actions/fleet";
+import { WindowsContext } from "@/components/records/records-context";
 import type { Vehicle } from "../../logic";
 import { VehicleForm } from "../vehicle-form";
 
-/* The redesigned form. Three contracts carried over from the form it replaces
-   — the make is picked not typed, the purchase invoice attaches even when the
-   read fails, every date is a picker — and the new one: the form opens on the
-   rego certificate, and a vehicle added by scanning it arrives with its first
-   registration filed as a record, certificate under it. */
+/* Add a vehicle (forms 8a and 8) and a vehicle's Edit details. The contracts
+   today's form had, kept: the form opens on the rego certificate and today's
+   reader fills it; a vehicle added that way arrives with its first rego filed
+   as a record, the certificate under it; the make is picked, not typed; the
+   purchase invoice attaches even when the read fails; every date is a
+   picker. And v2's: saving is today's saveVehicle, the form closes where you
+   were, and the toast's Undo takes the save back. */
 
 const uploadFile = jest.fn();
 jest.mock("@/lib/documents/upload-client", () => ({
@@ -21,6 +24,16 @@ jest.mock("@/app/actions/fleet-ai", () => ({
   readRegoCertificate: (...a: unknown[]) => readRegoCertificate(...a),
   readPurchaseInvoice: (...a: unknown[]) => readPurchaseInvoice(...a),
 }));
+
+const saveVehicle = jest.fn();
+const removeVehicle = jest.fn();
+jest.mock("@/app/actions/fleet", () => ({
+  saveVehicle: (...a: unknown[]) => saveVehicle(...a),
+  removeVehicle: (...a: unknown[]) => removeVehicle(...a),
+}));
+
+const refresh = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 
 const TODAY = "2026-09-02";
 
@@ -73,19 +86,35 @@ const VAN: Vehicle = {
   lastServiceDays: null,
 };
 
-function setup(initial: Vehicle | null = null) {
-  const onSave = jest.fn();
+const toast = jest.fn();
+
+function setup(initial: Vehicle | null = null, onSaved?: (id: string) => void) {
   const onClose = jest.fn();
-  render(<VehicleForm initial={initial} staff={[]} today={TODAY} onSave={onSave} onClose={onClose} />);
-  return { onSave, onClose, user: userEvent.setup() };
+  render(
+    <WindowsContext.Provider value={{ toast } as never}>
+      <VehicleForm initial={initial} staff={[]} today={TODAY} onClose={onClose} onSaved={onSaved} />
+    </WindowsContext.Provider>,
+  );
+  return { onClose, user: userEvent.setup() };
 }
 
-const plateInput = () => screen.getByPlaceholderText("e.g. MKT482");
-const makeSelect = () => screen.getByRole("combobox", { name: /^Make/ });
-const addBtn = () => screen.getByRole("button", { name: /add vehicle/i });
-const priceInput = () => screen.getByPlaceholderText("What you paid");
+const plateInput = () => screen.getByLabelText("Rego plate");
+const makeChooser = () => screen.getByRole("combobox", { name: /^Make$/ });
+const addBtn = () => screen.getByRole("button", { name: "Add vehicle" });
+const priceInput = () => screen.getByLabelText("Purchase price");
 const field = (label: string | RegExp) => screen.getByLabelText(label);
-const saved = (onSave: jest.Mock) => onSave.mock.calls[0][0] as Vehicle;
+const saved = () => saveVehicle.mock.calls[0][0] as Vehicle;
+const chosenIn = (group: string) =>
+  within(screen.getByRole("radiogroup", { name: group }))
+    .getAllByRole("radio")
+    .find((r) => r.getAttribute("aria-checked") === "true")?.textContent ?? null;
+
+async function pickMake(user: ReturnType<typeof userEvent.setup>, make: string) {
+  await user.click(makeChooser());
+  await user.click(screen.getByRole("option", { name: make }));
+}
+const upload = (user: ReturnType<typeof userEvent.setup>, name = "cert.jpg") =>
+  user.upload(field("Scan certificate"), new File(["x"], name, { type: "image/jpeg" }));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -95,28 +124,49 @@ beforeEach(() => {
   });
   readRegoCertificate.mockResolvedValue(TRITON_CERT);
   readPurchaseInvoice.mockResolvedValue({ ok: true, cost: 45000, purchasedOn: "2024-03-15", supplier: "Sydney City Toyota" });
+  saveVehicle.mockResolvedValue({ ok: true, id: "v-new" });
+  removeVehicle.mockResolvedValue({ ok: true });
 });
 
 /* ---- the certificate ---- */
 
 describe("adding a vehicle from its rego certificate", () => {
-  it("reads the certificate into the form and files the first rego as a record, paper under it", async () => {
-    const { user, onSave } = setup();
-    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
+  it("opens on the certificate: drop it, photograph it or choose it", () => {
+    setup();
+    expect(screen.getByRole("dialog", { name: "Add a vehicle" })).toBeInTheDocument();
+    expect(screen.getByText("Drop the rego certificate here, a photo or a PDF")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take a photo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose a file" })).toBeInTheDocument();
+    expect(field("Photograph certificate")).toHaveAttribute("capture", "environment");
+  });
 
-    await waitFor(() => expect(screen.getByText("Details read from the certificate — check the form before saving")).toBeInTheDocument());
+  it("reads a dropped certificate too", async () => {
+    setup();
+    const box = screen.getByText("Drop the rego certificate here, a photo or a PDF").parentElement as HTMLElement;
+    fireEvent.drop(box, { dataTransfer: { files: [new File(["x"], "cert.pdf", { type: "application/pdf" })] } });
+    await waitFor(() => expect(plateInput()).toHaveValue("YLI59V"));
+    expect(screen.getByText("PDF, 1 KB. Read into the form.")).toBeInTheDocument();
+  });
+
+  it("reads the certificate into every section, then files the first rego as a record, paper under it", async () => {
+    const { user, onClose } = setup();
+    await upload(user);
+
+    await waitFor(() => expect(screen.getByText("Photo, 1 KB. Read into the form.")).toBeInTheDocument());
     expect(plateInput()).toHaveValue("YLI59V");
-    expect(makeSelect()).toHaveValue("Mitsubishi");
-    expect(screen.getByPlaceholderText("e.g. Hiace ZR")).toHaveValue("Triton");
-    expect(screen.getByPlaceholderText("17 characters on the certificate")).toHaveValue("MMAWLKL10NH035826");
-    expect(screen.getByRole("combobox", { name: /body type/i })).toHaveValue("ute");
-    expect(field(/^Rego expiry/)).toHaveTextContent("29/09/2027");
-    expect(screen.getByPlaceholderText("e.g. 1008")).toHaveValue(1008);
+    expect(makeChooser()).toHaveTextContent("Mitsubishi");
+    expect(field("Registered in")).toHaveTextContent("NSW");
+    expect(field("Model")).toHaveValue("Triton");
+    expect(field("VIN or chassis")).toHaveValue("MMAWLKL10NH035826");
+    expect(chosenIn("Body type")).toBe("Ute");
+    expect(field("Rego expiry")).toHaveTextContent("29/09/2027");
+    expect(field("Amount paid")).toHaveValue(1008);
+    expect(field("Issued by")).toHaveValue("Transport for NSW");
     expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "rego_notice");
 
     await user.click(addBtn());
-    const v = saved(onSave);
-    expect(v).toMatchObject({
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(saved()).toMatchObject({
       plate: "YLI59V",
       plateState: "NSW",
       make: "Mitsubishi",
@@ -135,8 +185,8 @@ describe("adding a vehicle from its rego certificate", () => {
       insuranceDays: null,
       ctpDays: null,
     });
-    expect(v.regoDays).toBe(392); // 2 Sep 2026 → 29 Sep 2027
-    const renewal = onSave.mock.calls[0][2] as Omit<RenewalInput, "vehicleId">;
+    expect(saved().regoDays).toBe(392); // 2 Sep 2026 → 29 Sep 2027
+    const renewal = saveVehicle.mock.calls[0][2] as Omit<RenewalInput, "vehicleId">;
     expect(renewal).toEqual({
       kind: "rego",
       expiresOn: "2027-09-29",
@@ -149,28 +199,40 @@ describe("adding a vehicle from its rego certificate", () => {
     });
   });
 
+  it("shows the reader at work, the way the expense claim's does", async () => {
+    let finish: (v: unknown) => void = () => {};
+    readRegoCertificate.mockReturnValue(new Promise((r) => (finish = r)));
+    const { user } = setup();
+    await upload(user);
+    const reading = await screen.findByRole("status");
+    expect(reading).toHaveTextContent("Reading cert.jpg");
+    expect(reading.querySelectorAll(".mk-records-bar")).toHaveLength(3);
+    finish(TRITON_CERT);
+    await waitFor(() => expect(plateInput()).toHaveValue("YLI59V"));
+  });
+
   it("never overwrites a plate the person has typed — the plate is what they are surest of", async () => {
     const { user } = setup();
     await user.type(plateInput(), "abc123");
-    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
-    await waitFor(() => expect(makeSelect()).toHaveValue("Mitsubishi"));
+    await upload(user);
+    await waitFor(() => expect(makeChooser()).toHaveTextContent("Mitsubishi"));
     expect(plateInput()).toHaveValue("abc123");
   });
 
   it("keeps a certificate Tiff can't read, and files it under the first rego record typed by hand", async () => {
     readRegoCertificate.mockResolvedValue({ ok: false, reason: "no-key" });
-    const { user, onSave } = setup();
-    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
-    await waitFor(() => expect(screen.getByText("Tiff couldn't read that one — fill the form in below.")).toBeInTheDocument());
-    expect(screen.getByText("Attached: cert.jpg")).toBeInTheDocument();
+    const { user } = setup();
+    await upload(user);
+    await waitFor(() => expect(screen.getByText("Tiff couldn't read that one. Fill the form in below.")).toBeInTheDocument());
+    expect(screen.getByText("Photo, 1 KB. Kept for the first rego record.")).toBeInTheDocument();
     expect(plateInput()).toHaveValue(""); // nothing read, nothing filled
     await user.type(plateInput(), "MKT482");
-    await user.selectOptions(makeSelect(), "Toyota");
-    await user.click(field(/^Rego expiry/));
+    await pickMake(user, "Toyota");
+    await user.click(field("Rego expiry"));
     await user.click(screen.getByRole("button", { name: "Tuesday 29 September 2026" }));
     await user.click(addBtn());
     expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "rego_notice");
-    expect(onSave.mock.calls[0][2]).toEqual({
+    expect(saveVehicle.mock.calls[0][2]).toEqual({
       kind: "rego",
       expiresOn: "2026-09-29",
       startsOn: null,
@@ -184,176 +246,250 @@ describe("adding a vehicle from its rego certificate", () => {
 
   it("asks for the expiry while it holds a certificate, and Scan another lets go of both", async () => {
     readRegoCertificate.mockResolvedValue({ ok: false, reason: "read" });
-    const { user, onSave, onClose } = setup();
+    const { user } = setup();
     await user.type(plateInput(), "MKT482");
-    await user.selectOptions(makeSelect(), "Toyota");
-    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
-    await waitFor(() => expect(screen.getByText("Attached: cert.jpg")).toBeInTheDocument());
+    await pickMake(user, "Toyota");
+    await upload(user);
+    await waitFor(() => expect(screen.getByText("Photo, 1 KB. Kept for the first rego record.")).toBeInTheDocument());
+
     // the paper's only home is a rego record, and a rego record is its expiry
-    expect(screen.getByText("Rego expiry")).toHaveTextContent("Rego expiry*");
-    expect(addBtn()).toBeDisabled();
+    await user.click(addBtn());
+    expect(saveVehicle).not.toHaveBeenCalled();
+    expect(screen.getByText("The certificate is filed under the first rego, so give its expiry.")).toBeInTheDocument();
+    expect(field("Rego expiry")).toHaveAttribute("aria-invalid", "true");
 
     await user.click(screen.getByRole("button", { name: "Scan another" }));
-    expect(screen.getByText("Scan or upload the rego certificate")).toBeInTheDocument();
-    expect(screen.queryByText("Tiff couldn't read that one — fill the form in below.")).not.toBeInTheDocument();
-    expect(screen.getByText("Rego expiry")).toHaveTextContent(/^Rego expiry$/);
+    expect(screen.getByText("Drop the rego certificate here, a photo or a PDF")).toBeInTheDocument();
+    expect(screen.queryByText("Tiff couldn't read that one. Fill the form in below.")).not.toBeInTheDocument();
+    expect(screen.queryByText("The certificate is filed under the first rego, so give its expiry.")).not.toBeInTheDocument();
     await user.click(addBtn());
-    expect(onSave.mock.calls[0][2]).toBeUndefined(); // no expiry, nothing held, no record
-    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
-    expect(onClose).toHaveBeenCalled(); // nothing in hand, so the backdrop closes again
+    expect(saveVehicle.mock.calls[0][2]).toBeUndefined(); // no expiry, nothing held, no record
   });
 
   it("asks for the expiry when the read found none, then files the certificate as scanned", async () => {
     readRegoCertificate.mockResolvedValue({ ...TRITON_CERT, expiresOn: null });
-    const { user, onSave } = setup();
-    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
-    await waitFor(() => expect(makeSelect()).toHaveValue("Mitsubishi"));
-    expect(addBtn()).toBeDisabled();
-    await user.click(field(/^Rego expiry/));
+    const { user } = setup();
+    await upload(user);
+    await waitFor(() => expect(makeChooser()).toHaveTextContent("Mitsubishi"));
+    await user.click(addBtn());
+    expect(saveVehicle).not.toHaveBeenCalled();
+    await user.click(field("Rego expiry"));
     await user.click(screen.getByRole("button", { name: "Tuesday 29 September 2026" }));
     await user.click(addBtn());
-    expect(onSave.mock.calls[0][2]).toMatchObject({ expiresOn: "2026-09-29", documentId: "doc-1", source: "scan" });
+    expect(saveVehicle.mock.calls[0][2]).toMatchObject({ expiresOn: "2026-09-29", documentId: "doc-1", source: "scan" });
   });
 
   it("files nothing when neither the read nor the upload lands, and offers the scan again", async () => {
     uploadFile.mockResolvedValue({ ok: false, error: "too big" });
     readRegoCertificate.mockResolvedValue({ ok: false, reason: "no-key" });
-    const { user, onSave } = setup();
-    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
-    await waitFor(() => expect(screen.getByText("The certificate couldn't be stored — the details will save without it.")).toBeInTheDocument());
-    expect(screen.getByText("Scan or upload the rego certificate")).toBeInTheDocument();
+    const { user } = setup();
+    await upload(user);
+    await waitFor(() =>
+      expect(screen.getByText("The certificate couldn't be stored, so the details will save without it.")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Drop the rego certificate here, a photo or a PDF")).toBeInTheDocument();
     await user.type(plateInput(), "MKT482");
-    await user.selectOptions(makeSelect(), "Toyota");
+    await pickMake(user, "Toyota");
     await user.click(addBtn());
-    expect(onSave.mock.calls[0][2]).toBeUndefined(); // no expiry, no record
+    expect(saveVehicle.mock.calls[0][2]).toBeUndefined(); // no expiry, no record
   });
 
-  it("survives Escape and the backdrop while the certificate is read or held; the X still closes", async () => {
+  it("survives Escape and the scrim while the certificate is read or held; Cancel still closes", async () => {
     let finish: (v: unknown) => void = () => {};
     readRegoCertificate.mockReturnValue(new Promise((r) => (finish = r)));
     const { user, onClose } = setup();
-    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
+    await upload(user);
     await screen.findByText("Reading cert.jpg");
     await user.keyboard("{Escape}");
     expect(onClose).not.toHaveBeenCalled();
 
     finish({ ok: false, reason: "read" });
-    await screen.findByText("Attached: cert.jpg");
+    await screen.findByText("cert.jpg");
     await user.keyboard("{Escape}");
-    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    const scrim = document.querySelector(".pt-scrim") as HTMLElement;
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
     expect(onClose).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("types a first registration by hand as a manual record", async () => {
-    const { user, onSave } = setup();
+    const { user } = setup();
     await user.type(plateInput(), "MKT482");
-    await user.selectOptions(makeSelect(), "Toyota");
+    await pickMake(user, "Toyota");
     await user.click(field("Rego expiry"));
     await user.click(screen.getByRole("button", { name: "Tuesday 29 September 2026" }));
     await user.click(addBtn());
-    expect(onSave.mock.calls[0][2]).toMatchObject({ kind: "rego", expiresOn: "2026-09-29", source: "manual", documentId: undefined });
-    expect(saved(onSave).regoDays).toBe(27);
+    expect(saveVehicle.mock.calls[0][2]).toMatchObject({ kind: "rego", expiresOn: "2026-09-29", source: "manual", documentId: undefined });
+    expect(saved().regoDays).toBe(27);
+  });
+
+  it("keeps the term the tray says", async () => {
+    const { user } = setup();
+    await user.type(plateInput(), "MKT482");
+    await pickMake(user, "Toyota");
+    await user.click(field("Rego expiry"));
+    await user.click(screen.getByRole("button", { name: "Tuesday 29 September 2026" }));
+    await user.click(screen.getByRole("radio", { name: "6 months" }));
+    await user.click(addBtn());
+    expect(saveVehicle.mock.calls[0][2]).toMatchObject({ termMonths: 6 });
   });
 });
 
-describe("editing a vehicle", () => {
-  it("has no expiry fields — the dates are the card's — and keeps the vehicle's own", async () => {
-    const { user, onSave } = setup(VAN);
+/* ---- saving: rule 51 ---- */
+
+describe("saving keeps you where you were", () => {
+  it("says the plate is missing on the field, and saves nothing", async () => {
+    const { user } = setup();
+    await pickMake(user, "Toyota");
+    await user.click(addBtn());
+    expect(saveVehicle).not.toHaveBeenCalled();
+    expect(screen.getByText("Give the rego plate.")).toBeInTheDocument();
+    expect(plateInput()).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("toasts the new vehicle, and Undo takes it back out as Remove vehicle does", async () => {
+    const { user, onClose } = setup();
+    await user.type(plateInput(), "mkt482");
+    await pickMake(user, "Toyota");
+    await user.click(addBtn());
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(refresh).toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith("MKT482 added", expect.any(Function));
+    await toast.mock.calls[0][1]();
+    expect(removeVehicle).toHaveBeenCalledWith("v-new");
+  });
+
+  it("keeps the form open with the action's refusal, and nothing toasted", async () => {
+    saveVehicle.mockResolvedValue({ ok: false, error: "MKT482 is already registered in this fleet." });
+    const { user, onClose } = setup();
+    await user.type(plateInput(), "MKT482");
+    await pickMake(user, "Toyota");
+    await user.click(addBtn());
+    expect(await screen.findByRole("alert")).toHaveTextContent("MKT482 is already registered in this fleet.");
+    expect(onClose).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+  });
+});
+
+describe("editing a vehicle (its page's Edit details)", () => {
+  it("opens filled in, has no expiry fields — the dates are the vehicle's records — and keeps its own", async () => {
+    const onSaved = jest.fn();
+    const { user, onClose } = setup(VAN, onSaved);
+    expect(screen.getByRole("dialog", { name: "Edit ZUCKY" })).toBeInTheDocument();
+    expect(plateInput()).toHaveValue("EVD72G");
+    expect(field("Model")).toHaveValue("Hiace");
+    expect(field("Odometer (km)")).toHaveValue(55500);
     expect(screen.queryByLabelText("Rego expiry")).not.toBeInTheDocument();
-    expect(screen.getByText(/managed on the vehicle's card/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-    expect(saved(onSave)).toMatchObject({ regoDays: 109, insuranceDays: 300, ctpDays: 300 });
-    expect(onSave.mock.calls[0][2]).toBeUndefined();
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(saved()).toMatchObject({ id: "v1", regoDays: 109, insuranceDays: 300, ctpDays: 300 });
+    expect(saveVehicle.mock.calls[0][2]).toBeUndefined();
+    expect(onSaved).toHaveBeenCalledWith("v-new");
+  });
+
+  it("Undo puts the vehicle back as it was opened", async () => {
+    const { user } = setup(VAN);
+    await user.clear(field("Model"));
+    await user.type(field("Model"), "Hiace ZR");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith("EVD72G saved", expect.any(Function)));
+    expect(saved().model).toBe("Hiace ZR");
+    await toast.mock.calls[0][1]();
+    expect(saveVehicle).toHaveBeenLastCalledWith(VAN);
+    expect(removeVehicle).not.toHaveBeenCalled();
   });
 
   it("scans a certificate to fill the specs without storing it, and points at Registration for the expiry", async () => {
-    const { user, onSave } = setup(VAN);
-    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
-    await waitFor(() => expect(screen.getByPlaceholderText("17 characters on the certificate")).toHaveValue("MMAWLKL10NH035826"));
+    const { user } = setup(VAN);
+    await upload(user);
+    await waitFor(() => expect(field("VIN or chassis")).toHaveValue("MMAWLKL10NH035826"));
     expect(uploadFile).not.toHaveBeenCalled();
-    expect(screen.getByText(/registration to 29 Sep 2027 — record that under Registration/)).toBeInTheDocument();
+    expect(screen.getByText(/registration to 29 Sep 2027\. Record that under Registration/)).toBeInTheDocument();
     // the typed plate stays; the specs land; the dates don't move
     expect(plateInput()).toHaveValue("EVD72G");
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-    expect(saved(onSave)).toMatchObject({ vin: "MMAWLKL10NH035826", gvmKg: 2900, regoDays: 109 });
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(saved()).toMatchObject({ vin: "MMAWLKL10NH035826", gvmKg: 2900, regoDays: 109 });
   });
 });
 
 /* ---- body type ---- */
 
 it("a trailer has no engine: the engine, odometer and fuel-cycle fields go, ATM arrives, and it saves unmotorised", async () => {
-  const { user, onSave } = setup();
+  const { user } = setup();
   await user.type(plateInput(), "TC22BJ");
-  await user.selectOptions(makeSelect(), "__not_listed__");
+  await pickMake(user, "Not listed");
   await user.type(screen.getByLabelText("Make not listed"), "LG Chiv");
-  expect(screen.getByPlaceholderText("e.g. 84120")).toBeInTheDocument(); // odometer, while it's a van
-  await user.selectOptions(screen.getByRole("combobox", { name: /body type/i }), "trailer");
-  expect(screen.queryByPlaceholderText("e.g. 84120")).not.toBeInTheDocument();
-  expect(screen.queryByText("Engine no.")).not.toBeInTheDocument();
-  await user.type(screen.getByPlaceholderText("e.g. 2000"), "2000");
+  expect(screen.getByLabelText("Odometer (km)")).toBeInTheDocument(); // while it's a van
+  expect(screen.queryByLabelText("ATM (kg)")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("radio", { name: "Trailer" }));
+  expect(screen.queryByLabelText("Odometer (km)")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Engine number")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Towed by")).toBeInTheDocument();
+  await user.type(screen.getByLabelText("ATM (kg)"), "2000");
   await user.click(addBtn());
-  expect(saved(onSave)).toMatchObject({ bodyType: "trailer", motorised: false, atmKg: 2000, odometer: 0, serviceIntervalKm: null, engineCapacityCc: null });
+  expect(saved()).toMatchObject({ bodyType: "trailer", motorised: false, atmKg: 2000, odometer: 0, serviceIntervalKm: null, engineCapacityCc: null });
 });
 
 /* ---- the make picker: the contracts the old form's tests pinned ---- */
 
 describe("make", () => {
-  it("cannot be typed into — Make is a picker", () => {
+  it("cannot be typed into — Make is a chooser", () => {
     setup();
-    expect(makeSelect().tagName).toBe("SELECT");
-    expect(screen.queryByPlaceholderText("e.g. Toyota")).not.toBeInTheDocument();
+    expect(makeChooser().tagName).toBe("BUTTON");
+    expect(makeChooser()).toHaveTextContent("Pick a make");
+    expect(screen.queryByLabelText("Make not listed")).not.toBeInTheDocument();
   });
 
   it("saves the list's spelling, not whatever case was clicked", async () => {
-    const { user, onSave } = setup();
+    const { user } = setup();
     await user.type(plateInput(), "MKT482");
-    await user.selectOptions(makeSelect(), "Toyota");
+    await pickMake(user, "Toyota");
     await user.click(addBtn());
-    expect(saved(onSave).make).toBe("Toyota");
+    expect(saved().make).toBe("Toyota");
   });
 
   it("preselects the canonical row for a dirty spelling already in the register", async () => {
-    const { user, onSave } = setup(VAN);
-    expect(makeSelect()).toHaveValue("Toyota");
+    const { user } = setup(VAN);
+    expect(makeChooser()).toHaveTextContent("Toyota");
     expect(screen.queryByLabelText("Make not listed")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-    expect(saved(onSave).make).toBe("Toyota");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(saved().make).toBe("Toyota");
   });
 
   it("takes a make no list will ever carry, once you say it is not listed", async () => {
-    const { user, onSave } = setup();
+    const { user } = setup();
     await user.type(plateInput(), "TC22BJ");
-    expect(screen.queryByLabelText("Make not listed")).not.toBeInTheDocument();
-    await user.selectOptions(makeSelect(), "__not_listed__");
+    await pickMake(user, "Not listed");
     await user.type(screen.getByLabelText("Make not listed"), "LG Chiv");
     await user.click(addBtn());
-    expect(saved(onSave).make).toBe("LG Chiv");
+    expect(saved().make).toBe("LG Chiv");
   });
 
   it("reopens an unlisted make in the text box instead of quietly rewriting it", () => {
     setup({ ...VAN, make: "LG Chiv" });
-    expect(makeSelect()).toHaveValue("__not_listed__");
+    expect(makeChooser()).toHaveTextContent("Not listed");
     expect(screen.getByLabelText("Make not listed")).toHaveValue("LG Chiv");
   });
 
   it("clears the previous pick, so 'not listed' can't save the make you abandoned", async () => {
     const { user } = setup();
     await user.type(plateInput(), "MKT482");
-    await user.selectOptions(makeSelect(), "Toyota");
-    expect(addBtn()).toBeEnabled();
-    await user.selectOptions(makeSelect(), "__not_listed__");
+    await pickMake(user, "Toyota");
+    await pickMake(user, "Not listed");
     expect(screen.getByLabelText("Make not listed")).toHaveValue("");
-    expect(addBtn()).toBeDisabled();
+    await user.click(addBtn());
+    expect(saveVehicle).not.toHaveBeenCalled();
+    expect(screen.getByText("Type the make.")).toBeInTheDocument();
   });
 });
 
 /* ---- the purchase invoice: the contracts the old form's tests pinned ---- */
 
 describe("purchase invoice", () => {
-  const attachButton = () => screen.getByRole("button", { name: /attach the invoice/i });
+  const attachButton = () => screen.getByRole("button", { name: "Attach invoice" });
   const pickInvoice = (user: ReturnType<typeof userEvent.setup>) =>
     user.upload(field("Attach invoice"), new File(["pdf-bytes"], "tax-invoice.pdf", { type: "application/pdf" }));
 
@@ -362,41 +498,55 @@ describe("purchase invoice", () => {
     await pickInvoice(user);
     await waitFor(() => expect(priceInput()).toHaveValue(45000));
     expect(field("Purchase date")).toHaveTextContent("15/03/2024");
-    expect(screen.getByText(/tax-invoice\.pdf/)).toBeInTheDocument();
+    expect(field("Supplier")).toHaveValue("Sydney City Toyota");
+    expect(screen.getByText("tax-invoice.pdf")).toBeInTheDocument();
+    expect(screen.getByText(/^PDF, 1 KB\. Read: \$45,000/)).toBeInTheDocument();
     expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "purchase_invoice");
   });
 
   it("hands the save the document id, so the action can adopt it", async () => {
-    const { user, onSave } = setup();
+    const { user } = setup();
     await user.type(plateInput(), "MKT482");
-    await user.selectOptions(makeSelect(), "Toyota");
+    await pickMake(user, "Toyota");
     await pickInvoice(user);
     await waitFor(() => expect(priceInput()).toHaveValue(45000));
     await user.click(addBtn());
-    expect(onSave.mock.calls[0][1]).toBe("doc-1");
+    expect(saveVehicle.mock.calls[0][1]).toBe("doc-1");
   });
 
   it("a failed scan still attaches the file — evidence beats extraction", async () => {
     readPurchaseInvoice.mockResolvedValue({ ok: false, reason: "read" });
-    const { user, onSave } = setup();
+    const { user } = setup();
     await user.type(plateInput(), "MKT482");
-    await user.selectOptions(makeSelect(), "Toyota");
+    await pickMake(user, "Toyota");
     await pickInvoice(user);
-    await waitFor(() => expect(screen.getByText(/tax-invoice\.pdf/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("tax-invoice.pdf")).toBeInTheDocument());
     expect(priceInput()).toHaveValue(null);
     await user.click(addBtn());
-    expect(onSave.mock.calls[0][1]).toBe("doc-1");
+    expect(saveVehicle.mock.calls[0][1]).toBe("doc-1");
+  });
+
+  it("Remove lets the invoice go, and the save carries none", async () => {
+    const { user } = setup();
+    await user.type(plateInput(), "MKT482");
+    await pickMake(user, "Toyota");
+    await pickInvoice(user);
+    await waitFor(() => expect(screen.getByText("tax-invoice.pdf")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(attachButton()).toBeEnabled();
+    await user.click(addBtn());
+    expect(saveVehicle.mock.calls[0][1]).toBeUndefined();
   });
 
   it("a failed upload attaches nothing and offers the button again", async () => {
     uploadFile.mockResolvedValue({ ok: false, error: "too big" });
-    const { user, onSave } = setup();
+    const { user } = setup();
     await user.type(plateInput(), "MKT482");
-    await user.selectOptions(makeSelect(), "Toyota");
+    await pickMake(user, "Toyota");
     await pickInvoice(user);
     await waitFor(() => expect(attachButton()).toBeEnabled());
     await user.click(addBtn());
-    expect(onSave.mock.calls[0][1]).toBeUndefined();
+    expect(saveVehicle.mock.calls[0][1]).toBeUndefined();
   });
 
   it("scanned values do not overwrite what a failed field would keep", async () => {
@@ -408,27 +558,29 @@ describe("purchase invoice", () => {
     expect(priceInput()).toHaveValue(41000);
   });
 
-  it("survives Escape and the backdrop while the invoice is read or attached; the X still closes", async () => {
+  it("survives Escape and the scrim while the invoice is read or attached; Cancel still closes", async () => {
     let finish: (v: unknown) => void = () => {};
     readPurchaseInvoice.mockReturnValue(new Promise((r) => (finish = r)));
     const { user, onClose } = setup();
     await pickInvoice(user);
-    await screen.findByText(/Tiff is reading the invoice/);
+    await screen.findByRole("button", { name: "Reading tax-invoice.pdf" });
     await user.keyboard("{Escape}");
     expect(onClose).not.toHaveBeenCalled();
 
     finish({ ok: false, reason: "read" });
     await screen.findByText("tax-invoice.pdf");
     await user.keyboard("{Escape}");
-    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    const scrim = document.querySelector(".pt-scrim") as HTMLElement;
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
     expect(onClose).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 
-/* ---- dates: still pickers, still the modal's Escape to lose ---- */
+/* ---- dates: still pickers, still the form's Escape to lose ---- */
 
 describe("dates", () => {
   it("takes no typed dates at all — every date field is a picker", () => {
@@ -436,7 +588,7 @@ describe("dates", () => {
     expect(document.querySelectorAll('input[type="date"]')).toHaveLength(0);
     for (const label of ["Rego expiry", "Purchase date", "Last service date"]) {
       expect(field(label).tagName).toBe("BUTTON");
-      expect(field(label)).toHaveTextContent("dd/mm/yyyy");
+      expect(field(label)).toHaveTextContent("No date");
     }
   });
 
@@ -458,6 +610,6 @@ describe("dates", () => {
     expect(field("Rego expiry")).toHaveTextContent("02/09/2026");
     await user.click(field("Rego expiry"));
     await user.click(screen.getByRole("button", { name: "Clear" }));
-    expect(field("Rego expiry")).toHaveTextContent("dd/mm/yyyy");
+    expect(field("Rego expiry")).toHaveTextContent("No date");
   });
 });

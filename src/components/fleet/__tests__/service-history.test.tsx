@@ -29,6 +29,9 @@ jest.mock("@/app/actions/fleet-ai", () => ({
   readRegoCertificate: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));
 jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: jest.fn() }));
+/* The register's vehicle form saves through the fleet action itself (rule 51),
+   the same "use server" trouble. */
+jest.mock("@/app/actions/fleet", () => ({ saveVehicle: jest.fn(), removeVehicle: jest.fn() }));
 
 const TODAY = "2026-08-25";
 

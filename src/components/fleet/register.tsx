@@ -254,10 +254,6 @@ export function FleetRegister({
             initial={null}
             staff={staff}
             today={today}
-            onSave={(v, invoiceId, renewal) => {
-              fleet.saveVehicle(v, invoiceId, renewal);
-              setModal({ t: "none" });
-            }}
             onClose={() => setModal({ t: "none" })}
           />
         )}
@@ -484,10 +480,6 @@ export function FleetRegister({
           initial={null}
           staff={staff}
           today={today}
-          onSave={(v, invoiceId, renewal) => {
-            fleet.saveVehicle(v, invoiceId, renewal);
-            setModal({ t: "none" });
-          }}
           onClose={() => setModal({ t: "none" })}
         />
       )}
@@ -496,10 +488,6 @@ export function FleetRegister({
           initial={openVehicle}
           staff={staff}
           today={today}
-          onSave={(v, invoiceId) => {
-            fleet.saveVehicle(v, invoiceId);
-            setModal({ t: "detail", id: v.id });
-          }}
           onClose={() => setModal({ t: "detail", id: openVehicle.id })}
         />
       )}

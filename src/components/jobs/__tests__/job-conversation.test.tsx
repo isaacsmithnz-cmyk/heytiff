@@ -6,7 +6,7 @@
    drawing and the presses, not the router). The router's half has its own
    suites. */
 
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Conversation, ModalTurn } from "@/components/tiff/modal/use-conversation";
 import type { StoryEntry } from "@/lib/workboard/job-story";
@@ -16,6 +16,20 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn(), pu
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
 jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: jest.fn(async () => null) }));
 jest.mock("@/app/actions/workboard-notes", () => ({ routeNote: jest.fn(), dismissNote: jest.fn() }));
+/* Add photo: the expense form's own upload, and the delete a clear makes */
+const uploadFile = jest.fn();
+jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: (...a: unknown[]) => uploadFile(...a) }));
+const deleteDocument = jest.fn(async (_id: string) => ({ ok: true }));
+jest.mock("@/app/actions/documents", () => ({ deleteDocument: (id: string) => deleteDocument(id) }));
+
+beforeAll(() => {
+  /* jsdom has no object URLs */
+  URL.revokeObjectURL = jest.fn();
+});
+beforeEach(() => {
+  uploadFile.mockReset();
+  deleteDocument.mockClear();
+});
 
 import { JobConversation, type ConversationDiary } from "../job-conversation";
 
@@ -69,6 +83,7 @@ const convo = (over: Partial<Conversation> = {}): Conversation =>
     draft: "",
     setDraft: jest.fn(),
     send: jest.fn(),
+    sendWithReceipt: jest.fn(),
     markSpoken: jest.fn(),
     answer: jest.fn(),
     undo: jest.fn(async () => undefined),
@@ -241,4 +256,75 @@ it("keeps a note's own doors: Remove on one of ours", async () => {
   draw({ story: [note({ key: "ournote:n1", origin: "heytiff", id: "n1", author: "Isaac Smith" })], d: diary({ onRemoveNote }) });
   await userEvent.click(screen.getByRole("button", { name: "Remove" }));
   expect(onRemoveNote).toHaveBeenCalledWith("n1");
+});
+
+/* ── Add photo: a receipt that goes with the words ── */
+
+const landed = {
+  ok: true,
+  file: { documentId: "doc1", fileName: "reece-receipt.jpg", mimeType: "image/jpeg", sizeBytes: 2048, previewUrl: "blob:reece" },
+};
+
+const picker = () => document.querySelector("input[type=file]") as HTMLInputElement;
+const pickPhoto = () =>
+  fireEvent.change(picker(), { target: { files: [new File(["receipt"], "reece-receipt.jpg", { type: "image/jpeg" })] } });
+const CHIP = { name: "The photo going with your words" };
+
+it("draws Add photo as the box's second button, and uploads a photo as the expense form uploads a receipt", async () => {
+  uploadFile.mockResolvedValue(landed);
+  draw({ c: convo({ draft: "$85 at Reece for fittings" }) });
+  expect(screen.getByRole("button", { name: "Add photo" })).toBeInTheDocument();
+  expect(picker().accept).toContain("image/jpeg");
+  pickPhoto();
+  expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "receipt");
+  expect(await screen.findByText("reece-receipt.jpg")).toBeInTheDocument();
+  const chip = screen.getByRole("group", CHIP);
+  expect(chip.querySelector("img")?.getAttribute("src")).toBe("blob:reece");
+  expect(within(chip).getByRole("button", { name: "Clear the photo" })).toBeInTheDocument();
+  /* one photo a note: the button goes while one is in the box */
+  expect(screen.queryByRole("button", { name: "Add photo" })).toBeNull();
+});
+
+it("holds Send while the photo is still going up, and says so", async () => {
+  uploadFile.mockReturnValue(new Promise(() => undefined));
+  draw({ c: convo({ draft: "$85 at Reece" }) });
+  pickPhoto();
+  expect(await screen.findByText("Uploading the photo")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Send to Tiff" })).toBeDisabled();
+});
+
+it("sends the photo with the words as the receipt", async () => {
+  uploadFile.mockResolvedValue(landed);
+  const c = convo({ draft: "$85 at Reece for fittings" });
+  draw({ c });
+  pickPhoto();
+  await screen.findByText("reece-receipt.jpg");
+  await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
+  expect(c.sendWithReceipt).toHaveBeenCalledWith("doc1");
+  expect(c.send).not.toHaveBeenCalled();
+  /* the claim adopts it: the chip goes and the upload stays */
+  expect(screen.queryByRole("group", CHIP)).toBeNull();
+  expect(deleteDocument).not.toHaveBeenCalled();
+});
+
+it("clears the photo: the chip and its upload go, and Send sends the words alone", async () => {
+  uploadFile.mockResolvedValue(landed);
+  const c = convo({ draft: "Fittings from Reece" });
+  draw({ c });
+  pickPhoto();
+  await screen.findByText("reece-receipt.jpg");
+  await userEvent.click(within(screen.getByRole("group", CHIP)).getByRole("button", { name: "Clear the photo" }));
+  expect(screen.queryByRole("group", CHIP)).toBeNull();
+  expect(deleteDocument).toHaveBeenCalledWith("doc1");
+  expect(screen.getByRole("button", { name: "Add photo" })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Send to Tiff" }));
+  expect(c.send).toHaveBeenCalled();
+  expect(c.sendWithReceipt).not.toHaveBeenCalled();
+});
+
+it("says why a photo didn't upload, in its place", async () => {
+  uploadFile.mockResolvedValue({ ok: false, error: "That file is too big." });
+  draw({ c: convo({ draft: "$85 at Reece" }) });
+  pickPhoto();
+  expect(await screen.findByRole("alert")).toHaveTextContent("That file is too big.");
 });

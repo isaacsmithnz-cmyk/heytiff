@@ -34,6 +34,14 @@ export async function readJobConversation(jobUuid: string): Promise<JobConversat
   const { data: real } = await supabaseAdmin.from("sm8_jobs").select("uuid").eq("org_id", orgId).eq("uuid", job).maybeSingle();
   if (!real) return null;
 
-  const [staffId, tz, undoAny] = await Promise.all([staffIdFor(orgId, userId), getSm8Timezone(orgId), can("team")]);
-  return readJobConversationFor({ orgId, staffId, jobUuid: job, tz, undoAny });
+  /* MONEY IS THE READER'S OWN RIGHT, asked here as the card's reads ask it
+     (`workboard_money`), so a reader without it never receives a figure in
+     Tiff's lines (decision 15; job-conversation-query) */
+  const [staffId, tz, undoAny, money] = await Promise.all([
+    staffIdFor(orgId, userId),
+    getSm8Timezone(orgId),
+    can("team"),
+    can("workboard_money"),
+  ]);
+  return readJobConversationFor({ orgId, staffId, jobUuid: job, tz, undoAny, money });
 }

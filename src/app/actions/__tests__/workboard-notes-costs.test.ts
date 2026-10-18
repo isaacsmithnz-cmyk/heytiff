@@ -156,7 +156,7 @@ jest.mock("@/lib/images/for-claude", () => ({
   imageForClaude: async (bytes: Buffer) => ({ bytes, mime: "image/jpeg" }),
 }));
 
-import { fileNote, routeNote, undoCost, undoNote } from "../workboard-notes";
+import { continueNote, fileNote, routeNote, undoCost, undoNote } from "../workboard-notes";
 import type { NoteProposal } from "@/lib/workboard/note-brain";
 import type { ProposedCost } from "@/lib/workboard/note-cost";
 import { appliedOf } from "@/lib/workboard/note-applied";
@@ -415,6 +415,22 @@ describe("a receipt photo with the note", () => {
     expect(readExpenseReceipt).not.toHaveBeenCalled();
     expect(res.turns.at(-1)!.text).toBe("That receipt photo isn't here any more. Attach it again.");
     expect((noteRow().proposal as Row).receipt).toBeUndefined();
+  });
+
+  it("can come with the answer to How much was it, and is kept on the note for the cost lane", async () => {
+    note([reece({ amount: 0 })], { clarify: { question: "How much was it: fittings at Reece?", options: [] } });
+    noteRow().status = "clarifying";
+    db.documents = [receiptDoc()];
+    readExpenseReceipt.mockResolvedValue(READ);
+    readNote.mockResolvedValue({ ok: true, proposal: { ...EMPTY, costs: [reece({ amount: 0 })], say: "Fittings at Reece." } });
+    const res = await continueNote("n-1", "Here's the docket", [], "doc-1");
+    if (!res.ok) throw new Error(res.error);
+    expect(readNote.mock.calls[0][1]).toMatchObject({ receipt: true });
+    expect((noteRow().proposal as Row).receipt).toMatchObject({ documentId: "doc-1", read: { total: 93.5 } });
+    const filed = await fileNote("n-1");
+    expect(filed.ok).toBe(true);
+    expect(claims()[0]).toMatchObject({ amount: 93.5 });
+    expect(db.documents[0]!.expense_claim_id).toBe(claims()[0]!.id);
   });
 });
 

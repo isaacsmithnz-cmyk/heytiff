@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Button } from "@/components/parts/button";
+import { Button, IconButton } from "@/components/parts/button";
 import { Fade } from "@/components/parts/fade";
 import { Initials } from "@/components/parts/initials";
 import { StateWord, type Tone } from "@/components/parts/state";
@@ -21,6 +21,9 @@ import {
 } from "@/components/workboard/board/job-diary-face";
 import type { Conversation, ModalTurn } from "@/components/tiff/modal/use-conversation";
 import type { PlanRowView } from "@/components/tiff/modal/plan-view";
+import { deleteDocument } from "@/app/actions/documents";
+import { uploadFile } from "@/lib/documents/upload-client";
+import { RECEIPT_ACCEPT } from "@/lib/expenses/claim";
 import { fmtAuTime } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { mintPressId } from "@/lib/workboard/press-id";
@@ -50,6 +53,16 @@ import type { NoteSender } from "@/lib/integrations/links";
    question she asks with answers to pick shows them as second buttons
    that answer. Keep as typed is the diary pen's path (`addJobNote`): the
    words kept word for word as a note on the job, Tiff filing nothing.
+
+   ADD PHOTO, the box's second button as JC-1 draws it. A photo picked or
+   taken uploads at once, as the expense form uploads a receipt
+   (`uploadFile(file, "receipt")`, my-expenses-face), and sits in the box
+   as a small chip with a clear. Send hands its id to the router with the
+   words as `receiptId`, and the cost lane reads it with today's receipt
+   reader (note-cost-file). Nothing in the router puts a photo on a job's
+   note or its photos today, so a photo that isn't a receipt goes nowhere
+   else, and Tiff says nothing of it. Keep as typed keeps the words only:
+   the photo stays in the box for Send.
 
    NOTHING THE DIARY DID IS LOST: its filters are the soft tabs at the
    head; a note's line and doors (Remove, Send to ServiceM8, Mark done,
@@ -221,10 +234,60 @@ export function JobConversation({
   });
 
   const working = convo.stage === "thinking" || convo.stage === "answering";
+
+  /* ADD PHOTO: the receipt uploads as it is picked; Send carries its id */
+  const [photo, setPhoto] = useState<BoxPhoto | null>(null);
+  const picker = useRef<HTMLInputElement | null>(null);
+  const picks = useRef(0);
+  const previewUrl = useRef<string | null>(null);
+  const show = (url: string | null) => {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = url;
+  };
+  useEffect(
+    () => () => {
+      const url = previewUrl.current;
+      if (url) URL.revokeObjectURL(url);
+    },
+    [],
+  );
+  const pick = (file: File | undefined) => {
+    if (picker.current) picker.current.value = "";
+    if (!file) return;
+    const mine = ++picks.current;
+    show(null);
+    setPhoto({ state: "up", name: file.name });
+    void uploadFile(file, "receipt")
+      .catch(() => ({ ok: false as const, error: "That photo didn't upload. Try it again." }))
+      .then((up) => {
+        if (picks.current !== mine) {
+          /* cleared, or another picked, while it went up: it is nobody's now */
+          if (up.ok) void deleteDocument(up.file.documentId).catch(() => undefined);
+          return;
+        }
+        if (!up.ok) return setPhoto({ state: "bad", error: up.error });
+        show(up.file.previewUrl);
+        setPhoto({ state: "ready", id: up.file.documentId, name: up.file.fileName, preview: up.file.previewUrl });
+      });
+  };
+  /** The chip's clear: the upload goes with it, as nothing will adopt it. */
+  const clearPhoto = () => {
+    picks.current++;
+    if (photo?.state === "ready") void deleteDocument(photo.id).catch(() => undefined);
+    show(null);
+    setPhoto(null);
+  };
+
   const send = () => {
-    if (!canSend || !convo.draft.trim()) return;
+    if (!canSend || !convo.draft.trim() || photo?.state === "up") return;
     stamp();
-    convo.send();
+    if (photo?.state === "ready") {
+      convo.sendWithReceipt(photo.id);
+      /* the claim adopts it now: the chip goes, the document stays */
+      picks.current++;
+      show(null);
+      setPhoto(null);
+    } else convo.send();
   };
 
   /* KEEP AS TYPED: the words as they are, a note on the job, and nothing
@@ -360,17 +423,33 @@ export function JobConversation({
           placeholder="Tell Tiff about this job"
           sendWord="Send"
           sendLabel="Send to Tiff"
-          waiting={working || !canSend}
+          waiting={working || !canSend || photo?.state === "up"}
           dict={voiceEnabled ? dict : null}
           voiceError={voiceErr}
           ranOut={ranOut}
+          before={photo ? <PhotoChip photo={photo} onClear={clearPhoto} /> : null}
           extra={
-            diary.onWrite && convo.draft.trim() ? (
-              <Button kind="second" size={36} className="jc-keep" disabled={keeping} onClick={keep}>
-                {keeping ? "Keeping it" : "Keep as typed"}
-              </Button>
-            ) : null
+            <>
+              {!photo && (
+                <Button kind="second" size={36} icon="cam" disabled={!canSend} onClick={() => picker.current?.click()}>
+                  Add photo
+                </Button>
+              )}
+              {diary.onWrite && convo.draft.trim() ? (
+                <Button kind="second" size={36} className="jc-keep" disabled={keeping} onClick={keep}>
+                  {keeping ? "Keeping it" : "Keep as typed"}
+                </Button>
+              ) : null}
+            </>
           }
+        />
+        <input
+          ref={picker}
+          type="file"
+          accept={RECEIPT_ACCEPT}
+          hidden
+          aria-label="Add photo"
+          onChange={(e) => pick(e.target.files?.[0])}
         />
         {diary.notesSm8 && diary.onWrite && (
           <AlsoSm8 also={also} onTick={tick} sender={diary.sender} notesSm8={diary.notesSm8} onConfirm={diary.onConfirm} />
@@ -378,6 +457,47 @@ export function JobConversation({
       </div>
     </section>
     </UndoTalk.Provider>
+  );
+}
+
+/** The photo in the box: going up, ready to go with Send, or refused. */
+type BoxPhoto =
+  | { state: "up"; name: string }
+  | { state: "ready"; id: string; name: string; preview: string | null }
+  | { state: "bad"; error: string };
+
+/** The photo's chip in the box, with its clear. A refused upload says why
+    in its place, and the clear takes it away. */
+function PhotoChip({ photo, onClear }: { photo: BoxPhoto; onClear: () => void }) {
+  if (photo.state === "bad") {
+    return (
+      <div className="jc-photo jc-photo--bad">
+        <p className="jc-photo-why" role="alert">
+          <StateWord tone="wrong">{photo.error}</StateWord>
+        </p>
+        <IconButton glyph="clear" label="Clear the photo" size={32} onClick={onClear} />
+      </div>
+    );
+  }
+  return (
+    <div className="jc-photo" role="group" aria-label="The photo going with your words">
+      {photo.state === "ready" && photo.preview ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="jc-photo-thumb" src={photo.preview} alt="" />
+      ) : (
+        <span className="jc-photo-thumb" aria-hidden="true">
+          <Icon name="cam" size={16} />
+        </span>
+      )}
+      {photo.state === "up" ? (
+        <span className="jc-photo-name" role="status">
+          Uploading the photo
+        </span>
+      ) : (
+        <Fade className="jc-photo-name">{photo.name}</Fade>
+      )}
+      <IconButton glyph="clear" label="Clear the photo" size={32} onClick={onClear} />
+    </div>
   );
 }
 

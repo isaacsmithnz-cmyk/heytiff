@@ -12537,6 +12537,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* Keep as typed sits with Send on the right of the box */
 .fg .cv-boxbar .jc-keep { margin-left:auto; }
 .fg .cv-boxbar .jc-keep + .cv-send { margin-left:0; }
+/* Add photo's chip, above the words in the box: the photo, its name, its clear */
+.fg .jc-photo { display:flex; align-items:center; gap:8px; align-self:flex-start; max-width:100%; min-width:0; padding:4px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); }
+.fg .jc-photo-thumb { flex:none; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:var(--r-control); object-fit:cover; background:var(--sel); color:var(--q); }
+.fg .jc-photo-name { min-width:0; max-width:240px; font-size:13px; line-height:18px; font-weight:500; color:var(--ink); }
+.fg .jc-photo-why { min-width:0; margin:0 0 0 8px; font-size:13px; line-height:18px; }
 /* the rail: groups under a thin line (rule 35) */
 .fg .jc-rail { display:flex; flex-direction:column; min-width:0; }
 .fg .jc-group { display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding:16px 0 24px; border-top:1px solid var(--line); }

@@ -80,8 +80,8 @@ const entry = (id: string, authorId: string, applied: Record<string, unknown>, e
   ...extra,
 });
 
-const read = (staffId: string | null = "s-isaac", undoAny = false) =>
-  readJobConversationFor({ orgId: "o1", staffId, jobUuid: "j-3342", tz: "Australia/Sydney", undoAny });
+const read = (staffId: string | null = "s-isaac", undoAny = false, money = true) =>
+  readJobConversationFor({ orgId: "o1", staffId, jobUuid: "j-3342", tz: "Australia/Sydney", undoAny, money });
 
 beforeEach(() => {
   calls.length = 0;
@@ -139,4 +139,70 @@ it("keeps a note Undo took back, with nothing made under it", async () => {
   expect(r.notes[0]!.undone).toBe(true);
   expect(r.notes[0]!.made).toEqual([]);
   expect(r.notes[0]!.replies).toEqual([{ who: "tiff", text: "1 task taken back." }]);
+});
+
+/* ── decision 15: money held back on the server ── */
+
+describe("money in the thread", () => {
+  const SAID = "Spent $85 at Reece on fittings, and Dane paid $40 at Bunnings";
+  const ANSWER = "It was $92.40 with the GST";
+  beforeEach(() => {
+    entries = [
+      entry("n2", "s-isaac", { v: 2, taskIds: ["t3"] }, {
+        said: SAID,
+        turns: [
+          { who: "you", text: SAID },
+          { who: "tiff", text: "What was the total with GST: $85.00 plus GST at Reece?" },
+          { who: "you", text: ANSWER },
+          {
+            who: "tiff",
+            text: "Done. Claimed: $92.40 at Reece, fittings. It's waiting on approval. The receipt says $92.40, so that's what I used. A claim is the payer's own to make, so I've made it a task for Dane: Claim $40.00 at Bunnings.",
+          },
+        ],
+      }),
+    ];
+    rows = {
+      tasks: [
+        /* the cost lane's task: Tiff's words */
+        { id: "t3", title: "Claim $40.00 at Bunnings", assigned_to: "s-dane", status: "open", due_date: null, remind_at: null, remind_kind: null },
+        /* New › Task: a person's words, as typed */
+        { id: "t4", title: "Pay the $500 deposit back", assigned_to: "s-isaac", status: "open", due_date: null, remind_at: null, remind_kind: null, sm8_job_uuid: "j-3342" },
+      ],
+    };
+  });
+
+  /** Everything the payload says that a person didn't type. */
+  const tiffSide = (r: Awaited<ReturnType<typeof read>>) =>
+    JSON.stringify({
+      replies: r.notes.flatMap((n) => n.replies.filter((x) => x.who === "tiff")),
+      made: r.notes.flatMap((n) => n.made),
+      tasks: r.tasks.filter((t) => t.id !== "t4"),
+    });
+
+  it("says every figure in words for a viewer without money access, so none reaches the browser", async () => {
+    const r = await read("s-isaac", false, false);
+    expect(tiffSide(r)).not.toMatch(/\$\s?\d/);
+    expect(r.notes[0]!.replies.filter((x) => x.who === "tiff").map((x) => x.text)).toEqual([
+      "What was the total with GST: a cost at Reece?",
+      "Done. Claimed: a cost at Reece, fittings. It's waiting on approval. A claim is the payer's own to make, so I've made it a task for Dane: Claim a cost at Bunnings.",
+    ]);
+    expect(r.notes[0]!.made.map((c) => c.name)).toEqual(["Claim a cost at Bunnings"]);
+    expect(r.tasks.find((t) => t.id === "t3")!.title).toBe("Claim a cost at Bunnings");
+  });
+
+  it("keeps the words a person typed as they typed them, figures and all", async () => {
+    const r = await read("s-isaac", false, false);
+    /* the speaker's own message, their answer to Tiff, and a task they typed */
+    expect(r.notes[0]!.said).toBe(SAID);
+    expect(r.notes[0]!.replies.filter((x) => x.who === "you").map((x) => x.text)).toEqual([ANSWER]);
+    expect(r.tasks.find((t) => t.id === "t4")!.title).toBe("Pay the $500 deposit back");
+  });
+
+  it("sends the whole of it to a viewer with money access", async () => {
+    const r = await read("s-isaac", false, true);
+    expect(r.notes[0]!.replies.at(-1)!.text).toContain("Claimed: $92.40 at Reece");
+    expect(r.notes[0]!.replies.at(-1)!.text).toContain("The receipt says $92.40, so that's what I used.");
+    expect(r.notes[0]!.made.map((c) => c.name)).toEqual(["Claim $40.00 at Bunnings"]);
+    expect(r.tasks.find((t) => t.id === "t3")!.title).toBe("Claim $40.00 at Bunnings");
+  });
 });

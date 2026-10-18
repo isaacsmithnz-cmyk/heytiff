@@ -7,6 +7,8 @@ import {
   railTasksOf,
   repliesOf,
   taskLine,
+  talkWithoutMoney,
+  withoutMoney,
   type JobConversationRead,
   type JobNoteTalk,
 } from "./job-conversation";
@@ -29,7 +31,16 @@ import {
                  column, `tasks.sm8_job_uuid` (docs/migrations/tasks_job.sql,
                  NOT YET APPLIED). Until the column is there its read fails
                  with a missing column and the job's tasks are the ones its
-                 notes link; nothing else changes. */
+                 notes link; nothing else changes.
+
+   MONEY IS HELD BACK HERE (decision 15, 6-revisions.md), for a viewer
+   without `workboard_money`, so the figures never reach their browser:
+   Tiff's lines and the cards she made say each figure in words
+   (`talkWithoutMoney`), and so do the rail's tasks a note made ("Claim a
+   cost at Reece"). The words a person typed stay as typed: a note's own
+   words, their answers to her, and a task New › Task put on the job. The
+   diary's money entries (claims, payments, the invoice) never come this
+   way: the card's own reads leave them out without the same right. */
 
 type TaskRow = {
   id: string;
@@ -69,8 +80,11 @@ export async function readJobConversationFor(input: {
   tz: string | null;
   /** `team`: Undo on anyone's note, as `undoNote` allows. */
   undoAny: boolean;
+  /** `workboard_money`: the figures in Tiff's lines and cards. Without it
+      each is said in words (decision 15). */
+  money: boolean;
 }): Promise<JobConversationRead> {
-  const { orgId, staffId, jobUuid, tz, undoAny } = input;
+  const { orgId, staffId, jobUuid, tz, undoAny, money } = input;
   const today = todayInZone(tz);
   const entries = await listJobDiaryEntries(orgId, staffId, jobUuid, tz);
 
@@ -131,7 +145,7 @@ export async function readJobConversationFor(input: {
 
   const notes: JobNoteTalk[] = entries.map((e) => {
     const made = e.undone ? [] : madeCards(e.record, { tasks, flags: flagMap, issues: issueMap });
-    return {
+    const talk: JobNoteTalk = {
       id: e.id,
       authorId: e.authorId,
       authorName: e.authorId ? (names.get(e.authorId) ?? null) : null,
@@ -144,7 +158,16 @@ export async function readJobConversationFor(input: {
       undo: e.undo && (undoAny || (!!staffId && e.authorId === staffId)),
       undone: e.undone,
     };
+    return money ? talk : talkWithoutMoney(talk);
   });
+
+  /* a task a note made is Tiff's words; one New › Task put on the job is a
+     person's, and stays as they typed it */
+  const tiffMade = new Set(noteTaskIds);
+  const titleOf = (t: TaskRow) => {
+    const title = (t.title ?? "").trim() || "A task";
+    return money || !tiffMade.has(t.id) ? title : withoutMoney(title);
+  };
 
   return {
     today,
@@ -152,7 +175,7 @@ export async function readJobConversationFor(input: {
     tasks: railTasksOf(
       taskRows.map((t) => ({
         id: t.id,
-        title: (t.title ?? "").trim() || "A task",
+        title: titleOf(t),
         status: t.status ?? "open",
         dueDate: t.due_date,
         line: lineOf(t),

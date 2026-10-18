@@ -283,3 +283,60 @@ export function railTasksOf(
     })
     .map(({ r }) => ({ id: r.id, title: r.title, line: r.line, assigneeId: r.assigneeId }));
 }
+
+/* ── money held back (decision 15) ── */
+
+/* MONEY IN A JOB'S THREAD IS HELD BACK ON THE SERVER for whoever has no
+   money access (`workboard_money`, the gate the job card's Billing and the
+   diary's claims and payments already stand behind). What Tiff said and
+   what she made can carry a figure: the cost lane's "Claimed: $85.00 at
+   Reece", a cost that became a task, "Claim $85.00 at Reece", a total she
+   gave from a quote. For a reader without the right each figure becomes
+   words, never a blank, so the line still says what happened: "Claimed: a
+   cost at Reece, fittings."
+
+   WHAT A PERSON TYPED STAYS AS TYPED. A note's own words, and the answers
+   its speaker gave Tiff, are that person's message to the job: the reader
+   sees them word for word, figures included, as they would see the same
+   words in ServiceM8. Only Tiff's side is rewritten. */
+
+/** A dollar figure as Tiff writes one: "$85", "$1,240.50", "A$85", "$12k",
+    with its GST said or not: "$85.00 plus GST". Or said in words: "85
+    dollars". */
+const FIGURE = String.raw`\d(?:[\d,]*\d)?(?:\.\d+)?`;
+const AMOUNT = String.raw`(?:(?:A|AU)?\$\s?${FIGURE}(?:[kKmM]\b)?|\b${FIGURE}\s(?:dollars|bucks)\b)(?:\s(?:plus|inc|incl|including|ex|excl|excluding)\.?\s?GST)?`;
+
+/** "The receipt says $92.40, so that's what I used.": a sentence that is
+    only there to give the figure goes with it. */
+const RECEIPT_FIGURE = new RegExp(String.raw`\s*The receipt says ${AMOUNT}, so that's what I used\.`, "g");
+const AT_SUPPLIER = new RegExp(String.raw`${AMOUNT}(?=\s+at\s)`, "g");
+const ANY_AMOUNT = new RegExp(AMOUNT, "g");
+const PCT_BEFORE = /\b(?:an?\s)?\d+(?:\.\d+)?\s?%\s(margin|markup)\b/gi;
+const PCT_AFTER = /\b((?:margin|markup|profit)(?:\s(?:of|is|was|at)|:)?\s)\d+(?:\.\d+)?\s?%/gi;
+const SENTENCE_START = /(^|[.!?]\s+)(a cost|an amount|a margin|a markup)/g;
+
+/** Tiff's words with every figure of money said as words: "$85 at Reece"
+    is "a cost at Reece", any other figure "an amount", a margin "a margin".
+    Words with no money in them come back as they were. */
+export function withoutMoney(text: string): string {
+  const out = text
+    .replace(RECEIPT_FIGURE, "")
+    .replace(AT_SUPPLIER, "a cost")
+    .replace(ANY_AMOUNT, "an amount")
+    .replace(PCT_BEFORE, (_m, what: string) => `a ${what.toLowerCase()}`)
+    .replace(PCT_AFTER, (_m, lead: string) => `${lead}an amount`)
+    .replace(SENTENCE_START, (_m, lead: string, words: string) => `${lead}${words[0]!.toUpperCase()}${words.slice(1)}`);
+  return out;
+}
+
+/** A note's talk as a reader without money access gets it: Tiff's lines
+    and the cards she made with their figures said in words; the speaker's
+    own words, and their answers to her, as they were typed. */
+export function talkWithoutMoney(talk: JobNoteTalk): JobNoteTalk {
+  return {
+    ...talk,
+    /* `said` is the speaker's own message: it stays as typed */
+    replies: talk.replies.map((r) => (r.who === "tiff" ? { ...r, text: withoutMoney(r.text) } : r)),
+    made: talk.made.map((c) => ({ ...c, name: withoutMoney(c.name), line: withoutMoney(c.line) })),
+  };
+}

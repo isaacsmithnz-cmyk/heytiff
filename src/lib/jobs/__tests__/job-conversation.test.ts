@@ -10,7 +10,9 @@ import {
   repliesOf,
   stampClock,
   taskLine,
+  talkWithoutMoney,
   whereUpTo,
+  withoutMoney,
   type JobNoteTalk,
 } from "../job-conversation";
 import type { StoryEntry } from "@/lib/workboard/job-story";
@@ -190,5 +192,58 @@ describe("the rail", () => {
     expect(nextVisitOf({ nextBooking: { start: "2026-10-13 07:30:00", end: "2026-10-13 12:00:00", staffName: "Lyle Irving" } }, "2026-10-13")?.when).toBe("Today, 7:30 am");
     expect(nextVisitOf({ booked: [booked("2026-10-16 14:00:00", "Lyle Irving", { leftover: true })] }, "2026-10-13")).toBeNull();
     expect(nextVisitOf({ booked: [] }, "2026-10-13")).toBeNull();
+  });
+});
+
+describe("withoutMoney (decision 15)", () => {
+  it("says a cost at a supplier as a cost there, and any other figure as an amount", () => {
+    expect(withoutMoney("Claimed: $85.00 at Reece, fittings. It's waiting on approval.")).toBe(
+      "Claimed: a cost at Reece, fittings. It's waiting on approval.",
+    );
+    expect(withoutMoney("On the company card: $1,240.50 at Rexel, cable.")).toBe("On the company card: a cost at Rexel, cable.");
+    expect(withoutMoney("$85.00 at Reece taken back.")).toBe("A cost at Reece taken back.");
+    expect(withoutMoney("The quote's total is $12,400 inc GST, and the deposit $3,720.")).toBe(
+      "The quote's total is an amount, and the deposit an amount.",
+    );
+    expect(withoutMoney("Option 2 comes to 9,800 dollars.")).toBe("Option 2 comes to an amount.");
+  });
+
+  it("drops the sentence that only gives the receipt's figure", () => {
+    expect(withoutMoney("Claimed: $92.40 at Reece. The receipt says $92.40, so that's what I used.")).toBe("Claimed: a cost at Reece.");
+  });
+
+  it("says a margin without its figure", () => {
+    expect(withoutMoney("Priced at a 32% margin.")).toBe("Priced at a margin.");
+    expect(withoutMoney("Profit is 18.5%.")).toBe("Profit is an amount.");
+  });
+
+  it("leaves words with no money in them as they were", () => {
+    for (const s of ["A task for Lyle.", "Book commissioning for 2:00 pm on the 16th", "3 grilles, 2 heads"]) expect(withoutMoney(s)).toBe(s);
+  });
+
+  it("rewrites Tiff's side of a note and keeps the speaker's words as typed", () => {
+    const t: JobNoteTalk = {
+      id: "n1",
+      authorId: "s1",
+      authorName: "Isaac Smith",
+      said: "$85 at Reece for fittings",
+      stamp: "2026-10-13 10:05",
+      day: "2026-10-13",
+      spoken: false,
+      replies: [
+        { who: "tiff", text: "How much was it: fittings at Reece? I have $85." },
+        { who: "you", text: "$85 inc" },
+      ],
+      made: [{ key: "task:t1", kind: "task", name: "Claim $85.00 at Reece", line: "Dane" }],
+      undo: true,
+      undone: false,
+    };
+    const held = talkWithoutMoney(t);
+    expect(held.said).toBe("$85 at Reece for fittings");
+    expect(held.replies).toEqual([
+      { who: "tiff", text: "How much was it: fittings at Reece? I have an amount." },
+      { who: "you", text: "$85 inc" },
+    ]);
+    expect(held.made[0]!.name).toBe("Claim a cost at Reece");
   });
 });

@@ -600,9 +600,12 @@ async function reread(
   note: NoteRow,
   follow: NoteFollow,
   talk: { turns: Turn[]; reply: Turn },
+  /** A receipt photo that came with the reply: kept on the note when it
+      has none yet, or Tiff's words for why it couldn't be. */
+  sent?: { ok: true; receipt: NoteReceipt } | { ok: false; error: string } | null,
 ): Promise<RouteResult> {
   const target: NoteTarget = { kind: note.target_kind, id: note.target_id };
-  const receipt = receiptOf(note.proposal);
+  const receipt = receiptOf(note.proposal) ?? (sent?.ok ? sent.receipt : null);
   const routing = await routingContext(ctx, target, {
     room: roomOf(talk.turns),
     askWho: true,
@@ -612,7 +615,12 @@ async function reread(
   const read = await readNote(note.transcript, routing.note, follow);
   if (!read.ok) return { ok: false, error: read.error };
 
-  const turns = withTurns(talk.turns, talk.reply, turn("tiff", read.proposal.say));
+  const turns = withTurns(
+    talk.turns,
+    talk.reply,
+    turn("tiff", read.proposal.say),
+    ...(sent && !sent.ok ? [turn("tiff", sent.error)] : []),
+  );
   /* ONLY A NOTE STILL WAITING TAKES WHAT CAME BACK. A reply that crossed a
      Save or an Undo in flight must not drag a settled note back to pending,
      and a Server Function is reachable by direct POST: nor may it rewrite
@@ -643,11 +651,17 @@ async function reread(
 
     Refused on a note that is filed, set aside or taken back, on somebody
     else's note, and past six replies. The author's own, because a note is
-    somebody's conversation. */
+    somebody's conversation.
+
+    `receiptId`: a receipt photo sent with the reply, as `routeNote` takes
+    one ("How much was it?" answered with the receipt). Read by today's
+    receipt reader beside the words, and kept on the note only when it has
+    no receipt yet: the first photo is the one the cost lane files. */
 export async function continueNote(
   noteId: string,
   reply: string,
   leftOut: string[] = [],
+  receiptId?: string,
 ): Promise<RouteResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -690,10 +704,13 @@ export async function continueNote(
      note is read again, and this very read resolves it too. One unknown
      name and one person named, or nothing is learned (aliasFromAnswer). A
      failed write only means Tiff asks again next time. */
+  const photo = typeof receiptId === "string" ? receiptId.trim().slice(0, 64) : "";
+  const reading = photo && !receiptOf(note.proposal) ? readNoteReceipt(ctx.orgId, ctx.staffId, photo) : null;
   await learnFromAnswer(ctx, plan, words);
+  const sent = reading ? await reading : null;
 
   const said = turn("you", words);
-  return reread(ctx, note, { plan, turns: [...turns, said], leftOut: gone }, { turns, reply: said });
+  return reread(ctx, note, { plan, turns: [...turns, said], leftOut: gone }, { turns, reply: said }, sent);
 }
 
 async function learnFromAnswer(ctx: Ctx, plan: NoteProposal, reply: string): Promise<void> {

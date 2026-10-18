@@ -22,6 +22,9 @@ const scheduleDay = jest.fn(async (dayISO: string) => ({
   staff: [],
   jobs: [],
 }));
+/* The job's page mode draws its conversation, whose Add photo reaches the
+   documents actions ("use server", which jsdom can't load). */
+jest.mock("@/app/actions/documents", () => ({ deleteDocument: jest.fn(async () => ({ ok: true })) }));
 jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),

@@ -20,6 +20,9 @@ import { UnrecognizedActionError } from "next/dist/client/components/unrecognize
 
 const readMirrorJob = jest.fn(async (): Promise<JobCardRead> => ({ detail: null, focusRemoteId: null }));
 const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
+/* The job's page mode draws its conversation, whose Add photo reaches the
+   documents actions ("use server", which jsdom can't load). */
+jest.mock("@/app/actions/documents", () => ({ deleteDocument: jest.fn(async () => ({ ok: true })) }));
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   readJobRecord: (...a: unknown[]) => readJobRecord(...(a as [])),

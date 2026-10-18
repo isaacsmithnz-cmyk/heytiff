@@ -49,6 +49,9 @@ const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-ne
 const readJobFiles = jest.fn(async (): Promise<JobMediaGroupsRead | null> => null);
 /* Notes always; ledger null for a reader without money — the SERVER decides. */
 const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
+/* The job's page mode draws its conversation, whose Add photo reaches the
+   documents actions ("use server", which jsdom can't load). */
+jest.mock("@/app/actions/documents", () => ({ deleteDocument: jest.fn(async () => ({ ok: true })) }));
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   readClaim: (...a: unknown[]) => readClaim(...(a as [])),

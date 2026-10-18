@@ -511,7 +511,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "type off the scale — 12, 13, 14, 16, 20, 24, 32", now: offScaleType, baseline: 0 },
   { law: "weight off 400, 500, 600, 700 — 800 is retired", now: heavy, baseline: 0 },
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 0 },
-  { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 2 },
+  { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 1 },
   { law: "radius off the scale — 6, 10, 16, the page's 40, and a circle", now: offScaleRadii, baseline: 0 },
   { law: "gradients — one accent, flat surfaces; his are named below", now: () => gradients(outside("gradients")), baseline: 34 },
   /* 52 → 57 on 2026-09-21, the one baseline in this file that has ever gone
@@ -573,7 +573,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "colours outside the 19 — the palette, the token block included (rule 15)", now: offPalette, baseline: 68 },
   { law: "`text-overflow: ellipsis` — text that doesn't fit fades (rule 50)", now: () => count(/text-overflow\s*:\s*ellipsis/g), baseline: 1 },
   { law: "a typed \"…\" on screen — a wait says what it's doing; text that doesn't fit fades (rule 50)", now: () => countTsx(onScreen("…")), baseline: 2 },
-  { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 90 },
+  { law: "native `<select>` — a field with a chevron opens the app's own menu (rule 34)", now: () => countTsx(/<select\b/g), baseline: 79 },
   { law: "native time inputs — a clock time opens the wheel (rule 34)", now: () => countTsx(/type="time"/g), baseline: 0 },
   { law: "native colour inputs — a typed hex with a swatch", now: () => countTsx(/type="color"/g), baseline: 1 },
   { law: "`title` tooltips — a title is not a label; the tooltip rule replaces them", now: () => countTsx(/\stitle=[{"]/g), baseline: 169 },

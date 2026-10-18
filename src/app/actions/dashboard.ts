@@ -576,6 +576,9 @@ export async function deleteTask(taskId: string): Promise<DashResult> {
 
 /* ---------------- notices ---------------- */
 
+/** A notice posted, and its id: Write a notice's Undo takes it back down. */
+export type NoticePosted = { ok: true; id: string } | { ok: false; error: string };
+
 export async function postNotice(input: {
   title: string;
   body?: string;
@@ -593,7 +596,7 @@ export async function postNotice(input: {
   eventLocation?: string;
   /** Files already uploaded by this person and not yet on a notice. */
   documentIds?: string[];
-}): Promise<DashResult> {
+}): Promise<NoticePosted> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
   if (!(await can("team"))) return { ok: false, error: "You can't post notices." };
@@ -684,7 +687,7 @@ export async function postNotice(input: {
     );
   }
   refresh();
-  return { ok: true };
+  return { ok: true, id: data.id as string };
 }
 
 /* Editing is the AUTHOR's alone. A `team` holder can remove a notice but not

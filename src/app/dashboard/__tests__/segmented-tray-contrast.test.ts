@@ -118,7 +118,6 @@ const HOUSE: [string, string][] = [
 /* ── ALPHA TRAYS: they hold everywhere, so they are checked everywhere ── */
 const ALPHA: [string, string][] = [
   ...HOUSE,
-  [".fg .nb-kinds", "noticeboard — notice / poll / event"],
   [".vm-seg", "vehicle modal — history filter"],
   [".fg .hd-cal-vs", "the new Home's calendar — 4 weeks / Month / Year"],
   /* `.wb2-filters` left this list with the tray itself (2026-09-16): the

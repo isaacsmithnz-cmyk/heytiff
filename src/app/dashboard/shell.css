@@ -159,7 +159,6 @@
    Additive only — reuses the existing .card2 / .c2h / .dchip2 primitives. ---- */
 .fg .dash-sub { font-size:12px; font-weight:500; color:var(--gray400); margin:4px 2px 12px; }
 .fg .dash-sub:not(:first-of-type) { margin-top:24px; }
-.fg .dash-mini { font-size:13px; font-weight:500; color:var(--gray400); padding:4px 2px; }
 
 /* The `.hact` action band lived here — a full-width bar under the greeting
    naming the worst outstanding item. The counters opposite it were saying the
@@ -243,13 +242,6 @@
 .nb-lb-x:hover { background:var(--on-ink-tint-2); }
 .nb-lb-open { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:8px 16px; border-radius:999px; background:var(--on-ink-tint); color:var(--paper); font-size:13px; font-weight:600; text-decoration:none; }
 .nb-lb-open:hover { color:var(--paper); background:var(--on-ink-tint-2); }
-/* the composer's copy, which also has a remove control */
-.fg .nb-pending { display:flex; align-items:center; gap:12px; padding:8px 8px 8px 8px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
-.fg .nb-pending img { width:40px; height:40px; border-radius:var(--r-button); object-fit:cover; flex:0 0 auto; }
-.fg .nb-pendingdoc { width:40px; height:40px; border-radius:var(--r-button); background:var(--tint); color:var(--q); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.fg .nb-pendingname { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.fg .nb-pendingname b { font-size:13px; font-weight:700; color:var(--ink); }
-.fg .nb-pendingname em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 
 /* comments: the conversation under a post, one level of indent and no more */
 .fg .nb-thread { margin-top:16px; padding-top:12px; border-top:1px solid var(--line); }
@@ -286,22 +278,6 @@
 .fg .nb-whenline svg { color:var(--q); flex:0 0 auto; }
 .fg .nb-whensum { font-size:13px; font-weight:600; color:var(--gray400); padding-left:24px; }
 
-/* composer: what am I posting, and (for a poll) the answers */
-/* THE TRAY IS A TINT OF ITS GROUND, NOT A FIXED GREY. `#eef0f4` was chosen
-   against a white card, but `.lv-form` is the only thing under it and that
-   sits straight on `.stg` — so the tray was 3% lighter than a ground that is
-   already tinted, and came out at 1.075 against it. A `rgba(5,5,5,.05)` tray
-   is 1.114 on ANY light ground, which is what `.hd-cal-vs` and `.wb2-ckseg`
-   already do and the reason neither could drift. */
-.fg .nb-kinds { display:inline-flex; gap:4px; padding:4px; border-radius:var(--r-button); background:var(--tint-2); margin-bottom:4px; }
-.fg .nb-kind { padding:4px 16px; border:0; border-radius:var(--r-button); background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray500); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .nb-kind.on { background:var(--paper); color:var(--ink); }
-.fg .nb-optedit { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:12px; }
-.fg .nb-optedith { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .nb-optrow { display:flex; align-items:center; gap:8px; width:100%; }
-.fg .nb-optrow input { flex:1; height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); }
-.fg .nb-optdrop { flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:0; border-radius:var(--r-card); background:none; cursor:pointer; color:var(--q); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .nb-optdrop:hover { background:var(--tint); color:var(--gray500); }
 
 /* The v3 row-of-stats `.hstats` / `.hstat` block lived here. It was dead — no
    screen rendered that markup after the hero became a greeting plus an action
@@ -3230,16 +3206,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
 .fg .lv-fnote { margin-top:12px; display:flex; }
 .fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); }
-/* The notice body. `.mts-f` only ever styled `input` and `select`, so the
-   textarea that replaced the one-line body field would have landed on browser
-   defaults — wrong font, square corners, grey ground. Everything but `height`
-   is copied from the rule above it on purpose: they are the same field, one of
-   them just gets to wrap. `resize:vertical` because the width belongs to the
-   form and the height belongs to whoever is writing. */
-.fg .lv-form .mts-f textarea.nb-bodyin { width:100%; min-height:84px; padding:8px 12px;
-  border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper);
-  font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink);
-  line-height:1.5; resize:vertical; }
 .fg .lv-fmeta { display:flex; align-items:center; gap:16px; margin-top:12px; }
 .fg .lv-fmeta > span { flex:1; font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:start; }

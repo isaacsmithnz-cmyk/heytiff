@@ -90,15 +90,9 @@ import {
   type VerbView,
 } from "@/app/actions/booking-sm8";
 import { BOOKING_WORDS, type BookingAct, type BookingState } from "@/lib/integrations/sm8-booking-plan";
-import {
-  BookInPanel,
-  BookingEntryLine,
-  BookingStateLine,
-  ClearConfirm,
-  bookingsWaiting,
-  leftoverWords,
-  type BookInSeed,
-} from "./book-in-panel";
+import { BookingEntryLine, BookingStateLine, ClearConfirm, bookingsWaiting, leftoverWords } from "./book-in-panel";
+import type { BookInSeed } from "@/components/making/book-in";
+import { VisitForm, visitJobLabel } from "@/components/making/visit-form";
 import type { BookedEntry, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
@@ -400,7 +394,7 @@ export function JobSheet({
   const [bkGone, setBkGone] = useState<ReadonlySet<string>>(() => new Set());
   const [bkPending, setBkPending] = useState<ReadonlySet<string>>(() => new Set());
   const [bkKick, setBkKick] = useState(0);
-  /* the Book in panel, keyed so a Look again opens a fresh one */
+  /* the Visit form (Book in), keyed so a Look again opens a fresh one */
   const [bookIn, setBookIn] = useState<{ n: number; seed: BookInSeed | null } | null>(() =>
     openBookIn ? { n: 0, seed: null } : null
   );
@@ -1305,7 +1299,6 @@ export function JobSheet({
 
   /** Book in went: its lines join the card, and the poll looks for its rows. */
   const bookedIn = (verb: VerbView, rowIds: string[]) => {
-    setBookIn(null);
     setBkVerbs((cur) => [verb, ...cur.filter((v) => v.verbId !== verb.verbId)]);
     setBkPending((cur) => new Set([...cur, ...rowIds]));
     setBkKick((k) => k + 1);
@@ -1583,9 +1576,8 @@ export function JobSheet({
     const job = cardId ?? row.id;
     switch (key) {
       case "visit":
-        /* a Book in already open, half filled, is kept */
-        openStep("installation");
-        if (!bookIn) openPanel(null);
+        /* the Visit form, over the page you're on (rule 51) */
+        openPanel(null);
         return;
       case "task":
         openStep("installation");
@@ -1890,23 +1882,12 @@ export function JobSheet({
                   on the list below — newest first, a status change said
                   once above its bookings. Nothing of it where the
                   deployment books nothing. */}
-              {bookings?.canBook && cardId && !bookIn && (
+              {bookings?.canBook && cardId && (
                 <div className="wb2-jcattsave">
                   <button type="button" className="pbtn" onClick={() => openPanel(null)}>
                     {BOOKING_WORDS.panel.book}
                   </button>
                 </div>
-              )}
-              {bookings?.canBook && cardId && bookIn && (
-                <BookInPanel
-                  key={bookIn.n}
-                  jobUuid={cardId}
-                  number={detail?.jobNumber ?? row.number ?? null}
-                  zone={bookings.zone}
-                  seed={bookIn.seed}
-                  onDone={bookedIn}
-                  onCancel={() => setBookIn(null)}
-                />
               )}
               {above.length > 0 && (
                 <div className="wb2-jcsec">
@@ -2010,15 +1991,7 @@ export function JobSheet({
                   workOrderDate={detail.workOrderDate}
                   onSiteMinutes={detail.timeOnSite?.minutes ?? null}
                   askAdd={taskAsk}
-                  onBook={
-                    bookings?.canBook && cardId
-                      ? () => {
-                          /* a Book in already open, half filled, is kept */
-                          if (!bookIn) openPanel(null);
-                          document.getElementById("jcsec-visits")?.scrollIntoView?.({ block: "start" });
-                        }
-                      : undefined
-                  }
+                  onBook={bookings?.canBook && cardId ? () => openPanel(null) : undefined}
                   emptyWords={above.length > 0 || detail.queue ? "" : "Nobody's been on site yet, and nothing is booked."}
                 />
               ) : (
@@ -2197,6 +2170,26 @@ export function JobSheet({
      their own (the page). */
   const dialogs = (
     <>
+      {/* BOOK IN, the Visit form (two-way phase 3): Add › Visit, the Visits
+          section's Book in, a line's Look again and Book again, and a door
+          that came to book. The job is this one, clearable; a visit booked
+          on it joins the card's lines, and Undo takes them back out. */}
+      {bookIn && bookings?.canBook && cardId && (
+        <VisitForm
+          key={bookIn.n}
+          job={{ uuid: cardId, label: visitJobLabel({ number: detail?.jobNumber ?? row.number ?? null, clientName: row.clientName, suburb: row.suburb }) }}
+          zone={bookings.zone}
+          seed={bookIn.seed}
+          onClose={() => setBookIn(null)}
+          onBooked={(jobUuid, verb, rowIds) => {
+            if (jobUuid === cardId) bookedIn(verb, rowIds);
+          }}
+          onUndone={(jobUuid) => {
+            if (jobUuid === cardId) void refreshBookings();
+          }}
+          toast={onToast}
+        />
+      )}
       {/* Over the card, inside the SAME portal — a modal on a modal that
           portals separately is how a scrim ends up above the thing it dims. */}
       {editingCustomer && cardId && (

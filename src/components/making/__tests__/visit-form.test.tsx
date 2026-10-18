@@ -1,16 +1,19 @@
-/* BOOK IN'S PANEL (two-way phase 3, PR D): D-2, D-3, D-4, D-6 and D-12.
+/* THE VISIT FORM (a job's Add › Visit, the Visits section's Book in, Home's
+   To do Book in): Book in's engine (two-way phase 3, PR D: D-2, D-3, D-4,
+   D-6 and D-12) in a v2 dialog. It asks ServiceM8 before it offers Book
+   and says what it found in sentences, warns of an overlap and never blocks
+   on one, keeps Book off until every row has a person, ticks Make it a Work
+   Order on a Quote only, and a double press is one press. The job is a
+   field, filled in, clearable and found again (rule 51); booking keeps you
+   where you were, with a toast whose Undo takes the bookings back out. The
+   actions are mocked: what they answer is PR C's to hold. */
 
-   It asks ServiceM8 before it offers Book in and says what it found in
-   sentences, warns of an overlap and never blocks on one, keeps Book in off
-   until every row has a person, ticks Make it a Work Order on a Quote only,
-   and a double press is one press. The actions are mocked: what they answer
-   is PR C's to hold. */
-
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { BookInContext, BookJobInResult, VerbView } from "@/app/actions/booking-sm8";
 import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-plan";
 import { pickDate } from "@/components/ui/__tests__/fixtures/pick-date";
+import { WindowsContext } from "@/components/records/records-context";
 
 const readBookInContext = jest.fn(async (_i: { jobUuid: string; days: string[] }): Promise<BookInContext> => context());
 const bookJobIn = jest.fn(
@@ -20,14 +23,26 @@ const bookJobIn = jest.fn(
     seen: { jobEditDate: string | null; readAt: string };
     makeWorkOrder: boolean;
     bookings: { staffUuid: string; day: string; start: string; minutes: number }[];
-  }): Promise<BookJobInResult> => ({ ok: true, verb: VERB, rowIds: ["r-1"] })
+  }): Promise<BookJobInResult> => ({ ok: true, verb: VERB, rowIds: ["r-1"] }),
 );
+const takeBackBooking = jest.fn(async (_i: { jobUuid: string; rowId: string }) => ({ ok: true as const, line: null }));
 jest.mock("@/app/actions/booking-sm8", () => ({
   readBookInContext: (...a: unknown[]) => readBookInContext(...(a as [never])),
   bookJobIn: (...a: unknown[]) => bookJobIn(...(a as [never])),
+  takeBackBooking: (...a: unknown[]) => takeBackBooking(...(a as [never])),
+}));
+jest.mock("@/app/actions/palette", () => ({
+  searchPalette: jest.fn(async () => ({
+    staff: [],
+    clients: [],
+    projects: [],
+    photos: [],
+    jobs: [{ remoteId: "0b1e0b1e-0000-4000-8000-00000000d009", jobNumber: "3350", clientName: "Rifkin", suburb: "Bellevue Hill" }],
+  })),
 }));
 
-import { BookInPanel, nextWeekday } from "../book-in-panel";
+import { VisitForm } from "../visit-form";
+import { nextWeekday } from "../book-in";
 
 const P = BOOKING_WORDS.panel;
 const JOB = "0b1e0b1e-0000-4000-8000-00000000d001";
@@ -36,6 +51,7 @@ const SAM = "5a0e5a0e-0000-4000-8000-00000000a001";
 const ALEX = "5a0e5a0e-0000-4000-8000-00000000a002";
 const DAY = "2026-10-07";
 const VERB: VerbView = { verbId: "p", presses: ["p"], at: "2026-10-05T22:00:00.000Z", status: null, bookings: [] };
+const LABEL = "Job 3342, Richards Building, North Narrabeen";
 
 const live = (over: Partial<Extract<BookInContext, { ok: true }>["bookings"][number]> = {}) => ({
   uuid: "7e7e7e7e-0000-4000-8000-000000000001",
@@ -78,6 +94,11 @@ const realResolved = Intl.DateTimeFormat.prototype.resolvedOptions;
 beforeEach(() => {
   readBookInContext.mockReset().mockImplementation(async () => context());
   bookJobIn.mockReset().mockImplementation(async () => ({ ok: true, verb: VERB, rowIds: ["r-1"] }));
+  takeBackBooking.mockClear();
+  toast.mockClear();
+  onClose.mockClear();
+  onBooked.mockClear();
+  onUndone.mockClear();
   browserZone = "Australia/Sydney";
   jest.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(function (this: Intl.DateTimeFormat) {
     return { ...realResolved.call(this), timeZone: browserZone };
@@ -85,25 +106,52 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-const onDone = jest.fn();
-const onCancel = jest.fn();
-const panel = (props: Partial<Parameters<typeof BookInPanel>[0]> = {}) =>
-  render(<BookInPanel jobUuid={JOB} number="3342" zone={null} onDone={onDone} onCancel={onCancel} {...props} />);
+const toast = jest.fn();
+const onClose = jest.fn();
+const onBooked = jest.fn();
+const onUndone = jest.fn();
+type Props = Partial<Parameters<typeof VisitForm>[0]>;
+const form = (props: Props = {}) =>
+  render(
+    <WindowsContext.Provider value={{ toast } as never}>
+      <VisitForm job={{ uuid: JOB, label: LABEL }} zone={null} onClose={onClose} onBooked={onBooked} onUndone={onUndone} {...props} />
+    </WindowsContext.Provider>,
+  );
 
-const bookButton = () => screen.getByRole("button", { name: /^Book( \d+)? in$/ });
-const who = (i = 0) => screen.getAllByLabelText(P.who)[i] as HTMLSelectElement;
+const bookButton = () => screen.getByRole("button", { name: /^Book( \d+ visits| visit)$/ });
+const who = (i = 0) => screen.getAllByRole("combobox", { name: P.who })[i]!;
+const starts = () => screen.getAllByRole("combobox", { name: P.start });
+const lengths = () => screen.getAllByRole("combobox", { name: P.length });
+const ready = () => waitFor(() => expect(who()).toBeEnabled());
+
+/** Pick an option of a chooser. */
+function choose(box: HTMLElement, name: string) {
+  fireEvent.click(box);
+  fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name }));
+}
+/** Set a row's start on the wheel, then close it. */
+function setStart(i: number, hour: string, minute: string, half: "AM" | "PM") {
+  fireEvent.click(starts()[i]!);
+  const panel = screen.getByRole("dialog", { name: P.start });
+  fireEvent.click(within(within(panel).getByRole("listbox", { name: "Hour" })).getByRole("option", { name: hour }));
+  fireEvent.click(within(within(panel).getByRole("listbox", { name: "Minute" })).getByRole("option", { name: minute }));
+  fireEvent.click(within(within(panel).getByRole("listbox", { name: "AM/PM" })).getByRole("option", { name: half }));
+  fireEvent.keyDown(panel, { key: "Escape" });
+}
+/** The tone a sentence is said in. */
+const toneOf = (text: string) => screen.getByText(text).closest(".pt-state");
 
 describe("opening (D-2)", () => {
-  it("(F) says it is checking ServiceM8, with Book in off, then draws what it found", async () => {
+  it("(F) says it is checking ServiceM8, with Book off, then draws what it found", async () => {
     let answer: (c: BookInContext) => void = () => {};
     readBookInContext.mockImplementationOnce(() => new Promise((r) => (answer = r)));
-    panel();
+    form();
+    expect(screen.getByRole("dialog", { name: "Book a visit" })).toBeInTheDocument();
     expect(screen.getByText(P.checking)).toBeInTheDocument();
     expect(bookButton()).toBeDisabled();
     await act(async () => answer(context({ bookings: [live()] })));
     expect(screen.queryByText(P.checking)).toBeNull();
     expect(screen.getByText("Already booked: Wed 7 Oct, 8:00 am, Sam Tester.")).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Book in job 3342" })).toBeInTheDocument();
   });
 
   it("(F) asks about the next weekday on the account's clock, and fills the row with it", async () => {
@@ -113,35 +161,35 @@ describe("opening (D-2)", () => {
     /* 2 am on Friday 9 October in Sydney, still Thursday by UTC: the next
        weekday on the account's clock is Monday, where UTC's would be Friday */
     const now = jest.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-08T15:00:00Z"));
-    panel({ zone: "Australia/Sydney" });
+    form({ zone: "Australia/Sydney" });
     await waitFor(() => expect(readBookInContext).toHaveBeenCalled());
     now.mockRestore();
     const [first] = readBookInContext.mock.calls[0];
     expect(first).toEqual({ jobUuid: JOB, days: ["2026-10-12"] });
-    await screen.findByText(/Already booked|Pick who/);
-    expect((screen.getAllByLabelText(P.start)[0] as HTMLSelectElement).value).toBe("07:00");
-    expect((screen.getAllByLabelText(P.length)[0] as HTMLSelectElement).value).toBe("120");
+    await ready();
+    expect(starts()[0]).toHaveTextContent("7:00 AM");
+    expect(lengths()[0]).toHaveTextContent("2 h");
   });
 
-  it("(F) says each chosen person's day, and warns — never blocks — on an overlap", async () => {
+  it("(F) says each chosen person's day, and warns, never blocks, on an overlap", async () => {
     readBookInContext.mockImplementation(async () =>
-      context({ days: { [DAY]: [live({ uuid: "7e7e7e7e-0000-4000-8000-000000000002", jobUuid: OTHER_JOB, staffUuid: ALEX, start: `${DAY} 08:00:00`, end: `${DAY} 10:00:00` })] } })
+      context({ days: { [DAY]: [live({ uuid: "7e7e7e7e-0000-4000-8000-000000000002", jobUuid: OTHER_JOB, staffUuid: ALEX, start: `${DAY} 08:00:00`, end: `${DAY} 10:00:00` })] } }),
     );
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), ALEX);
+    form();
+    await ready();
+    choose(who(), "Alex Sample");
     expect(screen.getByText("Alex Sample that day: job 3350, 8:00 to 10:00 am.")).toBeInTheDocument();
-    expect(screen.getByText("That overlaps job 3350, 8:00 to 10:00 am.")).toHaveClass("sw-state", "warn");
+    expect(toneOf("That overlaps job 3350, 8:00 to 10:00 am.")).toHaveClass("pt-state--look");
     expect(bookButton()).toBeEnabled();
-    await userEvent.selectOptions(who(), SAM);
+    choose(who(), P.you);
     expect(screen.getByText("Sam Tester has nothing else that day.")).toBeInTheDocument();
     expect(screen.queryByText(/That overlaps/)).toBeNull();
   });
 
   /* TIME OFF (leave to ServiceM8, part two): the row is 7:00 to 9:00 am on
      Wed 7 Oct. ServiceM8's own word for the time off is said, in the
-     clash's colour, and Book in stays on. */
-  it("(F) warns — never blocks — when the person is off in ServiceM8 then, in the business's own word", async () => {
+     clash's colour, and Book stays on. */
+  it("(F) warns, never blocks, when the person is off in ServiceM8 then, in the business's own word", async () => {
     const away = (over: Partial<{ uuid: string; staffUuid: string; name: string | null; start: string; end: string }>) => ({
       uuid: "av-1",
       staffUuid: ALEX,
@@ -162,18 +210,18 @@ describe("opening (D-2)", () => {
             closed: [],
           },
         },
-      })
+      }),
     );
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), ALEX);
-    expect(screen.getByText("Alex Sample is off that day in ServiceM8: SICK.")).toHaveClass("sw-state", "warn");
+    form();
+    await ready();
+    choose(who(), "Alex Sample");
+    expect(toneOf("Alex Sample is off that day in ServiceM8: SICK.")).toHaveClass("pt-state--look");
     expect(bookButton()).toBeEnabled();
-    await userEvent.selectOptions(who(), SAM);
+    choose(who(), P.you);
     expect(screen.queryByText(/off that day|time off/)).toBeNull();
     // moved onto the TAFE: the part of the day, on the day's clock
-    await userEvent.selectOptions(screen.getAllByLabelText(P.start)[0], "11:00");
-    expect(screen.getByText("That overlaps Sam Tester's time off in ServiceM8: TAFE, 10:00 am to 12:30 pm.")).toHaveClass("sw-state", "warn");
+    setStart(0, "11", "00", "AM");
+    expect(toneOf("That overlaps Sam Tester's time off in ServiceM8: TAFE, 10:00 am to 12:30 pm.")).toHaveClass("pt-state--look");
     expect(bookButton()).toBeEnabled();
   });
 
@@ -189,12 +237,12 @@ describe("opening (D-2)", () => {
             ],
           },
         },
-      })
+      }),
     );
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), SAM);
-    expect(screen.getByText("Wed 7 Oct is a public holiday in ServiceM8: Labour Day.")).toHaveClass("sw-state", "warn");
+    form();
+    await ready();
+    choose(who(), P.you);
+    expect(toneOf("Wed 7 Oct is a public holiday in ServiceM8: Labour Day.")).toHaveClass("pt-state--look");
     expect(screen.getByText("ServiceM8 has the business closed then.")).toBeInTheDocument();
     expect(screen.getByText("That overlaps Sam Tester's time off in ServiceM8, 6:00 to 8:00 am.")).toBeInTheDocument();
     expect(bookButton()).toBeEnabled();
@@ -202,9 +250,9 @@ describe("opening (D-2)", () => {
 
   it("says nothing about time off on a day the mirror couldn't answer for", async () => {
     readBookInContext.mockImplementation(async () => context({ off: {} }));
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), ALEX);
+    form();
+    await ready();
+    choose(who(), "Alex Sample");
     expect(screen.queryByText(/ServiceM8: |time off|closed then/)).toBeNull();
   });
 
@@ -213,18 +261,19 @@ describe("opening (D-2)", () => {
       context({
         jobNumbers: { [JOB]: "3342" },
         days: { [DAY]: [live({ uuid: "7e7e7e7e-0000-4000-8000-000000000002", jobUuid: OTHER_JOB, staffUuid: ALEX })] },
-      })
+      }),
     );
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), ALEX);
-    expect(screen.getByText("That overlaps another job, 8:00 to 10:00 am.")).toHaveClass("sw-state", "warn");
+    form();
+    await ready();
+    choose(who(), "Alex Sample");
+    expect(toneOf("That overlaps another job, 8:00 to 10:00 am.")).toHaveClass("pt-state--look");
     expect(bookButton()).toBeEnabled();
   });
 
-  it("offers the lengths in the plan's words", async () => {
-    panel();
-    expect([...(screen.getAllByLabelText(P.length)[0] as HTMLSelectElement).options].map((o) => o.textContent)).toEqual([
+  it("offers the lengths in the plan's words, as a chooser", async () => {
+    form();
+    fireEvent.click(lengths()[0]!);
+    expect(within(screen.getByRole("listbox")).getAllByRole("option").map((o) => o.textContent)).toEqual([
       "30 min",
       "1 h",
       "1 h 30",
@@ -236,110 +285,132 @@ describe("opening (D-2)", () => {
     ]);
   });
 
-  it("says a day ServiceM8 couldn't read, and still offers Book in", async () => {
+  it("says a day ServiceM8 couldn't read, and still offers Book", async () => {
     readBookInContext.mockImplementation(async () => context({ days: { [DAY]: null } }));
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), SAM);
+    form();
+    await ready();
+    choose(who(), P.you);
     expect(screen.getByText("HeyTiff couldn't check Sam Tester's day in ServiceM8.")).toBeInTheDocument();
     expect(bookButton()).toBeEnabled();
   });
 
   it("(F) says whose time the times are only when the browser's zone isn't the account's", async () => {
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
+    const first = form();
+    await ready();
     expect(screen.queryByText("Times are Sydney time.")).toBeNull();
+    first.unmount();
     browserZone = "Pacific/Auckland";
-    readBookInContext.mockClear();
-    panel();
+    form();
     expect(await screen.findByText("Times are Sydney time.")).toBeInTheDocument();
   });
 
-  it("calls the Who's first line Pick who, then You, then the rest", async () => {
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    expect([...who().options].map((o) => o.textContent)).toEqual([P.pickWho, P.you, "Alex Sample"]);
+  it("asks Who with Pick who, then offers You, then the rest", async () => {
+    form();
+    await ready();
+    expect(who()).toHaveTextContent(P.pickWho);
+    fireEvent.click(who());
+    expect(within(screen.getByRole("listbox")).getAllByRole("option").map((o) => o.textContent)).toEqual([P.you, "Alex Sample"]);
   });
 
   it("says why it can't book when ServiceM8 couldn't be read, with Try again", async () => {
     readBookInContext.mockImplementationOnce(async () => ({ ok: false, error: P.readFailed }));
-    panel();
+    form();
     expect(await screen.findByText(P.readFailed)).toBeInTheDocument();
     expect(bookButton()).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: BOOKING_WORDS.door.tryAgain }));
-    await waitFor(() => expect(who().options.length).toBe(3));
+    await ready();
     expect(screen.queryByText(P.readFailed)).toBeNull();
   });
 
   it("says a trial run, and what holds what is booked", async () => {
     readBookInContext.mockImplementation(async () => context({ trial: true, hold: "paused" }));
-    panel();
+    form();
     expect(await screen.findByText(P.trial)).toBeInTheDocument();
     expect(screen.getByText(P.heldPaused)).toBeInTheDocument();
   });
 });
 
 describe("the rows (D-3)", () => {
-  it("(F) keep Book in off until every row has a person", async () => {
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
+  it("(F) keep Book off until every row has a person", async () => {
+    form();
+    await ready();
     expect(bookButton()).toBeDisabled();
-    await userEvent.selectOptions(who(), SAM);
+    choose(who(), P.you);
     expect(bookButton()).toBeEnabled();
     await userEvent.click(screen.getByRole("button", { name: P.addAnother }));
-    expect(bookButton()).toHaveTextContent("Book 2 in");
+    expect(bookButton()).toHaveTextContent("Book 2 visits");
     expect(bookButton()).toBeDisabled();
-    await userEvent.selectOptions(who(1), ALEX);
+    choose(who(1), "Alex Sample");
     expect(bookButton()).toBeEnabled();
   });
 
   it("(F) add up to 8, each after the first with Remove, which takes that row", async () => {
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), SAM);
+    form();
+    await ready();
+    choose(who(), P.you);
     for (let i = 1; i < 8; i++) await userEvent.click(screen.getByRole("button", { name: P.addAnother }));
-    expect(screen.getAllByLabelText(P.who)).toHaveLength(8);
+    expect(screen.getAllByRole("combobox", { name: P.who })).toHaveLength(8);
     expect(screen.queryByRole("button", { name: P.addAnother })).toBeNull();
     expect(screen.getAllByRole("button", { name: P.remove })).toHaveLength(7);
     /* the new rows copy the day, start and length, with nobody chosen */
-    expect(who(7).value).toBe("");
-    await userEvent.selectOptions(who(1), ALEX);
-    await userEvent.click(screen.getAllByRole("button", { name: P.remove })[0]);
-    expect(screen.getAllByLabelText(P.who)).toHaveLength(7);
-    expect(screen.getAllByLabelText(P.who).map((s) => (s as HTMLSelectElement).value)).toEqual([SAM, "", "", "", "", "", ""]);
+    expect(who(7)).toHaveTextContent(P.pickWho);
+    choose(who(1), "Alex Sample");
+    await userEvent.click(screen.getAllByRole("button", { name: P.remove })[0]!);
+    expect(screen.getAllByRole("combobox", { name: P.who }).map((b) => b.textContent)).toEqual([P.you, ...Array(6).fill(P.pickWho)]);
     expect(screen.getByRole("button", { name: P.addAnother })).toBeInTheDocument();
   });
 
-  it("(F) refuses a row that runs past midnight in its own place, keeps Book in off, and never shows a placeholder", async () => {
-    const { container } = panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), SAM);
-    await userEvent.selectOptions(screen.getAllByLabelText(P.start)[0], "23:00");
-    expect(screen.getByText(BOOKING_WORDS.press.crossesMidnight)).toHaveClass("sw-state", "bad");
+  it("(F) refuses a row that runs past midnight in its own place, keeps Book off, and never shows a placeholder", async () => {
+    form();
+    await ready();
+    choose(who(), P.you);
+    setStart(0, "11", "00", "PM");
+    expect(toneOf(BOOKING_WORDS.press.crossesMidnight)).toHaveClass("pt-state--wrong");
     expect(bookButton()).toBeDisabled();
-    expect(container.textContent).not.toMatch(/\{\w+\}/);
-    await userEvent.selectOptions(screen.getAllByLabelText(P.length)[0], "30");
+    expect(screen.getByRole("dialog", { name: "Book a visit" }).textContent).not.toMatch(/\{\w+\}/);
+    choose(lengths()[0]!, "30 min");
     expect(screen.queryByText(BOOKING_WORDS.press.crossesMidnight)).toBeNull();
     expect(bookButton()).toBeEnabled();
     expect(screen.getByText("Books Sam Tester on Wed 7 Oct, 11:00 to 11:30 pm.")).toBeInTheDocument();
   });
 
-  it("says what Book in will book, one or several", async () => {
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), SAM);
+  it("says what Book will book, one or several", async () => {
+    form();
+    await ready();
+    choose(who(), P.you);
     expect(screen.getByText("Books Sam Tester on Wed 7 Oct, 7:00 to 9:00 am.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: P.addAnother }));
-    await userEvent.selectOptions(who(1), ALEX);
-    await userEvent.selectOptions(screen.getAllByLabelText(P.start)[1], "11:00");
-    expect(screen.getByText("Books 2:")).toBeInTheDocument();
-    expect(screen.getByText("Alex Sample, Wed 7 Oct, 11:00 am to 1:00 pm.")).toBeInTheDocument();
+    choose(who(1), "Alex Sample");
+    setStart(1, "11", "00", "AM");
+    expect(
+      screen.getByText("Books 2: Sam Tester, Wed 7 Oct, 7:00 to 9:00 am. Alex Sample, Wed 7 Oct, 11:00 am to 1:00 pm."),
+    ).toBeInTheDocument();
+  });
+
+  it("(F) the start is the wheel on the quarter hour, the grid ServiceM8 is booked on, and nothing types a time", async () => {
+    form();
+    await ready();
+    expect(screen.getByRole("dialog", { name: "Book a visit" }).querySelector('input[type="time"]')).toBeNull();
+    fireEvent.click(starts()[0]!);
+    const panel = screen.getByRole("dialog", { name: P.start });
+    expect(within(within(panel).getByRole("listbox", { name: "Minute" })).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "00",
+      "15",
+      "30",
+      "45",
+    ]);
+    fireEvent.click(within(within(panel).getByRole("listbox", { name: "Minute" })).getByRole("option", { name: "45" }));
+    expect(starts()[0]).toHaveTextContent("7:45 AM");
+    fireEvent.keyDown(panel, { key: "Escape" });
+    choose(who(), P.you);
+    await userEvent.click(bookButton());
+    expect(bookJobIn.mock.calls[0][0].bookings[0]).toMatchObject({ start: "07:45" });
   });
 
   it("(F) D-12: the day is the house's picker, never a date input, and a new day is read", async () => {
-    const { container } = panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    expect(container.querySelector('input[type="date"]')).toBeNull();
+    form();
+    await ready();
+    expect(screen.getByRole("dialog", { name: "Book a visit" }).querySelector('input[type="date"]')).toBeNull();
     await pickDate(P.day, "2026-10-09");
     await waitFor(() => expect(readBookInContext).toHaveBeenCalledTimes(2));
     expect(readBookInContext.mock.calls[1][0].days).toEqual(["2026-10-09"]);
@@ -348,22 +419,22 @@ describe("the rows (D-3)", () => {
 
 describe("a Quote (D-4)", () => {
   it("(F) is ticked to become a Work Order, and the sentence follows the tick", async () => {
-    panel();
+    form();
     const tick = await screen.findByRole("checkbox", { name: P.makeWorkOrder });
     expect(tick).toBeChecked();
     expect(screen.getByText(P.quoteBecomes)).toBeInTheDocument();
     await userEvent.click(tick);
     expect(screen.getByText(P.quoteStays)).toBeInTheDocument();
     expect(screen.queryByText(P.quoteBecomes)).toBeNull();
-    await userEvent.selectOptions(who(), SAM);
+    choose(who(), P.you);
     await userEvent.click(bookButton());
     expect(bookJobIn.mock.calls[0][0].makeWorkOrder).toBe(false);
   });
 
-  it("(F) sends the tick with Book in, and a Work Order has none", async () => {
-    panel();
+  it("(F) sends the tick with Book, and a Work Order has none", async () => {
+    const first = form();
     await screen.findByRole("checkbox", { name: P.makeWorkOrder });
-    await userEvent.selectOptions(who(), SAM);
+    choose(who(), P.you);
     await userEvent.click(bookButton());
     expect(bookJobIn.mock.calls[0][0]).toMatchObject({
       jobUuid: JOB,
@@ -371,45 +442,62 @@ describe("a Quote (D-4)", () => {
       seen: { jobEditDate: "2026-10-01 10:00:00", readAt: "2026-10-05T22:00:00.000Z" },
       bookings: [{ staffUuid: SAM, day: DAY, start: "07:00", minutes: 120 }],
     });
+    first.unmount();
     readBookInContext.mockImplementation(async () => context({ job: { uuid: JOB, number: "3342", status: "Work Order", editDate: null } }));
     bookJobIn.mockClear();
-    render(<BookInPanel jobUuid={JOB} number="3342" zone={null} onDone={onDone} onCancel={onCancel} />);
-    /* once ServiceM8 has answered for the Work Order's panel too */
-    await waitFor(() => expect(screen.getAllByLabelText(P.who)).toHaveLength(2));
-    await waitFor(() => expect((screen.getAllByLabelText(P.who)[1] as HTMLSelectElement).options.length).toBe(3));
-    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
-    /* and Book in on a Work Order never asks for the change */
-    const wo = screen.getAllByRole("group", { name: "Book in job 3342" })[1];
-    await userEvent.selectOptions(screen.getAllByLabelText(P.who)[1], SAM);
-    await userEvent.click(within(wo).getByRole("button", { name: P.book }));
+    form();
+    await ready();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    /* and Book on a Work Order never asks for the change */
+    choose(who(), P.you);
+    await userEvent.click(bookButton());
     expect(bookJobIn.mock.calls[0][0].makeWorkOrder).toBe(false);
   });
 });
 
-describe("pressing Book in (D-6)", () => {
-  it("(F) a double click sends one press", async () => {
+describe("pressing Book (D-6)", () => {
+  it("(F) a double click sends one press; it closes, says so, and Undo takes them back out", async () => {
     let answer: (r: BookJobInResult) => void = () => {};
     bookJobIn.mockImplementationOnce(() => new Promise((r) => (answer = r)));
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), SAM);
-    const b = bookButton();
-    await userEvent.dblClick(b);
+    form();
+    await ready();
+    choose(who(), P.you);
+    await userEvent.dblClick(bookButton());
     expect(bookJobIn).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Booking the visit" })).toBeDisabled();
     await act(async () => answer({ ok: true, verb: VERB, rowIds: ["r-1", "r-2"] }));
-    expect(onDone).toHaveBeenCalledWith(VERB, ["r-1", "r-2"]);
+    expect(onBooked).toHaveBeenCalledWith(JOB, VERB, ["r-1", "r-2"]);
+    expect(onClose).toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith("2 visits booked", expect.any(Function));
+    await act(async () => toast.mock.calls[0][1]());
+    expect(takeBackBooking.mock.calls.map((c) => c[0])).toEqual([
+      { jobUuid: JOB, rowId: "r-1" },
+      { jobUuid: JOB, rowId: "r-2" },
+    ]);
+    expect(onUndone).toHaveBeenCalledWith(JOB);
+  });
+
+  it("an Undo that ServiceM8 refuses says why", async () => {
+    takeBackBooking.mockImplementationOnce(async () => ({ ok: false, error: BOOKING_WORDS.press.notFuture }) as never);
+    form();
+    await ready();
+    choose(who(), P.you);
+    await userEvent.click(bookButton());
+    await waitFor(() => expect(toast).toHaveBeenCalledWith("Visit booked", expect.any(Function)));
+    await act(async () => toast.mock.calls[0][1]());
+    expect(toast).toHaveBeenLastCalledWith(BOOKING_WORDS.press.notFuture);
   });
 
   it("(F) a press again after a refusal is the same press, and the refusal sits above the buttons with Look again", async () => {
     bookJobIn.mockImplementationOnce(async () => ({ ok: false, error: BOOKING_WORDS.press.stale, lookAgain: true }));
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), SAM);
+    form();
+    await ready();
+    choose(who(), P.you);
     await userEvent.click(bookButton());
-    const refusal = await screen.findByText(BOOKING_WORDS.press.stale);
-    expect(refusal).toHaveClass("sw-state", "bad");
-    /* the rows stay */
-    expect(who().value).toBe(SAM);
+    expect((await screen.findByText(BOOKING_WORDS.press.stale)).closest(".pt-state")).toHaveClass("pt-state--wrong");
+    /* the rows stay, and so does the form */
+    expect(who()).toHaveTextContent(P.you);
+    expect(onClose).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: BOOKING_WORDS.door.lookAgain }));
     await waitFor(() => expect(readBookInContext).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(bookButton()).toBeEnabled());
@@ -420,26 +508,53 @@ describe("pressing Book in (D-6)", () => {
 
   it("a refusal with nothing to look at again offers no door", async () => {
     bookJobIn.mockImplementationOnce(async () => ({ ok: false, error: BOOKING_WORDS.press.past }));
-    panel();
-    await waitFor(() => expect(who().options.length).toBe(3));
-    await userEvent.selectOptions(who(), SAM);
+    form();
+    await ready();
+    choose(who(), P.you);
     await userEvent.click(bookButton());
     expect(await screen.findByText(BOOKING_WORDS.press.past)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: BOOKING_WORDS.door.lookAgain })).toBeNull();
   });
 
   it("Cancel closes it", async () => {
-    panel();
+    form();
     await userEvent.click(screen.getByRole("button", { name: P.cancel }));
-    expect(onCancel).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("a seed fills the row from the booking a line named", async () => {
-    panel({ seed: { staffUuid: ALEX, start: `${DAY} 11:00:00`, end: `${DAY} 14:00:00` } });
-    await waitFor(() => expect(who().options.length).toBe(3));
+    form({ seed: { staffUuid: ALEX, start: `${DAY} 11:00:00`, end: `${DAY} 14:00:00` } });
+    await ready();
     expect(readBookInContext.mock.calls[0][0].days).toEqual([DAY]);
-    expect(who().value).toBe(ALEX);
-    expect((screen.getAllByLabelText(P.start)[0] as HTMLSelectElement).value).toBe("11:00");
-    expect((screen.getAllByLabelText(P.length)[0] as HTMLSelectElement).value).toBe("180");
+    expect(who()).toHaveTextContent("Alex Sample");
+    expect(starts()[0]).toHaveTextContent("11:00 AM");
+    expect(lengths()[0]).toHaveTextContent("3 h");
+  });
+});
+
+describe("the job (rule 51)", () => {
+  it("is filled in from the door, and cleared it is found again by number, client or site, and read afresh", async () => {
+    form();
+    await ready();
+    expect(screen.getByText(LABEL)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear the job" }));
+    expect(screen.queryByText(LABEL)).toBeNull();
+    expect(bookButton()).toBeDisabled();
+    await userEvent.type(screen.getByPlaceholderText("Find a job"), "Rifkin");
+    await userEvent.click(await screen.findByRole("button", { name: "Job 3350, Rifkin, Bellevue Hill" }));
+    expect(screen.getByText("Job 3350, Rifkin, Bellevue Hill")).toBeInTheDocument();
+    await waitFor(() => expect(readBookInContext.mock.calls.at(-1)![0].jobUuid).toBe(OTHER_JOB));
+    await ready();
+    choose(who(), P.you);
+    await userEvent.click(bookButton());
+    expect(bookJobIn.mock.calls[0][0].jobUuid).toBe(OTHER_JOB);
+    await waitFor(() => expect(onBooked).toHaveBeenCalledWith(OTHER_JOB, VERB, ["r-1"]));
+  });
+
+  it("opened with no job, asks for one, and Book waits on it", () => {
+    form({ job: null });
+    expect(screen.getByPlaceholderText("Find a job")).toBeInTheDocument();
+    expect(bookButton()).toBeDisabled();
+    expect(readBookInContext).not.toHaveBeenCalled();
   });
 });

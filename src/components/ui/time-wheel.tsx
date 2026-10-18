@@ -31,7 +31,8 @@ const MERIDIEM = ["AM", "PM"] as const;
     finest anyone writes on a docket; a wheel of 60 is a wheel nobody can
     land on. */
 const MINUTE_STEP = 5;
-const MINUTES = Array.from({ length: 60 / MINUTE_STEP }, (_, i) => i * MINUTE_STEP);
+/** The minutes column at a step: fives, or the coarser grid a booking keeps to. */
+const minutesAt = (step: number) => Array.from({ length: 60 / step }, (_, i) => i * step);
 
 export type ClockParts = { hour: number; minute: number; meridiem: "AM" | "PM" };
 
@@ -43,14 +44,14 @@ export function formatClock({ hour, minute, meridiem }: ClockParts): string {
 /** Split a stored time into wheel positions. Anything unreadable — including
     the empty string a legacy row can carry — lands on a sane 7:00 AM rather
     than an empty wheel, because there is no "no time" position to show. */
-export function clockParts(value: string): ClockParts {
+export function clockParts(value: string, step: number = MINUTE_STEP): ClockParts {
   const mins = parseClock(value);
   if (mins == null) return { hour: 7, minute: 0, meridiem: "AM" };
   const h24 = Math.floor(mins / 60);
   /* Minutes are snapped to the wheel's step so an imported 7:07 shows as a
      position that exists. It is only a display snap — nothing is saved until
      the person moves a column. */
-  const minute = Math.round((mins % 60) / MINUTE_STEP) * MINUTE_STEP;
+  const minute = Math.round((mins % 60) / step) * step;
   const rolled = minute === 60;
   const hour24 = (h24 + (rolled ? 1 : 0)) % 24;
   return {
@@ -127,14 +128,18 @@ export function TimeWheel({
   value,
   onChange,
   disabled,
+  step = MINUTE_STEP,
 }: {
   label: string;
   /** a stored clock string — "7:00 AM" */
   value: string;
   onChange: (next: string) => void;
   disabled?: boolean;
+  /** The minutes' step: five, or 15 where the engine books on the quarter
+      hour (a visit's start), so the wheel offers only times that book. */
+  step?: 5 | 15;
 }) {
-  const parts = clockParts(value);
+  const parts = clockParts(value, step);
   const set = (p: Partial<ClockParts>) => onChange(formatClock({ ...parts, ...p }));
 
   return (
@@ -154,7 +159,7 @@ export function TimeWheel({
         />
         <Column
           label="Minute"
-          options={MINUTES}
+          options={minutesAt(step)}
           value={parts.minute}
           render={(m) => String(m).padStart(2, "0")}
           onPick={(minute) => set({ minute })}

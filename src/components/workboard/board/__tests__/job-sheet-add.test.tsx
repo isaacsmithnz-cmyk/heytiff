@@ -303,12 +303,12 @@ describe("the job card's Add", () => {
   });
 
   describe("each item reaches its flow", () => {
-    it("Visit opens Installation with Book in's panel", async () => {
+    it("Visit opens the Visit form over the card, the job filled in (rules 51 and 54)", async () => {
       await open();
       await pick("Visit");
-      expect(screen.getByRole("button", { name: /^Installation/ })).toHaveAttribute("aria-pressed", "true");
-      const visits = within(document.querySelector("#jcsec-visits") as HTMLElement);
-      expect(await visits.findByRole("group", { name: "Book in job 3400" })).toBeInTheDocument();
+      const form = await screen.findByRole("dialog", { name: "Book a visit" });
+      expect(within(form).getByText(/^Job 3400\b/)).toBeInTheDocument();
+      expect(within(form).getByRole("button", { name: "Clear the job" })).toBeInTheDocument();
     });
 
     it("Task opens Installation with Add a task's box ready", async () => {

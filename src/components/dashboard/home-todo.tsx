@@ -12,6 +12,7 @@ import { Row, RowList } from "@/components/parts/row";
 import { Empty } from "@/components/parts/states";
 import { stateTone } from "@/components/parts/state";
 import { Tick } from "@/components/parts/tick";
+import { VisitForm, type VisitJob } from "@/components/making/visit-form";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import { SNOOZE, SNOOZE_LABEL, type Snooze } from "@/lib/dashboard/reminders";
 import { TODO_HOME_CAP, deskTaskHref, type TodoRow } from "@/lib/dashboard/todo";
@@ -125,6 +126,8 @@ export function HomeTodo({
 }) {
   const after = useAfter();
   const { gone, hide, tick } = useTaskTick();
+  /* a won job's Book in: the Visit form over Home, the job filled in */
+  const [booking, setBooking] = useState<VisitJob | null>(null);
   const here = rows.filter((r) => !gone.has(r.key));
   const shown = all ? here : here.slice(0, TODO_HOME_CAP);
   const H = headingLevel === 1 ? "h1" : "h2";
@@ -149,6 +152,12 @@ export function HomeTodo({
       return (
         <Button size={32} aria-label={`Got it, ${row.name}`} onClick={() => gotIt(row, a.taskId)}>
           Got it
+        </Button>
+      );
+    if (a.kind === "bookIn")
+      return (
+        <Button size={32} aria-label={`${a.label}, ${row.name}`} onClick={() => setBooking({ uuid: a.jobUuid, label: row.name })}>
+          {a.label}
         </Button>
       );
     return (
@@ -192,11 +201,20 @@ export function HomeTodo({
               dot={stateTone(row.tone)}
               name={row.name}
               line={row.lineTone ? <span className={`hm-line hm-line--${row.tone}`}>{row.line}</span> : row.line}
-              href={row.act.kind === "link" ? row.act.href : row.tick ? deskTaskHref(row.tick) : undefined}
+              href={row.act.kind === "link" || row.act.kind === "bookIn" ? row.act.href : row.tick ? deskTaskHref(row.tick) : undefined}
               end={end(row)}
             />
           ))}
         </RowList>
+      )}
+      {booking && (
+        <VisitForm
+          job={booking}
+          onClose={() => setBooking(null)}
+          /* the won row says where its booking is, and Undo puts it back */
+          onBooked={after}
+          onUndone={after}
+        />
       )}
     </section>
   );

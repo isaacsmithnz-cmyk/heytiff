@@ -27,7 +27,13 @@ const snoozeReminder = jest.fn(async (..._a: unknown[]) => ({ ok: true as const 
 jest.mock("@/app/actions/reminders", () => ({ snoozeReminder: (...a: unknown[]) => snoozeReminder(...a) }));
 const acknowledgeTask = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
 jest.mock("@/app/actions/assignments", () => ({ acknowledgeTask: (...a: unknown[]) => acknowledgeTask(...a) }));
-
+/* a won job's Book in is the Visit form, over Home */
+const readBookInContext = jest.fn(async (..._a: unknown[]) => ({ ok: false as const, error: "Not in a test." }));
+jest.mock("@/app/actions/booking-sm8", () => ({
+  readBookInContext: (...a: unknown[]) => readBookInContext(...a),
+  bookJobIn: jest.fn(),
+  takeBackBooking: jest.fn(),
+}));
 const open = jest.fn((..._a: unknown[]) => true);
 const toast = jest.fn();
 const tiff: TiffApi = { open: (o) => open(o), openedBy: null, isOpen: false, landed: null };
@@ -230,6 +236,29 @@ describe("To do", () => {
     expect(asked).toHaveBeenCalled();
     expect(refresh).toHaveBeenCalled();
     window.removeEventListener("heytiff:bell-refresh", asked);
+  });
+
+  it("(F) a won job's Book in opens the Visit form over Home with the job filled in, and its row still opens the job", async () => {
+    const won: TodoRow = {
+      key: "job:j1",
+      source: "list",
+      tone: "look",
+      name: "Job 2380, Kingsford",
+      line: "Won today. No day yet",
+      lineTone: false,
+      tick: null,
+      act: { kind: "bookIn", label: "Book in", jobUuid: "j1", href: "/dashboard/jobs/j1?tab=visits" },
+    };
+    draw(today(), [won]);
+    expect(within(rowOf("Job 2380, Kingsford")).getAllByRole("link")[0]).toHaveAttribute("href", "/dashboard/jobs/j1?tab=visits");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Book in, Job 2380, Kingsford" }));
+    });
+    const form = screen.getByRole("dialog", { name: "Book a visit" });
+    expect(within(form).getByText("Job 2380, Kingsford")).toBeInTheDocument();
+    expect(readBookInContext).toHaveBeenCalledWith(expect.objectContaining({ jobUuid: "j1" }));
+    await userEvent.click(within(form).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog", { name: "Book a visit" })).toBeNull();
   });
 
   it("(F) a task's tick finishes it from To do", async () => {

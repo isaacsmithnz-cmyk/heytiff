@@ -39,11 +39,14 @@ import type { ActionChip, ChipKind } from "./chips";
 export type TodoTone = "wrong" | "look" | "info";
 
 /** The one button on the right. A link goes to the record; Later and Got
-    it act on a task where you are. */
+    it act on a task where you are; Book in opens the Visit form over Home
+    with the job filled in (rule 52), and the row itself still opens the
+    job's Visits. */
 export type TodoAct =
   | { kind: "link"; label: string; href: string }
   | { kind: "later"; taskId: string }
-  | { kind: "gotit"; taskId: string };
+  | { kind: "gotit"; taskId: string }
+  | { kind: "bookIn"; label: "Book in"; jobUuid: string; href: string };
 
 export type TodoSource = "reminder" | "assignment" | "alert" | "list" | "timesheets" | "notice";
 
@@ -147,7 +150,7 @@ function listAlertAct(r: ListAlertRow): TodoAct {
   const v = r.verb;
   if (v && "door" in v && v.door.to === "href") return { kind: "link", label: v.label, href: v.door.href };
   if (v && "placeVisit" in v) return { kind: "link", label: "Book in", href: visitHref(v.placeVisit) };
-  if (v && "bookIn" in v) return { kind: "link", label: "Book in", href: jobPageHref(v.bookIn, "visits") };
+  if (v && "bookIn" in v) return { kind: "bookIn", label: "Book in", jobUuid: v.bookIn, href: jobPageHref(v.bookIn, "visits") };
   if (v && "clear" in v) return { kind: "link", label: "Clear", href: jobPageHref(v.clear.jobUuid, "visits") };
   if (v && "door" in v && v.door.to === "job") return { kind: "link", label: v.label, href: jobPageHref(v.door.remoteId, "visits") };
   const d = r.door;

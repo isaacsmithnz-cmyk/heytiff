@@ -1,5 +1,7 @@
 /* THE JOB CARD'S BOOKINGS, ON ITS VISITS FACE (two-way phase 3, PR D):
-   D-1, D-5, D-7, D-11, D-14 and D-15, and the two doors that open it.
+   D-1, D-5, D-7, D-11, D-14 and D-15, and the doors that open Book in,
+   which is the Visit form now, a dialog over the card with the job filled
+   in (making/visit-form; its own suite holds what it does inside).
 
    The card draws what the server says and nothing of its own: Book in only
    where the record offers it, each booking once — a standing booking of
@@ -8,7 +10,7 @@
    anything is on its way. Where the deployment books nothing the record
    has no `bookings` and the detail no `booked`, and the face is main's. */
 
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { BookedEntry, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobCardRead, JobBookings, JobRecordRead } from "@/app/actions/workboard";
@@ -103,6 +105,13 @@ jest.mock("@/app/actions/booking-sm8", () => ({
 }));
 
 import { JobSheet } from "../job-sheet";
+
+/** The Visit form, open over the card on this job. */
+const visitForm = async () => {
+  const form = await screen.findByRole("dialog", { name: "Book a visit" });
+  expect(within(form).getByText("Job 3342, Sample Client Pty Ltd, Rose Bay")).toBeInTheDocument();
+  return form;
+};
 
 const JOB = "0b1e0b1e-0000-4000-8000-00000000d001";
 const SAM = "5a0e5a0e-0000-4000-8000-00000000a001";
@@ -262,14 +271,14 @@ describe("where the deployment books nothing (D-14)", () => {
 });
 
 describe("Book in on the card (D-1)", () => {
-  it("(F) sits above Next on site where the record offers it, and opens the panel in place", async () => {
+  it("(F) sits above Next on site where the record offers it, and opens the Visit form with the job filled in", async () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry()] }), focusRemoteId: null });
     readJobRecord.mockResolvedValue(record(bookings()));
     await open();
     const book = await visits().findByRole("button", { name: BOOKING_WORDS.panel.book });
     expect(book.compareDocumentPosition(visits().getByText("Next on site")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await userEvent.click(book);
-    expect(await visits().findByRole("group", { name: "Book in job 3342" })).toBeInTheDocument();
+    await visitForm();
     expect(bk.readBookInContext).toHaveBeenCalledWith(expect.objectContaining({ jobUuid: JOB }));
   });
 
@@ -288,12 +297,12 @@ describe("Book in on the card (D-1)", () => {
     expect(visits().queryByRole("button", { name: BOOKING_WORDS.panel.book })).toBeNull();
   });
 
-  it("opens straight on Visits with the panel open for a door that came to book", async () => {
+  it("opens straight on Visits with the Visit form open for a door that came to book", async () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ booked: [] }), focusRemoteId: null });
     readJobRecord.mockResolvedValue(record(bookings()));
     await open({ openBookIn: true });
     expect(screen.getByRole("button", { name: /^Installation/ })).toHaveAttribute("aria-pressed", "true");
-    expect(await visits().findByRole("group", { name: "Book in job 3342" })).toBeInTheDocument();
+    await visitForm();
   });
 });
 
@@ -366,7 +375,7 @@ describe("a line's doors (D-5)", () => {
     await waitFor(() => expect(bk.readBookingStates).toHaveBeenCalledWith({ jobUuid: JOB }));
   });
 
-  it("(F) Try again goes again by its row; Look again opens the panel on the booking", async () => {
+  it("(F) Try again goes again by its row; Look again opens the Visit form on the booking", async () => {
     const failed: BookingState = { key: "line.notSent", text: "Not booked. ServiceM8 refused the booking.", tone: "bad", acts: ["try_again", "cancel"] };
     const look: BookingState = { key: "line.notSent", text: "Not booked. Changed in ServiceM8. Look again.", tone: null, acts: ["look_again"] };
     const v = ourVerb(failed);
@@ -379,7 +388,7 @@ describe("a line's doors (D-5)", () => {
     await userEvent.click(visits().getByRole("button", { name: BOOKING_WORDS.door.cancel }));
     expect(bk.takeBackBooking).toHaveBeenCalledWith({ jobUuid: JOB, rowId: "c-2" });
     await userEvent.click(visits().getByRole("button", { name: BOOKING_WORDS.door.lookAgain }));
-    await visits().findByRole("group", { name: "Book in job 3342" });
+    await visitForm();
     expect(bk.readBookInContext).toHaveBeenCalledWith({ jobUuid: JOB, days: ["2026-10-08"] });
   });
 
@@ -414,7 +423,7 @@ describe("a line's doors (D-5)", () => {
     expect(onToast).not.toHaveBeenCalledWith(STALE_DEPLOY_WORDS);
   });
 
-  it("a refused press says why, and a Try again answered Look again opens the panel", async () => {
+  it("a refused press says why, and a Try again answered Look again opens the Visit form", async () => {
     const failed: BookingState = { key: "line.notSent", text: "Not booked. ServiceM8 refused the booking.", tone: "bad", acts: ["try_again"] };
     const v = ourVerb(failed);
     v.bookings[0] = { ...v.bookings[0], uuid: NOT_YET, standing: false };
@@ -423,7 +432,7 @@ describe("a line's doors (D-5)", () => {
     await open();
     await userEvent.click(await visits().findByRole("button", { name: BOOKING_WORDS.door.tryAgain }));
     await waitFor(() => expect(props.onToast).toHaveBeenCalledWith(BOOKING_WORDS.press.tooSoon));
-    expect(await visits().findByRole("group", { name: "Book in job 3342" })).toBeInTheDocument();
+    await visitForm();
   });
 });
 
@@ -602,9 +611,10 @@ describe("the poll (D-11)", () => {
     bk.readBookingStates.mockResolvedValue({ verbs: [trial], lines: {}, gone: [] });
     render(<JobSheet row={row()} {...props} openBookIn />);
     const who = await screen.findByRole("combobox", { name: BOOKING_WORDS.panel.who });
-    await waitFor(() => expect((who as HTMLSelectElement).options.length).toBe(2));
-    await user.selectOptions(who, SAM);
-    await user.click(screen.getByRole("button", { name: BOOKING_WORDS.panel.book }));
+    await waitFor(() => expect(who).toBeEnabled());
+    fireEvent.click(who);
+    fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: BOOKING_WORDS.panel.you }));
+    await user.click(screen.getByRole("button", { name: "Book visit" }));
     await act(async () => {
       await jest.advanceTimersByTimeAsync(0);
     });

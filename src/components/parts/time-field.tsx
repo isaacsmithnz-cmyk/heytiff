@@ -31,6 +31,7 @@ export function TimeField({
   id,
   label,
   className,
+  step,
 }: {
   /** "7:05 AM", or empty for no time yet */
   value: string | null;
@@ -45,6 +46,8 @@ export function TimeField({
   /** what the time is, where no Field's label names it */
   label?: string;
   className?: string;
+  /** The wheel's minutes: fives, or 15 for an engine on the quarter hour. */
+  step?: 5 | 15;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -82,7 +85,7 @@ export function TimeField({
       {open &&
         typeof document !== "undefined" &&
         createPortal(
-          <TimePanel id={panelId} anchor={ref} label={named} value={value ?? ""} onChange={onChange} onClose={() => setOpen(false)} />,
+          <TimePanel id={panelId} anchor={ref} label={named} value={value ?? ""} step={step} onChange={onChange} onClose={() => setOpen(false)} />,
           document.body,
         )}
     </>
@@ -94,6 +97,7 @@ function TimePanel({
   anchor,
   label,
   value,
+  step,
   onChange,
   onClose,
 }: {
@@ -101,6 +105,7 @@ function TimePanel({
   anchor: RefObject<HTMLButtonElement | null>;
   label: string;
   value: string;
+  step?: 5 | 15;
   onChange: (value: string) => void;
   onClose: () => void;
 }) {
@@ -133,7 +138,7 @@ function TimePanel({
       aria-label={label}
       onKeyDown={onKeyDown}
     >
-      <TimeWheel label={label} value={value} onChange={onChange} />
+      <TimeWheel label={label} value={value} step={step} onChange={onChange} />
     </div>
   );
 }

@@ -2,17 +2,17 @@
 
 import { useContext, useEffect, useId, useState } from "react";
 import { Dialog } from "@/components/parts/dialog";
-import { Button, IconButton } from "@/components/parts/button";
-import { Field, TextArea, TextInput } from "@/components/parts/field";
+import { Button } from "@/components/parts/button";
+import { Field, TextArea } from "@/components/parts/field";
 import { Chooser } from "@/components/parts/chooser";
 import { TimeField } from "@/components/parts/time-field";
 import { DateField } from "@/components/ui/date-field";
 import { WindowsContext } from "@/components/records/records-context";
 import { deleteTask, makeTasks, taskPeople, type TaskPeople } from "@/app/actions/dashboard";
 import { taskLinesOf } from "@/lib/dashboard/task-lines";
-import { searchPalette } from "@/app/actions/palette";
+import { JobField, type FormJob } from "./job-field";
 
-export type TaskJob = { uuid: string; label: string };
+export type TaskJob = FormJob;
 
 /* NEW › TASK (rules 44 and 51), and a job's Add › Task. One form wherever a
    task starts (Isaac, 18 October: "on a job it automatically goes on the
@@ -149,70 +149,5 @@ export function TaskForm({ job = null, onClose }: { job?: TaskJob | null; onClos
         )}
       </form>
     </Dialog>
-  );
-}
-
-/* THE JOB (rule 51): a field, filled in, that you can change or clear.
-   Empty, it finds a job by number, client or site, as Search does. */
-function JobField({ job, onChange }: { job: TaskJob | null; onChange: (j: TaskJob | null) => void }) {
-  const [q, setQ] = useState("");
-  const [hits, setHits] = useState<TaskJob[]>([]);
-
-  useEffect(() => {
-    const term = q.trim();
-    if (term.length < 2) return;
-    let live = true;
-    const t = setTimeout(() => {
-      void searchPalette(term).then((f) => {
-        if (!live) return;
-        setHits(
-          f.jobs.slice(0, 6).map((j) => ({
-            uuid: j.remoteId,
-            label: [j.jobNumber ? `Job ${j.jobNumber}` : "Job", j.clientName, j.suburb].filter(Boolean).join(", "),
-          })),
-        );
-      });
-    }, 250);
-    return () => {
-      live = false;
-      clearTimeout(t);
-    };
-  }, [q]);
-
-  if (job) {
-    return (
-      <Field label="Job">
-        <div className="mk-job">
-          <span className="mk-job-name">{job.label}</span>
-          <IconButton glyph="clear" label="Clear the job" size={32} onClick={() => onChange(null)} />
-        </div>
-      </Field>
-    );
-  }
-  return (
-    <Field label="Job">
-      <div className="mk-jobfind">
-        <TextInput value={q} placeholder="None, a general task" onChange={(e) => setQ(e.target.value)} />
-        {q.trim().length >= 2 && hits.length > 0 && (
-          <ul className="mk-jobhits" aria-label="Jobs">
-            {hits.map((h) => (
-              <li key={h.uuid}>
-                <button
-                  type="button"
-                  className="mk-jobhit"
-                  onClick={() => {
-                    onChange(h);
-                    setQ("");
-                    setHits([]);
-                  }}
-                >
-                  {h.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Field>
   );
 }

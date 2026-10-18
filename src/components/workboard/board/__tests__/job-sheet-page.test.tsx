@@ -271,9 +271,11 @@ describe("the job's page head", () => {
     await userEvent.click(add);
     const menu = await screen.findByRole("menu", { name: "Add to this job" });
     expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Visit", "Task", "Quote", "Cost", "SWMS", "Certificate"]);
-    /* Visit is Book in's panel, which is the Visits section's */
+    /* Visit is the Visit form, over the section you're on (rule 51) */
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Visit" }));
-    expect(onSection).toHaveBeenCalledWith("visits");
+    const form = await screen.findByRole("dialog", { name: "Book a visit" });
+    expect(within(form).getByRole("button", { name: "Clear the job" })).toBeInTheDocument();
+    expect(onSection).not.toHaveBeenCalledWith("visits");
   });
 
   it("puts what's done to the job under Actions: pin, copy the link, then the card's once-per-job acts", async () => {

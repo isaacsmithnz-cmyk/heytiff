@@ -12617,6 +12617,18 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .mk-team-file-size { font-size:13px; line-height:18px; color:var(--q); }
 .mk-team-file img { width:40px; height:40px; object-fit:cover; border-radius:var(--r-control); }
 .mk-team-files { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+/* ===== V2 FORMS, THE JOB GROUP (step 4; the forms board's 2 and 3):
+   New job (making/new-job-form) and Visit (making/visit-form). In a
+   dialog, so no `.fg`. The job field, the customer field and their hits
+   wear the shared `.mk-job` and `.mk-jobhits` above. ===== */
+/* the quiet lines a form says under a field, or as it goes */
+.mk-job-facts { display:flex; flex-direction:column; gap:4px; font-size:14px; line-height:20px; color:var(--q); }
+/* a state and its one door, side by side */
+.mk-job-says { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+/* the visits: a row a booking, the four columns' labels once above them */
+.mk-job-visits { display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+.mk-job-visitrow { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1.5fr) minmax(0,1.1fr) minmax(0,0.9fr) 96px; gap:12px; align-items:center; }
+.mk-job-visiterr { grid-column:1 / -1; }
 
 /* ===== V2: A VEHICLE'S PAGE (v2, "A vehicle's own page", 18 October; the
    boards v2-board-vehicle-*; components/fleet/vehicle-page) =====

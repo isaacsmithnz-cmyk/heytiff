@@ -96,8 +96,9 @@ jest.mock("@/app/actions/job-notes", () => ({
   dismissJobNote: jest.fn(async () => {}),
 }));
 
-jest.mock("../new-agreement-modal", () => ({
-  NewAgreementModal: (p: { initialJob?: { jobNumber: string | null } | null }) => (
+jest.mock("../agreement-form", () => ({
+  jobOfRow: (r: { id: string; number: string | null }) => ({ remoteId: r.id, jobNumber: r.number }),
+  AgreementForm: (p: { initialJob?: { jobNumber: string | null } | null }) => (
     <div data-testid="agmodal">{p.initialJob?.jobNumber ?? "none"}</div>
   ),
 }));
@@ -737,7 +738,7 @@ describe("promotion", () => {
     );
   });
 
-  it("hands the job straight to the agreement modal, pre-picked", async () => {
+  it("hands the job straight to New agreement, pre-picked", async () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1", jobNumber: "2214" })] }) });
     await openRow();
     const sheet = await screen.findByRole("dialog");

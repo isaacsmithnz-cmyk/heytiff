@@ -7,7 +7,7 @@
    asking nothing (P5); and the trips card sharing the board's rows, gates
    and sheet. */
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { pickDate } from "@/components/ui/__tests__/fixtures/pick-date";
 import { ProjectDetailScreen } from "../project-detail-screen";
@@ -31,6 +31,15 @@ jest.mock("../board/project-trip-sheet", () => ({
 }));
 jest.mock("@/app/actions/workboard-ai", () => ({
   readEquipmentPhoto: jest.fn(async () => ({ ok: false, reason: "no-key" })),
+}));
+/* New agreement, opened at handover, reads what the board would hand it */
+const agreementFormContext = jest.fn(async () => ({ agreements: [], categories: [], connected: true, voiceless: false }));
+const createAgreement = jest.fn(async () => ({ ok: true, id: "a-new" }));
+jest.mock("@/app/actions/agreement-form", () => ({ agreementFormContext: () => agreementFormContext() }));
+jest.mock("@/app/actions/workboard-maintenance", () => ({
+  createAgreement: (...a: unknown[]) => createAgreement(...(a as [])),
+  createCategory: jest.fn(),
+  addPackingItem: jest.fn(),
 }));
 const deleteDocument = jest.fn(async () => ({ ok: true }));
 jest.mock("@/app/actions/documents", () => ({
@@ -539,15 +548,56 @@ describe("variations record who made the call", () => {
 });
 
 describe("the flywheel", () => {
-  it("offers itself at Handover and spawns the agreement with cadence + first service", async () => {
+  it("offers itself at Handover and opens New agreement filled in from the project", async () => {
     mount(detail({ stage: "Handover" }));
     await userEvent.click(screen.getByRole("button", { name: "Set up the agreement" }));
-    await pickDate("First service due", "2027-02-01");
-    await userEvent.click(screen.getByRole("button", { name: "Create the agreement" }));
-    expect(pact.spawnAgreementFromProject).toHaveBeenCalledWith("p-1", {
-      intervalMonths: 6,
-      anchorDate: "2027-02-01",
-    });
+    const form = within(await screen.findByRole("dialog", { name: "New agreement" }));
+    // the project is the record: filled in, and clearable
+    expect(form.getByText("Bowden St ducted", { selector: ".mk-job-name" })).toBeInTheDocument();
+    expect(form.getByRole("button", { name: "Clear the project" })).toBeInTheDocument();
+    expect(form.getByLabelText("Service label")).toHaveValue("Bowden St ducted");
+    expect(form.getByLabelText("Client")).toHaveValue("The Bowdens");
+    expect(form.getByLabelText("Site label")).toHaveValue("14 Bowden St");
+    expect(form.getByRole("combobox", { name: "How often" })).toHaveTextContent("6-monthly");
+    expect(form.getByLabelText("We installed this system")).toBeChecked();
+    // a project's agreement is its own: no ServiceM8 leg
+    expect(form.queryByRole("radiogroup", { name: "From" })).not.toBeInTheDocument();
+  });
+
+  it("creates through today's handover action, cadence, first service and the form's fields with it", async () => {
+    mount(detail({ stage: "Handover" }));
+    await userEvent.click(screen.getByRole("button", { name: "Set up the agreement" }));
+    const form = within(await screen.findByRole("dialog", { name: "New agreement" }));
+    await waitFor(() => expect(agreementFormContext).toHaveBeenCalled());
+    await pickDate("First service due", "2027-02-01", form);
+    await userEvent.type(form.getByLabelText("Billing contact"), "sarah@bowden.au");
+    await userEvent.click(form.getByRole("button", { name: "Create the agreement" }));
+    expect(pact.spawnAgreementFromProject).toHaveBeenCalledWith(
+      "p-1",
+      expect.objectContaining({
+        intervalMonths: 6,
+        anchorDate: "2027-02-01",
+        label: "Bowden St ducted",
+        clientName: "The Bowdens",
+        siteLabel: "14 Bowden St",
+        weInstalled: true,
+        billingContact: "sarah@bowden.au",
+      }),
+    );
+    expect(createAgreement).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "New agreement" })).not.toBeInTheDocument());
+  });
+
+  it("cleared of its project, it is an ordinary agreement", async () => {
+    mount(detail({ stage: "Handover" }));
+    await userEvent.click(screen.getByRole("button", { name: "Set up the agreement" }));
+    const form = within(await screen.findByRole("dialog", { name: "New agreement" }));
+    await waitFor(() => expect(agreementFormContext).toHaveBeenCalled());
+    await userEvent.click(form.getByRole("button", { name: "Clear the project" }));
+    await pickDate("First service due", "2027-02-01", form);
+    await userEvent.click(form.getByRole("button", { name: "Create the agreement" }));
+    expect(createAgreement).toHaveBeenCalledWith(expect.objectContaining({ label: "Bowden St ducted", anchorDate: "2027-02-01" }));
+    expect(pact.spawnAgreementFromProject).not.toHaveBeenCalled();
   });
 
   it("stays quiet mid-build, and once spawned it shows the link instead", () => {

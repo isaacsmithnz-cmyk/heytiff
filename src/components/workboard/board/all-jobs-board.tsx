@@ -13,7 +13,7 @@ import { ShowcaseView } from "./showcase-view";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 import type { CapacityPayload } from "@/lib/workboard/capacity-query";
 import { JobSheet, type JobSheetTab } from "./job-sheet";
-import { NewAgreementModal } from "./new-agreement-modal";
+import { AgreementForm, jobOfRow } from "./agreement-form";
 import { ToastHost, useBoardToasts } from "./toasts";
 import { Sm8HealthContext, type Sm8Health } from "./sm8-chip";
 
@@ -426,24 +426,9 @@ export function AllJobsBoard({
           the ServiceM8 leg it already had is simply pre-answered, Tiff's
           analyse offer included. */}
       {agreementFrom && (
-        <NewAgreementModal
-          agreements={agreements}
-          categories={categories}
-          voiceless={!aiEnabled}
-          connected={connected}
-          initialJob={{
-            remoteId: agreementFrom.id,
-            jobNumber: agreementFrom.number,
-            status: agreementFrom.statusLabel,
-            clientName: agreementFrom.clientName,
-            companyId: null,
-            suburb: agreementFrom.suburb,
-            /* The list row carries no street — only the suburb the board
-               shows — so this stays null rather than inventing one. */
-            address: null,
-            description: agreementFrom.title,
-            linkedTo: [],
-          }}
+        <AgreementForm
+          context={{ connected, voiceless: !aiEnabled, agreements, categories }}
+          initialJob={jobOfRow(agreementFrom)}
           onOpenAgreement={(id) => {
             setAgreementFrom(null);
             onOpenTracked({ kind: "agreement", id });

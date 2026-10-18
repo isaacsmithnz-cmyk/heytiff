@@ -29,9 +29,10 @@ import {
   setProjectDefectsEnd,
   setProjectHoursBudget,
   setProjectPromise,
-  spawnAgreementFromProject,
 } from "@/app/actions/workboard-projects";
 import { DateField } from "@/components/ui/date-field";
+import { useRecords } from "@/components/records/records-context";
+import { AgreementForm } from "./board/agreement-form";
 
 /* The money, scope and dates cards — step 4 of the projects overhaul.
 
@@ -942,16 +943,13 @@ export function FlywheelCard({
   project,
   manage,
   busy,
-  run,
 }: {
   project: ProjectDetail;
   manage: boolean;
   busy: boolean;
-  run: Run;
 }) {
+  const records = useRecords();
   const [open, setOpen] = useState(false);
-  const [interval, setInterval] = useState("6");
-  const [firstDue, setFirstDue] = useState("");
 
   const atHandover = project.stage === "Handover" || project.stage === "Complete";
 
@@ -992,44 +990,20 @@ export function FlywheelCard({
           </button>
         )}
       </div>
+      {/* New agreement, filled in from the project; Create is today's
+          handover action, which carries the equipment and serials over */}
       {open && (
-        <div className="wb2-dayrow">
-          <label className="wb2-fl">
-            Every
-            <select className="wb-select" value={interval} onChange={(e) => setInterval(e.target.value)}>
-              <option value="3">3 months</option>
-              <option value="6">6 months</option>
-              <option value="12">12 months</option>
-            </select>
-          </label>
-          <label className="wb2-fl">
-            First service
-            <DateField
-              className="wb2-fi"
-              aria-label="First service due"
-              value={firstDue || null}
-              onChange={(iso) => setFirstDue(iso ?? "")}
-            />
-          </label>
-          <button
-            className="pbtn"
-            disabled={busy || !firstDue}
-            onClick={() => {
-              setOpen(false);
-              run(() =>
-                spawnAgreementFromProject(project.id, {
-                  intervalMonths: parseInt(interval, 10),
-                  anchorDate: firstDue,
-                })
-              );
-            }}
-          >
-            Create the agreement
-          </button>
-          <button className="pbtn ghost" disabled={busy} onClick={() => setOpen(false)}>
-            Not now
-          </button>
-        </div>
+        <AgreementForm
+          project={{
+            id: project.id,
+            name: project.name,
+            clientName: project.clientName,
+            siteLabel: project.siteLabel,
+            siteAddress: project.siteAddress,
+          }}
+          onOpenAgreement={(id) => records.open({ kind: "agreement", id })}
+          onClose={() => setOpen(false)}
+        />
       )}
     </div>
   );

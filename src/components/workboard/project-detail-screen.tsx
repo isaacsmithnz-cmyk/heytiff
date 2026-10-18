@@ -236,7 +236,7 @@ export function ProjectDetailScreen({
             onOpenTrip={(visitId) => setTripSheet({ visitId, closeOut: false })}
           />
 
-          <FlywheelCard project={project} manage={manage} busy={busy} run={run} />
+          <FlywheelCard project={project} manage={manage} busy={busy} />
           {/* Money and variations are one grant (`workboard_money`). Without it
               the loader returned no budget, no claims and no variations, so the
               cards are ABSENT rather than empty — an empty money card would

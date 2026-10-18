@@ -4,12 +4,13 @@ import { useContext, useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { MenuItem } from "@/components/parts/menu";
 import { JobSheet } from "@/components/workboard/board/job-sheet";
+import { AgreementForm, jobOfRow } from "@/components/workboard/board/agreement-form";
 import { ToastHost, useBoardToasts } from "@/components/workboard/board/toasts";
 import { WindowsContext, useRecords } from "@/components/records/records-context";
 import { isPinned, pin, pinsServerSnapshot, pinsSnapshot, subscribePins, unpin } from "@/components/shell/pins-store";
 import { namePage } from "@/components/shell/page-names";
 import { jobTabLabel, SECTION_FACES, type JobSection } from "@/lib/jobs/job-sections";
-import { jobHref, jobPageHref, projectHref } from "@/lib/shell/links";
+import { jobPageHref, projectHref } from "@/lib/shell/links";
 import { recordKey, type RecordRef } from "@/lib/records/ref";
 import { jobHue } from "@/lib/workboard/job-hue";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
@@ -42,6 +43,7 @@ export function JobPage({
   const remember = useContext(WindowsContext)?.remember;
   const [section, setSection] = useState<JobSection>(first);
   const { toasts, toast, dismiss } = useBoardToasts();
+  const [agreementFrom, setAgreementFrom] = useState<AllJobRow | null>(null);
 
   const ref: RecordRef = { kind: "job", id: row.id };
   const title = row.number ? `Job ${row.number}` : "Job";
@@ -98,9 +100,8 @@ export function JobPage({
           page={{ section, onSection: goSection, actions, onAction: (key) => void onAction(key) }}
           /* a page has nothing to close */
           onClose={() => undefined}
-          /* the new-agreement modal lives on the board, so the agreement
-             door lands there with the job open, as the card's does */
-          onCreateAgreement={(r) => router.push(jobHref(r.id))}
+          /* New agreement opens over the page (rule 51), the job filled in */
+          onCreateAgreement={(r) => setAgreementFrom(r)}
           /* a visit opens over the page; a project on its own page */
           onOpenTracked={(t) => {
             if (t.kind === "visit") records.open({ kind: "visit", id: t.id });
@@ -109,6 +110,14 @@ export function JobPage({
           onToast={(m, undo) => toast(m, undo)}
         />
       </div>
+      {agreementFrom && (
+        <AgreementForm
+          initialJob={jobOfRow(agreementFrom)}
+          onOpenAgreement={(id) => records.open({ kind: "agreement", id })}
+          onToast={(m, undo) => toast(m, undo)}
+          onClose={() => setAgreementFrom(null)}
+        />
+      )}
       <ToastHost toasts={toasts} onDismiss={dismiss} />
     </div>
   );

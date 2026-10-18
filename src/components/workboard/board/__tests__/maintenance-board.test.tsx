@@ -86,6 +86,10 @@ const analyseSm8JobForAgreement = jest.fn(async () => ({ ok: false, reason: "no-
 jest.mock("@/app/actions/workboard-ai", () => ({
   analyseSm8JobForAgreement: (...a: unknown[]) => analyseSm8JobForAgreement(...(a as [])),
 }));
+/* New agreement's project door (a handover) calls today's handover action */
+jest.mock("@/app/actions/workboard-projects", () => ({ spawnAgreementFromProject: jest.fn() }));
+/* read only away from the board; the board hands New agreement its own */
+jest.mock("@/app/actions/agreement-form", () => ({ agreementFormContext: jest.fn() }));
 
 const clearFlag = jest.fn(async () => ({ ok: true }));
 const restoreFlag = jest.fn(async () => ({ ok: true }));
@@ -1614,7 +1618,145 @@ describe("the create flow (D7/K3/K4)", () => {
 
   it("standalone hides the ServiceM8 leg entirely — the board never looks broken without it", async () => {
     const modal = await openModal();
-    expect(modal.queryByRole("tab", { name: /From a ServiceM8 job/ })).not.toBeInTheDocument();
+    expect(modal.queryByRole("radiogroup", { name: "From" })).not.toBeInTheDocument();
+    expect(modal.queryByRole("radio", { name: "A ServiceM8 job" })).not.toBeInTheDocument();
+    expect(modal.queryByRole("button", { name: "Read the job" })).not.toBeInTheDocument();
+  });
+
+  it("is New agreement, over the board, and creating keeps you there with a toast", async () => {
+    const modal = await openModal();
+    expect(screen.getByRole("dialog", { name: "New agreement" })).toBeInTheDocument();
+    await userEvent.type(modal.getByLabelText("Service label"), "Cool room");
+    await userEvent.type(modal.getByLabelText("Client"), "Grange Microbrewery");
+    await pickDate("First service due", "2026-08-12", modal);
+    await userEvent.click(modal.getByRole("button", { name: /Create the agreement/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "New agreement" })).not.toBeInTheDocument());
+    expect(screen.getByText("Agreement created for Grange Microbrewery")).toBeInTheDocument();
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("keeps every field of today's grid: site, cadence, estimates, billing, category, installed and access", async () => {
+    const modal = await openModal({ categories: [{ id: "c-1", name: "Commercial maintenance", accent: "blue" }] });
+    await userEvent.type(modal.getByLabelText("Service label"), "Rooftop package units");
+    await userEvent.type(modal.getByLabelText("Client"), "Richards Building");
+    await userEvent.type(modal.getByLabelText("Site label"), "North Narrabeen office");
+    await userEvent.type(modal.getByLabelText("Site address"), "14 Pittwater Road");
+    await userEvent.click(modal.getByRole("combobox", { name: "How often" }));
+    await userEvent.click(screen.getByRole("option", { name: "6-monthly" }));
+    await pickDate("First service due", "2026-08-12", modal);
+    await userEvent.type(modal.getByLabelText("Estimated service time (hours)"), "3");
+    await userEvent.click(modal.getByRole("combobox", { name: "Estimated crew size" }));
+    await userEvent.click(screen.getByRole("option", { name: "2 technicians" }));
+    await userEvent.type(modal.getByLabelText("Billing contact"), "accounts@richards.com.au");
+    await userEvent.click(modal.getByRole("combobox", { name: "Category" }));
+    await userEvent.click(screen.getByRole("option", { name: "Commercial maintenance" }));
+    await userEvent.click(modal.getByLabelText("We installed this system"));
+    await userEvent.click(modal.getByRole("button", { name: /Create the agreement/ }));
+    expect(act.createAgreement).toHaveBeenCalledWith({
+      label: "Rooftop package units",
+      clientName: "Richards Building",
+      siteLabel: "North Narrabeen office",
+      siteAddress: "14 Pittwater Road",
+      intervalMonths: 6,
+      anchorDate: "2026-08-12",
+      accessNotes: undefined,
+      billingContact: "accounts@richards.com.au",
+      techsNeeded: 2,
+      hoursEstimate: 3,
+      categoryId: "c-1",
+      weInstalled: true,
+      clientRemoteId: undefined,
+    });
+  });
+
+  it("makes a new category first when one is typed", async () => {
+    const modal = await openModal();
+    await userEvent.type(modal.getByLabelText("Service label"), "Cool room");
+    await userEvent.type(modal.getByLabelText("Client"), "Grange Microbrewery");
+    await userEvent.type(modal.getByLabelText("New category"), "Breweries");
+    await pickDate("First service due", "2026-08-12", modal);
+    await userEvent.click(modal.getByRole("button", { name: /Create the agreement/ }));
+    expect(act.createCategory).toHaveBeenCalledWith("Breweries");
+    expect(act.createAgreement).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "cat-new" }));
+  });
+});
+
+/* The ServiceM8 leg (D7), with ServiceM8 connected: the job is a field,
+   found by number, client or address; Read the job is Tiff proposing into
+   the fields, and the packing list rides her proposal. */
+describe("the create flow from a ServiceM8 job", () => {
+  const openConnected = async () => {
+    render(<MaintenanceBoard data={data()} flags={[]} today={TODAY} manage connected aiEnabled sm8={null} />);
+    await toTab(/Service agreements/);
+    await userEvent.click(screen.getByRole("button", { name: /New agreement/ }));
+    return within(screen.getByRole("dialog"));
+  };
+
+  it("finds the job, reads it, and creates with the proposal and its packing list", async () => {
+    searchJobs.mockResolvedValueOnce([
+      {
+        remoteId: "j-3209",
+        jobNumber: "3209",
+        status: "Completed",
+        clientName: "Richards Building",
+        companyId: "co-9",
+        suburb: "North Narrabeen",
+        address: null,
+        description: null,
+        linkedTo: [],
+      },
+    ]);
+    analyseSm8JobForAgreement.mockResolvedValueOnce({
+      ok: true,
+      proposal: {
+        label: "Rooftop package units",
+        intervalMonths: 3,
+        hoursEstimate: 3,
+        techsNeeded: 2,
+        accessNotes: "Roof key at reception.",
+        bringItems: ["Coil cleaner", "Roof harness"],
+      },
+    } as never);
+    const modal = await openConnected();
+    expect(modal.getByRole("radio", { name: "Enter it myself" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(modal.getByRole("radio", { name: "A ServiceM8 job" }));
+    expect(modal.getByRole("button", { name: "Read the job" })).toBeDisabled();
+    await userEvent.click(modal.getByLabelText("Job"));
+    await userEvent.paste("3209");
+    await userEvent.click(await modal.findByRole("button", { name: "Job 3209, Richards Building, North Narrabeen" }));
+    // the record is a field: filled in now, and clearable
+    expect(modal.getByRole("button", { name: "Clear the job" })).toBeInTheDocument();
+    expect(modal.getByLabelText("Client")).toHaveValue("Richards Building");
+    expect(modal.getByLabelText("Site label")).toHaveValue("North Narrabeen");
+
+    await userEvent.click(modal.getByRole("button", { name: "Read the job" }));
+    await waitFor(() => expect(modal.getByLabelText("Service label")).toHaveValue("Rooftop package units"));
+    expect(analyseSm8JobForAgreement).toHaveBeenCalledWith("j-3209");
+    const packing = modal.getByRole("list", { name: "Packing list" });
+    expect(within(packing).getByText("Coil cleaner")).toBeInTheDocument();
+    await userEvent.click(within(packing).getByRole("button", { name: "Remove Roof harness" }));
+    expect(within(packing).queryByText("Roof harness")).not.toBeInTheDocument();
+
+    await pickDate("First service due", "2026-08-12", modal);
+    await userEvent.click(modal.getByRole("button", { name: /Create the agreement/ }));
+    await waitFor(() => expect(act.addPackingItem).toHaveBeenCalledWith("a-new", "Coil cleaner"));
+    expect(act.createAgreement).toHaveBeenCalledWith(
+      expect.objectContaining({ label: "Rooftop package units", techsNeeded: 2, hoursEstimate: 3, clientRemoteId: "co-9" }),
+    );
+    expect(act.addPackingItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so when Tiff can't read the job, and the fields stay yours", async () => {
+    searchJobs.mockResolvedValueOnce([
+      { remoteId: "j-1", jobNumber: "1", status: null, clientName: "Halston", companyId: null, suburb: null, address: null, description: null, linkedTo: [] },
+    ]);
+    const modal = await openConnected();
+    await userEvent.click(modal.getByRole("radio", { name: "A ServiceM8 job" }));
+    await userEvent.click(modal.getByLabelText("Job"));
+    await userEvent.paste("Halston");
+    await userEvent.click(await modal.findByRole("button", { name: "Job 1, Halston" }));
+    await userEvent.click(modal.getByRole("button", { name: "Read the job" }));
+    expect(await modal.findByRole("alert")).toHaveTextContent("Tiff is offline, so fill the rest in yourself.");
   });
 });
 

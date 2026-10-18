@@ -33,6 +33,19 @@ jest.mock("@/components/shell/pins-store", () => ({
   unpin: (...a: unknown[]) => unpin(...(a as [])),
 }));
 
+/* New agreement opens over the page; its actions are "use server" modules */
+const agreementFormContext = jest.fn(async () => ({ agreements: [], categories: [], connected: true, voiceless: false }));
+jest.mock("@/app/actions/agreement-form", () => ({ agreementFormContext: () => agreementFormContext() }));
+jest.mock("@/app/actions/workboard-maintenance", () => ({
+  createAgreement: jest.fn(),
+  createCategory: jest.fn(),
+  addPackingItem: jest.fn(),
+}));
+jest.mock("@/app/actions/workboard-projects", () => ({ spawnAgreementFromProject: jest.fn() }));
+jest.mock("@/app/actions/workboard", () => ({ searchJobs: jest.fn(async () => []) }));
+jest.mock("@/app/actions/workboard-ai", () => ({ analyseSm8JobForAgreement: jest.fn() }));
+jest.mock("@/components/notes/note-token", () => ({ NoteToken: () => <textarea aria-label="access notes" /> }));
+
 import { JobPage } from "../job-page";
 import { pageNamesSnapshot } from "@/components/shell/page-names";
 
@@ -119,8 +132,13 @@ it("copies the link to the job's page", async () => {
   expect(await screen.findByText("Link copied.")).toBeInTheDocument();
 });
 
-it("takes Create a maintenance agreement to the board, where its form lives, with the job open", () => {
+it("opens New agreement over the page from Create a maintenance agreement, the job filled in", async () => {
   draw();
-  handed!.onCreateAgreement(row());
-  expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j-3209");
+  await act(async () => handed!.onCreateAgreement(row()));
+  const form = screen.getByRole("dialog", { name: "New agreement" });
+  expect(push).not.toHaveBeenCalled();
+  expect(form).toHaveTextContent("Job 3209, Richards Building, North Narrabeen");
+  expect(screen.getByLabelText("Client")).toHaveValue("Richards Building");
+  // what the board would have handed over, read by the form itself
+  expect(agreementFormContext).toHaveBeenCalled();
 });

@@ -15,7 +15,7 @@ import { AgreementsTab } from "./agreements-tab";
 import { VisitSheet } from "./visit-sheet";
 import { DayModal } from "./day-modal";
 import { AgreementSheet } from "./agreement-sheet";
-import { NewAgreementModal } from "./new-agreement-modal";
+import { AgreementForm } from "./agreement-form";
 import { ToastHost, useBoardToasts } from "./toasts";
 import { Sm8HealthContext, type Sm8Health } from "./sm8-chip";
 
@@ -368,11 +368,8 @@ export function MaintenanceBoard({
       )}
 
       {creating && (
-        <NewAgreementModal
-          connected={connected}
-          voiceless={!aiEnabled}
-          agreements={data.agreements}
-          categories={data.categories}
+        <AgreementForm
+          context={{ connected, voiceless: !aiEnabled, agreements: data.agreements, categories: data.categories }}
           onOpenAgreement={(id) => setAgreementId(id)}
           onToast={toast}
           onClose={() => setCreating(false)}

@@ -546,3 +546,46 @@ describe("a refused save keeps the screen, typing intact", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument());
   });
 });
+
+/* v2: a vehicle's own page opens today's screens one at a time. Back,
+   Escape and the save close the dialog; there is no card under it. */
+describe("one screen alone, for the vehicle's own page", () => {
+  const alone = (initialScreen: "rego" | `log:${string}`) => {
+    const onClose = jest.fn();
+    render(
+      <VehicleModal
+        single
+        vehicle={triton}
+        logs={logs}
+        eco={{}}
+        documents={[]}
+        policies={[slip]}
+        finance={[]}
+        staff={[]}
+        today={TODAY}
+        warnDays={30}
+        fleet={fleet()}
+        initialScreen={initialScreen}
+        onClose={onClose}
+        onEdit={jest.fn()}
+        onCorrect={jest.fn()}
+      />,
+    );
+    return { onClose, user: userEvent.setup() };
+  };
+
+  it("closes on Back rather than stepping down to the card", async () => {
+    const { onClose, user } = alone("rego");
+    expect(screen.getByRole("heading", { name: "Registration" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Vehicle details")).not.toBeInTheDocument();
+  });
+
+  it("closes on Escape from an entry, where Mark resolved still is", async () => {
+    const { onClose, user } = alone("log:l2");
+    expect(screen.getByRole("button", { name: "Mark resolved" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});

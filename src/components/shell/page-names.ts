@@ -12,7 +12,9 @@ import type { Hue } from "@/components/parts/state";
    Kept for the browser tab (sessionStorage), as the open tabs are, so a tab
    left on a job keeps its name across a reload; a few dozen at most. */
 
-export type PageName = { label: string; hue?: Hue };
+/* A vehicle's page says "Hilux XQG 41B" and its glyph, the truck; a job's
+   page has its colour and keeps the folder. */
+export type PageName = { label: string; hue?: Hue; icon?: string };
 type Names = Readonly<Record<string, PageName>>;
 
 const KEY = "ht:names";
@@ -30,7 +32,12 @@ function load() {
     if (read && typeof read === "object" && !Array.isArray(read)) {
       const kept: Record<string, PageName> = {};
       for (const [path, n] of Object.entries(read as Record<string, PageName>)) {
-        if (typeof n?.label === "string") kept[path] = n.hue ? { label: n.label, hue: n.hue } : { label: n.label };
+        if (typeof n?.label === "string")
+          kept[path] = {
+            label: n.label,
+            ...(n.hue ? { hue: n.hue } : {}),
+            ...(typeof n.icon === "string" ? { icon: n.icon } : {}),
+          };
       }
       names = kept;
     }
@@ -46,7 +53,7 @@ export function namePage(href: string, name: PageName): void {
   load();
   const path = pathOf(href);
   const was = names[path];
-  if (was && was.label === name.label && was.hue === name.hue) return;
+  if (was && was.label === name.label && was.hue === name.hue && was.icon === name.icon) return;
   const rest = Object.entries(names).filter(([p]) => p !== path);
   names = Object.fromEntries([...rest.slice(Math.max(0, rest.length - (MAX - 1))), [path, name]]);
   try {

@@ -22,6 +22,13 @@ export const jobHref = (uuid: string, face?: string) =>
 export const jobPageHref = (uuid: string, section?: string) =>
   `/dashboard/jobs/${encodeURIComponent(uuid)}${section && section !== "overview" ? `?tab=${encodeURIComponent(section)}` : ""}`;
 
+/** A vehicle's own page (v2, "A vehicle's own page"), on the section named,
+    Overview when none is. The register's rows open it; the old card still
+    opens from the doors that name `/dashboard/assets?v=` (a staff card's
+    plate, Home's Renew, the calendar) until Team is rebuilt. */
+export const vehiclePageHref = (id: string, section?: string) =>
+  `/dashboard/vehicles/${encodeURIComponent(id)}${section && section !== "overview" ? `?tab=${encodeURIComponent(section)}` : ""}`;
+
 /** A client has no page of their own: the Workboard's search, run on their
     name, is every job, visit, project and photo that names them. */
 export const clientHref = (name: string) => `/dashboard/workboard?q=${encodeURIComponent(name)}`;

@@ -4,8 +4,9 @@ import { AssetsScreen, type Register } from "../assets-screen";
 import type { Vehicle } from "../logic";
 import type { VehicleLink } from "../vehicle-modal/derive";
 
+const mockPush = jest.fn();
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+  useRouter: () => ({ push: mockPush, refresh: jest.fn() }),
 }));
 jest.mock("@/lib/documents/upload-client", () => ({
   uploadFile: jest.fn(async () => ({ ok: false, error: "not in a test" })),
@@ -190,11 +191,26 @@ describe("the address", () => {
 });
 
 describe("the register's own doors still work beside a link", () => {
-  it("opens another vehicle from its row after a link's card is closed", async () => {
+  /* v2: a row opens the vehicle's own page, /dashboard/vehicles/<id>; the
+     card stays the landing for the doors that name `?v=` */
+  it("opens another vehicle's own page from its row after a link's card is closed", async () => {
+    mockPush.mockClear();
     render(assets(link("v1")));
     await userEvent.keyboard("{Escape}");
     await userEvent.click(screen.getByText("SPARE UTE"));
-    expect(within(card()!).getAllByText("SPARE UTE").length).toBeGreaterThan(0);
-    expect(card()).toHaveAccessibleName("SPARE UTE");
+    expect(mockPush).toHaveBeenCalledWith("/dashboard/vehicles/v2");
+    expect(card()).toBeNull();
+  });
+
+  it("opens the page from the row menu's View details too, and keeps Edit vehicle and Log service on the card", async () => {
+    mockPush.mockClear();
+    render(assets(null));
+    const row = screen.getByText("GOOD VAN").closest(".flrow") as HTMLElement;
+    await userEvent.click(within(row).getByRole("button", { name: "Actions" }));
+    await userEvent.click(within(row).getByRole("button", { name: /View details/ }));
+    expect(mockPush).toHaveBeenCalledWith("/dashboard/vehicles/v1");
+    await userEvent.click(within(row).getByRole("button", { name: "Actions" }));
+    await userEvent.click(within(row).getByRole("button", { name: /Log service/ }));
+    expect(heading("Log service")).toBeInTheDocument();
   });
 });

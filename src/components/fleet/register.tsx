@@ -31,6 +31,7 @@ import { VehicleModal, addScreen, logScreen, type Screen } from "./vehicle-modal
 import type { VehicleLink } from "./vehicle-modal/derive";
 import { VehicleForm } from "./vehicle-modal/vehicle-form";
 import { Plate } from "./plate";
+import { vehiclePageHref } from "@/lib/shell/links";
 
 /* Fleet register — the Manager/Owner view: whole fleet, assignment, service
    schedule & valuations (book + Tiff estimate). Mirrors the Team directory's
@@ -347,7 +348,9 @@ export function FleetRegister({
                 className={`dirrow flrow${isSold ? " off" : ""}`}
                 /* the row is where the pointer is, so its mark moves for the whole row */
                 data-tiff-hover=""
-                onClick={() => setModal({ t: "detail", id: v.id })}
+                /* a row opens the vehicle's own page (v2); the card still
+                   opens from the doors that name `?v=` */
+                onClick={() => router.push(vehiclePageHref(v.id))}
               >
                 <span className="dname">
                   <span className={`fl-av ${isSold ? "ok" : worstState(chips)}`}>
@@ -405,7 +408,7 @@ export function FleetRegister({
                           aria-label="How Tiff priced this"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setModal({ t: "detail", id: v.id });
+                            router.push(vehiclePageHref(v.id));
                           }}
                         >
                           <Icon name="info" size={13} />
@@ -426,8 +429,8 @@ export function FleetRegister({
                     <div className="dmenu open">
                       <button
                         onClick={() => {
-                          setModal({ t: "detail", id: v.id });
                           setOpenMenu(null);
+                          router.push(vehiclePageHref(v.id));
                         }}
                       >
                         <Icon name="arrowUR" size={15} />

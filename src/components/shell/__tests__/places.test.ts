@@ -77,4 +77,13 @@ describe("the sidebar's places (rules 5 and 7)", () => {
     expect(placeOn(board, "/dashboard/workboard")).toBe(true);
     expect(placeOn(jobs, "/dashboard/jobsite")).toBe(false);
   });
+
+  /* a vehicle is a page now (v2), and Assets, where its register is, says you're in it */
+  it("lights Assets on the register and on a vehicle's own page", () => {
+    const assets = STILL_TO_MOVE.find((p) => p.key === "assets")!;
+    expect(placeOn(assets, "/dashboard/assets")).toBe(true);
+    expect(placeOn(assets, "/dashboard/vehicles/v1")).toBe(true);
+    expect(placeOn(assets, "/dashboard/vehiclesx")).toBe(false);
+    expect(PLACES.some((p) => placeOn(p, "/dashboard/vehicles/v1"))).toBe(false);
+  });
 });

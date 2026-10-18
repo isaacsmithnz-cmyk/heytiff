@@ -12748,3 +12748,102 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .mk-jobhits .mk-jobhit { display:block; width:100%; min-height:32px; padding:4px 8px; border:0; border-radius:var(--r-button); background:none; text-align:left; font:inherit; font-size:14px; line-height:20px; color:var(--ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
 .mk-jobhits .mk-jobhit:hover { background:var(--hov); }
 .mk-jobhits .mk-jobhit:focus-visible { outline:none; box-shadow:var(--ring); }
+
+/* ===== V2: A VEHICLE'S PAGE (v2, "A vehicle's own page", 18 October; the
+   boards v2-board-vehicle-*; components/fleet/vehicle-page) =====
+   The head as a job's page has it (its photo, name and rego, one grey line
+   and its state as a word, Add and Actions, the section tabs), then the
+   sections: rows and tables on the white page under thin lines, Where it
+   stands in a column on the right, the kilometres as a line in ink. Rows
+   are the Row part and buttons the Button part; what is here is the page. */
+.fg .wrap.vp { padding:24px 32px 96px; display:flex; flex-direction:column; gap:24px; }
+.fg .vp-head { display:flex; flex-direction:column; gap:16px; }
+.fg .vp-top { display:flex; align-items:center; gap:16px; min-width:0; }
+.fg .vp-photo { flex:none; display:flex; align-items:center; justify-content:center; width:64px; height:64px; overflow:hidden; border:1px solid var(--line); border-radius:var(--r-card); background:var(--soft); }
+.fg .vp-photo img { width:48px; height:48px; object-fit:contain; }
+.fg .vp-photo.vp-photo--own img { width:100%; height:100%; object-fit:cover; }
+.fg .vp-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.fg .vp-name { margin:0; min-width:0; font-size:24px; font-weight:600; line-height:32px; color:var(--ink); }
+.fg .vp-line { display:flex; align-items:center; gap:8px; min-width:0; margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .vp-facts-line { flex:0 1 auto; }
+.fg .vp-stage { flex:none; font-weight:500; }
+.fg .vp-acts { flex:none; display:flex; align-items:center; gap:8px; align-self:flex-start; }
+.fg .vp-chev { display:inline-flex; margin-left:4px; vertical-align:middle; }
+.fg .vp-err { margin:0; font-size:14px; line-height:20px; font-weight:500; color:var(--red-w); }
+.fg .vp-body { min-width:0; }
+/* a section and its column; Where it stands sits on the right at 1440 */
+.fg .vp-two { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:48px; align-items:start; }
+.fg .vp-col { display:flex; flex-direction:column; gap:24px; min-width:0; }
+.fg .vp-sec { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.fg .vp-sechead { display:flex; align-items:center; gap:12px; min-height:36px; }
+.fg .vp-sechead-acts { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.fg .vp-h { display:flex; align-items:baseline; gap:8px; margin:0; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .vp-h-n,
+.fg .vp-h-sub { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .vp-none,
+.fg .vp-foot { margin:0; font-size:13px; line-height:18px; color:var(--q); }
+.fg .vp-notes { margin:0; font-size:14px; line-height:20px; color:var(--ink); white-space:pre-line; }
+.fg .vp-quiet { color:var(--q); }
+.fg .vp-link { font-size:13px; line-height:18px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; }
+/* Latest: a fixed column for the kind, as the board draws it */
+.fg .vp-lead { display:inline-block; width:104px; font-size:14px; line-height:20px; font-weight:400; color:var(--q); }
+.fg .vp .pt-row { padding-block:12px; }
+/* Details, the money's facts: label and value, two pairs a line */
+.fg .vp-facts { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px 32px; margin:0; padding-top:8px; border-top:1px solid var(--line); }
+.fg .vp-fact { display:grid; grid-template-columns:160px minmax(0,1fr); gap:12px; align-items:baseline; }
+.fg .vp-fact dt { font-size:14px; line-height:20px; color:var(--q); }
+.fg .vp-fact dd { margin:0; min-width:0; font-size:14px; line-height:20px; color:var(--ink); overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+/* Where it stands */
+.fg .vp-st { margin:0; }
+.fg .vp-st-row { display:grid; grid-template-columns:104px minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+.fg .vp-st-row:last-child { border-bottom:1px solid var(--line); }
+.fg .vp-st-row dt { font-size:14px; line-height:20px; color:var(--q); }
+.fg .vp-st-row dd { margin:0; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fg .vp-st-fig { font-size:14px; line-height:20px; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .vp-st-line { display:flex; align-items:center; gap:4px; font-size:13px; line-height:18px; color:var(--q); }
+.fg .vp-st-who { display:inline-flex; align-items:center; gap:8px; font-size:14px; line-height:20px; color:var(--ink); }
+.fg .vp-st-act { position:relative; }
+.fg .vp-info { display:inline-flex; color:var(--q); border-radius:50%; cursor:help; }
+.fg .vp-info:focus-visible { outline:none; box-shadow:var(--ring); }
+/* Service: the next one, then the history */
+.fg .vp-next { display:flex; align-items:center; gap:24px; padding-bottom:24px; border-bottom:1px solid var(--line); }
+.fg .vp-next-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.fg .vp-next-label { margin:0; font-size:13px; line-height:18px; font-weight:500; color:var(--q); }
+.fg .vp-next-h { margin:0; font-size:20px; line-height:28px; font-weight:600; color:var(--ink); }
+.fg .vp-next-line { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.fg .vp-next-acts { flex:none; display:flex; align-items:center; gap:8px; }
+/* the tables: column heads in captions, rows under thin lines, a row you
+   can open is a button whose box covers the row, as the Row part does */
+.fg .vp-table { width:100%; border-collapse:collapse; table-layout:auto; font-size:14px; line-height:20px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .vp-table th { padding:8px 12px; text-align:left; font-size:12px; line-height:16px; font-weight:500; color:var(--q); border-bottom:1px solid var(--line); }
+.fg .vp-table td { padding:12px; vertical-align:top; border-bottom:1px solid var(--line); }
+.fg .vp-table .vp-num { text-align:right; }
+.fg .vp-tr { position:relative; }
+.fg .vp-tr.vp-tr--open { transition:background-color var(--t-fast) var(--ease); }
+.fg .vp-tr.vp-tr--open:hover { background-color:var(--hov); }
+.fg .vp-table .vp-hit { margin:0; padding:0; border:0; background:none; font:inherit; color:inherit; text-align:left; cursor:pointer; }
+.fg .vp-table .vp-hit::after { content:""; position:absolute; inset:0; }
+.fg .vp-table .vp-hit:focus-visible { outline:none; }
+.fg .vp-table .vp-hit:focus-visible::after { box-shadow:var(--ring); }
+.fg .vp-table .vp-raise { position:relative; z-index:var(--z-raised); }
+.fg .vp-cell-name { display:block; font-weight:600; }
+.fg .vp-cell-line { display:block; font-size:13px; line-height:18px; color:var(--q); }
+/* Kilometres: one big figure, the line, the readings */
+.fg .vp-bigline { display:flex; align-items:baseline; gap:12px; margin:0; min-width:0; }
+.fg .vp-big { font-size:32px; line-height:40px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .vp-big-sub { font-size:14px; line-height:20px; color:var(--q); }
+.fg .vp-km { display:block; width:100%; height:auto; }
+.fg .vp-km-grid { stroke:var(--line); stroke-width:1; }
+.fg .vp-km-due { stroke:var(--q); stroke-width:1; stroke-dasharray:4 4; }
+.fg .vp-km-line { fill:none; stroke:var(--ink); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+.fg .vp-km-dot { fill:var(--ink); }
+.fg .vp-km-tick { fill:var(--q); font-size:12px; font-family:var(--font); }
+.fg .vp-km-last { fill:var(--ink); font-size:13px; font-weight:600; font-family:var(--font); }
+@media (max-width:1100px) {
+  .fg .vp-two { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:900px) {
+  .fg .vp-top { flex-wrap:wrap; }
+  .fg .vp-acts { flex-wrap:wrap; }
+  .fg .vp-facts { grid-template-columns:minmax(0,1fr); }
+}

@@ -53,7 +53,8 @@ export const STILL_TO_MOVE: readonly Place[] = [
   { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", under: [], capability: "workboard" },
   { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", under: [], capability: "toolbox" },
   { key: "timepay", label: "Time & Pay", icon: "clock", href: "/dashboard/timepay", under: [], capability: "timepay_all" },
-  { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", under: [], capability: "assets_all" },
+  /* a vehicle's own page lights Assets, where its register is, until Team takes the fleet in */
+  { key: "assets", label: "Assets", icon: "truck", href: "/dashboard/assets", under: ["/dashboard/vehicles"], capability: "assets_all" },
 ];
 
 /** Your name's menu (rule 7), in its order, then Sign out. */

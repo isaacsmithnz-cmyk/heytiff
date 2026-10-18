@@ -61,6 +61,7 @@ export function VehicleModal({
   warnDays,
   fleet,
   initialScreen = "main",
+  single = false,
   onClose,
   onEdit,
   onCorrect,
@@ -78,6 +79,10 @@ export function VehicleModal({
   warnDays: number;
   fleet: FleetActions;
   initialScreen?: Screen;
+  /** One screen and no card under it: the vehicle's own page (v2) opens
+      today's screens one at a time, so Back, Escape and every save close
+      the dialog rather than stepping down to the card's main screen. */
+  single?: boolean;
   onClose: () => void;
   onEdit: () => void;
   onCorrect: (log: VehicleLog) => void;
@@ -95,6 +100,7 @@ export function VehicleModal({
     setScreen(next);
   };
   const back = () => {
+    if (single) return onClose();
     setScreen(from);
     setFrom("main");
   };
@@ -109,7 +115,7 @@ export function VehicleModal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (scanInProgress()) return;
-      if (screen === "main") onClose();
+      if (screen === "main" || single) onClose();
       else {
         setScreen(from);
         setFrom("main");
@@ -117,7 +123,7 @@ export function VehicleModal({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [screen, from, onClose]);
+  }, [screen, from, onClose, single]);
 
   const setPhoto = async (file: File) => {
     const up = await uploadFile(file, "vehicle_photo").catch(() => null);

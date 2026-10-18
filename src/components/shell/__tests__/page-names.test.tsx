@@ -32,6 +32,14 @@ describe("a page's own name", () => {
     expect(tabName("/dashboard/jobs/j-2", names)).toMatchObject({ label: "Job", icon: "folder" });
     expect(tabName("/dashboard/team/s-1", names).label).toBe("Team");
   });
+
+  it("wears the glyph a page names, the truck on a vehicle's, and keeps it across a reload", () => {
+    namePage("/dashboard/vehicles/v1?tab=service", { label: "Hilux XQG 41B", icon: "truck" });
+    expect(tabName("/dashboard/vehicles/v1", pageNamesSnapshot())).toEqual({ label: "Hilux XQG 41B", icon: "truck" });
+    expect(JSON.parse(window.sessionStorage.getItem("ht:names")!)["/dashboard/vehicles/v1"]).toEqual({ label: "Hilux XQG 41B", icon: "truck" });
+    /* before it has said its name, a Vehicle with the truck */
+    expect(tabName("/dashboard/vehicles/v2", {})).toMatchObject({ label: "Vehicle", icon: "truck" });
+  });
 });
 
 describe("the header's tab for a job's page", () => {

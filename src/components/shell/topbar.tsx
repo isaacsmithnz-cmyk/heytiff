@@ -19,6 +19,8 @@ import { Dot, type Hue } from "@/components/parts/state";
 const NAMED = [
   /* a job's page before it has said its name */
   { href: "/dashboard/jobs", label: "Job", icon: "folder" },
+  /* a vehicle's page before it has said its name */
+  { href: "/dashboard/vehicles", label: "Vehicle", icon: "truck" },
   ...PLACES.map((p) => ({ href: p.href, label: p.label, icon: p.icon })),
   ...STILL_TO_MOVE.map((p) => ({ href: p.href, label: p.label, icon: p.icon })),
   ...YOURS.map((p) => ({ href: p.href, label: p.label, icon: p.icon })),
@@ -29,7 +31,7 @@ export function tabName(
   names: Readonly<Record<string, PageName>> = {},
 ): { label: string; icon: string; hue?: Hue } {
   const own = pageName(names, href);
-  if (own) return { label: own.label, icon: "folder", ...(own.hue ? { hue: own.hue } : {}) };
+  if (own) return { label: own.label, icon: own.icon ?? "folder", ...(own.hue ? { hue: own.hue } : {}) };
   const path = href.split(/[?#]/)[0];
   let best: { href: string; label: string; icon: string } | null = null;
   for (const n of NAMED) {

@@ -12615,6 +12615,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 }
 @media print {
   .fg .tm2-p .jumpb, .fg .tm2-phead .pt-btn { display:none; }
+}
 
 /* ===== V2: THE LIBRARY (v2, step 5; no board: built from docs/design.md and
    the v2 screens already built; components/tiff/library.tsx) =====

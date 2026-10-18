@@ -63,7 +63,8 @@ it("draws a day away as a white card, and the open day as a fill", () => {
 
 /* One big figure per screen (rule 14): what the week comes to. */
 it("has one 32 on the page, the week's payroll hours", () => {
-  const ts2 = CODE.slice(CODE.indexOf(".fg .wrap.ts2 {"));
+  /* only the timesheet's own rules: every `.ts2-` rule, wherever its block sits */
+  const ts2 = (CODE.match(/[^{}]*\.ts2[^{}]*\{[^}]*\}/g) ?? []).join("\n");
   expect(ts2.match(/font-size:32px/g)).toHaveLength(1);
   expect(rule(".fg .ts2-big-v")).toMatch(/font-size:32px/);
 });

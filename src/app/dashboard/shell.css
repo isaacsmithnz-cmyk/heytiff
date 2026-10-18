@@ -12866,8 +12866,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    right, a group under thin lines (rule 35). The parts draw the tabs, the
    fields, the dots, the state words, the discs and the menu; these rules
    only lay them out. Desktop at 1440 is the target. */
-.fg .dc2 { display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); color:var(--ink); }
-.fg .dc2-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.fg .dc2 { display:flex; flex-direction:column; gap:16px; min-width:0; box-sizing:border-box; padding:24px 32px 48px; font-family:var(--font); color:var(--ink); }
+.fg .dc2-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px 24px; min-width:0; }
 .fg .dc2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .fg .dc2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
 .fg .dc2-made { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }

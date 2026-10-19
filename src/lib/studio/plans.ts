@@ -32,6 +32,9 @@ export interface PageImage {
       raster's pixels: the plan's own room labels, which the reading is
       checked against (reading.ts, labelFlags). None for a picture. */
   words?: { text: string; at: { x: number; y: number } }[];
+  /** drawn small, for choosing from: the PDF it's a page of, to draw it in
+      full once it's chosen (pdfPagesAt). Never stored. */
+  previewOf?: File;
 }
 
 /** Number every candidate page "Page 1", "Page 2"… by combined order, so a
@@ -651,45 +654,91 @@ async function wordsOf(page: TextPage, viewport: TextViewport): Promise<{ text: 
   return out;
 }
 
-export async function pdfToPages(
-  file: File,
-  onProgress?: (done: number, total: number) => void
-): Promise<PageImage[]> {
+type PdfPage = Awaited<ReturnType<Awaited<ReturnType<typeof import("pdfjs-dist")["getDocument"]>["promise"]>["getPage"]>>;
+
+async function openPdf(file: File) {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.min.mjs",
     import.meta.url
   ).toString();
+  return pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+}
 
-  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
-  const pages: PageImage[] = [];
-  for (let n = 1; n <= doc.numPages; n++) {
-    const page = await doc.getPage(n);
-    const base = page.getViewport({ scale: 1 });
-    const scale = Math.min(Math.max(MAX_RENDER_WIDTH / base.width, 1), 3);
-    const viewport = page.getViewport({ scale });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    const ctx = canvas.getContext("2d")!;
-    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-    const blob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("render failed"))), "image/png")
-    );
-    const trim = trimOf(ctx, canvas.width, canvas.height);
-    const words = await wordsOf(page, viewport);
-    pages.push({
+/* A preview is drawn this wide: enough to tell a floor plan from an
+   elevation in the page picker, and about thirty times quicker than a
+   full page. */
+const PREVIEW_WIDTH = 480;
+
+async function renderPage(page: PdfPage, n: number, preview: File | null): Promise<PageImage> {
+  const base = page.getViewport({ scale: 1 });
+  const scale = preview
+    ? PREVIEW_WIDTH / base.width
+    : Math.min(Math.max(MAX_RENDER_WIDTH / base.width, 1), 3);
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(viewport.width);
+  canvas.height = Math.round(viewport.height);
+  const ctx = canvas.getContext("2d")!;
+  await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+  const type = preview ? "image/jpeg" : "image/png";
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("render failed"))), type, 0.85)
+  );
+  if (preview) {
+    return {
       pageNumber: n,
-      label: `Page ${n}`, // real floor names are set in the naming step
+      label: `Page ${n}`,
       blob,
-      ext: "png",
+      ext: "jpeg",
       thumbUrl: URL.createObjectURL(blob),
       width: canvas.width,
       height: canvas.height,
-      ...(trim ? { trim } : {}),
-      ...(words.length ? { words } : {}),
-    });
+      previewOf: preview,
+    };
+  }
+  const trim = trimOf(ctx, canvas.width, canvas.height);
+  const words = await wordsOf(page, viewport);
+  return {
+    pageNumber: n,
+    label: `Page ${n}`, // real floor names are set in the naming step
+    blob,
+    ext: "png",
+    thumbUrl: URL.createObjectURL(blob),
+    width: canvas.width,
+    height: canvas.height,
+    ...(trim ? { trim } : {}),
+    ...(words.length ? { words } : {}),
+  };
+}
+
+/** Every page of a PDF. `preview` draws them small and quick, for choosing
+    from; the ones chosen are then drawn in full with `pdfPagesAt`. */
+export async function pdfToPages(
+  file: File,
+  onProgress?: (done: number, total: number) => void,
+  opts: { preview?: boolean } = {}
+): Promise<PageImage[]> {
+  const doc = await openPdf(file);
+  const pages: PageImage[] = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    pages.push(await renderPage(await doc.getPage(n), n, opts.preview ? file : null));
     onProgress?.(n, doc.numPages);
+  }
+  return pages;
+}
+
+/** Some of a PDF's pages, by number, drawn in full. */
+export async function pdfPagesAt(
+  file: File,
+  numbers: number[],
+  onProgress?: (done: number, total: number) => void
+): Promise<PageImage[]> {
+  const doc = await openPdf(file);
+  const pages: PageImage[] = [];
+  for (const n of numbers) {
+    pages.push(await renderPage(await doc.getPage(n), n, null));
+    onProgress?.(pages.length, numbers.length);
   }
   return pages;
 }

@@ -43,7 +43,7 @@ import {
   wordsFrom,
   type FloorDraft,
 } from "@/lib/studio/new-design";
-import { defaultFloorName, imageToPage, labelPagesSequentially, pdfToPages, type PageImage, type PlanImages } from "@/lib/studio/plans";
+import { defaultFloorName, imageToPage, labelPagesSequentially, pdfPagesAt, pdfToPages, type PageImage, type PlanImages } from "@/lib/studio/plans";
 import type { TrimRect } from "@/lib/studio/plan-trim";
 import { JobSearchField, type JobSearch } from "./job-search";
 
@@ -60,7 +60,7 @@ async function readFiles(files: File[], onProgress: (done: number, total: number
   const sources: Source[] = [];
   for (const f of files) {
     if (f.type === "application/pdf") {
-      pages.push(...(await pdfToPages(f, onProgress)));
+      pages.push(...(await pdfToPages(f, onProgress, { preview: true })));
       sources.push({ kind: "pdf", file: f });
     } else if (f.type.startsWith("image/")) {
       pages.push(await imageToPage(f));
@@ -69,6 +69,21 @@ async function readFiles(files: File[], onProgress: (done: number, total: number
   }
   labelPagesSequentially(pages);
   return { pages, sources };
+}
+
+/* The chosen pages drawn in full, in place of their previews. Out here for
+   the same reason: a loop. */
+async function fullPages(pages: PageImage[], chosen: number[], onProgress: (done: number, total: number) => void): Promise<PageImage[]> {
+  const out = [...pages];
+  const todo = chosen.filter((i) => out[i].previewOf);
+  let done = 0;
+  for (const i of todo) {
+    onProgress(done, todo.length);
+    const [full] = await pdfPagesAt(out[i].previewOf!, [out[i].pageNumber ?? 1]);
+    out[i] = { ...full, label: out[i].label };
+    done = done + 1;
+  }
+  return out;
 }
 
 /* Stores the files and the pages the floors use, then makes the floors.
@@ -98,6 +113,16 @@ async function storePlans(
   const words = wordsFrom(pages, drafts);
   const planImport = importFrom(stored, drafts, refs);
   return { floors: floorsFrom(drafts, pages, refs), planImport: Object.keys(words).length ? { ...planImport, words } : planImport };
+}
+
+/* Keep a drag's pointer while it leaves the page. Out here: a pointer the
+   browser no longer knows (a pen lifted, a scripted event) throws. */
+function capture(el: Element, id: number) {
+  try {
+    el.setPointerCapture(id);
+  } catch {
+    /* the drag still works while it stays over the page */
+  }
 }
 
 const failed = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
@@ -140,6 +165,23 @@ export function NewDesign({
   }, [pages]);
   useEffect(() => () => pagesRef.current.forEach((p) => p.blob && URL.revokeObjectURL(p.thumbUrl)), []);
 
+  /* a page opened large is drawn in full, so its title block can be read;
+     the preview stands in until it lands */
+  const peeking = stage === "peek" ? pages[peek] : undefined;
+  const peekFile = peeking?.previewOf;
+  useEffect(() => {
+    if (!peekFile) return;
+    let live = true;
+    void fullPages(pagesRef.current, [peek], () => {})
+      .then((full) => {
+        if (live) setPages((cur) => cur.map((p, i) => (i === peek && p.previewOf ? full[peek] : p)));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [peek, peekFile]);
+
   const job = picked ? prefillFromJob(picked) : undefined;
   const designName = name.trim() || "Untitled design";
 
@@ -179,6 +221,10 @@ export function NewDesign({
       setPages(all);
       setSources((s) => [...s, ...read.sources]);
       const fresh = read.pages.map((_, k) => base + k);
+      if (!(await ready(fresh, all))) {
+        setStage("floors");
+        return;
+      }
       setTicked((t) => [...t, ...fresh]);
       setDrafts((ds) => {
         const top = nextLevel(ds.map((d) => d.level));
@@ -195,15 +241,37 @@ export function NewDesign({
     } else {
       const all = read.pages.map((_, i) => i);
       setTicked(all);
+      if (!(await ready(all, read.pages))) {
+        setStage("start");
+        return;
+      }
       setDrafts(draftsFor(all));
       setStage("floors");
     }
   };
 
+  /* the chosen pages drawn in full before the floors (a crop needs every pixel) */
+  const ready = async (chosen: number[], all: PageImage[]): Promise<PageImage[] | null> => {
+    if (!chosen.some((i) => all[i].previewOf)) return all;
+    setBusy({ word: "Getting the pages ready", done: 0, total: chosen.length });
+    let full: PageImage[];
+    try {
+      full = await fullPages(all, chosen, (done, total) => setBusy({ word: "Getting the pages ready", done, total }));
+    } catch (e) {
+      setBusy(null);
+      setError(failed(e));
+      return null;
+    }
+    setBusy(null);
+    setPages(full);
+    return full;
+  };
+
   const toggle = (i: number) => setTicked((t) => (t.includes(i) ? t.filter((x) => x !== i) : [...t, i].sort((a, b) => a - b)));
 
   /* Use these pages: floors for the ticked pages, keeping what's set on a page already there */
-  const usePages = () => {
+  const takePages = async () => {
+    if (!(await ready(ticked, pages))) return;
     setDrafts((ds) => {
       const kept = ds.filter((d) => ticked.includes(d.page));
       const have = new Set(kept.map((d) => d.page));
@@ -343,9 +411,11 @@ export function NewDesign({
         dismissable={false}
         foot={
           <>
-            <span className="ds2-nd-foot-fact">{pagesWord(ticked)}</span>
+            <span className="ds2-nd-foot-fact" role="status">
+              {busy ? `${busy.word}, ${Math.min(busy.done + 1, busy.total)} of ${busy.total}` : pagesWord(ticked)}
+            </span>
             <Button onClick={() => setStage("start")}>Back</Button>
-            <Button kind="main" disabled={ticked.length === 0} onClick={usePages}>
+            <Button kind="main" disabled={ticked.length === 0 || !!busy} onClick={() => void takePages()}>
               {ticked.length === 1 ? "Use 1 page" : `Use ${ticked.length} pages`}
             </Button>
           </>
@@ -403,7 +473,7 @@ export function NewDesign({
             <Button icon={on ? "check" : undefined} onClick={() => toggle(peek)}>
               {on ? "Chosen" : "Choose this page"}
             </Button>
-            <Button kind="main" disabled={ticked.length === 0} onClick={usePages}>
+            <Button kind="main" disabled={ticked.length === 0} onClick={() => void takePages()}>
               {ticked.length === 1 ? "Use 1 page" : `Use ${ticked.length} pages`}
             </Button>
           </>
@@ -572,6 +642,8 @@ function Cropper({
   const [from, setFrom] = useState<{ x: number; y: number } | null>(null);
   const [to, setTo] = useState<{ x: number; y: number } | null>(null);
   const [drawing, setDrawing] = useState(false);
+  /* the drag in hand, read by the move before the state above has landed */
+  const dragging = useRef(false);
   const svg = useRef<SVGSVGElement>(null);
 
   /* where the pointer is, in the page's own pixels */
@@ -619,16 +691,21 @@ function Cropper({
             role="img"
             aria-label={`Page ${index + 1}: drag a box round a plan`}
             onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId);
+              capture(e.currentTarget, e.pointerId);
               const p = at(e);
               setFrom(p);
               setTo(p);
+              dragging.current = true;
               setDrawing(true);
             }}
             onPointerMove={(e) => {
-              if (drawing) setTo(at(e));
+              if (dragging.current) setTo(at(e));
             }}
-            onPointerUp={() => setDrawing(false)}
+            onPointerUp={(e) => {
+              if (dragging.current) setTo(at(e));
+              dragging.current = false;
+              setDrawing(false);
+            }}
           >
             <image href={page.thumbUrl} x={0} y={0} width={page.width} height={page.height} />
             {pieces.map((p, k) => (

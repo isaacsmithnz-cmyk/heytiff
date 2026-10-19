@@ -25,7 +25,7 @@ describe("recent designs are capped at twelve", () => {
     const local = await seed(14);
     render(<Studio store={local} />);
     const list = await screen.findByText("Recent designs");
-    const card = list.closest(".ds-recent") as HTMLElement;
+    const card = list.closest(".ds2-list") as HTMLElement;
     const names = await within(card).findAllByText(/^Design \d+$/);
     expect(names.map((n) => n.textContent)).toEqual(["Design 14", "Design 13", "Design 12", "Design 11", "Design 10", "Design 9", "Design 8", "Design 7", "Design 6", "Design 5", "Design 4", "Design 3"]);
     expect(within(card).getByRole("button", { name: "Show 2 more designs" })).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe("recent designs are capped at twelve", () => {
     const user = userEvent.setup();
     const local = await seed(14);
     render(<Studio store={local} />);
-    const card = (await screen.findByText("Recent designs")).closest(".ds-recent") as HTMLElement;
+    const card = (await screen.findByText("Recent designs")).closest(".ds2-list") as HTMLElement;
     expect(await within(card).findAllByText(/^Design \d+$/)).toHaveLength(12);
 
     const more = within(card).getByRole("button", { name: "Show 2 more designs" });
@@ -57,7 +57,7 @@ describe("recent designs are capped at twelve", () => {
   it("one beyond the twelve is one design", async () => {
     const local = await seed(13);
     render(<Studio store={local} />);
-    const card = (await screen.findByText("Recent designs")).closest(".ds-recent") as HTMLElement;
+    const card = (await screen.findByText("Recent designs")).closest(".ds2-list") as HTMLElement;
     await within(card).findAllByText(/^Design \d+$/);
     expect(within(card).getByRole("button", { name: "Show 1 more design" })).toBeInTheDocument();
   });
@@ -65,7 +65,7 @@ describe("recent designs are capped at twelve", () => {
   it("says nothing extra when there are twelve or fewer", async () => {
     const local = await seed(12);
     render(<Studio store={local} />);
-    const card = (await screen.findByText("Recent designs")).closest(".ds-recent") as HTMLElement;
+    const card = (await screen.findByText("Recent designs")).closest(".ds2-list") as HTMLElement;
     expect(await within(card).findAllByText(/^Design \d+$/)).toHaveLength(12);
     expect(within(card).queryByText(/more design/)).not.toBeInTheDocument();
   });
@@ -74,7 +74,7 @@ describe("recent designs are capped at twelve", () => {
     const user = userEvent.setup();
     const local = await seed(14);
     render(<Studio store={local} />);
-    const card = (await screen.findByText("Recent designs")).closest(".ds-recent") as HTMLElement;
+    const card = (await screen.findByText("Recent designs")).closest(".ds2-list") as HTMLElement;
     await within(card).findAllByText(/^Design \d+$/);
     await user.type(within(card).getByRole("textbox", { name: "Search designs" }), "Design 1");
     expect(within(card).getByText("Design 1")).toBeInTheDocument();

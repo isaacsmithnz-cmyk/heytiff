@@ -743,7 +743,10 @@ export function Studio({
                 await getStore().save(d);
                 return d;
               }, openDesign);
-              void readPlans(d.id);
+              /* Tiff reads the plans once the Rooms page can show what she
+                 read; until then a read is paid for and never seen (Isaac,
+                 20 October: off for the launch). A test hands its own reader. */
+              if (planReader || process.env.NEXT_PUBLIC_STUDIO_READING === "1") void readPlans(d.id);
             }}
             onOpen={(id) =>
               throughSwap(

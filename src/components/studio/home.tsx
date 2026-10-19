@@ -186,7 +186,7 @@ export function DesignHome({
       </header>
 
       <div className="ds2-body">
-        <section className="ds2-list ds-recent" aria-labelledby="ds2-list-h">
+        <section className="ds2-list" aria-labelledby="ds2-list-h">
           <h2 id="ds2-list-h" className="ds2-sr">
             Recent designs
           </h2>

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MyTimesheet } from "../my-timesheet";
 import type { PayPeriod } from "../timepay";
@@ -136,6 +136,13 @@ const panel = () => screen.getByRole("tabpanel");
 const field = (which: "Started" | "Finished" | "Start" | "Finish", scope: HTMLElement = panel()) =>
   within(scope).getByRole("combobox", { name: which });
 /** The break, the one number a day can be typed with. */
+/** Press Add this day and let its next frame run: the card moves the cursor to
+    Started one animation frame later, and under a loaded test run that frame
+    could land in the middle of typing into another field. */
+async function addThisDay(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
+  await act(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
+}
 const breakField = () => within(panel()).getByRole("spinbutton", { name: "Unpaid break, minutes" });
 const hours = (container: HTMLElement) => container.querySelector(".ts2-hours")?.textContent ?? "";
 /** The line under the card's head that says where the saved day came from. */
@@ -367,7 +374,7 @@ describe("the week is ONE row per day", () => {
     expect(screen.queryByRole("button", { name: "Add Saturday" })).toBeNull();
     await user.click(tab(/Sat 4 Jul/));
     expect(within(panel()).getByRole("heading", { name: "Saturday 4 July" })).toBeInTheDocument();
-    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
+    await addThisDay(user);
     expect(field("Started")).toBeInTheDocument();
     expect(field("Finished")).toBeInTheDocument();
   });
@@ -513,7 +520,7 @@ describe("a normal week takes no input", () => {
     expect(screen.queryByText(/Say what this day was/)).toBeNull();
     expect(within(panel()).queryByRole("combobox", { name: "Started" })).toBeNull();
 
-    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
+    await addThisDay(user);
     expect(screen.getByText("Save day").closest("button")).toBeEnabled();
   });
 
@@ -737,7 +744,7 @@ describe("a casual", () => {
     const user = userEvent.setup();
     const { container } = renderSheet(CASUAL);
     await user.click(tab(/Tue 30 Jun/));
-    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
+    await addThisDay(user);
     await spin(user, "Finished", "Hour", "11");
     await spin(user, "Finished", "AM/PM", "AM");
     expect(container.querySelector(".ts2-short")).toBeNull();
@@ -869,7 +876,7 @@ describe("the break", () => {
     const user = userEvent.setup();
     const { container } = renderSheet({ settings: withBreak(30, false) });
     await user.click(tab(/Sat 4 Jul/));
-    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
+    await addThisDay(user);
     expect(breakField()).toHaveValue(30);
     expect(hours(container)).toBe("7.5h");
     await user.click(screen.getByText("Save day"));
@@ -880,7 +887,7 @@ describe("the break", () => {
     const user = userEvent.setup();
     const { container } = renderSheet({ settings: withBreak(30, false) });
     await user.click(tab(/Sat 4 Jul/));
-    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
+    await addThisDay(user);
     await user.clear(breakField());
     await user.type(breakField(), "20");
     expect(breakField()).toHaveValue(20);

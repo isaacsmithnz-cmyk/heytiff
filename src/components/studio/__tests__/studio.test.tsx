@@ -20,12 +20,11 @@ const localStudio = () => (
 async function newDesign(
   user: ReturnType<typeof userEvent.setup>,
   name: string,
-  mode: "Blank canvas" | "Upload floor plans"
+  _mode: "Blank canvas"
 ) {
   await user.click(await screen.findByText("New design"));
   await user.type(screen.getByPlaceholderText(/Design name/), name);
-  await user.click(screen.getByRole("button", { name: /Continue/ }));
-  await user.click(screen.getByText(mode));
+  await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
 }
 
 /* the top-left studio menu: open it, then pick an item */
@@ -95,27 +94,26 @@ describe("Design Studio shell", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("the new-design wizard names first, then reveals the mode choice", async () => {
+  it("New design is one dialog: the name, the plans dropped in, or a blank canvas", async () => {
     const user = userEvent.setup();
     render(localStudio());
 
-    await user.click(await screen.findByText("New design"));
-    // step 1: naming — mode cards are NOT shown yet, Continue is gated on a name
-    expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
-    expect(screen.queryByText("Blank canvas")).toBeNull();
-    expect(screen.getByRole("button", { name: /Continue/ })).toBeDisabled();
+    await user.click(await screen.findByRole("button", { name: "New design" }));
+    const dialog = screen.getByRole("dialog", { name: "New design" });
+    expect(within(dialog).getByText("Drop the plans")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Choose files" })).toBeInTheDocument();
+    await user.type(within(dialog).getByPlaceholderText(/Design name/), "Farran St");
+    await user.click(within(dialog).getByRole("button", { name: "Start with a blank canvas" }));
+    expect(await screen.findByLabelText("Design name")).toHaveValue("Farran St");
+  });
 
-    await user.type(screen.getByPlaceholderText(/Design name/), "Farran St");
-    expect(screen.getByRole("button", { name: /Continue/ })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-
-    // step 2: the mode choice, with the name carried through
-    expect(screen.getByText("Step 2 of 2")).toBeInTheDocument();
-    expect(screen.getByText("Blank canvas")).toBeInTheDocument();
-    expect(screen.getByText("Farran St")).toBeInTheDocument();
-    // back returns to naming with the name intact
-    await user.click(screen.getByRole("button", { name: /Back/ }));
-    expect(screen.getByPlaceholderText(/Design name/)).toHaveValue("Farran St");
+  it("Cancel closes New design and leaves the list as it was", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await user.click(await screen.findByRole("button", { name: "New design" }));
+    await user.click(within(screen.getByRole("dialog", { name: "New design" })).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(await screen.findByText("No designs yet")).toBeInTheDocument();
   });
 
   it("creates a blank-canvas design, autosaves it, and steps through stages", async () => {
@@ -179,11 +177,10 @@ describe("Design Studio shell", () => {
     await user.click(pill);
     const crop = screen.getByRole("button", { name: /Crop/ });
     const move = screen.getByRole("button", { name: /Move plans/ });
-    const split = screen.getByRole("button", { name: /Split to new floor/ });
+    // a page with several plans is cropped before the canvas now (19 October), so the canvas has no Split
+    expect(screen.queryByRole("button", { name: /Split to new floor/ })).toBeNull();
     expect(crop).toBeDisabled();
     expect(move).toBeDisabled();
-    expect(split).toBeDisabled();
-    expect(split.textContent).toContain("No plan");
     // the reason sits in the row, not only in a tooltip
     expect(crop.textContent).toContain("No plan");
     expect(move.textContent).toContain("No plan");
@@ -266,7 +263,7 @@ describe("Design Studio shell", () => {
     // fresh mount = page reload; the design must be in recents and reopenable
     render(localStudio());
     const card = await screen.findByText("Recovery job");
-    await user.click(card.closest(".ds-rcard") as HTMLElement);
+    await user.click(card);
     // findBy*: reopening runs behind the veil, so the editor isn't sync
     expect(await screen.findByLabelText("Design name")).toHaveValue(
       "Recovery job"
@@ -302,18 +299,16 @@ describe("Design Studio shell", () => {
 
     // Open → the home/recents screen, hero CTA idle
     await menuPick(user, "Open");
-    expect(await screen.findByText("New design")).toBeInTheDocument();
-    expect(screen.queryByText("Step 1 of 2")).toBeNull();
+    expect(await screen.findByRole("button", { name: "New design" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "New design" })).toBeNull();
 
-    // back into the design, then New → home with the wizard already open
-    await user.click(
-      (await screen.findByText("Menu flows")).closest(".ds-rcard") as HTMLElement
-    );
+    // back into the design, then New → home with the dialog already open
+    await user.click(await screen.findByText("Menu flows"));
     expect(await screen.findByLabelText("Design name")).toHaveValue(
       "Menu flows"
     );
     await menuPick(user, "New");
-    expect(await screen.findByText("Step 1 of 2")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "New design" })).toBeInTheDocument();
   });
 
   it("Summary's Share downloads the design file (it left the menu)", async () => {

@@ -17,7 +17,8 @@ import { useOverlay } from "@/components/overlay/use-overlay";
    The title is `heading`, not `title`: a `title=` attribute is a tooltip,
    and the ratchets count every one written. */
 
-export type DialogWidth = 400 | 560 | 720;
+/** "wide" is a lightbox: most of the window, for looking at pages. */
+export type DialogWidth = 400 | 560 | 720 | 960 | "wide";
 
 export type DialogProps = {
   /** Mounted while true. Leave it out to mount the dialog yourself. */

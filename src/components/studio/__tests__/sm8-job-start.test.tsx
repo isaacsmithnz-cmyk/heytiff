@@ -101,11 +101,10 @@ describe("new design — from a ServiceM8 job", () => {
     expect(screen.getByPlaceholderText(/Design name/)).toHaveValue("12/3 Wallace St");
     // the search box gives way to the job it found
     expect(screen.queryByLabelText(FIELD)).toBeNull();
-    expect(screen.getByText(/From ServiceM8/)).toBeInTheDocument();
-    expect(screen.getByText("job 3151")).toBeInTheDocument();
+    expect(screen.getByText("3151 Diamond Air")).toBeInTheDocument();
+    expect(screen.getByText("12/3 Wallace St, Waverley NSW 2024")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-    await user.click(screen.getByText("Blank canvas"));
+    await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
 
     // the three fields the Summary sheet prints arrive already answered
     expect(await screen.findByTestId("studio-canvas")).toBeInTheDocument();
@@ -128,8 +127,7 @@ describe("new design — from a ServiceM8 job", () => {
     await user.type(screen.getByLabelText(FIELD), "wallace");
     const list = await screen.findByRole("listbox", { name: "ServiceM8 jobs" });
     await user.click(within(list).getByText("12/3 Wallace St"));
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-    await user.click(screen.getByText("Blank canvas"));
+    await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
     await screen.findByTestId("studio-canvas");
 
     await waitFor(() => {
@@ -148,8 +146,7 @@ describe("new design — from a ServiceM8 job", () => {
 
     await user.click(await screen.findByText("New design"));
     await user.type(screen.getByPlaceholderText(/Design name/), "Farran St");
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-    await user.click(screen.getByText("Blank canvas"));
+    await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
     await screen.findByTestId("studio-canvas");
 
     await waitFor(() => expect(savedDoc().meta.name).toBe("Farran St"));
@@ -167,8 +164,7 @@ describe("new design — from a ServiceM8 job", () => {
 
     await user.clear(screen.getByPlaceholderText(/Design name/));
     await user.type(screen.getByPlaceholderText(/Design name/), "Wallace St — option B");
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-    await user.click(screen.getByText("Blank canvas"));
+    await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
 
     expect(await screen.findByLabelText("Design name")).toHaveValue("Wallace St — option B");
     await user.click(screen.getByRole("button", { name: "Summary" }));

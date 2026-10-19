@@ -33,6 +33,10 @@
 }
 .pt-scrim .pt-dialog--560 { width: 560px; }
 .pt-scrim .pt-dialog--720 { width: 720px; }
+.pt-scrim .pt-dialog--960 { width: 960px; }
+/* the lightbox: most of the window, its body scrolling between the title and the foot */
+.pt-scrim .pt-dialog--wide { width: calc(100vw - 96px); max-width: 1440px; height: calc(100vh - 96px); }
+.pt-scrim .pt-dialog--wide .pt-dialog-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .pt-scrim .pt-dialog:focus { outline: none; }
 .pt-dialog .pt-dialog-title {
   margin: 0;

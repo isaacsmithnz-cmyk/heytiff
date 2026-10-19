@@ -12366,6 +12366,104 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .dc2-tpl-line--look { color:var(--orange-w); font-weight:500; }
 .fg .dc2-tpl-line--good { color:var(--green-w); font-weight:500; }
 .fg .dc2-tpl-line--wrong { color:var(--red-w); font-weight:500; }
+/* ===== V2: DESIGN, THE HOME (v2, step 5; the board studio-home;
+   components/studio/home.tsx) =====
+   The title with how many designs, Import design file and New design on the
+   right; a search and a sort; a row a design (its plan's picture, the name,
+   the job, floors, systems, when it changed) and the unit library in the
+   rail. The New design dialog's rules follow, unscoped: a dialog is
+   portalled outside .fg. */
+.fg .ds2 { display:flex; flex-direction:column; gap:16px; min-width:0; box-sizing:border-box; padding:24px 32px 48px; font-family:var(--font); color:var(--ink); }
+.fg .ds2-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px 24px; min-width:0; }
+.fg .ds2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
+.fg .ds2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
+.fg .ds2-fact { font-size:14px; line-height:20px; font-weight:400; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .ds2-acts { display:flex; align-items:center; gap:8px; }
+.fg .ds2-body { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:48px; align-items:start; }
+.fg .ds2-list { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.fg .ds2-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.fg .ds2-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.fg .ds2-search { position:relative; display:flex; align-items:center; width:360px; min-width:0; }
+.fg .ds2-search-icon { position:absolute; left:12px; display:inline-flex; color:var(--q); pointer-events:none; }
+.fg .ds2-search .pt-input.ds2-search-input { padding-left:calc(12px + 16px + 8px); padding-right:calc(32px + 8px); }
+.fg .ds2-search .ds2-search-clear { position:absolute; right:2px; }
+.fg .ds2-bar .pt-chooser.ds2-sort { width:auto; min-width:176px; }
+.fg .ds2-wrong { margin:0; font-size:14px; line-height:20px; color:var(--red-w); }
+/* the rows: a picture, the name, the job, floors, systems, changed; Delete beside */
+.fg .ds2-rows { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
+.fg .ds2-item { position:relative; display:flex; align-items:center; border-bottom:1px solid var(--line); }
+.fg .ds2-row { --ds2-cols:72px minmax(0,1.4fr) minmax(0,1.4fr) 72px 88px 112px; display:grid; grid-template-columns:var(--ds2-cols); align-items:center; gap:16px; flex:1 1 auto; min-width:0; padding:8px calc(8px + 72px) 8px 8px; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:400; color:var(--ink); text-align:left; cursor:pointer; transition:background var(--t-fast) var(--ease); }
+.fg .ds2-item:hover .ds2-row { background:var(--hov); }
+.fg .ds2-row:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.fg .ds2-row--head { padding-top:0; padding-bottom:8px; border-bottom:1px solid var(--line); font-size:12px; line-height:16px; font-weight:500; color:var(--q); cursor:default; }
+.fg .ds2-row--skel { cursor:default; }
+.fg .ds2-name { font-weight:600; min-width:0; }
+.fg .ds2-job { min-width:0; }
+.fg .ds2-num { color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .ds2-quiet { color:var(--q); }
+.fg .ds2-thumb { display:flex; align-items:center; justify-content:center; width:72px; height:54px; box-sizing:border-box; border:1px solid var(--line); border-radius:var(--r-control); overflow:hidden; background:var(--white); color:var(--q); }
+.fg .ds2-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.fg .ds2-skel { background:var(--soft); }
+.fg .ds2-skel--line { height:16px; width:40%; border-radius:var(--r-control); }
+/* Delete waits at the row's end and shows with the row's hover or focus (law 24) */
+.fg .ds2-item .ds2-del { position:absolute; right:8px; opacity:0; transition:opacity var(--t-fast) var(--ease); }
+.fg .ds2-item:hover .ds2-del, .fg .ds2-item:focus-within .ds2-del { opacity:1; }
+.fg .ds2-more { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; }
+/* the unit library, in the rail */
+.fg .ds2-rail { display:flex; flex-direction:column; align-items:flex-start; gap:8px; min-width:0; }
+.fg .ds2-rail-h { margin:0; padding:8px 0 4px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
+.fg .ds2-rail-line { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+
+/* New design: the job, the name and the drop zone; the pages; the floors; the crop */
+.pt-dialog .ds2-nd-form { display:flex; flex-direction:column; gap:16px; padding-bottom:8px; }
+.pt-dialog .ds2-nd-fact { margin:0; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .ds2-nd-fact b { color:var(--ink); font-weight:600; }
+.pt-dialog .ds2-nd-foot-fact { margin-right:auto; align-self:center; font-size:14px; line-height:20px; color:var(--q); }
+.pt-dialog .ds2-nd-error { display:flex; align-items:center; gap:8px; margin:0; font-size:14px; line-height:20px; color:var(--ink); }
+.pt-dialog .ds2-nd-job { display:flex; align-items:center; gap:8px; min-height:36px; padding:0 4px 0 12px; box-sizing:border-box; border:1px solid var(--edge); border-radius:var(--r-control); font-size:14px; line-height:20px; }
+.pt-dialog .ds2-nd-job b { font-weight:600; }
+.pt-dialog .ds2-nd-job span { flex:1 1 auto; min-width:0; color:var(--q); }
+.pt-dialog .ds2-nd-drop { display:flex; flex-direction:column; align-items:center; gap:8px; padding:32px 24px; border:1px dashed var(--edge); border-radius:var(--r-card); text-align:center; transition:background var(--t-fast) var(--ease); }
+.pt-dialog .ds2-nd-drop--over { background:var(--sel); }
+.pt-dialog .ds2-nd-drop-ic { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:var(--r-pill); background:var(--soft); color:var(--ink); }
+.pt-dialog .ds2-nd-drop-t { font-size:16px; line-height:24px; font-weight:600; }
+.pt-dialog .ds2-nd-drop-s { font-size:13px; line-height:18px; color:var(--q); }
+.pt-dialog button.pt-link { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; }
+.pt-dialog .ds2-nd-links { display:flex; gap:24px; }
+/* the pages: a grid of thumbnails, ticked ones ringed in blue */
+.pt-dialog .ds2-nd-grid { margin:16px 0 24px; padding:0; list-style:none; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:16px; }
+.pt-dialog .ds2-nd-page { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; }
+.pt-dialog .ds2-nd-thumb { position:relative; flex:1 0 100%; aspect-ratio:1.414; padding:0; border:1px solid var(--line); border-radius:var(--r-button); overflow:hidden; background:var(--white); cursor:pointer; }
+.pt-dialog .ds2-nd-thumb img { display:block; width:100%; height:100%; object-fit:contain; }
+.pt-dialog .ds2-nd-thumb:focus-visible { outline:none; box-shadow:var(--ring); }
+.pt-dialog .ds2-nd-page--on .ds2-nd-thumb { border-color:var(--press); box-shadow:0 0 0 2px var(--press); }
+.pt-dialog .ds2-nd-tick { position:absolute; top:8px; left:8px; display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:var(--r-pill); background:var(--white); box-shadow:inset 0 0 0 1px var(--edge); color:var(--white); }
+.pt-dialog .ds2-nd-page--on .ds2-nd-tick { background:var(--press); box-shadow:none; }
+.pt-dialog .ds2-nd-page-n { flex:1 1 auto; font-size:13px; line-height:18px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.pt-dialog .ds2-nd-page--on .ds2-nd-page-n { color:var(--ink); }
+/* a page, large */
+.pt-dialog .ds2-nd-peek { display:flex; align-items:center; justify-content:center; gap:16px; height:100%; min-height:0; padding:8px 0 16px; box-sizing:border-box; outline:none; }
+.pt-dialog .ds2-nd-peek-img { flex:0 1 auto; min-width:0; max-width:100%; max-height:100%; object-fit:contain; border:1px solid var(--line); }
+/* the floors */
+.pt-dialog .ds2-nd-floors { margin:0; padding:0; list-style:none; border-top:1px solid var(--line); }
+.pt-dialog .ds2-nd-floor { display:grid; grid-template-columns:120px 176px minmax(0,1fr) auto; align-items:center; gap:16px; padding:12px 0; border-bottom:1px solid var(--line); }
+.pt-dialog .ds2-nd-floor-thumb { display:flex; align-items:center; justify-content:center; width:120px; height:84px; box-sizing:border-box; border:1px solid var(--line); border-radius:var(--r-control); overflow:hidden; background:var(--white); }
+.pt-dialog .ds2-nd-floor-thumb img, .pt-dialog .ds2-nd-floor-thumb svg { display:block; width:100%; height:100%; object-fit:contain; }
+.pt-dialog .ds2-nd-floor-name { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.pt-dialog .ds2-nd-floor-from { font-size:12px; line-height:16px; font-weight:500; color:var(--q); }
+.pt-dialog .ds2-nd-floor-acts { display:flex; gap:4px; }
+/* crop it out: the page large, the pieces on the right */
+.pt-dialog .ds2-nd-crop { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:24px; height:100%; min-height:0; padding:8px 0 16px; box-sizing:border-box; }
+.pt-dialog .ds2-nd-crop-page { display:flex; align-items:center; justify-content:center; min-width:0; min-height:0; background:var(--soft); border-radius:var(--r-card); }
+.pt-dialog .ds2-nd-crop-svg { display:block; width:100%; height:100%; cursor:crosshair; touch-action:none; user-select:none; }
+.pt-dialog .ds2-nd-crop-done { fill:var(--ink); fill-opacity:.45; stroke:var(--ink); }
+.pt-dialog .ds2-nd-crop-sel { fill:var(--press); fill-opacity:.08; stroke:var(--press); stroke-dasharray:8 6; }
+.pt-dialog .ds2-nd-crop-label { fill:var(--white); font-family:var(--font); font-weight:600; }
+.pt-dialog .ds2-nd-crop-side { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.pt-dialog .ds2-nd-crop-h { margin:0; font-size:16px; line-height:24px; font-weight:600; }
+.pt-dialog .ds2-nd-pieces { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
+.pt-dialog .ds2-nd-piece { display:grid; grid-template-columns:72px minmax(0,1fr) auto; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); }
+.pt-dialog .ds2-nd-piece .ds2-nd-floor-thumb { width:72px; height:54px; }
 /* ===== V2: YOUR TIMESHEET (v2, step 5; the board 6-timesheet;
    components/timepay/my-timesheet.tsx) =====
    Your name › Timesheet. The title with when the sheet sends and Send on

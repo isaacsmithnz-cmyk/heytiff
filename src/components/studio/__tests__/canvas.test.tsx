@@ -19,8 +19,7 @@ async function openBlankDesignOnCanvas() {
   render(localStudio());
   await user.click(await screen.findByText("New design"));
   await user.type(screen.getByPlaceholderText(/Design name/), "Canvas test");
-  await user.click(screen.getByRole("button", { name: /Continue/ }));
-  await user.click(screen.getByText("Blank canvas"));
+  await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
   await user.click(await screen.findByRole("button", { name: "Design" }));
   const canvas = screen.getByTestId("studio-canvas");
   const svg = canvas.querySelector("svg")!;
@@ -330,8 +329,7 @@ describe("Design canvas", () => {
     render(localStudio());
     await user.click(await screen.findByText("New design"));
     await user.type(screen.getByPlaceholderText(/Design name/), "Rail reveal");
-    await user.click(screen.getByRole("button", { name: /Continue/ }));
-    await user.click(screen.getByText("Blank canvas"));
+    await user.click(screen.getByRole("button", { name: "Start with a blank canvas" }));
     await user.click(await screen.findByRole("button", { name: "Design" }));
 
     const rail = screen.getByRole("toolbar", { name: "Canvas tools" });

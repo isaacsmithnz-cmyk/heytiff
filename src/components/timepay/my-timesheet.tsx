@@ -237,6 +237,9 @@ function DayCard({
   const [start, setStart] = useState(entry.t === "work" ? entry.in : normal.start);
   const [end, setEnd] = useState(entry.t === "work" ? entry.out : normal.end);
   const [breakMin, setBreakMin] = useState(() => seedBreakMinutes(entry, settings));
+  /* what's in the break box while it's being typed in, so an emptied box
+     stays empty rather than snapping to 0 under the next digit */
+  const [breakDraft, setBreakDraft] = useState<string | null>(null);
 
   const cls = dayClass(entry, index, settings, ctx);
   const word = dayWord(entry, cls, dowOf(w), settings);
@@ -407,14 +410,20 @@ function DayCard({
                   min={0}
                   max={BREAK_MAX}
                   step={BREAK_STEP}
-                  value={breakMin}
+                  value={breakDraft ?? breakMin}
                   disabled={busy}
                   onChange={(e) => {
                     touch();
-                    setBreakMin(clampBreak(Number(e.target.value) || 0));
+                    const typed = Number(e.target.value) || 0;
+                    const kept = clampBreak(typed);
+                    setBreakMin(kept);
+                    setBreakDraft(kept === typed ? e.target.value : String(kept));
                   }}
                   /* kept to fives, as the stepper was */
-                  onBlur={() => setBreakMin((m) => clampBreak(Math.round(m / BREAK_STEP) * BREAK_STEP))}
+                  onBlur={() => {
+                    setBreakDraft(null);
+                    setBreakMin((m) => clampBreak(Math.round(m / BREAK_STEP) * BREAK_STEP));
+                  }}
                 />
               </Field>
             ) : hasBreak ? (

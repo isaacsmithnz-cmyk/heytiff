@@ -49,7 +49,12 @@ export function brandName(pack: DataPack, id: string): string {
 /** every finding on a system, red first */
 export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {
   const out = combinationFindings(doc, pack, sys);
-  const drawing = [loosePipes(doc, sys), unpipedOutdoor(doc, sys), ...strayFittings(doc, sys)].filter(
+  const drawing = [
+    loosePipes(doc, sys),
+    unpipedOutdoor(doc, sys),
+    unpipedHeads(doc, pack, sys),
+    ...strayFittings(doc, sys),
+  ].filter(
     (f): f is SystemFinding => f != null
   );
   return [...out, ...drawing];
@@ -137,15 +142,7 @@ export function loosePipes(doc: DesignDocument, sys: DesignSystem): SystemFindin
    said the outdoor had no pipe on it. A VRF's runs all leave from its
    outdoor; with runs drawn and none on it, the drawing is not connected. */
 export function unpipedOutdoor(doc: DesignDocument, sys: DesignSystem): SystemFinding | null {
-  if (sys.type !== "vrf" || !hasAllocations(sys)) return null;
-  const odu = allocationsOf(sys).find((a) => a.role === "odu" && a.model);
-  if (!odu) return null;
-  const runs = doc.objects.filter((o) => o.type === "pipe-run" && o.systemId === sys.id);
-  if (!runs.length) return null;
-  const onOutdoor = runs.some(
-    (o) => attachOf(o.props.startAttach)?.id === odu.id || attachOf(o.props.endAttach)?.id === odu.id
-  );
-  if (onOutdoor) return null;
+  if (outdoorPiped(doc, sys) !== false) return null;
   return {
     severity: "red",
     code: "outdoor-unpiped",
@@ -153,6 +150,69 @@ export function unpipedOutdoor(doc: DesignDocument, sys: DesignSystem): SystemFi
     message: "Not piped to the outdoor yet",
     fix: "Draw a pipe from the outdoor",
   };
+}
+
+/* A HEAD THE DRAWING LEAVES OFF (6 Bishops Ave, 2026-10-15: the ground
+   floor's pipework left the outdoor and reached three of its four heads; the
+   second head in Living / Dining had no pipe on it, and the system said
+   Valid). Until the drawing reaches every head the tree is the zones' order
+   (vrf-tree.ts) and none of the drawn metres count, so one head left off
+   takes the whole system's copper off the sheet and the pick. A head not on
+   the plan yet is the card's "to place", not this; with no run on the
+   outdoor, unpipedOutdoor says it for every head. */
+export function unpipedHeads(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding | null {
+  if (outdoorPiped(doc, sys) !== true) return null;
+  const tree = systemVrfTree(pack, sys, doc);
+  if (!tree) return null;
+  const missed = tree.unjoined.filter((id) => doc.objects.some((o) => o.id === id && o.type === "unit"));
+  if (!missed.length) return null;
+  const words = headsInWords(doc, sys, missed);
+  const first = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+  return {
+    severity: "red",
+    code: "head-unpiped",
+    drawing: true,
+    message:
+      missed.length === 1
+        ? `${first} isn't piped to the outdoor yet`
+        : `${missed.length} heads aren't piped to the outdoor yet: ${words.join(", ")}`,
+    fix: missed.length === 1 ? "Draw a pipe to it" : "Draw a pipe to each",
+  };
+}
+
+/** whether a drawn refrigerant run is on a VRF's outdoor; null when it has
+    no outdoor yet, or no run is drawn */
+function outdoorPiped(doc: DesignDocument, sys: DesignSystem): boolean | null {
+  if (sys.type !== "vrf" || !hasAllocations(sys)) return null;
+  const odu = allocationsOf(sys).find((a) => a.role === "odu" && a.model);
+  if (!odu) return null;
+  const runs = doc.objects.filter((o) => o.type === "pipe-run" && o.systemId === sys.id);
+  if (!runs.length) return null;
+  return runs.some(
+    (o) => attachOf(o.props.startAttach)?.id === odu.id || attachOf(o.props.endAttach)?.id === odu.id
+  );
+}
+
+/** heads named the way the plan shows them, by their zone; where the zone
+    holds more of this system's heads than are named, how many of them ("one
+    of Living / Dining's heads"); a head in no zone by its model */
+export function headsInWords(doc: DesignDocument, sys: DesignSystem, ids: string[]): string[] {
+  const heads = allocationsOf(sys).filter((a) => a.role === "idu" && a.model);
+  const groups: { key: string; name: string; n: number; of: number }[] = [];
+  for (const id of ids) {
+    const a = heads.find((h) => h.id === id);
+    if (!a) continue;
+    const room = a.roomId ? doc.objects.find((o) => o.id === a.roomId) : undefined;
+    const name = room ? String(room.props.name ?? "").trim() : "";
+    if (!name || !a.roomId) {
+      groups.push({ key: id, name: a.model, n: 1, of: 1 });
+      continue;
+    }
+    const g = groups.find((x) => x.key === a.roomId);
+    if (g) g.n += 1;
+    else groups.push({ key: a.roomId, name, n: 1, of: heads.filter((h) => h.roomId === a.roomId).length });
+  }
+  return groups.map((g) => (g.n === g.of ? g.name : `${g.n === 1 ? "one" : g.n} of ${g.name}'s heads`));
 }
 
 function combinationFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {

@@ -1,0 +1,90 @@
+[
+ {
+  "part_type": "joint",
+  "model": "UTP-AX054A",
+  "brand": "fujitsu",
+  "max_kw": 19.6,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.06-25 (separation tube and header selection); J-IVS DV_J4ST070EF_08 f.06-24; J-IV DV_J4T068EF_09 f.06-25"
+  }
+ },
+ {
+  "part_type": "joint",
+  "model": "UTP-AX090A",
+  "brand": "fujitsu",
+  "max_kw": 28.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.06-25 (separation tube and header selection); J-IV DV_J4T068EF_09 f.06-25"
+  }
+ },
+ {
+  "part_type": "joint",
+  "model": "UTP-AX180A",
+  "brand": "fujitsu",
+  "max_kw": 56.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.06-25 (separation tube and header selection)"
+  }
+ },
+ {
+  "part_type": "header",
+  "model": "UTR-H0906L",
+  "brand": "fujitsu",
+  "branches": 6,
+  "max_kw": 28.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.06-25 (separation tube and header selection); J-IVS DV_J4ST070EF_08 f.06-24"
+  }
+ },
+ {
+  "part_type": "header",
+  "model": "UTR-H0908L",
+  "brand": "fujitsu",
+  "branches": 8,
+  "max_kw": 28.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.06-25 (separation tube and header selection); J-IVS DV_J4ST070EF_08 f.06-24"
+  }
+ },
+ {
+  "part_type": "header",
+  "model": "UTR-H1806L",
+  "brand": "fujitsu",
+  "branches": 6,
+  "max_kw": 56.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.06-25 (separation tube and header selection)"
+  }
+ },
+ {
+  "part_type": "header",
+  "model": "UTR-H1808L",
+  "brand": "fujitsu",
+  "branches": 8,
+  "max_kw": 56.0,
+  "provenance": {
+   "kind": "extracted",
+   "source": "AIRSTAGE J-IVL Design & Technical Manual AJY072-144LELBH",
+   "edition": "DV_J4LT065EF_07 as printed on its pages (file name DV_J4LT069EF_07; GENERAL Partner Portal)",
+   "page": "f.06-25 (separation tube and header selection)"
+  }
+ }
+]

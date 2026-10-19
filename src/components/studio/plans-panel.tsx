@@ -22,6 +22,7 @@ import {
   imageToPage,
   insertPageRow,
   labelPagesSequentially,
+  nameNewRows,
   pdfToPages,
   previewInsertLevel,
   removePageFromRows,
@@ -340,8 +341,9 @@ export function PlansPanel({
             ...(p.trim ? { crop: p.trim } : {}),
           });
         }
-        // compute once (fresh floor ids) so we can commit AND land on one
-        const committed = applyBuilderRows(rows, uploads, doc.floors);
+        // compute once (fresh floor ids) so we can commit AND land on one;
+        // a new floor takes its plan's name as it stands now, not at its drop
+        const committed = applyBuilderRows(nameNewRows(rows, names), uploads, doc.floors);
         const planImport: PlanImport = {
           sources: storedSources,
           placed,

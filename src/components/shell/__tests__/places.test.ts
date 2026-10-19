@@ -68,14 +68,14 @@ describe("the sidebar's places (rules 5 and 7)", () => {
   });
 
   /* a job is a page now (step 5), and Jobs says you're in it */
-  it("lights Jobs on the list and a job's own page, and the board on its own row", () => {
+  it("lights Jobs on the list, a job's own page, and the board's pages it took in", () => {
     const jobs = PLACES.find((p) => p.key === "jobs")!;
-    const board = STILL_TO_MOVE.find((p) => p.key === "workboard")!;
     expect(placeOn(jobs, "/dashboard/jobs")).toBe(true);
     expect(placeOn(jobs, "/dashboard/jobs/a3539c01")).toBe(true);
-    expect(placeOn(jobs, "/dashboard/workboard")).toBe(false);
-    expect(placeOn(board, "/dashboard/workboard")).toBe(true);
+    expect(placeOn(jobs, "/dashboard/workboard")).toBe(true);
+    expect(placeOn(jobs, "/dashboard/workboard/projects/p1")).toBe(true);
     expect(placeOn(jobs, "/dashboard/jobsite")).toBe(false);
+    expect(STILL_TO_MOVE).toEqual([]);
   });
 
   /* Documents is a page now (v2, step 5), after Schedule, behind the Workboard's gate */
@@ -113,7 +113,8 @@ describe("the sidebar's places (rules 5 and 7)", () => {
     expect(placeOn(library, "/dashboard/tiff/library")).toBe(true);
     expect(placeOn(library, "/dashboard/tiff")).toBe(true);
     expect(placeOn(library, "/dashboard/tiffany")).toBe(false);
-    // the tools keep their own row until the Library takes them in
-    expect(placeOn(library, "/dashboard/toolbox")).toBe(false);
+    // the field tools are the Library's shelf now
+    expect(placeOn(library, "/dashboard/toolbox")).toBe(true);
+    expect(placeOn(library, "/dashboard/toolbox/heat-load")).toBe(true);
   });
 });

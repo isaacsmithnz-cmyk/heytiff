@@ -103,19 +103,19 @@ describe("the places (rule 5)", () => {
     expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
   });
 
-  it("keeps today's screens that haven't moved yet, after a hairline", () => {
+  it("is the eight places and nothing else: every screen has moved into one (20 October)", () => {
     draw(userAs("owner"));
-    expect(places()).toEqual(expect.arrayContaining(["Workboard", "Toolbox"]));
-    /* Time & Pay and Assets moved into Team (19 October) */
-    expect(places()).not.toContain("Time & Pay");
-    expect(places()).not.toContain("Assets");
-    expect(document.querySelector(".fr-places .fr-hair")).not.toBeNull();
+    for (const gone of ["Workboard", "Toolbox", "Time & Pay", "Assets"]) expect(places()).not.toContain(gone);
+    expect(document.querySelector(".fr-places .fr-hair")).toBeNull();
   });
 
-  it("hides a screen when its capability is revoked", () => {
-    const caps = [...resolve("staff")].filter((c) => c !== "toolbox");
-    draw(userAs("staff", caps));
-    expect(places()).not.toContain("Toolbox");
+  it("shows the Library for Tiff's documents or the field tools, and hides it without either", () => {
+    const staff = [...resolve("staff")];
+    draw(userAs("staff", staff.filter((c) => c !== "tiff")));
+    expect(places()).toContain("Library");
+    cleanup();
+    draw(userAs("staff", staff.filter((c) => c !== "tiff" && c !== "toolbox")));
+    expect(places()).not.toContain("Library");
   });
 
   it("doesn't fold: no collapse control (rule 27)", () => {

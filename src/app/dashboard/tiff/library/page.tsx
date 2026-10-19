@@ -43,7 +43,9 @@ export default async function LibraryPage({
 }: {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 } = {}) {
-  if (!(await can("tiff"))) redirect("/dashboard");
+  /* the Library row shows for the field tools too: someone with those and
+     not Tiff's documents gets the tools themselves */
+  if (!(await can("tiff"))) redirect((await can("toolbox")) ? "/dashboard/toolbox" : "/dashboard");
 
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;

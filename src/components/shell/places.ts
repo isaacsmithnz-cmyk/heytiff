@@ -25,6 +25,8 @@ export type Place = {
   /** Route prefixes that light this place. `href` is always one. */
   under: readonly string[];
   capability?: Capability;
+  /** shown to whoever holds any one of these (the Library: Tiff's documents or the field tools) */
+  anyOf?: readonly Capability[];
   minRole?: Role;
 };
 
@@ -40,7 +42,8 @@ export const PLACES: readonly Place[] = [
   },
   /* a job's own page (step 5) lights Jobs before the list has a page */
   { key: "conversations", label: "Conversations", icon: "chat", href: "/dashboard/conversations", under: ["/dashboard/my-notes"], capability: "tiff" },
-  { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", under: [], capability: "workboard" },
+  /* the board's own pages (a project, a quote, the maintenance side, a job's card by `?job=`) are the Jobs place's: Jobs has their views */
+  { key: "jobs", label: "Jobs", icon: "folder", href: "/dashboard/jobs", under: ["/dashboard/workboard"], capability: "workboard" },
   { key: "schedule", label: "Schedule", icon: "calendar", href: "/dashboard/schedule", under: [], capability: "workboard" },
   /* the Workboard's gate, which is the SWMS', the certificates' and the
      handover sheets' today; a SWMS's sign-on and a letter's editor are
@@ -55,18 +58,17 @@ export const PLACES: readonly Place[] = [
   },
   /* the Library lands on its documents (v2, step 5); asking it, today's
      /dashboard/tiff, is still the Library's */
-  { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff/library", under: ["/dashboard/tiff"], capability: "tiff" },
+  /* the field tools are the Library's Toolbox shelf; their own pages light it */
+  { key: "library", label: "Library", icon: "books", href: "/dashboard/tiff/library", under: ["/dashboard/tiff", "/dashboard/toolbox"], anyOf: ["tiff", "toolbox"] },
   { key: "design", label: "Design", icon: "design", href: "/dashboard/studio", under: [], capability: "studio" },
   /* Time & Pay and Assets moved into Team (its Timesheets, Leave, Expenses and Vehicles views); their old addresses still light it */
   { key: "team", label: "Team", icon: "users", href: "/dashboard/team", under: ["/dashboard/timepay", "/dashboard/assets", "/dashboard/vehicles"], capability: "team" },
 ];
 
 /** Today's screens that keep a row until their v2 place takes them in. */
-export const STILL_TO_MOVE: readonly Place[] = [
-  /* the board keeps its row until Schedule (its day, its weeks, its display) is rebuilt */
-  { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", under: [], capability: "workboard" },
-  { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", under: [], capability: "toolbox" },
-];
+/* Empty since 20 October: the Workboard's views are Jobs' and Schedule's,
+   the Toolbox is the Library's shelf. */
+export const STILL_TO_MOVE: readonly Place[] = [];
 
 /** Your name's menu (rule 7), in its order, then Sign out. */
 export const YOURS: readonly Place[] = [
@@ -82,6 +84,7 @@ export function placesFor(list: readonly Place[], viewer: { caps: ReadonlySet<Ca
   return list.filter(
     (p) =>
       (!p.capability || viewer.caps.has(p.capability)) &&
+      (!p.anyOf || p.anyOf.some((c) => viewer.caps.has(c))) &&
       (!p.minRole || (viewer.role !== null && hasMinRole(viewer.role, p.minRole))),
   );
 }

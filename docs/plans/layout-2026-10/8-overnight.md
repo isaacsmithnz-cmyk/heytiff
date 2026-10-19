@@ -39,6 +39,17 @@ Nothing here is on main or in production. `v1.0.0` is today's app, tagged. Every
 
 ## At the switch-over
 
-- Apply `docs/migrations/nav_pins.sql` (Pinned) and `docs/migrations/tiff_threads.sql` (Conversations). Both only add a table, and v2 works without them until then.
-- Run `npm run auth0:brand` for the sign-in page's new look.
-- Merge `v2-layout` only on Isaac's word.
+In this order, each one a step Isaac says yes to:
+
+1. **Isaac's look** at Schedule and Design on the branch (the boards' calls stand as recommended unless he says otherwise).
+2. **The four migrations**, each only adding to the database, so v2 works before them and the old app keeps working after them:
+   - `docs/migrations/nav_pins.sql` (Pinned in the sidebar);
+   - `docs/migrations/tiff_threads.sql` (Conversations);
+   - `docs/migrations/tasks_job.sql` (a task on a job);
+   - `docs/migrations/staff_regular_days_off.sql` (TAFE and other regular days off on the Schedule).
+3. **`npm run auth0:brand`** for the sign-in page's new look.
+4. **Merge `v2-layout` into main** on Isaac's word, then a walk on production: Home, Jobs, a job, Schedule, Documents, Library, Design (a new design from a PDF), Team, Settings.
+
+Leave as they are: `NEXT_PUBLIC_STUDIO_READING` stays unset, so Start design doesn't run Tiff's plan reading until the Rooms page shows it (20 October).
+
+After launch, queued: Tiff's Rooms page on the plans reading; the Units shelf in the Library (search a model, its specs, compare); the 3D view; the phone layout; Tiff's whole-set reading and write tools from Home.

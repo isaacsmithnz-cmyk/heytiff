@@ -28,6 +28,10 @@ export interface PageImage {
   /** the raster inside its one-colour margins (plan-trim.ts), when it has
       any worth cutting — becomes the sheet's crop */
   trim?: TrimRect;
+  /** the words a PDF page carries as text, centred where they sit, in the
+      raster's pixels: the plan's own room labels, which the reading is
+      checked against (reading.ts, labelFlags). None for a picture. */
+  words?: { text: string; at: { x: number; y: number } }[];
 }
 
 /** Number every candidate page "Page 1", "Page 2"… by combined order, so a
@@ -620,6 +624,33 @@ function trimOf(ctx: CanvasRenderingContext2D | null, w: number, h: number): Tri
   }
 }
 
+type TextPage = {
+  getTextContent: () => Promise<{ items: unknown[] }>;
+};
+type TextViewport = { scale: number; convertToViewportPoint: (x: number, y: number) => number[] };
+
+/** A page's text, word by word, centred where it sits on the raster. A page
+    with no text layer (a scan) has none, and a failure here never fails the
+    page: the words are a check, not the plan. */
+async function wordsOf(page: TextPage, viewport: TextViewport): Promise<{ text: string; at: { x: number; y: number } }[]> {
+  let items: unknown[];
+  try {
+    items = (await page.getTextContent()).items;
+  } catch {
+    return [];
+  }
+  const out: { text: string; at: { x: number; y: number } }[] = [];
+  for (const it of items as { str?: string; transform?: number[]; width?: number; height?: number }[]) {
+    const text = (it.str ?? "").trim();
+    if (!text || !it.transform || text.length > 40) continue;
+    const [x, y] = viewport.convertToViewportPoint(it.transform[4], it.transform[5]);
+    const w = (it.width ?? 0) * viewport.scale;
+    const h = (it.height ?? Math.abs(it.transform[3])) * viewport.scale;
+    out.push({ text, at: { x: Math.round(x + w / 2), y: Math.round(y - h / 2) } });
+  }
+  return out;
+}
+
 export async function pdfToPages(
   file: File,
   onProgress?: (done: number, total: number) => void
@@ -646,6 +677,7 @@ export async function pdfToPages(
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("render failed"))), "image/png")
     );
     const trim = trimOf(ctx, canvas.width, canvas.height);
+    const words = await wordsOf(page, viewport);
     pages.push({
       pageNumber: n,
       label: `Page ${n}`, // real floor names are set in the naming step
@@ -655,6 +687,7 @@ export async function pdfToPages(
       width: canvas.width,
       height: canvas.height,
       ...(trim ? { trim } : {}),
+      ...(words.length ? { words } : {}),
     });
     onProgress?.(n, doc.numPages);
   }

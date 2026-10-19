@@ -159,6 +159,47 @@ describe("New design, from the plans", () => {
     expect(level1.plans[0].crop).toEqual({ x: 1040, y: 40, w: 940, h: 1320 });
   });
 
+  it("after Start design Tiff reads the plans, and the reading is kept on the design with its checks", async () => {
+    pdfToPages.mockResolvedValue([{ ...page(1), words: [{ text: "WC", at: { x: 350, y: 250 } }] }]);
+    const reader = jest.fn(async () => {
+      const floorId = JSON.parse(window.localStorage.getItem(`heytiff.studio.design.${JSON.parse(window.localStorage.getItem(INDEX)!)[0].id}`)!).floors[0].id;
+      const sheetId = JSON.parse(window.localStorage.getItem(`heytiff.studio.design.${JSON.parse(window.localStorage.getItem(INDEX)!)[0].id}`)!).floors[0].plans[0].id;
+      return {
+        at: "2026-10-20T00:00:00Z",
+        model: "claude-opus-5-5",
+        failed: [],
+        floors: {
+          [floorId]: [
+            {
+              sheetId,
+              planUp: "",
+              spaces: [{ name: "Bathroom", named: true, kind: "wet" as const, outline: [{ x: 100, y: 100 }, { x: 400, y: 100 }, { x: 400, y: 300 }, { x: 100, y: 300 }], written: "", existing: false, openTo: "", stair: "" }],
+              openings: [],
+              marks: [],
+              furniture: [],
+              checklist: [],
+              flags: [],
+            },
+          ],
+        },
+      };
+    });
+    const user = userEvent.setup();
+    render(<Studio store={new LocalDesignStore(window.localStorage)} planImages={new FakePlanImages()} planReader={reader} />);
+    await user.click(await screen.findByRole("button", { name: "New design" }));
+    fireEvent.change(document.querySelector('.pt-dialog input[type="file"]')!, {
+      target: { files: [new File(["%PDF"], "set.pdf", { type: "application/pdf" })] },
+    });
+    await user.click(await screen.findByRole("button", { name: "Start design, 1 floor" }));
+    await screen.findByTestId("studio-canvas");
+    expect(await screen.findByText("Tiff read the plans: 1 room")).toBeInTheDocument();
+    expect(reader).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(saved().reading).toBeTruthy());
+    const flags = Object.values(saved().reading.floors as Record<string, { flags: unknown[] }[]>)[0][0].flags;
+    expect(flags).toEqual([{ kind: "label_inside", text: "WC", at: { x: 350, y: 250 }, room: "Bathroom" }]);
+    expect(saved().planImport.words[0]).toEqual([{ text: "WC", at: { x: 350, y: 250 } }]);
+  });
+
   it("a set with no pages says so and stays on the first step", async () => {
     pdfToPages.mockResolvedValue([]);
     const user = userEvent.setup();

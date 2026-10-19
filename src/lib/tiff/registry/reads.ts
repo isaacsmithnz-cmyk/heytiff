@@ -14,6 +14,8 @@ import { issueLog, jobHistory, openTaskLoad, TARGET_KINDS } from "@/lib/brain/to
 import { searchMirrorJobs, type JobSearchHit } from "@/lib/workboard/projects-query";
 import { retrieveForQuestion } from "@/lib/tiff/retrieve";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
+import { fitDesignRead } from "@/lib/quotes/design-read";
+import { readAnyDesign } from "@/lib/quotes/design-read-server";
 import type { Outcome, TiffTool } from "./types";
 
 const str = { type: "string" } as const;
@@ -26,6 +28,38 @@ export type JobSearchResult = { kind: "job"; id: string } & Pick<
 >;
 
 export const READS: readonly TiffTool[] = [
+  /* One engine (Isaac, 19 October: "make sure that this is still part of
+     the same engine throughout the whole system so you can talk to it
+     through any screen"): a Studio design as its Summary reads it, and what
+     Tiff read off its plans, from Home or anywhere else. */
+  {
+    name: "studio_design",
+    label: "Reading the design",
+    risk: "read",
+    gate: { capability: "studio" },
+    description:
+      "One of the business's Studio designs, named by its name, its job's number or its id (the newest that matches; the newest of all when you name none). " +
+      "Gives the design as its Summary reads it (each system, its units, the rooms with their loads and cover, the pipe runs, what fails its checks), " +
+      "and what was read off its plans when they were read: per floor, the rooms and small spaces with their areas once the floor is scaled, " +
+      "the stairs, voids and notches, the windows with their facing and width, doors, skylights, notes about air conditioning and roof space, " +
+      "built-ins, ceiling fans, furniture, what was looked for and not found, and labels on the plan the reading doesn't account for. " +
+      "Use it for any question about a design, a floor, a room's size or glass, or where a unit could go. Areas are only given for a floor whose scale is set; say so when one isn't.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        design: { type: "string", description: "The design's name, its job's number, or its id; leave empty for the newest" },
+        system: { type: "string", description: "One system by its name, when a long design came back a system at a time" },
+      },
+      additionalProperties: false,
+    },
+    run: async (viewer, input) => {
+      const got = await readAnyDesign(viewer.orgId, typeof input.design === "string" ? input.design : "");
+      if (!got.found) return result({ found: false, said: got.reason, designs: got.designs ?? [] });
+      const system = typeof input.system === "string" ? input.system.slice(0, 120) : null;
+      return result({ ...fitDesignRead(got.read, { system }), plans: got.plans, other_designs: got.others });
+    },
+  },
+
   {
     name: "job_history",
     label: "Reading the job's history",

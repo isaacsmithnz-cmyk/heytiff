@@ -115,6 +115,16 @@ export function importFrom(sources: PlanImportSource[], drafts: FloorDraft[], re
   return { sources, placed, chosen, names: {} };
 }
 
+/** The used pages' words, for the reading's label check. */
+export function wordsFrom(pages: PageImage[], drafts: FloorDraft[]): Record<number, NonNullable<PageImage["words"]>> {
+  const out: Record<number, NonNullable<PageImage["words"]>> = {};
+  for (const d of drafts) {
+    const w = pages[d.page].words;
+    if (w?.length) out[d.page] = w;
+  }
+  return out;
+}
+
 /** "Pages 4 and 5", "Page 7", "Pages 2, 3 and 9": what the picker has ticked. */
 export function pagesWord(idxs: number[]): string {
   const n = [...idxs].sort((a, b) => a - b).map((i) => String(i + 1));

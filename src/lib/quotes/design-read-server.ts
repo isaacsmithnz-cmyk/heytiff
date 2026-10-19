@@ -8,6 +8,7 @@ import { latestInstalledPack, loadInstalledPack } from "@/lib/studio/packs/serve
 import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import { dayOf } from "./session/job-sources";
 import { designRead, NO_DESIGN, type DesignOnJob, type JobDesign } from "./design-read";
+import { readingSummary } from "@/lib/studio/reading";
 
 /* The job's Studio design, read for Tiff (design-read.ts says what she's
    given): the designs whose sm8_job_uuid is the job, newest first, as the
@@ -50,7 +51,7 @@ async function studioPack(brand: string): Promise<DataPack | null> {
 }
 
 /** Every brand the design is built in, its packs merged; null when none is installed. */
-async function designPacks(doc: DesignDocument): Promise<DataPack | null> {
+export async function designPacks(doc: DesignDocument): Promise<DataPack | null> {
   const brands = [...new Set([...doc.systems.map((s) => s.brand), ...Object.keys(doc.packPins)].filter(Boolean))].sort();
   const packs = (await Promise.all(brands.map(studioPack))).filter((p): p is DataPack => p != null);
   return packs.length ? resolvePacks(packs) : null;
@@ -71,4 +72,39 @@ export async function readJobDesign(orgId: string, jobUuid: string, id: string |
     return { found: false, reason: `The design "${chosen.name}" couldn't be read.`, designs };
   }
   return { found: true, read: designRead(doc, await designPacks(doc)), others: designs.filter((d) => d.id !== chosen.id) };
+}
+
+/** Any of the workspace's designs, as Tiff reads it from any screen: named by
+    its id, its name or its job's number, the newest that matches; with what
+    she read off its plans. */
+export async function readAnyDesign(orgId: string, ask: string): Promise<
+  | { found: true; read: ReturnType<typeof designRead>; plans: ReturnType<typeof readingSummary>; others: DesignOnJob[] }
+  | { found: false; reason: string; designs?: DesignOnJob[] }
+> {
+  const q = ask.trim().slice(0, 120);
+  const like = `%${q.replace(/[%_,()]/g, " ")}%`;
+  const { data } = q
+    ? await supabaseAdmin
+        .from("studio_designs")
+        .select("id, name, updated_at")
+        .eq("org_id", orgId)
+        .or(`id.eq.${q.replace(/[^a-z0-9_]/gi, "")},name.ilike."${like.replace(/"/g, "")}",doc->meta->>jobNumber.eq.${q.replace(/[^a-z0-9-]/gi, "")}`)
+        .order("updated_at", { ascending: false })
+        .limit(8)
+    : await supabaseAdmin.from("studio_designs").select("id, name, updated_at").eq("org_id", orgId).order("updated_at", { ascending: false }).limit(8);
+  const designs = ((data ?? []) as { id: string; name: string | null; updated_at: string | null }[]).map((r) => ({
+    id: r.id,
+    name: r.name?.trim() || "Untitled design",
+    saved: dayOf(r.updated_at),
+  }));
+  if (designs.length === 0) return { found: false, reason: q ? `No design matches "${q}".` : "The workspace has no designs." };
+  const chosen = designs[0];
+  const { data: row } = await supabaseAdmin.from("studio_designs").select("doc").eq("org_id", orgId).eq("id", chosen.id).maybeSingle();
+  let doc: DesignDocument;
+  try {
+    doc = migrateDesign((row as { doc: unknown } | null)?.doc).doc;
+  } catch {
+    return { found: false, reason: `The design "${chosen.name}" couldn't be read.`, designs };
+  }
+  return { found: true, read: designRead(doc, await designPacks(doc)), plans: readingSummary(doc.floors, doc.reading), others: designs.slice(1) };
 }

@@ -100,6 +100,7 @@ import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
 import type { JobPrefill } from "@/lib/studio/job-link";
+import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/reading";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
 import { DesignHome } from "./home";
@@ -183,7 +184,10 @@ export function Studio({
   buildStamp,
   brand: servedBrand,
   library,
+  planReader,
 }: {
+  /** Tiff's plan reader; the server's in the app, a stand-in in tests */
+  planReader?: PlanReader;
   store?: DesignStore;
   planImages?: PlanImages;
   packLoader?: PackLoader;
@@ -405,6 +409,29 @@ export function Studio({
       window.removeEventListener("online", onOnline);
     };
   }, [saveState, getStore]);
+
+  /* Tiff reading the plans of the design just started: while she reads, and what she read */
+  const [readingNow, setReadingNow] = useState<{ id: string; state: "reading" | "read" | "failed"; rooms: number } | null>(null);
+  const readPlans = useCallback(
+    async (id: string) => {
+      setReadingNow({ id, state: "reading", rooms: 0 });
+      const reading = await (planReader ?? readPlansOnServer)(id);
+      if (!reading) {
+        setReadingNow({ id, state: "failed", rooms: 0 });
+        return;
+      }
+      setReadingNow({ id, state: "read", rooms: roomsRead(reading) });
+      /* kept on the design: the open one through the same pipeline as every
+         edit, or straight into the store when another design is open by now */
+      if (latestDoc.current?.id === id) {
+        mutate((d) => (d.id === id ? { ...d, reading: withChecks(reading, d) } : d));
+      } else {
+        const stored = await getStore().load(id).catch(() => null);
+        if (stored) await getStore().save({ ...stored, reading: withChecks(reading, stored) }).catch(() => {});
+      }
+    },
+    [planReader, mutate, getStore]
+  );
 
   const jobSearchFn = useCallback(
     (q: string) => (jobSearch ?? ((t: string) => studioActions().then((a) => a.searchStudioJobs(t))))(q),
@@ -680,6 +707,7 @@ export function Studio({
             brand={brand}
             step={step}
             saveState={saveState}
+            reading={readingNow && doc && readingNow.id === doc.id ? readingNow : null}
             onStep={setStep}
             onMutate={mutate}
             onReplace={replaceDoc}
@@ -709,13 +737,14 @@ export function Studio({
                 return d;
               }, openDesign)
             }
-            onPlans={(name, job, floors, planImport) =>
-              throughSwap(async () => {
-                const d = { ...newDesignFor(name, "plan", job), floors, planImport };
+            onPlans={async (name, job, floors, planImport) => {
+              const d = { ...newDesignFor(name, "plan", job), floors, planImport };
+              await throughSwap(async () => {
                 await getStore().save(d);
                 return d;
-              }, openDesign)
-            }
+              }, openDesign);
+              void readPlans(d.id);
+            }}
             onOpen={(id) =>
               throughSwap(
                 () => getStore().load(id),
@@ -743,6 +772,27 @@ export function Studio({
   );
 }
 
+/* Tiff's reading of a design's plans, from the server (api/studio/read-plans).
+   Out here so the component never holds a try: null when it couldn't be had. */
+export type PlanReader = (designId: string) => Promise<PlanReading | null>;
+const readPlansOnServer: PlanReader = async (designId) => {
+  try {
+    const res = await fetch("/api/studio/read-plans", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ designId }),
+    });
+    const body = (await res.json()) as { ok: boolean; reading?: PlanReading };
+    return body.ok && body.reading ? body.reading : null;
+  } catch {
+    return null;
+  }
+};
+
+/** How many rooms she suggests across the design. */
+const roomsRead = (r: PlanReading) =>
+  Object.values(r.floors).flat().reduce((n, sheet) => n + suggestedRooms(sheet).length, 0);
+
 /* A new design, named, and on its job when it came from one. */
 function newDesignFor(name: string, mode: "plan" | "blank", job?: JobPrefill): DesignDocument {
   return createDesign({
@@ -762,6 +812,7 @@ function Editor({
   brand,
   step,
   saveState,
+  reading,
   onStep,
   onMutate,
   onReplace,
@@ -780,6 +831,8 @@ function Editor({
   brand: OrgBrand;
   step: number;
   saveState: "saved" | "saving" | "local";
+  /** Tiff reading this design's plans, while she reads and once she has */
+  reading?: { state: "reading" | "read" | "failed"; rooms: number } | null;
   onStep: (i: number) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onReplace: (d: DesignDocument) => void;
@@ -1462,6 +1515,18 @@ function Editor({
               <span className={`ds-save ${saveState}`}>
                 <span className="dot" />
                 {saveState === "saving" ? "Saving the design" : "Saved"}
+              </span>
+            )}
+            {reading && (
+              <span className={`ds-save ds-reading ${reading.state}`} role="status">
+                <span className="dot" />
+                {reading.state === "reading"
+                  ? "Tiff is reading the plans"
+                  : reading.state === "failed"
+                    ? "The plans couldn't be read"
+                    : reading.rooms === 1
+                      ? "Tiff read the plans: 1 room"
+                      : `Tiff read the plans: ${reading.rooms} rooms`}
               </span>
             )}
           </div>

@@ -40,6 +40,7 @@ import {
   nextLevel,
   pagesWord,
   PICK_OVER,
+  wordsFrom,
   type FloorDraft,
 } from "@/lib/studio/new-design";
 import { defaultFloorName, imageToPage, labelPagesSequentially, pdfToPages, type PageImage, type PlanImages } from "@/lib/studio/plans";
@@ -94,7 +95,9 @@ async function storePlans(
     refs[i] = await planImages.upload(pages[i]);
     done = done + 1;
   }
-  return { floors: floorsFrom(drafts, pages, refs), planImport: importFrom(stored, drafts, refs) };
+  const words = wordsFrom(pages, drafts);
+  const planImport = importFrom(stored, drafts, refs);
+  return { floors: floorsFrom(drafts, pages, refs), planImport: Object.keys(words).length ? { ...planImport, words } : planImport };
 }
 
 const failed = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");

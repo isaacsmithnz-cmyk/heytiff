@@ -1246,6 +1246,24 @@ describe("looking a model up on Manufacturer specs", () => {
     expect(screen.getByText("Documents")).toBeInTheDocument();
   });
 
+  it("finds the model's documents wherever they are filed", async () => {
+    render(
+      <Library
+        docs={[
+          doc({ id: "s-1", category: "specs", title: "Ducted brochure 2024" }),
+          doc({ id: "i-1", category: "install", title: "PUMY-SP80-140VYKMD2-A IM" }),
+          doc({ id: "f-1", category: "faults", title: "PUMY-SP80-140VYKMD2-A SM UL2023" }),
+          doc({ id: "f-2", category: "faults", title: "City Multi fault codes" }),
+        ]}
+        initialCategory="specs"
+      />,
+    );
+    await userEvent.type(screen.getByLabelText("Search a model or a document"), "PUMY-SP140");
+    expect(screen.getByText("PUMY-SP80-140VYKMD2-A IM")).toBeInTheDocument();
+    expect(screen.getByText("PUMY-SP80-140VYKMD2-A SM UL2023")).toBeInTheDocument();
+    expect(screen.queryByText("City Multi fault codes")).toBeNull();
+  });
+
   it("looks nothing up on another shelf", async () => {
     render(<Library docs={[doc()]} />);
     await userEvent.type(screen.getByLabelText("Search documents"), "PUMY-SP140");

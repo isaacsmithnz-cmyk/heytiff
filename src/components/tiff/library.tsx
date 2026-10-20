@@ -446,10 +446,14 @@ export function Library({
     return [...hits, ...docs.filter((d) => !ids.has(d.id) && squash(d.title).includes(stem))];
   }, [docs, query, view]);
   const tagged = useMemo(() => filterByTags(matches, tagIds), [matches, tagIds]);
-  const visible = useMemo(
-    () => (view === "all" || view === "toolbox" ? tagged : tagged.filter((d) => d.category === view)),
-    [tagged, view]
-  );
+  /* a model's family finds its documents wherever they are filed: the PUMY
+     manuals sit under Installation and Service documents, and belong under
+     its specs all the same (Isaac's walk, 20 October) */
+  const visible = useMemo(() => {
+    if (view === "all" || view === "toolbox") return tagged;
+    const stem = view === "specs" ? modelStem(query) : null;
+    return tagged.filter((d) => d.category === view || (stem !== null && squash(d.title).includes(stem)));
+  }, [tagged, view, query]);
 
   const tools = useMemo(() => (toolbox ? allTools() : []), [toolbox]);
   const shownTools = tools.filter(({ tool }) => toolMatches(tool, query));

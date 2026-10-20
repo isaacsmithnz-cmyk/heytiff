@@ -150,7 +150,6 @@ export function DocumentsList({ data, initial }: { data: DocumentsData; initial:
   const views = viewsFor(data.kinds);
   const shown = sortRows(rowsFor(data.rows, state), state.sort);
   const inView = rowsFor(data.rows, { view: state.view, by: ANYONE, q: "" }).length;
-  const waiting = data.rows.filter((r) => r.waiting).length;
   const viewLabel = views.find((v) => v.key === state.view)?.label ?? "All";
 
   const byOptions: ChooserOption[] = [{ value: ANYONE, label: "Anyone" }, ...peopleOf(data.rows)];
@@ -162,9 +161,6 @@ export function DocumentsList({ data, initial }: { data: DocumentsData; initial:
       <header className="dc2-head">
         <div className="dc2-title">
           <h1>Documents</h1>
-          <span className="dc2-made">
-            {data.rows.length} made{waiting > 0 ? `, ${waiting} waiting on someone` : ""}
-          </span>
         </div>
         <div className="dc2-tools">
           <div className="dc2-search" role="search">
@@ -233,7 +229,7 @@ export function DocumentsList({ data, initial }: { data: DocumentsData; initial:
                     <section key={k} className="dc2-group" aria-labelledby={`dc2-group-${k}`}>
                       <div className="dc2-group-head">
                         <h2 id={`dc2-group-${k}`} className="dc2-group-h">
-                          {KIND_LABEL[k]} <span className="dc2-count">{of.length}</span>
+                          {KIND_LABEL[k]}
                         </h2>
                         {of.length > GROUP_CAP && (
                           <button type="button" className="dc2-showall" onClick={() => go({ view: k })}>

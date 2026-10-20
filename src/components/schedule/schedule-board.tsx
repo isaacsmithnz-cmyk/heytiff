@@ -165,7 +165,6 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
   const week = data.view === "week";
   const month = data.view === "month";
   const weeks = data.view === "weeks" || month;
-  const jobsOn = new Set(board.people.flatMap((p) => p.days.flatMap((d) => d.blocks.map((b) => b.jobUuid)))).size;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -240,7 +239,7 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
     ? `${monthOf(data.days[0])} ${data.days[0].slice(0, 4)}${crew > 0 ? `, ${Math.round((booked / crew) * 100)}% booked` : ""}`
     : weeks
     ? `4 weeks from ${dayNum(board.days[0] ?? data.days[0])} ${monthOf(data.days[0])}${crew > 0 ? `, ${Math.round((booked / crew) * 100)}% booked` : ""}`
-    : week ? `Week of ${dayNum(board.days[0])} ${monthOf(board.days[0])}, ${jobsOn} jobs` : `${longDay(data.day)}, ${jobsOn} jobs`;
+    : week ? `Week of ${dayNum(board.days[0])} ${monthOf(board.days[0])}` : longDay(data.day);
 
   return (
     <div className="wrap sc">

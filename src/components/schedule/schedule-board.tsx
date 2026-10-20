@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useContext, useEffect, useMemo, useState, type DragEvent, type MouseEvent } from "react";
+import { useContext, useEffect, useMemo, useState, useTransition, type DragEvent, type MouseEvent } from "react";
 import { Button, IconButton } from "@/components/parts/button";
 import { Tray } from "@/components/parts/tabs";
 import { TextInput } from "@/components/parts/field";
@@ -10,6 +10,7 @@ import { Chooser } from "@/components/parts/chooser";
 import { Initials } from "@/components/parts/initials";
 import { Dot, StateWord } from "@/components/parts/state";
 import { Fade } from "@/components/parts/fade";
+import { Icon } from "@/components/shell/icon";
 import { WindowsContext } from "@/components/records/records-context";
 import { jobPageHref } from "@/lib/shell/links";
 import { mintPressId } from "@/lib/workboard/press-id";
@@ -142,7 +143,25 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
     void document.documentElement.requestFullscreen?.()?.catch(() => setDisplay(false));
   };
 
-  const go = (view: ScheduleView, day: string) => router.push(`/dashboard/schedule?view=${view}&day=${day}`);
+  /* SWITCHING SAYS SO AT ONCE (Isaac, 20 October: "The week switcher is very
+     slow. Month switcher, that takes quite a while"): the tray takes the
+     press now and the board fades while the next one is read, and the
+     periods either side, and the other views, are fetched ahead. */
+  const [switching, startSwitch] = useTransition();
+  const [aim, setAim] = useState<ScheduleView | null>(null);
+  const hrefOf = (view: ScheduleView, day: string) => `/dashboard/schedule?view=${view}&day=${day}`;
+  const go = (view: ScheduleView, day: string) => {
+    setAim(view);
+    startSwitch(() => router.push(hrefOf(view, day)));
+  };
+  useEffect(() => {
+    const ahead = [
+      hrefOf(data.view, stepDay(data.view, data.day, -1)),
+      hrefOf(data.view, stepDay(data.view, data.day, 1)),
+      ...(["day", "week", "weeks", "month"] as const).filter((v) => v !== data.view).map((v) => hrefOf(v, data.day)),
+    ];
+    for (const href of ahead) router.prefetch(href);
+  }, [router, data.view, data.day]);
   const week = data.view === "week";
   const month = data.view === "month";
   const weeks = data.view === "weeks" || month;
@@ -249,7 +268,7 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
             { value: "weeks", label: "4 weeks" },
             { value: "month", label: "Month" },
           ]}
-          value={data.view}
+          value={switching && aim ? aim : data.view}
           onChange={(v) => go(v, data.day)}
         />
         <div className="sc-pager">
@@ -263,7 +282,7 @@ export function ScheduleBoard({ data }: { data: SchedulePage }) {
       </div>
 
       <div className="sc-body">
-        <div className={`sc-board${held ? " sc-holding" : ""}`}>
+        <div className={`sc-board${held ? " sc-holding" : ""}${switching ? " sc-switching" : ""}`} aria-busy={switching || undefined}>
           {weeks ? (
             <WeeksGrid data={data} open={(d) => go("day", d)} />
           ) : week ? (
@@ -669,6 +688,10 @@ function JobsPanel({
                 }}
                 onClick={() => pick(j)}
               >
+                {/* the grip says it can be dragged (Isaac, 20 October) */}
+                <span className="sc-grip" aria-hidden="true">
+                  <Icon name="grip" size={16} />
+                </span>
                 <Dot hue={j.hue} />
                 <span className="sc-jt">
                   <Fade className="sc-jn">{jobName(j)}</Fade>

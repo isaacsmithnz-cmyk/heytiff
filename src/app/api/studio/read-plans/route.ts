@@ -66,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
     Promise.allSettled(toRead.map((s) => readSheet(orgId, s))),
     had?.roof
       ? Promise.resolve(had.roof)
-      : readRoof(orgId, pdf, firstPlans).catch((e) => {
+      : readRoof(orgId, pdf, firstPlans).then(({ said: _said, ...roof }) => roof).catch((e) => {
           console.error(`[read-plans] ${designId}/roof: ${String(e)}`);
           return null;
         }),

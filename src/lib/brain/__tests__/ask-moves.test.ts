@@ -176,3 +176,16 @@ describe("a change for the page", () => {
     expect(sentBodies[1]).toContain(JSON.stringify(JSON.stringify({ applied: true, said: "Made it a hip roof at 25°." })).slice(1, -1));
   });
 });
+
+/* Her words across two rounds ran together ("…preset.Roughly $2,395",
+   21 October): a space goes between where neither has one. */
+it("puts a space between one round's words and the next", async () => {
+  const replies: Block[][] = [[{ text: "Checking the book." }, { tool: "issue_log", id: "toolu_1" }], [{ text: "Roughly $2,395 inc GST." }]];
+  globalThis.fetch = (async () => {
+    requests += 1;
+    return new Response(sse(replies.shift() ?? []), { status: 200, headers: { "content-type": "text/event-stream" } });
+  }) as typeof fetch;
+  const said: string[] = [];
+  for await (const e of streamBrainAnswer({ viewer, question: "how much for a zone kit", tools: [issueLog], todayISO: viewer.today })) if (e.type === "delta") said.push(e.text);
+  expect(said.join("")).toBe("Checking the book. Roughly $2,395 inc GST.");
+});

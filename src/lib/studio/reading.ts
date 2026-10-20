@@ -80,12 +80,53 @@ export type SheetReading = {
   planUp: string;
 };
 
+/* THE ROOF AND THE HEIGHTS (Isaac, 20 October 2026: "Roof and framing
+   should always be done"). Read off the whole drawing set, the elevations,
+   sections and roof plan with each floor's plan beside them: how high each
+   floor's ceiling is, the roof as rectangular parts set out on the plan of
+   the floor whose walls carry them, and the rooms whose ceilings rake. A
+   roof part's outline is its footprint at the wall line, in that floor's
+   sheet pixels; the eaves overhang it. */
+export type RoofForm = "gable" | "hip" | "skillion" | "flat";
+
+export type ReadRoofPart = {
+  floorId: string;
+  sheetId: string;
+  form: RoofForm;
+  outline: ReadPoint[];
+  /** which way the ridge runs on the plan: along x ("across") or along y ("down"); a skillion's slope runs across it */
+  ridge: "across" | "down";
+  /** a skillion's low side on the plan */
+  fallsTo: "left" | "right" | "up" | "down" | "";
+  pitchDeg: number;
+  /** the top of the walls it sits on, above that floor's floor level, mm */
+  eaveMm: number;
+  overhangMm: number;
+  existing: boolean;
+  source: string;
+};
+
+export type ReadLevel = { floorId: string; ceilingMm: number; floorZoneMm: number; source: string };
+
+export type ReadRake = { floorId: string; room: string; lowMm: number; highMm: number };
+
+export type RoofReading = {
+  levels: ReadLevel[];
+  parts: ReadRoofPart[];
+  raked: ReadRake[];
+  material: string;
+  /** what the set says about the roof space, for the installer */
+  roofSpace: string;
+};
+
 export type PlanReading = {
   /** when it was read */
   at: string;
   model: string;
   /** floor id → what she read off each of its sheets */
   floors: Record<string, SheetReading[]>;
+  /** the roof and heights off the whole set; absent until read (a design read before 20 October has none) */
+  roof?: RoofReading | null;
   /** a sheet she couldn't read, and why, said rather than dropped */
   failed: { floorId: string; sheetId: string; reason: string }[];
 };

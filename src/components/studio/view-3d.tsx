@@ -17,7 +17,9 @@ import { WALLED, middleOf, type Scene3D, type XZ } from "@/lib/studio/scene3d";
    What to show rides in from the top bar (`look`): which floor, the floors
    lifted apart, the labels. Drag turns, the wheel zooms. */
 
-export type Look3D = { floor: string; apart: boolean; labels: boolean };
+/** Roof: the roof on, Framing: the timber under it, Inside: neither, nor the ceilings */
+export type Layer3D = "roof" | "framing" | "inside";
+export type Look3D = { floor: string; apart: boolean; labels: boolean; layer: Layer3D };
 export const ALL_FLOORS = "all";
 
 const C = {
@@ -32,6 +34,12 @@ const C = {
   outdoor: 0x9ca3af,
   pipe: 0xb45309,
   grid: 0x9ca3af,
+  roof: 0x9ca3af,
+  ceiling: 0xffffff,
+  /* timber, in the palette's yellow and orange word values */
+  rafter: 0xa16207,
+  joist: 0xfacc15,
+  ridge: 0xb45309,
 };
 
 /** how far apart the floors stand when lifted, over their own storey */
@@ -89,6 +97,23 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
   const iduMat = M({ color: C.indoor, roughness: 0.6 });
   const oduMat = M({ color: C.outdoor, roughness: 0.6 });
   const pipeMat = M({ color: C.pipe, metalness: 0.3, roughness: 0.5 });
+  const roofMat = M({ color: C.roof, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.15 });
+  const oldRoofMat = M({ color: C.roof, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+  const fillMat = M({ color: C.wall, side: THREE.DoubleSide });
+  const ceilMat = M({ color: C.ceiling, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+  const timber = {
+    rafter: M({ color: C.rafter, roughness: 0.8 }),
+    hip: M({ color: C.ridge, roughness: 0.8 }),
+    ridge: M({ color: C.ridge, roughness: 0.8 }),
+    joist: M({ color: C.joist, roughness: 0.8 }),
+  };
+  const meshOf = (m: { verts: [number, number, number][]; tris: number[] }, mat: THREE_NS.Material) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(m.verts.flatMap(([x, y, z]) => [x - cx, y, z - cz]), 3));
+    g.setIndex(m.tris);
+    g.computeVertexNormals();
+    return new THREE.Mesh(g, mat);
+  };
 
   const shape = (pts: XZ[]) => {
     const s = new THREE.Shape();
@@ -132,10 +157,19 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
   };
 
   const groups = new Map<string, THREE_NS.Group>();
+  /* each floor's roof, framing and ceilings ride with it, so Lift apart carries them */
+  const roofG = new Map<string, THREE_NS.Group>();
+  const frameG = new Map<string, THREE_NS.Group>();
+  const ceilG = new Map<string, THREE_NS.Group>();
   scene3.floors.forEach((f, i) => {
     const g = new THREE.Group();
     groups.set(f.id, g);
     scene.add(g);
+    for (const m of [roofG, frameG, ceilG]) {
+      const sub = new THREE.Group();
+      m.set(f.id, sub);
+      g.add(sub);
+    }
     for (const s of f.spaces) {
       if (s.kind === "void") continue;
       if (s.kind === "outdoor") {
@@ -175,6 +209,33 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
     g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, pts.length * 12, 0.035, 10, false), pipeMat));
   }
 
+  for (const r of scene3.roofs) {
+    const g = roofG.get(r.floorId);
+    if (!g) continue;
+    g.add(meshOf(r.faces, r.existing ? oldRoofMat : roofMat));
+    if (r.fills.verts.length) g.add(meshOf(r.fills, r.existing ? oldMat : fillMat));
+  }
+  const X1 = new THREE.Vector3(1, 0, 0);
+  for (const m of scene3.framing) {
+    const g = frameG.get(m.floorId);
+    if (!g) continue;
+    const a = new THREE.Vector3(m.a[0] - cx, m.a[1], m.a[2] - cz);
+    const b = new THREE.Vector3(m.b[0] - cx, m.b[1], m.b[2] - cz);
+    const dir = b.clone().sub(a);
+    const len = dir.length();
+    if (len < 0.02) continue;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(len, m.h, m.w), timber[m.k]);
+    beam.position.copy(a).add(b).multiplyScalar(0.5);
+    beam.quaternion.setFromUnitVectors(X1, dir.normalize());
+    g.add(beam);
+  }
+  for (const c of scene3.ceilings) {
+    const g = ceilG.get(c.floorId);
+    if (!g) continue;
+    for (const f of c.flat) g.add(flat(f.pts, ceilMat, f.y - 0.01));
+    for (const r of c.raked) g.add(meshOf(r, ceilMat));
+  }
+
   let current = look;
   const apply = (l: Look3D) => {
     current = l;
@@ -182,6 +243,9 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
       const g = groups.get(f.id)!;
       g.visible = l.floor === ALL_FLOORS || l.floor === f.id;
       g.position.y = l.apart && l.floor === ALL_FLOORS ? i * LIFT_M : 0;
+      roofG.get(f.id)!.visible = l.layer === "roof";
+      frameG.get(f.id)!.visible = l.layer !== "inside";
+      ceilG.get(f.id)!.visible = l.layer !== "inside";
     });
   };
   apply(look);
@@ -209,7 +273,7 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
     const h = host.clientHeight;
     /* a floor's room names hide under the floor above it, unless they're lifted apart */
     const covered = (i: number) =>
-      !current.apart && current.floor === ALL_FLOORS && scene3.floors.some((_, j) => j > i);
+      current.layer !== "inside" || (!current.apart && current.floor === ALL_FLOORS && scene3.floors.some((_, j) => j > i));
     for (const l of labels) {
       v.copy(l.at);
       v.y += l.group.position.y;
@@ -236,7 +300,7 @@ async function build(host: HTMLDivElement, scene3: Scene3D, look: Look3D): Promi
         const m = o as THREE_NS.Mesh;
         m.geometry?.dispose?.();
       });
-      for (const mat of [wallMat, slabMat, outMat, oldMat, winMat, doorMat, iduMat, oduMat, pipeMat, edgeMat]) mat.dispose();
+      for (const mat of [wallMat, slabMat, outMat, oldMat, winMat, doorMat, iduMat, oduMat, pipeMat, edgeMat, roofMat, oldRoofMat, fillMat, ceilMat, ...Object.values(timber)]) mat.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     },

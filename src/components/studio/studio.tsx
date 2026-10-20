@@ -922,7 +922,7 @@ function Editor({
   /* the Design step's Plan / 3D switch (Isaac, 20 October 2026: "a button on
      design"), and what the 3D view shows */
   const [view3d, setView3d] = useState(false);
-  const [look3d, setLook3d] = useState<Look3D>({ floor: ALL_FLOORS, apart: false, labels: true });
+  const [look3d, setLook3d] = useState<Look3D>({ floor: ALL_FLOORS, apart: false, labels: true, layer: "roof" });
   const scene3d = useMemo(() => (view3d ? sceneOf(doc) : null), [view3d, doc]);
 
   /* ── fullscreen: the Workboard's display-mode pattern, ported ──
@@ -2522,9 +2522,19 @@ function ThreeDControls({
   reading: boolean;
   onReadPlans: () => void;
 }) {
-  const unread = plans && !scene.floors.some((f) => f.read);
+  /* the plans, or the roof off the set, not read yet */
+  const unread = plans && (!scene.floors.some((f) => f.read) || !scene.roofRead);
   return (
     <div className="ds-canvas-toggles">
+      {scene.roofs.length > 0 && (
+        <div className="ds-viewtray" role="group" aria-label="Layers">
+          {(["roof", "framing", "inside"] as const).map((l) => (
+            <button key={l} type="button" aria-pressed={look.layer === l} onClick={() => onLook({ ...look, layer: l })}>
+              {l === "roof" ? "Roof" : l === "framing" ? "Framing" : "Inside"}
+            </button>
+          ))}
+        </div>
+      )}
       {scene.floors.length > 1 && (
         <div className="ds-viewtray" role="group" aria-label="Floors">
           <button type="button" aria-pressed={look.floor === ALL_FLOORS} onClick={() => onLook({ ...look, floor: ALL_FLOORS })}>

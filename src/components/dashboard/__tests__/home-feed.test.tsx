@@ -108,3 +108,18 @@ it("(F) says nothing is here when a filter holds nothing", async () => {
   await userEvent.click(screen.getByRole("radio", { name: "Jobs" }));
   expect(screen.getByText("Nothing here")).toBeInTheDocument();
 });
+
+/* To do's Reply on a mention lands on Home with its note named (20 October 2026) */
+it("(F) opens the reply box on the mention To do's Reply named, whatever the filter", () => {
+  localStorage.setItem("heytiff.home.feed.v1", "approvals");
+  render(<HomeFeed items={[{ ...LUKE, notes: ["n0", "n1"] }, LEAVE]} replyTo="n0" />);
+  const luke = within(list()).getByText("Luke Parker").closest("li")!;
+  expect(within(luke).getByRole("textbox", { name: "Reply to Luke Parker" })).toBeInTheDocument();
+});
+
+it("(F) draws an approval with an icon, not initials as if it were a person", () => {
+  render(<HomeFeed items={[{ ...LEAVE, who: { ...LEAVE.who, thing: true } }]} />);
+  const row = within(list()).getByText("Leave to approve").closest("li")!;
+  expect(row.querySelector(".hm-feed-av--thing")).not.toBeNull();
+  expect(row.querySelector(".pt-initials")).toBeNull();
+});

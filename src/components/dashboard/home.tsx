@@ -135,7 +135,20 @@ function HomeBox({ voice, onStart }: { voice: boolean; onStart: (words: string) 
   );
 }
 
-export function HomeScreen({ today, todo, feed = [], voice = false }: { today: TodayView; todo: TodoRow[]; feed?: readonly FeedItem[]; voice?: boolean }) {
+export function HomeScreen({
+  today,
+  todo,
+  feed = [],
+  replyTo = null,
+  voice = false,
+}: {
+  today: TodayView;
+  todo: TodoRow[];
+  feed?: readonly FeedItem[];
+  /** a mention To do's Reply named (`?reply=`): its box opens in Your feed */
+  replyTo?: string | null;
+  voice?: boolean;
+}) {
   const tiff = useTiff();
   /* THE CONVERSATION TAKES THE PAGE once you have said something (Isaac, 20
      October, the board's frame 2); Back to Home brings the columns back. */
@@ -162,7 +175,7 @@ export function HomeScreen({ today, todo, feed = [], voice = false }: { today: T
         <div className="hm-cols">
           <HomeToday view={today} due={todo.filter((r) => columnOf(r) === "today")} />
           <HomeTodo rows={todo.filter((r) => columnOf(r) === "todo")} />
-          <HomeFeed items={feed} />
+          <HomeFeed items={feed} replyTo={replyTo} />
         </div>
       </div>
     </div>

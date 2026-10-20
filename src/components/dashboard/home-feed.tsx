@@ -10,6 +10,7 @@ import { Initials } from "@/components/parts/initials";
 import { Empty } from "@/components/parts/states";
 import { Tray } from "@/components/parts/tabs";
 import { FEED_FILTERS, inFilter, type FeedFilter, type FeedItem } from "@/lib/dashboard/your-feed";
+import { Icon } from "@/components/shell/icon";
 import { ColumnHead } from "./home-todo";
 
 /* YOUR FEED — Home's third column, in place of Activity (Isaac, 20 October
@@ -106,9 +107,12 @@ function ReplyBox({ item, onSent }: { item: FeedItem; onSent: (words: string) =>
   );
 }
 
-function FeedEntry({ item, onGone }: { item: FeedItem; onGone: (key: string) => void }) {
+const THING_ICON: Record<FeedItem["filter"], string> = { approvals: "check", you: "note", jobs: "folder" };
+
+function FeedEntry({ item, onGone, open = false }: { item: FeedItem; onGone: (key: string) => void; open?: boolean }) {
   const router = useRouter();
-  const [replying, setReplying] = useState(false);
+  /* To do's Reply lands here with this mention's box already open */
+  const [replying, setReplying] = useState(open && !!item.reply);
   const [sent, setSent] = useState<string | null>(null);
   const yours = sent ?? item.yours;
   const act = item.act;
@@ -117,6 +121,10 @@ function FeedEntry({ item, onGone }: { item: FeedItem; onGone: (key: string) => 
       {item.who.sm8 ? (
         <span className="hm-feed-av hm-feed-av--sm8" aria-hidden="true">
           SM8
+        </span>
+      ) : item.who.thing ? (
+        <span className="hm-feed-av hm-feed-av--thing" aria-hidden="true">
+          <Icon name={THING_ICON[item.filter]} size={16} />
         </span>
       ) : (
         <Initials name={item.who.name} size={32} beside />
@@ -173,11 +181,12 @@ function FeedEntry({ item, onGone }: { item: FeedItem; onGone: (key: string) => 
   );
 }
 
-export function HomeFeed({ items }: { items: readonly FeedItem[] }) {
+export function HomeFeed({ items, replyTo = null }: { items: readonly FeedItem[]; replyTo?: string | null }) {
   const kept = useSyncExternalStore(subscribe, readKept, () => null);
   /* chosen here before it could be kept (storage refused) still filters */
   const [chosen, setChosen] = useState<FeedFilter | null>(null);
-  const filter: FeedFilter = chosen ?? kept ?? "all";
+  /* To do's Reply names a note: show everything so its mention is there */
+  const filter: FeedFilter = chosen ?? (replyTo ? "all" : (kept ?? "all"));
   const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
   const choose = (f: FeedFilter) => {
     setChosen(f);
@@ -195,7 +204,12 @@ export function HomeFeed({ items }: { items: readonly FeedItem[] }) {
       ) : (
         <ul className="hm-feed-list" aria-label="Your feed">
           {shown.map((item) => (
-            <FeedEntry key={item.key} item={item} onGone={(k) => setGone((g) => new Set([...g, k]))} />
+            <FeedEntry
+              key={item.key}
+              item={item}
+              open={!!replyTo && (item.notes ?? []).includes(replyTo)}
+              onGone={(k) => setGone((g) => new Set([...g, k]))}
+            />
           ))}
         </ul>
       )}

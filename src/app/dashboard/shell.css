@@ -11716,7 +11716,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    beside them; then the table, a row per job (rule 39) under hairlines. The
    parts draw the tabs, the fields, the dots, the state words and the discs;
    these rules only lay them out. Desktop at 1440 is the target. */
-.fg .jl { display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .jl { display:flex; flex-direction:column; gap:16px; min-width:0; box-sizing:border-box; padding:24px 32px 48px; font-family:var(--font); color:var(--ink); }
 .fg .jl-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
 .fg .jl-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .fg .jl-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }
@@ -12402,7 +12402,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .ds2-num { color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .ds2-quiet { color:var(--q); }
 .fg .ds2-thumb { display:flex; align-items:center; justify-content:center; width:72px; height:54px; box-sizing:border-box; border:1px solid var(--line); border-radius:var(--r-control); overflow:hidden; background:var(--white); color:var(--q); }
-.fg .ds2-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.fg .ds2-thumb img { width:100%; height:100%; object-fit:contain; display:block; }
 .fg .ds2-skel { background:var(--soft); }
 .fg .ds2-skel--line { height:16px; width:40%; border-radius:var(--r-control); }
 /* Delete waits at the row's end and shows with the row's hover or focus (law 24) */
@@ -12615,7 +12615,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    per person (rule 39) under hairlines. The parts draw the tabs, the fields,
    the discs, the dots and the state words; these rules lay them out. The
    other five views are today's screens, framed here. 1440 is the target. */
-.fg .tm2 { display:flex; flex-direction:column; gap:16px; min-width:0; font-family:var(--font); color:var(--ink); }
+.fg .tm2 { display:flex; flex-direction:column; gap:16px; min-width:0; box-sizing:border-box; padding:24px 32px 48px; font-family:var(--font); color:var(--ink); }
 .fg .tm2-head { display:flex; align-items:center; justify-content:space-between; gap:24px; }
 .fg .tm2-title { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .fg .tm2-title h1 { margin:0; font-size:24px; line-height:32px; font-weight:600; color:var(--ink); }

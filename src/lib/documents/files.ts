@@ -131,9 +131,11 @@ export const ALLOWED_TYPES: Readonly<Record<string, string>> = {
   "application/pdf": "pdf",
 };
 
-/** 10 MB. A phone photo is 2–5; a scanned multi-page PDF is the outlier this
-    is sized for. The bucket enforces the same number. */
-export const MAX_BYTES = 10 * 1024 * 1024;
+/** 50 MB. A phone photo is 2–5; an architect's tender set is the outlier
+    this is sized for (Isaac, 21 October 2026: 7 Cutler Rd's set is 16 and
+    couldn't go on its job). The bucket enforces the same number
+    (docs/migrations/documents_50mb.sql). */
+export const MAX_BYTES = 50 * 1024 * 1024;
 
 /** How many files may hang off a single notice. */
 export const MAX_NOTICE_FILES = 6;

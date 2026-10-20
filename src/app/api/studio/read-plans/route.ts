@@ -1,7 +1,7 @@
 import { requireOrg } from "@/lib/permissions-server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { isDesignDocumentShape } from "@/lib/studio/document";
-import type { PlanReading } from "@/lib/studio/reading";
+import { firstPlanPage, type PlanReading } from "@/lib/studio/reading";
 import { READING_MODEL, readRoof, readSheet, type SheetToRead } from "@/lib/studio/reading-server";
 
 /* POST { designId } — Tiff reads every plan on the design's floors (v2,
@@ -66,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
     Promise.allSettled(toRead.map((s) => readSheet(orgId, s))),
     had?.roof
       ? Promise.resolve(had.roof)
-      : readRoof(orgId, pdf, firstPlans).then(({ said: _said, ...roof }) => roof).catch((e) => {
+      : readRoof(orgId, pdf, firstPlans, undefined, firstPlanPage(data.doc.planImport)).then(({ said: _said, ...roof }) => roof).catch((e) => {
           console.error(`[read-plans] ${designId}/roof: ${String(e)}`);
           return null;
         }),

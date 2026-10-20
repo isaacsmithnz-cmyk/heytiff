@@ -4,6 +4,7 @@ import sharp from "sharp";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import {
   CHECKLIST,
+  pagesToSend,
   type ReadCheck,
   type ReadFurniture,
   type ReadMark,
@@ -364,9 +365,9 @@ export function fromRoof(r: RoofReading, plans: { floorId: string; floor: string
   };
 }
 
-/* A PDF past this is sent without the pages after the first forty, which is
-   where a long set's schedules and details sit; past the API's own ceiling
-   it can't go at all. */
+/* A PDF past this is sent from its first floor plan on, at most forty pages,
+   and shorter again until it fits (reading.ts `pagesToSend`); past the API's
+   own ceiling it can't go at all. */
 const PDF_MAX_BYTES = 30 * 1024 * 1024;
 
 /* REVISING IT (Isaac, 20 October 2026: "She should also be able to revise
@@ -387,7 +388,14 @@ The installer looked at it in 3D and says: "${words.replace(/"/g, "'")}"
 Give back the whole reading corrected: change what they said, and what follows from it, and keep the rest as it was. If what they say can't be right by the drawings, keep what the drawings show and say why. In said, tell them in a sentence or two what you changed.`;
 
 /** Reads the roof and the heights: the whole set as the architect drew it, and each floor's plan to set the roof out on. */
-export async function readRoof(orgId: string, pdfRef: string | null, floors: SheetToRead[], revise?: RoofRevision): Promise<RoofReading & { said: string }> {
+export async function readRoof(
+  orgId: string,
+  pdfRef: string | null,
+  floors: SheetToRead[],
+  revise?: RoofRevision,
+  /** the set's first floor plan page (reading.ts `firstPlanPage`) */
+  pdfFrom = 0,
+): Promise<RoofReading & { said: string }> {
   if (!floors.length) throw new Error("There is no floor plan to set the roof out on");
   const plans = await Promise.all(floors.map(async (f) => ({ f, p: await prepare(orgId, f) })));
   const blocks: Block[] = [];
@@ -396,11 +404,16 @@ export async function readRoof(orgId: string, pdfRef: string | null, floors: She
     if (pdf.byteLength > PDF_MAX_BYTES) {
       const { PDFDocument } = await import("pdf-lib");
       const whole = await PDFDocument.load(pdf, { ignoreEncryption: true });
-      const cut = await PDFDocument.create();
-      const pages = await cut.copyPages(whole, whole.getPageIndices().slice(0, 40));
-      for (const pg of pages) cut.addPage(pg);
-      pdf = Buffer.from(await cut.save());
-      if (pdf.byteLength > PDF_MAX_BYTES) throw new Error("The drawing set is too large to read the roof from");
+      let keep = pagesToSend(whole.getPageCount(), pdfFrom, 40);
+      for (;;) {
+        const cut = await PDFDocument.create();
+        for (const pg of await cut.copyPages(whole, keep)) cut.addPage(pg);
+        pdf = Buffer.from(await cut.save());
+        if (pdf.byteLength <= PDF_MAX_BYTES) break;
+        /* the plans lead, so what goes is the end: details and schedules */
+        if (keep.length <= 4) throw new Error("The drawing set is too large to read the roof from");
+        keep = keep.slice(0, Math.ceil(keep.length * 0.75));
+      }
     }
     blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: pdf.toString("base64") } });
   }

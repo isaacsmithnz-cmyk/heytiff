@@ -124,6 +124,6 @@ describe("fmtBytes", () => {
     expect(fmtBytes(512)).toBe("512 B");
     expect(fmtBytes(2048)).toBe("2 KB");
     expect(fmtBytes(2.4 * 1024 * 1024)).toBe("2.4 MB");
-    expect(fmtBytes(MAX_BYTES)).toBe("10 MB");
+    expect(fmtBytes(MAX_BYTES)).toBe("50 MB");
   });
 });

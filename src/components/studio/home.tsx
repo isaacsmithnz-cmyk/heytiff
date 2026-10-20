@@ -162,7 +162,6 @@ export function DesignHome({
       <header className="ds2-head">
         <div className="ds2-title">
           <h1>Design</h1>
-          {!loading && <span className="ds2-fact">{known.length === 1 ? "1 design" : `${known.length} designs`}</span>}
         </div>
         <div className="ds2-acts">
           <Button icon="upload" onClick={() => fileRef.current?.click()}>

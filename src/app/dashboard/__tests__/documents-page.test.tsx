@@ -101,10 +101,10 @@ describe("the route", () => {
 });
 
 describe("the screen", () => {
-  it("says what's been made and who it waits on, with a view for each kind, no numbers on them", () => {
+  it("is the title alone, with a view for each kind, no numbers on either (Isaac, 20 October)", () => {
     show(dataFor());
     expect(screen.getByRole("heading", { level: 1, name: "Documents" })).toBeTruthy();
-    expect(screen.getByText("7 made, 1 waiting on someone")).toBeTruthy();
+    expect(screen.queryByText(/ made/)).toBeNull();
     expect(tab(/^All/).textContent).toBe("All");
     expect(tab(/^SWMS/).textContent).toBe("SWMS");
     expect(tab(/^Letters/).textContent).toBe("Letters");

@@ -7,7 +7,6 @@ import {
   handoverState,
   letterRow,
   peopleOf,
-  railState,
   readDocsState,
   rowsFor,
   sortRows,
@@ -142,9 +141,4 @@ describe("the Updated column and the Templates rail", () => {
     expect(dayWord("", "2026-10-13")).toBe("");
   });
 
-  it("words an approval in Settings' own words: approved in green with its day, waiting in orange", () => {
-    expect(railState({ text: "Approved", tone: "on" }, "Wed 3 Sep")).toEqual({ text: "Approved Wed 3 Sep", tone: "good" });
-    expect(railState({ text: "Waiting for your approval", tone: "warn" }, null)).toEqual({ text: "Waiting for your approval", tone: "look" });
-    expect(railState(undefined, null)).toBeNull();
-  });
 });

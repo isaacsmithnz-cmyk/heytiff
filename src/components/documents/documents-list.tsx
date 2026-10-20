@@ -29,13 +29,13 @@ import {
   type DocSort,
   type DocView,
   type DocsState,
-  type TemplateRailItem,
 } from "@/lib/documents/made";
 
 /* DOCUMENTS (v2, step 5; the board 5-documents). The title with what's
    been made beside it, the search and Make a document on the right; the
    kinds as soft tabs (rule 29) with By and Sort beside them; then the
-   table, a row per document (rule 39), and the Templates in the rail.
+   table, a row per document (rule 39). Templates live in Settings, not
+   here (Isaac, 20 October: "The templates probably shouldn't be in there").
 
    All shows each kind as a group, its newest few with Show all; a kind's
    own view is the whole of it. A row opens the document where today's
@@ -101,31 +101,6 @@ function Rows({ rows, today, label }: { rows: readonly DocRow[]; today: string; 
         <DocLine key={r.key} row={r} today={today} />
       ))}
     </ul>
-  );
-}
-
-/** The Templates rail: all seven, each to its page in Settings. */
-function TemplatesRail({ items }: { items: readonly TemplateRailItem[] }) {
-  return (
-    <aside className="dc2-rail" aria-labelledby="dc2-rail-h">
-      <h2 id="dc2-rail-h" className="dc2-rail-h">
-        Templates <span className="dc2-count">{items.length}</span>
-      </h2>
-      <ul className="dc2-tpls">
-        {items.map((t) => (
-          <li key={t.key}>
-            <Link className="dc2-tpl" href={t.href}>
-              <span className="dc2-tpl-name">{t.title}</span>
-              {t.state ? (
-                <span className={`dc2-tpl-line dc2-tpl-line--${t.state.tone}`}>{t.state.text}</span>
-              ) : (
-                <span className="dc2-tpl-line">{t.line}</span>
-              )}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </aside>
   );
 }
 
@@ -278,7 +253,6 @@ export function DocumentsList({ data, initial }: { data: DocumentsData; initial:
             </div>
           )}
         </div>
-        <TemplatesRail items={data.templates} />
       </div>
     </div>
   );

@@ -566,7 +566,7 @@
 .fg .main { background:var(--white); border-top-left-radius:var(--r-page); }
 /* the foot's curl: white under the sidebar's rounded corner */
 .fg .main::before { content:""; position:absolute; left:calc(-1 * var(--r-page)); bottom:0; width:var(--r-page); height:var(--r-page); background:var(--white); z-index:-1; pointer-events:none; }
-.fg .side.fr-side { position:relative; z-index:30; height:100%; box-sizing:border-box; width:256px; flex:0 0 256px; background:var(--ink); border-bottom-right-radius:var(--r-page); display:flex; flex-direction:column; gap:2px; padding:24px 8px 12px; overflow-y:auto; scrollbar-width:none; }
+.fg .side.fr-side { position:relative; z-index:30; height:100%; box-sizing:border-box; width:208px; flex:0 0 208px; background:var(--ink); border-bottom-right-radius:var(--r-page); display:flex; flex-direction:column; gap:2px; padding:24px 8px 12px; overflow-y:auto; scrollbar-width:none; }
 .fg .side.fr-side::-webkit-scrollbar { display:none; }
 
 .fg .fr-brand { display:flex; align-items:center; gap:8px; padding:4px 12px 16px; color:var(--white); }
@@ -580,7 +580,6 @@
 .fg .side .fr-row svg { flex:0 0 auto; color:var(--white); }
 /* rule 50: a label that doesn't fit fades. The box runs to the row's end, so a label that fits ends before the fade starts. */
 .fg .fr-lbl { flex:1; min-width:0; white-space:nowrap; overflow:hidden; -webkit-mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); mask-image:linear-gradient(to right, var(--ink) calc(100% - 24px), transparent); }
-.fg .fr-kbd { font:inherit; font-size:13px; font-weight:500; color:var(--on-ink-q); }
 
 /* New (rule 3): a white disc and the word */
 .fg .side .fr-new { display:flex; align-items:center; gap:12px; width:100%; min-height:36px; padding:0 8px; border-radius:var(--r-button); color:var(--white); font-size:14px; font-weight:600; transition:background-color var(--t-fast) ease-out; }
@@ -11887,7 +11886,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-line.hm-line--look { color:var(--orange-w); }
 .fg .hm-line.hm-line--info { color:var(--q); }
 /* on the ink a coloured word falls under 4.5:1, so the count is white */
-.fg .side .hm-navcount { flex:none; font-size:13px; line-height:18px; font-weight:500; color:var(--paper); font-variant-numeric:tabular-nums; }
 
 /* ===== MAKING THINGS (v2, step 4): the one form for each kind =====
    No `.fg`: the form opens in a dialog, which portals to <body>. */
@@ -12329,7 +12327,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .dc2-pick .pt-chooser.dc2-pick-ch { width:auto; min-width:176px; padding-left:calc(12px + 24px); }
 .fg .dc2-pick .pt-chooser.dc2-pick-ch--sort { padding-left:48px; }
 /* the list and the rail beside it */
-.fg .dc2-body { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:48px; align-items:start; }
+.fg .dc2-body { display:grid; grid-template-columns:minmax(0,1fr); gap:48px; align-items:start; }
 .fg .dc2-panel { min-width:0; }
 .fg .dc2-table { --dc2-cols:minmax(0,1.4fr) minmax(0,1.2fr) minmax(0,1.3fr) 112px 32px; min-width:0; }
 .fg .dc2-rows { margin:0; padding:0; list-style:none; }
@@ -12355,17 +12353,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .dc2-showall { padding:0; border:0; background:none; font:inherit; font-size:14px; line-height:20px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
 .fg .dc2-showall:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-button); }
 /* the Templates rail */
-.fg .dc2-rail { display:flex; flex-direction:column; min-width:0; }
-.fg .dc2-rail-h { margin:0; padding:8px 0 12px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
-.fg .dc2-tpls { margin:0; padding:0; list-style:none; }
-.fg .dc2-tpl { display:flex; flex-direction:column; gap:2px; padding:12px 0; border-bottom:1px solid var(--line); color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
-.fg .dc2-tpl:hover { background:var(--hov); }
-.fg .dc2-tpl:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .dc2-tpl-name { font-size:14px; line-height:20px; font-weight:600; }
-.fg .dc2-tpl-line { font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
-.fg .dc2-tpl-line--look { color:var(--orange-w); font-weight:500; }
-.fg .dc2-tpl-line--good { color:var(--green-w); font-weight:500; }
-.fg .dc2-tpl-line--wrong { color:var(--red-w); font-weight:500; }
 /* ===== V2: DESIGN, THE HOME (v2, step 5; the board studio-home;
    components/studio/home.tsx) =====
    The title with how many designs, Import design file and New design on the
@@ -12413,6 +12400,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .ds2-rail { display:flex; flex-direction:column; align-items:flex-start; gap:8px; min-width:0; }
 .fg .ds2-rail-h { margin:0; padding:8px 0 4px; font-size:16px; line-height:24px; font-weight:600; color:var(--ink); }
 .fg .ds2-rail-line { margin:0; font-size:13px; line-height:18px; font-weight:400; color:var(--q); }
+/* the unit library's door, a second button in the rail: studio.css draws it
+   for the old dark start screen, pinned top right, where on the white page
+   it stood unseen over New design (Isaac, 20 October) */
+.fg .ds2-rail .ds-lib-door { position:static; height:32px; padding:0 12px; border:1px solid var(--edge); border-radius:var(--r-button); background:var(--white); color:var(--ink); font-size:14px; line-height:20px; font-weight:600; }
+.fg .ds2-rail .ds-lib-door:hover { background:var(--hov); }
+.fg .ds2-rail .ds-lib-door svg { color:var(--ink); }
+.fg .ds2-rail .ds-lib-door-s { font-weight:400; color:var(--q); }
+.fg .ds2-rail .ds-lib-door-new { color:var(--ink); }
 
 /* New design: the job, the name and the drop zone; the pages; the floors; the crop */
 .pt-dialog .ds2-nd-form { display:flex; flex-direction:column; gap:16px; padding-bottom:8px; }

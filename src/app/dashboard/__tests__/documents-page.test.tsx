@@ -3,12 +3,12 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { DocumentsList } from "@/components/documents/documents-list";
 import { makeOnJobHref } from "@/components/documents/make-document";
 import type { DocumentsData } from "@/lib/documents/made-query";
-import { DEFAULT_DOCS_STATE, TEMPLATE_RAIL, certRow, handoverRow, letterRow, swmsRow, type DocsState } from "@/lib/documents/made";
+import { DEFAULT_DOCS_STATE, certRow, handoverRow, letterRow, swmsRow, type DocsState } from "@/lib/documents/made";
 import type { OrgSwmsSummary } from "@/lib/swms/query";
 
 /* /dashboard/documents: the gate, the address, and the screen — its kinds
    and their counts, All's groups with Show all, the rows opening where
-   today's screens open them, the search, the empty view, the Templates
+   today's screens open them, the search, the empty view, no Templates
    rail, and Make a document. */
 
 let allowed = true;
@@ -60,13 +60,6 @@ function dataFor(over: Partial<DocumentsData> = {}): DocumentsData {
       handoverRow({ id: "p-1", name: "Hale Street apartments", updatedAt: "2026-09-28T01:00:00.000Z" }, { done: 3, total: 4 }, { label: "3240 Hale, Ultimo", hue: null }, day),
     ],
     kinds: ["swms", "certificate", "letter", "handover"],
-    templates: TEMPLATE_RAIL.map((t) => ({
-      key: t.key,
-      title: t.title,
-      line: t.line,
-      state: t.key === "swms" ? { text: "Waiting for your approval", tone: "look" as const } : null,
-      href: `/dashboard/admin/templates/${t.key}`,
-    })),
     today: TODAY,
     canWriteLetters: true,
     ...over,
@@ -162,13 +155,9 @@ describe("the screen", () => {
     expect(screen.getByText("No SWMS yet")).toBeTruthy();
   });
 
-  it("lists all seven templates in the rail, each to its page, with the SWMS's approval as a word", () => {
+  it("has no Templates rail: templates live in Settings (Isaac, 20 October)", () => {
     show(dataFor());
-    const rail = screen.getByRole("complementary", { name: /Templates/ });
-    const links = within(rail).getAllByRole("link");
-    expect(links).toHaveLength(7);
-    expect(links[0]!.getAttribute("href")).toBe("/dashboard/admin/templates/swms");
-    expect(within(links[0]!).getByText("Waiting for your approval")).toBeTruthy();
+    expect(screen.queryByRole("complementary", { name: /Templates/ })).toBeNull();
   });
 
   it("leaves Letters out for a reader below admin", () => {

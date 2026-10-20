@@ -15,8 +15,8 @@ When two sources disagree: Isaac's own words win, then this file, then the canva
 - **1. The page and its two curves.** Ink sidebar; a plain white page. The page curls into the ink at its top left, and the ink curls back into the page at its foot: 40 each, square everywhere else.
 - **2. The header.** The date and the time together on the left of every page; open tabs on the right.
 - **3. New.** At the top of the sidebar, a white disc and the word. Jobs and tasks are made here (rule 44); what belongs to a record comes from its Add (rule 54).
-- **4. Search.** Under New, with ⌘K beside it. Finds any record; its last row asks Tiff.
-- **5. The eight places.** Home, Conversations, Jobs, Schedule, Documents, Library, Design, Team. The one you're on is white at 12% with its label in bold.
+- **4. Search.** Under New, the word alone (no ⌘K beside it, Isaac, 20 October). Finds any record; its last row asks Tiff.
+- **5. The eight places.** Home, Conversations, Jobs, Schedule, Documents, Library, Design, Team. The one you're on is white at 12% with its label in bold. No number beside any of them.
 - **6. Pinned and Recents.** Stay in the sidebar under the places; a job shows its colour dot.
 - **7. Your name.** At the bottom: your card, timesheet, leave, expense claims, Reports and Settings, then Sign out. Reports shows to whoever holds the permission each report needs.
 - **8. Tiff's mark.** Black and white at rest, and still: black on the page, white on the ink. While Tiff listens or works it turns, and its rings run through the colours in the boards' order: blue, purple, pink, red, orange, yellow, green. Listening and working look the same. Colour on the mark means Tiff is busy.

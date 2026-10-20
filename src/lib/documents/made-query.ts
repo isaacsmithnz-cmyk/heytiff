@@ -4,7 +4,8 @@
    certificates (listJobSwms, listJobCerts, read here for the whole
    workspace by the same engine), Admin's letters (listLetters, with its
    own rule for who may open one), the Projects list (listProjects) for the
-   handover sheets, and Settings' Templates' approvals. No new tables.
+   and handover sheets. No new tables. Templates live in Settings, not here
+   (Isaac, 20 October).
 
    The page gates with can("workboard") before calling this: the SWMS, the
    certificates and the handover sheets are the Workboard's today. Letters
@@ -21,27 +22,21 @@ import { listOrgCerts } from "@/lib/certs/query";
 import { listLetters } from "@/lib/letters/query";
 import { listProjects, staffIdFor } from "@/lib/workboard/projects-query";
 import { jobHue } from "@/lib/workboard/job-hue";
-import { templateHref } from "@/components/admin/templates-catalogue";
-import { approvalStatus, templateApprovals } from "@/app/dashboard/admin/templates/approvals";
 import {
-  TEMPLATE_RAIL,
   certRow,
   handoverRow,
   jobLabel,
   letterRow,
-  railState,
   swmsRow,
   type DocJob,
   type DocKind,
   type DocRow,
-  type TemplateRailItem,
 } from "./made";
 
 export type DocumentsData = {
   rows: DocRow[];
   /** The kinds this reader sees, in the views' order. */
   kinds: DocKind[];
-  templates: TemplateRailItem[];
   today: string;
   /** Make a document › Letter: admin and up, as Admin's letters were. */
   canWriteLetters: boolean;
@@ -133,14 +128,13 @@ export async function loadDocuments(): Promise<DocumentsData | null> {
   const role = await getDbRole();
   const letters = hasMinRole(role, "admin");
 
-  const [swms, certs, projects, letterList, approvals] = await Promise.all([
+  const [swms, certs, projects, letterList] = await Promise.all([
     listOrgSwms(orgId),
     listOrgCerts(orgId),
     listProjects(orgId, { includeArchived: false }),
     letters
       ? staffIdFor(orgId, userId).then((staffId) => listLetters(orgId, { staffId, isOwner: hasMinRole(role, "owner") }))
       : Promise.resolve([]),
-    templateApprovals(orgId),
   ]);
 
   const [jobs, checks] = await Promise.all([
@@ -166,27 +160,9 @@ export async function loadDocuments(): Promise<DocumentsData | null> {
     }),
   ];
 
-  const status = {
-    swms: approvalStatus(approvals.swms, approvals.isOwner),
-    certificate: approvalStatus(approvals.wording.approved, approvals.isOwner, approvals.wording.changed?.length ?? 0),
-  };
-  const templates: TemplateRailItem[] = TEMPLATE_RAIL.map((t) => ({
-    key: t.key,
-    title: t.title,
-    line: t.line,
-    state:
-      t.key === "swms"
-        ? railState(status.swms, approvals.swms?.on ?? null)
-        : t.key === "certificate"
-          ? railState(status.certificate, approvals.wording.approved?.on ?? null)
-          : null,
-    href: templateHref(t.key),
-  }));
-
   return {
     rows,
     kinds: letters ? ["swms", "certificate", "letter", "handover"] : ["swms", "certificate", "handover"],
-    templates,
     today: todayInAu(),
     canWriteLetters: letters,
   };

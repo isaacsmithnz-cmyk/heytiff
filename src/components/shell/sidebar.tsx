@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useContext, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "./icon";
-import { HomeCount } from "./home-count";
 import { Chevron } from "../logo";
 import { PLACES, STILL_TO_MOVE, YOURS, placeOn, placesFor, type Place } from "./places";
 import { useCommandPalette } from "./command-palette-context";
@@ -54,7 +53,6 @@ export function Sidebar({ user, newJob = false, pins = [] }: { user: ShellUser; 
       <button type="button" className="fr-row fr-search" onClick={openSearch}>
         <Icon name="search" size={18} />
         <span className="fr-lbl">Search</span>
-        <kbd className="fr-kbd" aria-label="Command K">⌘K</kbd>
       </button>
 
       <nav className="fr-places" aria-label="Places">
@@ -75,13 +73,13 @@ export function Sidebar({ user, newJob = false, pins = [] }: { user: ShellUser; 
   );
 }
 
-/* Home carries what the bell counted (decision 25): ./home-count. */
+/* No number beside Home or any place (Isaac, 20 October: "We don't want
+   numbers there"); what waits is on Home itself. */
 function PlaceRow({ place, on }: { place: Place; on: boolean }) {
   return (
     <Link href={place.href} className={`fr-row${on ? " on" : ""}`} aria-current={on ? "page" : undefined}>
       <Icon name={place.icon} size={18} />
       <span className="fr-lbl">{place.label}</span>
-      {place.key === "home" && <HomeCount />}
     </Link>
   );
 }

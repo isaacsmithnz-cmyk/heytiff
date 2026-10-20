@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-/* THE TIFF MARK MOVES ONLY WHILE TIFF WORKS, AND STOPS BY NAME.
+/* THE TIFF MARK MOVES WHILE TIFF WORKS, HOME'S ALWAYS, AND STOPS BY NAME.
 
    v2, rule 8 (18 October 2026): black and white and still at rest; while
-   Tiff listens or works it turns and its rings take the colours. Until then
+   Tiff listens or works it turns and its rings take the colours. Home's
+   mark (`.alive`, Isaac, 20 October) turns at rest too, in the colours, and
+   faster while she works. Until then
    it was the one loop not tied to feedback or state, Isaac's override of
    24 September, which v2 retires. The loops table
    holds its keyframe names; this holds the other half of the bargain, which
@@ -25,7 +27,8 @@ const blocks = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(
 describe("the Tiff button's motion", () => {
   const looping = blocks
     .filter(([sel, body]) => /\.tiffbtn/.test(sel) && /animation\s*:[^;]*\binfinite\b/.test(body))
-    .map(([sel]) => sel);
+    // split on the commas between selectors, never the ones inside `:is(…)`
+    .flatMap(([sel]) => sel.split(/,(?![^(]*\))/).map((x) => x.trim()));
 
   it("loops on the elements docs/design.md names, and no more", () => {
     expect(looping.sort()).toEqual(
@@ -33,20 +36,22 @@ describe("the Tiff button's motion", () => {
         ".tiffbtn-arc", ".tiffbtn-gim-a", ".tiffbtn-gim-b", ".tiffbtn-nod", ".tiffbtn-pre", ".tiffbtn-sheen::before",
         // the working mark's rings, in the colours (v2, rule 8)
         ":is(.tiffbtn, .tiffmk).working .tiffbtn-gim-a .tiffbtn-ring", ":is(.tiffbtn, .tiffmk).working .tiffbtn-gim-b .tiffbtn-ring",
+        // Home's mark, alive at rest (Isaac, 20 October)
+        ".tiffmk.alive .tiffbtn-gim-a .tiffbtn-ring", ".tiffmk.alive .tiffbtn-gim-b .tiffbtn-ring",
       ].sort()
     );
   });
 
   /* v2, rule 8: "Black and white at rest, and still." Every loop on the mark
-     is declared paused, and only a working mark runs them. */
-  it("holds every loop still at rest and runs them only while Tiff works", () => {
+     is declared paused, and only a working mark, or Home's alive one, runs them. */
+  it("holds every loop still at rest and runs them only while Tiff works, or on Home's mark", () => {
     const paused = blocks.filter(([, body]) => /animation-play-state\s*:\s*paused/.test(body)).map(([sel]) => sel).join(",");
     const running = blocks.filter(([, body]) => /animation-play-state\s*:\s*running/.test(body)).map(([sel]) => sel);
     for (const el of [".tiffbtn-pre", ".tiffbtn-nod", ".tiffbtn-gim-a", ".tiffbtn-gim-b", ".tiffbtn-arc", ".tiffbtn-sheen::before"]) {
       expect(paused).toContain(el.replace("::before", ""));
     }
     expect(running.length).toBeGreaterThan(0);
-    for (const sel of running) expect(sel).toMatch(/\.working/);
+    for (const sel of running) expect(sel).toMatch(/\.working|\.tiffmk\.alive/);
   });
 
   it("stops every one of them under reduced motion", () => {

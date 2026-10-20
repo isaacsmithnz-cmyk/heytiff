@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { CvBox } from "@/components/conversations/box";
+import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
-import { TiffBox } from "@/components/tiff/modal/tiff-box";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import { Button, LinkButton } from "@/components/parts/button";
 import { Row, RowList } from "@/components/parts/row";
@@ -15,10 +17,14 @@ import { HomeTodo, useTaskTick } from "./home-todo";
 /* HOME, v2 (the board v2-board-home; docs/design.md rules 8, 13, 22, 26,
    27 and 39; decisions 25 and 28). Three things, in one column:
 
-   TIFF'S MARK, centred and still, over HER BOX ("What's happening on
-   site?"), which is the entry box every room had (components/tiff/modal/
-   tiff-box) in v2's dress: the microphone opens her listening, Send opens
-   her on the words. No new Tiff flow: it is the same modal.
+   TIFF'S MARK, centred, three times its old size and always turning in
+   her colours, faster while she works (Isaac, 20 October: "move at all
+   times, even in standby"), over HER BOX ("What's happening on site?").
+   The box is Conversations' own (components/conversations/box): the
+   microphone records in the box itself, the recording card taking its
+   place and the words landing in it, as Claude's box does (Isaac, 20
+   October: "the recording is done in the box itself, no pop-up modal").
+   Send opens her on the words.
 
    TODAY: your own visits and timed tasks, one row each, with the Schedule
    (the Workboard, until Schedule is rebuilt) and the old desk's Calendar a
@@ -86,15 +92,54 @@ function HomeToday({ view }: { view: TodayView }) {
   );
 }
 
-export function HomeScreen({ today, todo }: { today: TodayView; todo: TodoRow[] }) {
+/** Home's box: the words, the microphone that records in the box, and Send. */
+function HomeBox({ voice }: { voice: boolean }) {
+  const tiff = useTiff();
+  const [text, setText] = useState("");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [ranOut, setRanOut] = useState(false);
+  const field = useRef<HTMLTextAreaElement>(null);
+  const dict = useDictation({
+    onTranscript: (spoken, { capped }) => {
+      setVoiceError(null);
+      setRanOut(capped);
+      setText((prev) => appendSpoken(prev, spoken));
+    },
+    onError: setVoiceError,
+  });
+
+  const send = () => {
+    const words = text.trim();
+    const at = field.current;
+    if (!words || !at) return;
+    if (tiff.open({ from: at, words, room: "home", keyboard: true, back: at })) setText("");
+  };
+
+  return (
+    <CvBox
+      value={text}
+      onChange={setText}
+      onSubmit={send}
+      label="What's happening on site?"
+      placeholder="What's happening on site?"
+      sendWord="Send"
+      dict={voice ? dict : null}
+      voiceError={voiceError}
+      ranOut={ranOut}
+      boxRef={field}
+    />
+  );
+}
+
+export function HomeScreen({ today, todo, voice = false }: { today: TodayView; todo: TodoRow[]; voice?: boolean }) {
   const tiff = useTiff();
   return (
     <div className="page in">
       <div className="wrap hm">
         <h1 className="sr-only">Home</h1>
         <div className="hm-ask">
-          <TiffGlyph size={32} working={tiff.isOpen} label="Tiff" />
-          <TiffBox room="home" look="home" placeholder="What's happening on site?" save={NO_SAVE} />
+          <TiffGlyph size={96} alive working={tiff.isOpen} label="Tiff" />
+          <HomeBox voice={voice} />
         </div>
         <HomeToday view={today} />
         <HomeTodo rows={todo} />
@@ -102,6 +147,3 @@ export function HomeScreen({ today, todo }: { today: TodayView; todo: TodoRow[] 
     </div>
   );
 }
-
-/** Home's box has no Save (tiff-box, `look="home"`); this is never pressed. */
-const NO_SAVE = async () => ({ ok: false as const, error: "" });

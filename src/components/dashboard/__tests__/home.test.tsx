@@ -34,6 +34,29 @@ jest.mock("@/app/actions/booking-sm8", () => ({
   bookJobIn: jest.fn(),
   takeBackBooking: jest.fn(),
 }));
+/* the microphone's engine: its start is all a test can press */
+const startDictation = jest.fn();
+jest.mock("@/components/notes/dictation", () => {
+  const actual = jest.requireActual("@/components/notes/dictation");
+  return {
+    ...actual,
+    useDictation: () => ({
+      recording: false,
+      arming: false,
+      transcribing: false,
+      seconds: 0,
+      interim: "",
+      barsRef: { current: null },
+      bindQuiet: jest.fn(),
+      keepListening: jest.fn(),
+      start: startDictation,
+      stop: jest.fn(),
+      handOver: jest.fn(),
+      cancel: jest.fn(),
+      restart: jest.fn(),
+    }),
+  };
+});
 const open = jest.fn((..._a: unknown[]) => true);
 const toast = jest.fn();
 const tiff: TiffApi = { open: (o) => open(o), openedBy: null, isOpen: false, landed: null };
@@ -97,7 +120,7 @@ const draw = (view: TodayView = today(), rows: TodoRow[] = ROWS) =>
   render(
     <WindowsContext.Provider value={windows}>
       <TiffContext.Provider value={tiff}>
-        <HomeScreen today={view} todo={rows} />
+        <HomeScreen today={view} todo={rows} voice />
       </TiffContext.Provider>
     </WindowsContext.Provider>,
   );
@@ -107,7 +130,7 @@ const rowOf = (name: string) => screen.getByText(name).closest("li")!;
 
 afterEach(cleanup);
 beforeEach(() => {
-  [completeTask, reopenTask, snoozeReminder, acknowledgeTask, open, toast, refresh].forEach((m) => m.mockClear());
+  [completeTask, reopenTask, snoozeReminder, acknowledgeTask, open, toast, refresh, startDictation].forEach((m) => m.mockClear());
 });
 
 describe("the box", () => {
@@ -116,16 +139,29 @@ describe("the box", () => {
     expect(screen.getByRole("img", { name: "Tiff" })).toBeInTheDocument();
     const field = screen.getByRole("textbox", { name: "What's happening on site?" });
     expect(field).toHaveAttribute("placeholder", "What's happening on site?");
-    expect(screen.getByRole("button", { name: "Talk to Tiff" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Speak instead of typing" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
-  it("(F) the microphone opens her listening, in Home's room", async () => {
+  it("(F) her mark is three times the size and turns at rest, in her colours", () => {
     draw();
-    await userEvent.click(screen.getByRole("button", { name: "Talk to Tiff" }));
-    expect(open).toHaveBeenCalledWith(expect.objectContaining({ room: "home", keyboard: false }));
-    expect(open.mock.calls[0]![0]).not.toHaveProperty("words");
+    const mark = screen.getByRole("img", { name: "Tiff" });
+    expect(mark).toHaveClass("tiffmk", "alive");
+    expect(mark.style.getPropertyValue("--tb")).toBe("96px");
+  });
+
+  it("(F) the microphone records in the box, and no window opens", async () => {
+    draw();
+    await userEvent.click(screen.getByRole("button", { name: "Speak instead of typing" }));
+    expect(startDictation).toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it("(F) Send with nothing typed does nothing", async () => {
+    draw();
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(open).not.toHaveBeenCalled();
   });
 
   it("(F) Send opens her on the words, and the box empties", async () => {

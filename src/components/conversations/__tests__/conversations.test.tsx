@@ -131,14 +131,14 @@ afterEach(cleanup);
 const tab = (name: RegExp) => screen.getByRole("tab", { name });
 
 describe("the views", () => {
-  it("names the place and offers All, Team and Only me, each with its count", async () => {
+  it("names the place and offers All, Team and Only me, with no numbers on them", async () => {
     localStorage.setItem(STORE_KEY, JSON.stringify(threads()));
     render(<Conversations {...props()} />);
     expect(screen.getByRole("heading", { level: 1, name: "Conversations" })).toBeInTheDocument();
     expect(tab(/^All/)).toHaveAttribute("aria-selected", "true");
-    expect(tab(/^All/)).toHaveTextContent("All2");
-    expect(tab(/^Team/)).toHaveTextContent("Team0");
-    expect(tab(/^Only me/)).toHaveTextContent("Only me1");
+    expect(tab(/^All/)).toHaveTextContent(/^All$/);
+    expect(tab(/^Team/)).toHaveTextContent(/^Team$/);
+    expect(tab(/^Only me/)).toHaveTextContent(/^Only me$/);
   });
 
   it("puts the view in the address, so a tab or a refresh holds it", async () => {

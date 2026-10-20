@@ -157,7 +157,6 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
     if (typeof window !== "undefined") window.history.replaceState(null, "", withListState(window.location.href, s));
   };
 
-  const counts = viewCounts(data.rows, state);
   const open = viewCounts(data.rows, { who: ANYONE, q: "" }).all;
   const views = viewsFor(money);
   const shown = sortRows(rowsFor(data.rows, state), state.sort);
@@ -205,7 +204,7 @@ export function JobsList({ data, initial }: { data: JobsListData; initial: ListS
           panelPrefix={PANEL}
           current={state.view}
           onGo={(key) => go({ view: key as JobView })}
-          items={views.map((v) => ({ key: v.key, label: v.label, count: counts[v.key] }))}
+          items={views.map((v) => ({ key: v.key, label: v.label }))}
         />
         <div className="jl-picks">
           <div className="jl-pick">

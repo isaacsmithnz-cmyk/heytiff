@@ -20,11 +20,6 @@
 export type Face = {
   key: string;
   label: string;
-  /** Absent or zero renders nothing, as the strip's badges do — a grey 0 on
-      every switch is noise, and an empty face already says "none". */
-  count?: number;
-  /** Appended to the accessible name so the number is not a bare digit. */
-  countLabel?: (n: number) => string;
 };
 
 export function FaceSwitch({
@@ -59,7 +54,6 @@ export function FaceSwitch({
         <div className="seg">
           {items.map((f) => {
             const on = f.key === active;
-            const count = f.count ?? 0;
             return (
               <button
                 key={f.key}
@@ -76,16 +70,6 @@ export function FaceSwitch({
                 onKeyDown={moveFocus}
               >
                 {f.label}
-                {count > 0 && (
-                  <>
-                    <i className="segn" aria-hidden="true">
-                      {count}
-                    </i>
-                    {f.countLabel && (
-                      <span className="sr-only"> — {f.countLabel(count)}</span>
-                    )}
-                  </>
-                )}
               </button>
             );
           })}

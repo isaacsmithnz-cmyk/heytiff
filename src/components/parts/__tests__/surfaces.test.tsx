@@ -262,8 +262,8 @@ describe("Toast", () => {
 
 describe("ViewTabs", () => {
   const items = [
-    { key: "open", label: "Open", count: 12 },
-    { key: "quoted", label: "Quoted", count: 3, countLabel: (n: number) => `${n} waiting` },
+    { key: "open", label: "Open" },
+    { key: "quoted", label: "Quoted", tone: "look" as const },
     { key: "done", label: "Done" },
   ];
   function Host() {
@@ -271,15 +271,15 @@ describe("ViewTabs", () => {
     return <ViewTabs items={items} current={on} onGo={setOn} ariaLabel="Jobs" idPrefix="jt" panelPrefix="jp" />;
   }
 
-  it("is a tablist of soft tabs with their counts in grey", () => {
+  it("is a tablist of soft tabs, no numbers, a waiting view's word in amber", () => {
     render(<Host />);
     const list = screen.getByRole("tablist", { name: "Jobs" });
     expect(list).toHaveClass("pt-vtabs");
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Open12", "Quoted3, 3 waiting", "Done"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Open", "Quoted, something to look at", "Done"]);
     for (const t of tabs) expect(t).toHaveClass("pt-vtab");
-    expect(tabs[0]!.querySelector(".pt-vtab-n")).toHaveTextContent("12");
-    expect(tabs[2]!.querySelector(".pt-vtab-n")).toBeNull();
+    expect(tabs[1]).toHaveClass("pt-vtab--look");
+    expect(tabs[0]).not.toHaveClass("pt-vtab--look");
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
     expect(tabs[0]).toHaveAttribute("id", "jt-open");
     expect(tabs[0]).toHaveAttribute("aria-controls", "jp-open");
@@ -330,7 +330,7 @@ describe("ViewTabs", () => {
 });
 
 describe("SectionTabs", () => {
-  it("underlines the one you're on, and every tab says what's in it", async () => {
+  it("underlines the one you're on, with no numbers, a wrong section's word in red", async () => {
     const onGo = jest.fn();
     render(
       <SectionTabs
@@ -339,17 +339,17 @@ describe("SectionTabs", () => {
         onGo={onGo}
         items={[
           { key: "overview", label: "Overview" },
-          { key: "visits", label: "Visits", count: 2 },
-          { key: "photos", label: "Photos", count: 0 },
+          { key: "visits", label: "Visits" },
+          { key: "photos", label: "Photos", tone: "wrong" },
         ]}
       />,
     );
     expect(screen.getByRole("tablist", { name: "Job" })).toHaveClass("pt-stabs");
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Overview", "Visits2", "Photos0"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Overview", "Visits", "Photos, something wrong"]);
     for (const t of tabs) expect(t).toHaveClass("pt-stab");
     expect(tabs[1]).toHaveAttribute("aria-selected", "true");
-    expect(tabs[2]!.querySelector(".pt-stab-n")).toHaveTextContent("0");
+    expect(tabs[2]).toHaveClass("pt-stab--wrong");
     act(() => tabs[1]!.focus());
     await userEvent.keyboard("{ArrowRight}");
     expect(tabs[2]).toHaveFocus();
@@ -418,6 +418,8 @@ describe("surfaces.css", () => {
   const ALLOWED = new Set([
     "ink", "white", "q", "line", "edge", "sel", "hov", "soft", "scrim", "shadow-overlay", "ring", "ring-ink",
     "r-control", "r-button", "r-card", "t-fast", "t-move", "ease", "z-modal", "z-toast", "font",
+    // a section tab's word in its state (rule 31): amber, red when wrong
+    "orange-w", "red-w",
   ]);
 
   it("writes no colour of its own: no hex, no rgb, no named colour", () => {

@@ -91,6 +91,7 @@ export function PayrollCard({
       variant={group ? "group" : "section"}
       title={group?.title ?? "Payroll"}
       editLabel={group?.editLabel}
+      lead={group?.lead}
       pill={
         group ? undefined : (
           <span className="pill2 adminpill">

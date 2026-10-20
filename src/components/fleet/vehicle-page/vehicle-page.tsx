@@ -15,12 +15,9 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import type { VehiclePageData } from "@/lib/fleet/vehicle-page-data";
 import {
   SECTION_LABEL,
-  fuelHistory,
   headLine,
   headState,
   issueGroups,
-  readings,
-  serviceHistory,
   vehicleTabLabel,
   type VehicleSection,
 } from "@/lib/fleet/vehicle-page";
@@ -134,14 +131,9 @@ export function VehiclePage({
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   };
 
-  const counts: Partial<Record<VehicleSection, number>> = {
-    service: serviceHistory(logs, data.today).length,
-    issues: issues.open.length,
-    kilometres: readings(logs, data.today).length,
-    fuel: fuelHistory(logs, data.today).length,
-    documents: documents.length,
-  };
-  const tabs: TabItem[] = sections.map((s) => ({ key: s, label: SECTION_LABEL[s], count: counts[s] }));
+  /* no numbers on the sections (rule 31, Isaac, 20 October): open issues
+     put Issues' word in amber */
+  const tabs: TabItem[] = sections.map((s) => ({ key: s, label: SECTION_LABEL[s], tone: s === "issues" && issues.open.length > 0 ? "look" : undefined }));
 
   /* A pool ute the driver can fuel while their own is off the road, as My
      vehicle offers it today. */

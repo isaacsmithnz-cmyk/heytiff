@@ -41,7 +41,7 @@ describe("read mode states the facts", () => {
     const cards = container.querySelectorAll(".permrole");
     expect(cards).toHaveLength(1);
     expect(cards[0]).toHaveTextContent("Staff");
-    expect(cards[0]).toHaveTextContent("Field worker — own data only");
+    expect(cards[0]).toHaveTextContent("Field worker, their own records only");
   });
 
   it("offers nothing to choose from until you ask", () => {
@@ -53,7 +53,7 @@ describe("read mode states the facts", () => {
     const { container } = setup();
     // a staff member reaches the toolbox but not other people's pay
     expect(accessRow(container, "Toolbox")).toHaveTextContent("On");
-    expect(accessRow(container, "Financials")).toHaveTextContent("Off");
+    expect(accessRow(container, "Other people's pay")).toHaveTextContent("Off");
   });
 
   it("offers no toggles at all — nothing to flick that wouldn't move", () => {
@@ -63,7 +63,7 @@ describe("read mode states the facts", () => {
 
   it("marks what this viewer may not set, rather than hiding it", () => {
     const { container } = setup({ settable: new Set<Capability>(["toolbox"]) });
-    expect(accessRow(container, "Financials")).toHaveTextContent("owner-granted");
+    expect(accessRow(container, "Other people's pay")).toHaveTextContent("owner-granted");
     expect(accessRow(container, "Toolbox")).not.toHaveTextContent("owner-granted");
   });
 
@@ -93,7 +93,7 @@ describe("edit mode offers the controls", () => {
     await user.click(screen.getByRole("button", { name: /^Edit$/ }));
 
     expect(screen.getByRole("switch", { name: "Toolbox" })).toBeEnabled();
-    expect(screen.getByRole("switch", { name: "Financials" })).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "Other people's pay" })).toBeDisabled();
   });
 
   it("submits the flipped capability", async () => {

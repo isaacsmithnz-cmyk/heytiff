@@ -2383,15 +2383,8 @@ export function JobSheet({
     /* "Work Order" as a sentence says it: "Work order" */
     const kind = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : "";
     const facts = [kind, cardNumber ? `Job ${cardNumber}` : "", address].filter(Boolean).join(", ");
-    /* WHAT'S IN EACH SECTION, once the card knows it (rule 31): the days on
-       site and the visits booked, the checklist's lines, the photos and the
-       files. Nothing is said while it is still being read. */
-    const counts: Partial<Record<JobSection, number>> = {
-      ...(detail ? { visits: detail.visits.length + (standing ? visitsAhead.length : detail.nextBooking ? 1 : 0) } : {}),
-      ...(detail && picklist ? { checklist: detail.checklist.length + picklist.length } : {}),
-      ...(media ? { photos: media.photos.length, documents: media.documents.length } : {}),
-    };
-    const sections = sectionsFor(moneyVisible).map((key) => ({ key, label: SECTION_LABEL[key], count: counts[key] }));
+    /* no numbers on the sections (rule 31, Isaac, 20 October) */
+    const sections = sectionsFor(moneyVisible).map((key) => ({ key, label: SECTION_LABEL[key] }));
     /* ACTIONS (rule 53): only what's done to the job itself. Its stage
        first, then what the page does (pin it, copy the link), then the
        card's own two once-per-job acts for a manager. Nothing here ends a

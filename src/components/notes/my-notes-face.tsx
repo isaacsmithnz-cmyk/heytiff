@@ -229,8 +229,6 @@ export function MyNotesFace({
             {
               key: "archived",
               label: "Archived",
-              count: archived.length,
-              countLabel: (n) => `${n} put away`,
             },
           ]}
         />

@@ -45,9 +45,9 @@ import {
   updateStaffLicence,
 } from "@/app/actions/staff";
 
-/* TEAM, A PERSON (v2, step 5; the board "Team, a person"). One page, three
-   columns of groups, an Edit on each (the staff card's own edit cycle, in
-   place). Today's card, every section and every gate:
+/* TEAM, A PERSON (v2; Isaac's mock, 20 October). Five tabs of groups, an
+   Edit on each (the staff card's own edit cycle, in place). Today's card,
+   every section and every gate:
 
    - Which groups render is decided HERE, from the viewer's capabilities, and
      the matching action re-checks the same rules. A group the viewer may not
@@ -185,7 +185,7 @@ export default async function StaffPersonPage({
     lockedReason: editable
       ? undefined
       : isSelf
-        ? "You can't change your own access. Ask another owner."
+        ? "Your own access is changed by another owner."
         : row.isMaster
           ? "The owner's access can't be changed. Transfer ownership first."
           : "Only an owner, or someone granted Permissions, can change access.",
@@ -237,6 +237,7 @@ export default async function StaffPersonPage({
     regularDaysOff,
     deletable: !!inUse && !inUse.has(staffId) && !row.isMaster && row.orgRole !== "owner" && row.userId !== ownership.userId,
     inviteRoles: invitableRoles(ownership.role, caps),
+    initialTab: typeof query.tab === "string" ? query.tab : undefined,
     initialSec: typeof query.sec === "string" ? query.sec : undefined,
   };
 

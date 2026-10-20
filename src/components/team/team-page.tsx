@@ -18,7 +18,6 @@ import type { Register } from "@/components/fleet/assets-screen";
 import { NoticesBoard } from "@/components/dashboard/notices-board";
 import type { TimepaySection } from "@/lib/timepay/section";
 import type { NoticeBoardData } from "@/lib/dashboard/page-data";
-import { partitionNotices } from "@/lib/dashboard/notices";
 import { TEAM_VIEW_LABEL, teamViewHref, type TeamView } from "@/lib/team/views";
 
 /* TEAM (v2, step 5; the board "Team, People"). The title with how many
@@ -89,25 +88,12 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
   const { people, timepay, fleet, notices } = data;
   const working = useMemo(() => people.staff.filter((s) => s.status === "Active"), [people.staff]);
   const leftCount = people.staff.length - working.length;
-  const counts = useMemo((): Record<TeamView, number> => {
-    const live = partitionNotices(notices.notices, notices.today).active;
-    return {
-      people: working.length,
-      timesheets: timepay ? Object.values(timepay.sheets.sheets).filter((s) => s.status === "submitted").length : 0,
-      leave: timepay ? timepay.leave.pending.length : 0,
-      expenses: timepay ? timepay.expenses.pending : 0,
-      vehicles: fleet ? fleet.register.vehicles.filter((v) => v.status !== "sold").length : 0,
-      notices: live.length,
-    };
-  }, [working, timepay, fleet, notices]);
-
-  const countWords: Record<TeamView, (n: number) => string> = {
-    people: (n) => `${n} working`,
-    timesheets: (n) => `${n} waiting for approval`,
-    leave: (n) => `${n} waiting for a decision`,
-    expenses: (n) => `${n} waiting for a decision`,
-    vehicles: (n) => `${n} working vehicles`,
-    notices: (n) => `${n} on the board`,
+  /* No numbers on the views (Isaac, 20 October): a view with something
+     waiting on you has its word in amber instead. */
+  const waiting: Partial<Record<TeamView, boolean>> = {
+    timesheets: !!timepay && Object.values(timepay.sheets.sheets).some((s) => s.status === "submitted"),
+    leave: !!timepay && timepay.leave.pending.length > 0,
+    expenses: !!timepay && timepay.expenses.pending > 0,
   };
 
   const onPeople = view === "people";
@@ -117,9 +103,6 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
       <header className="tm2-head">
         <div className="tm2-title">
           <h1>Team</h1>
-          <span className="tm2-count">
-            {working.length} {working.length === 1 ? "person" : "people"}
-          </span>
         </div>
         <div className="tm2-headacts">
           {onPeople && (
@@ -153,13 +136,13 @@ export function TeamPage({ data, view: asked }: { data: TeamPageData; view: Team
           panelPrefix={PANEL}
           current={view}
           onGo={(k) => go(k as TeamView)}
-          items={data.views.map((v) => ({ key: v, label: TEAM_VIEW_LABEL[v], count: counts[v], countLabel: countWords[v] }))}
+          items={data.views.map((v) => ({ key: v, label: TEAM_VIEW_LABEL[v], tone: waiting[v] ? ("look" as const) : undefined }))}
         />
         {onPeople && (
           <div className="tm2-picks">
             {/* "Left" is not a view: the people who have left are behind this
                 choice, and only once there is somebody to show */}
-            {leftCount > 0 && <Tick label={`Show people who have left, ${leftCount}`} checked={showLeft} onChange={setShowLeft} />}
+            {leftCount > 0 && <Tick label="Show people who have left" checked={showLeft} onChange={setShowLeft} />}
             <div className="tm2-pick">
               <span className="tm2-pick-word" aria-hidden="true">
                 Sort

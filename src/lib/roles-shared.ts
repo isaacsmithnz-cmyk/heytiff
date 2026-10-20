@@ -22,9 +22,9 @@ export function hasMinRole(userRole: Role | null, min: Role): boolean {
    Ordered least-privileged first, which is the order both screens list them
    in and the order the modal's default depends on. */
 export const ROLE_COPY: Record<Role, { label: string; blurb: string }> = {
-  staff: { label: "Staff", blurb: "Field worker — own data only" },
-  admin: { label: "Admin", blurb: "Manage the team — approve & assign" },
-  owner: { label: "Owner", blurb: "Full access incl. pay & financials" },
+  staff: { label: "Staff", blurb: "Field worker, their own records only" },
+  admin: { label: "Admin", blurb: "Runs the team, approves and assigns" },
+  owner: { label: "Owner", blurb: "Everything, pay and financials included" },
 };
 
 export const ROLE_ORDER: Role[] = ["staff", "admin", "owner"];

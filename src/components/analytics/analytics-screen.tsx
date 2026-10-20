@@ -84,8 +84,7 @@ export function AnalyticsScreen({ state, period }: { state: AnalyticsState; peri
             {
               key: "decide",
               label: "To decide",
-              count: state.kind === "ready" ? jobsToDecide(state.data) : 0,
-              countLabel: (n) => `${n} ${n === 1 ? "job" : "jobs"} waiting on an answer`,
+              tone: state.kind === "ready" && jobsToDecide(state.data) > 0 ? "look" : undefined,
             },
           ]}
         />

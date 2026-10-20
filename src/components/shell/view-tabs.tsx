@@ -19,17 +19,11 @@ import { Icon } from "./icon";
 export type ViewTab = {
   key: string;
   label: string;
-  /** Count badge. Absent or zero renders nothing — "checked, none" is what an
-      empty tab already says, and a grey 0 on every tab is noise. */
-  count?: number;
-  /** Badge tint. Only for tabs whose count means SEVERITY; a tab that counts
-      a place ("Noticeboard") takes the plain grey, because red and amber have
-      to keep meaning "something is wrong". */
+  /** Something on it is wrong ("dan", red) or needs a look ("warn", amber):
+      the word takes the colour. No tab carries a number (Isaac, 20 October). */
   tone?: "dan" | "warn";
   /** Trailing padlock, for sections gated above the viewer's role. */
   locked?: boolean;
-  /** Appended to the accessible name so the badge is not a number alone. */
-  countLabel?: (n: number) => string;
   /* Why the padlock needs words. It was a bare <svg> with no title, no
      aria-hidden and no label on the tab, so "Payroll 🔒" announced as
      "Payroll" — the gate existed only as a glyph. Same shape as `countLabel`:
@@ -207,7 +201,6 @@ function Tab({
   panelPrefix: string;
   onGo: (key: string) => void;
 }) {
-  const count = tab.count ?? 0;
   return (
     <button
       type="button"
@@ -218,7 +211,7 @@ function Tab({
       /* Only the selected tab is in the tab order; the arrow keys move between
          them, which is what a tablist is supposed to do. */
       tabIndex={on ? 0 : -1}
-      className={"wb2-vt" + (on ? " on" : "")}
+      className={"wb2-vt" + (on ? " on" : "") + (tab.tone ? ` ${tab.tone}` : "")}
       data-vtab={tab.key}
       onClick={() => onGo(tab.key)}
       onKeyDown={moveFocus}
@@ -232,14 +225,7 @@ function Tab({
           <span className="sr-only"> — {tab.lockLabel ?? "restricted"}</span>
         </>
       )}
-      {count > 0 && (
-        <>
-          <i className={"wb2-vtn" + (tab.tone ? ` ${tab.tone}` : "")} aria-hidden="true">
-            {count}
-          </i>
-          {tab.countLabel && <span className="sr-only"> — {tab.countLabel(count)}</span>}
-        </>
-      )}
+      {tab.tone && <span className="sr-only">, {tab.tone === "dan" ? "something wrong" : "something to look at"}</span>}
     </button>
   );
 }

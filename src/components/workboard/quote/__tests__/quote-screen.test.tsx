@@ -137,8 +137,8 @@ it("takes each other tab to the job's page on that section, and stays on Quote",
   expect(screen.getByRole("tab", { name: "Billing" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}?tab=billing`);
   expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("href", `/dashboard/jobs/${JOB}`);
   expect(screen.getByRole("tab", { name: /Photos/ })).toHaveAttribute("href", `/dashboard/jobs/${JOB}?tab=photos`);
-  /* the photos and documents read for the page say what's in them */
-  expect(screen.getByRole("tab", { name: /Documents/ })).toHaveTextContent("Documents1");
+  /* no numbers on the sections (Isaac, 20 October) */
+  expect(screen.getByRole("tab", { name: /Documents/ })).toHaveTextContent(/^Documents$/);
   /* the tab you're on goes nowhere */
   expect(screen.getByRole("tab", { name: "Quote" })).not.toHaveAttribute("href");
   fireEvent.click(screen.getByRole("tab", { name: "Quote" }));

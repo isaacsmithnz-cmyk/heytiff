@@ -38,7 +38,6 @@ export function MyVehicleFace({
 }) {
   const actions = useFleetActions();
   const [face, setFace] = useState<VehicleFace>("vehicle");
-  const openIssues = own.logs.filter((l) => l.kind === "issue" && l.status === "open").length;
 
   return (
     <div className="wb2-card">
@@ -60,8 +59,6 @@ export function MyVehicleFace({
                  number said twice. */
               key: "issues",
               label: "Issues",
-              count: openIssues,
-              countLabel: (n) => `${n} still open`,
             },
             { key: "services", label: "Services" },
           ]}

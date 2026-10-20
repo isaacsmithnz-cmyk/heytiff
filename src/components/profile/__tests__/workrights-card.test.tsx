@@ -60,7 +60,7 @@ describe("choosing a no-visa status", () => {
     expect(screen.queryByDisplayValue("unlimited")).not.toBeInTheDocument();
     // the edit-only "No visa required" banner is gone: both modes now say it
     // as a row, so there is one presentation of the fact instead of two
-    expect(screen.getByText("No — full working rights")).toBeInTheDocument();
+    expect(screen.getByText("No, full working rights")).toBeInTheDocument();
   });
 
   it("nulls the visa columns on save rather than leaving stale ones", async () => {
@@ -137,7 +137,7 @@ describe("the read view", () => {
   it("states the answer for a citizen, with no visa panel at all", () => {
     setup({ ...blankProfile, work_rights_status: "Australian citizen" });
     expect(screen.getByText("Australian citizen")).toBeInTheDocument();
-    expect(screen.getByText(/No — full working rights/)).toBeInTheDocument();
+    expect(screen.getByText(/No, full working rights/)).toBeInTheDocument();
     // the whole panel is unmounted, not dimmed — same rule the edit form applies
     expect(screen.queryByText("Visa")).not.toBeInTheDocument();
     expect(screen.queryByText("Expiry")).not.toBeInTheDocument();

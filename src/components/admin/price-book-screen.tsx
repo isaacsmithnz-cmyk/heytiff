@@ -39,7 +39,7 @@ export function PriceBookScreen({ suppliers }: { suppliers: SupplierView[] }) {
             onGo={(k) => setTab(k as Tab)}
             items={[
               { key: "items", label: "Items" },
-              { key: "suppliers", label: "Suppliers", count: suppliers.length },
+              { key: "suppliers", label: "Suppliers" },
               { key: "matching", label: "Matching" },
             ]}
           />

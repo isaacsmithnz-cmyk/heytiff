@@ -31,6 +31,7 @@ export function NotesCard({
         variant={group ? "group" : "section"}
         title={group?.title ?? "Notes"}
         editLabel={group?.editLabel}
+      lead={group?.lead}
         sub="Internal — visible to managers & admin"
         values={values}
         onSave={(fields) => onSave("notes", fields)}

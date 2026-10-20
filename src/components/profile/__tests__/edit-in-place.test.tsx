@@ -211,7 +211,7 @@ describe("work rights follows the draft, not the saved row", () => {
     await user.selectOptions(screen.getByRole("combobox", { name: /^Status/ }), "Australian citizen");
 
     expect(panels(container)).not.toContain("Visa");
-    expect(screen.getByText("No — full working rights")).toBeInTheDocument();
+    expect(screen.getByText("No, full working rights")).toBeInTheDocument();
   });
 });
 
@@ -263,7 +263,7 @@ describe("permissions", () => {
     await startEdit(user);
 
     expect(labels(container)).toEqual(before);
-    expect(before).toContain("Financials");
+    expect(before).toContain("Other people's pay");
   });
 
   /* The role's control is a three-card picker on a full-width grid, which is

@@ -134,7 +134,6 @@ export function QuoteScreen({
   const tabs: TabItem[] = sectionsFor(moneyVisible).map((key) => ({
     key,
     label: SECTION_LABEL[key],
-    count: key === "photos" ? media?.photos.length : key === "documents" ? media?.documents.length : undefined,
     ...(key === "quote" ? {} : { href: jobPageHref(job, key) }),
   }));
   const sm8 = sm8QuoteOf({

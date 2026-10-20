@@ -104,14 +104,14 @@ describe("the route", () => {
 });
 
 describe("the screen", () => {
-  it("says what's open and counts each view", () => {
+  it("says what's open, with no numbers on the views", () => {
     show(dataFor());
     expect(screen.getByRole("heading", { name: "Jobs" })).toBeInTheDocument();
     expect(screen.getByText("3 open")).toBeInTheDocument();
     expect(tab(/^All/)).toHaveAttribute("aria-selected", "true");
-    expect(tab(/^All/)).toHaveTextContent("All3");
-    expect(tab(/^To book/)).toHaveTextContent("To book1");
-    expect(tab(/^Quotes/)).toHaveTextContent("Quotes1");
+    expect(tab(/^All/)).toHaveTextContent(/^All$/);
+    expect(tab(/^To book/)).toHaveTextContent(/^To book$/);
+    expect(tab(/^Quotes/)).toHaveTextContent(/^Quotes$/);
     expect(rowLinks()).toHaveLength(3);
   });
 
@@ -140,7 +140,7 @@ describe("the screen", () => {
     show(dataFor());
     fireEvent.change(screen.getByRole("textbox", { name: "Search jobs, clients and sites" }), { target: { value: "bellevue" } });
     expect(rowLinks()).toHaveLength(1);
-    expect(tab(/^All/)).toHaveTextContent("All1");
+    expect(tab(/^All/)).toHaveTextContent(/^All$/);
     expect(window.location.search).toBe("?q=bellevue");
     fireEvent.click(screen.getByRole("button", { name: "Clear the search box" }));
     expect(rowLinks()).toHaveLength(3);
@@ -177,7 +177,7 @@ describe("the screen", () => {
   it("shows the Value column and Owed with the grant", () => {
     show(dataFor());
     expect(screen.getByText("Value")).toBeInTheDocument();
-    expect(tab(/^Owed/)).toHaveTextContent("Owed0");
+    expect(tab(/^Owed/)).toHaveTextContent(/^Owed$/);
   });
 });
 

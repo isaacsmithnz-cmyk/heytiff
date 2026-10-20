@@ -52,12 +52,13 @@ describe("AnalyticsScreen", () => {
     expect(screen.getByRole("link", { name: "How jobs are counted" })).toHaveAttribute("href", "/dashboard/admin/analytics");
   });
 
-  it("switches its three views as soft tabs, the count of jobs to decide said in words", () => {
+  it("switches its three views as soft tabs, with no numbers on them", () => {
     render(<AnalyticsScreen state={{ kind: "ready", data, truncated: false }} period="12m" />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.className)).toEqual(["pt-vtab", "pt-vtab", "pt-vtab"]);
+    expect(tabs.map((t) => t.className.split(" ")[0])).toEqual(["pt-vtab", "pt-vtab", "pt-vtab"]);
+    for (const t of tabs) expect(t.textContent).not.toMatch(/\d/);
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: /^To decide\W+\d+ jobs? waiting on an answer$/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /^To decide/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Quotes" }));
     expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "st2-rp-tab-quotes");
   });

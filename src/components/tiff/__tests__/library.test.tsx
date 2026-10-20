@@ -810,13 +810,11 @@ describe("finding a document", () => {
     expect(within(screen.getByRole("tabpanel")).getByRole("button", { name: "Add a document" })).toBeInTheDocument();
   });
 
-  it("counts every category on its tab, zeros included", () => {
+  it("puts no numbers on the category tabs (Isaac, 20 October)", () => {
     render(<Library docs={library} />);
 
-    const tab = screen.getByRole("tab", { name: /Manufacturer specs/ });
-    expect(tab.textContent).toContain("0");
-    expect(screen.getByRole("tab", { name: /Service documents/ }).textContent).toContain("1");
-    expect(screen.getByRole("tab", { name: /^All/ }).textContent).toContain("3");
+    expect(screen.getByRole("tab", { name: /Manufacturer specs/ }).textContent).toBe("Manufacturer specs");
+    expect(screen.getByRole("tab", { name: /^All/ }).textContent).toBe("All");
   });
 
   /* the view rides in the address, so an open tab holds it */
@@ -860,7 +858,7 @@ describe("finding a document", () => {
     expect(screen.queryByText("City Multi fault codes")).not.toBeInTheDocument();
   });
 
-  it("counts the field-note category rather than showing NaN", () => {
+  it("names the field-note category, and never NaN", () => {
     render(
       <Library
         docs={[
@@ -871,8 +869,7 @@ describe("finding a document", () => {
     );
 
     const chip = screen.getByRole("tab", { name: /Field notes/ });
-    expect(chip.textContent).toContain("2");
-    expect(chip.textContent).not.toContain("NaN");
+    expect(chip.textContent).toBe("Field notes");
   });
 });
 
@@ -1142,11 +1139,11 @@ describe("the Toolbox view", () => {
     expect(screen.queryByRole("tab", { name: /Toolbox/ })).not.toBeInTheDocument();
   });
 
-  it("counts the tools on its tab and lists each, a link into today's tool", async () => {
+  it("lists each tool, a link into today's tool", async () => {
     render(<Library docs={[doc()]} toolbox={{ today: TODAY }} />);
 
     const tab = screen.getByRole("tab", { name: /Toolbox/ });
-    expect(tab.textContent).toContain("4");
+    expect(tab.textContent).toBe("Toolbox");
     await userEvent.click(tab);
 
     expect(screen.getByRole("link", { name: "Heat Load" })).toHaveAttribute("href", "/dashboard/toolbox/heat-load");

@@ -149,8 +149,6 @@
 }
 .pt-vtabs .pt-vtab:hover { background: var(--hov); }
 .pt-vtabs .pt-vtab[aria-selected="true"] { background: var(--sel); }
-.pt-vtab .pt-vtab-n,
-.pt-stab .pt-stab-n { color: var(--q); font-variant-numeric: tabular-nums; }
 
 .pt-stabs {
   gap: 24px;
@@ -166,6 +164,12 @@
 }
 .pt-stabs .pt-stab:hover { border-bottom-color: var(--edge); }
 .pt-stabs .pt-stab[aria-selected="true"] { border-bottom-color: var(--ink); }
+/* a tab with something to look at says so in its word: amber, red when
+   something is wrong; the one you're on stays ink. No tab carries a number. */
+.pt-stabs .pt-stab.pt-stab--look:not([aria-selected="true"]),
+.pt-vtabs .pt-vtab.pt-vtab--look:not([aria-selected="true"]) { color: var(--orange-w); }
+.pt-stabs .pt-stab.pt-stab--wrong:not([aria-selected="true"]),
+.pt-vtabs .pt-vtab.pt-vtab--wrong:not([aria-selected="true"]) { color: var(--red-w); }
 
 .pt-vtabs .pt-vtab:focus-visible,
 .pt-stabs .pt-stab:focus-visible { outline: none; box-shadow: var(--ring); }

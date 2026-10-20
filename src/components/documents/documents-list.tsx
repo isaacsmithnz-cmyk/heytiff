@@ -21,7 +21,6 @@ import {
   peopleOf,
   rowsFor,
   sortRows,
-  viewCounts,
   viewsFor,
   withDocsState,
   type DocKind,
@@ -148,7 +147,6 @@ export function DocumentsList({ data, initial }: { data: DocumentsData; initial:
     if (typeof window !== "undefined") window.history.replaceState(null, "", withDocsState(window.location.href, s));
   };
 
-  const counts = viewCounts(data.rows, state);
   const views = viewsFor(data.kinds);
   const shown = sortRows(rowsFor(data.rows, state), state.sort);
   const inView = rowsFor(data.rows, { view: state.view, by: ANYONE, q: "" }).length;
@@ -196,7 +194,7 @@ export function DocumentsList({ data, initial }: { data: DocumentsData; initial:
           panelPrefix={PANEL}
           current={state.view}
           onGo={(key) => go({ view: key as DocView })}
-          items={views.map((v) => ({ key: v.key, label: v.label, count: counts[v.key] }))}
+          items={views.map((v) => ({ key: v.key, label: v.label }))}
         />
         <div className="dc2-picks">
           <div className="dc2-pick">

@@ -120,8 +120,6 @@ export function MyExpensesFace({
           {
             key: "claims",
             label: "Claims",
-            count: openClaims.length,
-            countLabel: (n) => `${n} open`,
           },
           /* NO COUNT. A number here would be "how many receipts have you filed
              this year", which asks nothing of anybody — unlike the open claims

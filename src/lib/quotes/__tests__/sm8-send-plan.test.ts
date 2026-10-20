@@ -1,7 +1,7 @@
 import { priceBuildUp } from "../buildup";
 import { normaliseDraft } from "../proposal";
 import { allowedQuoteFields, quoteRows } from "@/lib/integrations/sm8-quote-plan";
-import { NOT_APPROVED, checkBack, optionLines, planKey, sendAsQuotePlan, sendPlan, sm8Amount, usualTaxRate } from "../sm8-send-plan";
+import { NOT_APPROVED, checkBack, optionLines, planKey, quoteDescription, sendAsQuotePlan, sendPlan, sm8Amount, usualTaxRate, type ProposalWords } from "../sm8-send-plan";
 
 /* Isaac, 2026-10-05: "if a quote is accepted, then it can turn that into the
    work order for service mate… copy the scope and line items" */
@@ -142,6 +142,61 @@ describe("sent as a quote", () => {
     expect(off).toMatchObject({ op: "delete", label: "Quote: line Old line taken off" });
     expect(add).toMatchObject({ op: "create", fields: { name: "As Per Quote", quantity: "1" }, label: "Quote: line As Per Quote added" });
     expect(allowedQuoteFields("job", { job_description: "x", status: "Quote" })).toEqual({ job_description: "x" });
+  });
+
+  /* 3446 (2026-10-21): the approved proposal never reached ServiceM8, only the option's name */
+  const proposal: ProposalWords = {
+    title: "Air conditioning: master bedroom, kitchen and bedroom",
+    intro: "We'll supply and install three Mitsubishi Electric AP series high wall units.",
+    options: [
+      {
+        summary: "A 2.5 kW split for the master, and a multi for the kitchen and bedroom.",
+        areas: [
+          { name: "Master", items: ["2.5 kW indoor and outdoor unit", "Pipe, cable, drain and wall bracket"] },
+          { name: "Commissioning", items: ["Pressure test, vacuum, commissioning and handover"] },
+        ],
+        included: ["Supply and installation of all units listed"],
+      },
+      { summary: "Three splits.", areas: [], included: [] },
+    ],
+    notIncluded: ["Mains power to the outdoor units, run by your electrician"],
+    payment: { preset: "domestic_small", stages: [{ when: "Deposit, on accepting", percent: 10 }, { when: "Balance, within 7 days of finishing", percent: 90 }] },
+  };
+
+  it("puts the approved proposal's words in the job's description", () => {
+    const p = sendAsQuotePlan({ ...quote, approved: true, options: [{ index: 0, build, left: 0 }], proposal });
+    if (!p.ok) throw new Error(p.why);
+    expect(p.jobDescription).toBe(
+      [
+        "Air conditioning: master bedroom, kitchen and bedroom",
+        "We'll supply and install three Mitsubishi Electric AP series high wall units.",
+        "Option 1: 3-head multi",
+        "A 2.5 kW split for the master, and a multi for the kitchen and bedroom.",
+        "Master:\n- 2.5 kW indoor and outdoor unit\n- Pipe, cable, drain and wall bracket\n\nCommissioning:\n- Pressure test, vacuum, commissioning and handover",
+        "Included:\n- Supply and installation of all units listed",
+        "Not included:\n- Mains power to the outdoor units, run by your electrician",
+        "Payment:\n- Deposit, on accepting: 10%\n- Balance, within 7 days of finishing: 90%",
+      ].join("\n\n")
+    );
+    // the lines are as before: one As Per Quote at its price
+    expect(p.lines).toEqual([{ name: "As Per Quote", quantity: 1, unitPriceCents: build.exGstCents, unitCostCents: build.buyCents }]);
+  });
+
+  it("gives every option its own scope, and leaves out what the proposal doesn't say", () => {
+    const text = quoteDescription(draft, [0, 1], { ...proposal, intro: "", notIncluded: [], payment: { preset: "domestic_small", stages: [] } });
+    expect(text).toContain("Option 2: Three splits\n\nThree splits.");
+    expect(text).not.toContain("Not included");
+    expect(text).not.toContain("Payment");
+    // with no proposal, the draft's lines as before
+    expect(quoteDescription(draft, [0])).toBe("Option 1: 3-head multi\n- MXZ-4F71 outdoor on wall brackets\n- Three high walls");
+  });
+
+  it("an accepted quote's work done is its option in the proposal's words", () => {
+    const p = sendPlan({ ...base, accepted: [{ index: 0, build, left: 0 }], proposal });
+    if (!p.ok) throw new Error(p.why);
+    expect(p.workDone).toBe(
+      "Option 1: 3-head multi\n\nA 2.5 kW split for the master, and a multi for the kitchen and bedroom.\n\nMaster:\n- 2.5 kW indoor and outdoor unit\n- Pipe, cable, drain and wall bracket\n\nCommissioning:\n- Pressure test, vacuum, commissioning and handover\n\nIncluded:\n- Supply and installation of all units listed"
+    );
   });
 
   it("goes only approved, only on a Quote, and only whole", () => {

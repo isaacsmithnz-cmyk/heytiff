@@ -59,6 +59,7 @@ export async function readSm8SendView(orgId: string, cardId: string, as: SendAs 
       job: jobNow,
       existing,
       taxRateUuid,
+      proposal: byHand.proposal,
     });
     return { plan, editDate };
   }
@@ -69,7 +70,10 @@ export async function readSm8SendView(orgId: string, cardId: string, as: SendAs 
       : [];
   /* an accepted variation's lines were added beside the quote's, and stay
      (decision 21): the accepted quote sent again never takes them off */
-  const theirs = quote.lines ? new Set((await readByHand(orgId, cardId)).variations.flatMap((v) => v.sm8?.lineUuids ?? []).map((u) => u.toLowerCase())) : new Set<string>();
+  const byHand = quote.lines ? await readByHand(orgId, cardId) : null;
+  const theirs = new Set((byHand?.variations ?? []).flatMap((v) => v.sm8?.lineUuids ?? []).map((u) => u.toLowerCase()));
+  /* the scope in the approved proposal's words, while its approval stands */
+  const proposal = byHand?.proposal && quote.lines && approvalStands(byHand.proposal, quote.lines.map((l) => l.updatedAt)) ? byHand.proposal : null;
   const plan = sendPlan({
     draft: quote.draft,
     accepted: accepted.flatMap((index) => {
@@ -80,6 +84,7 @@ export async function readSm8SendView(orgId: string, cardId: string, as: SendAs 
     job: jobNow,
     existing: existing.filter((e) => !theirs.has(e.uuid.toLowerCase())),
     taxRateUuid,
+    proposal,
   });
   return { plan, editDate };
 }

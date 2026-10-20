@@ -2,17 +2,24 @@
 
 import { can } from "@/lib/permissions-server";
 import { installedPacks, loadInstalledPack } from "@/lib/studio/packs/server";
+import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { matchUnits, type UnitSpec } from "@/lib/library/unit-specs";
 
 /* THE LIBRARY'S MODEL SEARCH (lib/library/unit-specs): the newest installed
-   pack of every brand, read once per server and kept, then searched. Packs
-   are files that ship with the app, so a deploy is the only thing that
-   changes them. Reading the Library is the gate (`tiff`). */
+   pack of every brand, WITH HQ'S CORRECTIONS ON, as Design reads them
+   (quotes/design-read-server's studioPack): a figure fixed in HQ reads the
+   same here as in a design. Kept for five minutes, so a correction shows
+   within that; a pack whose corrections can't be read is read without
+   them rather than not at all. Reading the Library is the gate (`tiff`). */
 
+const KEEP_MS = 5 * 60 * 1000;
 let packs: Promise<DataPack[]> | null = null;
+let readAt = 0;
 
 function loadPacks(): Promise<DataPack[]> {
+  if (packs && Date.now() - readAt > KEEP_MS) packs = null;
+  if (!packs) readAt = Date.now();
   packs ??= (async () => {
     const refs = await installedPacks();
     const newest = new Map<string, (typeof refs)[number]>();
@@ -22,9 +29,13 @@ function loadPacks(): Promise<DataPack[]> {
     }
     const loaded = await Promise.all(
       [...newest.values()].map((r) =>
-        loadInstalledPack(r.brand, r.version)
+        loadPackWithOverrides(r.brand, r.version)
           .then((p) => p.pack)
-          .catch(() => null),
+          .catch(() =>
+            loadInstalledPack(r.brand, r.version)
+              .then((p) => p.pack)
+              .catch(() => null),
+          ),
       ),
     );
     return loaded.filter((p): p is DataPack => p !== null);

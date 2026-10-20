@@ -158,3 +158,46 @@ describe("units and runs", () => {
     ]);
   });
 });
+
+/* Tiff's roof-void check (Isaac, 20 October 2026: "can I fit a ducted unit in the roof void?") */
+describe("the roof void over each room", () => {
+  const { roofSummary } = jest.requireActual("../scene3d") as typeof import("../scene3d");
+  const withRoof = (raked: { floorId: string; room: string; lowMm: number; highMm: number }[] = []) => {
+    const d = design([floor("gf", 0)], { gf: [read("s-gf", [space("Lounge", "room", [0, 0, 1000, 600]), space("Bed", "room", [0, 600, 1000, 800])])] });
+    return {
+      ...d,
+      reading: {
+        ...d.reading!,
+        roof: {
+          levels: [{ floorId: "gf", ceilingMm: 2400, floorZoneMm: 0, source: "section" }],
+          parts: [{ floorId: "gf", sheetId: "s-gf", form: "gable" as const, outline: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 800 }, { x: 0, y: 800 }], ridge: "across" as const, fallsTo: "" as const, pitchDeg: 22.5, eaveMm: 2400, overhangMm: 450, existing: false, source: "" }],
+          raked,
+          material: "tile",
+          roofSpace: "",
+        },
+      },
+    };
+  };
+
+  it("says how high it is clear between the joists and the rafters, lowest and highest", () => {
+    const r = roofSummary(withRoof());
+    if (!r.read) throw new Error("not read");
+    const lounge = r.void_over_rooms.find((v) => v.room === "Lounge")!;
+    // 8 m span, ridge 4 m in; sampled on a 9 by 9 grid, the highest point read is 3.75 m in:
+    // 3.75 tan 22.5 = 1.553 m, less 140 of rafter and 120 of joist
+    expect(lounge.clear_mm_highest).toBe(1293);
+    expect(lounge.clear_mm_lowest).toBe(0);
+    expect(r.levels[0]).toMatchObject({ ceiling_mm: 2400 });
+    expect(r.framing).toMatch(/standard spacings/);
+  });
+
+  it("gives a raked room no void", () => {
+    const r = roofSummary(withRoof([{ floorId: "gf", room: "Lounge", lowMm: 2400, highMm: 3200 }]));
+    if (!r.read) throw new Error("not read");
+    expect(r.void_over_rooms.find((v) => v.room === "Lounge")).toMatchObject({ ceiling: "raked: no roof void over it", clear_mm_highest: 0 });
+  });
+
+  it("says when the roof hasn't been read", () => {
+    expect(roofSummary(design([floor("gf", 0)], null))).toMatchObject({ read: false });
+  });
+});

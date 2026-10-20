@@ -43,6 +43,8 @@ export const READS: readonly TiffTool[] = [
       "and what was read off its plans when they were read: per floor, the rooms and small spaces with their areas once the floor is scaled, " +
       "the stairs, voids and notches, the windows with their facing and width, doors, skylights, notes about air conditioning and roof space, " +
       "built-ins, ceiling fans, furniture, what was looked for and not found, and labels on the plan the reading doesn't account for. " +
+      "And the roof read off the drawings: each floor's ceiling height, the roof's parts (form, pitch, eave height, overhang), the raked rooms, what the set says of the roof space, " +
+      "and over every room the clear height between the ceiling joists and the rafters, lowest and highest. Use that for whether a ducted unit, a fan coil or a duct fits in the roof void: compare the unit's height plus its clearances with the clear height where it would go, and say the framing is assumed. " +
       "Use it for any question about a design, a floor, a room's size or glass, or where a unit could go. Areas are only given for a floor whose scale is set; say so when one isn't.",
     inputSchema: {
       type: "object",
@@ -56,7 +58,7 @@ export const READS: readonly TiffTool[] = [
       const got = await readAnyDesign(viewer.orgId, typeof input.design === "string" ? input.design : "");
       if (!got.found) return result({ found: false, said: got.reason, designs: got.designs ?? [] });
       const system = typeof input.system === "string" ? input.system.slice(0, 120) : null;
-      return result({ ...fitDesignRead(got.read, { system }), plans: got.plans, other_designs: got.others });
+      return result({ ...fitDesignRead(got.read, { system }), plans: got.plans, roof: got.roof, other_designs: got.others });
     },
   },
 

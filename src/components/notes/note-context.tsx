@@ -40,6 +40,10 @@ export type NoteScope = {
       the sieve can't know one without the roster. Empty just costs that
       signal; it never breaks anything. */
   staffFirstNames: string[];
+  /** What on the screen Tiff is being asked about, said with the screen's
+      name: Design's open design ("the design 23 Hope Street"), so "can a
+      ducted unit fit in the roof void?" is asked of that one. */
+  screenDetail?: string;
 };
 
 const EMPTY: NoteScope = {
@@ -131,6 +135,7 @@ export function NoteScopeProvider({
          spoke into it. */
       targetLabel: aiming?.targetLabel,
       staffFirstNames: screen?.staffFirstNames ?? EMPTY.staffFirstNames,
+      screenDetail: screen?.screenDetail,
       pushScreen,
       pushFocus,
       aimFocus,
@@ -184,11 +189,13 @@ export function useNoteScopeScreen(scope: {
   target?: NoteTarget;
   targetLabel?: string;
   staffFirstNames?: string[];
+  screenDetail?: string;
 }): void {
   const { pushScreen } = useNoteScope();
   const kind = scope.target?.kind ?? null;
   const id = scope.target?.id ?? null;
   const label = scope.targetLabel;
+  const detail = scope.screenDetail;
   const nameKey = (scope.staffFirstNames ?? []).join("|");
 
   /* The array itself rides in a ref so the push effect can hand over the
@@ -205,9 +212,10 @@ export function useNoteScopeScreen(scope: {
       target: kind ? { kind, id } : { kind: "none" },
       targetLabel: label,
       staffFirstNames: latest.current.staffFirstNames ?? [],
+      screenDetail: detail,
     });
     return () => pushScreen(null);
-  }, [kind, id, label, nameKey, pushScreen]);
+  }, [kind, id, label, nameKey, detail, pushScreen]);
 }
 
 /** The same thing as a component, for the server pages that used to wrap

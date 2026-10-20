@@ -422,8 +422,9 @@ describe("quiet text on the dark chrome", () => {
     .filter((r) => /\.fg (\.side|\.topbar|\.nav|\.navlbl|\.ni |\.brand|\.me |\.pro|\.searchbtn|\.bell)/.test(r.sel))
     .filter((r) => !OTHER_DARK.test(r.sel));
 
+  /* two since Home's count left the sidebar (20 October) */
   it("finds the shell rules at all — a filter that matches nothing passes vacuously", () => {
-    expect(shellText.length).toBeGreaterThanOrEqual(3);
+    expect(shellText.length).toBeGreaterThanOrEqual(2);
   });
 
   /* Icons are held to 3:1, not 4.5 — `.nicon` and `.si` are glyphs, and

@@ -27,10 +27,6 @@ jest.mock("@/components/making/task-form", () => ({
 jest.mock("@/components/making/new-job-form", () => ({
   NewJobForm: () => <div role="dialog" aria-label="New job" />,
 }));
-/* Home's count asks the server (app/actions/home-count); nothing to count
-   unless a test says so. */
-const homeCount = jest.fn(async (): Promise<number | null> => null);
-jest.mock("@/app/actions/home-count", () => ({ homeCount: () => homeCount() }));
 
 const userAs = (role: Role, caps = [...resolve(role)]): ShellUser => ({
   name: "Isaac Smith",
@@ -50,8 +46,6 @@ const draw = (user: ShellUser, newJob = false) =>
 afterEach(() => {
   cleanup();
   push.mockReset();
-  homeCount.mockReset();
-  homeCount.mockResolvedValue(null);
 });
 
 const places = () =>
@@ -68,9 +62,9 @@ describe("the sidebar's top", () => {
     expect(container.querySelector("img")).toBeNull();
   });
 
-  it("offers Search with ⌘K under New", () => {
+  it("offers Search under New, with no ⌘K beside it", () => {
     draw(userAs("staff"));
-    expect(screen.getByRole("button", { name: /Search/ })).toHaveTextContent("⌘K");
+    expect(screen.getByRole("button", { name: "Search" })).not.toHaveTextContent("⌘K");
   });
 
   it("makes a Job and a Task, Job only where ServiceM8 takes new jobs (rules 3 and 44)", () => {
@@ -234,50 +228,12 @@ describe("Recents (rule 6)", () => {
   });
 });
 
-/* THE COUNT BESIDE HOME (decision 25): the bell went, and what it counted
-   sits on Home's row. Only when there is something to count; a failed read
-   keeps the last number rather than claiming nothing is waiting. */
-describe("Home's count", () => {
-  const homeRow = () => within(screen.getByRole("navigation", { name: "Places" })).getAllByRole("link")[0]!;
-
-  it("(F) shows what is waiting beside Home, and says it to a screen reader", async () => {
-    homeCount.mockResolvedValue(3);
+/* NO NUMBER BESIDE HOME (Isaac, 20 October): what waits is on Home. */
+describe("Home's row", () => {
+  it("(F) is the word alone, with no count", () => {
     draw(userAs("staff"));
-    await act(async () => {});
-    expect(homeRow()).toHaveAttribute("href", "/dashboard");
-    expect(homeRow().querySelector(".hm-navcount")).toHaveTextContent("3");
-    expect(homeRow()).toHaveAccessibleName("Home , 3 to do");
-  });
-
-  it("draws nothing at zero, or before the first answer", async () => {
-    homeCount.mockResolvedValue(0);
-    draw(userAs("staff"));
-    expect(homeRow().querySelector(".hm-navcount")).toBeNull();
-    await act(async () => {});
-    expect(homeRow().querySelector(".hm-navcount")).toBeNull();
-    expect(homeRow().textContent).toBe("Home");
-  });
-
-  it("asks again when a screen clears a row", async () => {
-    homeCount.mockResolvedValue(2);
-    draw(userAs("staff"));
-    await act(async () => {});
-    expect(homeRow().querySelector(".hm-navcount")).toHaveTextContent("2");
-    homeCount.mockResolvedValue(1);
-    await act(async () => {
-      window.dispatchEvent(new Event("heytiff:bell-refresh"));
-    });
-    expect(homeRow().querySelector(".hm-navcount")).toHaveTextContent("1");
-  });
-
-  it("keeps the last number when a read fails", async () => {
-    homeCount.mockResolvedValue(4);
-    draw(userAs("staff"));
-    await act(async () => {});
-    homeCount.mockResolvedValue(null);
-    await act(async () => {
-      window.dispatchEvent(new Event("heytiff:bell-refresh"));
-    });
-    expect(homeRow().querySelector(".hm-navcount")).toHaveTextContent("4");
+    const home = within(screen.getByRole("navigation", { name: "Places" })).getAllByRole("link")[0]!;
+    expect(home).toHaveAttribute("href", "/dashboard");
+    expect(home.textContent).toBe("Home");
   });
 });

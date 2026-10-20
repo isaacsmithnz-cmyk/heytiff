@@ -257,34 +257,6 @@ export function peopleOf(rows: readonly DocRow[]): { value: string; label: strin
   return names.map((n) => ({ value: n, label: n }));
 }
 
-/* ── the Templates rail ─────────────────────────────────────────────────── */
-
-/** A template, as the rail lists it: its name, a line in grey, or where its
-    approval stands as a word (F-221, F-222). Approve itself is on the
-    template's own page, as today. */
-export type TemplateRailItem = { key: TemplateRailKey; title: string; line: string; state: { text: string; tone: Tone } | null; href: string };
-
-/** The seven, in the board's order, each with the board's short line. The
-    keys are Settings' Templates' own (templates-catalogue.ts). */
-export const TEMPLATE_RAIL = [
-  { key: "swms", title: "SWMS", line: "The steps the crew signs on to" },
-  { key: "certificate", title: "Certificate", line: "What you certify, statement by statement" },
-  { key: "quote", title: "Quote", line: "Notes and payment stages" },
-  { key: "handover", title: "Handover sheet", line: "The checks before handing over" },
-  { key: "project-checklist", title: "Project checklist", line: "Sections every project starts with" },
-  { key: "documents-email", title: "Documents email", line: "The words documents go out with" },
-  { key: "letterhead", title: "Letterhead", line: "Logo, details, footer and signature" },
-] as const;
-export type TemplateRailKey = (typeof TEMPLATE_RAIL)[number]["key"];
-
-/** Where an approved template stands, from Settings' own words for it
-    (approvalStatus): "Approved" in green with the day, anything else orange. */
-export function railState(status: { text: string; tone: "on" | "warn" } | undefined, on: string | null): { text: string; tone: Tone } | null {
-  if (!status) return null;
-  if (status.tone === "on") return { text: on ? `${status.text} ${on}` : status.text, tone: "good" };
-  return { text: status.text, tone: "look" };
-}
-
 /* ── the Updated column ─────────────────────────────────────────────────── */
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

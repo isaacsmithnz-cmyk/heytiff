@@ -1,4 +1,4 @@
-import { looksLikeDesignWords, looksLikeQuestion } from "../intent";
+import { looksLikeDesignWords, looksLikeQuestion, priceIntent } from "../intent";
 
 /* The question/note split. The asymmetry these pin: a false "question" EATS
    A NOTE — the words go to the answer loop and nothing is saved — while a
@@ -117,4 +117,24 @@ describe("a design's words", () => {
   it.each([["remind me to call Jack tomorrow"], ["Lyle has the head on the ute"]])("%j is not", (text) =>
     expect(looksLikeDesignWords(text)).toBe(false),
   );
+});
+
+/* Price now, a task, or ask (Isaac, 21 October 2026). */
+describe("a price", () => {
+  it.each([
+    ["can you give me a price for mitsubishi elec linear zone kit 4 bedrooms wireless sensors"],
+    ["how much would it be to change to a linear zone kit"],
+    ["what would it cost to add a zone"],
+    ["have you got a rough idea for a 7kW split in the study"],
+  ])("%j is a price now", (t) => expect(priceIntent(t)).toBe("price"));
+  it.each([["I need to price up the quote for the Smiths"], ["remind me to price the ducting tomorrow"], ["send the quote for 3209 by Friday"]])(
+    "%j is a task",
+    (t) => expect(priceIntent(t)).toBe("task"),
+  );
+  it("asks when it could be either", () => {
+    expect(priceIntent("I need to get a price for changing to a linear zone kit on this job")).toBe("either");
+  });
+  it("leaves anything without a price in it alone", () => {
+    expect(priceIntent("Lyle has the head on the ute")).toBeNull();
+  });
 });

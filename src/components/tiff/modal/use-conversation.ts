@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { GATHER_MS } from "@/components/ui/dot-field";
 import { askBrain, TIFF_APPLY } from "@/lib/brain/ask-client";
-import { looksLikeDesignWords, looksLikeMove, looksLikeQuestion } from "@/lib/brain/intent";
+import { looksLikeDesignWords, looksLikeMove, looksLikeQuestion, priceIntent } from "@/lib/brain/intent";
 import {
   answerVisit,
   continueNote,
@@ -37,6 +37,7 @@ import { notedLine } from "@/lib/calendar/line";
 import { askLine, calendarRows, lastTiff, planView, tiffSince, withVariationCards, type PlanRowView } from "./plan-view";
 import { quietLimit } from "./quiet";
 import { openRecordByName, type OpenResult } from "@/app/actions/tiff-open";
+import { addQuickPriceToQuote, type AddQuickResult } from "@/app/actions/quick-price";
 import { openName, parseMove } from "@/lib/tiff/moves";
 import type { TiffLanded } from "./tiff-context";
 
@@ -98,7 +99,13 @@ export type Point = { x: number; y: number };
 
 /** `visit`: an answer to "which time?" (the visit lane), sent to
     `answerVisit` rather than as a reply. */
+/* "I need to get a price for…" could be either (lib/brain/intent
+   `priceIntent`): she asks, with the two answers to tap. */
+const PRICE_NOW_LABEL = "Price it now";
+const PRICE_OR_TASK = "Price it now, or make it a task?";
+
 export type QuickAnswer = { label: string; target?: NoteTarget; visit?: { index: number; start: string | null } };
+const PRICE_OR_TASK_ANSWERS: QuickAnswer[] = [{ label: PRICE_NOW_LABEL }, { label: "Make it a task" }];
 
 /** A door under Tiff's line: what a note filed, or what went on the calendar. */
 export type TurnDoor = Omit<NoteDoor, "kind"> & { kind: NoteDoorKind | "events" };
@@ -124,6 +131,8 @@ export type ModalTurn = {
   filed?: boolean;
   /** An ask's answer, still arriving. */
   streaming?: boolean;
+  /** A quick price she worked out, to put on the job's quote, and how that went. */
+  offer?: { value: unknown; state: "ready" | "busy" | "added" | "failed"; said?: string };
 };
 
 /** The turn your words are arriving in. `said` is what they were when you
@@ -290,6 +299,8 @@ export function useConversation({
   const asking = useRef<AbortController | null>(null);
   /** Her last answer asked something, so the next words answer it (1B). */
   const askedBack = useRef(false);
+  /** Words that could be a price now or work for someone, waiting on which. */
+  const priceFork = useRef<{ words: string; source: "voice" | "text"; before: readonly ModalTurn[] } | null>(null);
   const sent = useRef(false);
   const dayAsk = useRef<DayAsk | null>(null);
   const onCalendar = useRef<OnCalendar | null>(null);
@@ -541,12 +552,13 @@ export function useConversation({
     const ctl = new AbortController();
     asking.current = ctl;
     const key = nextKey("tiff");
-    const run: { text: string; shown: boolean; pending: boolean; done: boolean; moveTo: string | null } = {
+    const run: { text: string; shown: boolean; pending: boolean; done: boolean; moveTo: string | null; offer: unknown } = {
       text: "",
       shown: false,
       pending: false,
       done: false,
       moveTo: null,
+      offer: null,
     };
     const on = () => alive.current && !ctl.signal.aborted;
     /* A MOVE LEAVES ONLY ONCE HER LINE IS ON SCREEN, and only once the answer
@@ -562,6 +574,7 @@ export function useConversation({
       tiffSays(run.text || (run.done ? NO_ANSWER : ""), run.done ? "editing" : "answering", {
         key,
         streaming: !run.done,
+        ...(run.offer ? { offer: { value: run.offer, state: "ready" as const } } : {}),
       });
       leaveIfMoving();
     };
@@ -588,6 +601,11 @@ export function useConversation({
         },
         onTool: (label) => {
           if (on() && label.trim()) setDoing(label.trim());
+        },
+        onOffer: (offer) => {
+          if (!on()) return;
+          run.offer = offer;
+          if (run.shown) patchTurn(key, () => ({ offer: { value: offer, state: "ready" } }));
         },
         onApply: (apply) => {
           if (on()) window.dispatchEvent(new CustomEvent(TIFF_APPLY, { detail: apply }));
@@ -737,6 +755,8 @@ export function useConversation({
       note waiting on an answer ("How much was it?" answered with the
       receipt). */
   const submit = (words: string, source: "voice" | "text", before: readonly ModalTurn[], receiptId?: string) => {
+    /* a reply typed over "Price it now, or make it a task?" is read afresh */
+    priceFork.current = null;
     if (calendar) return toCalendar(words, source, before);
     const n = note.current;
     if (n?.waiting) return void reply(n, words, receiptId);
@@ -747,6 +767,13 @@ export function useConversation({
     if (parseMove(words)?.kind === "screen") return ask(words, before, true);
     const onward = () => {
       if (looksLikeMove(words)) return ask(words, before, true);
+      /* a price now goes to her; one that could be work for someone is asked */
+      const price = priceIntent(words);
+      if (price === "price") return ask(words, before);
+      if (price === "either") {
+        priceFork.current = { words, source, before };
+        return settle(() => tiffSays(PRICE_OR_TASK, "asking", { quick: PRICE_OR_TASK_ANSWERS }));
+      }
       if (askedBack.current || looksLikeQuestion(words) || (designOpen && looksLikeDesignWords(words))) return ask(words, before);
       void route(words, source, before);
     };
@@ -973,12 +1000,35 @@ export function useConversation({
   };
 
   /** Her question stands: asked, or asked and listened for. */
+  /** Her quick price onto the job's quote, as an option of its own. */
+  const addOffer = async (turnKey: string) => {
+    const t = turns.find((x) => x.key === turnKey);
+    if (!t?.offer || t.offer.state === "busy" || t.offer.state === "added") return;
+    const value = t.offer.value;
+    patchTurn(turnKey, () => ({ offer: { value, state: "busy" } }));
+    const r = await addQuickPriceToQuote(value).catch((): AddQuickResult => ({ ok: false, error: "That didn't reach the quote. Try again." }));
+    if (!alive.current) return;
+    if (r.ok) changed.current = true;
+    patchTurn(turnKey, () => ({
+      offer: r.ok ? { value, state: "added", said: `On the quote as option ${r.option + 1}` } : { value, state: "failed", said: r.error },
+    }));
+  };
+
   const questionOpen = stage === "asking" || ((stage === "listening" || fixing) && takeFrom === "asking");
 
   /** A quick answer, tapped: a job files straight past its question; a
       person or anything else is a reply. Tapped while she listens for the
       answer, the take goes first. */
   const answer = (q: QuickAnswer) => {
+    const fork = priceFork.current;
+    if (fork) {
+      priceFork.current = null;
+      if (stage !== "asking") clear();
+      listenBack.current = false;
+      addTurn({ who: "you", text: q.label });
+      think();
+      return q.label === PRICE_NOW_LABEL ? ask(fork.words, fork.before) : void route(fork.words, fork.source, fork.before);
+    }
     const n = note.current;
     if (!n || !questionOpen) return;
     if (stage !== "asking") clear();
@@ -1159,6 +1209,7 @@ export function useConversation({
     fix,
     typeInstead,
     questionOpen,
+    addOffer,
     talk,
     answer,
     clearRow,

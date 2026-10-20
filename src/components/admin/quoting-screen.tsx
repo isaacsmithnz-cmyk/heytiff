@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ScreenPanel } from "@/components/shell/screen-band";
+import { Chooser } from "@/components/parts/chooser";
 import { SettingsHead } from "@/components/settings/settings-head";
 import { saveQuoteSettings } from "@/app/actions/quote-settings";
 import { profitSharePct, sellCents, type ComponentKey } from "@/lib/quotes/components";
@@ -417,6 +418,22 @@ export function QuotingScreen({
                     <option value="lines">Each option&apos;s line items and its total</option>
                   </select>
                 </label>
+                {/* Isaac, 2026-10-21: "staff members could potentially give a
+                    customer a price if they are asking for something while on
+                    site" */}
+                <div className="qs-field">
+                  <span>A rough price from Tiff, on site</span>
+                  <Chooser
+                    aria-label="A rough price from Tiff, on site"
+                    options={[
+                      { value: "prices", label: "Only for people who see prices" },
+                      { value: "anyone", label: "For anyone on a job, as a rounded price" },
+                    ]}
+                    value={saved.staffRoughPrice ? "anyone" : "prices"}
+                    disabled={busy}
+                    onChange={(v) => void save({ ...saved, staffRoughPrice: v === "anyone" }, "Saved")}
+                  />
+                </div>
               </div>
             </section>
 

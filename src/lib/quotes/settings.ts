@@ -32,6 +32,11 @@ export type QuoteSettings = {
   /** whether a quote shows the customer its line items unless it says
       otherwise; false: each option's total only (Isaac, 2026-10-05) */
   showLines: boolean;
+  /** whether anyone on a job may ask Tiff for a rough price to say to a
+      customer, a rounded range inc GST with no cost or markup in it; false:
+      only people who see the business's prices (Isaac, 2026-10-21: "staff
+      members could potentially give a customer a price… while on site") */
+  staffRoughPrice: boolean;
   /** the share of a quote's price the business means to keep as profit,
       percent; null: not set, and no quote is checked against one (Isaac,
       2026-10-07: "if it's over then great, if it's under it needs a
@@ -111,6 +116,7 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   allowances: { consumables: null, newCircuit: null, flush: null, recovery: null },
   usualLayout: null,
   showLines: false,
+  staffRoughPrice: false,
   profitTargetPct: null,
   labourCostCents: null,
   taskHours: { zone: null, grille: null, metre: null, visit: null },
@@ -207,6 +213,7 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
     allowances: allowancesOf(r),
     usualLayout: ((v: unknown) => (v === "trunks" || v === "plenum" ? v : null))(r.usual_layout ?? r.usualLayout),
     showLines: (r.show_lines ?? r.showLines) === true,
+    staffRoughPrice: (r.staff_rough_price ?? r.staffRoughPrice) === true,
     profitTargetPct: clampTo(r.profit_target_pct ?? r.profitTargetPct, 0, MAX_PROFIT_TARGET_PCT) ?? d.profitTargetPct,
     labourCostCents: chargeOutOf(r.labour_cost_cents ?? r.labourCostCents) ?? d.labourCostCents,
     taskHours: taskHoursOf(r.task_hours ?? r.taskHours),
@@ -231,6 +238,7 @@ export function quoteSettingsRow(s: QuoteSettings) {
     ...Object.fromEntries(ALLOWANCE_KEYS.map((k) => [ALLOWANCES[k].column, s.allowances[k]])),
     usual_layout: s.usualLayout,
     show_lines: s.showLines,
+    staff_rough_price: s.staffRoughPrice,
     profit_target_pct: s.profitTargetPct,
     labour_cost_cents: s.labourCostCents,
     task_hours: s.taskHours,

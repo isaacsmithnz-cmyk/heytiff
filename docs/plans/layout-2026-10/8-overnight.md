@@ -42,7 +42,7 @@ Nothing here is on main or in production. `v1.0.0` is today's app, tagged. Every
 In this order, each one a step Isaac says yes to:
 
 1. **Isaac's look** at Schedule and Design on the branch (the boards' calls stand as recommended unless he says otherwise).
-2. **The four migrations**, each only adding to the database, so v2 works before them and the old app keeps working after them:
+2. **The four migrations**: APPLIED to production on 20 October on Isaac's yes, and checked (three tables with row-level security on, the tasks column). Each only adds, so the old app runs on them:
    - `docs/migrations/nav_pins.sql` (Pinned in the sidebar);
    - `docs/migrations/tiff_threads.sql` (Conversations);
    - `docs/migrations/tasks_job.sql` (a task on a job);

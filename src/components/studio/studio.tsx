@@ -104,6 +104,7 @@ import { suggestedRooms, withChecks, type PlanReading } from "@/lib/studio/readi
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
 import { DesignHome } from "./home";
+import { RoomsFromPlan } from "./rooms-from-plan";
 import "./studio.css";
 
 /* The sim flag never changes after load, so there is nothing to subscribe to —
@@ -743,10 +744,9 @@ export function Studio({
                 await getStore().save(d);
                 return d;
               }, openDesign);
-              /* Tiff reads the plans once the Rooms page can show what she
-                 read; until then a read is paid for and never seen (Isaac,
-                 20 October: off for the launch). A test hands its own reader. */
-              if (planReader || process.env.NEXT_PUBLIC_STUDIO_READING === "1") void readPlans(d.id);
+              /* Tiff reads the plans while the floors are calibrated; the
+                 Rooms page shows what she read once a floor has its scale */
+              void readPlans(d.id);
             }}
             onOpen={(id) =>
               throughSwap(
@@ -984,6 +984,8 @@ function Editor({
      "Set north" step modal. */
   const [calibPrompt, setCalibPrompt] = useState(false);
   const [northPrompt, setNorthPrompt] = useState(false);
+  /* the Rooms page: the floor whose rooms Tiff read, open over the canvas */
+  const [roomsFor, setRoomsFor] = useState<string | null>(null);
   const promptedFloors = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (step !== 1 || !activeFloorId) return;
@@ -1520,6 +1522,12 @@ function Editor({
                 {saveState === "saving" ? "Saving the design" : "Saved"}
               </span>
             )}
+            {step === 1 && activeFloor?.scaleMmPerUnit != null && doc.reading?.floors[activeFloor.id]?.length ? (
+              <button type="button" className="ds-save ds-reading read ds-reading-open" onClick={() => setRoomsFor(activeFloor.id)}>
+                <span className="dot" />
+                Rooms Tiff found
+              </button>
+            ) : null}
             {reading && (
               <span className={`ds-save ds-reading ${reading.state}`} role="status">
                 <span className="dot" />
@@ -1665,8 +1673,14 @@ function Editor({
             legendOpen={legendOpen}
             onLegend={setLegendOpen}
             onCalibrated={() => {
-              const f = docRef.current.floors.find((x) => x.id === activeFloorId);
-              if (f && !f.northPos) setNorthPrompt(true);
+              const d = docRef.current;
+              const f = d.floors.find((x) => x.id === activeFloorId);
+              /* her rooms first, once the floor has a scale to measure them by,
+                 unless they're on it already */
+              const read = f ? d.reading?.floors[f.id] : undefined;
+              const placed = f ? d.objects.some((o) => o.type === "room" && o.floorId === f.id && o.props.fromReading) : false;
+              if (f && read?.length && !placed) setRoomsFor(f.id);
+              else if (f && !f.northPos) setNorthPrompt(true);
             }}
           />
         )}
@@ -1852,6 +1866,32 @@ function Editor({
           }}
         />
       )}
+
+      {roomsFor && (() => {
+        const f = doc.floors.find((x) => x.id === roomsFor);
+        const read = doc.reading?.floors[roomsFor];
+        if (!f || !read?.length) return null;
+        const close = () => {
+          setRoomsFor(null);
+          if (!f.northPos) setNorthPrompt(true);
+        };
+        return (
+          <RoomsFromPlan
+            doc={doc}
+            floor={f}
+            sheets={read}
+            planImages={planImages}
+            onClose={close}
+            onDone={(rooms) => {
+              onMutate((d) => {
+                /* numbered after the rooms already on the plan, as a drawn one is */
+                return { ...d, objects: [...d.objects, ...rooms] };
+              });
+              close();
+            }}
+          />
+        );
+      })()}
 
       {northPrompt && activeFloor && !activeFloor.northPos && (
         <StepPrompt

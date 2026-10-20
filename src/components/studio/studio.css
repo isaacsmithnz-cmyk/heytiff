@@ -1558,6 +1558,29 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-save.retry:active {
   background: var(--warn-tint);
 }
+/* "Rooms Tiff found": the way back to the Rooms page, in the save line's
+   type, a button that earns its edge on hover like the retry beside it */
+.dstudio .ds-save.ds-reading-open {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-left: -6px;
+  padding: 4px 8px 4px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--r-button);
+  background: none;
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-save.ds-reading-open:hover,
+.dstudio .ds-save.ds-reading-open:focus-visible {
+  border-color: var(--edge);
+  outline: none;
+}
+.dstudio .ds-save.ds-reading-open .dot {
+  background: var(--press);
+}
 .dstudio .ds-tbbtn {
   display: inline-flex;
   align-items: center;
